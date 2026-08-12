@@ -537,9 +537,9 @@ export default function DataHealthPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <label className="inline-flex items-center gap-1.5 text-xs text-foreground cursor-pointer select-none">
+        <label className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-foreground cursor-pointer select-none hover:bg-muted">
           <input
             type="checkbox"
             checked={unexplainedOnly}
@@ -551,14 +551,14 @@ export default function DataHealthPage() {
             }}
             className="rounded border-border"
           />
-          Unexplained only (hide auto-tolerated)
+          Unexplained only
         </label>
 
 
         <select
           value={severity}
           onChange={(e) => setSeverity(e.target.value)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
         >
           <option value="all">All severities</option>
           <option value="critical">Critical</option>
@@ -569,13 +569,16 @@ export default function DataHealthPage() {
         <select
           value={systemPair}
           onChange={(e) => setSystemPair(e.target.value)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-sm text-foreground"
+          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
         >
           <option value="all">All system pairs</option>
           <option value="hrms_razorpay">HRMS ↔ Razorpay</option>
           <option value="hrms_essl">HRMS ↔ eSSL</option>
           <option value="razorpay_essl">Razorpay ↔ eSSL</option>
         </select>
+        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          {filtered.length}/{kpis.total}
+        </span>
       </div>
 
       {/* Rows */}
@@ -583,17 +586,18 @@ export default function DataHealthPage() {
         {isLoading ? (
           <div className="p-8 text-center text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-            Loading drifts…
+            Loading…
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
+          <div className="p-10 text-center text-sm text-muted-foreground">
             <CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />
-            No open drifts. All three systems are in sync.
+            In sync
           </div>
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((d) => (
-              <div key={d.id} className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3">
+              <div key={d.id} className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 transition-colors hover:bg-muted/40">
+
                 <div className="space-y-1.5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${SEVERITY_STYLE[d.severity]}`}>

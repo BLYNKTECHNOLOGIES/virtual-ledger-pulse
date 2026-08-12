@@ -52,6 +52,7 @@ function esc(s: string) {
 
 const BRAND = {
   logo: "https://erp.blynkex.com/__l5e/assets-v1/2ac6088a-a0a4-4047-8220-03319fe0ec29/blynk-wordmark.png",
+  icon: "https://erp.blynkex.com/__l5e/assets-v1/c00f9f89-c953-47f0-893c-f1c7540fb140/blynk-icon.png",
   blue: "#00AEEF",
   ink: "#0B1524",
   hrName: "Honey Sewani",

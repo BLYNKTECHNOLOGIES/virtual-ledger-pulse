@@ -489,9 +489,6 @@ export default function DataHealthPage() {
                   Statutory filing drift — {statutoryDrift.count} mismatch{statutoryDrift.count === 1 ? "" : "es"} across {statutoryDrift.employees} employee{statutoryDrift.employees === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Imported Razorpay payslips show amounts for TDS / PF / ESI / PT while the compliance mirror says Razorpay isn't filing them — you must remit those manually or enable the filing in Compliance Settings.
-              </p>
               <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
                 {statutoryDrift.samples.slice(0, 3).map((s: any) => (
                   <li key={s.id}>

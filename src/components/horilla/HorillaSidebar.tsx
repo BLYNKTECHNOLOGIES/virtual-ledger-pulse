@@ -329,10 +329,16 @@ export function HorillaSidebar({
                   <div
                     key={item.label}
                     className="relative"
-                    onMouseEnter={() => !isMobile && collapsed && setHoveredItem(item.label)}
+                    onMouseEnter={() => {
+                      if (!isMobile && collapsed) setHoveredItem(item.label);
+                      // Hover = intent: warm this section's chunks up front.
+                      prefetch(item.path);
+                      item.children?.slice(0, 4).forEach((c) => prefetch(c.path));
+                    }}
                     onMouseLeave={() => !isMobile && collapsed && setHoveredItem(null)}
                   >
                     <button
+                      onFocus={() => prefetch(item.path)}
                       onClick={() => {
                         if (hasChildren && !collapsed) {
                           toggleExpand(item.label);

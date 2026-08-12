@@ -12,7 +12,12 @@
  * is a no-op.
  */
 
-const pageLoaders = import.meta.glob("/src/pages/horilla/*.tsx");
+// HRMS pages are split across two folders — the Horilla shell pages and the
+// payroll/ops pages under pages/hr — so both are registered here.
+const pageLoaders: Record<string, () => Promise<unknown>> = {
+  ...import.meta.glob("/src/pages/horilla/*.tsx"),
+  ...import.meta.glob("/src/pages/hr/*.tsx"),
+};
 
 /** Route path (exact) → page module base name. */
 const ROUTE_MODULE: Record<string, string> = {

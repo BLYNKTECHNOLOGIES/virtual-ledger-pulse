@@ -731,16 +731,29 @@ export default function DataHealthPage() {
                     </button>
                   )}
                   {ESSL_PUSHABLE_FIELDS.has(d.field) && (
-
-                    <button
-                      disabled={resolvingId === d.id}
-                      onClick={() => adoptEssl(d)}
-                      title="Queues DATA UPDATE USERINFO on every registered device. Applies on next poll (30–60s)."
-                      className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
-                    >
-                      {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                      Push → eSSL device
-                    </button>
+                    (() => {
+                      // eSSL firmware has no "inactive" user state — the only
+                      // roster action is DELETE USERINFO. Safe for payroll:
+                      // punches live in hr_attendance_punches keyed to the HRMS
+                      // employee (device-user rows are a mirror), so removing
+                      // the device user never retracts attendance history.
+                      const removal = d.field === "active_state" && !d.is_active;
+                      return (
+                        <button
+                          disabled={resolvingId === d.id}
+                          onClick={() => (removal ? setEsslDeleteTarget(d) : adoptEssl(d))}
+                          title={
+                            removal
+                              ? "Queues DATA DELETE USERINFO on every device. Attendance history stays in HRMS."
+                              : "Queues DATA UPDATE USERINFO on every registered device. Applies on next poll (30–60s)."
+                          }
+                          className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
+                        >
+                          {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          {removal ? "Remove from eSSL device" : "Push → eSSL device"}
+                        </button>
+                      );
+                    })()
                   )}
                   <button
                     disabled={resolvingId === d.id}

@@ -19,6 +19,10 @@ import {
   dismissInRazorpay,
 } from "@/lib/razorpayPushback";
 import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
 import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";

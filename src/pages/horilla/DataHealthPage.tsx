@@ -704,13 +704,7 @@ export default function DataHealthPage() {
         )}
       </div>
 
-      <p className="text-[11px] text-muted-foreground">
-        Only intersecting fields that exist in at least two systems are compared. Bank
-        account and IFSC pushes to Razorpay require the salary/bank-push endpoint gate to
-        be enabled in Razorpay settings — otherwise the drift will re-appear at the next scan.
-        "Pull ← Razorpay" writes the RazorpayX value into HRMS instead, re-reading it live
-        from RazorpayX at confirm time and logging the adoption for audit.
-      </p>
+
 
       <PullFromRazorpayDialog
         target={pullTarget}

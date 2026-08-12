@@ -515,7 +515,10 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       const selectedMethod = isMultiplePayments ? null : paymentMethods.find((m: any) => m.id === paymentMethodId);
       const isGateway = isMultiplePayments ? false : Boolean(selectedMethod?.payment_gateway);
 
-      const orderNumber = `SO-TRM-${od.order_number?.slice(-12) || Date.now()}`;
+      // Use the FULL Binance order number — truncating to the last 12 digits caused
+      // real collisions (e.g. 22919013709802323968 vs 22920798709802323968 both end
+      // in 709802323968) and surfaced as a false "Duplicate Entry" on approval.
+      const orderNumber = `SO-TRM-${od.order_number || syncRecord.binance_order_number || Date.now()}`;
       // Convert Binance create_time to IST date string to avoid UTC date truncation
       // (e.g., Mar 9 01:55 IST = Mar 8 20:25 UTC → stored as Mar 8 if using UTC)
       const orderDate = od.create_time

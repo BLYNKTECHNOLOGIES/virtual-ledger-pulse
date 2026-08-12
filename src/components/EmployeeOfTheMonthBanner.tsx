@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X, ChevronRight, Sparkles, Star } from "lucide-react";
 import badgeAsset from "@/assets/sabeel-khan-eom-badge.png.asset.json";
+import posterAsset from "@/assets/sabeel-khan-eom-poster.jpeg.asset.json";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 /** Bump this key whenever a new Employee of the Month is announced. */
@@ -125,11 +126,11 @@ export function EmployeeOfTheMonthBanner() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md overflow-hidden p-0">
+        <DialogContent className="max-w-lg overflow-hidden border-0 bg-transparent p-0 shadow-none">
           <img
-            src={badgeAsset.url}
+            src={posterAsset.url}
             alt="Employee of the Month July 2026 — Sabeel Khan"
-            className="h-auto w-full"
+            className="h-auto w-full rounded-xl"
           />
         </DialogContent>
       </Dialog>

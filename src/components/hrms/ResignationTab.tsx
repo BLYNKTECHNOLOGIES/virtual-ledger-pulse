@@ -269,28 +269,46 @@ export function ResignationTab() {
       // ERP login deactivation — the ERP ID must not survive the separation.
       await deactivateErpAccount(employeeId);
 
-      // Razorpay dismissal — set date-of-dismissal so FNF payroll can be
-      // processed on their side too. Non-fatal: local separation is committed.
-      // We use last_working_day (fallback: notice_period_end_date, then today).
+      // Razorpay dismissal — the Date of Dismissal is ALWAYS the employee's last
+      // working day. Only when no LWD is recorded do we fall back to the notice
+      // period end. Non-fatal: local separation is already committed.
       const dismissalDate =
         (empData?.last_working_day as string | undefined) ||
         (empData?.notice_period_end_date as string | undefined) ||
-        new Date().toISOString().split("T")[0];
-      await dismissInRazorpay(employeeId, {
-        dateOfDismissal: dismissalDate,
-        reason: (empData?.separation_reason as string | undefined) || "Resignation",
-      });
+        null;
+      let dismissal: { ok: boolean; skipped?: boolean; manualRequired?: boolean; error?: string } | null = null;
+      if (!dismissalDate) {
+        dismissal = { ok: false, error: "No last working day on record — set it, then dismiss in RazorpayX." };
+      } else {
+        try {
+          dismissal = await dismissInRazorpay(employeeId, {
+            dateOfDismissal: dismissalDate,
+            reason: (empData?.separation_reason as string | undefined) || "Resignation",
+            triggeredFrom: "separation_flow",
+          });
+        } catch (e: any) {
+          dismissal = { ok: false, error: e?.message || "RazorpayX dismissal failed" };
+        }
+      }
+
 
       // eSSL: remove the user from every biometric device so they can no longer
       // punch attendance. Non-fatal: local separation is committed either way.
       await deleteFromEssl(employeeId, { triggeredFrom: "resignation", silent: true });
 
 
-      return { ...empData, fnf: fnfSummary };
+      return { ...empData, fnf: fnfSummary, dismissal, dismissalDate };
 
     },
-    onSuccess: (empData) => {
+    onSuccess: (empData: any) => {
       toast.success("Resignation completed — employee deactivated");
+      const d = empData?.dismissal;
+      if (d && !d.ok && !d.skipped) {
+        toast.warning(d.error || "RazorpayX dismissal needs manual action.");
+      } else if (d?.ok && empData?.dismissalDate) {
+        toast.success(`Dismissed in RazorpayX with LWD ${new Date(empData.dismissalDate).toLocaleDateString()}`);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowChecklistDialog(false);

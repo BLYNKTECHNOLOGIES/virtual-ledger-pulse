@@ -87,6 +87,18 @@ export default function FnFSettlementPage() {
     },
   });
 
+  // An employee can hold only ONE live settlement (cancelled ones free the slot,
+  // matching the DB's partial unique index). Those employees are not offered for
+  // a new settlement — their existing record is edited instead.
+  const settledEmployeeIds = new Set(
+    settlements.filter((s: any) => s.status !== "cancelled").map((s: any) => s.employee_id)
+  );
+  const selectableEmployees = separatedEmployees.filter(
+    (e: any) => !settledEmployeeIds.has(e.id) || e.id === selectedEmpId
+  );
+  const allSettled = separatedEmployees.length > 0 && selectableEmployees.length === 0 && !editingId;
+  const EDITABLE_STATUSES = ["draft", "calculated"];
+
   // Payroll doctrine: RazorpayX is the payroll authority.
   //  • Pending (final-month) salary  → mirrored RazorpayX payslip record for the LWD month.
   //                                     Never computed locally. Missing ⇒ "awaiting RazorpayX".

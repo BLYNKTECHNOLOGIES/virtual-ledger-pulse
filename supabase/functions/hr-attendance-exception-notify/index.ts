@@ -96,6 +96,9 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
   ].join("");
 
   const subject = `Attendance Notice: ${label} — ${shortDate(d.attendanceDate)}`;
+  // Unique trailing token: prevents Gmail from collapsing the identical footer
+  // of successive notices behind the "..." trimmed-content toggle.
+  const noticeRef = `${d.attendanceDate.replace(/-/g, "")}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
   const rawHtml = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
@@ -128,11 +131,11 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
                 <tr><td valign="top" style="padding:0 6px 0 0;font-weight:700;color:${BRAND.ink};">A:</td><td valign="top" style="padding:0;">${BRAND.company}, ${BRAND.address}</td></tr>
               </table></td>
             </tr></table>
+            <div style="margin-top:10px;font-size:10px;color:#94a3b8;">Automated notice &middot; Ref ${esc(noticeRef)}</div>
           </div>
         </td>
       </tr>
     </table>
-    <p style="margin:12px 6px 0;font-size:10.5px;color:#94a3b8;line-height:1.5;text-align:center;">Automated notice sent 24 hours after the day was marked. &copy; ${new Date().getFullYear()} ${BRAND.company}</p>
   </div>
 </body></html>`;
 
@@ -147,7 +150,8 @@ If this is incorrect, raise an Attendance Regularization Request in the ERP: ${R
 
 ${BRAND.hrName} | ${BRAND.hrTitle}
 M: ${BRAND.hrPhone} | E: ${BRAND.hrEmail}
-${BRAND.company}, ${BRAND.address}`;
+${BRAND.company}, ${BRAND.address}
+Ref ${noticeRef}`;
 
   return { subject, html, text };
 }

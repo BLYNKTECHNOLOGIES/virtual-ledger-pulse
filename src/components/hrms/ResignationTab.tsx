@@ -297,11 +297,18 @@ export function ResignationTab() {
       await deleteFromEssl(employeeId, { triggeredFrom: "resignation", silent: true });
 
 
-      return { ...empData, fnf: fnfSummary };
+      return { ...empData, fnf: fnfSummary, dismissal, dismissalDate };
 
     },
-    onSuccess: (empData) => {
+    onSuccess: (empData: any) => {
       toast.success("Resignation completed — employee deactivated");
+      const d = empData?.dismissal;
+      if (d && !d.ok && !d.skipped) {
+        toast.warning(d.error || "RazorpayX dismissal needs manual action.");
+      } else if (d?.ok && empData?.dismissalDate) {
+        toast.success(`Dismissed in RazorpayX with LWD ${new Date(empData.dismissalDate).toLocaleDateString()}`);
+      }
+
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
       setShowChecklistDialog(false);

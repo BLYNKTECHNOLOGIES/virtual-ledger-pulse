@@ -55,7 +55,7 @@ import AttendanceTab from '@/components/profile/AttendanceTab';
 import MyAssetsTab from '@/components/profile/MyAssetsTab';
 import MyLoansCard from '@/components/profile/MyLoansCard';
 import OrgLeaveCalendarCard from '@/components/profile/OrgLeaveCalendarCard';
-import NotificationSettingsTab from '@/components/profile/NotificationSettingsTab';
+import PayslipsTab from '@/components/profile/PayslipsTab';
 import MyRequestsHub from '@/components/profile/MyRequestsHub';
 import TeamLeaveApprovals from '@/components/profile/TeamLeaveApprovals';
 import TeamRegularizationApprovals from '@/components/profile/TeamRegularizationApprovals';
@@ -1177,8 +1177,6 @@ export default function UserProfile() {
           <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
           <TabsTrigger value="growth" className="shrink-0">Growth</TabsTrigger>
           <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
-          
-          <TabsTrigger value="notifications" className="shrink-0">Alerts</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
 
@@ -1623,15 +1621,6 @@ export default function UserProfile() {
             <NoEmployeeProfile />
           ) : (
             <AttendanceTab employeeId={hrEmployee.id} />
-          )}
-        </TabsContent>
-
-        {/* ═══════ Notifications Tab ═══════ */}
-        <TabsContent value="notifications" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <NotificationSettingsTab employeeId={hrEmployee.id} />
           )}
         </TabsContent>
 

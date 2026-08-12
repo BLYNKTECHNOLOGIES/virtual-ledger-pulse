@@ -656,23 +656,66 @@ export function ResignationTab() {
             <p className="text-sm text-muted-foreground">{completedCount}/{totalCount} items completed</p>
           </DialogHeader>
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {checklist?.map(item => (
+            {checklist?.map(item => {
+              const t = item.item_title.toLowerCase();
+              const isFnf = t.includes("full & final") || t.includes("full and final");
+              const isAccess = t.includes("access revoked") || t.includes("erp");
+              return (
               <div key={item.id} className="flex items-start gap-3 p-2 rounded border">
                 <Checkbox
                   checked={item.is_completed}
                   onCheckedChange={(checked) => toggleChecklist.mutate({ id: item.id, is_completed: !!checked })}
                   className="mt-0.5"
                 />
-                <div className="flex-1">
+                <div className="flex-1 min-w-0">
                   <span className={`text-sm ${item.is_completed ? "line-through text-muted-foreground" : ""}`}>
                     {item.item_title}
                   </span>
                   {item.completed_at && (
                     <p className="text-xs text-muted-foreground">Done: {new Date(item.completed_at).toLocaleDateString()}</p>
                   )}
+                  {isFnf && (
+                    <div className="mt-1.5">
+                      {fnfForEmployee ? (
+                        <p className="text-xs text-muted-foreground">
+                          Settlement <span className="font-medium">{fnfForEmployee.status}</span> · Net ₹{Number(fnfForEmployee.net_payable || 0).toLocaleString("en-IN")} — manage it in Full &amp; Final Settlement
+                        </p>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={createFnFFromChecklist.isPending}
+                          onClick={() => createFnFFromChecklist.mutate()}
+                        >
+                          {createFnFFromChecklist.isPending ? "Creating…" : "Create F&F settlement"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {isAccess && (
+                    <div className="mt-1.5">
+                      {erpAccount?.userId == null ? (
+                        <p className="text-xs text-muted-foreground">No ERP login linked to this employee</p>
+                      ) : erpAccount.status !== "ACTIVE" ? (
+                        <p className="text-xs text-muted-foreground">ERP ID is {String(erpAccount.status).toLowerCase()}</p>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={deactivateErp.isPending}
+                          onClick={() => deactivateErp.mutate()}
+                        >
+                          {deactivateErp.isPending ? "Deactivating…" : "Deactivate ERP ID"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
-            ))}
+            );})}
+
           </div>
           <DialogFooter>
             <Button

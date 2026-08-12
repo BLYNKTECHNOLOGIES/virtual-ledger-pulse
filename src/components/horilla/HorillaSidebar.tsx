@@ -373,10 +373,12 @@ export function HorillaSidebar({
                     {!collapsed && hasChildren && expanded && (
                       <div className="mt-0.5 ml-6 space-y-0.5 border-l border-[#2a2a40] pl-3">
                         {item.children!.map((child) => {
-                          const childActive = location.pathname === child.path;
+                          const childActive = isChildActive(child.path);
                           return (
                             <button
                               key={child.path}
+                              onMouseEnter={() => prefetch(child.path)}
+                              onFocus={() => prefetch(child.path)}
                               onClick={() => handleNavigate(child.path)}
                               className={cn(
                                 "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",

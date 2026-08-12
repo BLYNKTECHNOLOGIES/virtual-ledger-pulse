@@ -50,6 +50,8 @@ type Drift = {
   auto_status?: "open" | "auto_dismissed" | "auto_labeled" | null;
   auto_reason?: string | null;
   merged_note?: string | null;
+};
+
 
 
 // Alerts raised by a FAILED push (not by the 3-way scanner) carry no

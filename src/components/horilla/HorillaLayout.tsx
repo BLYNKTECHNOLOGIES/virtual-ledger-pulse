@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { HorillaSidebar } from "./HorillaSidebar";
 import { HorillaHeader } from "./HorillaHeader";
+import { HrmsRouteFallback } from "./HrmsRouteFallback";
+import { RouteProgressBar } from "./RouteProgressBar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RazorpayPushFeedbackProvider } from "@/components/hrms/RazorpayPushFeedbackProvider";
 

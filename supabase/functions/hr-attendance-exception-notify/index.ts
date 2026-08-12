@@ -418,6 +418,9 @@ Deno.serve(async (req) => {
       if (!emp) { skip("employee_missing"); continue; }
       if (!emp.is_active) { skip("inactive"); continue; }
       if (!emp.email) { skip("no_email"); continue; }
+      // Permanent staff only (unset type defaults to permanent, matching HRMS vocabulary).
+      const empType = typeMap.get(d.employee_id) ?? "permanent";
+      if (empType !== "permanent") { skip("non_permanent_employee"); continue; }
       // Separated staff: nothing after the last working day.
       if (emp.last_working_day && d.attendance_date > emp.last_working_day) { skip("post_lwd"); continue; }
       if (regKeys.has(key)) { skip("regularization_raised"); continue; }

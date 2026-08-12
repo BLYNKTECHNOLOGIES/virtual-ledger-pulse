@@ -399,6 +399,71 @@ export function ResignationTab() {
   const completedCount = checklist?.filter(c => c.is_completed).length || 0;
   const totalCount = checklist?.length || 0;
 
+  // ── In-checklist exit actions: ERP ID deactivation + F&F creation ──────────
+  const { data: erpAccount, refetch: refetchErpAccount } = useQuery({
+    queryKey: ["resignation-erp-account", selectedEmployee?.id],
+    queryFn: async () => (selectedEmployee ? getErpAccountStatus(selectedEmployee.id) : { userId: null, status: null }),
+    enabled: !!selectedEmployee,
+  });
+
+  const { data: fnfForEmployee, refetch: refetchFnf } = useQuery({
+    queryKey: ["resignation-fnf", selectedEmployee?.id],
+    queryFn: async () => {
+      if (!selectedEmployee) return null;
+      const { data } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .select("id, status, net_payable")
+        .eq("employee_id", selectedEmployee.id)
+        .neq("status", "cancelled")
+        .maybeSingle();
+      return data || null;
+    },
+    enabled: !!selectedEmployee,
+  });
+
+  // Ticks the checklist item whose title matches, once its action is done.
+  const markChecklistItem = async (matcher: (title: string) => boolean) => {
+    const item = (checklist || []).find(c => matcher(c.item_title.toLowerCase()));
+    if (item && !item.is_completed) {
+      await supabase
+        .from("hr_resignation_checklist")
+        .update({ is_completed: true, completed_at: new Date().toISOString() })
+        .eq("id", item.id);
+      refetchChecklist();
+    }
+  };
+
+  const deactivateErp = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployee) throw new Error("No employee selected");
+      const res = await deactivateErpAccount(selectedEmployee.id);
+      if (!res.deactivated) throw new Error(res.reason || "Could not deactivate ERP account");
+      await markChecklistItem(t => t.includes("access revoked") || t.includes("erp"));
+    },
+    onSuccess: () => {
+      toast.success("ERP ID deactivated — the employee can no longer sign in");
+      refetchErpAccount();
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const createFnFFromChecklist = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployee) throw new Error("No employee selected");
+      const res = await createFnFDraft(selectedEmployee.id, selectedEmployee.last_working_day || null);
+      await markChecklistItem(t => t.includes("full & final") || t.includes("full and final"));
+      return res;
+    },
+    onSuccess: (res) => {
+      toast.success(res.existed ? "F&F settlement already exists — linked to this exit" : "F&F settlement draft created");
+      refetchFnf();
+      queryClient.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">

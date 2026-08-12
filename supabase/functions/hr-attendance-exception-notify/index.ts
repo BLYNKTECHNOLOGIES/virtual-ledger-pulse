@@ -100,7 +100,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
 
     <!-- Brand header -->
     <div style="background:#ffffff;border:1px solid #e6ecf3;border-bottom:none;border-radius:14px 14px 0 0;padding:22px 26px 18px;">
-      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="200" style="display:block;width:200px;max-width:64%;height:auto;border:0;" />
+      <img src="${BRAND.logo}" alt="Blynk Virtual Technologies" width="150" style="display:block;width:150px;max-width:52%;height:auto;border:0;" />
     </div>
     <div style="height:3px;background:${BRAND.blue};"></div>
 

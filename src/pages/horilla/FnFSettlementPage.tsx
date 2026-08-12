@@ -254,10 +254,13 @@ export default function FnFSettlementPage() {
   const statusBadge = (s: string) => {
     const map: Record<string, string> = {
       draft: "bg-muted/80 text-muted-foreground border-border",
+      calculated: "bg-warning/10 text-warning border-warning/20",
       pending_approval: "bg-warning/10 text-warning border-warning/20",
       approved: "bg-info/10 text-info border-info/20",
+      cancelled: "bg-destructive/10 text-destructive border-destructive/20",
       paid: "bg-success/10 text-success border-success/20",
     };
+
     return map[s] || "bg-muted/80 text-muted-foreground border-border";
   };
 

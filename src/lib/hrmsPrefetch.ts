@@ -108,7 +108,9 @@ const started = new Set<string>();
 export function prefetchHrmsRoute(path: string): void {
   const moduleName = ROUTE_MODULE[path];
   if (!moduleName || started.has(moduleName)) return;
-  const loader = pageLoaders[`/src/pages/horilla/${moduleName}.tsx`];
+  const loader =
+    pageLoaders[`/src/pages/horilla/${moduleName}.tsx`] ??
+    pageLoaders[`/src/pages/hr/${moduleName}.tsx`];
   if (!loader) return;
   started.add(moduleName);
   // Fire and forget — a failed prefetch must never surface to the user; the

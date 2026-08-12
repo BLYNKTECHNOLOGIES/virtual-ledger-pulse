@@ -311,8 +311,26 @@ serve(async (req) => {
     let refreshed = 0;
     let refreshFailed = 0;
 
+    // ROOT CAUSE (2026-08-12): a dashboard dismissal for an HRMS-inactive person
+    // stayed invisible for up to max_age_hours, so the card kept claiming
+    // "RAZORPAY: active" after the owner had already dismissed them. Separation
+    // state is the one verdict we must never assert from cache: force a fresh
+    // pull for every HRMS-inactive employee and for anyone still carrying an
+    // open active_state / dismissal_state alert.
+    const inactiveEmpIds = new Set(
+      (employees ?? []).filter((e: any) => e.is_active === false).map((e: any) => e.id),
+    );
+    const { data: openSepAlerts } = await supa
+      .from("hr_drift_alerts")
+      .select("hr_employee_id")
+      .in("hr_employee_id", empIds)
+      .in("field", ["active_state", "dismissal_state"])
+      .is("resolved_at", null);
+    for (const a of openSepAlerts ?? []) inactiveEmpIds.add((a as any).hr_employee_id);
+
     const needsRefresh = mapRows.filter((r: any) => {
       if (!r.razorpay_employee_id) return false;
+      if (inactiveEmpIds.has(r.hr_employee_id)) return true;
       const pulled = r.last_pulled_at ? Date.parse(r.last_pulled_at) : 0;
       return !r.last_pull_snapshot || !pulled || pulled < staleCutoff;
     }).slice(0, refreshLimit);

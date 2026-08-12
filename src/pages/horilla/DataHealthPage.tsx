@@ -19,6 +19,10 @@ import {
   dismissInRazorpay,
 } from "@/lib/razorpayPushback";
 import { pushIdentityToEssl, deleteFromEssl } from "@/lib/esslPushback";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/useComplianceSettings";
 import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
@@ -123,6 +127,7 @@ export default function DataHealthPage() {
   const [scanSignal, setScanSignal] = useState(0);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [pullTarget, setPullTarget] = useState<PullTarget | null>(null);
+  const [esslDeleteTarget, setEsslDeleteTarget] = useState<Drift | null>(null);
   const [pulling, setPulling] = useState(false);
 
 
@@ -731,16 +736,29 @@ export default function DataHealthPage() {
                     </button>
                   )}
                   {ESSL_PUSHABLE_FIELDS.has(d.field) && (
-
-                    <button
-                      disabled={resolvingId === d.id}
-                      onClick={() => adoptEssl(d)}
-                      title="Queues DATA UPDATE USERINFO on every registered device. Applies on next poll (30–60s)."
-                      className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
-                    >
-                      {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                      Push → eSSL device
-                    </button>
+                    (() => {
+                      // eSSL firmware has no "inactive" user state — the only
+                      // roster action is DELETE USERINFO. Safe for payroll:
+                      // punches live in hr_attendance_punches keyed to the HRMS
+                      // employee (device-user rows are a mirror), so removing
+                      // the device user never retracts attendance history.
+                      const removal = d.field === "active_state" && !d.is_active;
+                      return (
+                        <button
+                          disabled={resolvingId === d.id}
+                          onClick={() => (removal ? setEsslDeleteTarget(d) : adoptEssl(d))}
+                          title={
+                            removal
+                              ? "Queues DATA DELETE USERINFO on every device. Attendance history stays in HRMS."
+                              : "Queues DATA UPDATE USERINFO on every registered device. Applies on next poll (30–60s)."
+                          }
+                          className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
+                        >
+                          {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                          {removal ? "Remove from eSSL device" : "Push → eSSL device"}
+                        </button>
+                      );
+                    })()
                   )}
                   <button
                     disabled={resolvingId === d.id}
@@ -764,6 +782,32 @@ export default function DataHealthPage() {
         onCancel={() => setPullTarget(null)}
         onConfirm={({ confirmSensitive }) => pullTarget && runPull(pullTarget, confirmSensitive)}
       />
+
+      <AlertDialog open={!!esslDeleteTarget} onOpenChange={(o) => !o && setEsslDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {esslDeleteTarget?.employee_name || "employee"} from eSSL devices?</AlertDialogTitle>
+            <AlertDialogDescription>
+              eSSL has no inactive state — the only roster action is deleting the user, which queues
+              DATA DELETE USERINFO on every registered device. Attendance history is safe: punches are
+              stored permanently in HRMS against the employee record, not read back from the device, so
+              past presence/absence and pending payroll remain intact after deletion.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const t = esslDeleteTarget;
+                setEsslDeleteTarget(null);
+                if (t) adoptEssl(t);
+              }}
+            >
+              Remove from devices
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
 
   );

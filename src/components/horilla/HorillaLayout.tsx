@@ -42,8 +42,13 @@ export function HorillaLayout() {
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <HorillaHeader onToggleSidebar={handleToggleSidebar} isMobile={isMobile} />
+        <RouteProgressBar />
+        {/* Suspense lives INSIDE the shell: page chunks suspend only this
+            region, so the sidebar and header never unmount on navigation. */}
         <main className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-2 sm:p-3 md:p-6">
-          <Outlet />
+          <Suspense fallback={<HrmsRouteFallback />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       <RazorpayPushFeedbackProvider />

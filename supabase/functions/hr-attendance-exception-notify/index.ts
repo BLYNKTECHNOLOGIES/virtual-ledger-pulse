@@ -340,6 +340,24 @@ Deno.serve(async (req) => {
       .in("id", empIds);
     const empMap = new Map((emps || []).map((e: any) => [e.id, e]));
 
+    // Employment type gate — notices go to permanent staff only.
+    // Contract/intern staff are not judged by this attendance policy.
+    const { data: workInfos } = await admin
+      .from("hr_employee_work_info")
+      .select("employee_id, employee_type")
+      .in("employee_id", empIds);
+    const normalizeType = (raw?: string | null) => {
+      const s = String(raw || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+      if (!s) return "";
+      if (["contract", "contractor", "contractual", "consultant"].includes(s)) return "contract";
+      if (["intern", "internship", "trainee"].includes(s)) return "intern";
+      return "permanent";
+    };
+    const typeMap = new Map(
+      (workInfos || []).map((w: any) => [w.employee_id, normalizeType(w.employee_type)]),
+    );
+
+
     // Existing log rows: sent/pending block; failed rows retry until MAX_ATTEMPTS.
     const { data: existingLogs } = await admin
       .from("hr_attendance_notice_log")
@@ -400,6 +418,9 @@ Deno.serve(async (req) => {
       if (!emp) { skip("employee_missing"); continue; }
       if (!emp.is_active) { skip("inactive"); continue; }
       if (!emp.email) { skip("no_email"); continue; }
+      // Permanent staff only (unset type defaults to permanent, matching HRMS vocabulary).
+      const empType = typeMap.get(d.employee_id) ?? "permanent";
+      if (empType !== "permanent") { skip("non_permanent_employee"); continue; }
       // Separated staff: nothing after the last working day.
       if (emp.last_working_day && d.attendance_date > emp.last_working_day) { skip("post_lwd"); continue; }
       if (regKeys.has(key)) { skip("regularization_raised"); continue; }

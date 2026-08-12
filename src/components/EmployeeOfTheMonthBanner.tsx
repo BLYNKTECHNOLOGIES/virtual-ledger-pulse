@@ -68,14 +68,15 @@ export function EmployeeOfTheMonthBanner() {
           className="relative flex w-full items-center gap-4 px-4 py-4 text-left md:gap-6 md:px-8 md:py-6"
         >
           <div className="relative shrink-0">
-            <div className="absolute -inset-1 rounded-full bg-gradient-to-tr from-primary via-sky-400 to-amber-300 opacity-80 blur-[2px]" />
+            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-primary via-sky-400 to-amber-300 opacity-70 blur-[3px]" />
             <img
               src={portraitAsset.url}
               alt="Employee of the Month July 2026 — Sabeel Khan"
-              className="relative h-16 w-16 rounded-full border-2 border-background object-cover object-top shadow-lg md:h-24 md:w-24"
+              className="relative h-20 w-20 rounded-2xl border-2 border-background bg-background object-contain shadow-lg md:h-28 md:w-28"
             />
-            <Trophy className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-amber-400 p-1 text-amber-950 shadow md:h-7 md:w-7" />
+            <Trophy className="absolute -bottom-2 -right-2 h-6 w-6 rounded-full bg-amber-400 p-1 text-amber-950 shadow md:h-7 md:w-7" />
           </div>
+
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">

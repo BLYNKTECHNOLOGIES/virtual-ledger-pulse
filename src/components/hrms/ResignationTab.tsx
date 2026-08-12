@@ -17,6 +17,8 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
+import { createFnFDraft } from "@/lib/fnfEngine";
+import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 
 type ResignationEmployee = {
   id: string;

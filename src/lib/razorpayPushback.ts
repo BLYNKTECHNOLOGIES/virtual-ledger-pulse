@@ -540,8 +540,9 @@ export async function dismissInRazorpay(
       await upsertDrift(
         hrEmployeeId,
         "dismissal_state",
-        "Manual RazorpayX dismissal required — employee never activated their RazorpayX account, so the dismiss API cannot resolve them.",
+        `Manual RazorpayX dismissal required — ${msg}`.slice(0, 400),
       );
+
       toast.warning("Dismiss this employee manually in RazorpayX", {
         description: msg.length > 200 ? msg.slice(0, 200) + "…" : msg,
       });

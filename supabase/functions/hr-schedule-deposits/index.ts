@@ -97,6 +97,25 @@ Deno.serve(async (req) => {
 
   const results: any[] = [];
 
+  // Leavers are settled exclusively through the F&F engine: from the last
+  // working-day MONTH onward, no monthly deposit installment or loan EMI is
+  // pushed for them. The F&F settlement carries the whole recovery/refund.
+  const leaverCutoff = new Map<string, string>(); // hr_employee_id -> LWD month (YYYY-MM-01)
+  {
+    const { data: leavers } = await svc
+      .from("hr_employees")
+      .select("id, last_working_day")
+      .not("last_working_day", "is", null);
+    for (const e of (leavers ?? []) as any[]) {
+      leaverCutoff.set(e.id, `${String(e.last_working_day).slice(0, 7)}-01`);
+    }
+  }
+  const isLeaverPeriod = (employeeId: string, periodMonth: string) => {
+    const cut = leaverCutoff.get(employeeId);
+    return !!cut && String(periodMonth).slice(0, 10) >= cut;
+  };
+
+
   // ---------------------------------------------------------------- deposits
   if (!onlyKind || onlyKind === "deposit") {
     let q = svc
@@ -122,8 +141,13 @@ Deno.serve(async (req) => {
     }
 
     for (const inst of (due ?? []) as any[]) {
+      if (isLeaverPeriod(inst.employee_id, inst.period_month)) {
+        results.push({ kind: "deposit", id: inst.id, skipped: "leaver — settled via F&F" });
+        continue;
+      }
       if (inst.deposit_id && skip.has(inst.deposit_id)) {
         results.push({ kind: "deposit", id: inst.id, skipped: "deposit paused/settled/collected" });
+
         continue;
       }
       const isRecovery = inst.deposit_type === "error_recovery";
@@ -179,7 +203,12 @@ Deno.serve(async (req) => {
     }
 
     for (const r of (dueLoans ?? []) as any[]) {
+      if (isLeaverPeriod(r.employee_id, r.period_month)) {
+        results.push({ kind: "loan", id: r.id, skipped: "leaver — settled via F&F" });
+        continue;
+      }
       const loan = loanMeta.get(r.loan_id);
+
       if (!loan || !["approved", "active"].includes(loan.status)) {
         results.push({ kind: "loan", id: r.id, skipped: `loan status ${loan?.status ?? "missing"}` });
         continue;

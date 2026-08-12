@@ -8869,6 +8869,9 @@ export type Database = {
           payment_reference: string | null
           penalty_deductions: number
           pending_salary: number
+          push_failure_reason: string | null
+          razorpay_push_status: string
+          razorpay_pushed_at: string | null
           status: string
           updated_at: string
         }
@@ -8892,6 +8895,9 @@ export type Database = {
           payment_reference?: string | null
           penalty_deductions?: number
           pending_salary?: number
+          push_failure_reason?: string | null
+          razorpay_push_status?: string
+          razorpay_pushed_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -8915,6 +8921,9 @@ export type Database = {
           payment_reference?: string | null
           penalty_deductions?: number
           pending_salary?: number
+          push_failure_reason?: string | null
+          razorpay_push_status?: string
+          razorpay_pushed_at?: string | null
           status?: string
           updated_at?: string
         }
@@ -25467,6 +25476,7 @@ export type Database = {
           tolerance_used: number
         }[]
       }
+      hr_close_fnf_sources: { Args: { p_settlement_id: string }; Returns: Json }
       hr_close_loan: {
         Args: { p_loan_id: string; p_mode?: string; p_reason?: string }
         Returns: undefined

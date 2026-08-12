@@ -50,6 +50,13 @@ export default function FnFSettlementPage() {
     source?: "razorpay" | "register_csv";
   }>({ state: "idle" });
   const [calcNote, setCalcNote] = useState<string>("");
+  // Source records behind each auto-filled figure (shown as expandable detail
+  // and written into breakdown.source_ids so the settlement stays auditable).
+  const [details, setDetails] = useState<{
+    loans: any[]; penalties: any[]; deposits: any[]; writtenOff: any[];
+  }>({ loans: [], penalties: [], deposits: [], writtenOff: [] });
+  const [openDetail, setOpenDetail] = useState<string | null>(null);
+
 
 
 
@@ -93,11 +100,19 @@ export default function FnFSettlementPage() {
     const periodMonth = lwdIso ? `${lwdIso.slice(0, 7)}-01` : null;
 
     const [{ data: loans }, { data: penalties }, { data: empDeposits }, payslipRes] = await Promise.all([
-      (supabase as any).from("hr_loans").select("id, outstanding_balance").eq("employee_id", empId).eq("status", "active"),
-      (supabase as any).from("hr_penalties").select("id, deduction_amount").eq("employee_id", empId).eq("is_applied", false),
+      (supabase as any)
+        .from("hr_loans")
+        .select("id, loan_type, advance_type, amount, emi_amount, outstanding_balance, status")
+        .eq("employee_id", empId)
+        .in("status", ["approved", "active", "paused"]),
+      (supabase as any)
+        .from("hr_penalties")
+        .select("id, penalty_month, penalty_type, penalty_reason, penalty_amount")
+        .eq("employee_id", empId)
+        .eq("is_applied", false),
       (supabase as any)
         .from("hr_employee_deposits")
-        .select("id, collected_amount, deposit_type")
+        .select("id, collected_amount, current_balance, deposit_type, is_recovered, is_paused, recovery_reason, incident_reference")
         .eq("employee_id", empId)
         .eq("is_settled", false),
       periodMonth
@@ -110,10 +125,22 @@ export default function FnFSettlementPage() {
         : Promise.resolve({ data: null }),
     ]);
 
-    const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
-    const penaltyTotal = (penalties || []).reduce((sum: number, p: any) => sum + Number(p.deduction_amount || 0), 0);
-    const securityDeposits = (empDeposits || []).filter((d: any) => (d.deposit_type || "security") === "security");
-    const depositRefund = securityDeposits.reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
+    const activeLoans = (loans || []).filter((l: any) => Number(l.outstanding_balance || 0) > 0);
+    const loanRecovery = activeLoans.reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
+
+    const openPenalties = penalties || [];
+    const penaltyTotal = openPenalties.reduce((sum: number, p: any) => sum + Number(p.penalty_amount || 0), 0);
+
+    const all = empDeposits || [];
+    // Security deposits refund in full; error-recovery deposits refund ONLY when
+    // the money has been recovered from the counterparty (is_recovered).
+    const refundable = all.filter((d: any) => {
+      const t = d.deposit_type || "security";
+      if (d.is_paused) return false;
+      return t === "security" ? true : d.is_recovered === true;
+    });
+    const writtenOff = all.filter((d: any) => !refundable.some((r: any) => r.id === d.id));
+    const depositRefund = refundable.reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
 
     // Final-month salary — RazorpayX only.
     const slip: any = (payslipRes as any)?.data || null;
@@ -129,12 +156,13 @@ export default function FnFSettlementPage() {
         : { state: "awaiting", periodMonth: periodMonth || undefined }
     );
 
-    const excludedRecoveryCount = (empDeposits || []).length - securityDeposits.length;
+    setDetails({ loans: activeLoans, penalties: openPenalties, deposits: refundable, writtenOff });
     setCalcNote(
-      excludedRecoveryCount > 0
-        ? `${excludedRecoveryCount} error-recovery deposit${excludedRecoveryCount > 1 ? "s" : ""} excluded from the refund — recoveries are not refundable.`
+      writtenOff.length > 0
+        ? `${writtenOff.length} deposit${writtenOff.length > 1 ? "s are" : " is"} not refundable (paused, or error recovery not yet marked recovered) and ${writtenOff.length > 1 ? "are" : "is"} written off in this settlement.`
         : ""
     );
+
 
     setForm({
       last_working_day: lwdIso || "",
@@ -170,8 +198,25 @@ export default function FnFSettlementPage() {
           policy: "no_leave_encashment_no_gratuity",
           pending_salary_source: finalMonth.source || "manual",
           razorpay_period_month: finalMonth.periodMonth || null,
-          deposit_refund_scope: "security_only",
+          deposit_refund_scope: "security_and_recovered_error_recovery",
+          source_ids: {
+            loan_ids: details.loans.map((l: any) => l.id),
+            penalty_ids: details.penalties.map((p: any) => p.id),
+            deposit_ids: details.deposits.map((d: any) => d.id),
+          },
+          written_off_deposits: details.writtenOff.map((d: any) => ({
+            id: d.id,
+            deposit_type: d.deposit_type,
+            collected_amount: Number(d.collected_amount || 0),
+            reason: d.is_paused ? "paused" : "error recovery not marked recovered",
+          })),
+          components: {
+            loans: details.loans.map((l: any) => ({ id: l.id, type: l.loan_type, outstanding: Number(l.outstanding_balance || 0) })),
+            penalties: details.penalties.map((p: any) => ({ id: p.id, month: p.penalty_month, type: p.penalty_type, amount: Number(p.penalty_amount || 0) })),
+            deposits: details.deposits.map((d: any) => ({ id: d.id, type: d.deposit_type, collected: Number(d.collected_amount || 0) })),
+          },
         },
+
       });
       if (error) throw error;
 
@@ -199,8 +244,27 @@ export default function FnFSettlementPage() {
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
 
+      // Approval is the moment the settlement enters payroll: F&F is the ONLY
+      // thing that schedules additions/deductions for a leaver.
+      if (status === "approved") {
+        const { data: pushRes, error: pushErr } = await (supabase as any).functions.invoke("hr-push-fnf", {
+          body: { settlement_id: id },
+        });
+        if (pushErr || pushRes?.ok === false) {
+          toast.error(`Approved, but the RazorpayX push did not verify: ${pushRes?.error ?? pushErr?.message ?? "unknown error"}`);
+        } else if (pushRes?.nothing_to_push) {
+          toast.info("Approved — no additions or deductions to push to RazorpayX.");
+        } else {
+          toast.success("Approved and pushed to the RazorpayX final payroll run (read-back verified).");
+        }
+      }
+
       // Auto-deactivate employee when F&F is paid + surface Razorpay dismiss prompt
       if (status === "paid") {
+        // Close every source record the settlement recovered/refunded.
+        const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: id });
+        if (closeErr) toast.error(`Paid, but closing loans/penalties/deposits failed: ${closeErr.message}`);
+
         const { data: settlement } = await (supabase as any)
           .from("hr_fnf_settlements")
           .select("employee_id, last_working_day, hr_employees!hr_fnf_settlements_employee_id_fkey(first_name, last_name)")
@@ -221,6 +285,7 @@ export default function FnFSettlementPage() {
       }
       return null;
     },
+
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       toast.success("Status updated");
@@ -230,6 +295,22 @@ export default function FnFSettlementPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Retry the RazorpayX push for an approved settlement whose read-back failed.
+  const pushMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await (supabase as any).functions.invoke("hr-push-fnf", { body: { settlement_id: id } });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.error || "Push did not verify on the RazorpayX read-back");
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      toast.success("Pushed to RazorpayX and verified on the run");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
 
   const [dismissing, setDismissing] = useState(false);
   const confirmDismissInRazorpay = async () => {
@@ -312,7 +393,21 @@ export default function FnFSettlementPage() {
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge(s.status)}`}>
                         {s.status.replace("_", " ")}
                       </span>
+                      {s.razorpay_push_status && s.razorpay_push_status !== "pushed" && (
+                        <span className="block mt-0.5 text-[10px] text-destructive" title={s.push_failure_reason || undefined}>
+                          RazorpayX push {s.razorpay_push_status}
+                        </span>
+                      )}
+                      {s.razorpay_push_status === "pushed" && (
+                        <span className="block mt-0.5 text-[10px] text-success">Pushed to RazorpayX</span>
+                      )}
                     </div>
+                    {s.status === "approved" && s.razorpay_push_status !== "pushed" && (
+                      <Button size="sm" variant="outline" className="h-8" disabled={pushMutation.isPending} onClick={() => pushMutation.mutate(s.id)}>
+                        Retry push
+                      </Button>
+                    )}
+
                     {s.status === "draft" && (
                       <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "calculated" })}>
                         Submit
@@ -415,7 +510,47 @@ export default function FnFSettlementPage() {
               <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
             </div>
 
+            {/* Every auto-filled recovery/refund traces back to live HRMS records. */}
+            {selectedEmpId && (
+              <div className="rounded-md border border-border divide-y divide-border text-xs">
+                {[
+                  { key: "loans", label: "Loans & advances recovered", rows: details.loans, amount: (r: any) => Number(r.outstanding_balance || 0), title: (r: any) => `${r.loan_type || "loan"} — outstanding` },
+                  { key: "penalties", label: "Penalties applied", rows: details.penalties, amount: (r: any) => Number(r.penalty_amount || 0), title: (r: any) => `${r.penalty_month || ""} ${r.penalty_type || "penalty"}`.trim() },
+                  { key: "deposits", label: "Deposits refunded", rows: details.deposits, amount: (r: any) => Number(r.collected_amount || 0), title: (r: any) => (r.deposit_type === "error_recovery" ? "Error recovery (recovered)" : "Security deposit") },
+                  { key: "writtenOff", label: "Deposits written off", rows: details.writtenOff, amount: (r: any) => Number(r.collected_amount || 0), title: (r: any) => (r.is_paused ? "Paused deposit" : "Error recovery — not recovered") },
+                ].map((sec) => (
+                  <div key={sec.key}>
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-between px-2 py-1.5 text-left"
+                      onClick={() => setOpenDetail(openDetail === sec.key ? null : sec.key)}
+                    >
+                      <span className="text-muted-foreground">{sec.label} ({sec.rows.length})</span>
+                      <span className="tabular-nums font-medium">
+                        ₹{sec.rows.reduce((s: number, r: any) => s + sec.amount(r), 0).toLocaleString("en-IN")}
+                      </span>
+                    </button>
+                    {openDetail === sec.key && (
+                      sec.rows.length ? (
+                        <ul className="px-3 pb-2 space-y-1">
+                          {sec.rows.map((r: any) => (
+                            <li key={r.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                              <span>{sec.title(r)} <span className="opacity-60">· {String(r.id).slice(0, 8)}</span></span>
+                              <span className="tabular-nums">₹{sec.amount(r).toLocaleString("en-IN")}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="px-3 pb-2 text-[11px] text-muted-foreground">Nothing outstanding.</p>
+                      )
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
             {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
+
 
             <div><Label>Other Deductions Notes</Label><Input className="h-9 mt-1" value={form.other_deductions_notes} onChange={(e) => setForm({ ...form, other_deductions_notes: e.target.value })} /></div>
             <div><Label>Notes</Label><Textarea className="mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>

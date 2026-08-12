@@ -565,17 +565,29 @@ export default function FnFSettlementPage() {
         </div>
       )}
 
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      <Dialog open={showCreate} onOpenChange={(o) => { setShowCreate(o); if (!o) { setEditingId(null); } }}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Calculator className="h-4 w-4" /> New F&amp;F Settlement
+              <Calculator className="h-4 w-4" /> {editingId ? "Edit F&F Settlement" : "New F&F Settlement"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Employee</Label>
-              <EmployeePicker className="mt-1" placeholder="Select separated employee" employees={separatedEmployees} value={selectedEmpId} onChange={autoFillFnF} />
+              <EmployeePicker
+                className="mt-1"
+                placeholder={selectableEmployees.length ? "Select separated employee" : "All separated employees already settled"}
+                employees={selectableEmployees}
+                value={selectedEmpId}
+                onChange={editingId ? () => {} : autoFillFnF}
+                disabled={!!editingId}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {editingId
+                  ? "One settlement per employee — the employee cannot be changed on an existing settlement."
+                  : "Employees with an existing settlement are not listed; edit their settlement from the list instead."}
+              </p>
             </div>
             <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
 

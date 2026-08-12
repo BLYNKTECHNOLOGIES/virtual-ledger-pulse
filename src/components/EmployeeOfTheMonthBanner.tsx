@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, ChevronRight, Award } from "lucide-react";
 import eomAsset from "@/assets/eom-july-2026.jpeg.asset.json";
-import badgeAsset from "@/assets/sabeel-eom-badge.png.asset.json";
+import portraitAsset from "@/assets/sabeel-eom-portrait.png.asset.json";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 /** Bump this key whenever a new Employee of the Month is announced. */
@@ -29,7 +29,7 @@ export function EmployeeOfTheMonthBanner() {
   return (
     <>
       <div className="relative z-30 w-full overflow-hidden border-b border-primary/25 bg-gradient-to-r from-primary/15 via-background to-amber-400/10">
-        {/* soft radial glow behind the badge */}
+        {/* soft radial glows */}
         <div className="pointer-events-none absolute -left-10 top-1/2 h-48 w-48 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl" />
         <div className="pointer-events-none absolute left-1/3 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full bg-amber-400/15 blur-3xl" />
 
@@ -57,17 +57,19 @@ export function EmployeeOfTheMonthBanner() {
           onClick={() => setOpen(true)}
           className="relative flex w-full items-center gap-4 px-4 py-3 text-left md:gap-6 md:px-8 md:py-4"
         >
-          {/* badge image */}
+          {/* portrait badge */}
           <div className="relative shrink-0">
             <div
-              className="absolute inset-0 rounded-2xl bg-primary/30 blur-md"
+              className="absolute inset-0 rounded-full bg-primary/30 blur-md"
               style={{ animation: "eom-pulse-glow 2.5s ease-in-out infinite" }}
             />
-            <img
-              src={badgeAsset.url}
-              alt="Employee of the Month July 2026 — Sabeel Khan"
-              className="relative h-20 w-auto rounded-2xl border-2 border-background/80 bg-background shadow-xl md:h-28"
-            />
+            <div className="relative h-20 w-20 overflow-hidden rounded-full border-2 border-background/80 bg-background shadow-xl md:h-28 md:w-28">
+              <img
+                src={portraitAsset.url}
+                alt="Employee of the Month July 2026 — Sabeel Khan"
+                className="h-full w-full object-cover"
+              />
+            </div>
             <Award className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-primary p-1 text-primary-foreground shadow-md md:h-7 md:w-7" />
           </div>
 

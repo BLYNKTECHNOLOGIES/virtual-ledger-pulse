@@ -128,11 +128,11 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
                 <tr><td valign="top" style="padding:0 6px 0 0;font-weight:700;color:${BRAND.ink};">A:</td><td valign="top" style="padding:0;">${BRAND.company}, ${BRAND.address}</td></tr>
               </table></td>
             </tr></table>
+            <div style="margin-top:10px;font-size:10px;color:#94a3b8;">Automated notice &middot; Ref ${esc(noticeRef)}</div>
           </div>
         </td>
       </tr>
     </table>
-    <p style="margin:12px 6px 0;font-size:10.5px;color:#94a3b8;line-height:1.5;text-align:center;">Automated notice sent 24 hours after the day was marked. &copy; ${new Date().getFullYear()} ${BRAND.company}</p>
   </div>
 </body></html>`;
 

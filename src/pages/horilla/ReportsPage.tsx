@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +63,9 @@ export default function ReportsPage() {
   // Payroll truth = RazorpayX-mirrored payslips (hr_payslips_v), NOT hr_payroll_runs (empty).
   const { data: payslips = [] } = useQuery({
     queryKey: ["rpt_payslips", dateFrom, dateTo],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_payslips_v")
       .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib, register_source")
@@ -72,6 +75,9 @@ export default function ReportsPage() {
   // Attendance truth = v4 engine daily rollup.
   const { data: attendance = [] } = useQuery({
     queryKey: ["rpt_attendance_daily", dateFrom, dateTo],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_attendance_daily")
       .select("employee_id, attendance_date, status, is_late, late_by_minutes, early_departure, total_hours, net_work_minutes")
@@ -87,6 +93,9 @@ export default function ReportsPage() {
   }, [dateFrom, dateTo]);
   const { data: prevAttendance = [] } = useQuery({
     queryKey: ["rpt_attendance_prev", prevWindow.from, prevWindow.to],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
       .from("hr_attendance_daily")
       .select("employee_id, status, is_late")

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -197,6 +197,9 @@ export default function PayslipsPage() {
 
   const { data: payslips = [], isLoading } = useQuery({
     queryKey: ["hr_payslips", runFilter],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       let query = (supabase as any).from("hr_payslips")
         .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name, pan_number, uan_number, esi_number), hr_payroll_runs!hr_payslips_payroll_run_id_fkey(title, pay_period_start, pay_period_end)")

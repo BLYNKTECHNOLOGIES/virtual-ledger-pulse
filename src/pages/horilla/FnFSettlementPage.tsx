@@ -10,12 +10,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Calculator, Plus, IndianRupee } from "lucide-react";
+import { Calculator, Plus, IndianRupee, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -37,7 +38,14 @@ export default function FnFSettlementPage() {
     other_deductions_notes: "",
     notes: "",
   });
+  // Provenance of the final-month salary figure — RazorpayX is the payroll authority.
+  const [finalMonth, setFinalMonth] = useState<{
+    state: "idle" | "loading" | "razorpay" | "awaiting";
+    periodMonth?: string;
+    source?: "razorpay" | "register_csv";
+  }>({ state: "idle" });
   const [calcNote, setCalcNote] = useState<string>("");
+
 
 
   const { data: settlements = [], isLoading } = useQuery({

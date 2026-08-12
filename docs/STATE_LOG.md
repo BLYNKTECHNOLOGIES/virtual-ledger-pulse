@@ -1,3 +1,4 @@
+- 2026-08-12: RazorpayX dismissal drift repaired — live `is_active=false` is now authoritative inactive parity, persisted immediately to the employee map, and omitted dismissal dates no longer keep verified separations open.
 - 2026-08-02: RazorpayX inactive-employee payroll pause handling repaired — Payroll Inputs now surfaces live inactive status and disables Do-Not-Pay; the proxy returns the expected API limitation as a handled business response instead of an HTTP 409 runtime error.
 - 2026-08-02: RazorpayX Do-Not-Pay contract corrected from official Postman evidence — proxy now translates employee ID to email and sends `{email, payroll-month, value}`, with immediate payroll read-back verification.
 - 2026-08-02: July LOP push completed and live-verified in RazorpayX — add-deduction corrected to email + singular deduction-amount; all 9 employees / ₹12,658 read back exactly and temporary probe removed.

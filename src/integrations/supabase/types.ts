@@ -4885,6 +4885,7 @@ export type Database = {
       }
       hr_attendance_notice_log: {
         Row: {
+          attempts: number
           attendance_date: string
           campaign_ref: string | null
           created_at: string
@@ -4892,12 +4893,14 @@ export type Database = {
           employee_id: string
           error_message: string | null
           id: string
+          last_attempt_at: string | null
           sent_at: string | null
           status: string
           status_at_send: string
           updated_at: string
         }
         Insert: {
+          attempts?: number
           attendance_date: string
           campaign_ref?: string | null
           created_at?: string
@@ -4905,12 +4908,14 @@ export type Database = {
           employee_id: string
           error_message?: string | null
           id?: string
+          last_attempt_at?: string | null
           sent_at?: string | null
           status?: string
           status_at_send: string
           updated_at?: string
         }
         Update: {
+          attempts?: number
           attendance_date?: string
           campaign_ref?: string | null
           created_at?: string
@@ -4918,6 +4923,7 @@ export type Database = {
           employee_id?: string
           error_message?: string | null
           id?: string
+          last_attempt_at?: string | null
           sent_at?: string | null
           status?: string
           status_at_send?: string

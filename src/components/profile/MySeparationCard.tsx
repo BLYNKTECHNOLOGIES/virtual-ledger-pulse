@@ -107,17 +107,20 @@ export default function MySeparationCard({ employee }: { employee: Employee }) {
           <div className="rounded-lg border p-3">
             <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><IndianRupee className="h-3 w-3" /> F&F Preview</div>
             <div className="grid grid-cols-2 gap-2 text-sm">
-              <div>Pending Salary <span className="float-right font-medium">₹{Number(fnf.pending_salary || 0).toLocaleString('en-IN')}</span></div>
-              <div>Leave Encashment <span className="float-right font-medium">₹{Number(fnf.leave_encashment_amount || 0).toLocaleString('en-IN')}</span></div>
+              <div>Final-Month Salary <span className="float-right font-medium">₹{Number(fnf.pending_salary || 0).toLocaleString('en-IN')}</span></div>
               <div>Bonus <span className="float-right font-medium">₹{Number(fnf.bonus_amount || 0).toLocaleString('en-IN')}</span></div>
-              <div>Deposit Refund <span className="float-right font-medium">₹{Number(fnf.deposit_refund || 0).toLocaleString('en-IN')}</span></div>
+              <div>Security Deposit Refund <span className="float-right font-medium">₹{Number(fnf.deposit_refund || 0).toLocaleString('en-IN')}</span></div>
               <div className="text-destructive">Loan Recovery <span className="float-right font-medium">−₹{Number(fnf.loan_recovery || 0).toLocaleString('en-IN')}</span></div>
               <div className="text-destructive">Deductions <span className="float-right font-medium">−₹{Number((Number(fnf.penalty_deductions || 0) + Number(fnf.other_deductions || 0))).toLocaleString('en-IN')}</span></div>
               <div className="col-span-2 pt-2 border-t font-semibold">Net Payable <span className="float-right">₹{Number(fnf.net_payable || 0).toLocaleString('en-IN')}</span></div>
               <div className="col-span-2 text-[11px] text-muted-foreground">Status: {fnf.status || 'draft'}</div>
+              <div className="col-span-2 text-[11px] text-muted-foreground">
+                Final-month salary is taken from the RazorpayX payroll run. Leave encashment and gratuity are not payable under current company policy.
+              </div>
             </div>
           </div>
         )}
+
       </CardContent>
     </Card>
   );

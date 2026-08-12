@@ -10,12 +10,13 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Calculator, Plus, IndianRupee } from "lucide-react";
+import { Calculator, Plus, IndianRupee, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -37,7 +38,14 @@ export default function FnFSettlementPage() {
     other_deductions_notes: "",
     notes: "",
   });
+  // Provenance of the final-month salary figure — RazorpayX is the payroll authority.
+  const [finalMonth, setFinalMonth] = useState<{
+    state: "idle" | "loading" | "razorpay" | "awaiting";
+    periodMonth?: string;
+    source?: "razorpay" | "register_csv";
+  }>({ state: "idle" });
   const [calcNote, setCalcNote] = useState<string>("");
+
 
 
   const { data: settlements = [], isLoading } = useQuery({
@@ -64,81 +72,72 @@ export default function FnFSettlementPage() {
     },
   });
 
-  // Auto-pull data when employee is selected — uses Indian statutory formulas.
-  //  • Leave encashment = Basic / 26 per day   (Payment of Wages / labour law standard)
-  //  • Gratuity          = (Basic × 15 / 26) × completed years, if tenure ≥ 5 years
-  //  • Pending salary    = working-day proration of Basic from period-start → LWD
-  //                        (calendar days used only when Basic is missing)
+  // Payroll doctrine: RazorpayX is the payroll authority.
+  //  • Pending (final-month) salary  → mirrored RazorpayX payslip record for the LWD month.
+  //                                     Never computed locally. Missing ⇒ "awaiting RazorpayX".
+  //  • Leave encashment / gratuity   → NOT payable per company policy. Removed.
+  //  • Loans / penalties / deposits  → HRMS-owned; security deposits only (error-recovery
+  //                                     collections are recoveries, never refunded).
   const autoFillFnF = async (empId: string) => {
     setSelectedEmpId(empId);
     const emp = separatedEmployees.find((e: any) => e.id === empId);
     if (!emp) return;
+    setFinalMonth({ state: "loading" });
 
-    const [{ data: loans }, { data: allocations }, { data: penalties }, { data: empDeposits }, { data: workInfo }] = await Promise.all([
-      (supabase as any).from("hr_loans").select("outstanding_balance").eq("employee_id", empId).eq("status", "active"),
-      (supabase as any).from("hr_leave_allocations").select("available_days, hr_leave_types!hr_leave_allocations_leave_type_id_fkey(is_encashable)").eq("employee_id", empId),
-      (supabase as any).from("hr_penalties").select("deduction_amount").eq("employee_id", empId).eq("is_applied", false),
-      (supabase as any).from("hr_employee_deposits").select("collected_amount").eq("employee_id", empId).eq("is_settled", false),
-      (supabase as any).from("hr_employee_work_info").select("joining_date").eq("employee_id", empId).maybeSingle(),
+    const lwdIso: string | null = emp.last_working_day || null;
+    const periodMonth = lwdIso ? `${lwdIso.slice(0, 7)}-01` : null;
+
+    const [{ data: loans }, { data: penalties }, { data: empDeposits }, payslipRes] = await Promise.all([
+      (supabase as any).from("hr_loans").select("id, outstanding_balance").eq("employee_id", empId).eq("status", "active"),
+      (supabase as any).from("hr_penalties").select("id, deduction_amount").eq("employee_id", empId).eq("is_applied", false),
+      (supabase as any)
+        .from("hr_employee_deposits")
+        .select("id, collected_amount, deposit_type")
+        .eq("employee_id", empId)
+        .eq("is_settled", false),
+      periodMonth
+        ? (supabase as any)
+            .from("hr_razorpay_payslip_records")
+            .select("net_pay, reg_net_pay, period_month")
+            .eq("hr_employee_id", empId)
+            .eq("period_month", periodMonth)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     const loanRecovery = (loans || []).reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
-    const encashDays = (allocations || [])
-      .filter((a: any) => a.hr_leave_types?.is_encashable)
-      .reduce((sum: number, a: any) => sum + Number(a.available_days || 0), 0);
     const penaltyTotal = (penalties || []).reduce((sum: number, p: any) => sum + Number(p.deduction_amount || 0), 0);
-    const depositRefund = (empDeposits || []).reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
+    const securityDeposits = (empDeposits || []).filter((d: any) => (d.deposit_type || "security") === "security");
+    const depositRefund = securityDeposits.reduce((sum: number, d: any) => sum + Number(d.collected_amount || 0), 0);
 
-    // Base pay basis: prefer Basic; fall back to 40% of CTC when Basic is missing (Indian norm).
-    const totalCtc = Number(emp.total_salary || 0);
-    const basicRaw = Number(emp.basic_salary || 0);
-    const basicMonthly = basicRaw > 0 ? basicRaw : Math.round(totalCtc * 0.4);
-    const perDayEncash = basicMonthly / 26;
-    const encashAmount = Math.round(encashDays * perDayEncash);
+    // Final-month salary — RazorpayX only.
+    const slip: any = (payslipRes as any)?.data || null;
+    const apiNet = Number(slip?.net_pay || 0);
+    const regNet = Number(slip?.reg_net_pay || 0);
+    const pendingSalary = apiNet > 0 ? apiNet : regNet > 0 ? regNet : 0;
+    const source: "razorpay" | "register_csv" | undefined =
+      apiNet > 0 ? "razorpay" : regNet > 0 ? "register_csv" : undefined;
 
-    // Gratuity — statutory: only after 5 completed years.
-    const doj = workInfo?.joining_date ? new Date(workInfo.joining_date) : null;
-    const lwd = emp.last_working_day ? new Date(emp.last_working_day) : new Date();
-    let gratuity = 0;
-    let tenureYears = 0;
-    if (doj && !isNaN(doj.getTime())) {
-      const ms = lwd.getTime() - doj.getTime();
-      tenureYears = ms / (365.25 * 24 * 3600 * 1000);
-      if (tenureYears >= 5) {
-        // ≥6 months in final year counts as full year (Payment of Gratuity Act).
-        const completedYears = Math.floor(tenureYears) + ((tenureYears - Math.floor(tenureYears)) >= 0.5 ? 1 : 0);
-        gratuity = Math.round(basicMonthly * (15 / 26) * completedYears);
-      }
-    }
+    setFinalMonth(
+      pendingSalary > 0
+        ? { state: "razorpay", periodMonth: periodMonth || undefined, source }
+        : { state: "awaiting", periodMonth: periodMonth || undefined }
+    );
 
-    // Pending salary — working days from the 1st of the LWD month up to LWD, × Basic/26.
-    // Skips Sundays only (conservative); operator can override in the field.
-    let pendingSalary = 0;
-    if (emp.last_working_day) {
-      const end = new Date(emp.last_working_day + "T00:00:00Z");
-      const monthStart = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
-      let wd = 0;
-      for (let t = monthStart.getTime(); t <= end.getTime(); t += 86400000) {
-        const d = new Date(t);
-        if (d.getUTCDay() !== 0) wd++;
-      }
-      pendingSalary = Math.round(wd * (basicMonthly / 26));
-    }
-
+    const excludedRecoveryCount = (empDeposits || []).length - securityDeposits.length;
     setCalcNote(
-      `Basis: Basic ₹${basicMonthly.toLocaleString("en-IN")} / 26 = ₹${perDayEncash.toFixed(0)}/day. ` +
-      (tenureYears >= 5
-        ? `Tenure ${tenureYears.toFixed(2)}y ⇒ gratuity payable.`
-        : (doj ? `Tenure ${tenureYears.toFixed(2)}y (<5y) — gratuity not payable.` : `Joining date not set — gratuity skipped.`))
+      excludedRecoveryCount > 0
+        ? `${excludedRecoveryCount} error-recovery deposit${excludedRecoveryCount > 1 ? "s" : ""} excluded from the refund — recoveries are not refundable.`
+        : ""
     );
 
     setForm({
-      last_working_day: emp.last_working_day || "",
+      last_working_day: lwdIso || "",
       pending_salary: pendingSalary,
-      leave_encashment_days: encashDays,
-      leave_encashment_amount: encashAmount,
+      leave_encashment_days: 0,
+      leave_encashment_amount: 0,
       bonus_amount: 0,
-      gratuity_amount: gratuity,
+      gratuity_amount: 0,
       notice_pay_recovery: 0,
       loan_recovery: loanRecovery,
       deposit_refund: depositRefund,
@@ -149,8 +148,7 @@ export default function FnFSettlementPage() {
     });
   };
 
-  const netPayable = form.pending_salary + form.leave_encashment_amount + form.bonus_amount
-    + form.gratuity_amount + form.deposit_refund
+  const netPayable = form.pending_salary + form.bonus_amount + form.deposit_refund
     - form.loan_recovery - form.penalty_deductions - form.notice_pay_recovery - form.other_deductions;
 
 
@@ -162,14 +160,12 @@ export default function FnFSettlementPage() {
         ...rest,
         net_payable: netPayable,
         breakdown: {
-          gratuity_amount,
           notice_pay_recovery,
           calc_note: calcNote,
-          formulas: {
-            leave_encashment: "days × (Basic / 26)",
-            gratuity: "(Basic × 15 / 26) × completed_years (≥5y)",
-            pending_salary: "working_days_in_month × (Basic / 26)",
-          },
+          policy: "no_leave_encashment_no_gratuity",
+          pending_salary_source: finalMonth.source || "manual",
+          razorpay_period_month: finalMonth.periodMonth || null,
+          deposit_refund_scope: "security_only",
         },
       });
       if (error) throw error;
@@ -182,6 +178,7 @@ export default function FnFSettlementPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -311,20 +308,43 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
                     {s.status === "approved" && (
-                      <Button size="sm" className="h-8 bg-success hover:bg-success" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}>
+                      <Button
+                        size="sm"
+                        className="h-8 bg-success hover:bg-success"
+                        disabled={!["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source)}
+                        title={
+                          ["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source)
+                            ? undefined
+                            : "Final-month salary is not confirmed from RazorpayX yet"
+                        }
+                        onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}
+                      >
                         Mark Paid
                       </Button>
                     )}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
-                  <div><span className="text-muted-foreground block">Pending Salary</span><p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p></div>
-                  <div><span className="text-muted-foreground block">Leave Encash</span><p className="font-medium tabular-nums">₹{Number(s.leave_encashment_amount).toLocaleString("en-IN")}</p></div>
+                  <div>
+                    <span className="text-muted-foreground block">Final-Month Salary</span>
+                    <p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p>
+                    {["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source) && (
+                      <SourceTag compact source={s.breakdown.pending_salary_source} className="mt-0.5" />
+                    )}
+                  </div>
                   <div><span className="text-muted-foreground block">Bonus</span><p className="font-medium tabular-nums">₹{Number(s.bonus_amount).toLocaleString("en-IN")}</p></div>
+                  <div><span className="text-muted-foreground block">Deposit Refund</span><p className="font-medium tabular-nums">₹{Number(s.deposit_refund || 0).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Loan Recovery</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.loan_recovery).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Penalties</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.penalty_deductions).toLocaleString("en-IN")}</p></div>
                   <div><span className="text-muted-foreground block">Other Ded.</span><p className="font-medium text-destructive tabular-nums">-₹{Number(s.other_deductions).toLocaleString("en-IN")}</p></div>
                 </div>
+                {(Number(s.leave_encashment_amount || 0) > 0 || Number(s.breakdown?.gratuity_amount || 0) > 0) && (
+                  <p className="mt-2 text-[11px] text-amber-600 inline-flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    Legacy calculation — includes leave encashment / gratuity, which are no longer payable under current policy.
+                  </p>
+                )}
+
               </CardContent>
             </Card>
           ))}
@@ -344,18 +364,34 @@ export default function FnFSettlementPage() {
               <EmployeePicker className="mt-1" placeholder="Select separated employee" employees={separatedEmployees} value={selectedEmpId} onChange={autoFillFnF} />
             </div>
             <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
+
+            <div className="rounded-md border border-border p-3 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Final-Month Salary (₹)</Label>
+                {finalMonth.state === "razorpay" && finalMonth.source && <SourceTag source={finalMonth.source} />}
+              </div>
+              <Input className="h-9" type="number" readOnly value={form.pending_salary} />
+              {finalMonth.state === "awaiting" && (
+                <p className="text-[11px] text-destructive inline-flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  No RazorpayX payslip mirrored for {finalMonth.periodMonth?.slice(0, 7) || "the final month"} yet — run that month's payroll in RazorpayX and pull it back before paying this settlement.
+                </p>
+              )}
+              <DashboardLink />
+              <p className="text-[11px] text-muted-foreground">
+                Leave encashment and gratuity are not payable under current company policy and are excluded.
+              </p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Pending Salary (₹)</Label><Input className="h-9 mt-1" type="number" value={form.pending_salary} onChange={(e) => setForm({ ...form, pending_salary: Number(e.target.value) })} /></div>
-              <div><Label>Leave Encash Days</Label><Input className="h-9 mt-1" type="number" value={form.leave_encashment_days} onChange={(e) => setForm({ ...form, leave_encashment_days: Number(e.target.value) })} /></div>
-              <div><Label>Leave Encash Amount (₹)</Label><Input className="h-9 mt-1" type="number" value={form.leave_encashment_amount} onChange={(e) => setForm({ ...form, leave_encashment_amount: Number(e.target.value) })} /></div>
               <div><Label>Bonus (₹)</Label><Input className="h-9 mt-1" type="number" value={form.bonus_amount} onChange={(e) => setForm({ ...form, bonus_amount: Number(e.target.value) })} /></div>
-              <div><Label>Gratuity (₹)</Label><Input className="h-9 mt-1" type="number" value={form.gratuity_amount} onChange={(e) => setForm({ ...form, gratuity_amount: Number(e.target.value) })} /></div>
               <div><Label>Notice Pay Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.notice_pay_recovery} onChange={(e) => setForm({ ...form, notice_pay_recovery: Number(e.target.value) })} /></div>
               <div><Label>Loan Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.loan_recovery} onChange={(e) => setForm({ ...form, loan_recovery: Number(e.target.value) })} /></div>
-              <div><Label>Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
+              <div><Label>Security Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
               <div><Label>Penalty Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.penalty_deductions} onChange={(e) => setForm({ ...form, penalty_deductions: Number(e.target.value) })} /></div>
               <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
             </div>
+
             {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
 
             <div><Label>Other Deductions Notes</Label><Input className="h-9 mt-1" value={form.other_deductions_notes} onChange={(e) => setForm({ ...form, other_deductions_notes: e.target.value })} /></div>

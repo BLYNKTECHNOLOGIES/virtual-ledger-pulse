@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { prefetchHrmsRoute } from "@/lib/hrmsPrefetch";
 
 interface NavItem {
   label: string;

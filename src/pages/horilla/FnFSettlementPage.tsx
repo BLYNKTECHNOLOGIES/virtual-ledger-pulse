@@ -18,6 +18,7 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
+import { computeFnFDraft, buildFnFPayload, fnfNetPayable } from "@/lib/fnfEngine";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();

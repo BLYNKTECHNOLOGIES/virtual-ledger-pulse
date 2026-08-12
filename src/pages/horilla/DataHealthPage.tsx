@@ -667,6 +667,14 @@ export default function DataHealthPage() {
                     </div>
                   )}
 
+                  {d.merged_note && (
+                    <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-foreground">
+                      {d.merged_note}
+                    </div>
+                  )}
+
+
+
                 </div>
                 <div className="flex flex-wrap md:flex-col gap-2 md:justify-center">
                   <button

@@ -120,6 +120,7 @@ export default function DataHealthPage() {
     params.get("unexplained") === "1",
   );
   const [scanning, setScanning] = useState(false);
+  const [scanSignal, setScanSignal] = useState(0);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [pullTarget, setPullTarget] = useState<PullTarget | null>(null);
   const [pulling, setPulling] = useState(false);

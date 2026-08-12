@@ -297,9 +297,10 @@ export default function DataHealthPage() {
       medium: all.filter((d) => d.severity === "medium").length,
       employees: new Set(all.map((d) => d.hr_employee_id)).size,
     };
-  }, [drifts]);
+  }, [deduped]);
 
   async function runScan() {
+    setScanSignal((s) => s + 1);
     setScanning(true);
     try {
       const { data, error } = await supabase.functions.invoke("hr-drift-scan", {

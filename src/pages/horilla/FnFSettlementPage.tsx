@@ -314,11 +314,11 @@ export default function FnFSettlementPage() {
                       </span>
                     </div>
                     {s.status === "draft" && (
-                      <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "pending_approval" })}>
+                      <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "calculated" })}>
                         Submit
                       </Button>
                     )}
-                    {s.status === "pending_approval" && (
+                    {(s.status === "calculated" || s.status === "pending_approval") && (
                       <Button size="sm" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "approved" })}>
                         Approve
                       </Button>
@@ -333,11 +333,18 @@ export default function FnFSettlementPage() {
                             ? undefined
                             : "Final-month salary is not confirmed from RazorpayX yet"
                         }
-                        onClick={() => updateStatusMutation.mutate({ id: s.id, status: "paid" })}
+                        onClick={() => {
+                          setPaymentRef("");
+                          setPayPrompt({
+                            id: s.id,
+                            name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
+                          });
+                        }}
                       >
                         Mark Paid
                       </Button>
                     )}
+
                   </div>
                 </div>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">

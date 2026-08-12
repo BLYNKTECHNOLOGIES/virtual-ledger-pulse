@@ -95,7 +95,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
     d.earlyBy ? row("Early out by", `${d.earlyBy} min`) : "",
   ].join("");
 
-  const subject = `Attendance Notice: ${label} — ${shortDate(d.attendanceDate)}`;
+  const subject = `Attendance: ${label} — ${shortDate(d.attendanceDate)}`;
   // Unique trailing token: prevents Gmail from collapsing the identical footer
   // of successive notices behind the "..." trimmed-content toggle.
   const noticeRef = `${d.attendanceDate.replace(/-/g, "")}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;

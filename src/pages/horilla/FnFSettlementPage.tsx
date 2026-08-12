@@ -670,9 +670,9 @@ export default function FnFSettlementPage() {
             </Card>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="h-9" onClick={() => setShowCreate(false)}>Cancel</Button>
+            <Button variant="outline" className="h-9" onClick={() => { setShowCreate(false); setEditingId(null); }}>Cancel</Button>
             <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => createMutation.mutate()} disabled={!selectedEmpId || !form.last_working_day || createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Settlement"}
+              {createMutation.isPending ? (editingId ? "Saving..." : "Creating...") : (editingId ? "Save Changes" : "Create Settlement")}
             </Button>
           </DialogFooter>
         </DialogContent>

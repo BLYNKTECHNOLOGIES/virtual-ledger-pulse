@@ -150,7 +150,8 @@ If this is incorrect, raise an Attendance Regularization Request in the ERP: ${R
 
 ${BRAND.hrName} | ${BRAND.hrTitle}
 M: ${BRAND.hrPhone} | E: ${BRAND.hrEmail}
-${BRAND.company}, ${BRAND.address}`;
+${BRAND.company}, ${BRAND.address}
+Ref ${noticeRef}`;
 
   return { subject, html, text };
 }

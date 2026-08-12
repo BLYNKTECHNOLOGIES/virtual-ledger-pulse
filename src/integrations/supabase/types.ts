@@ -26002,6 +26002,14 @@ export type Database = {
           unlocked_ids: string[]
         }[]
       }
+      hr_v4_detect_shift: {
+        Args: { p_date: string; p_employee_id: string; p_first_in: string }
+        Returns: {
+          assigned_shift_id: string
+          shift_id: string
+          shift_source: string
+        }[]
+      }
       hr_v4_is_repaired_day: {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean

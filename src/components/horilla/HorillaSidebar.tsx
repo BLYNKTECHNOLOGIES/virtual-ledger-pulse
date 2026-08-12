@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { prefetchHrmsRoute } from "@/lib/hrmsPrefetch";
 
 interface NavItem {
   label: string;
@@ -226,6 +227,17 @@ export function HorillaSidebar({
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  // Path the user just clicked — highlighted immediately so the nav responds
+  // before the target page's chunk has finished loading.
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPendingPath(null);
+  }, [location.pathname]);
+
+  const prefetch = (path: string) => {
+    if (!path.startsWith("http")) prefetchHrmsRoute(path.split("?")[0]);
+  };
 
   // Auto-expand any parent group whose child matches current route
   useEffect(() => {
@@ -245,9 +257,12 @@ export function HorillaSidebar({
   const isActive = (path: string) => {
     // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.
     const base = path.split("?")[0];
-    if (base === "/hrms") return location.pathname === "/hrms";
-    return location.pathname.startsWith(base);
+    const current = pendingPath ?? location.pathname;
+    if (base === "/hrms") return current === "/hrms";
+    return current.startsWith(base);
   };
+
+  const isChildActive = (path: string) => (pendingPath ?? location.pathname) === path.split("?")[0];
 
   const toggleExpand = (label: string) => {
     setExpandedItems((prev) =>
@@ -259,6 +274,7 @@ export function HorillaSidebar({
     if (path.startsWith("http")) {
       window.open(path, "_blank");
     } else {
+      setPendingPath(path.split("?")[0]);
       navigate(path);
     }
 
@@ -313,10 +329,16 @@ export function HorillaSidebar({
                   <div
                     key={item.label}
                     className="relative"
-                    onMouseEnter={() => !isMobile && collapsed && setHoveredItem(item.label)}
+                    onMouseEnter={() => {
+                      if (!isMobile && collapsed) setHoveredItem(item.label);
+                      // Hover = intent: warm this section's chunks up front.
+                      prefetch(item.path);
+                      item.children?.slice(0, 4).forEach((c) => prefetch(c.path));
+                    }}
                     onMouseLeave={() => !isMobile && collapsed && setHoveredItem(null)}
                   >
                     <button
+                      onFocus={() => prefetch(item.path)}
                       onClick={() => {
                         if (hasChildren && !collapsed) {
                           toggleExpand(item.label);
@@ -351,10 +373,12 @@ export function HorillaSidebar({
                     {!collapsed && hasChildren && expanded && (
                       <div className="mt-0.5 ml-6 space-y-0.5 border-l border-[#2a2a40] pl-3">
                         {item.children!.map((child) => {
-                          const childActive = location.pathname === child.path;
+                          const childActive = isChildActive(child.path);
                           return (
                             <button
                               key={child.path}
+                              onMouseEnter={() => prefetch(child.path)}
+                              onFocus={() => prefetch(child.path)}
                               onClick={() => handleNavigate(child.path)}
                               className={cn(
                                 "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
@@ -376,10 +400,12 @@ export function HorillaSidebar({
                         {item.children!.map((child) => (
                           <button
                             key={child.path}
+                            onMouseEnter={() => prefetch(child.path)}
+                            onFocus={() => prefetch(child.path)}
                             onClick={() => handleNavigate(child.path)}
                             className={cn(
                               "w-full text-left text-sm py-2 px-3 transition-colors",
-                              location.pathname === child.path
+                              isChildActive(child.path)
                                 ? "text-[#6C63FF] bg-[#6C63FF]/10"
                                 : "text-muted-foreground hover:text-white hover:bg-[#252540]"
                             )}

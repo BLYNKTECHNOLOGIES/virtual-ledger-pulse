@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,6 +28,9 @@ export default function LeaveRequestsPage() {
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests", statusFilter],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       let query = (supabase as any).from("hr_leave_requests")
         .select("*, hr_employees!hr_leave_requests_employee_id_fkey(badge_id, first_name, last_name, email), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name, color)")

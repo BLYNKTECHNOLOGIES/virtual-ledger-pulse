@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent } from "@/components/ui/card";
@@ -62,6 +62,9 @@ export default function AttendanceSummaryPage() {
 
   const { data: summary = [], isLoading } = useQuery({
     queryKey: ["hr_attendance_month_summary", month, empIds.length],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     enabled: empIds.length > 0,
     queryFn: async () => {
       const { data, error } = await (supabase as any).rpc("hr_attendance_month_summary", {
@@ -122,6 +125,9 @@ export default function AttendanceSummaryPage() {
 
   const { data: maintained = [] } = useQuery({
     queryKey: ["hr_attendance_maintained", windows.start, windows.end],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () =>
       (await fetchAllPaginated<MaintainedRow>(() =>
         (supabase as any)
@@ -134,6 +140,9 @@ export default function AttendanceSummaryPage() {
 
   const { data: maintainedPrev = [] } = useQuery({
     queryKey: ["hr_attendance_maintained_prev", windows.prevStart, windows.prevEnd],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () =>
       (await fetchAllPaginated<MaintainedRow>(() =>
         (supabase as any)
@@ -146,6 +155,9 @@ export default function AttendanceSummaryPage() {
 
   const { data: daily = [] } = useQuery({
     queryKey: ["hr_attendance_daily_month", windows.start, windows.monthEnd],
+    // Filter/period changes keep the previous rows on screen instead of
+    // collapsing to a skeleton; the new data swaps in when it truly lands.
+    placeholderData: keepPreviousData,
     queryFn: async () =>
       (await fetchAllPaginated<DailyRow>(() =>
         (supabase as any)

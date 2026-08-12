@@ -244,16 +244,39 @@ export default function DataHealthPage() {
 
   const filtered = useMemo(() => {
     if (!drifts) return [];
-    return drifts.filter((d) => {
-      if (unexplainedOnly && (d.auto_status ?? "open") !== "open") return false;
-      if (severity !== "all" && d.severity !== severity) return false;
-      if (systemPair !== "all") {
-        const pair = systemPair.split("_");
-        if (!pair.every((s) => d.systems_involved.includes(s))) return false;
+    // A failed dismissal push and the resulting HRMS-inactive / Razorpay-active
+    // drift are the SAME problem for the same person. Show one card: keep the
+    // active_state row and fold the push-failure note into it.
+    const activeStateByEmp = new Set(
+      drifts.filter((d) => d.field === "active_state").map((d) => d.hr_employee_id),
+    );
+    const noteByEmp = new Map<string, { note: string; at: string }>();
+    for (const d of drifts) {
+      if (d.field === "dismissal_state" && activeStateByEmp.has(d.hr_employee_id)) {
+        noteByEmp.set(d.hr_employee_id, {
+          note: d.resolution_note || "Last dismissal push did not verify.",
+          at: d.first_seen_at,
+        });
       }
-      return true;
-    });
+    }
+    return drifts
+      .filter((d) => !(d.field === "dismissal_state" && activeStateByEmp.has(d.hr_employee_id)))
+      .map((d) =>
+        d.field === "active_state" && noteByEmp.has(d.hr_employee_id)
+          ? { ...d, merged_note: noteByEmp.get(d.hr_employee_id)!.note }
+          : d,
+      )
+      .filter((d) => {
+        if (unexplainedOnly && (d.auto_status ?? "open") !== "open") return false;
+        if (severity !== "all" && d.severity !== severity) return false;
+        if (systemPair !== "all") {
+          const pair = systemPair.split("_");
+          if (!pair.every((s) => d.systems_involved.includes(s))) return false;
+        }
+        return true;
+      });
   }, [drifts, severity, systemPair, unexplainedOnly]);
+
 
   const kpis = useMemo(() => {
     const all = drifts ?? [];

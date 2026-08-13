@@ -8584,6 +8584,36 @@ export type Database = {
           },
         ]
       }
+      hr_erp_account_exemptions: {
+        Row: {
+          badge_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          badge_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          badge_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       hr_esi_contribution_periods: {
         Row: {
           created_at: string
@@ -23797,6 +23827,27 @@ export type Database = {
           has_designation: boolean | null
           has_doj: boolean | null
           has_salary: boolean | null
+        }
+        Relationships: []
+      }
+      hr_erp_account_health_v: {
+        Row: {
+          emp_active: boolean | null
+          emp_badge_id: string | null
+          emp_full_name: string | null
+          erp_badge_id: string | null
+          erp_email: string | null
+          erp_full_name: string | null
+          erp_phone: string | null
+          erp_status: string | null
+          erp_value: string | null
+          field: string | null
+          hr_employee_id: string | null
+          hrms_value: string | null
+          issue_type: string | null
+          severity: string | null
+          user_id: string | null
+          username: string | null
         }
         Relationships: []
       }

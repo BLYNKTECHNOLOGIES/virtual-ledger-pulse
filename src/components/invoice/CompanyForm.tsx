@@ -72,7 +72,7 @@ async function migrateLegacyProfiles(existing: SavedProfile[]) {
   const { error } = await supabase.from("invoice_company_profiles").insert(
     toInsert.map((p) => ({
       label: p.label,
-      company: p.company as unknown as Record<string, unknown>,
+      company: p.company as unknown as never,
       created_by: auth?.user?.id ?? null,
     })),
   );
@@ -143,7 +143,7 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
         .from("invoice_company_profiles")
         .insert({
           label: saveName.trim(),
-          company: company as unknown as Record<string, unknown>,
+          company: company as unknown as never,
           created_by: auth?.user?.id ?? null,
         })
         .select("id")

@@ -27,6 +27,8 @@ import { useComplianceSettings, complianceDriftForPayslip } from "@/hooks/hrms/u
 import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
 import { RazorpayOrphanPanel } from "@/components/hrms/health/RazorpayOrphanPanel";
+import { ErpAccountHealthPanel } from "@/components/hrms/health/ErpAccountHealthPanel";
+
 import { PullFromRazorpayDialog, type PullTarget } from "@/components/hr/governance/PullFromRazorpayDialog";
 
 // Fields we can write back into HRMS from RazorpayX. Mirrors PULLABLE_FIELDS
@@ -524,6 +526,10 @@ export default function DataHealthPage() {
 
       {/* Roster drift — people in RazorpayX with no HRMS employee record */}
       <RazorpayOrphanPanel scanSignal={scanSignal} />
+
+      {/* ERP login accounts vs HRMS */}
+      <ErpAccountHealthPanel />
+
 
 
 

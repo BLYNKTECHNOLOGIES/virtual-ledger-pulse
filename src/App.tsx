@@ -735,7 +735,7 @@ const router = createBrowserRouter([
         { path: "attendance/monthly-hours", element: <Navigate to="/hrms/attendance/hours" replace /> },
 
        { path: "attendance/regularization", element: <AttendanceRegularizationPage /> },
-       { path: "attendance/watchdog", element: <AttendanceRegularizationPage /> },
+       { path: "attendance/watchdog", element: <Navigate to="/hrms/attendance/stale-sessions" replace /> },
        { path: "attendance/stale-sessions", element: <AttendanceStaleSessionsPage /> },
         { path: "attendance/day/:employeeId/:date", element: <AttendanceDayDetailPage /> },
         { path: "attendance/period-locks", element: <AttendancePeriodLockPage /> },

@@ -59,8 +59,8 @@ Deno.serve(async (req) => {
       adminClient.rpc("has_role", { _user_id: caller.id, _role: "Super Admin" }),
       adminClient.rpc("has_role", { _user_id: caller.id, _role: "Admin" }),
       adminClient.rpc("user_has_permission", {
-        _user_id: caller.id,
-        _permission: "user_management_hr_manage",
+        user_uuid: caller.id,
+        check_permission: "user_management_hr_manage",
       }),
     ]);
 

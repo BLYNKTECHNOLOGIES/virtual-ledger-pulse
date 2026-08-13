@@ -707,11 +707,17 @@ export default function UserProfile() {
     queryKey: ['hr_employee_profile_resolved', user?.id],
     queryFn: async () => {
       if (!user?.id) return { employee: null, matchedVia: null as string | null };
-      // 1. Primary link
+      // 1. Primary link. Historical data can hold more than one employee row
+      // per auth user (stale duplicates); always prefer the active record
+      // instead of erroring out on a multi-row match.
       const primary = await supabase
-        .from('hr_employees').select('*').eq('user_id', user.id).maybeSingle();
+        .from('hr_employees').select('*').eq('user_id', user.id)
+        .order('is_active', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1);
       if (primary.error) throw primary.error;
-      if (primary.data) return { employee: primary.data, matchedVia: 'user_id' };
+      if (primary.data?.[0]) return { employee: primary.data[0], matchedVia: 'user_id' };
+
 
       // Fetch user record for fallback keys
       const { data: u } = await supabase

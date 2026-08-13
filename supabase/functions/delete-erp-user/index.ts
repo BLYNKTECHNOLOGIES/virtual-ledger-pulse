@@ -9,6 +9,7 @@ const corsHeaders = {
 
 const BodySchema = z.object({
   userId: z.string().uuid("Invalid user id"),
+  verifyOnly: z.boolean().optional().default(false),
 });
 
 // Always return 200 with a success flag so the browser client can read the
@@ -50,16 +51,40 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Unauthorized. Please log in again." });
     }
 
+    // Authorize the validated caller explicitly, then perform privileged cleanup
+    // with a fresh service client. Forwarding the browser JWT to the cleanup RPC
+    // made authorization depend on PostgREST session propagation and caused valid
+    // Super Admins to be evaluated as an anonymous actor.
+    const [superAdminCheck, adminCheck, permissionCheck] = await Promise.all([
+      adminClient.rpc("has_role", { _user_id: caller.id, _role: "Super Admin" }),
+      adminClient.rpc("has_role", { _user_id: caller.id, _role: "Admin" }),
+      adminClient.rpc("user_has_permission", {
+        user_uuid: caller.id,
+        check_permission: "user_management_hr_manage",
+      }),
+    ]);
+
+    const authorizationError = superAdminCheck.error || adminCheck.error || permissionCheck.error;
+    if (authorizationError) {
+      console.error("delete authorization check failed:", authorizationError);
+      return jsonResponse({ success: false, error: "Unable to verify delete permission" });
+    }
+
+    const isSuperAdmin = superAdminCheck.data === true;
+    const isAllowed = isSuperAdmin || adminCheck.data === true || permissionCheck.data === true;
+    if (!isAllowed) {
+      return jsonResponse({ success: false, error: "Insufficient permissions to delete ERP users" });
+    }
+
+    if (parsed.data.verifyOnly) {
+      return jsonResponse({ success: true, authorized: true, isSuperAdmin });
+    }
+
     if (caller.id === parsed.data.userId) {
       return jsonResponse({ success: false, error: "You cannot delete your own account" });
     }
 
-    const userClient = createClient(supabaseUrl, anonKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-      global: { headers: { Authorization: authHeader } },
-    });
-
-    const { data: cleanupResult, error: cleanupError } = await userClient.rpc("delete_user_with_cleanup", {
+    const { data: cleanupResult, error: cleanupError } = await adminClient.rpc("delete_user_with_cleanup", {
       target_user_id: parsed.data.userId,
     });
 

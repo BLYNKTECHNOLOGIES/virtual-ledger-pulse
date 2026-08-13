@@ -525,6 +525,10 @@ export default function DataHealthPage() {
       {/* Roster drift — people in RazorpayX with no HRMS employee record */}
       <RazorpayOrphanPanel scanSignal={scanSignal} />
 
+      {/* ERP login accounts vs HRMS */}
+      <ErpAccountHealthPanel />
+
+
 
 
       {/* Statutory drift rollup — Razorpay filing toggles vs actual payslip amounts */}

@@ -1,12 +1,26 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { CompanyInfo } from "@/types/invoice";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, ChevronDown, ChevronUp, Save, Trash2, Plus } from "lucide-react";
+import { Building2, ChevronDown, ChevronUp, Save, Trash2, Plus, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
-const STORAGE_KEY = "invoice_company_profiles";
+const LEGACY_STORAGE_KEY = "invoice_company_profiles";
+const SELECTED_KEY = "invoice_selected_company_profile";
 
 export interface SavedProfile {
   id: string;
@@ -14,73 +28,169 @@ export interface SavedProfile {
   company: CompanyInfo;
 }
 
-function loadProfiles(): SavedProfile[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveProfiles(profiles: SavedProfile[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
-}
-
 interface CompanyFormProps {
   company: CompanyInfo;
   onChange: (company: CompanyInfo) => void;
 }
 
+async function fetchProfiles(): Promise<SavedProfile[]> {
+  const { data, error } = await supabase
+    .from("invoice_company_profiles")
+    .select("id, label, company")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    label: r.label as string,
+    company: r.company as unknown as CompanyInfo,
+  }));
+}
+
+/** One-time migration of legacy localStorage profiles into the database. */
+async function migrateLegacyProfiles(existing: SavedProfile[]) {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+  } catch {
+    return false;
+  }
+  if (!raw) return false;
+  let legacy: SavedProfile[] = [];
+  try {
+    legacy = JSON.parse(raw) ?? [];
+  } catch {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    return false;
+  }
+  const labels = new Set(existing.map((p) => p.label.toLowerCase()));
+  const toInsert = legacy.filter((p) => p?.label && !labels.has(p.label.toLowerCase()));
+  if (toInsert.length === 0) {
+    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    return false;
+  }
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase.from("invoice_company_profiles").insert(
+    toInsert.map((p) => ({
+      label: p.label,
+      company: p.company as unknown as never,
+      created_by: auth?.user?.id ?? null,
+    })),
+  );
+  if (error) return false;
+  localStorage.removeItem(LEGACY_STORAGE_KEY);
+  return true;
+}
+
 export default function CompanyForm({ company, onChange }: CompanyFormProps) {
   const [expanded, setExpanded] = useState(true);
-  const [profiles, setProfiles] = useState<SavedProfile[]>(loadProfiles);
-  const [selectedProfileId, setSelectedProfileId] = useState<string>("__custom__");
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(() => {
+    try {
+      return localStorage.getItem(SELECTED_KEY) || "__custom__";
+    } catch {
+      return "__custom__";
+    }
+  });
   const [saveName, setSaveName] = useState("");
   const [showSave, setShowSave] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const migratedRef = useRef(false);
+  const autoAppliedRef = useRef(false);
+  const qc = useQueryClient();
 
-  // Auto-select first profile on mount if profiles exist and company is empty
+  const { data: profiles = [], isLoading } = useQuery({
+    queryKey: ["invoice-company-profiles"],
+    queryFn: fetchProfiles,
+    staleTime: 60_000,
+  });
+
+  // Migrate any legacy browser-stored profiles into the database once.
   useEffect(() => {
-    if (profiles.length > 0 && !company.name) {
-      const first = profiles[0];
-      onChange(first.company);
-      setSelectedProfileId(first.id);
+    if (isLoading || migratedRef.current) return;
+    migratedRef.current = true;
+    migrateLegacyProfiles(profiles).then((migrated) => {
+      if (migrated) qc.invalidateQueries({ queryKey: ["invoice-company-profiles"] });
+    });
+  }, [isLoading, profiles, qc]);
+
+  // Apply the remembered (or first) profile once profiles load.
+  useEffect(() => {
+    if (isLoading || autoAppliedRef.current || profiles.length === 0) return;
+    autoAppliedRef.current = true;
+    const remembered = profiles.find((p) => p.id === selectedProfileId);
+    if (remembered) {
+      onChange(remembered.company);
+      return;
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!company.name) {
+      onChange(profiles[0].company);
+      persistSelected(profiles[0].id);
+      setSelectedProfileId(profiles[0].id);
+    }
+  }, [isLoading, profiles]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function persistSelected(id: string) {
+    try {
+      localStorage.setItem(SELECTED_KEY, id);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const { data, error } = await supabase
+        .from("invoice_company_profiles")
+        .insert({
+          label: saveName.trim(),
+          company: company as unknown as never,
+          created_by: auth?.user?.id ?? null,
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      return data.id as string;
+    },
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ["invoice-company-profiles"] });
+      setSelectedProfileId(id);
+      persistSelected(id);
+      setSaveName("");
+      setShowSave(false);
+      toast.success("Company profile saved permanently");
+    },
+    onError: (e: Error) => toast.error(e.message || "Could not save profile"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("invoice_company_profiles").delete().eq("id", id);
+      if (error) throw error;
+      return id;
+    },
+    onSuccess: (id) => {
+      qc.invalidateQueries({ queryKey: ["invoice-company-profiles"] });
+      if (selectedProfileId === id) {
+        setSelectedProfileId("__custom__");
+        persistSelected("__custom__");
+      }
+      toast.success("Profile deleted");
+    },
+    onError: (e: Error) => toast.error(e.message || "Could not delete profile"),
+  });
 
   const handleProfileSelect = (profileId: string) => {
     setSelectedProfileId(profileId);
+    persistSelected(profileId);
     if (profileId === "__custom__") return;
-    const profile = profiles.find(p => p.id === profileId);
+    const profile = profiles.find((p) => p.id === profileId);
     if (profile) onChange(profile.company);
-  };
-
-  const handleSaveProfile = () => {
-    if (!saveName.trim() || !company.name) return;
-    const newProfile: SavedProfile = {
-      id: Date.now().toString(),
-      label: saveName.trim(),
-      company: { ...company },
-    };
-    const updated = [...profiles, newProfile];
-    setProfiles(updated);
-    saveProfiles(updated);
-    setSelectedProfileId(newProfile.id);
-    setSaveName("");
-    setShowSave(false);
-  };
-
-  const handleDeleteProfile = (id: string) => {
-    const updated = profiles.filter(p => p.id !== id);
-    setProfiles(updated);
-    saveProfiles(updated);
-    if (selectedProfileId === id) setSelectedProfileId("__custom__");
   };
 
   const update = (key: keyof CompanyInfo, value: string | string[]) => {
     onChange({ ...company, [key]: value });
-    // If editing, mark as custom
     setSelectedProfileId("__custom__");
+    persistSelected("__custom__");
   };
 
   return (
@@ -112,7 +222,7 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
               <Label>Saved Company Profiles</Label>
               <Select value={selectedProfileId} onValueChange={handleProfileSelect}>
                 <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a saved profile or enter manually" />
+                  <SelectValue placeholder={isLoading ? "Loading profiles…" : "Select a saved profile or enter manually"} />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__custom__">— Enter Manually —</SelectItem>
@@ -136,11 +246,16 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
                     onChange={(e) => setSaveName(e.target.value)}
                     placeholder="e.g. Blynk VT"
                     className="w-40 h-9"
-                    onKeyDown={(e) => e.key === "Enter" && handleSaveProfile()}
+                    onKeyDown={(e) => e.key === "Enter" && saveName.trim() && company.name && saveMutation.mutate()}
                   />
                 </div>
-                <Button size="sm" onClick={handleSaveProfile} disabled={!saveName.trim() || !company.name} className="gap-1">
-                  <Save className="w-3.5 h-3.5" />
+                <Button
+                  size="sm"
+                  onClick={() => saveMutation.mutate()}
+                  disabled={!saveName.trim() || !company.name || saveMutation.isPending}
+                  className="gap-1"
+                >
+                  {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                   Save
                 </Button>
                 <Button variant="ghost" size="sm" onClick={() => { setShowSave(false); setSaveName(""); }}>
@@ -166,7 +281,7 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
                   <Building2 className="w-3 h-3" />
                   {p.label}
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteProfile(p.id); }}
+                    onClick={(e) => { e.stopPropagation(); setDeleteId(p.id); }}
                     className="ml-1 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -224,6 +339,25 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
           </div>
         </div>
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this company profile?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the saved company & payment details permanently. Invoices already generated are unaffected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); setDeleteId(null); }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

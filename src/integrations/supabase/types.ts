@@ -15506,6 +15506,33 @@ export type Database = {
           },
         ]
       }
+      invoice_company_profiles: {
+        Row: {
+          company: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          company: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label: string
+          updated_at?: string
+        }
+        Update: {
+          company?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       job_applicants: {
         Row: {
           address: string | null

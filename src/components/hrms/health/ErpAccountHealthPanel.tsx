@@ -243,7 +243,7 @@ export function ErpAccountHealthPanel() {
             {isLoading ? "…" : `${total} issue${total === 1 ? "" : "s"}`}
           </span>
         </div>
-        <Link to="/users" className="text-[11px] underline text-muted-foreground hover:text-foreground">
+        <Link to="/user-management" className="text-[11px] underline text-muted-foreground hover:text-foreground">
           User Management
         </Link>
       </div>

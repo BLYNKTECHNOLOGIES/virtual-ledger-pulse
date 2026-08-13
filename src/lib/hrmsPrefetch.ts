@@ -48,7 +48,7 @@ const ROUTE_MODULE: Record<string, string> = {
   "/hrms/attendance/late-early": "LateComeEarlyOutPage",
   "/hrms/attendance/punches": "AttendancePunchesPage",
   "/hrms/attendance/regularization": "AttendanceRegularizationPage",
-  "/hrms/attendance/watchdog": "AttendanceRegularizationPage",
+  "/hrms/attendance/watchdog": "AttendanceStaleSessionsPage",
   "/hrms/attendance/stale-sessions": "AttendanceStaleSessionsPage",
   "/hrms/attendance/period-locks": "AttendancePeriodLockPage",
 

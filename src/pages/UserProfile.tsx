@@ -1709,18 +1709,6 @@ export default function UserProfile() {
           <UpcomingHolidaysCard />
         </TabsContent>
 
-        {/* ═══════ Growth Tab ═══════ */}
-        <TabsContent value="growth" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <MyFeedback360Card employeeId={hrEmployee.id} />
-              <MyDisciplinaryCard employeeId={hrEmployee.id} />
-            </div>
-          )}
-        </TabsContent>
-
         {/* ═══════ Helpdesk Tab ═══════ */}
         <TabsContent value="helpdesk" className="space-y-6">
           {user?.id && <MyHelpdeskCard userId={user.id} />}

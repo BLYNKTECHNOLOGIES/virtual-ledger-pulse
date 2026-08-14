@@ -169,11 +169,7 @@ ${lopBlock}${bonusBlock}
       deductions and statutory contributions (PF / ESIC / PT / TDS).
     </p>
 
-    <p style="margin:26px 0 30px;font-size:14px;color:#0f172a;line-height:1.6;">
-      Warm regards,<br/>
-      <strong>HR &amp; Payroll Team</strong><br/>
-      <span style="color:#64748b;">Blynk Virtual Technologies Pvt. Ltd.</span>
-    </p>
+    ${hrSignatureHtml(`Payslip notice &middot; ${month}`)}
   </td></tr>
 
   <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;">

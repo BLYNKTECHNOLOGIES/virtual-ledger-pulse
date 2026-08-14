@@ -796,6 +796,8 @@ export default function PayrollInputsPage() {
       />
 
       <AutoLopDialog open={autoLopOpen} onOpenChange={setAutoLopOpen} period={period} />
+      <CompOffEncashmentDialog open={compoffOpen} onOpenChange={setCompoffOpen} period={period} />
+
     </div>
   );
 }

@@ -778,11 +778,17 @@ export default function ProfitLoss() {
                 <ArrowRightLeft className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">NPM (per unit)</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(periodMetrics?.npm || 0)}
-              </p>
+              {periodMetrics?.costBasisUnavailable ? (
+                <p className="text-xl font-medium text-muted-foreground">Unavailable</p>
+              ) : (
+                <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(periodMetrics?.npm || 0)}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                Avg Sales Rate - Avg Purchase Rate
+                {periodMetrics?.carriedFromDate
+                  ? `Avg Sales Rate - carried purchase rate (${periodMetrics.carriedFromDate})`
+                  : 'Avg Sales Rate - Avg Purchase Rate'}
               </p>
             </div>
           </div>

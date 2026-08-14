@@ -621,6 +621,24 @@ export default function PayrollInputsPage() {
       {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
       {!lopFocus && tab === "addition" && <OtherPayrollInputsCard period={period} />}
 
+      {!lopFocus && tab === "addition" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap">
+            <div>
+              <CardTitle className="text-sm">Comp-off encashment — {period}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Comp-off never carries forward. After days taken as leave and days used to cancel this month's LOP,
+                the remaining balance is encashed at monthly base ÷ working days and staged as an addition.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setCompoffOpen(true)}>
+              <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
+            </Button>
+          </CardHeader>
+        </Card>
+      )}
+
+
 
 
 

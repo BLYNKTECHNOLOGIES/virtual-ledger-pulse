@@ -125,13 +125,10 @@ export default function CompOffPage() {
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">Pending</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {!c.is_allocated && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success/20 hover:bg-success/10" onClick={() => allocateMutation.mutate(c)}>
-                          <ArrowRight className="h-3 w-3 mr-1" /> Allocate Leave
-                        </Button>
-                      )}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {c.is_allocated ? "Posted to leave balance" : "Awaiting auto-post"}
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>

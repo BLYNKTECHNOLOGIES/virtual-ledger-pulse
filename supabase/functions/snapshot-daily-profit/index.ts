@@ -161,15 +161,29 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   // 4. Calculate effective purchase rate and gross profit
   const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
   let effectivePurchaseRate = 0;
+  let purchaseRateCarried = false;
+  let purchaseRateSourceDate: string | null = null;
 
   if (totalPurchaseQty > 0 && netPurchaseQty > 0) {
     effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
   } else if (totalPurchaseQty > 0) {
     effectivePurchaseRate = totalPurchaseValue / totalPurchaseQty;
+  } else {
+    // No purchases on this day — carry forward the last purchase day's rate so the
+    // whole sale value is not booked as profit.
+    const carried = await resolveCarriedPurchaseRate(supabase, snapshotDate);
+    if (carried) {
+      effectivePurchaseRate = carried.rate;
+      purchaseRateCarried = true;
+      purchaseRateSourceDate = carried.sourceDate;
+    }
   }
 
-  const npm = avgSalesRate - effectivePurchaseRate;
-  const grossProfit = npm * totalSalesQty;
+  // If there is no cost basis at all (no purchases ever before this day), gross
+  // profit is not derivable — record zero rather than treating sales as pure profit.
+  const costBasisUnavailable = effectivePurchaseRate <= 0;
+  const npm = costBasisUnavailable ? 0 : avgSalesRate - effectivePurchaseRate;
+  const grossProfit = costBasisUnavailable ? 0 : npm * totalSalesQty;
 
   // 5. Upsert into daily_gross_profit_history
   const { error: upsertError } = await supabase
@@ -181,13 +195,15 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
         total_sales_qty: totalSalesQty,
         avg_sales_rate: avgSalesRate,
         effective_purchase_rate: effectivePurchaseRate,
+        purchase_rate_carried: purchaseRateCarried,
+        purchase_rate_source_date: purchaseRateSourceDate,
       },
       { onConflict: "snapshot_date" }
     );
 
   if (upsertError) throw upsertError;
 
-  return { snapshot_date: snapshotDate, gross_profit: grossProfit, total_sales_qty: totalSalesQty, avg_sales_rate: avgSalesRate, effective_purchase_rate: effectivePurchaseRate, npm };
+  return { snapshot_date: snapshotDate, gross_profit: grossProfit, total_sales_qty: totalSalesQty, avg_sales_rate: avgSalesRate, effective_purchase_rate: effectivePurchaseRate, purchase_rate_carried: purchaseRateCarried, purchase_rate_source_date: purchaseRateSourceDate, npm };
 }
 
 serve(async (req) => {

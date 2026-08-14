@@ -114,6 +114,10 @@ Deno.serve(async (req) => {
       const lop = lopByEmp.get(map.hr_employee_id);
       const existingAuto = autoByEmp.get(map.hr_employee_id);
 
+      const pool = compoffPool.get(map.hr_employee_id) ?? { days_earned: 0, days_opening: 0, days_taken: 0, days_available: 0 };
+      const rawLopDays = Number(lop?.lop_days ?? 0);
+      const split = splitCompoff(pool.days_available, rawLopDays);
+
       const base: any = {
         hr_employee_id: map.hr_employee_id,
         razorpay_employee_id: map.razorpay_employee_id,
@@ -123,11 +127,15 @@ Deno.serve(async (req) => {
         present_days: Number(lop?.present_days ?? 0),
         paid_leave_days: Number(lop?.paid_leave_days ?? 0),
         unpaid_leave_days: Number(lop?.unpaid_leave_days ?? 0),
-        lop_days: Number(lop?.lop_days ?? 0),
+        raw_lop_days: rawLopDays,
+        compoff_available: pool.days_available,
+        compoff_offset_days: split.offset_days,
+        lop_days: split.lop_after_offset,
         formula: lop?.formula ?? null,
         existing_amount: existingAuto ? Number(existingAuto.amount) : null,
         existing_pushed: !!existingAuto?.pushed_at,
       };
+
 
       if (!lop) {
         rows.push({ ...base, status: "skipped", reason: "No attendance computation for this employee", amount: 0, base_source: null });

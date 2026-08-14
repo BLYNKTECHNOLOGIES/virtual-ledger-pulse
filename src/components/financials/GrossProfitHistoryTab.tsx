@@ -6,6 +6,7 @@ import { BarChart3, TrendingUp, RefreshCw } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { resolveCarriedPurchaseRate } from "@/lib/carryForwardPurchaseRate";
 import { format } from "date-fns";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart, Legend } from "recharts";
 import { toast } from "sonner";
@@ -21,7 +22,7 @@ export function GrossProfitHistoryTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("daily_gross_profit_history")
-        .select("snapshot_date, gross_profit, total_sales_qty, avg_sales_rate, effective_purchase_rate")
+        .select("snapshot_date, gross_profit, total_sales_qty, avg_sales_rate, effective_purchase_rate, purchase_rate_carried, purchase_rate_source_date")
         .order("snapshot_date", { ascending: true })
         .limit(1000);
       if (error) throw error;
@@ -67,9 +68,18 @@ export function GrossProfitHistoryTab() {
         }
       }
 
-      const effectivePurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
-      const npm = avgSalesRate - effectivePurchaseRate;
-      const grossProfit = npm * totalSalesQty;
+      // No purchases today → carry forward the last purchase day's effective rate,
+      // otherwise the entire sale value would be booked as profit.
+      let effectivePurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
+      let carried: { rate: number; sourceDate: string } | null = null;
+      if (totalPurchaseQty <= 0) {
+        carried = await resolveCarriedPurchaseRate(todayStr, 'all');
+        effectivePurchaseRate = carried?.rate ?? 0;
+      }
+
+      const costBasisUnavailable = effectivePurchaseRate <= 0;
+      const npm = costBasisUnavailable ? 0 : avgSalesRate - effectivePurchaseRate;
+      const grossProfit = costBasisUnavailable ? 0 : npm * totalSalesQty;
 
       return {
         snapshot_date: todayStr,
@@ -77,6 +87,8 @@ export function GrossProfitHistoryTab() {
         total_sales_qty: totalSalesQty,
         avg_sales_rate: avgSalesRate,
         effective_purchase_rate: effectivePurchaseRate,
+        purchase_rate_carried: !!carried,
+        purchase_rate_source_date: carried?.sourceDate ?? null,
       };
     },
     refetchInterval: 60000, // refresh every minute
@@ -375,7 +387,17 @@ export function GrossProfitHistoryTab() {
                     const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
                     return (
                       <TableRow key={item.snapshot_date}>
-                        <TableCell className="text-sm">{format(new Date(item.snapshot_date), "dd MMM yyyy")}</TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(item.snapshot_date), "dd MMM yyyy")}
+                          {item.purchase_rate_carried && (
+                            <span
+                              className="ml-2 text-xs text-muted-foreground"
+                              title={`No purchases that day — cost basis carried forward from ${item.purchase_rate_source_date}`}
+                            >
+                              carried fwd
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm">{Number(item.total_sales_qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-mono text-sm">₹{npm.toFixed(2)}</TableCell>
                         <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>

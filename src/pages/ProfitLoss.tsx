@@ -33,6 +33,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { fetchAllPaginated } from '@/lib/fetchAllRows';
+import { resolveCarriedPurchaseRate } from '@/lib/carryForwardPurchaseRate';
 import { GrossProfitHistoryTab } from '@/components/financials/GrossProfitHistoryTab';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';
@@ -73,6 +74,10 @@ interface PeriodMetrics {
    effectivePurchaseRate: number | null;
    netPurchaseQty: number;
 
+   // Carry-forward cost basis (used when the period had zero purchases)
+   carriedPurchaseRate: number | null;
+   carriedFromDate: string | null;
+   costBasisUnavailable: boolean;
 }
 
 interface TradeEntry {
@@ -403,11 +408,27 @@ export default function ProfitLoss() {
          effectivePurchaseRate = null;
        }
 
-       // Profit calculations based on Effective Purchase Rate (adjusted for all USDT fees)
-       // Use effective purchase rate when available, fall back to avg purchase rate
-       const purchaseRateForProfit = effectivePurchaseRate ?? avgPurchaseRate;
-       const npm = avgSalesRate - purchaseRateForProfit;
-      const grossProfit = npm * totalSalesQty;
+       // Profit calculations based on Effective Purchase Rate (adjusted for all USDT fees).
+       // When the period had NO purchases at all, a zero cost basis would make the whole
+       // sale value read as profit — carry forward the last purchase day's effective rate.
+       let carriedPurchaseRate: number | null = null;
+       let carriedFromDate: string | null = null;
+       let costBasisUnavailable = false;
+
+       if (totalPurchaseQty <= 0) {
+         const carried = await resolveCarriedPurchaseRate(startStr, selectedAsset);
+         if (carried) {
+           carriedPurchaseRate = carried.rate;
+           carriedFromDate = carried.sourceDate;
+         } else {
+           costBasisUnavailable = true;
+         }
+       }
+
+       const purchaseRateForProfit =
+         carriedPurchaseRate ?? effectivePurchaseRate ?? avgPurchaseRate;
+       const npm = costBasisUnavailable ? 0 : avgSalesRate - purchaseRateForProfit;
+      const grossProfit = costBasisUnavailable ? 0 : npm * totalSalesQty;
       
       const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
@@ -433,6 +454,9 @@ export default function ProfitLoss() {
          totalUsdtFees,
          effectivePurchaseRate,
          netPurchaseQty,
+         carriedPurchaseRate,
+         carriedFromDate,
+         costBasisUnavailable,
       };
 
       // Create trade entries for table
@@ -666,9 +690,19 @@ export default function ProfitLoss() {
                 <ShoppingCart className="h-4 w-4 text-warning" />
                 <span className="text-sm font-medium text-muted-foreground">Avg Purchase Rate</span>
               </div>
-              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.avgPurchaseRate || 0)}</p>
+              <p className="text-2xl font-bold">
+                {formatCurrency(
+                  (periodMetrics?.totalPurchaseQty || 0) > 0
+                    ? periodMetrics?.avgPurchaseRate || 0
+                    : periodMetrics?.carriedPurchaseRate || 0
+                )}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {(periodMetrics?.totalPurchaseQty || 0).toFixed(2)} units bought
+                {(periodMetrics?.totalPurchaseQty || 0) > 0
+                  ? `${(periodMetrics?.totalPurchaseQty || 0).toFixed(2)} units bought`
+                  : periodMetrics?.carriedFromDate
+                    ? `No purchases — carried forward from ${periodMetrics.carriedFromDate}`
+                    : 'No purchases — cost basis unavailable'}
               </p>
             </div>
              <TooltipProvider>
@@ -687,6 +721,18 @@ export default function ProfitLoss() {
                            Net qty: {(periodMetrics?.netPurchaseQty || 0).toFixed(4)} USDT
                          </p>
                        </>
+                     ) : periodMetrics?.carriedPurchaseRate ? (
+                       <>
+                         <p className="text-2xl font-bold">{formatCurrency(periodMetrics.carriedPurchaseRate)}</p>
+                         <p className="text-xs text-muted-foreground mt-1">
+                           Carried forward from {periodMetrics.carriedFromDate}
+                         </p>
+                       </>
+                     ) : periodMetrics?.costBasisUnavailable ? (
+                       <div className="flex items-center gap-2">
+                         <AlertTriangle className="h-4 w-4 text-destructive" />
+                         <p className="text-sm font-medium text-destructive">Cost basis unavailable</p>
+                       </div>
                      ) : periodMetrics?.totalPurchaseQty === 0 ? (
                        <p className="text-xl font-medium text-muted-foreground">—</p>
                      ) : (
@@ -702,6 +748,18 @@ export default function ProfitLoss() {
                    <p className="text-xs mt-2 text-muted-foreground">
                      Total USDT Fees: {(periodMetrics?.totalUsdtFees || 0).toFixed(4)} USDT
                    </p>
+                   {periodMetrics?.carriedFromDate && (
+                     <p className="text-xs mt-2 text-muted-foreground">
+                       No stock was bought in this period, so the cost basis is carried
+                       forward from the last purchase day ({periodMetrics.carriedFromDate}).
+                     </p>
+                   )}
+                   {periodMetrics?.costBasisUnavailable && (
+                     <p className="text-xs mt-2 text-muted-foreground">
+                       No purchases in this period and no earlier purchase day exists, so
+                       gross profit cannot be derived and is shown as unavailable.
+                     </p>
+                   )}
                  </TooltipContent>
                </Tooltip>
              </TooltipProvider>
@@ -720,11 +778,17 @@ export default function ProfitLoss() {
                 <ArrowRightLeft className="h-4 w-4 text-primary" />
                 <span className="text-sm font-medium text-muted-foreground">NPM (per unit)</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(periodMetrics?.npm || 0)}
-              </p>
+              {periodMetrics?.costBasisUnavailable ? (
+                <p className="text-xl font-medium text-muted-foreground">Unavailable</p>
+              ) : (
+                <p className={`text-2xl font-bold ${(periodMetrics?.npm || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(periodMetrics?.npm || 0)}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                Avg Sales Rate - Avg Purchase Rate
+                {periodMetrics?.carriedFromDate
+                  ? `Avg Sales Rate - carried purchase rate (${periodMetrics.carriedFromDate})`
+                  : 'Avg Sales Rate - Avg Purchase Rate'}
               </p>
             </div>
           </div>
@@ -738,11 +802,17 @@ export default function ProfitLoss() {
                 <Target className="h-4 w-4 text-success" />
                 <span className="text-sm font-medium text-muted-foreground">Gross Profit</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(periodMetrics?.grossProfit || 0)}
-              </p>
+              {periodMetrics?.costBasisUnavailable ? (
+                <p className="text-xl font-medium text-muted-foreground">Unavailable</p>
+              ) : (
+                <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(periodMetrics?.grossProfit || 0)}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                NPM × Total Sales Qty
+                {periodMetrics?.costBasisUnavailable
+                  ? 'No purchase history to derive a cost basis'
+                  : 'NPM × Total Sales Qty'}
               </p>
             </div>
             <div className="p-4 bg-primary/10 rounded-lg">

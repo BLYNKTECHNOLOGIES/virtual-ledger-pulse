@@ -7,6 +7,85 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Legacy non-USDT orders created before the WAC system — excluded from P&L math
+const EXCLUDED_LEGACY_PURCHASE_ORDER_IDS = [
+  "1fd66952-bf77-4bf4-a183-4c0fbc34510f",
+  "937f087e-6b2a-4328-a2dd-0166e0682c5b",
+  "4f90519e-6d47-43c4-8206-9278927c788f",
+];
+
+/** Total USDT fee debits recorded on a single calendar day. */
+async function getDayUsdtFees(supabase: any, day: string): Promise<number> {
+  const rows = await fetchAllRows((from, to) =>
+    supabase
+      .from("wallet_transactions")
+      .select("amount")
+      .eq("transaction_type", "DEBIT")
+      .in("reference_type", [
+        "PLATFORM_FEE",
+        "TRANSFER_FEE",
+        "SALES_ORDER_FEE",
+        "PURCHASE_ORDER_FEE",
+      ])
+      .gte("created_at", `${day}T00:00:00`)
+      .lte("created_at", `${day}T23:59:59`)
+      .range(from, to)
+  );
+  return rows?.reduce((sum: number, f: any) => sum + Number(f.amount || 0), 0) || 0;
+}
+
+/**
+ * Carry-forward cost basis: when a day has no purchases at all, walk back to the
+ * most recent earlier day that DID have purchases and reuse that day's fee-adjusted
+ * effective purchase rate. No lookback limit. Returns null when no earlier
+ * purchase day exists — the caller must then treat the cost basis as unavailable.
+ */
+async function resolveCarriedPurchaseRate(
+  supabase: any,
+  beforeDate: string
+): Promise<{ rate: number; sourceDate: string } | null> {
+  const { data: latest } = await supabase
+    .from("purchase_orders")
+    .select("order_date")
+    .eq("status", "COMPLETED")
+    .lt("order_date", beforeDate)
+    .gt("effective_usdt_qty", 0)
+    .not("id", "in", `(${EXCLUDED_LEGACY_PURCHASE_ORDER_IDS.join(",")})`)
+    .order("order_date", { ascending: false })
+    .limit(1);
+
+  const sourceDate = latest?.[0]?.order_date;
+  if (!sourceDate) return null;
+
+  const orders = await fetchAllRows((from, to) =>
+    supabase
+      .from("purchase_orders")
+      .select("id, total_amount, effective_usdt_qty")
+      .eq("status", "COMPLETED")
+      .eq("order_date", sourceDate)
+      .range(from, to)
+  );
+
+  let value = 0;
+  let qty = 0;
+  for (const po of orders || []) {
+    if (EXCLUDED_LEGACY_PURCHASE_ORDER_IDS.includes(po.id)) continue;
+    const effQty = Number(po.effective_usdt_qty) || 0;
+    if (effQty > 0) {
+      qty += effQty;
+      value += Number(po.total_amount) || 0;
+    }
+  }
+  if (qty <= 0 || value <= 0) return null;
+
+  const fees = await getDayUsdtFees(supabase, sourceDate);
+  const netQty = qty - fees;
+  const rate = netQty > 0 ? value / netQty : value / qty;
+  if (!isFinite(rate) || rate <= 0) return null;
+
+  return { rate, sourceDate };
+}
+
 async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   const dayStart = snapshotDate + "T00:00:00";
   const dayEnd = snapshotDate + "T23:59:59";
@@ -82,15 +161,29 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
   // 4. Calculate effective purchase rate and gross profit
   const netPurchaseQty = totalPurchaseQty - totalUsdtFees;
   let effectivePurchaseRate = 0;
+  let purchaseRateCarried = false;
+  let purchaseRateSourceDate: string | null = null;
 
   if (totalPurchaseQty > 0 && netPurchaseQty > 0) {
     effectivePurchaseRate = totalPurchaseValue / netPurchaseQty;
   } else if (totalPurchaseQty > 0) {
     effectivePurchaseRate = totalPurchaseValue / totalPurchaseQty;
+  } else {
+    // No purchases on this day — carry forward the last purchase day's rate so the
+    // whole sale value is not booked as profit.
+    const carried = await resolveCarriedPurchaseRate(supabase, snapshotDate);
+    if (carried) {
+      effectivePurchaseRate = carried.rate;
+      purchaseRateCarried = true;
+      purchaseRateSourceDate = carried.sourceDate;
+    }
   }
 
-  const npm = avgSalesRate - effectivePurchaseRate;
-  const grossProfit = npm * totalSalesQty;
+  // If there is no cost basis at all (no purchases ever before this day), gross
+  // profit is not derivable — record zero rather than treating sales as pure profit.
+  const costBasisUnavailable = effectivePurchaseRate <= 0;
+  const npm = costBasisUnavailable ? 0 : avgSalesRate - effectivePurchaseRate;
+  const grossProfit = costBasisUnavailable ? 0 : npm * totalSalesQty;
 
   // 5. Upsert into daily_gross_profit_history
   const { error: upsertError } = await supabase
@@ -102,13 +195,15 @@ async function computeSnapshotForDate(supabase: any, snapshotDate: string) {
         total_sales_qty: totalSalesQty,
         avg_sales_rate: avgSalesRate,
         effective_purchase_rate: effectivePurchaseRate,
+        purchase_rate_carried: purchaseRateCarried,
+        purchase_rate_source_date: purchaseRateSourceDate,
       },
       { onConflict: "snapshot_date" }
     );
 
   if (upsertError) throw upsertError;
 
-  return { snapshot_date: snapshotDate, gross_profit: grossProfit, total_sales_qty: totalSalesQty, avg_sales_rate: avgSalesRate, effective_purchase_rate: effectivePurchaseRate, npm };
+  return { snapshot_date: snapshotDate, gross_profit: grossProfit, total_sales_qty: totalSalesQty, avg_sales_rate: avgSalesRate, effective_purchase_rate: effectivePurchaseRate, purchase_rate_carried: purchaseRateCarried, purchase_rate_source_date: purchaseRateSourceDate, npm };
 }
 
 serve(async (req) => {

@@ -2982,6 +2982,8 @@ export type Database = {
           effective_purchase_rate: number
           gross_profit: number
           id: string
+          purchase_rate_carried: boolean
+          purchase_rate_source_date: string | null
           snapshot_date: string
           total_sales_qty: number
         }
@@ -2991,6 +2993,8 @@ export type Database = {
           effective_purchase_rate?: number
           gross_profit?: number
           id?: string
+          purchase_rate_carried?: boolean
+          purchase_rate_source_date?: string | null
           snapshot_date: string
           total_sales_qty?: number
         }
@@ -3000,6 +3004,8 @@ export type Database = {
           effective_purchase_rate?: number
           gross_profit?: number
           id?: string
+          purchase_rate_carried?: boolean
+          purchase_rate_source_date?: string | null
           snapshot_date?: string
           total_sales_qty?: number
         }

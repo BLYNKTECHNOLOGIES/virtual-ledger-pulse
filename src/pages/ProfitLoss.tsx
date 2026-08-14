@@ -73,6 +73,10 @@ interface PeriodMetrics {
    effectivePurchaseRate: number | null;
    netPurchaseQty: number;
 
+   // Carry-forward cost basis (used when the period had zero purchases)
+   carriedPurchaseRate: number | null;
+   carriedFromDate: string | null;
+   costBasisUnavailable: boolean;
 }
 
 interface TradeEntry {

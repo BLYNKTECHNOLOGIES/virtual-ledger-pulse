@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPaginated } from "@/lib/fetchAllRows";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -224,20 +224,38 @@ export function OrgChartView() {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const [posRes, deptRes, employees, workInfos] = await Promise.all([
+      const [posRes, deptRes, dirRes] = await Promise.all([
         supabase.from("positions").select("id, title, department_id, hierarchy_level, reports_to_position_id").eq("is_active", true),
         supabase.from("departments").select("id, name, code").eq("is_active", true),
-        fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, first_name, last_name, badge_id, profile_image_url, is_active").eq("is_active", true)),
-        fetchAllPaginated<any>(() => supabase.from("hr_employee_work_info").select("employee_id, department_id, job_position_id, reporting_manager_id, job_role")),
+        // RLS on hr_employees limits non-HR users to their own row — use the
+        // security-definer org directory so the full chart renders for everyone.
+        supabase.rpc("hr_org_chart_directory"),
       ]);
 
       const positions = posRes.data || [];
       const depts = deptRes.data || [];
+      const directory: any[] = (dirRes.data as any[]) || [];
+
+      const employees = directory.map(d => ({
+        id: d.id,
+        first_name: d.first_name,
+        last_name: d.last_name,
+        profile_image_url: d.profile_image_url,
+        is_active: true,
+      }));
+      const workInfos = directory.map(d => ({
+        employee_id: d.id,
+        department_id: d.department_id,
+        job_position_id: d.job_position_id,
+        reporting_manager_id: d.reporting_manager_id,
+        job_role: d.job_role,
+      }));
 
       setRawEmployees(employees);
       setRawWorkInfos(workInfos);
       setRawPositions(positions);
       setRawDepts(depts);
+
 
       const deptMap = new Map(depts.map(d => [d.id, d]));
 

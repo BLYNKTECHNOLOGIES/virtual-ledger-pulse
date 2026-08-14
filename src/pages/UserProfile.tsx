@@ -64,8 +64,6 @@ import MyAnnouncementsCard from '@/components/profile/MyAnnouncementsCard';
 import MyMilestonesCard from '@/components/profile/MyMilestonesCard';
 import MyPoliciesCard from '@/components/profile/MyPoliciesCard';
 import MyHelpdeskCard from '@/components/profile/MyHelpdeskCard';
-import MyDisciplinaryCard from '@/components/profile/MyDisciplinaryCard';
-import MyFeedback360Card from '@/components/profile/MyFeedback360Card';
 import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
@@ -1134,7 +1132,6 @@ export default function UserProfile() {
           <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
           <TabsTrigger value="assets" className="shrink-0">Assets</TabsTrigger>
           <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
-          <TabsTrigger value="growth" className="shrink-0">Growth</TabsTrigger>
           <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
           <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
         </TabsList>
@@ -1710,18 +1707,6 @@ export default function UserProfile() {
         <TabsContent value="policies" className="space-y-6">
           {user?.id && <MyPoliciesCard userId={user.id} />}
           <UpcomingHolidaysCard />
-        </TabsContent>
-
-        {/* ═══════ Growth Tab ═══════ */}
-        <TabsContent value="growth" className="space-y-6">
-          {!hrEmployee ? (
-            <NoEmployeeProfile />
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <MyFeedback360Card employeeId={hrEmployee.id} />
-              <MyDisciplinaryCard employeeId={hrEmployee.id} />
-            </div>
-          )}
         </TabsContent>
 
         {/* ═══════ Helpdesk Tab ═══════ */}

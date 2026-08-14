@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { isStandbyRoles } from '@/hooks/useIsStandby';
+
 
 const ADMIN_PERMISSIONS = [
   'dashboard_view',
@@ -77,7 +79,17 @@ export function usePermissions() {
         return;
       }
 
+      // Standby role: no business permissions at all — profile section only.
+      if (isStandbyRoles(user.roles)) {
+        persistPermissions(user.id, []);
+        setPermissions([]);
+        setIsDegraded(false);
+        setIsLoading(false);
+        return;
+      }
+
       const cached = permissionCache.get(user.id) || readPersistedPermissions(user.id);
+
       if (cached) {
         permissionCache.set(user.id, cached);
         setPermissions(cached);

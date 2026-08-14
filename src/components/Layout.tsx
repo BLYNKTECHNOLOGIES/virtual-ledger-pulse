@@ -12,6 +12,8 @@ import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";
 import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
 import { EmployeeOfTheMonthBanner } from "./EmployeeOfTheMonthBanner";
+import { useIsStandby } from "@/hooks/useIsStandby";
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,6 +21,8 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { isStandby } = useIsStandby();
+
   // Persist sidebar expanded/collapsed (icon-rail) state across reloads.
   const defaultSidebarOpen =
     typeof document !== "undefined"
@@ -35,10 +39,12 @@ export function Layout({ children }: LayoutProps) {
             <SidebarProvider defaultOpen={defaultSidebarOpen}>
               <ShortcutsProvider>
               <div className="flex w-full min-h-screen bg-background">
-                {/* Desktop sidebar - hidden on mobile */}
-                <div className="hidden md:block">
-                  <AppSidebar />
-                </div>
+                {/* Desktop sidebar - hidden on mobile, hidden entirely for standby users */}
+                {!isStandby && (
+                  <div className="hidden md:block">
+                    <AppSidebar />
+                  </div>
+                )}
                 <SidebarInset className="flex flex-col flex-1 min-w-0">
                   <TopHeader />
                   <EmployeeOfTheMonthBanner />
@@ -49,7 +55,8 @@ export function Layout({ children }: LayoutProps) {
                     </div>
                   </main>
                   {/* Mobile bottom navigation */}
-                  <MobileBottomNav />
+                  {!isStandby && <MobileBottomNav />}
+
                   {/* Floating AI Help Assistant */}
                   <HelpAssistantFab />
                   {/* Global click-to-view transaction detail dialog */}

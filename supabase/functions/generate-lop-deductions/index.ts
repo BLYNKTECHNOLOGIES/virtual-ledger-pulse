@@ -146,19 +146,24 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const lopDays = Number(lop.lop_days ?? 0);
+      // LOP after comp-off has cancelled what it can.
+      const lopDays = split.lop_after_offset;
 
       if (lopDays <= 0) {
+        const offsetNote = split.offset_days > 0
+          ? `${split.offset_days} LOP day${split.offset_days === 1 ? "" : "s"} cancelled by comp-off`
+          : null;
         if (existingAuto && !existingAuto.pushed_at) {
-          rows.push({ ...base, status: "remove", reason: "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
+          rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
           toDelete.push(existingAuto.id);
         } else if (existingAuto?.pushed_at) {
           rows.push({ ...base, status: "pushed", reason: "Already pushed to RazorpayX — left untouched", amount: Number(existingAuto.amount), base_source: null });
         } else {
-          rows.push({ ...base, status: "no_lop", reason: "No loss of pay this month", amount: 0, base_source: null });
+          rows.push({ ...base, status: "no_lop", reason: offsetNote ?? "No loss of pay this month", amount: 0, base_source: null });
         }
         continue;
       }
+
 
       const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
       if (salary.error) {

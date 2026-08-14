@@ -407,11 +407,27 @@ export default function ProfitLoss() {
          effectivePurchaseRate = null;
        }
 
-       // Profit calculations based on Effective Purchase Rate (adjusted for all USDT fees)
-       // Use effective purchase rate when available, fall back to avg purchase rate
-       const purchaseRateForProfit = effectivePurchaseRate ?? avgPurchaseRate;
-       const npm = avgSalesRate - purchaseRateForProfit;
-      const grossProfit = npm * totalSalesQty;
+       // Profit calculations based on Effective Purchase Rate (adjusted for all USDT fees).
+       // When the period had NO purchases at all, a zero cost basis would make the whole
+       // sale value read as profit — carry forward the last purchase day's effective rate.
+       let carriedPurchaseRate: number | null = null;
+       let carriedFromDate: string | null = null;
+       let costBasisUnavailable = false;
+
+       if (totalPurchaseQty <= 0) {
+         const carried = await resolveCarriedPurchaseRate(startStr, selectedAsset);
+         if (carried) {
+           carriedPurchaseRate = carried.rate;
+           carriedFromDate = carried.sourceDate;
+         } else {
+           costBasisUnavailable = true;
+         }
+       }
+
+       const purchaseRateForProfit =
+         carriedPurchaseRate ?? effectivePurchaseRate ?? avgPurchaseRate;
+       const npm = costBasisUnavailable ? 0 : avgSalesRate - purchaseRateForProfit;
+      const grossProfit = costBasisUnavailable ? 0 : npm * totalSalesQty;
       
       const totalExpenses = expenseData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
       const totalIncome = incomeData?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
@@ -437,6 +453,9 @@ export default function ProfitLoss() {
          totalUsdtFees,
          effectivePurchaseRate,
          netPurchaseQty,
+         carriedPurchaseRate,
+         carriedFromDate,
+         costBasisUnavailable,
       };
 
       // Create trade entries for table

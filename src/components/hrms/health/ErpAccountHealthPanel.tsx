@@ -3,12 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Loader2, UserX, Link2, ArrowRight, ArrowLeft, EyeOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, UserX, Link2, ArrowRight, ArrowLeft, EyeOff, UserPlus } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { deactivateErpAccount } from "@/lib/erpAccountDeactivation";
+import { CreateErpAccountDialog, type CreateErpTarget } from "./CreateErpAccountDialog";
 
 type Row = {
   issue_type:
@@ -93,6 +94,7 @@ export function ErpAccountHealthPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [exemptTarget, setExemptTarget] = useState<Row | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<Row | null>(null);
+  const [createTarget, setCreateTarget] = useState<CreateErpTarget | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["erp_account_health"],
@@ -351,6 +353,23 @@ export function ErpAccountHealthPanel() {
                             )}
                           </>
                         )}
+                        {g.key === "employee_without_erp" && r.hr_employee_id && (
+                          <button
+                            onClick={() =>
+                              setCreateTarget({
+                                hr_employee_id: r.hr_employee_id,
+                                emp_full_name: r.emp_full_name,
+                                emp_badge_id: r.emp_badge_id,
+                                email: r.erp_email,
+                                phone: r.erp_phone,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/40 text-primary px-2 py-1 hover:bg-primary/10"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            Create ERP ID
+                          </button>
+                        )}
                         {g.key === "active_login_inactive_employee" && (
                           <button
                             onClick={() => setDeactivateTarget(r)}
@@ -433,6 +452,12 @@ export function ErpAccountHealthPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateErpAccountDialog
+        target={createTarget}
+        onOpenChange={(o) => !o && setCreateTarget(null)}
+        onCreated={refresh}
+      />
     </div>
   );
 }

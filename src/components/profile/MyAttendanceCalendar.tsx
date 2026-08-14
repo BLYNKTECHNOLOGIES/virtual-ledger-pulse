@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock, AlertCircle } from 'lucide-react';
 import {
@@ -379,5 +380,152 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
         </div>
       </div>
     </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Day cell with rich hover (desktop) / tap (mobile) detail popover     */
+/* ------------------------------------------------------------------ */
+
+function fmtIST(ts?: string | null) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(d);
+}
+
+function istDateOf(ts?: string | null) {
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d);
+}
+
+function hoursLabel(minutes?: number | null) {
+  const m = Math.max(0, Math.round(Number(minutes ?? 0)));
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+}
+
+function DayCell({
+  iso,
+  date,
+  idx,
+  rec,
+  legend,
+  isToday: today,
+  isSelected,
+  onSelect,
+}: {
+  iso: string;
+  date: Date;
+  idx: number;
+  rec: { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay };
+  legend: (typeof LEGEND)[LegendKey];
+  isToday: boolean;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const row = rec.row;
+  const inT = fmtIST(row?.first_in);
+  const outT = fmtIST(row?.last_out);
+  const outNextDay = !!(row?.last_out && istDateOf(row.last_out) !== iso);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          onClick={() => {
+            onSelect();
+            setOpen((o) => !o);
+          }}
+          onMouseEnter={() => {
+            if (window.matchMedia('(hover: hover)').matches) setOpen(true);
+          }}
+          onMouseLeave={() => {
+            if (window.matchMedia('(hover: hover)').matches) setOpen(false);
+          }}
+          style={{ animationDelay: `${idx * 12}ms` }}
+          className={cn(
+            'group relative aspect-square rounded-xl border text-[11px] md:text-xs font-semibold',
+            'flex flex-col items-center justify-center gap-1',
+            'transition-all duration-300 ease-out will-change-transform',
+            'hover:-translate-y-0.5 hover:scale-[1.04] active:scale-95',
+            'animate-fade-in',
+            legend.cell,
+            legend.text,
+            today && !isSelected && 'ring-2 ring-primary/70 ring-offset-1 ring-offset-background',
+            isSelected && cn('scale-[1.08] ring-2 ring-primary z-10', legend.glow),
+          )}
+          aria-label={`${format(date, 'EEE, MMM d')} — ${legend.label}`}
+        >
+          <span className="tabular-nums leading-none text-[12px] md:text-[13px]">{date.getDate()}</span>
+          <span
+            className={cn(
+              'w-1.5 h-1.5 rounded-full transition-transform',
+              legend.dot,
+              isSelected && 'scale-150 animate-pulse',
+            )}
+          />
+          {today && (
+            <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-primary animate-pulse" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        className="w-[230px] p-2.5 z-50"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="space-y-1.5 text-[11px] leading-snug">
+          <div className="flex items-center gap-2">
+            <span className={cn('h-2 w-2 rounded-full shrink-0', legend.dot)} />
+            <span className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</span>
+          </div>
+          <div className={cn('font-semibold', legend.text)}>{legend.label}</div>
+
+          {rec.label && <div className="text-sky-600 dark:text-sky-300">🎉 {rec.label}</div>}
+
+          {inT || outT ? (
+            <div className="tabular-nums text-foreground">
+              {inT || '--:--'} <span className="text-muted-foreground">→</span> {outT || '--:--'}
+              {outNextDay && <span className="ml-1 text-muted-foreground">+1d</span>}
+            </div>
+          ) : (
+            <div className="text-muted-foreground">No punch recorded</div>
+          )}
+
+          {row && (row.worked_minutes > 0 || (row.session_count ?? 0) > 0) && (
+            <div className="tabular-nums text-muted-foreground">
+              Worked {hoursLabel(row.worked_minutes)}
+              {(row.session_count ?? 0) > 0 &&
+                ` · ${row.session_count} session${row.session_count === 1 ? '' : 's'}`}
+            </div>
+          )}
+
+          {row && ((row.late_minutes ?? 0) > 0 || (row.early_minutes ?? 0) > 0) && (
+            <div className="tabular-nums text-warning">
+              {(row.late_minutes ?? 0) > 0 && `Late ${row.late_minutes}m`}
+              {(row.late_minutes ?? 0) > 0 && (row.early_minutes ?? 0) > 0 && ' · '}
+              {(row.early_minutes ?? 0) > 0 && `Early out ${row.early_minutes}m`}
+            </div>
+          )}
+
+          {row && Number(row.lop_contribution ?? 0) > 0 && (
+            <div className="text-destructive">LOP {Number(row.lop_contribution).toFixed(2)} day</div>
+          )}
+          {row?.watchdog_held && <div className="text-destructive">Held — watchdog</div>}
+          {row && (row.suppressed_count ?? 0) > 0 && (
+            <div className="text-muted-foreground">{row.suppressed_count} punch(es) suppressed</div>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -164,6 +164,32 @@ export function ErpAccountHealthPanel() {
     }
   }
 
+  async function adoptErpValue(row: Row) {
+    if (!row.hr_employee_id || !row.field) return;
+    setBusy(`${row.user_id}-${row.field}-erp`);
+    try {
+      const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (row.field === "email") patch.email = (row.erp_value || "").toLowerCase();
+      else if (row.field === "phone") patch.phone = row.erp_value;
+      else if (row.field === "full_name") {
+        const parts = (row.erp_value || "").trim().split(/\s+/);
+        patch.first_name = parts.shift() || null;
+        patch.last_name = parts.join(" ") || null;
+      }
+      const { error } = await (supabase as any)
+        .from("hr_employees")
+        .update(patch)
+        .eq("id", row.hr_employee_id);
+      if (error) throw error;
+      toast.success(`${FIELD_LABEL[row.field] ?? row.field} adopted from ERP into HRMS`);
+      refresh();
+    } catch (e: any) {
+      toast.error(`Could not update the HRMS record: ${e?.message || e}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function doDeactivate(row: Row) {
     if (!row.hr_employee_id) return;
     setBusy(`${row.user_id}-deactivate`);

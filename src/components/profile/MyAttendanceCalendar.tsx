@@ -278,35 +278,17 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
             const today = isToday(d);
             const isSel = selected === iso;
             return (
-              <button
+              <DayCell
                 key={iso}
-                onClick={() => setSelected(iso)}
-                style={{ animationDelay: `${idx * 12}ms` }}
-                className={cn(
-                  'group relative aspect-square rounded-xl border text-[11px] md:text-xs font-semibold',
-                  'flex flex-col items-center justify-center gap-1',
-                  'transition-all duration-300 ease-out will-change-transform',
-                  'hover:-translate-y-0.5 hover:scale-[1.04] active:scale-95',
-                  'animate-fade-in',
-                  legend.cell,
-                  legend.text,
-                  today && !isSel && 'ring-2 ring-primary/70 ring-offset-1 ring-offset-background',
-                  isSel && cn('scale-[1.08] ring-2 ring-primary z-10', legend.glow),
-                )}
-                title={`${format(d, 'EEE, MMM d')} — ${legend.label}${rec.label ? ` · ${rec.label}` : ''}`}
-              >
-                <span className="tabular-nums leading-none text-[12px] md:text-[13px]">{d.getDate()}</span>
-                <span
-                  className={cn(
-                    'w-1.5 h-1.5 rounded-full transition-transform',
-                    legend.dot,
-                    isSel && 'scale-150 animate-pulse',
-                  )}
-                />
-                {today && (
-                  <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-primary animate-pulse" />
-                )}
-              </button>
+                iso={iso}
+                date={d}
+                idx={idx}
+                rec={rec}
+                legend={legend}
+                isToday={today}
+                isSelected={isSel}
+                onSelect={() => setSelected(iso)}
+              />
             );
           })}
         </div>

@@ -19,6 +19,8 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { isStandby } = useIsStandby();
+
   // Persist sidebar expanded/collapsed (icon-rail) state across reloads.
   const defaultSidebarOpen =
     typeof document !== "undefined"

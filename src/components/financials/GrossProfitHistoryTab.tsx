@@ -375,7 +375,17 @@ export function GrossProfitHistoryTab() {
                     const npm = Number(item.avg_sales_rate) - Number(item.effective_purchase_rate);
                     return (
                       <TableRow key={item.snapshot_date}>
-                        <TableCell className="text-sm">{format(new Date(item.snapshot_date), "dd MMM yyyy")}</TableCell>
+                        <TableCell className="text-sm">
+                          {format(new Date(item.snapshot_date), "dd MMM yyyy")}
+                          {item.purchase_rate_carried && (
+                            <span
+                              className="ml-2 text-xs text-muted-foreground"
+                              title={`No purchases that day — cost basis carried forward from ${item.purchase_rate_source_date}`}
+                            >
+                              carried fwd
+                            </span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right font-mono text-sm">{Number(item.total_sales_qty).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
                         <TableCell className="text-right font-mono text-sm">₹{npm.toFixed(2)}</TableCell>
                         <TableCell className={`text-right font-mono text-sm font-semibold ${Number(item.gross_profit) >= 0 ? 'text-success' : 'text-destructive'}`}>

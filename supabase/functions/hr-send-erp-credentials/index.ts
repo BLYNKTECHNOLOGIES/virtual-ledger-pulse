@@ -87,9 +87,14 @@ Deno.serve(async (req) => {
         <tr><td style="padding:8px 0;color:#6b7280">Username</td><td style="padding:8px 0"><b>${esc(username)}</b></td></tr>
         <tr><td style="padding:8px 0;color:#6b7280">Temporary password</td><td style="padding:8px 0"><b style="font-family:monospace">${esc(tempPassword)}</b></td></tr>
       </table>
+      <p style="margin:0 0 12px;font-size:14px;line-height:1.6">
+        While you are there, you can also add a <b>profile picture</b> to your ERP profile so colleagues can recognise you.
+        This is completely optional — you can skip it and add it any time later from Profile → Settings.
+      </p>
       <p style="margin:0 0 8px;font-size:12px;color:#6b7280;line-height:1.6">
         Keep these credentials confidential. Never share your password with anyone, including IT or HR staff.
       </p>
+
       ${hrSignatureHtml("Automated message · Blynk HRMS")}
     </div>
   </div>
@@ -104,6 +109,8 @@ Username: ${username}
 Temporary password: ${tempPassword}
 
 You will be asked to change this password on first login. Keep it confidential.
+
+Optional: after setting your password, you can add a profile picture to your ERP profile (Profile > Settings). This is optional and can be done any time.
 
 ${hrSignatureText("Automated message · Blynk HRMS")}`;
 

@@ -96,9 +96,9 @@ export default function CompOffPage() {
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Date Worked</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Type</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Credit</TableHead>
-                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Expires</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Settled in</TableHead>
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</TableHead>
-                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Actions</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Outcome</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -117,17 +117,22 @@ export default function CompOffPage() {
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-success tabular-nums">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground tabular-nums">{c.expires_at || "Year-end"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground tabular-nums">
+                      {c.settled_period_month ? String(c.settled_period_month).slice(0, 7) : "Open — settles this month"}
+                    </TableCell>
                     <TableCell>
-                      {c.is_allocated ? (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-success/10 text-success border-success/20">Allocated</span>
+                      {c.settled_period_month ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-muted text-muted-foreground border-border">Settled</span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">Pending</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-success/10 text-success border-success/20">Available</span>
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {c.is_allocated ? "Posted to leave balance" : "Awaiting auto-post"}
+                      {c.settlement_outcome === "settled_in_payroll"
+                        ? "Taken as leave / offset against LOP / encashed"
+                        : c.settlement_outcome || (c.settled_period_month ? "Settled" : "Taken as leave, offset against LOP, or encashed at month close")}
                     </TableCell>
+
 
                   </TableRow>
                 ))}

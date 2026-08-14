@@ -128,7 +128,7 @@ export function RosterCompletenessTile() {
             {first && (
               <>
                 {" · "}
-                <Link className="underline hover:text-foreground" to={`/hrms/employees/${first.id}`}>
+                <Link className="underline hover:text-foreground" to={`/hrms/employee/${first.id}`}>
                   fix {first.first_name}
                 </Link>
               </>

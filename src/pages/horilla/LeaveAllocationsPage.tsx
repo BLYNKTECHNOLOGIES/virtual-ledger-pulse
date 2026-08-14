@@ -43,16 +43,20 @@ export default function LeaveAllocationsPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_leave_allocations")
-        .select("*, hr_employees!hr_leave_allocations_employee_id_fkey(id, badge_id, first_name, last_name), hr_leave_types!hr_leave_allocations_leave_type_id_fkey(id, name, color, max_days_per_year)")
+        .select("*, hr_employees!hr_leave_allocations_employee_id_fkey(id, badge_id, first_name, last_name, is_active), hr_leave_types!hr_leave_allocations_leave_type_id_fkey(id, name, color, max_days_per_year)")
         .order("year", { ascending: true });
       if (error) throw error;
       return (data as any[]) || [];
     },
   });
 
-  const currentQuarterAllocations = allAllocations.filter(
+  // Ex-employees (is_active = false) must not appear in live leave balances
+  const activeAllocations = allAllocations.filter((a: any) => a.hr_employees?.is_active !== false);
+
+  const currentQuarterAllocations = activeAllocations.filter(
     (a: any) => a.year === year && (a.quarter === quarter || !a.quarter)
   );
+
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],

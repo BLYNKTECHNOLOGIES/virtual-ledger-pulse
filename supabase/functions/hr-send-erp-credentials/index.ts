@@ -110,6 +110,8 @@ Temporary password: ${tempPassword}
 
 You will be asked to change this password on first login. Keep it confidential.
 
+Optional: after setting your password, you can add a profile picture to your ERP profile (Profile > Settings). This is optional and can be done any time.
+
 ${hrSignatureText("Automated message · Blynk HRMS")}`;
 
     const client = new SMTPClient({

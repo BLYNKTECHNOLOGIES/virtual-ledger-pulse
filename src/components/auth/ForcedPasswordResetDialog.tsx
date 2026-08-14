@@ -56,15 +56,47 @@ export function ForcedPasswordResetDialog({ open, onSuccess }: ForcedPasswordRes
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.id) {
         await supabase.from('users').update({ force_password_change: false }).eq('id', user.id);
+        setUserId(user.id);
       }
 
-      onSuccess();
+      // Optional next step: profile picture
+      setStep('avatar');
     } catch (err: any) {
       setError(err?.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleAvatarSelect = (file: File | null) => {
+    setError('');
+    if (!file) { setAvatarFile(null); setAvatarPreview(null); return; }
+    if (!file.type.startsWith('image/')) { setError('Please choose an image file.'); return; }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be smaller than 5 MB.'); return; }
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile || !userId) { onSuccess(); return; }
+    setUploading(true);
+    setError('');
+    try {
+      const fileExt = avatarFile.name.split('.').pop() || 'jpg';
+      const fileName = `${userId}/avatar-${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, avatarFile, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
+      const { error: rpcError } = await supabase.rpc('update_user_profile', { p_user_id: userId, p_avatar_url: publicUrl });
+      if (rpcError) throw rpcError;
+      onSuccess();
+    } catch (err: any) {
+      setError(err?.message || 'Could not upload the picture. You can add it later from your profile.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>

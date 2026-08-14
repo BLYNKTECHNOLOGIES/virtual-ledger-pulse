@@ -139,7 +139,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
     );
     const today = startOfDay(new Date());
 
-    const out: Record<string, { key: LegendKey; meta?: any; label?: string }> = {};
+    const out: Record<string, { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay }> = {};
     for (const d of days) {
       const iso = format(d, 'yyyy-MM-dd');
       const holiday = holidayMap.get(iso);

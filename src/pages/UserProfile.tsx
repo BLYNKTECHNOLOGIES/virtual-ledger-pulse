@@ -437,16 +437,28 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
 
   const fmt = (n: number | null | undefined) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
+  const Row = ({ label, value, tone }: { label: string; value: number | null | undefined; tone?: 'neg' }) => (
+    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-border/40 last:border-0">
+      <span className="text-sm text-muted-foreground truncate">{label}</span>
+      <span className={`text-sm font-medium tabular-nums ${tone === 'neg' ? 'text-destructive' : 'text-foreground'}`}>
+        {tone === 'neg' ? '− ' : ''}{fmt(value)}
+      </span>
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h3 className="text-lg font-semibold">My Payslips</h3>
+      <div className="flex items-end justify-between flex-wrap gap-2">
+        <div>
+          <h3 className="text-lg font-semibold tracking-tight">My Payslips</h3>
+          <p className="text-[11px] text-muted-foreground max-w-2xl">
+            Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
+            run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
+          </p>
+        </div>
       </div>
-      <p className="text-[11px] text-muted-foreground -mt-2">
-        Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
-        run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
-      </p>
-      <div className="space-y-3">
+
+      <div className="space-y-4">
         {payslips.map((p) => {
           const period = p.period_month
             ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -461,122 +473,105 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
             ['LTA', p.lta], ['DA', p.dearness_allowance],
             ...variableHeads.map((l) => [l.label, l.amount] as [string, number]),
           ] as Array<[string, number | null]>).filter(([, v]) => Number(v) > 0);
+          const deductions: Array<[string, number | null]> = ([
+            ['Provident Fund', p.pf_amount], ['ESI', p.esi_amount],
+            ['Professional Tax', p.professional_tax], ['TDS', p.tds_amount],
+            ['Loan EMI', p.loan_emi], ['Advance', p.advance_salary],
+          ] as Array<[string, number | null]>).filter(([, v]) => Number(v) > 0);
+          const netDeductions = (Number(p.total_deductions) || 0) - oneTimeRecovery;
 
           return (
-            <Card key={p.id}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-4 flex-wrap gap-2">
-                  <div>
-                    <h4 className="font-semibold text-foreground flex items-center gap-2 flex-wrap">
-                      Payslip — {period}
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
-                        {hasReg ? 'Detailed' : 'Breakdown pending'}
-                      </span>
-                    </h4>
-                    {p.pulled_at && (
-                      <p className="text-xs text-muted-foreground">
-                        Updated {formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}
-                      </p>
-                    )}
+            <Card key={p.id} className="overflow-hidden border-border/70 shadow-sm">
+              {/* Header band */}
+              <div className="flex items-center justify-between gap-3 flex-wrap px-5 py-4 bg-muted/40 border-b border-border/60">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="font-semibold text-foreground text-base">{period}</h4>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-medium ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
+                      {hasReg ? 'Detailed' : 'Breakdown pending'}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
-                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Salary slip{p.working_days ? ` · ${p.working_days} working days` : ''}
+                    {p.pulled_at ? ` · updated ${formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}` : ''}
+                  </p>
                 </div>
+                <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
+              </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                  <div className="bg-muted/30 rounded-lg p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Gross</p>
-                    <p className="text-lg font-bold">{fmt(p.gross)}</p>
+              <CardContent className="p-5 space-y-5">
+                {/* Net pay hero + summary */}
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center rounded-xl border border-border/60 bg-gradient-to-r from-primary/5 to-transparent px-4 py-4">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Net pay credited</p>
+                    <p className="text-3xl font-bold tabular-nums text-foreground mt-0.5">{fmt(p.net)}</p>
                   </div>
-                  <div className="bg-muted/30 rounded-lg p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Deductions</p>
-                    <p className="text-lg font-bold text-destructive">
-                      {hasReg ? fmt((Number(p.total_deductions) || 0) - oneTimeRecovery) : '—'}
-                    </p>
-                  </div>
-
-                  <div className="bg-muted/30 rounded-lg p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Net Pay</p>
-                    <p className="text-lg font-bold text-success">{fmt(p.net)}</p>
-                  </div>
-                  <div className="bg-muted/30 rounded-lg p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground uppercase">Working Days</p>
-                    <p className="text-lg font-bold">{p.working_days ?? '—'}</p>
+                  <div className="flex items-center gap-6 sm:gap-8">
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Gross</p>
+                      <p className="text-base font-semibold tabular-nums">{fmt(p.gross)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Deductions</p>
+                      <p className="text-base font-semibold tabular-nums text-destructive">
+                        {hasReg ? `− ${fmt(netDeductions)}` : '—'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
                 {hasReg ? (
                   <>
-                    {earnings.length > 0 && (
-                      <div className="mb-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Earnings</p>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                          {earnings.map(([k, v]) => (
-                            <div key={k} className="flex justify-between border-b border-border/50 py-1">
-                              <span className="text-muted-foreground">{k}</span>
-                              <span className="font-medium tabular-nums">{fmt(v)}</span>
-                            </div>
-                          ))}
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-lg border border-border/60 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Earnings</p>
+                        {earnings.length > 0 ? earnings.map(([k, v]) => <Row key={k} label={k} value={v} />) : (
+                          <p className="text-sm text-muted-foreground">No component-wise earnings published.</p>
+                        )}
+                        <div className="flex items-baseline justify-between pt-2.5 mt-1 border-t border-border">
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total earnings</span>
+                          <span className="text-sm font-semibold tabular-nums">{fmt(p.gross)}</span>
                         </div>
                       </div>
-                    )}
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Statutory deductions (employee share)</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                        <div className="flex justify-between border-b border-border/50 py-1">
-                          <span className="text-muted-foreground">PF</span>
-                          <span className="font-medium tabular-nums">{fmt(p.pf_amount)}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-border/50 py-1">
-                          <span className="text-muted-foreground">ESI</span>
-                          <span className="font-medium tabular-nums">{fmt(p.esi_amount)}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-border/50 py-1">
-                          <span className="text-muted-foreground">PT</span>
-                          <span className="font-medium tabular-nums">{fmt(p.professional_tax)}</span>
-                        </div>
-                        <div className="flex justify-between border-b border-border/50 py-1">
-                          <span className="text-muted-foreground">TDS</span>
-                          <span className="font-medium tabular-nums">{fmt(p.tds_amount)}</span>
+
+                      <div className="rounded-lg border border-border/60 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Deductions</p>
+                        {deductions.length > 0 ? deductions.map(([k, v]) => <Row key={k} label={k} value={v} tone="neg" />) : (
+                          <p className="text-sm text-muted-foreground">No deductions this month.</p>
+                        )}
+                        <div className="flex items-baseline justify-between pt-2.5 mt-1 border-t border-border">
+                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total deductions</span>
+                          <span className="text-sm font-semibold tabular-nums text-destructive">− {fmt(netDeductions)}</span>
                         </div>
                       </div>
                     </div>
-                    {(Number(p.loan_emi) > 0 || Number(p.advance_salary) > 0 || oneTimeHeads.length > 0 || oneTimeRecovery > 0) && (
-                      <div className="mt-3">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Other</p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-                          {Number(p.loan_emi) > 0 && (
-                            <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">Loan EMI</span><span className="font-medium tabular-nums">{fmt(p.loan_emi)}</span></div>
-                          )}
-                          {Number(p.advance_salary) > 0 && (
-                            <div className="flex justify-between border-b border-border/50 py-1"><span className="text-muted-foreground">Advance</span><span className="font-medium tabular-nums">{fmt(p.advance_salary)}</span></div>
-                          )}
-                          {oneTimeHeads.map((l) => (
-                            <div key={l.label} className="flex justify-between border-b border-border/50 py-1">
-                              <span className="text-muted-foreground">{l.label} (paid separately)</span>
-                              <span className="font-medium tabular-nums">{fmt(l.amount)}</span>
-                            </div>
-                          ))}
+
+                    {oneTimeHeads.length > 0 && (
+                      <div className="rounded-lg border border-border/60 p-4">
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Paid separately</p>
+                        <div className="grid gap-x-6 sm:grid-cols-2">
+                          {oneTimeHeads.map((l) => <Row key={l.label} label={l.label} value={l.amount} />)}
                         </div>
+                      </div>
+                    )}
+
+                    {(oneTimeRecovery > 0 || Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
+                      <div className="space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
                         {oneTimeRecovery > 0 && (
-                          <p className="text-[11px] text-muted-foreground mt-2">
+                          <p>
                             One-time payments totalling {fmt(oneTimeRecovery)} were settled outside this month's salary,
                             so they appear in the gross above and are subtracted again before net pay. Your regular salary for
                             the month is {fmt(p.regular_gross)}.
                           </p>
                         )}
+                        {(Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
+                          <p>Employer contribution: PF {fmt(p.employer_pf)} · ESI {fmt(p.employer_esi)} (not deducted from net)</p>
+                        )}
                       </div>
                     )}
-                    {(Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
-                      <div className="mt-3 text-[11px] text-muted-foreground">
-                        Employer contribution: PF {fmt(p.employer_pf)} · ESI {fmt(p.employer_esi)} (not deducted from net)
-                      </div>
-                    )}
-
                   </>
                 ) : (
-                  <div className="text-xs text-muted-foreground bg-muted/30 rounded-md p-3">
+                  <div className="text-xs text-muted-foreground bg-muted/40 border border-border/60 rounded-lg p-4">
                     The detailed breakdown for this month has not been published yet, so component-wise
                     Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
                     shown. HR will publish the full breakdown after the payroll run is finalised.
@@ -587,6 +582,7 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
           );
         })}
       </div>
+
     </div>
   );
 }

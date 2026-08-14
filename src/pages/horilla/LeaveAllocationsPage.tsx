@@ -235,7 +235,7 @@ export default function LeaveAllocationsPage() {
             return (
               <Card key={g.employee?.id}>
                 <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
                     <div className="w-10 h-10 rounded-full bg-[#E8604C]/10 flex items-center justify-center text-[#E8604C] font-bold text-sm">
                       {g.employee?.first_name?.[0]}{g.employee?.last_name?.[0]}
                     </div>
@@ -243,7 +243,13 @@ export default function LeaveAllocationsPage() {
                       <p className="font-semibold text-foreground">{g.employee?.first_name} {g.employee?.last_name}</p>
                       <p className="text-xs text-muted-foreground">{g.employee?.badge_id}</p>
                     </div>
+                    {isOnProbation(g.employee?.id) && (
+                      <span className="px-2 py-1 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
+                        On probation{probationEndDate(g.employee?.id) ? ` till ${probationEndDate(g.employee?.id)}` : ""} · Sick leave not allocated
+                      </span>
+                    )}
                   </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {g.allocations.map((a: any) => {
                       const cumBal = empCumulative?.balances[a.leave_type_id];

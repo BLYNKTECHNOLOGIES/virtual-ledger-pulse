@@ -802,11 +802,17 @@ export default function ProfitLoss() {
                 <Target className="h-4 w-4 text-success" />
                 <span className="text-sm font-medium text-muted-foreground">Gross Profit</span>
               </div>
-              <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                {formatCurrency(periodMetrics?.grossProfit || 0)}
-              </p>
+              {periodMetrics?.costBasisUnavailable ? (
+                <p className="text-xl font-medium text-muted-foreground">Unavailable</p>
+              ) : (
+                <p className={`text-2xl font-bold ${(periodMetrics?.grossProfit || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
+                  {formatCurrency(periodMetrics?.grossProfit || 0)}
+                </p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                NPM × Total Sales Qty
+                {periodMetrics?.costBasisUnavailable
+                  ? 'No purchase history to derive a cost basis'
+                  : 'NPM × Total Sales Qty'}
               </p>
             </div>
             <div className="p-4 bg-primary/10 rounded-lg">

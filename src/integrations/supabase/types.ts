@@ -26004,6 +26004,19 @@ export type Database = {
       }
       hr_open_unexplained_drift_count: { Args: never; Returns: number }
       hr_ops_user_ids: { Args: never; Returns: string[] }
+      hr_org_chart_directory: {
+        Args: never
+        Returns: {
+          department_id: string
+          first_name: string
+          id: string
+          job_position_id: string
+          job_role: string
+          last_name: string
+          profile_image_url: string
+          reporting_manager_id: string
+        }[]
+      }
       hr_payroll_cockpit_authorized: {
         Args: { _user_id: string }
         Returns: boolean

@@ -21,7 +21,7 @@ export function GrossProfitHistoryTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("daily_gross_profit_history")
-        .select("snapshot_date, gross_profit, total_sales_qty, avg_sales_rate, effective_purchase_rate")
+        .select("snapshot_date, gross_profit, total_sales_qty, avg_sales_rate, effective_purchase_rate, purchase_rate_carried, purchase_rate_source_date")
         .order("snapshot_date", { ascending: true })
         .limit(1000);
       if (error) throw error;

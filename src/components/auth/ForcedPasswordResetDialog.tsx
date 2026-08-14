@@ -201,6 +201,8 @@ export function ForcedPasswordResetDialog({ open, onSuccess }: ForcedPasswordRes
             {isLoading ? 'Updating…' : 'Set New Password & Continue'}
           </Button>
         </form>
+        )}
+
       </DialogContent>
     </Dialog>
   );

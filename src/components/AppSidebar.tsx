@@ -1,5 +1,5 @@
 
-import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard, Mail } from "lucide-react";
+import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard, Mail, CircleUser } from "lucide-react";
 import blynkLogoWhite from "@/assets/brand/blynk-logo-white.svg";
 import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { Link, useLocation } from "react-router-dom";
@@ -41,6 +41,15 @@ const reportSettingsItem: SidebarGroupItem = {
 
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [
+  {
+    id: "profile",
+    title: "Profile",
+    url: "/profile",
+    icon: CircleUser,
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+    permissions: []
+  },
   {
     id: "dashboard",
     title: "Dashboard",
@@ -323,7 +332,14 @@ export function AppSidebar() {
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {
-    return applySidebarOrder(sidebarEntries);
+    const ordered = applySidebarOrder(sidebarEntries);
+    // Profile is always pinned to the very top
+    const profileIdx = ordered.findIndex(e => e.type === 'item' && (e.data as SidebarGroupItem).id === 'profile');
+    if (profileIdx > 0) {
+      const [profileEntry] = ordered.splice(profileIdx, 1);
+      ordered.unshift(profileEntry);
+    }
+    return ordered;
   }, [sidebarEntries, applySidebarOrder]);
 
   // Local state for immediate drag feedback

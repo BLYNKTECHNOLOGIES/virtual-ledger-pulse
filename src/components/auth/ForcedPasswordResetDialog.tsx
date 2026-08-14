@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Eye, EyeOff, Lock, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Lock, ShieldAlert, UserCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ForcedPasswordResetDialogProps {
@@ -19,6 +19,12 @@ export function ForcedPasswordResetDialog({ open, onSuccess }: ForcedPasswordRes
   const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState<'password' | 'avatar'>('password');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();

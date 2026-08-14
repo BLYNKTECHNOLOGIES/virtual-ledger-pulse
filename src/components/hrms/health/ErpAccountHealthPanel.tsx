@@ -94,6 +94,7 @@ export function ErpAccountHealthPanel() {
   const [busy, setBusy] = useState<string | null>(null);
   const [exemptTarget, setExemptTarget] = useState<Row | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<Row | null>(null);
+  const [createTarget, setCreateTarget] = useState<CreateErpTarget | null>(null);
 
   const { data: rows, isLoading } = useQuery({
     queryKey: ["erp_account_health"],

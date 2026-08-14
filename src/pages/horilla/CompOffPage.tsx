@@ -40,8 +40,10 @@ export default function CompOffPage() {
 
 
   const totalCredits = credits.reduce((s: number, c: any) => s + Number(c.credit_days), 0);
-  const allocated = credits.filter((c: any) => c.is_allocated);
-  const pending = credits.filter((c: any) => !c.is_allocated);
+  const settled = credits.filter((c: any) => c.settled_period_month);
+  const openDays = credits
+    .filter((c: any) => !c.settled_period_month)
+    .reduce((s: number, c: any) => s + Number(c.credit_days), 0);
   const sundayCount = credits.filter((c: any) => c.credit_type === "sunday").length;
   const holidayCount = credits.filter((c: any) => c.credit_type === "holiday").length;
 
@@ -49,7 +51,7 @@ export default function CompOffPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Comp-Off Management"
-        description="Auto-credited when employees work on a weekly-off or holiday. Credits post to the leave balance automatically."
+        description="Auto-credited for weekly-off/holiday work. Comp-off never carries forward: each month it is taken as leave, offset against that month's LOP, and any remainder is encashed in that month's payroll."
         actions={
           <div className="flex items-center gap-3">
             <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24 h-9" min="2020" max="2030" />
@@ -63,8 +65,9 @@ export default function CompOffPage() {
           { label: "Total Credits", value: `${totalCredits} days`, icon: Gift, color: "text-success", bg: "bg-success/10" },
           { label: "Sunday Work", value: sundayCount, icon: Calendar, color: "text-info", bg: "bg-info/10" },
           { label: "Holiday Work", value: holidayCount, icon: Clock, color: "text-warning", bg: "bg-warning/10" },
-          { label: "Allocated as Leave", value: `${allocated.length}/${credits.length}`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+          { label: "Open (unsettled)", value: `${openDays} days`, icon: CheckCircle, color: "text-warning", bg: "bg-warning/10" },
         ].map((s) => (
+
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>

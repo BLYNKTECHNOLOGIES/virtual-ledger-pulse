@@ -196,12 +196,14 @@ export function ShiftScheduleAssigner() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_employee_shift_schedule")
-        .select("*, hr_employees!hr_employee_shift_schedule_employee_id_fkey(first_name, last_name, badge_id), hr_shifts!hr_employee_shift_schedule_shift_id_fkey(name)")
+        .select("*, hr_employees!hr_employee_shift_schedule_employee_id_fkey(first_name, last_name, badge_id, is_active), hr_shifts!hr_employee_shift_schedule_shift_id_fkey(name)")
         .eq("is_current", true)
         .order("effective_from", { ascending: false });
-      return data || [];
+      // Hide dismissed / inactive employees
+      return (data || []).filter((s: any) => s.hr_employees?.is_active !== false);
     },
   });
+
 
   const assignMutation = useMutation({
     mutationFn: async () => {

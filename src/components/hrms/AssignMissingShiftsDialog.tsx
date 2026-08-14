@@ -32,11 +32,12 @@ export function AssignMissingShiftsDialog({ open, onOpenChange }: Props) {
     queryKey: ["hr_employees_missing_shift"],
     queryFn: async () => {
       const [{ data: emps }, { data: sched }] = await Promise.all([
-        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").order("first_name"),
+        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").eq("is_active", true).order("first_name"),
         (supabase as any).from("hr_employee_shift_schedule").select("employee_id").eq("is_current", true),
       ]);
       const assigned = new Set((sched || []).map((s: any) => s.employee_id));
       return (emps || []).filter((e: any) => !assigned.has(e.id));
+
     },
     enabled: open,
   });

@@ -174,7 +174,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
       if (!key && isWeeklyOff(d, compliance)) key = 'week_off';
       if (!key) key = upcoming ? 'upcoming' : 'no_punch';
 
-      out[iso] = { key, meta, label: holiday };
+      out[iso] = { key, meta, label: holiday, row };
     }
     return out;
   }, [days, dayRows, holidays, compliance]);

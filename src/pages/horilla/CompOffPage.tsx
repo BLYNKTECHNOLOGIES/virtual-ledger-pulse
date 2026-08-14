@@ -32,61 +32,12 @@ export default function CompOffPage() {
     },
   });
 
-  const allocateMutation = useMutation({
-    mutationFn: async (credit: any) => {
-      let { data: compOffType } = await (supabase as any)
-        .from("hr_leave_types").select("id").eq("code", "CO").maybeSingle();
+  // NOTE: comp-off credits are allocated to the leave balance automatically by the
+  // database trigger `fn_allocate_compoff_credit` at INSERT time. A manual "allocate"
+  // action here previously added the same credit days a second (and third) time,
+  // inflating balances (e.g. 3 credits → 47 days). It has been removed on purpose —
+  // this page is read-only reporting over the comp-off ledger.
 
-      if (!compOffType) {
-        const { data: newType, error: typeErr } = await (supabase as any)
-          .from("hr_leave_types")
-          .insert({ name: "Comp-Off", code: "CO", max_days_per_year: 365, is_paid: true, requires_approval: false, color: "#10b981", carry_forward: true, is_active: true })
-          .select("id").single();
-        if (typeErr) throw typeErr;
-        compOffType = newType;
-      }
-
-      const quarter = Math.ceil((new Date(credit.credit_date).getMonth() + 1) / 3);
-      const year = new Date(credit.credit_date).getFullYear();
-
-      const { data: existing } = await (supabase as any)
-        .from("hr_leave_allocations").select("id, allocated_days")
-        .eq("employee_id", credit.employee_id).eq("leave_type_id", compOffType.id)
-        .eq("year", year).eq("quarter", quarter).maybeSingle();
-
-      if (existing) {
-        await (supabase as any).from("hr_leave_allocations")
-          .update({ allocated_days: existing.allocated_days + Number(credit.credit_days) }).eq("id", existing.id);
-      } else {
-        const { error: allocErr } = await (supabase as any).from("hr_leave_allocations").insert({
-          employee_id: credit.employee_id, leave_type_id: compOffType.id, year, quarter,
-          allocated_days: Number(credit.credit_days), carry_forward_days: 0, used_days: 0,
-        });
-        if (allocErr) throw allocErr;
-      }
-
-      await (supabase as any).from("hr_compoff_credits")
-        .update({ is_allocated: true, allocated_at: new Date().toISOString() }).eq("id", credit.id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_compoff_credits"] });
-      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
-      toast.success("Comp-Off leave allocated successfully");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const bulkAllocateMutation = useMutation({
-    mutationFn: async () => {
-      const pending = credits.filter((c: any) => !c.is_allocated);
-      for (const credit of pending) {
-        await allocateMutation.mutateAsync(credit);
-      }
-      return pending.length;
-    },
-    onSuccess: (count) => { toast.success(`Allocated ${count} comp-off credits as leave`); },
-    onError: (e: any) => toast.error(e.message),
-  });
 
   const totalCredits = credits.reduce((s: number, c: any) => s + Number(c.credit_days), 0);
   const allocated = credits.filter((c: any) => c.is_allocated);

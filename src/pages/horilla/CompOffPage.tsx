@@ -40,7 +40,7 @@ export default function CompOffPage() {
 
 
   const totalCredits = credits.reduce((s: number, c: any) => s + Number(c.credit_days), 0);
-  const settled = credits.filter((c: any) => c.settled_period_month);
+  
   const openDays = credits
     .filter((c: any) => !c.settled_period_month)
     .reduce((s: number, c: any) => s + Number(c.credit_days), 0);

@@ -95,7 +95,9 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
-                      {c.is_allocated ? 'Redeemed' : expired ? 'Expired' : `Exp ${c.expires_at || '—'}`}
+                      {c.settled_period_month
+                        ? `Settled ${String(c.settled_period_month).slice(0, 7)}`
+                        : 'Open this month'}
                     </span>
                     <span className="font-semibold text-foreground">+{Number(c.credit_days).toFixed(1)}d</span>
                   </div>
@@ -106,9 +108,12 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
         )}
 
         <p className="text-[11px] text-muted-foreground">
-          Comp-offs are earned automatically for approved Sunday/holiday work. To redeem, raise a
-          Leave request selecting the "Comp-off" leave type — HR will map the credit on approval.
+          Comp-off is earned automatically for approved Sunday/holiday work and is settled every month —
+          it never carries forward. Days you take as Comp-off leave are used first, remaining days cancel
+          any Loss of Pay for that month, and whatever is still left is encashed in that month's salary at
+          your per-day rate.
         </p>
+
       </CardContent>
     </Card>
   );

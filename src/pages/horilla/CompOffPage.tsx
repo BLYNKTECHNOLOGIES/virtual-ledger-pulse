@@ -49,17 +49,13 @@ export default function CompOffPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Comp-Off Management"
-        description="Auto-credited when employees work on Sundays or holidays. Allocate as leave balance."
+        description="Auto-credited when employees work on a weekly-off or holiday. Credits post to the leave balance automatically."
         actions={
           <div className="flex items-center gap-3">
             <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24 h-9" min="2020" max="2030" />
-            {pending.length > 0 && (
-              <Button onClick={() => bulkAllocateMutation.mutate()} disabled={bulkAllocateMutation.isPending} className="bg-success hover:bg-success h-9">
-                <Gift className="h-4 w-4 mr-1" /> Allocate All ({pending.length})
-              </Button>
-            )}
           </div>
         }
+
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

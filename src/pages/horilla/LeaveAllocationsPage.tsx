@@ -129,7 +129,7 @@ export default function LeaveAllocationsPage() {
 
   const computeCumulativeBalances = () => {
     const empMap: Record<string, { employee: any; balances: Record<string, { totalAllocated: number; totalUsed: number; leaveType: any }> }> = {};
-    for (const a of allAllocations) {
+    for (const a of activeAllocations) {
       const empId = a.employee_id;
       if (!empMap[empId]) empMap[empId] = { employee: a.hr_employees, balances: {} };
       const ltId = a.leave_type_id;

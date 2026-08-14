@@ -32,61 +32,12 @@ export default function CompOffPage() {
     },
   });
 
-  const allocateMutation = useMutation({
-    mutationFn: async (credit: any) => {
-      let { data: compOffType } = await (supabase as any)
-        .from("hr_leave_types").select("id").eq("code", "CO").maybeSingle();
+  // NOTE: comp-off credits are allocated to the leave balance automatically by the
+  // database trigger `fn_allocate_compoff_credit` at INSERT time. A manual "allocate"
+  // action here previously added the same credit days a second (and third) time,
+  // inflating balances (e.g. 3 credits → 47 days). It has been removed on purpose —
+  // this page is read-only reporting over the comp-off ledger.
 
-      if (!compOffType) {
-        const { data: newType, error: typeErr } = await (supabase as any)
-          .from("hr_leave_types")
-          .insert({ name: "Comp-Off", code: "CO", max_days_per_year: 365, is_paid: true, requires_approval: false, color: "#10b981", carry_forward: true, is_active: true })
-          .select("id").single();
-        if (typeErr) throw typeErr;
-        compOffType = newType;
-      }
-
-      const quarter = Math.ceil((new Date(credit.credit_date).getMonth() + 1) / 3);
-      const year = new Date(credit.credit_date).getFullYear();
-
-      const { data: existing } = await (supabase as any)
-        .from("hr_leave_allocations").select("id, allocated_days")
-        .eq("employee_id", credit.employee_id).eq("leave_type_id", compOffType.id)
-        .eq("year", year).eq("quarter", quarter).maybeSingle();
-
-      if (existing) {
-        await (supabase as any).from("hr_leave_allocations")
-          .update({ allocated_days: existing.allocated_days + Number(credit.credit_days) }).eq("id", existing.id);
-      } else {
-        const { error: allocErr } = await (supabase as any).from("hr_leave_allocations").insert({
-          employee_id: credit.employee_id, leave_type_id: compOffType.id, year, quarter,
-          allocated_days: Number(credit.credit_days), carry_forward_days: 0, used_days: 0,
-        });
-        if (allocErr) throw allocErr;
-      }
-
-      await (supabase as any).from("hr_compoff_credits")
-        .update({ is_allocated: true, allocated_at: new Date().toISOString() }).eq("id", credit.id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_compoff_credits"] });
-      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
-      toast.success("Comp-Off leave allocated successfully");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const bulkAllocateMutation = useMutation({
-    mutationFn: async () => {
-      const pending = credits.filter((c: any) => !c.is_allocated);
-      for (const credit of pending) {
-        await allocateMutation.mutateAsync(credit);
-      }
-      return pending.length;
-    },
-    onSuccess: (count) => { toast.success(`Allocated ${count} comp-off credits as leave`); },
-    onError: (e: any) => toast.error(e.message),
-  });
 
   const totalCredits = credits.reduce((s: number, c: any) => s + Number(c.credit_days), 0);
   const allocated = credits.filter((c: any) => c.is_allocated);
@@ -98,17 +49,13 @@ export default function CompOffPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Comp-Off Management"
-        description="Auto-credited when employees work on Sundays or holidays. Allocate as leave balance."
+        description="Auto-credited when employees work on a weekly-off or holiday. Credits post to the leave balance automatically."
         actions={
           <div className="flex items-center gap-3">
             <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24 h-9" min="2020" max="2030" />
-            {pending.length > 0 && (
-              <Button onClick={() => bulkAllocateMutation.mutate()} disabled={bulkAllocateMutation.isPending} className="bg-success hover:bg-success h-9">
-                <Gift className="h-4 w-4 mr-1" /> Allocate All ({pending.length})
-              </Button>
-            )}
           </div>
         }
+
       />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -178,13 +125,10 @@ export default function CompOffPage() {
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">Pending</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {!c.is_allocated && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs text-success border-success/20 hover:bg-success/10" onClick={() => allocateMutation.mutate(c)}>
-                          <ArrowRight className="h-3 w-3 mr-1" /> Allocate Leave
-                        </Button>
-                      )}
+                    <TableCell className="text-xs text-muted-foreground">
+                      {c.is_allocated ? "Posted to leave balance" : "Awaiting auto-post"}
                     </TableCell>
+
                   </TableRow>
                 ))}
               </TableBody>

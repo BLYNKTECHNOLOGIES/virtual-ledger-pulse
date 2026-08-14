@@ -235,7 +235,7 @@ export default function LeaveAllocationsPage() {
             return (
               <Card key={g.employee?.id}>
                 <CardContent className="p-5">
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
                     <div className="w-10 h-10 rounded-full bg-[#E8604C]/10 flex items-center justify-center text-[#E8604C] font-bold text-sm">
                       {g.employee?.first_name?.[0]}{g.employee?.last_name?.[0]}
                     </div>
@@ -243,7 +243,13 @@ export default function LeaveAllocationsPage() {
                       <p className="font-semibold text-foreground">{g.employee?.first_name} {g.employee?.last_name}</p>
                       <p className="text-xs text-muted-foreground">{g.employee?.badge_id}</p>
                     </div>
+                    {isOnProbation(g.employee?.id) && (
+                      <span className="px-2 py-1 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
+                        On probation{probationEndDate(g.employee?.id) ? ` till ${probationEndDate(g.employee?.id)}` : ""} · Sick leave not allocated
+                      </span>
+                    )}
                   </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {g.allocations.map((a: any) => {
                       const cumBal = empCumulative?.balances[a.leave_type_id];
@@ -266,7 +272,31 @@ export default function LeaveAllocationsPage() {
                         </div>
                       );
                     })}
+
+                    {/* Leave types with no allocation this quarter — shown so the card is never misleading */}
+                    {leaveTypes
+                      .filter((lt: any) => !g.allocations.some((a: any) => a.leave_type_id === lt.id))
+                      .map((lt: any) => {
+                        const probationBlocked = isSickLeaveType(lt) && isOnProbation(g.employee?.id);
+                        return (
+                          <div key={`missing-${lt.id}`} className="bg-muted/20 rounded-lg p-3 border border-dashed border-border">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-2.5 h-2.5 rounded-full opacity-50" style={{ backgroundColor: lt.color || "#E8604C" }} />
+                              <p className="text-xs font-medium text-muted-foreground truncate">{lt.name}</p>
+                            </div>
+                            <div className="w-full h-1.5 bg-muted rounded-full mb-2" />
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>This Qtr: 0d</span>
+                              <span className="font-medium tabular-nums">Bal: 0</span>
+                            </div>
+                            <p className={`text-[10px] mt-0.5 ${probationBlocked ? "text-warning" : "text-muted-foreground"}`}>
+                              {probationBlocked ? "Not allocated — on probation" : "Not allocated"}
+                            </p>
+                          </div>
+                        );
+                      })}
                   </div>
+
                 </CardContent>
               </Card>
             );

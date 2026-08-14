@@ -36,10 +36,10 @@ import {
   Briefcase,
   Users,
   DollarSign,
-  PiggyBank,
   Receipt,
   Timer,
   Wallet,
+
   CalendarDays,
   Target,
   Upload,
@@ -332,52 +332,9 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
         </CardContent>
       </Card>
 
-      {/* Employer Contributions / PF */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PiggyBank className="h-5 w-5" />
-            Employer Contributions
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {isLoading ? (
-            <p className="text-muted-foreground text-sm">Loading…</p>
-          ) : employerContribs.length === 0 ? (
-            <div className="text-sm text-muted-foreground space-y-1">
-              <p>No separate employer contributions (PF / ESI / gratuity) are configured in your salary structure.</p>
-              <p className="text-[11px]">If you expect PF or ESI on your payslip, please confirm with HR.</p>
-            </div>
-          ) : (
-            <>
-              {employerContribs.map((r) => {
-                const rupees = isRupees(r);
-                const raw = Number(r.amount) || 0;
-                return (
-                  <div key={r.id} className="border-b border-border/50 pb-3">
-                    <Label className="text-[#00bcd4]">{r.hr_salary_components?.name || '—'}</Label>
-                    {rupees ? (
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-xl font-semibold tabular-nums">{fmt(toMonthly(raw))}</span>
-                        <span className="text-xs text-muted-foreground">/mo</span>
-                      </div>
-                    ) : (
-                      <div className="text-xl font-semibold">{raw}%</div>
-                    )}
-                  </div>
-                );
-              })}
-              <Separator />
-              <div className="flex justify-between items-baseline">
-                <Label>Employer Total</Label>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-info tabular-nums">{fmt(monthlyEmployer)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
-                </div>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      {/* Loans, Salary Advances & Deposits */}
+      <MyLoansCard employeeId={hrEmployee.id} showDeposits />
+
     </div>
   );
 }
@@ -1329,7 +1286,6 @@ export default function UserProfile() {
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
-              <MyLoansCard employeeId={hrEmployee.id} />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1341,6 +1297,7 @@ export default function UserProfile() {
                   <CompensationHistory employeeId={hrEmployee.id} />
                 </CardContent>
               </Card>
+
             </>
           )}
         </TabsContent>

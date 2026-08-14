@@ -1581,126 +1581,109 @@ export default function UserProfile() {
         </TabsContent>
 
         {/* ═══════ Settings Tab ═══════ */}
-        <TabsContent value="settings" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Profile Image Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Profile Image</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col items-center gap-4">
-                  <Avatar className="h-32 w-32 border-4 border-border">
-                    {avatarPreview ? (
-                      <img src={avatarPreview} alt="Preview" className="object-cover w-full h-full" />
-                    ) : user?.avatar_url ? (
-                      <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
-                    ) : (
-                      <AvatarFallback className="text-3xl font-bold">
-                        {displayName ? getInitials(displayName) : 'U'}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <div className="w-full space-y-2">
-                    <Label htmlFor="avatar">Upload New Image</Label>
-                    <div {...avatarDropzone} className={cn("rounded-md transition-colors", avatarDragActive && "ring-2 ring-primary bg-primary/10 p-1")}>
-                      <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
+        <TabsContent value="settings" className="space-y-8">
+          {/* Profile Preferences */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Profile Preferences</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" /> Profile Image</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-20 w-20 border-2 border-border">
+                      {avatarPreview ? (
+                        <img src={avatarPreview} alt="Preview" className="object-cover w-full h-full" />
+                      ) : user?.avatar_url ? (
+                        <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+                      ) : (
+                        <AvatarFallback className="text-2xl font-bold">
+                          {displayName ? getInitials(displayName) : 'U'}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <Label htmlFor="avatar" className="text-xs">Upload New Image</Label>
+                      <div {...avatarDropzone} className={cn("rounded-md transition-colors", avatarDragActive && "ring-2 ring-primary bg-primary/10 p-1")}>
+                        <Input id="avatar" type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleAvatarChange} disabled={uploadAvatarMutation.isPending} />
+                      </div>
+                      <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max size 5MB.</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">JPG, PNG or WebP. Max size 5MB.</p>
                   </div>
                   {avatarFile && (
-                    <div className="flex gap-2 w-full">
+                    <div className="flex gap-2">
                       <Button onClick={() => { toast({ title: "Processing...", description: "Uploading profile image...", duration: 3000 }); uploadAvatarMutation.mutate(avatarFile); }} disabled={uploadAvatarMutation.isPending} className="flex-1">
                         {uploadAvatarMutation.isPending ? 'Uploading...' : 'Upload Image'}
                       </Button>
                       <Button variant="outline" onClick={() => { setAvatarFile(null); setAvatarPreview(null); }} disabled={uploadAvatarMutation.isPending}>Cancel</Button>
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Change Username */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Change Username</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div><Label>Current Username</Label><Input value={user?.username || ''} disabled /></div>
-                <div><Label htmlFor="newUsername">New Username</Label><Input id="newUsername" value={settingsData.newUsername} onChange={(e) => setSettingsData(prev => ({ ...prev, newUsername: e.target.value }))} placeholder="Enter new username" /></div>
-                <Button onClick={() => {
-                  if (!settingsData.newUsername.trim()) { toast({ title: "Error", description: "Please enter a new username", variant: "destructive", duration: 5000 }); return; }
-                  if (settingsData.newUsername === user?.username) { toast({ title: "Error", description: "New username must be different", variant: "destructive", duration: 5000 }); return; }
-                  toast({ title: "Processing...", description: "Updating username...", duration: 3000 });
-                  updateUsernameMutation.mutate(settingsData.newUsername);
-                }} disabled={updateUsernameMutation.isPending} className="w-full">
-                  {updateUsernameMutation.isPending ? 'Updating...' : 'Update Username'}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Reset Password */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Reset Password</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Reset your password yourself using a one-time verification code sent to your registered email.
-                </p>
-                <Button onClick={() => setShowResetPassword(true)} className="w-full">
-                  Reset Password
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-
-          {/* Security Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Security Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-info/10 dark:bg-info/20 rounded-lg">
-                  <h4 className="font-medium mb-2">Account Security</h4>
-                  <p className="text-sm text-muted-foreground">Your account is secured with encrypted password storage.</p>
-                </div>
-                <div className="p-4 bg-success/10 dark:bg-success/20 rounded-lg">
-                  <h4 className="font-medium mb-2">Password Requirements</h4>
-                  <ul className="text-sm text-muted-foreground list-disc list-inside">
-                    <li>Minimum 6 characters</li>
-                    <li>Use strong, unique passwords</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Logout */}
-          <Card className="border-destructive/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-destructive">
-                <LogOut className="h-5 w-5" /> Log Out
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">Sign out of your account. You will need to log in again to access the system.</p>
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={() => { logout(); navigate('/'); }}
-              >
-                <LogOut className="h-4 w-4 mr-2" /> Log Out
-              </Button>
-            </CardContent>
-          </Card>
-          {user?.id && (
-            <div className="md:col-span-2">
-              <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" /> Change Username</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2"><Label className="text-xs">Current Username</Label><Input value={user?.username || ''} disabled /></div>
+                  <div className="space-y-2"><Label htmlFor="newUsername" className="text-xs">New Username</Label><Input id="newUsername" value={settingsData.newUsername} onChange={(e) => setSettingsData(prev => ({ ...prev, newUsername: e.target.value }))} placeholder="Enter new username" /></div>
+                  <Button onClick={() => {
+                    if (!settingsData.newUsername.trim()) { toast({ title: "Error", description: "Please enter a new username", variant: "destructive", duration: 5000 }); return; }
+                    if (settingsData.newUsername === user?.username) { toast({ title: "Error", description: "New username must be different", variant: "destructive", duration: 5000 }); return; }
+                    toast({ title: "Processing...", description: "Updating username...", duration: 3000 });
+                    updateUsernameMutation.mutate(settingsData.newUsername);
+                  }} disabled={updateUsernameMutation.isPending} className="w-full">
+                    {updateUsernameMutation.isPending ? 'Updating...' : 'Update Username'}
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-          )}
+          </section>
+
+          {/* Security */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Security</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base"><Shield className="h-4 w-4" /> Reset Password</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Reset your password using a one-time verification code sent to your registered email.
+                  </p>
+                  <Button onClick={() => setShowResetPassword(true)} className="w-full">
+                    Reset Password
+                  </Button>
+                </CardContent>
+              </Card>
+              {user?.id && <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />}
+            </div>
+          </section>
+
+          {/* Session */}
+          <section className="space-y-4">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Session</h3>
+            <Card className="border-destructive/30">
+              <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-destructive font-medium">
+                    <LogOut className="h-4 w-4" /> Log Out
+                  </div>
+                  <p className="text-sm text-muted-foreground">Sign out of your account on this device. You will need to log in again.</p>
+                </div>
+                <Button
+                  variant="destructive"
+                  className="sm:w-auto w-full"
+                  onClick={() => { logout(); navigate('/'); }}
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Log Out
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
         </TabsContent>
 
         {/* ═══════ Policies Tab ═══════ */}

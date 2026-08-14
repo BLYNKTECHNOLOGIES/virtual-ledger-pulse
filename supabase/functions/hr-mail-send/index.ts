@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { requireAuth } from '../_shared/require-auth.ts'
+import { appendHrSignatureHtml, hrSignatureText } from '../_shared/hrSignature.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -197,8 +198,8 @@ Deno.serve(async (req) => {
         to: r.email,
         cc: (mailbox.cc_addresses || []).filter((a: string) => a.toLowerCase() !== r.email.toLowerCase()),
         subject: fillPlaceholders(campaign.subject, vars),
-        content: 'Please view this email in an HTML-compatible client.',
-        html: fillPlaceholders(campaign.body_html, vars),
+        content: hrSignatureText(),
+        html: appendHrSignatureHtml(fillPlaceholders(campaign.body_html, vars)),
         attachments: attachments.length ? (attachments as any) : undefined,
       })
       sent++

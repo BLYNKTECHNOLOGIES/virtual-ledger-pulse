@@ -313,8 +313,8 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
                             {!isOpen && <div className="text-xs text-muted-foreground truncate">{m.snippet || ""}</div>}
                           </button>
                           {isOpen && (
-                            <div className="border-t border-border px-3 py-2 text-sm text-foreground whitespace-pre-wrap">
-                              {m.body_text || (m.body_html ? m.body_html.replace(/<[^>]+>/g, " ") : "(empty message)")}
+                            <div className="border-t border-border px-3 py-2">
+                              <MailBodyView html={m.body_html} text={m.body_text} />
                               <div className="mt-2">
                                 <Button size="sm" variant="outline" onClick={() => markRead.mutate({ id: m.id, isRead: !m.is_read })}>
                                   Mark as {m.is_read ? "unread" : "read"}

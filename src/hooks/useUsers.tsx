@@ -74,6 +74,7 @@ export function useUsers() {
             )
           )
         `)
+        .not('username', 'like', 'deleted_%')
         .order('first_name', { ascending: true })
         .order('username', { ascending: true });
 

@@ -6516,6 +6516,8 @@ export type Database = {
           is_allocated: boolean
           leave_allocation_id: string | null
           notes: string | null
+          settled_period_month: string | null
+          settlement_outcome: string | null
         }
         Insert: {
           allocated_at?: string | null
@@ -6529,6 +6531,8 @@ export type Database = {
           is_allocated?: boolean
           leave_allocation_id?: string | null
           notes?: string | null
+          settled_period_month?: string | null
+          settlement_outcome?: string | null
         }
         Update: {
           allocated_at?: string | null
@@ -6542,6 +6546,8 @@ export type Database = {
           is_allocated?: boolean
           leave_allocation_id?: string | null
           notes?: string | null
+          settled_period_month?: string | null
+          settlement_outcome?: string | null
         }
         Relationships: [
           {
@@ -6581,6 +6587,100 @@ export type Database = {
           },
           {
             foreignKeyName: "hr_compoff_credits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      hr_compoff_settlements: {
+        Row: {
+          addition_id: string | null
+          amount: number
+          base_source: string | null
+          created_at: string
+          days_earned: number
+          days_encashed: number
+          days_offset_lop: number
+          days_taken: number
+          employee_id: string
+          id: string
+          per_day_rate: number
+          period_month: string
+          settled_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          addition_id?: string | null
+          amount?: number
+          base_source?: string | null
+          created_at?: string
+          days_earned?: number
+          days_encashed?: number
+          days_offset_lop?: number
+          days_taken?: number
+          employee_id: string
+          id?: string
+          per_day_rate?: number
+          period_month: string
+          settled_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          addition_id?: string | null
+          amount?: number
+          base_source?: string | null
+          created_at?: string
+          days_earned?: number
+          days_encashed?: number
+          days_offset_lop?: number
+          days_taken?: number
+          employee_id?: string
+          id?: string
+          per_day_rate?: number
+          period_month?: string
+          settled_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_freshness"
@@ -25677,6 +25777,20 @@ export type Database = {
         }[]
       }
       hr_command_queue_sweep: { Args: never; Returns: Json }
+      hr_compoff_close_month: {
+        Args: { p_period_month: string }
+        Returns: number
+      }
+      hr_compoff_month_pool: {
+        Args: { p_employee_ids: string[]; p_period_month: string }
+        Returns: {
+          days_available: number
+          days_earned: number
+          days_opening: number
+          days_taken: number
+          employee_id: string
+        }[]
+      }
       hr_compute_fnf_breakdown: {
         Args: {
           p_employee_id: string

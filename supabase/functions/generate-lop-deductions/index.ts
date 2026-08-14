@@ -13,6 +13,8 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";
+import { fetchCompoffPool, splitCompoff } from "../_shared/compoff.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,6 +86,12 @@ Deno.serve(async (req) => {
     if (lopErr) throw lopErr;
     const lopByEmp = new Map<string, any>();
     for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
+
+    // Comp-off pool — LOP is cancelled by available comp-off before any
+    // deduction is computed (the remainder is encashed by
+    // generate-compoff-encashment). Both engines share this math.
+    const compoffPool = await fetchCompoffPool(supabase, roster.map((r: any) => r.hr_employee_id), periodStr);
+
 
     // Existing staged deductions for the period.
     const { data: existing, error: exErr } = await supabase

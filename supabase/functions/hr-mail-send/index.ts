@@ -198,8 +198,8 @@ Deno.serve(async (req) => {
         to: r.email,
         cc: (mailbox.cc_addresses || []).filter((a: string) => a.toLowerCase() !== r.email.toLowerCase()),
         subject: fillPlaceholders(campaign.subject, vars),
-        content: 'Please view this email in an HTML-compatible client.',
-        html: fillPlaceholders(campaign.body_html, vars),
+        content: hrSignatureText(),
+        html: appendHrSignatureHtml(fillPlaceholders(campaign.body_html, vars)),
         attachments: attachments.length ? (attachments as any) : undefined,
       })
       sent++

@@ -71,7 +71,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
           id: e.id,
           label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.employee_id,
           sub: [e.employee_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
-          link: `/hrms/employees/${e.id}`,
+          link: `/hrms/employee/${e.id}`,
         });
       });
       (onb.data || []).forEach((o: any) => {

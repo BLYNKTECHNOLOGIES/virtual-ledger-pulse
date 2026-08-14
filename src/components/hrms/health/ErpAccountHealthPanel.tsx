@@ -315,7 +315,7 @@ export function ErpAccountHealthPanel() {
                       <span className="ml-auto flex items-center gap-1.5">
                         {r.hr_employee_id && (
                           <Link
-                            to={`/hrms/employees/${r.hr_employee_id}`}
+                            to={`/hrms/employee/${r.hr_employee_id}`}
                             className="underline text-muted-foreground hover:text-foreground"
                           >
                             profile

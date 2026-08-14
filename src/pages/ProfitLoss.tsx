@@ -33,6 +33,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { fetchAllPaginated } from '@/lib/fetchAllRows';
+import { resolveCarriedPurchaseRate } from '@/lib/carryForwardPurchaseRate';
 import { GrossProfitHistoryTab } from '@/components/financials/GrossProfitHistoryTab';
 import { DateRange } from 'react-day-picker';
 import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from '@/components/ui/date-range-picker';

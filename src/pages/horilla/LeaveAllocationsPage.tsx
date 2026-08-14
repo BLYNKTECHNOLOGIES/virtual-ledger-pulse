@@ -272,7 +272,31 @@ export default function LeaveAllocationsPage() {
                         </div>
                       );
                     })}
+
+                    {/* Leave types with no allocation this quarter — shown so the card is never misleading */}
+                    {leaveTypes
+                      .filter((lt: any) => !g.allocations.some((a: any) => a.leave_type_id === lt.id))
+                      .map((lt: any) => {
+                        const probationBlocked = isSickLeaveType(lt) && isOnProbation(g.employee?.id);
+                        return (
+                          <div key={`missing-${lt.id}`} className="bg-muted/20 rounded-lg p-3 border border-dashed border-border">
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <div className="w-2.5 h-2.5 rounded-full opacity-50" style={{ backgroundColor: lt.color || "#E8604C" }} />
+                              <p className="text-xs font-medium text-muted-foreground truncate">{lt.name}</p>
+                            </div>
+                            <div className="w-full h-1.5 bg-muted rounded-full mb-2" />
+                            <div className="flex justify-between text-[10px] text-muted-foreground">
+                              <span>This Qtr: 0d</span>
+                              <span className="font-medium tabular-nums">Bal: 0</span>
+                            </div>
+                            <p className={`text-[10px] mt-0.5 ${probationBlocked ? "text-warning" : "text-muted-foreground"}`}>
+                              {probationBlocked ? "Not allocated — on probation" : "Not allocated"}
+                            </p>
+                          </div>
+                        );
+                      })}
                   </div>
+
                 </CardContent>
               </Card>
             );

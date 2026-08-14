@@ -290,8 +290,13 @@ export default function LeaveAllocationsPage() {
                               <span className="font-medium tabular-nums">Bal: 0</span>
                             </div>
                             <p className={`text-[10px] mt-0.5 ${probationBlocked ? "text-warning" : "text-muted-foreground"}`}>
-                              {probationBlocked ? "Not allocated — on probation" : "Not allocated"}
+                              {probationBlocked
+                                ? "Not allocated — on probation"
+                                : lt.code === "CO"
+                                  ? "Settled monthly — offsets LOP, remainder encashed"
+                                  : "Not allocated"}
                             </p>
+
                           </div>
                         );
                       })}

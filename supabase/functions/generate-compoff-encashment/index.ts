@@ -1,20 +1,21 @@
-// generate-lop-deductions
+// generate-compoff-encashment
 //
-// Derives Loss-of-Pay deduction rows for a payroll month straight from
-// the maintained Attendance Summary (public.hr_attendance_month_summary),
-// so payroll always uses the exact figures operators review in HRMS.
+// Comp-off is a strictly monthly currency. Whatever comp-off remains after it
+// has been taken as leave and after it has cancelled the month's loss of pay
+// is ENCASHED in the same payroll month — nothing carries forward.
 //
 // Body: { period: "YYYY-MM", dry_run?: boolean, employee_ids?: string[] }
-//  - dry_run true (default): returns the preview only, writes nothing
-//  - dry_run false: upserts auto rows, deletes stale un-pushed auto rows
+//  - dry_run true (default): preview only, writes nothing
+//  - dry_run false: upserts auto addition rows, deletes stale un-pushed rows
 //
 // Rows already pushed to RazorpayX (pushed_at set) are never touched.
-// Manually staged rows (source = 'manual') are never touched.
+// Per-day value = monthly gross / working days — identical base and divisor to
+// generate-lop-deductions, so a day offset and a day encashed are worth the
+// same rupee amount.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";
 import { fetchCompoffPool, splitCompoff } from "../_shared/compoff.ts";
-
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -34,7 +35,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Caller must be an authenticated ERP user.
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "");
     if (!token) return json({ error: "unauthorized" }, 401);
@@ -63,7 +63,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Roster — active employees mapped to RazorpayX (only those are pushable).
     const { data: maps, error: mapErr } = await supabase
       .from("hr_razorpay_employee_map")
       .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
@@ -74,96 +73,82 @@ Deno.serve(async (req) => {
     let roster = (maps ?? []).filter((r: any) => r.hr_employees && r.hr_employees.is_active !== false);
     if (filterIds) roster = roster.filter((r: any) => filterIds.includes(r.hr_employee_id));
     if (!roster.length) {
-      return json({ period, dry_run: dryRun, rows: [], summary: { employees: 0, with_lop: 0, staged: 0, removed: 0, skipped: 0 } });
+      return json({ period, dry_run: dryRun, rows: [], summary: { employees: 0, with_encashment: 0, staged: 0, removed: 0, skipped: 0, total_amount: 0 } });
     }
 
-    // Attendance Summary is the payroll source of truth. Do not bypass this
-    // RPC with raw punches, sessions, or the lower-level LOP helper.
+    const empIds = roster.map((r: any) => r.hr_employee_id);
+
+    // Attendance summary supplies LOP days; comp-off cancels those first.
     const { data: lopRows, error: lopErr } = await supabase.rpc("hr_attendance_month_summary", {
-      p_employee_ids: roster.map((r: any) => r.hr_employee_id),
+      p_employee_ids: empIds,
       p_period_month: periodStr,
     });
     if (lopErr) throw lopErr;
     const lopByEmp = new Map<string, any>();
     for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
 
-    // Comp-off pool — LOP is cancelled by available comp-off before any
-    // deduction is computed (the remainder is encashed by
-    // generate-compoff-encashment). Both engines share this math.
-    const compoffPool = await fetchCompoffPool(supabase, roster.map((r: any) => r.hr_employee_id), periodStr);
+    const pools = await fetchCompoffPool(supabase, empIds, periodStr);
 
-
-    // Existing staged deductions for the period.
     const { data: existing, error: exErr } = await supabase
-      .from("hr_payroll_input_deductions")
-      .select("id, hr_employee_id, amount, label, source, pushed_at, lop_days")
+      .from("hr_payroll_input_additions")
+      .select("id, hr_employee_id, amount, label, source, pushed_at")
       .eq("period_month", periodStr);
     if (exErr) throw exErr;
     const autoByEmp = new Map<string, any>();
     for (const r of (existing ?? []) as any[]) {
-      if (r.source === "auto_lop") autoByEmp.set(r.hr_employee_id, r);
+      if (r.source === "auto_compoff") autoByEmp.set(r.hr_employee_id, r);
     }
 
     const rows: any[] = [];
     const toUpsert: any[] = [];
     const toDelete: string[] = [];
+    const settlements: any[] = [];
 
     for (const map of roster as any[]) {
       const emp = map.hr_employees;
       const name = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || emp.badge_id || "—";
       const lop = lopByEmp.get(map.hr_employee_id);
       const existingAuto = autoByEmp.get(map.hr_employee_id);
-
-      const pool = compoffPool.get(map.hr_employee_id) ?? { days_earned: 0, days_opening: 0, days_taken: 0, days_available: 0 };
+      const pool = pools.get(map.hr_employee_id) ?? { days_earned: 0, days_opening: 0, days_taken: 0, days_available: 0 };
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const split = splitCompoff(pool.days_available, rawLopDays);
+      const workingDays = Number(lop?.working_days ?? 0);
 
       const base: any = {
         hr_employee_id: map.hr_employee_id,
         razorpay_employee_id: map.razorpay_employee_id,
         name,
         badge_id: emp.badge_id ?? null,
-        working_days: Number(lop?.working_days ?? 0),
-        present_days: Number(lop?.present_days ?? 0),
-        paid_leave_days: Number(lop?.paid_leave_days ?? 0),
-        unpaid_leave_days: Number(lop?.unpaid_leave_days ?? 0),
-        raw_lop_days: rawLopDays,
+        working_days: workingDays,
+        compoff_earned: pool.days_earned,
+        compoff_opening: pool.days_opening,
+        compoff_taken: pool.days_taken,
         compoff_available: pool.days_available,
-        compoff_offset_days: split.offset_days,
-        lop_days: split.lop_after_offset,
-        formula: lop?.formula ?? null,
+        lop_days: rawLopDays,
+        offset_days: split.offset_days,
+        encash_days: split.encash_days,
         existing_amount: existingAuto ? Number(existingAuto.amount) : null,
         existing_pushed: !!existingAuto?.pushed_at,
       };
 
-
-      if (!lop) {
-        rows.push({ ...base, status: "skipped", reason: "No attendance computation for this employee", amount: 0, base_source: null });
-        continue;
-      }
-      if (Array.isArray(lop.config_errors) && lop.config_errors.length) {
-        rows.push({ ...base, status: "skipped", reason: `Leave config error: ${lop.config_errors.join(" ")}`, amount: 0, base_source: null });
-        continue;
-      }
-
-      // LOP after comp-off has cancelled what it can.
-      const lopDays = split.lop_after_offset;
-
-      if (lopDays <= 0) {
-        const offsetNote = split.offset_days > 0
-          ? `${split.offset_days} LOP day${split.offset_days === 1 ? "" : "s"} cancelled by comp-off`
-          : null;
-        if (existingAuto && !existingAuto.pushed_at) {
-          rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
+      if (split.encash_days <= 0) {
+        if (existingAuto?.pushed_at) {
+          rows.push({ ...base, status: "pushed", reason: "Already pushed to RazorpayX — left untouched", amount: Number(existingAuto.amount) });
+        } else if (existingAuto) {
+          rows.push({ ...base, status: "remove", reason: "Nothing left to encash — stale auto row will be removed", amount: 0 });
           toDelete.push(existingAuto.id);
-        } else if (existingAuto?.pushed_at) {
-          rows.push({ ...base, status: "pushed", reason: "Already pushed to RazorpayX — left untouched", amount: Number(existingAuto.amount), base_source: null });
         } else {
-          rows.push({ ...base, status: "no_lop", reason: offsetNote ?? "No loss of pay this month", amount: 0, base_source: null });
+          rows.push({
+            ...base,
+            status: "none",
+            amount: 0,
+            reason: pool.days_available > 0
+              ? `All ${split.offset_days} comp-off day${split.offset_days === 1 ? "" : "s"} used to cancel LOP`
+              : "No comp-off balance this month",
+          });
         }
         continue;
       }
-
 
       const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
       if (salary.error) {
@@ -175,17 +160,19 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const divisor = base.working_days > 0 ? base.working_days : totalDays;
-      const amount = Math.round(salary.monthlyGross * (lopDays / divisor));
+      const divisor = workingDays > 0 ? workingDays : totalDays;
+      const perDay = salary.monthlyGross / divisor;
+      const amount = Math.round(perDay * split.encash_days);
 
       const row: any = {
         ...base,
         amount,
+        per_day_rate: Math.round(perDay * 100) / 100,
         monthly_base: salary.monthlyGross,
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],
         divisor,
-        label: `LOP — ${lopDays} day${lopDays === 1 ? "" : "s"}${split.offset_days > 0 ? ` (${split.offset_days} offset by comp-off)` : ""}`,
+        label: `Comp-off encashment — ${split.encash_days} day${split.encash_days === 1 ? "" : "s"}`,
       };
 
       if (existingAuto?.pushed_at) {
@@ -195,11 +182,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (existingAuto) {
-        row.status = Number(existingAuto.amount) === amount ? "unchanged" : "changed";
-      } else {
-        row.status = "new";
-      }
+      row.status = existingAuto
+        ? (Number(existingAuto.amount) === amount ? "unchanged" : "changed")
+        : "new";
       rows.push(row);
 
       if (amount > 0) {
@@ -210,9 +195,20 @@ Deno.serve(async (req) => {
           period_month: periodStr,
           label: row.label,
           amount,
-          source: "auto_lop",
-          lop_days: lopDays,
+          taxable: true,
+          source: "auto_compoff",
           created_by: callerId,
+        });
+        settlements.push({
+          employee_id: map.hr_employee_id,
+          period_month: periodStr,
+          days_earned: pool.days_earned,
+          days_taken: pool.days_taken,
+          days_offset_lop: split.offset_days,
+          days_encashed: split.encash_days,
+          per_day_rate: row.per_day_rate,
+          amount,
+          base_source: salary.source,
         });
       }
     }
@@ -223,40 +219,50 @@ Deno.serve(async (req) => {
     if (!dryRun) {
       if (toUpsert.length) {
         const { error: upErr } = await supabase
-          .from("hr_payroll_input_deductions")
+          .from("hr_payroll_input_additions")
           .upsert(toUpsert, { onConflict: "razorpay_employee_id,period_month,label", ignoreDuplicates: false });
         if (upErr) throw upErr;
         staged = toUpsert.length;
       }
       if (toDelete.length) {
         const { error: delErr } = await supabase
-          .from("hr_payroll_input_deductions")
+          .from("hr_payroll_input_additions")
           .delete()
           .in("id", toDelete)
           .is("pushed_at", null)
-          .eq("source", "auto_lop");
+          .eq("source", "auto_compoff");
         if (delErr) throw delErr;
         removed = toDelete.length;
+      }
+      if (settlements.length) {
+        const { error: setErr } = await supabase
+          .from("hr_compoff_settlements")
+          .upsert(settlements, { onConflict: "employee_id,period_month", ignoreDuplicates: false });
+        if (setErr) throw setErr;
       }
     }
 
     const summary = {
       employees: roster.length,
-      with_lop: rows.filter((r) => r.lop_days > 0).length,
+      with_encashment: rows.filter((r) => Number(r.encash_days) > 0).length,
+      offset_days_total: rows.reduce((s, r) => s + Number(r.offset_days ?? 0), 0),
+      encash_days_total: rows.reduce((s, r) => s + Number(r.encash_days ?? 0), 0),
       to_stage: toUpsert.length,
       to_remove: toDelete.length,
       staged,
       removed,
       skipped: rows.filter((r) => r.status === "skipped").length,
       pushed_locked: rows.filter((r) => r.status === "pushed").length,
-      total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),
+      total_amount: rows
+        .filter((r) => ["new", "changed", "unchanged"].includes(r.status))
+        .reduce((s, r) => s + Number(r.amount ?? 0), 0),
     };
 
-    rows.sort((a, b) => Number(b.lop_days) - Number(a.lop_days) || String(a.name).localeCompare(String(b.name)));
+    rows.sort((a, b) => Number(b.encash_days) - Number(a.encash_days) || String(a.name).localeCompare(String(b.name)));
 
     return json({ period, dry_run: dryRun, rows, summary });
   } catch (e) {
-    console.error("generate-lop-deductions failed", e);
+    console.error("generate-compoff-encashment failed", e);
     return json({ error: "internal_error", message: (e as Error).message }, 500);
   }
 });

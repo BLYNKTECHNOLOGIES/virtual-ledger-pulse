@@ -14,10 +14,12 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
+import { CompOffEncashmentDialog } from "@/components/hr/payroll/CompOffEncashmentDialog";
+
 import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
 import { TrainingCtcAdjustmentsCard } from "@/components/hr/payroll/TrainingCtcAdjustmentsCard";
 
@@ -47,6 +49,8 @@ export default function PayrollInputsPage() {
   const [resetConfirm, setResetConfirm] = useState<any>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [autoLopOpen, setAutoLopOpen] = useState(false);
+  const [compoffOpen, setCompoffOpen] = useState(false);
+
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
@@ -621,6 +625,24 @@ export default function PayrollInputsPage() {
       {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
       {!lopFocus && tab === "addition" && <OtherPayrollInputsCard period={period} />}
 
+      {!lopFocus && tab === "addition" && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0 flex-wrap">
+            <div>
+              <CardTitle className="text-sm">Comp-off encashment — {period}</CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Comp-off never carries forward. After days taken as leave and days used to cancel this month's LOP,
+                the remaining balance is encashed at monthly base ÷ working days and staged as an addition.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setCompoffOpen(true)}>
+              <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
+            </Button>
+          </CardHeader>
+        </Card>
+      )}
+
+
 
 
 
@@ -774,6 +796,8 @@ export default function PayrollInputsPage() {
       />
 
       <AutoLopDialog open={autoLopOpen} onOpenChange={setAutoLopOpen} period={period} />
+      <CompOffEncashmentDialog open={compoffOpen} onOpenChange={setCompoffOpen} period={period} />
+
     </div>
   );
 }

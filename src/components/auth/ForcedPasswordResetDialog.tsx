@@ -102,16 +102,55 @@ export function ForcedPasswordResetDialog({ open, onSuccess }: ForcedPasswordRes
     <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-destructive">
-            <ShieldAlert className="h-5 w-5" />
-            Password Reset Required
+          <DialogTitle className={`flex items-center gap-2 ${step === 'password' ? 'text-destructive' : ''}`}>
+            {step === 'password' ? <ShieldAlert className="h-5 w-5" /> : <UserCircle2 className="h-5 w-5" />}
+            {step === 'password' ? 'Password Reset Required' : 'Add a Profile Picture (optional)'}
           </DialogTitle>
           <DialogDescription>
-            You are using a temporary password. For security, you must set a new password before continuing.
+            {step === 'password'
+              ? 'You are using a temporary password. For security, you must set a new password before continuing.'
+              : 'Your password is updated. Add a profile picture so colleagues can recognise you — this is optional and you can do it later from your profile.'}
           </DialogDescription>
         </DialogHeader>
 
+        {step === 'avatar' ? (
+          <div className="space-y-4 mt-2">
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm">
+                {error}
+              </div>
+            )}
+            <div className="flex items-center gap-4">
+              <div className="h-20 w-20 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                {avatarPreview ? (
+                  <img src={avatarPreview} alt="Profile preview" className="object-cover w-full h-full" />
+                ) : (
+                  <UserCircle2 className="h-10 w-10 text-muted-foreground" />
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="forced-avatar" className="text-xs">Choose an image (max 5 MB)</Label>
+                <Input
+                  id="forced-avatar"
+                  type="file"
+                  accept="image/*"
+                  className="text-foreground"
+                  onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={onSuccess} disabled={uploading}>
+                Skip for now
+              </Button>
+              <Button type="button" className="flex-1" onClick={handleAvatarUpload} disabled={uploading || !avatarFile}>
+                {uploading ? (<><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploading…</>) : 'Save & Continue'}
+              </Button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleReset} className="space-y-4 mt-2">
+
           {error && (
             <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-md text-sm">
               {error}

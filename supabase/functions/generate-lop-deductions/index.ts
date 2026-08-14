@@ -185,7 +185,7 @@ Deno.serve(async (req) => {
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],
         divisor,
-        label: `LOP — ${lopDays} day${lopDays === 1 ? "" : "s"}`,
+        label: `LOP — ${lopDays} day${lopDays === 1 ? "" : "s"}${split.offset_days > 0 ? ` (${split.offset_days} offset by comp-off)` : ""}`,
       };
 
       if (existingAuto?.pushed_at) {

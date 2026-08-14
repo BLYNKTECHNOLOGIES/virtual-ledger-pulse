@@ -11,12 +11,14 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Clock, AlertTriangle, Search, TrendingDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
+import EmployeeIncidentsDialog from "@/components/hrms/attendance/EmployeeIncidentsDialog";
 
 export default function LateComeEarlyOutPage() {
   const now = new Date();
   const [monthFilter, setMonthFilter] = useState(format(now, "yyyy-MM"));
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [selectedEmp, setSelectedEmp] = useState<{ id: string; name: string; badge: string } | null>(null);
 
   const monthStart = format(startOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
@@ -170,7 +172,14 @@ export default function LateComeEarlyOutPage() {
                   {/* Mobile */}
                   <div className="md:hidden divide-y">
                     {summaryList.map((s) => (
-                      <div key={s.id} className="p-3 space-y-2">
+                      <div
+                        key={s.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); } }}
+                        className="p-3 space-y-2 cursor-pointer active:bg-muted/50"
+                      >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="font-medium truncate">{s.name}</div>
@@ -203,7 +212,14 @@ export default function LateComeEarlyOutPage() {
                     </thead>
                     <tbody>
                       {summaryList.map((s) => (
-                        <tr key={s.id} className="border-b hover:bg-muted/50">
+                        <tr
+                          key={s.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
+                          onKeyDown={(e) => { if (e.key === "Enter") setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
+                          className="border-b hover:bg-muted/50 cursor-pointer"
+                        >
                           <td className="px-4 py-3 font-medium">{s.name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
                           <td className="px-4 py-3 tabular-nums">
@@ -298,6 +314,18 @@ export default function LateComeEarlyOutPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <EmployeeIncidentsDialog
+        open={!!selectedEmp}
+        onOpenChange={(o) => { if (!o) setSelectedEmp(null); }}
+        employeeId={selectedEmp?.id ?? null}
+        employeeName={selectedEmp?.name ?? ""}
+        badgeId={selectedEmp?.badge ?? ""}
+        monthStart={monthStart}
+        monthEnd={monthEnd}
+        monthLabel={format(new Date(monthFilter + "-01"), "MMMM yyyy")}
+        records={selectedEmp ? filtered.filter((r: any) => r.employee_id === selectedEmp.id) : []}
+      />
     </div>
   );
 }

@@ -71,24 +71,27 @@ Deno.serve(async (req) => {
     if (!host || !user || !pass) return json({ error: "SMTP credentials are not configured for the HR mailbox" }, 500);
 
     const subject = "Your Blynkex ERP account credentials";
-    const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f6f8;font-family:Arial,Helvetica,sans-serif;color:#1f2430">
-  <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:12px;padding:28px">
-    <h1 style="margin:0 0 12px;font-size:20px">Your ERP account is ready</h1>
-    <p style="margin:0 0 16px;font-size:14px;line-height:1.6">Hi ${esc(fullName)},</p>
-    <p style="margin:0 0 16px;font-size:14px;line-height:1.6">
-      An ERP account has been created for you${roleName ? ` with the role <b>${esc(roleName)}</b>` : ""}.
-      Please sign in with the credentials below and change your password immediately — it is required on first login.
-    </p>
-    <table style="width:100%;font-size:14px;border-collapse:collapse;margin:0 0 16px">
-      <tr><td style="padding:8px 0;color:#6b7280">Portal</td><td style="padding:8px 0"><a href="${LOGIN_URL}">${LOGIN_URL}</a></td></tr>
-      <tr><td style="padding:8px 0;color:#6b7280">Login email</td><td style="padding:8px 0"><b>${esc(to)}</b></td></tr>
-      <tr><td style="padding:8px 0;color:#6b7280">Username</td><td style="padding:8px 0"><b>${esc(username)}</b></td></tr>
-      <tr><td style="padding:8px 0;color:#6b7280">Temporary password</td><td style="padding:8px 0"><b style="font-family:monospace">${esc(tempPassword)}</b></td></tr>
-    </table>
-    <p style="margin:0 0 8px;font-size:12px;color:#6b7280;line-height:1.6">
-      Keep these credentials confidential. Never share your password with anyone, including IT or HR staff.
-    </p>
-    <p style="margin:16px 0 0;font-size:13px;line-height:1.6">Regards,<br/>${esc(mailbox.from_name || "HR")}<br/>Blynkex</p>
+    const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#f5f6f8;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2430">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;overflow:hidden">
+    ${hrHeaderHtml()}
+    <div style="padding:24px 22px">
+      <h1 style="margin:0 0 12px;font-size:20px;color:#0B1524">Your ERP account is ready</h1>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.6">Hi ${esc(fullName)},</p>
+      <p style="margin:0 0 16px;font-size:14px;line-height:1.6">
+        An ERP account has been created for you${roleName ? ` with the role <b>${esc(roleName)}</b>` : ""}.
+        Please sign in with the credentials below and change your password immediately — it is required on first login.
+      </p>
+      <table style="width:100%;font-size:14px;border-collapse:collapse;margin:0 0 16px">
+        <tr><td style="padding:8px 0;color:#6b7280">Portal</td><td style="padding:8px 0"><a href="${LOGIN_URL}">${LOGIN_URL}</a></td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280">Login email</td><td style="padding:8px 0"><b>${esc(to)}</b></td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280">Username</td><td style="padding:8px 0"><b>${esc(username)}</b></td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280">Temporary password</td><td style="padding:8px 0"><b style="font-family:monospace">${esc(tempPassword)}</b></td></tr>
+      </table>
+      <p style="margin:0 0 8px;font-size:12px;color:#6b7280;line-height:1.6">
+        Keep these credentials confidential. Never share your password with anyone, including IT or HR staff.
+      </p>
+      ${hrSignatureHtml("Automated message · Blynk HRMS")}
+    </div>
   </div>
 </body></html>`;
     const text = `Hi ${fullName},
@@ -102,8 +105,7 @@ Temporary password: ${tempPassword}
 
 You will be asked to change this password on first login. Keep it confidential.
 
-Regards,
-${mailbox.from_name || "HR"} | Blynkex`;
+${hrSignatureText("Automated message · Blynk HRMS")}`;
 
     const client = new SMTPClient({
       connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } },

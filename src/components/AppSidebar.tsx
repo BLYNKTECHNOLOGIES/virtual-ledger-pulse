@@ -42,15 +42,6 @@ const reportSettingsItem: SidebarGroupItem = {
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [
   {
-    id: "profile",
-    title: "Profile",
-    url: "/profile",
-    icon: CircleUser,
-    color: "text-primary",
-    bgColor: "bg-primary/10",
-    permissions: []
-  },
-  {
     id: "dashboard",
     title: "Dashboard",
     url: "/dashboard",
@@ -332,14 +323,7 @@ export function AppSidebar() {
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {
-    const ordered = applySidebarOrder(sidebarEntries);
-    // Profile is always pinned to the very top
-    const profileIdx = ordered.findIndex(e => e.type === 'item' && (e.data as SidebarGroupItem).id === 'profile');
-    if (profileIdx > 0) {
-      const [profileEntry] = ordered.splice(profileIdx, 1);
-      ordered.unshift(profileEntry);
-    }
-    return ordered;
+    return applySidebarOrder(sidebarEntries);
   }, [sidebarEntries, applySidebarOrder]);
 
   // Local state for immediate drag feedback
@@ -459,6 +443,25 @@ export function AppSidebar() {
                 strategy={verticalListSortingStrategy}
               >
                 <SidebarMenu className={`space-y-1 ${isCollapsed ? 'px-1' : 'px-2'}`}>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={location.pathname === "/profile"}
+                      tooltip={isCollapsed ? "Profile" : undefined}
+                      className="rounded-xl border border-transparent transition-all duration-150 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm data-[active=true]:border-sidebar-border data-[active=true]:font-semibold data-[active=true]:shadow-sm"
+                    >
+                      <Link
+                        to="/profile"
+                        aria-label="Profile"
+                        className={`flex items-center ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-3 px-3 py-3'}`}
+                      >
+                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                          <CircleUser className="h-4 w-4 text-primary" />
+                        </span>
+                        {!isCollapsed && <span className="truncate text-sm font-medium">Profile</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                   {orderedEntries.map(entry => {
                     if (entry.type === 'group') {
                       return (

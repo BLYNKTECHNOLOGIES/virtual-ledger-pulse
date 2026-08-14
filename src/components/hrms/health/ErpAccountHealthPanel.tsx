@@ -452,6 +452,12 @@ export function ErpAccountHealthPanel() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <CreateErpAccountDialog
+        target={createTarget}
+        onOpenChange={(o) => !o && setCreateTarget(null)}
+        onCreated={refresh}
+      />
     </div>
   );
 }

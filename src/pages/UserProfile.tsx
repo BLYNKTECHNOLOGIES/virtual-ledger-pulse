@@ -1383,7 +1383,6 @@ export default function UserProfile() {
                 </div>
               </div>
 
-              <UpcomingHolidaysCard />
               <OrgLeaveCalendarCard />
 
               {/* ─── Leave Balance Cards ─── */}
@@ -1534,6 +1533,7 @@ export default function UserProfile() {
                   </tbody>
                 </table>
               </div>
+              <UpcomingHolidaysCard />
             </>
           )}
         </TabsContent>
@@ -1689,7 +1689,6 @@ export default function UserProfile() {
         {/* ═══════ Policies Tab ═══════ */}
         <TabsContent value="policies" className="space-y-6">
           {user?.id && <MyPoliciesCard userId={user.id} />}
-          <UpcomingHolidaysCard />
         </TabsContent>
 
         {/* ═══════ Helpdesk Tab ═══════ */}

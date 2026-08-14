@@ -82,17 +82,16 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
         ) : (
           <div className="border border-border rounded-lg divide-y divide-border/60">
             {credits.slice(0, 10).map((c: any) => {
-              const expired = c.expires_at && c.expires_at < today;
+              const settled = !!c.settled_period_month;
               return (
                 <div key={c.id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <div className="flex items-center gap-2">
-                    {c.is_allocated ? (
+                    {settled ? (
                       <CheckCircle2 className="h-3.5 w-3.5 text-info" />
-                    ) : expired ? (
-                      <Clock3 className="h-3.5 w-3.5 text-muted-foreground" />
                     ) : (
                       <Gift className="h-3.5 w-3.5 text-success" />
                     )}
+
                     <span className="font-medium text-foreground">{c.credit_date}</span>
                     <span className="text-xs text-muted-foreground">
                       · {c.credit_type || 'Sunday work'}

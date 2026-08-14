@@ -330,14 +330,26 @@ export function ErpAccountHealthPanel() {
                           </button>
                         )}
                         {g.key === "mismatch" && (
-                          <button
-                            onClick={() => adoptHrmsValue(r)}
-                            disabled={busy === `${r.user_id}-${r.field}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
-                          >
-                            {busy === `${r.user_id}-${r.field}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
-                            Adopt HRMS value
-                          </button>
+                          <>
+                            <button
+                              onClick={() => adoptHrmsValue(r)}
+                              disabled={busy === `${r.user_id}-${r.field}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                            >
+                              {busy === `${r.user_id}-${r.field}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+                              Adopt HRMS value
+                            </button>
+                            {r.hr_employee_id && (
+                              <button
+                                onClick={() => adoptErpValue(r)}
+                                disabled={busy === `${r.user_id}-${r.field}-erp`}
+                                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                              >
+                                {busy === `${r.user_id}-${r.field}-erp` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowLeft className="h-3 w-3" />}
+                                Adopt ERP value
+                              </button>
+                            )}
+                          </>
                         )}
                         {g.key === "active_login_inactive_employee" && (
                           <button

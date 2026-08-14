@@ -690,9 +690,19 @@ export default function ProfitLoss() {
                 <ShoppingCart className="h-4 w-4 text-warning" />
                 <span className="text-sm font-medium text-muted-foreground">Avg Purchase Rate</span>
               </div>
-              <p className="text-2xl font-bold">{formatCurrency(periodMetrics?.avgPurchaseRate || 0)}</p>
+              <p className="text-2xl font-bold">
+                {formatCurrency(
+                  (periodMetrics?.totalPurchaseQty || 0) > 0
+                    ? periodMetrics?.avgPurchaseRate || 0
+                    : periodMetrics?.carriedPurchaseRate || 0
+                )}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {(periodMetrics?.totalPurchaseQty || 0).toFixed(2)} units bought
+                {(periodMetrics?.totalPurchaseQty || 0) > 0
+                  ? `${(periodMetrics?.totalPurchaseQty || 0).toFixed(2)} units bought`
+                  : periodMetrics?.carriedFromDate
+                    ? `No purchases — carried forward from ${periodMetrics.carriedFromDate}`
+                    : 'No purchases — cost basis unavailable'}
               </p>
             </div>
              <TooltipProvider>
@@ -711,6 +721,18 @@ export default function ProfitLoss() {
                            Net qty: {(periodMetrics?.netPurchaseQty || 0).toFixed(4)} USDT
                          </p>
                        </>
+                     ) : periodMetrics?.carriedPurchaseRate ? (
+                       <>
+                         <p className="text-2xl font-bold">{formatCurrency(periodMetrics.carriedPurchaseRate)}</p>
+                         <p className="text-xs text-muted-foreground mt-1">
+                           Carried forward from {periodMetrics.carriedFromDate}
+                         </p>
+                       </>
+                     ) : periodMetrics?.costBasisUnavailable ? (
+                       <div className="flex items-center gap-2">
+                         <AlertTriangle className="h-4 w-4 text-destructive" />
+                         <p className="text-sm font-medium text-destructive">Cost basis unavailable</p>
+                       </div>
                      ) : periodMetrics?.totalPurchaseQty === 0 ? (
                        <p className="text-xl font-medium text-muted-foreground">—</p>
                      ) : (
@@ -726,6 +748,18 @@ export default function ProfitLoss() {
                    <p className="text-xs mt-2 text-muted-foreground">
                      Total USDT Fees: {(periodMetrics?.totalUsdtFees || 0).toFixed(4)} USDT
                    </p>
+                   {periodMetrics?.carriedFromDate && (
+                     <p className="text-xs mt-2 text-muted-foreground">
+                       No stock was bought in this period, so the cost basis is carried
+                       forward from the last purchase day ({periodMetrics.carriedFromDate}).
+                     </p>
+                   )}
+                   {periodMetrics?.costBasisUnavailable && (
+                     <p className="text-xs mt-2 text-muted-foreground">
+                       No purchases in this period and no earlier purchase day exists, so
+                       gross profit cannot be derived and is shown as unavailable.
+                     </p>
+                   )}
                  </TooltipContent>
                </Tooltip>
              </TooltipProvider>

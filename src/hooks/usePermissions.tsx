@@ -2,6 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { isStandbyRoles } from '@/hooks/useIsStandby';
+
 
 const ADMIN_PERMISSIONS = [
   'dashboard_view',

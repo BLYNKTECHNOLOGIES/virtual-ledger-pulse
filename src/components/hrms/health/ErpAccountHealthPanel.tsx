@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, Loader2, UserX, Link2, ArrowRight, EyeOff } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, UserX, Link2, ArrowRight, ArrowLeft, EyeOff } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -164,6 +164,32 @@ export function ErpAccountHealthPanel() {
     }
   }
 
+  async function adoptErpValue(row: Row) {
+    if (!row.hr_employee_id || !row.field) return;
+    setBusy(`${row.user_id}-${row.field}-erp`);
+    try {
+      const patch: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (row.field === "email") patch.email = (row.erp_value || "").toLowerCase();
+      else if (row.field === "phone") patch.phone = row.erp_value;
+      else if (row.field === "full_name") {
+        const parts = (row.erp_value || "").trim().split(/\s+/);
+        patch.first_name = parts.shift() || null;
+        patch.last_name = parts.join(" ") || null;
+      }
+      const { error } = await (supabase as any)
+        .from("hr_employees")
+        .update(patch)
+        .eq("id", row.hr_employee_id);
+      if (error) throw error;
+      toast.success(`${FIELD_LABEL[row.field] ?? row.field} adopted from ERP into HRMS`);
+      refresh();
+    } catch (e: any) {
+      toast.error(`Could not update the HRMS record: ${e?.message || e}`);
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function doDeactivate(row: Row) {
     if (!row.hr_employee_id) return;
     setBusy(`${row.user_id}-deactivate`);
@@ -304,14 +330,26 @@ export function ErpAccountHealthPanel() {
                           </button>
                         )}
                         {g.key === "mismatch" && (
-                          <button
-                            onClick={() => adoptHrmsValue(r)}
-                            disabled={busy === `${r.user_id}-${r.field}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
-                          >
-                            {busy === `${r.user_id}-${r.field}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
-                            Adopt HRMS value
-                          </button>
+                          <>
+                            <button
+                              onClick={() => adoptHrmsValue(r)}
+                              disabled={busy === `${r.user_id}-${r.field}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                            >
+                              {busy === `${r.user_id}-${r.field}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
+                              Adopt HRMS value
+                            </button>
+                            {r.hr_employee_id && (
+                              <button
+                                onClick={() => adoptErpValue(r)}
+                                disabled={busy === `${r.user_id}-${r.field}-erp`}
+                                className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 hover:bg-muted disabled:opacity-50"
+                              >
+                                {busy === `${r.user_id}-${r.field}-erp` ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowLeft className="h-3 w-3" />}
+                                Adopt ERP value
+                              </button>
+                            )}
+                          </>
                         )}
                         {g.key === "active_login_inactive_employee" && (
                           <button

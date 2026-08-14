@@ -72,6 +72,32 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
     enabled: !!employeeId,
   });
 
+  const { data: shifts = [] } = useQuery({
+    queryKey: ['hr_shifts_lookup'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from('hr_shifts').select('id,name,start_time,end_time');
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const shiftMap = new Map<string, any>((shifts as any[]).map((sh: any) => [sh.id, sh]));
+  const dayMap = new Map<string, any>((dailyRecords as any[]).map((d: any) => [d.attendance_date, d]));
+
+  const hhmm = (t?: string | null) => (t ? String(t).slice(0, 5) : null);
+  const lateEarlyRows = (lateEarlyRecords as any[]).map((r: any) => {
+    const day = dayMap.get(r.attendance_date);
+    const shift = shiftMap.get(r.shift_id || day?.shift_id);
+    const isLate = r.type === 'late_come';
+    const expected = hhmm(isLate ? shift?.start_time : shift?.end_time);
+    const actualTs = isLate ? day?.check_in : day?.check_out;
+    const actual = actualTs
+      ? new Date(actualTs).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : null;
+    const diff = Number(isLate ? r.late_minutes : r.early_minutes) || 0;
+    return { ...r, expected, actual, diff };
+  });
+
   // Generate last 6 months for dropdown
   const monthOptions = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -191,19 +217,19 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
           <CardContent className="p-0">
             {/* Mobile: compact rows */}
             <div className="sm:hidden divide-y">
-              {lateEarlyRecords.map((r: any) => (
+              {lateEarlyRows.map((r: any) => (
                 <div key={r.id} className="px-4 py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-sm font-medium">{r.attendance_date}</p>
                     <p className="text-xs text-muted-foreground font-mono">
-                      {r.expected_time?.slice(0, 5)} → {r.actual_time?.slice(0, 5)}
+                      {r.expected ?? '—'} → {r.actual ?? '—'}
                     </p>
                   </div>
                   <div className="text-right shrink-0">
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning">
                       {r.type === 'late_come' ? 'Late Come' : 'Early Out'}
                     </span>
-                    <p className="text-xs font-medium text-destructive mt-1">{r.difference_minutes} min</p>
+                    <p className="text-xs font-medium text-destructive mt-1">{r.diff > 0 ? `${r.diff} min` : '—'}</p>
                   </div>
                 </div>
               ))}
@@ -221,7 +247,7 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {lateEarlyRecords.map((r: any) => (
+                  {lateEarlyRows.map((r: any) => (
                     <tr key={r.id} className="border-b hover:bg-muted/30">
                       <td className="px-4 py-2">{r.attendance_date}</td>
                       <td className="px-4 py-2">
@@ -231,9 +257,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                           {r.type === 'late_come' ? 'Late Come' : 'Early Out'}
                         </span>
                       </td>
-                      <td className="px-4 py-2 font-mono text-xs">{r.expected_time?.slice(0, 5)}</td>
-                      <td className="px-4 py-2 font-mono text-xs">{r.actual_time?.slice(0, 5)}</td>
-                      <td className="px-4 py-2 font-medium text-destructive">{r.difference_minutes} min</td>
+                      <td className="px-4 py-2 font-mono text-xs">{r.expected ?? '—'}</td>
+                      <td className="px-4 py-2 font-mono text-xs">{r.actual ?? '—'}</td>
+                      <td className="px-4 py-2 font-medium text-destructive">{r.diff > 0 ? `${r.diff} min` : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -273,7 +299,6 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                       <span className="font-mono text-foreground">{formatTime(r.check_in)} – {formatTime(r.check_out)}</span>
                       <span>{hrs}h</span>
                       {r.late_minutes > 0 && <span className="text-warning font-medium">Late {r.late_minutes}m</span>}
-                      {r.overtime_hours > 0 && <span className="text-primary font-medium">OT {r.overtime_hours}h</span>}
                     </div>
                   </div>
                 );
@@ -290,7 +315,6 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                     <th className="text-left px-4 py-2 font-medium text-muted-foreground">Check Out</th>
                     <th className="text-left px-4 py-2 font-medium text-muted-foreground">Hours</th>
                     <th className="text-left px-4 py-2 font-medium text-muted-foreground">Late</th>
-                    <th className="text-left px-4 py-2 font-medium text-muted-foreground">OT</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -312,12 +336,6 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
                         <td className="px-4 py-2">
                           {r.late_minutes > 0 
                             ? <span className="text-warning font-medium">{r.late_minutes}m</span>
-                            : <span className="text-muted-foreground">—</span>
-                          }
-                        </td>
-                        <td className="px-4 py-2">
-                          {r.overtime_hours > 0
-                            ? <span className="text-primary font-medium">{r.overtime_hours}h</span>
                             : <span className="text-muted-foreground">—</span>
                           }
                         </td>

@@ -94,12 +94,20 @@ export function useUsers() {
         return;
       }
       
-      // Validate and format the users data
-      const validatedUsers = allUsers.map((user) => ({
-        ...user,
-        status: isValidStatus(user.status) ? user.status : "INACTIVE" as ValidStatus,
-        role: user.user_roles && user.user_roles.length > 0 ? user.user_roles[0].roles : null
-      })) as DatabaseUser[];
+      // Validate and format the users data (hide deletion tombstones)
+      const isTombstone = (u: any) =>
+        (u.username || '').startsWith('deleted_') ||
+        (u.email || '').startsWith('deleted+') ||
+        (u.email || '').endsWith('@invalid.blynkex.local') ||
+        (u.first_name || '').trim().toUpperCase().startsWith('DELETED');
+
+      const validatedUsers = allUsers
+        .filter((user) => !isTombstone(user))
+        .map((user) => ({
+          ...user,
+          status: isValidStatus(user.status) ? user.status : "INACTIVE" as ValidStatus,
+          role: user.user_roles && user.user_roles.length > 0 ? user.user_roles[0].roles : null
+        })) as DatabaseUser[];
 
       setUsers(validatedUsers);
 

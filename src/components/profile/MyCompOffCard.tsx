@@ -29,16 +29,20 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
   });
 
   const today = new Date().toISOString().slice(0, 10);
+  const thisMonth = today.slice(0, 7);
   const totals = credits.reduce(
     (acc: any, c: any) => {
       const d = Number(c.credit_days || 0);
       acc.earned += d;
-      if (c.is_allocated) acc.redeemed += d;
-      else if (c.expires_at && c.expires_at < today) acc.expired += d;
-      else acc.available += d;
+      if (c.settled_period_month) {
+        acc.settled += d;
+      } else {
+        acc.available += d;
+      }
+      if (String(c.credit_date || '').slice(0, 7) === thisMonth) acc.thisMonth += d;
       return acc;
     },
-    { earned: 0, available: 0, redeemed: 0, expired: 0 }
+    { earned: 0, available: 0, settled: 0, thisMonth: 0 }
   );
 
   return (
@@ -51,22 +55,23 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Available</p>
+            <p className="text-xs text-muted-foreground">Open this cycle</p>
             <p className="text-2xl font-bold text-success">{totals.available.toFixed(1)}</p>
+          </div>
+          <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
+            <p className="text-xs text-muted-foreground">Earned this month</p>
+            <p className="text-2xl font-bold text-foreground">{totals.thisMonth.toFixed(1)}</p>
           </div>
           <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
             <p className="text-xs text-muted-foreground">Earned (total)</p>
             <p className="text-2xl font-bold text-foreground">{totals.earned.toFixed(1)}</p>
           </div>
           <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Redeemed</p>
-            <p className="text-2xl font-bold text-info">{totals.redeemed.toFixed(1)}</p>
-          </div>
-          <div className="p-3 rounded-lg border border-border bg-muted/30 text-center">
-            <p className="text-xs text-muted-foreground">Expired</p>
-            <p className="text-2xl font-bold text-muted-foreground">{totals.expired.toFixed(1)}</p>
+            <p className="text-xs text-muted-foreground">Settled / encashed</p>
+            <p className="text-2xl font-bold text-info">{totals.settled.toFixed(1)}</p>
           </div>
         </div>
+
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground text-center py-4">Loading…</p>

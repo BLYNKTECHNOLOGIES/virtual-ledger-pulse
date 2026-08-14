@@ -1286,7 +1286,6 @@ export default function UserProfile() {
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
-              <MyLoansCard employeeId={hrEmployee.id} />
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1298,6 +1297,7 @@ export default function UserProfile() {
                   <CompensationHistory employeeId={hrEmployee.id} />
                 </CardContent>
               </Card>
+
             </>
           )}
         </TabsContent>

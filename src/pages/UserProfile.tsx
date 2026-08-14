@@ -1656,51 +1656,27 @@ export default function UserProfile() {
           </div>
 
 
-          {/* Security Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> Security Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-info/10 dark:bg-info/20 rounded-lg">
-                  <h4 className="font-medium mb-2">Account Security</h4>
-                  <p className="text-sm text-muted-foreground">Your account is secured with encrypted password storage.</p>
-                </div>
-                <div className="p-4 bg-success/10 dark:bg-success/20 rounded-lg">
-                  <h4 className="font-medium mb-2">Password Requirements</h4>
-                  <ul className="text-sm text-muted-foreground list-disc list-inside">
-                    <li>Minimum 6 characters</li>
-                    <li>Use strong, unique passwords</li>
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Logout */}
-          <Card className="border-destructive/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-destructive">
-                <LogOut className="h-5 w-5" /> Log Out
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">Sign out of your account. You will need to log in again to access the system.</p>
-              <Button
-                variant="destructive"
-                className="w-full"
-                onClick={() => { logout(); navigate('/'); }}
-              >
-                <LogOut className="h-4 w-4 mr-2" /> Log Out
-              </Button>
-            </CardContent>
-          </Card>
-          {user?.id && (
-            <div className="md:col-span-2">
-              <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />
-            </div>
-          )}
+          {/* Security Actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {user?.id && <MySecurityCard userId={user.id} badgeId={hrEmployee?.badge_id} />}
+            <Card className="border-destructive/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base text-destructive">
+                  <LogOut className="h-4 w-4" /> Log Out
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Sign out of your account on this device. You will need to log in again to access the system.</p>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => { logout(); navigate('/'); }}
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Log Out
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         {/* ═══════ Policies Tab ═══════ */}

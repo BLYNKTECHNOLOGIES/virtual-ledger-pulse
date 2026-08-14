@@ -67,9 +67,18 @@ export function GrossProfitHistoryTab() {
         }
       }
 
-      const effectivePurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
-      const npm = avgSalesRate - effectivePurchaseRate;
-      const grossProfit = npm * totalSalesQty;
+      // No purchases today → carry forward the last purchase day's effective rate,
+      // otherwise the entire sale value would be booked as profit.
+      let effectivePurchaseRate = totalPurchaseQty > 0 ? totalPurchaseValue / totalPurchaseQty : 0;
+      let carried: { rate: number; sourceDate: string } | null = null;
+      if (totalPurchaseQty <= 0) {
+        carried = await resolveCarriedPurchaseRate(todayStr, 'all');
+        effectivePurchaseRate = carried?.rate ?? 0;
+      }
+
+      const costBasisUnavailable = effectivePurchaseRate <= 0;
+      const npm = costBasisUnavailable ? 0 : avgSalesRate - effectivePurchaseRate;
+      const grossProfit = costBasisUnavailable ? 0 : npm * totalSalesQty;
 
       return {
         snapshot_date: todayStr,
@@ -77,6 +86,8 @@ export function GrossProfitHistoryTab() {
         total_sales_qty: totalSalesQty,
         avg_sales_rate: avgSalesRate,
         effective_purchase_rate: effectivePurchaseRate,
+        purchase_rate_carried: !!carried,
+        purchase_rate_source_date: carried?.sourceDate ?? null,
       };
     },
     refetchInterval: 60000, // refresh every minute

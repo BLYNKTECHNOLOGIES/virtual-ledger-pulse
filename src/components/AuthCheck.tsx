@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { isStandbyRoles, isStandbyAllowedPath } from '@/hooks/useIsStandby';
 
 interface AuthCheckProps {
   children: React.ReactNode;
@@ -10,7 +11,19 @@ interface AuthCheckProps {
 export function AuthCheck({ children }: AuthCheckProps) {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isLoading } = useAuth();
+
+  // Standby lockdown: only the profile section is reachable.
+  const standbyBlocked =
+    !!user && isStandbyRoles(user.roles) && !isStandbyAllowedPath(location.pathname);
+
+  useEffect(() => {
+    if (standbyBlocked) {
+      navigate('/profile', { replace: true });
+    }
+  }, [standbyBlocked, navigate]);
+
 
   useEffect(() => {
     if (isLoading) return;

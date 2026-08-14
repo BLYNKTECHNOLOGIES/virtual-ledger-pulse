@@ -353,6 +353,23 @@ export function ErpAccountHealthPanel() {
                             )}
                           </>
                         )}
+                        {g.key === "employee_without_erp" && r.hr_employee_id && (
+                          <button
+                            onClick={() =>
+                              setCreateTarget({
+                                hr_employee_id: r.hr_employee_id,
+                                emp_full_name: r.emp_full_name,
+                                emp_badge_id: r.emp_badge_id,
+                                email: r.erp_email,
+                                phone: r.erp_phone,
+                              })
+                            }
+                            className="inline-flex items-center gap-1 rounded-md border border-primary/40 text-primary px-2 py-1 hover:bg-primary/10"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            Create ERP ID
+                          </button>
+                        )}
                         {g.key === "active_login_inactive_employee" && (
                           <button
                             onClick={() => setDeactivateTarget(r)}

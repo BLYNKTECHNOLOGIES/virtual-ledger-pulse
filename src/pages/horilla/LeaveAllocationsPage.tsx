@@ -15,6 +15,9 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { useProbationStatus, isSickLeaveType } from "@/hooks/useProbationStatus";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { ViewToggle } from "@/components/hrms/ViewToggle";
+import { useViewMode } from "@/hooks/useViewMode";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 function getCurrentQuarter() {
   return Math.ceil((new Date().getMonth() + 1) / 3);

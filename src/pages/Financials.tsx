@@ -211,7 +211,7 @@ export default function Financials() {
       </div>
 
       {/* Key Financial Metrics - Clickable */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 items-stretch">
         {/* Total Revenue - Clickable to Sales */}
         <ClickableCard 
           to="/sales" 
@@ -219,83 +219,53 @@ export default function Financials() {
             dateFrom: startDate, 
             dateTo: endDate 
           })}
+          className="h-full"
         >
-          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Revenue</p>
-                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                    {formatCurrency(financialData?.totalRevenue || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                    <ArrowUpIcon className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Click to view sales →</span>
-                  </div>
-                </div>
-                <div className="bg-success/10 p-2 rounded-lg shrink-0">
-                  <DollarSign className="h-5 w-5 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+          <StatTile
+            label="Total Revenue"
+            value={formatCompactINR(financialData?.totalRevenue || 0)}
+            exactValue={formatExactINR(financialData?.totalRevenue || 0)}
+            hint={<><span>View sales</span><ChevronRight className="h-3.5 w-3.5" /></>}
+            icon={<DollarSign className="h-5 w-5 text-success" />}
+            iconClassName="bg-success/10"
+            interactive
+          />
         </ClickableCard>
 
         {/* Total Expenses - Clickable to BAMS Journal */}
         <ClickableCard 
           to="/bams" 
           searchParams={{ tab: 'journal' }}
+          className="h-full"
         >
-          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Expenses</p>
-                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                    {formatCurrency(financialData?.totalExpenses || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                    <ArrowDownIcon className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Click to view transactions →</span>
-                  </div>
-                </div>
-                <div className="bg-destructive/10 p-2 rounded-lg shrink-0">
-                  <TrendingDown className="h-5 w-5 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+          <StatTile
+            label="Total Expenses"
+            value={formatCompactINR(financialData?.totalExpenses || 0)}
+            exactValue={formatExactINR(financialData?.totalExpenses || 0)}
+            hint={<><span>View transactions</span><ChevronRight className="h-3.5 w-3.5" /></>}
+            icon={<TrendingDown className="h-5 w-5 text-destructive" />}
+            iconClassName="bg-destructive/10"
+            interactive
+          />
         </ClickableCard>
 
         {/* Total Asset Value */}
         <TotalAssetValueWidget />
 
         {/* Bank Balance - Clickable to BAMS */}
-        <ClickableCard to="/bams">
-          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Bank Balance</p>
-                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                    {formatCurrency(financialData?.totalBankBalance || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                    <Wallet className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Click to view accounts →</span>
-                  </div>
-                </div>
-                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
-                  <Wallet className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+        <ClickableCard to="/bams" className="h-full">
+          <StatTile
+            label="Bank Balance"
+            value={formatCompactINR(financialData?.totalBankBalance || 0)}
+            exactValue={formatExactINR(financialData?.totalBankBalance || 0)}
+            hint={<><span>View accounts</span><ChevronRight className="h-3.5 w-3.5" /></>}
+            icon={<Wallet className="h-5 w-5 text-primary" />}
+            iconClassName="bg-primary/10"
+            interactive
+          />
         </ClickableCard>
       </div>
+
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">

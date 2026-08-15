@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -10,7 +10,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, CalendarDays, RotateCcw } from "lucide-react";
+import { Plus, CalendarDays, RotateCcw, Download } from "lucide-react";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -234,15 +234,55 @@ export function ShiftScheduleAssigner() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const visibleSchedules = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return schedules as any[];
+    return (schedules as any[]).filter((s: any) => {
+      const name = `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.toLowerCase();
+      const badge = (s.hr_employees?.badge_id ?? "").toLowerCase();
+      return name.includes(q) || badge.includes(q);
+    });
+  }, [schedules, search]);
+
+  const exportCsv = () => {
+    if (!visibleSchedules.length) {
+      toast.error("Nothing to export");
+      return;
+    }
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Employee Name", "Badge ID", "Shift", "Effective From"];
+    const lines = [header.map(esc).join(",")];
+    for (const s of visibleSchedules) {
+      lines.push([
+        `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim(),
+        s.hr_employees?.badge_id ?? "",
+        s.hr_shifts?.name ?? "",
+        s.effective_from ?? "",
+      ].map(esc).join(","));
+    }
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `shift-schedule-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <RotateCcw className="h-4 w-4" /> Shift Schedule
         </CardTitle>
-        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowDialog(true)}>
-          <Plus className="h-3 w-3" /> Change Shift
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={exportCsv} disabled={!visibleSchedules.length}>
+            <Download className="h-3 w-3" /> Export CSV
+          </Button>
+          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setShowDialog(true)}>
+            <Plus className="h-3 w-3" /> Change Shift
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {schedules.length === 0 ? (
@@ -260,7 +300,7 @@ export function ShiftScheduleAssigner() {
             </div>
             <div className="overflow-auto max-h-[440px]">
               <table className="w-full text-sm min-w-[520px]">
-                <thead className="bg-muted/50 border-b sticky top-0 z-10">
+                <thead className="bg-card border-b sticky top-0 z-10">
                   <tr>
                     <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Employee</th>
                     <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Shift</th>
@@ -268,15 +308,7 @@ export function ShiftScheduleAssigner() {
                   </tr>
                 </thead>
                 <tbody>
-                  {schedules
-                    .filter((s: any) => {
-                      const q = search.trim().toLowerCase();
-                      if (!q) return true;
-                      const name = `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.toLowerCase();
-                      const badge = (s.hr_employees?.badge_id ?? "").toLowerCase();
-                      return name.includes(q) || badge.includes(q);
-                    })
-                    .map((s: any) => (
+                  {visibleSchedules.map((s: any) => (
                     <tr key={s.id} className="border-b hover:bg-muted/30">
                       <td className="px-3 py-2">
                         {s.hr_employees?.first_name} {s.hr_employees?.last_name}

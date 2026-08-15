@@ -166,7 +166,7 @@ export default function ShiftsPage() {
       </div>
 
       {/* Shift Rotation & Weekly Off */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-6 pt-6 border-t">
+      <div className="grid grid-cols-1 gap-5 mt-6 pt-6 border-t">
         <ShiftScheduleAssigner />
         <WeeklyOffManager />
       </div>

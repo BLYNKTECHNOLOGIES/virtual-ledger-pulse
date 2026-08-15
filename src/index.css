@@ -1,6 +1,16 @@
 
 @tailwind base;
 
+/* ===== Scrollbar utilities ===== */
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+
 /* Shake animation for PIN dialog */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }

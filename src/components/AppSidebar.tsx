@@ -430,7 +430,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-sidebar overflow-y-auto group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
+      <SidebarContent className={`bg-sidebar overflow-y-auto group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden ${isCollapsed ? "scrollbar-hidden" : ""}`}>
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext

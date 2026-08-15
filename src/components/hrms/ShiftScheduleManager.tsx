@@ -207,24 +207,14 @@ export function ShiftScheduleAssigner() {
 
   const assignMutation = useMutation({
     mutationFn: async () => {
-      // Deactivate old schedules
-      await (supabase as any)
-        .from("hr_employee_shift_schedule")
-        .update({ is_current: false })
-        .eq("employee_id", form.employee_id)
-        .eq("is_current", true);
-      
-      const { error } = await (supabase as any).from("hr_employee_shift_schedule").insert({
-        employee_id: form.employee_id,
-        shift_id: form.shift_id,
-        effective_from: form.effective_from,
-        is_current: true,
+      const { error } = await (supabase as any).rpc("hr_assign_shift_schedule", {
+        p_employee_id: form.employee_id,
+        p_shift_id: form.shift_id,
+        p_effective_from: form.effective_from,
       });
       if (error) throw error;
-
-      // Also update work info
-      await (supabase as any).from("hr_employee_work_info").update({ shift_id: form.shift_id }).eq("employee_id", form.employee_id);
     },
+
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_shift_schedule"] });
       setShowDialog(false);

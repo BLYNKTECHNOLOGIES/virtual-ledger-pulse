@@ -1,0 +1,1 @@
+ALTER TABLE public.tds_records ALTER COLUMN pan_number DROP NOT NULL;

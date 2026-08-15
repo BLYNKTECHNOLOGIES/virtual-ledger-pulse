@@ -21283,7 +21283,7 @@ export type Database = {
           net_payable_amount: number
           paid_at: string | null
           paid_by: string | null
-          pan_number: string
+          pan_number: string | null
           payment_bank_account_id: string | null
           payment_batch_id: string | null
           payment_reference: string | null
@@ -21303,7 +21303,7 @@ export type Database = {
           net_payable_amount: number
           paid_at?: string | null
           paid_by?: string | null
-          pan_number: string
+          pan_number?: string | null
           payment_bank_account_id?: string | null
           payment_batch_id?: string | null
           payment_reference?: string | null
@@ -21323,7 +21323,7 @@ export type Database = {
           net_payable_amount?: number
           paid_at?: string | null
           paid_by?: string | null
-          pan_number?: string
+          pan_number?: string | null
           payment_bank_account_id?: string | null
           payment_batch_id?: string | null
           payment_reference?: string | null

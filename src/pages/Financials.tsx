@@ -169,49 +169,39 @@ export default function Financials() {
     >
     <div className="min-h-screen bg-muted/50 p-6">
       {/* Header */}
-      <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
-        <div className="px-6 py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-2 bg-muted rounded-lg">
-                  <Calculator className="h-5 w-5 text-muted-foreground" />
-                </span>
-                Financial Management
-              </span>
-            }
-            description="Comprehensive financial overview and management"
-            actions={
-              <div className="flex flex-wrap items-center gap-2 print:hidden">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                  preset={datePreset}
-                  onPresetChange={handleDatePresetChange}
-                  className="w-auto min-w-[200px]"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Transaction
-                </Button>
-              </div>
-            }
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="p-2 bg-card border border-border rounded-lg shrink-0">
+            <Calculator className="h-5 w-5 text-muted-foreground" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold text-foreground leading-tight truncate">
+              Financial Management
+            </h1>
+            <p className="text-xs text-muted-foreground truncate">
+              Comprehensive financial overview and management
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            preset={datePreset}
+            onPresetChange={handleDatePresetChange}
+            className="w-auto"
           />
-
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            New Transaction
+          </Button>
         </div>
       </div>
+
 
       {/* Key Financial Metrics - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 items-stretch">

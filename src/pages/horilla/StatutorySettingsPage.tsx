@@ -51,6 +51,7 @@ export default function StatutorySettingsPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulk, setBulk] = useState({ field: "pf" as "pf" | "esi" | "pt", value: true, effective_from: monthStart(), reason: "" });
+  const [viewMode, setViewMode] = useViewMode("statutory-settings");
 
   const [form, setForm] = useState({
     pf_enabled: true,

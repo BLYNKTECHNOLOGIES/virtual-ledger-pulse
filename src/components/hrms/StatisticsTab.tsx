@@ -41,12 +41,12 @@ const CHART_COLORS = [
   "hsl(25, 95%, 53%)",  // orange
 ];
 
-const TONE_BG: Record<string, string> = {
-  success: "bg-success",
-  info: "bg-info",
-  primary: "bg-primary",
-  warning: "bg-warning",
-  destructive: "bg-destructive",
+const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {
+  success: { icon: "text-success", chip: "bg-success/10" },
+  info: { icon: "text-info", chip: "bg-info/10" },
+  primary: { icon: "text-primary", chip: "bg-primary/10" },
+  warning: { icon: "text-warning", chip: "bg-warning/10" },
+  destructive: { icon: "text-destructive", chip: "bg-destructive/10" },
 };
 
 function StatTile({
@@ -57,25 +57,30 @@ function StatTile({
   icon: Icon,
   size = "sm",
 }: {
-  tone?: keyof typeof TONE_BG | string;
+  tone?: keyof typeof TONE_ACCENT | string;
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
   size?: "sm" | "md";
 }) {
+  const accent = TONE_ACCENT[tone] || TONE_ACCENT.primary;
   return (
-    <Card className={`shadow-md border-0 h-full text-primary-foreground ${TONE_BG[tone] || TONE_BG.primary}`}>
+    <Card className="h-full bg-card border shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-primary-foreground/80 truncate">{label}</p>
-            <p className={`${size === "md" ? "text-3xl" : "text-xl"} font-bold text-primary-foreground leading-tight mt-0.5`}>
+            <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
+            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-bold text-foreground leading-tight mt-1`}>
               {value}
             </p>
-            {sub && <div className="text-xs text-primary-foreground/75 mt-1 flex items-center">{sub}</div>}
+            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon}`}>{sub}</div>}
           </div>
-          {Icon && <Icon className={`${size === "md" ? "h-9 w-9" : "h-8 w-8"} text-primary-foreground/70 shrink-0`} />}
+          {Icon && (
+            <div className={`shrink-0 rounded-lg p-2 ${accent.chip}`}>
+              <Icon className={`h-5 w-5 ${accent.icon}`} />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -1196,7 +1196,7 @@ export function StatisticsTab() {
 
           {/* USDT Fees Widget - Single Simple Card */}
           <Card 
-            className="shadow-md cursor-pointer hover:shadow-sm transition-shadow"
+            className="shadow-sm border cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setShowFeeHistoryDialog(true)}
           >
             <CardContent className="p-4">

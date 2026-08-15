@@ -6,7 +6,7 @@ export interface BalanceSheetLine {
   section: string;
   line_key: string;
   line_label: string;
-  amount: number;
+  amount: number | null;
   confidence: string;
   note: string | null;
   sort_order: number;
@@ -45,6 +45,11 @@ const SECTION_TITLES: Record<string, string> = {
 export const inr = (n: number) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
+/** A null amount means the figure does not exist in the ERP at all — never render it as zero. */
+export const NOT_AVAILABLE = "NOT AVAILABLE";
+export const amountText = (amount: number | null | undefined) =>
+  amount === null || amount === undefined ? NOT_AVAILABLE : inr(Number(amount));
+
 /** Deterministic checksum over the presented figures, so a printed copy can be tied back. */
 export function balanceSheetChecksum(lines: BalanceSheetLine[], meta: { entityName: string; asOf: string }) {
   const payload =
@@ -55,8 +60,9 @@ export function balanceSheetChecksum(lines: BalanceSheetLine[], meta: { entityNa
     lines
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((l) => `${l.line_key}:${Number(l.amount).toFixed(2)}`)
+      .map((l) => `${l.line_key}:${l.amount === null || l.amount === undefined ? "NA" : Number(l.amount).toFixed(2)}`)
       .join(",");
+
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
   for (let i = 0; i < payload.length; i++) {
@@ -160,7 +166,7 @@ export function exportBalanceSheetPdf(
       head: [[g.title, "Amount (INR)", "Basis"]],
       body: g.rows.map((r) => [
         r.line_label + (r.note ? `\n${r.note}` : ""),
-        inr(Number(r.amount)),
+        amountText(r.amount),
         r.confidence,
       ]),
       styles: { fontSize: 8, cellPadding: 4, valign: "middle" },
@@ -263,15 +269,17 @@ export async function exportBalanceSheetXlsx(
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF252F3F" } };
     });
     for (const r of g.rows) {
+      const isNa = r.amount === null || r.amount === undefined;
       const row = ws.addRow({
         label: r.line_label,
-        amount: Number(r.amount),
+        amount: isNa ? NOT_AVAILABLE : Number(r.amount),
         basis: r.confidence,
         note: r.note || "",
       });
       row.font = { name: "Arial", bold: /^total_/.test(r.line_key) };
-      row.getCell("amount").numFmt = '#,##0.00;(#,##0.00);"-"';
+      if (!isNa) row.getCell("amount").numFmt = '#,##0.00;(#,##0.00);"-"';
     }
+
     ws.addRow([]);
   }
 

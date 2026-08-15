@@ -24754,6 +24754,40 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_wallet_entity_holdings_v: {
+        Row: {
+          asset_code: string | null
+          cost_inr_per_unit: number | null
+          quantity: number | null
+          subsidiary_id: string | null
+          usdt_price: number | null
+          wallet_id: string | null
+          wallet_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_wallet_entity_map_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "fin_wallet_entity_map_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_asset_balances_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_absent_marker_last_run_v: {
         Row: {
           last_marked_count: number | null
@@ -26230,7 +26264,13 @@ export type Database = {
         Returns: string
       }
       fin_entity_balance_sheet: {
-        Args: { p_as_of?: string; p_subsidiary_id: string }
+        Args: {
+          p_as_of?: string
+          p_opening_date?: string
+          p_subsidiary_id: string
+          p_usdt_inr_rate?: number
+          p_valuation_basis?: string
+        }
         Returns: {
           amount: number
           confidence: string

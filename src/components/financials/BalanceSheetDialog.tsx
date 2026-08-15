@@ -257,7 +257,10 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               variant="outline"
               size="sm"
               disabled={!lines.length}
-              onClick={() => exportBalanceSheetPdf(lines, findings, meta)}
+              onClick={() => {
+                exportBalanceSheetPdf(lines, findings, meta);
+                logGeneration("PDF");
+              }}
             >
               <Download className="mr-1.5 h-4 w-4" />
               PDF
@@ -266,13 +269,44 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               variant="outline"
               size="sm"
               disabled={!lines.length}
-              onClick={() => exportBalanceSheetXlsx(lines, findings, meta)}
+              onClick={() => {
+                exportBalanceSheetXlsx(lines, findings, meta);
+                logGeneration("XLSX");
+              }}
             >
               <FileSpreadsheet className="mr-1.5 h-4 w-4" />
               Excel
             </Button>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Crypto inventory valuation basis</Label>
+            <Select value={valuationBasis} onValueChange={setValuationBasis}>
+              <SelectTrigger className="w-[280px] text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="COST">Cost (weighted average purchase)</SelectItem>
+                <SelectItem value="MARKET">Market (latest available price)</SelectItem>
+                <SelectItem value="LCOM">Lower of cost or market</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setShowMapping((v) => !v)}>
+            {showMapping ? "Hide" : "Manage"} wallet mapping
+          </Button>
+        </div>
+
+        {showMapping && (
+          <WalletEntityMappingPanel
+            entities={(entities || []).map((e) => ({
+              subsidiary_id: e.subsidiary_id,
+              legal_name: e.legal_name,
+            }))}
+          />
+        )}
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
           {!entityId && (
@@ -281,11 +315,36 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             </p>
           )}
 
+          {isDraft && !!lines.length && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="text-xs text-destructive">
+                <p className="font-semibold">DRAFT — FAILED VERIFICATION</p>
+                <p className="mt-0.5">
+                  {failedChecks.join("; ")}. Exports carry the same watermark and must not be used as
+                  final financial statements.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {cryptoNote && !!lines.length && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
+              <p className="text-xs font-semibold text-foreground">Crypto currency disclosure</p>
+              <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
+                {cryptoNote.slice(1).map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-destructive">
               {(error as Error).message || "Could not generate the balance sheet."}
             </p>
           )}
+
 
           {entityId && isFetching && (
             <div className="space-y-2">

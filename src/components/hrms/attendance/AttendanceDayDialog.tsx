@@ -1,8 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { AlertCircle, ArrowUpRight, CheckCircle2, Clock, Compass, Moon, ShieldAlert } from "lucide-react";
 import {
@@ -13,6 +16,7 @@ import {
   istTime,
 } from "./DayTileTooltip";
 import type { AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+
 
 type Props = {
   open: boolean;
@@ -34,6 +38,9 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "wa
 }
 
 export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeName, badgeId, date }: Props) {
+  const qc = useQueryClient();
+  const [reason, setReason] = useState("");
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["hr_day_detail", employeeId, date],
     enabled: open && !!employeeId && !!date,
@@ -56,10 +63,32 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
   const stale: any[] = data?.stale_sessions || [];
   const lop = Number(data?.lop_contribution ?? 0);
   const status = (daily?.status || "no_data") as AttendanceDayStatus;
+  const manualStatus: string | null = daily?.manual_status ?? null;
+
+  const setStatus = useMutation({
+    mutationFn: async (next: "present" | "absent" | "half_day" | null) => {
+      const { error } = await (supabase as any).rpc("hr_set_manual_day_status", {
+        p_employee_id: employeeId,
+        p_date: date,
+        p_status: next,
+        p_reason: reason.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Attendance status updated");
+      setReason("");
+      qc.invalidateQueries({ queryKey: ["hr_day_detail", employeeId, date] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance_calendar"] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance_month"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not update status"),
+  });
 
   const firstIn = istTime(daily?.first_in);
   const lastOut = istTime(daily?.last_out);
   const outNextDay = !!(daily?.last_out && istDate(daily.last_out) !== date);
+
 
   return (
     <ResponsiveDialog
@@ -125,6 +154,60 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
                 )}
               </div>
             )}
+
+            {/* Manual status override */}
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Set status manually
+                </p>
+                {manualStatus && (
+                  <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">
+                    manual override active
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {([
+                  { key: "present", label: "Present" },
+                  { key: "half_day", label: "Half day" },
+                  { key: "absent", label: "Absent" },
+                ] as const).map((o) => (
+                  <Button
+                    key={o.key}
+                    size="sm"
+                    variant={manualStatus === o.key ? "default" : "outline"}
+                    className="h-8"
+                    disabled={setStatus.isPending}
+                    onClick={() => setStatus.mutate(o.key)}
+                  >
+                    {o.label}
+                  </Button>
+                ))}
+                {manualStatus && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8"
+                    disabled={setStatus.isPending}
+                    onClick={() => setStatus.mutate(null)}
+                  >
+                    Clear override
+                  </Button>
+                )}
+              </div>
+              <Input
+                className="mt-2 h-8 text-xs"
+                placeholder="Reason (optional, recorded in the audit log)"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              {manualStatus && daily?.manual_status_reason && (
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Existing note: {daily.manual_status_reason}
+                </p>
+              )}
+            </div>
 
 
             {/* Summary */}

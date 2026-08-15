@@ -367,15 +367,15 @@ export default function Financials() {
                   <Plus className="h-4 w-4 mr-2" />
                   Record Income
                 </Button>
-                <Button variant="outline" variant="outline" className="w-full">
+                <Button variant="outline" className="w-full">
                   <CreditCard className="h-4 w-4 mr-2" />
                   Record Expense
                 </Button>
-                <Button variant="outline" variant="outline" className="w-full">
+                <Button variant="outline" className="w-full">
                   <FileText className="h-4 w-4 mr-2" />
                   Generate Report
                 </Button>
-                <Button variant="outline" variant="outline" className="w-full">
+                <Button variant="outline" className="w-full">
                   <Calculator className="h-4 w-4 mr-2" />
                   Financial Calculator
                 </Button>

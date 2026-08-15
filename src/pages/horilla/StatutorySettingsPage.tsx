@@ -307,6 +307,52 @@ export default function StatutorySettingsPage() {
     return { total: employees.length, pf, esi, pt, flags };
   }, [employees, activeByEmp]);
 
+  const exportCsv = () => {
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = [
+      "Employee", "Badge ID", "Monthly CTC", "Effective From", "PF", "PF Wage Base",
+      "VPF", "ESI", "PT", "UAN", "ESIC Number", "Flag",
+    ];
+    const data = rows.map(({ emp, p }: any) => {
+      const monthlyCtc = Math.round(Number(emp.total_salary || 0) / 12);
+      const pf = p?.pf_enabled ? "Yes" : "No";
+      const pfWage = p?.pf_enabled ? (p.pf_wage_basis === "actual" ? "Actual" : "Capped ₹15k") : "";
+      const vpf =
+        !p?.pf_enabled || !p.vpf_mode || p.vpf_mode === "none"
+          ? "None"
+          : p.vpf_mode === "percent"
+            ? `${p.vpf_value}%`
+            : inr(p.vpf_value);
+      const esi = p?.esi_enabled ? "Yes" : "No";
+      const pt = p?.pt_enabled ? "Yes" : "No";
+      const flags: string[] = [];
+      if (p?.pf_enabled && !p?.uan) flags.push("Missing UAN");
+      if (p?.esi_enabled && !p?.esic_number) flags.push("Missing ESIC");
+      return [
+        `${emp.first_name || ""} ${emp.last_name || ""}`.trim(),
+        emp.badge_id ?? "",
+        monthlyCtc,
+        p?.effective_from ?? "",
+        pf,
+        pfWage,
+        vpf,
+        esi,
+        pt,
+        p?.uan ?? "",
+        p?.esic_number ?? "",
+        flags.join("; "),
+      ];
+    });
+    const csv = [header, ...data].map((r) => r.map(esc).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `statutory-settings-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  };
+
   return (
     <TooltipProvider delayDuration={150}>
     <div className="space-y-4">

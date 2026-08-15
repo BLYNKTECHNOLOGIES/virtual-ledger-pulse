@@ -939,23 +939,23 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
                       </Button>
                     )}
                   </div>
-                  {userNoLocked && (
-                    <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-2">
-                      <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="text-[11px] font-medium text-primary">
-                        Client locked via Binance User No{lockedUserNo ? ` (${lockedUserNo})` : ''} — the strongest account identity. Cannot be reassigned on approval.
-                      </span>
+                  {(userNoLocked || (clientAutoMatched && autoMatchVia === 'userno')) && (
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {userNoLocked && (
+                        <span className="flex items-center gap-1 text-primary" title={`Locked via Binance User No${lockedUserNo ? ` (${lockedUserNo})` : ''}`}>
+                          <Lock className="h-3 w-3" />
+                          Locked
+                        </span>
+                      )}
+                      {clientAutoMatched && autoMatchVia === 'userno' && (
+                        <span className="flex items-center gap-1 text-info" title="Auto-linked by Binance userNo">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Auto-linked
+                        </span>
+                      )}
                     </div>
                   )}
-                  {/* Auto-match info — client bound strictly by Binance userNo */}
-                  {clientAutoMatched && autoMatchVia === 'userno' && (
-                    <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />
-                      <span className="text-[11px] font-medium text-info dark:text-info">
-                        Auto-linked by Binance userNo — the unique account identity.
-                      </span>
-                    </div>
-                  )}
+
                   {/* Show Buyer Approval Pending warning for newly created clients */}
                   {selectedClient.buyer_approval_status === 'PENDING' && (
                     <div className="flex items-center gap-2 rounded-md border border-warning/20 bg-warning/10 dark:border-warning dark:bg-warning/30 px-3 py-2">

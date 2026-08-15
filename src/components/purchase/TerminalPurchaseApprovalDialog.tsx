@@ -673,22 +673,23 @@ export function TerminalPurchaseApprovalDialog({ open, onOpenChange, syncRecord,
                       </Button>
                     )}
                   </div>
-                  {userNoLocked && (
-                    <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/10 px-3 py-2">
-                      <Lock className="h-3.5 w-3.5 text-primary shrink-0" />
-                      <span className="text-[11px] font-medium text-primary">
-                        Client locked via Binance User No{lockedUserNo ? ` (${lockedUserNo})` : ''} — the strongest account identity. Cannot be reassigned on approval.
-                      </span>
+                  {(userNoLocked || autoMatchVia === 'userno') && (
+                    <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                      {userNoLocked && (
+                        <span className="flex items-center gap-1 text-primary" title={`Locked via Binance User No${lockedUserNo ? ` (${lockedUserNo})` : ''}`}>
+                          <Lock className="h-3 w-3" />
+                          Locked
+                        </span>
+                      )}
+                      {autoMatchVia === 'userno' && (
+                        <span className="flex items-center gap-1 text-info" title="Auto-linked by Binance userNo">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Auto-linked
+                        </span>
+                      )}
                     </div>
                   )}
-                  {autoMatchVia === 'userno' && (
-                    <div className="flex items-center gap-2 rounded-md border border-info/20 bg-info/10 dark:border-info dark:bg-info/30 px-3 py-2">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-info dark:text-info shrink-0" />
-                      <span className="text-[11px] font-medium text-info dark:text-info">
-                        Auto-linked by Binance userNo — the unique account identity.
-                      </span>
-                    </div>
-                  )}
+
                 </div>
               ) : duplicateClients.length > 1 ? (
                 <div className="space-y-2">

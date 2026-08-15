@@ -279,22 +279,27 @@ export default function LateComeEarlyOutPage() {
                           tabIndex={0}
                           onClick={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
                           onKeyDown={(e) => { if (e.key === "Enter") setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
-                          className="border-b hover:bg-muted/50 cursor-pointer"
+                          className={`border-b hover:bg-muted/50 cursor-pointer ${isTable ? "even:bg-muted/20" : ""}`}
                         >
                           <td className="px-4 py-3 font-medium">{s.name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
                           <td className="px-4 py-3 tabular-nums">
-                            {s.lateCount > 0 ? (
+                            {isTable ? (
+                              s.lateCount
+                            ) : s.lateCount > 0 ? (
                               <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.lateCount}</span>
                             ) : <span className="text-muted-foreground">0</span>}
                           </td>
-                          <td className="px-4 py-3 text-warning font-medium tabular-nums">{s.totalLateMins || "—"}</td>
+                          <td className={`px-4 py-3 font-medium tabular-nums ${isTable ? "" : "text-warning"}`}>{s.totalLateMins || (isTable ? 0 : "—")}</td>
                           <td className="px-4 py-3 tabular-nums">
-                            {s.earlyCount > 0 ? (
+                            {isTable ? (
+                              s.earlyCount
+                            ) : s.earlyCount > 0 ? (
                               <span className="bg-destructive/10 text-destructive border border-destructive/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.earlyCount}</span>
                             ) : <span className="text-muted-foreground">0</span>}
                           </td>
-                          <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalEarlyMins || "—"}</td>
+                          <td className={`px-4 py-3 font-medium tabular-nums ${isTable ? "" : "text-destructive"}`}>{s.totalEarlyMins || (isTable ? 0 : "—")}</td>
+
                           <td className="px-4 py-3 font-bold tabular-nums">{s.lateCount + s.earlyCount}</td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <button

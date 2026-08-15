@@ -4,12 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, Users } from "lucide-react";
+import { Search, Users, Download } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { AttendanceInsights, type DailyRow, type MaintainedRow } from "@/components/hrms/attendance/AttendanceInsights";
+import { Button } from "@/components/ui/button";
+import { ViewToggle } from "@/components/hrms/ViewToggle";
+import { useViewMode } from "@/hooks/useViewMode";
 
 
 type SummaryRow = {
@@ -35,6 +38,7 @@ type SummaryRow = {
 
 export default function AttendanceSummaryPage() {
   const [search, setSearch] = useState("");
+  const [viewMode, setViewMode] = useViewMode("attendance-summary");
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -216,21 +220,58 @@ export default function AttendanceSummaryPage() {
   }, [workInfo, shiftSchedule, shifts]);
 
 
+  const exportCsv = () => {
+    const rows = filtered as any[];
+    if (!rows.length) return;
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = [
+      "Employee", "Badge ID", "Working Days", "Present", "Paid Leave", "Not Counted",
+      "Loss of Pay", "Overtime (h)", "Late (min)", "Early Out (min)", "Attendance %",
+    ];
+    const lines = [header.map(esc).join(",")];
+    for (const s of rows) {
+      lines.push([
+        `${s.employee?.first_name ?? ""} ${s.employee?.last_name ?? ""}`.trim(),
+        s.employee?.badge_id ?? "",
+        Number(s.working_days),
+        Number(s.present_days),
+        Number(s.paid_leave_days),
+        Number(s.held_harmless_days),
+        Number(s.lop_days),
+        Number(s.ot_hours).toFixed(1),
+        Number(s.late_minutes),
+        Number(s.early_minutes),
+        s.rate.toFixed(1),
+      ].map(esc).join(","));
+    }
+    const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `attendance-summary-${month}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="p-4 md:p-6 space-y-6 page-mount">
         <PageHeader title="Attendance Summary" />
 
 
-        <div className="flex gap-3 flex-wrap">
+        <div className="flex gap-3 flex-wrap items-center">
           <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} className="w-44 h-9" />
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
           </div>
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <Button variant="outline" size="sm" className="h-9 gap-1.5" onClick={exportCsv} disabled={!(filtered as any[]).length}>
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
         </div>
 
-        <AttendanceInsights
+        {viewMode === "cards" && <AttendanceInsights
           month={month}
           summary={summary as any}
           maintained={maintained as MaintainedRow[]}
@@ -240,7 +281,7 @@ export default function AttendanceSummaryPage() {
           activeIds={activeIds}
           deptByEmployee={deptByEmployee}
           shiftMinutesByEmployee={shiftMinutesByEmployee}
-        />
+        />}
 
 
         {isLoading ? (
@@ -248,7 +289,7 @@ export default function AttendanceSummaryPage() {
         ) : (
           <>
             {/* Mobile */}
-            <div className="md:hidden space-y-2">
+            <div className={viewMode === "table" ? "hidden" : "md:hidden space-y-2"}>
               {filtered.length === 0 ? (
                 <Card><CardContent className="p-0"><EmptyState icon={Users} title="No records for this month" description="No attendance data found for the selected month." /></CardContent></Card>
               ) : (filtered as any[]).map((s: any) => (
@@ -285,7 +326,7 @@ export default function AttendanceSummaryPage() {
             </div>
 
             {/* Desktop */}
-            <Card className="hidden md:block">
+            <Card className={viewMode === "table" ? "block" : "hidden md:block"}>
               <CardContent className="p-0 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 border-b">

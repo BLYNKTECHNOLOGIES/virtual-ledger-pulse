@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Clock, AlertTriangle, Search, TrendingDown } from "lucide-react";
+import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import EmployeeIncidentsDialog from "@/components/hrms/attendance/EmployeeIncidentsDialog";
 

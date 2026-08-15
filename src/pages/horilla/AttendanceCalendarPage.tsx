@@ -93,12 +93,16 @@ export default function AttendanceCalendarPage() {
   const startDay = getDay(monthStart); // 0=Sun
   const { data: complianceSettings } = useComplianceSettings();
 
-  const filteredEmps = employees.filter((e: any) => {
+  const filteredEmps = useMemo(() => employees.filter((e: any) => {
     if (selectedEmp !== "all" && e.id !== selectedEmp) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return `${e.first_name} ${e.last_name}`.toLowerCase().includes(q) || e.badge_id?.toLowerCase().includes(q);
-  });
+  }).sort((a: any, b: any) => {
+    const nameA = `${a.first_name || ""} ${a.last_name || ""}`.trim().toLowerCase();
+    const nameB = `${b.first_name || ""} ${b.last_name || ""}`.trim().toLowerCase();
+    return nameA.localeCompare(nameB);
+  }), [employees, selectedEmp, search]);
 
   // v4 engine truth for every visible employee this month (single sanctioned reader).
   const visibleIds = useMemo(() => filteredEmps.map((e: any) => e.id), [filteredEmps]);

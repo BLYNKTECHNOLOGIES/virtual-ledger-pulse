@@ -27492,7 +27492,12 @@ export type Database = {
         }[]
       }
       hr_v4_detect_shift: {
-        Args: { p_date: string; p_employee_id: string; p_first_in: string }
+        Args: {
+          p_date: string
+          p_employee_id: string
+          p_first_in: string
+          p_last_out?: string
+        }
         Returns: {
           assigned_shift_id: string
           shift_id: string

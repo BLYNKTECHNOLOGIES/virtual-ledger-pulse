@@ -665,112 +665,80 @@ export function StatisticsTab() {
       {/* Primary KPI Cards - Clickable */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <ClickableCard to="/sales">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-success to-success text-primary-foreground h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-success text-xs font-medium">Revenue</p>
-                  <p className="text-xl font-bold">{formatCurrency(kpi.revenue)}</p>
-                  <div className="flex items-center mt-1">
-                    {kpi.revenueChange >= 0 ? (
-                      <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{kpi.revenueChange.toFixed(1)}%</span></>
-                    ) : (
-                      <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{kpi.revenueChange.toFixed(1)}%</span></>
-                    )}
-                  </div>
-                </div>
-                <DollarSign className="h-8 w-8 text-success" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatTile
+            tone="success"
+            label="Revenue"
+            value={formatCurrency(kpi.revenue)}
+            icon={DollarSign}
+            sub={
+              <>
+                {kpi.revenueChange >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                {kpi.revenueChange >= 0 ? "+" : ""}{kpi.revenueChange.toFixed(1)}%
+              </>
+            }
+          />
         </ClickableCard>
 
         <ClickableCard to="/clients">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-info to-info text-primary-foreground h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-info text-xs font-medium">New Clients</p>
-                  <p className="text-xl font-bold">{clientStats.newInPeriod}</p>
-                  <div className="flex items-center mt-1">
-                    {clientGrowthChange >= 0 ? (
-                      <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{clientGrowthChange.toFixed(0)}%</span></>
-                    ) : (
-                      <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{clientGrowthChange.toFixed(0)}%</span></>
-                    )}
-                  </div>
-                </div>
-                <UserPlus className="h-8 w-8 text-info" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatTile
+            tone="info"
+            label="New Clients"
+            value={clientStats.newInPeriod}
+            icon={UserPlus}
+            sub={
+              <>
+                {clientGrowthChange >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                {clientGrowthChange >= 0 ? "+" : ""}{clientGrowthChange.toFixed(0)}%
+              </>
+            }
+          />
         </ClickableCard>
 
         <ClickableCard to="/clients">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-primary to-primary text-primary-foreground h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-primary text-xs font-medium">KYC Verified</p>
-                  <p className="text-xl font-bold">{kycStats.newVerifiedInPeriod}</p>
-                  <p className="text-xs text-primary mt-1">{kycStats.verificationRate}% total rate</p>
-                </div>
-                <UserCheck className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatTile
+            tone="primary"
+            label="KYC Verified"
+            value={kycStats.newVerifiedInPeriod}
+            icon={UserCheck}
+            sub={`${kycStats.verificationRate}% total rate`}
+          />
         </ClickableCard>
 
         <ClickableCard to="/leads">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-warning to-warning text-primary-foreground h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-warning text-xs font-medium">New Leads</p>
-                  <p className="text-xl font-bold">{leadStats.newInPeriod}</p>
-                  <div className="flex items-center mt-1">
-                    {leadStats.leadsChange >= 0 ? (
-                      <><ArrowUp className="h-3 w-3 mr-1" /><span className="text-xs">+{leadStats.leadsChange.toFixed(0)}%</span></>
-                    ) : (
-                      <><ArrowDown className="h-3 w-3 mr-1" /><span className="text-xs">{leadStats.leadsChange.toFixed(0)}%</span></>
-                    )}
-                  </div>
-                </div>
-                <Target className="h-8 w-8 text-warning" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatTile
+            tone="warning"
+            label="New Leads"
+            value={leadStats.newInPeriod}
+            icon={Target}
+            sub={
+              <>
+                {leadStats.leadsChange >= 0 ? <ArrowUp className="h-3 w-3 mr-1" /> : <ArrowDown className="h-3 w-3 mr-1" />}
+                {leadStats.leadsChange >= 0 ? "+" : ""}{leadStats.leadsChange.toFixed(0)}%
+              </>
+            }
+          />
         </ClickableCard>
 
         <ClickableCard to="/leads">
-          <Card className="shadow-md border-0 bg-gradient-to-br from-info to-info text-primary-foreground h-full">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-primary-foreground/80 text-xs font-medium">Conversion Rate</p>
-                  <p className="text-xl font-bold">{leadStats.conversionRate.toFixed(1)}%</p>
-                  <p className="text-xs text-primary-foreground/70 mt-1">{leadStats.converted} converted</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-primary-foreground/70" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatTile
+            tone="info"
+            label="Conversion Rate"
+            value={`${leadStats.conversionRate.toFixed(1)}%`}
+            icon={CheckCircle}
+            sub={`${leadStats.converted} converted`}
+          />
         </ClickableCard>
 
         <ClickableCard to="/profit-loss">
-          <Card className={`shadow-md border-0 text-primary-foreground h-full ${kpi.profit >= 0 ? 'bg-gradient-to-br from-success to-success' : 'bg-gradient-to-br from-destructive to-destructive'}`}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-primary-foreground/80 text-xs font-medium">Net Profit</p>
-                  <p className="text-xl font-bold">{formatCurrency(Math.abs(kpi.profit))}</p>
-                  <p className="text-xs text-primary-foreground/70 mt-1">{kpi.profit >= 0 ? 'Profit' : 'Loss'}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-primary-foreground/60" />
-              </div>
-            </CardContent>
-          </Card>
+          <StatTile
+            tone={kpi.profit >= 0 ? "success" : "destructive"}
+            label="Net Profit"
+            value={formatCurrency(Math.abs(kpi.profit))}
+            icon={TrendingUp}
+            sub={kpi.profit >= 0 ? "Profit" : "Loss"}
+          />
         </ClickableCard>
+
       </div>
 
       {/* Tabs for Different Views */}

@@ -9,9 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight } from "lucide-react";
+import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import EmployeeIncidentsDialog from "@/components/hrms/attendance/EmployeeIncidentsDialog";
+import { useViewMode } from "@/hooks/useViewMode";
+import { ViewToggle } from "@/components/hrms/ViewToggle";
+import { Button } from "@/components/ui/button";
 
 export default function LateComeEarlyOutPage() {
   const now = new Date();
@@ -19,6 +22,8 @@ export default function LateComeEarlyOutPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [selectedEmp, setSelectedEmp] = useState<{ id: string; name: string; badge: string } | null>(null);
+  const [viewMode, setViewMode] = useViewMode("late-early");
+  const [activeTab, setActiveTab] = useState("summary");
 
   const monthStart = format(startOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");

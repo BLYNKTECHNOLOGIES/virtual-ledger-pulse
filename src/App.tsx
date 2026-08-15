@@ -150,6 +150,7 @@ const OAuthConsent = lazy(() => import('./pages/OAuthConsent'));
 
 
 const router = createBrowserRouter([
+  { path: "/__inc_test", element: <IncidentsHarness /> },
   // Login — the only public route
   {
     path: "/",

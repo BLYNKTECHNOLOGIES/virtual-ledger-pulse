@@ -980,14 +980,16 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-md bg-gradient-to-br from-info to-info text-primary-foreground">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-primary-foreground/80 text-sm">Conversion Rate</p>
-                    <p className="text-2xl font-bold">{leadStats.conversionRate.toFixed(1)}%</p>
+                    <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                    <p className="text-2xl font-bold text-foreground">{leadStats.conversionRate.toFixed(1)}%</p>
                   </div>
-                  <TrendingUp className="h-8 w-8 text-primary-foreground/70" />
+                  <div className="rounded-lg p-2 bg-info/10">
+                    <TrendingUp className="h-5 w-5 text-info" />
+                  </div>
                 </div>
               </CardContent>
             </Card>

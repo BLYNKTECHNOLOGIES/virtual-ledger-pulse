@@ -41,12 +41,12 @@ const CHART_COLORS = [
   "hsl(25, 95%, 53%)",  // orange
 ];
 
-const TONE_BG: Record<string, string> = {
-  success: "bg-success",
-  info: "bg-info",
-  primary: "bg-primary",
-  warning: "bg-warning",
-  destructive: "bg-destructive",
+const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {
+  success: { icon: "text-success", chip: "bg-success/10" },
+  info: { icon: "text-info", chip: "bg-info/10" },
+  primary: { icon: "text-primary", chip: "bg-primary/10" },
+  warning: { icon: "text-warning", chip: "bg-warning/10" },
+  destructive: { icon: "text-destructive", chip: "bg-destructive/10" },
 };
 
 function StatTile({
@@ -57,25 +57,30 @@ function StatTile({
   icon: Icon,
   size = "sm",
 }: {
-  tone?: keyof typeof TONE_BG | string;
+  tone?: keyof typeof TONE_ACCENT | string;
   label: string;
   value: React.ReactNode;
   sub?: React.ReactNode;
   icon?: React.ComponentType<{ className?: string }>;
   size?: "sm" | "md";
 }) {
+  const accent = TONE_ACCENT[tone] || TONE_ACCENT.primary;
   return (
-    <Card className={`shadow-md border-0 h-full text-primary-foreground ${TONE_BG[tone] || TONE_BG.primary}`}>
+    <Card className="h-full bg-card border shadow-sm hover:shadow-md transition-shadow">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-primary-foreground/80 truncate">{label}</p>
-            <p className={`${size === "md" ? "text-3xl" : "text-xl"} font-bold text-primary-foreground leading-tight mt-0.5`}>
+            <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
+            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-bold text-foreground leading-tight mt-1`}>
               {value}
             </p>
-            {sub && <div className="text-xs text-primary-foreground/75 mt-1 flex items-center">{sub}</div>}
+            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon}`}>{sub}</div>}
           </div>
-          {Icon && <Icon className={`${size === "md" ? "h-9 w-9" : "h-8 w-8"} text-primary-foreground/70 shrink-0`} />}
+          {Icon && (
+            <div className={`shrink-0 rounded-lg p-2 ${accent.chip}`}>
+              <Icon className={`h-5 w-5 ${accent.icon}`} />
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -635,31 +640,20 @@ export function StatisticsTab() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-6">
-      {/* Header with Title and Date Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <BarChart3 className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Statistics & Analytics</h1>
-            <p className="text-muted-foreground text-sm">Comprehensive business insights and growth metrics</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            preset={datePreset}
-            onPresetChange={setDatePreset}
-            className="min-w-[200px]"
-          />
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
+    <div className="space-y-6">
+      {/* Toolbar */}
+      <div className="flex items-center justify-end gap-3 flex-wrap">
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          className="min-w-[200px]"
+        />
+        <Button variant="outline" size="sm">
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       {/* Primary KPI Cards - Clickable */}
@@ -755,7 +749,7 @@ export function StatisticsTab() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Growth Trends Chart */}
-            <Card className="shadow-sm border-0">
+            <Card className="shadow-sm border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -779,7 +773,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Revenue Chart */}
-            <Card className="shadow-sm border-0">
+            <Card className="shadow-sm border">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-success" />
@@ -802,42 +796,42 @@ export function StatisticsTab() {
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4 text-center">
                 <Users className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-2xl font-bold">{clientStats.newInPeriod}</p>
                 <p className="text-xs text-muted-foreground">New Clients</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4 text-center">
                 <ShoppingCart className="h-6 w-6 mx-auto text-info mb-2" />
                 <p className="text-2xl font-bold">{kpi.trades}</p>
                 <p className="text-xs text-muted-foreground">Trades</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4 text-center">
                 <Target className="h-6 w-6 mx-auto text-warning mb-2" />
                 <p className="text-2xl font-bold">{leadStats.open}</p>
                 <p className="text-xs text-muted-foreground">Open Leads</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4 text-center">
                 <Clock className="h-6 w-6 mx-auto text-warning mb-2" />
                 <p className="text-2xl font-bold">{onboardingStats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pending Approvals</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4 text-center">
                 <Briefcase className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-2xl font-bold">{kpi.employees}</p>
                 <p className="text-xs text-muted-foreground">Employees</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4 text-center">
                 <Building className="h-6 w-6 mx-auto text-info mb-2" />
                 <p className="text-2xl font-bold">{departmentData.length}</p>
@@ -900,14 +894,14 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-info/10 dark:bg-info rounded-lg">
+                  <div className="p-4 bg-muted/50 border rounded-lg">
                     <p className="text-sm text-muted-foreground">New Buyers</p>
-                    <p className="text-2xl font-bold text-info">{clientStats.buyers}</p>
+                    <p className="text-2xl font-bold text-foreground">{clientStats.buyers}</p>
                     <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
-                  <div className="p-4 bg-primary/10 dark:bg-primary rounded-lg">
+                  <div className="p-4 bg-muted/50 border rounded-lg">
                     <p className="text-sm text-muted-foreground">New Sellers</p>
-                    <p className="text-2xl font-bold text-primary">{clientStats.sellers}</p>
+                    <p className="text-2xl font-bold text-foreground">{clientStats.sellers}</p>
                     <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
                 </div>
@@ -931,7 +925,7 @@ export function StatisticsTab() {
         {/* Leads Tab */}
         <TabsContent value="leads" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -942,7 +936,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -953,7 +947,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -964,7 +958,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -975,14 +969,16 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-md bg-gradient-to-br from-info to-info text-primary-foreground">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-primary-foreground/80 text-sm">Conversion Rate</p>
-                    <p className="text-2xl font-bold">{leadStats.conversionRate.toFixed(1)}%</p>
+                    <p className="text-sm text-muted-foreground">Conversion Rate</p>
+                    <p className="text-2xl font-bold text-foreground">{leadStats.conversionRate.toFixed(1)}%</p>
                   </div>
-                  <TrendingUp className="h-8 w-8 text-primary-foreground/70" />
+                  <div className="rounded-lg p-2 bg-info/10">
+                    <TrendingUp className="h-5 w-5 text-info" />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1170,19 +1166,19 @@ export function StatisticsTab() {
         {/* Financial Tab */}
         <TabsContent value="financial" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold text-success">{formatCurrency(kpi.revenue)}</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Operating Expenses</p>
                 <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Net Profit</p>
                 <p className={`text-2xl font-bold ${kpi.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
@@ -1190,7 +1186,7 @@ export function StatisticsTab() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-md">
+            <Card className="shadow-sm border">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Monthly Salary</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalSalary)}</p>
@@ -1200,7 +1196,7 @@ export function StatisticsTab() {
 
           {/* USDT Fees Widget - Single Simple Card */}
           <Card 
-            className="shadow-md cursor-pointer hover:shadow-sm transition-shadow"
+            className="shadow-sm border cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setShowFeeHistoryDialog(true)}
           >
             <CardContent className="p-4">

@@ -235,6 +235,15 @@ export default function LateComeEarlyOutPage() {
                           </td>
                           <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalEarlyMins || "—"}</td>
                           <td className="px-4 py-3 font-bold tabular-nums">{s.lateCount + s.earlyCount}</td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
+                              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
+                            >
+                              View <ChevronRight className="h-3 w-3" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

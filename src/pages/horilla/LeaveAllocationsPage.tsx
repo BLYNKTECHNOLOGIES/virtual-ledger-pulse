@@ -248,7 +248,7 @@ export default function LeaveAllocationsPage() {
                         <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: lt.color || "#E8604C" }} />
                         {lt.name}
                       </span>
-                      <span className="block text-[9px] normal-case tracking-normal">Qtr / Bal / Used</span>
+                      <span className="block text-[9px] normal-case tracking-normal">Balance</span>
                     </TableHead>
                   ))}
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right">Total Bal</TableHead>
@@ -285,13 +285,11 @@ export default function LeaveAllocationsPage() {
                         )}
                       </TableCell>
                       {cells.map((c: any) => (
-                        <TableCell key={c.lt.id} className="text-right text-xs tabular-nums whitespace-nowrap">
+                        <TableCell key={c.lt.id} className="text-right text-sm tabular-nums whitespace-nowrap">
                           {c.blocked ? (
                             <span className="text-warning text-[11px]">Not allocated</span>
                           ) : (
-                            <span className={c.has ? "text-foreground" : "text-muted-foreground"}>
-                              {c.qtr} / <span className="font-medium">{c.bal}</span> / {c.used}
-                            </span>
+                            <span className={c.bal ? "text-foreground font-medium" : "text-muted-foreground"}>{c.bal}</span>
                           )}
                         </TableCell>
                       ))}

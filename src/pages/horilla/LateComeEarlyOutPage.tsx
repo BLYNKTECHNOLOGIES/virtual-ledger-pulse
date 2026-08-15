@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Clock, AlertTriangle, Search, TrendingDown } from "lucide-react";
+import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import EmployeeIncidentsDialog from "@/components/hrms/attendance/EmployeeIncidentsDialog";
 
@@ -205,8 +205,8 @@ export default function LateComeEarlyOutPage() {
                   <table className="hidden md:table w-full text-sm min-w-[600px]">
                     <thead className="bg-muted/50 border-b">
                       <tr>
-                        {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"].map((h) => (
-                          <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                        {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents", ""].map((h, i) => (
+                          <th key={h || `col-${i}`} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -235,6 +235,15 @@ export default function LateComeEarlyOutPage() {
                           </td>
                           <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalEarlyMins || "—"}</td>
                           <td className="px-4 py-3 font-bold tabular-nums">{s.lateCount + s.earlyCount}</td>
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
+                              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
+                            >
+                              View <ChevronRight className="h-3 w-3" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>

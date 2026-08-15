@@ -68,7 +68,7 @@ export default function EmployeeIncidentsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-3xl md:max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base">
             <CalendarDays className="h-4 w-4" /> {employeeName}

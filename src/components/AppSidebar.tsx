@@ -506,15 +506,16 @@ export function AppSidebar() {
       
       <SidebarFooter className={`border-t border-sidebar-border bg-sidebar-accent ${isCollapsed ? 'p-1' : 'p-2'}`}>
         <div className="flex flex-col gap-2">
-          <Link to="/terminal">
+          <Link to="/terminal" className={isCollapsed ? 'mx-auto' : undefined}>
             <Button
               variant="ghost"
-              className={`w-full bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
+              className={`bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9 w-full'}`}
             >
               <Megaphone className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2'}`} />
               {!isCollapsed && <span className="text-xs">Terminal</span>}
             </Button>
           </Link>
+
           <div className="flex items-center justify-center">
             {!isCollapsed && (
               <div className="text-xs text-muted-foreground font-medium truncate flex-1 mr-2 bg-sidebar px-2 py-1 rounded-lg shadow-sm">

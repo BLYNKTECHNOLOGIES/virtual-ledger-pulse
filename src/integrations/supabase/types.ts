@@ -26909,6 +26909,14 @@ export type Database = {
           profile_id: string
         }[]
       }
+      hr_assign_shift_schedule: {
+        Args: {
+          p_effective_from: string
+          p_employee_id: string
+          p_shift_id: string
+        }
+        Returns: string
+      }
       hr_attendance_day_detail: {
         Args: { p_date: string; p_employee_id: string }
         Returns: Json

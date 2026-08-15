@@ -430,7 +430,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-sidebar overflow-y-auto max-h-screen">
+      <SidebarContent className="bg-sidebar overflow-y-auto group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext
@@ -442,26 +442,27 @@ export function AppSidebar() {
                 items={sortableIds}
                 strategy={verticalListSortingStrategy}
               >
-                <SidebarMenu className={`space-y-1 ${isCollapsed ? 'px-1' : 'px-2'}`}>
-                  <SidebarMenuItem>
+                <SidebarMenu className={`space-y-1 ${isCollapsed ? 'px-0 items-center' : 'px-2'}`}>
+                  <SidebarMenuItem className={isCollapsed ? 'w-8' : undefined}>
                     <SidebarMenuButton
                       asChild
                       isActive={location.pathname === "/profile"}
                       tooltip={isCollapsed ? "Profile" : undefined}
-                      className="rounded-xl border border-transparent transition-all duration-150 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm data-[active=true]:border-sidebar-border data-[active=true]:font-semibold data-[active=true]:shadow-sm"
+                      className="rounded-xl border border-transparent transition-all duration-150 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm data-[active=true]:border-sidebar-border data-[active=true]:font-semibold data-[active=true]:shadow-sm group-data-[collapsible=icon]:!p-0"
                     >
                       <Link
                         to="/profile"
                         aria-label="Profile"
-                        className={`flex items-center ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-3 px-3 py-3'}`}
+                        className={`flex items-center ${isCollapsed ? 'h-8 w-8 justify-center p-0' : 'gap-3 px-3 py-3'}`}
                       >
-                        <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                        <span className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 ${isCollapsed ? 'h-8 w-8' : 'h-8 w-8'}`}>
                           <CircleUser className="h-4 w-4 text-primary" />
                         </span>
                         {!isCollapsed && <span className="truncate text-sm font-medium">Profile</span>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+
                   {orderedEntries.map(entry => {
                     if (entry.type === 'group') {
                       return (
@@ -505,15 +506,16 @@ export function AppSidebar() {
       
       <SidebarFooter className={`border-t border-sidebar-border bg-sidebar-accent ${isCollapsed ? 'p-1' : 'p-2'}`}>
         <div className="flex flex-col gap-2">
-          <Link to="/terminal">
+          <Link to="/terminal" className={isCollapsed ? 'mx-auto' : undefined}>
             <Button
               variant="ghost"
-              className={`w-full bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9'}`}
+              className={`bg-warning/10 text-warning hover:bg-warning/20 hover:text-warning border border-warning/30 hover:border-warning/50 shadow-sm transition-all duration-300 font-semibold tracking-wide ${isCollapsed ? 'h-8 w-8 p-0' : 'h-9 w-full'}`}
             >
               <Megaphone className={`h-4 w-4 ${isCollapsed ? '' : 'mr-2'}`} />
               {!isCollapsed && <span className="text-xs">Terminal</span>}
             </Button>
           </Link>
+
           <div className="flex items-center justify-center">
             {!isCollapsed && (
               <div className="text-xs text-muted-foreground font-medium truncate flex-1 mr-2 bg-sidebar px-2 py-1 rounded-lg shadow-sm">

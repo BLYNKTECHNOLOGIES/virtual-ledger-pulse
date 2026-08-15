@@ -47,7 +47,7 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
     <SidebarMenuItem 
       ref={setNodeRef} 
       style={style}
-      className={isDragging ? 'relative z-50' : ''}
+      className={`${isDragging ? 'relative z-50' : ''} ${isCollapsed ? 'w-8' : ''}`}
     >
       <SidebarMenuButton
         tooltip={isCollapsed ? item.title : undefined}
@@ -55,10 +55,10 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
           hover:bg-sidebar-accent text-sidebar-foreground hover:text-sidebar-accent-foreground transition-all duration-150 rounded-xl group border border-transparent hover:border-sidebar-border hover:shadow-sm
           ${isActive ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold border-sidebar-border shadow-sm' : ''}
           ${isDragging ? 'opacity-50 z-50' : ''}
-          ${isCollapsed ? 'justify-center' : ''}
+          ${isCollapsed ? 'justify-center group-data-[collapsible=icon]:!p-0' : ''}
         `}
       >
-        <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-2 px-3 py-3'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'h-8 w-8 justify-center p-0' : 'w-full gap-2 px-3 py-3'}`}>
           {isDragMode && !isCollapsed && (
             <div 
               {...attributes}
@@ -71,11 +71,12 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
           <Link 
             to={isDragMode ? '#' : item.url} 
             onClick={(e) => isDragMode && e.preventDefault()}
-            className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}
+            className={`flex items-center min-w-0 ${isCollapsed ? 'h-8 w-8 justify-center' : 'flex-1 gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}
           >
-            <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/10' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
+            <div className={`rounded-lg ${isActive ? 'bg-primary/10' : item.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'h-8 w-8 flex items-center justify-center' : 'p-2'}`}>
               <item.icon className={`h-4 w-4 ${isActive ? 'text-primary' : item.color} transition-colors duration-200`} />
             </div>
+
             {!isCollapsed && (
               <span className="font-medium text-sm truncate transition-all duration-200 flex-1">
                 {item.title}

@@ -5034,6 +5034,10 @@ export type Database = {
           last_out: string | null
           late_by_minutes: number | null
           lunch_minutes: number
+          manual_status: string | null
+          manual_status_at: string | null
+          manual_status_by: string | null
+          manual_status_reason: string | null
           net_work_minutes: number
           punch_count: number | null
           session_count: number
@@ -5058,6 +5062,10 @@ export type Database = {
           last_out?: string | null
           late_by_minutes?: number | null
           lunch_minutes?: number
+          manual_status?: string | null
+          manual_status_at?: string | null
+          manual_status_by?: string | null
+          manual_status_reason?: string | null
           net_work_minutes?: number
           punch_count?: number | null
           session_count?: number
@@ -5082,6 +5090,10 @@ export type Database = {
           last_out?: string | null
           late_by_minutes?: number | null
           lunch_minutes?: number
+          manual_status?: string | null
+          manual_status_at?: string | null
+          manual_status_by?: string | null
+          manual_status_reason?: string | null
           net_work_minutes?: number
           punch_count?: number | null
           session_count?: number
@@ -26866,6 +26878,10 @@ export type Database = {
         Args: { p_razorpay_input_id?: string; p_repayment_id: string }
         Returns: undefined
       }
+      hr_apply_manual_status: {
+        Args: { p_employee_id: string; p_from: string; p_to: string }
+        Returns: undefined
+      }
       hr_apply_razorpay_advance_ack: {
         Args: {
           p_loan_id: string
@@ -27504,6 +27520,15 @@ export type Database = {
           installment_no: number
           period_month: string
         }[]
+      }
+      hr_set_manual_day_status: {
+        Args: {
+          p_date: string
+          p_employee_id: string
+          p_reason?: string
+          p_status: string
+        }
+        Returns: Json
       }
       hr_set_payroll_processed_on: {
         Args: { _month: string; _notes?: string; _processed_on: string }

@@ -69,9 +69,9 @@ export function AssetValueHistoryTab() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-gradient-to-br from-primary to-primary text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-primary text-sm font-medium">Latest Asset Value</p>
+            <p className="text-primary-foreground/80 text-sm font-medium">Latest Asset Value</p>
             <p className="text-2xl font-bold mt-2">{formatCurrency(latestValue)}</p>
-            <p className="text-sm mt-1 text-primary">
+            <p className="text-sm mt-1 text-primary-foreground/75">
               {historyData?.length
                 ? format(new Date(historyData[historyData.length - 1].snapshot_date), "dd MMM yyyy")
                 : "No data yet"}
@@ -81,15 +81,15 @@ export function AssetValueHistoryTab() {
 
         <Card className="bg-gradient-to-br from-success to-success text-primary-foreground border-0">
           <CardContent className="p-6">
-            <p className="text-success text-sm font-medium">Change</p>
+            <p className="text-primary-foreground/80 text-sm font-medium">Change</p>
             <p className="text-2xl font-bold mt-2">
               {Number(changePercent) >= 0 ? "+" : ""}{changePercent}%
             </p>
-            <p className="text-sm mt-1 text-success">vs previous snapshot</p>
+            <p className="text-sm mt-1 text-primary-foreground/75">vs previous snapshot</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
+        <Card className="bg-muted text-foreground border-0">
           <CardContent className="p-6">
             <p className="text-muted-foreground text-sm font-medium">Total Snapshots</p>
             <p className="text-2xl font-bold mt-2">{historyData?.length || 0}</p>

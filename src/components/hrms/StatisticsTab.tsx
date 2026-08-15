@@ -905,14 +905,14 @@ export function StatisticsTab() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-info/10 dark:bg-info rounded-lg">
+                  <div className="p-4 bg-muted/50 border rounded-lg">
                     <p className="text-sm text-muted-foreground">New Buyers</p>
-                    <p className="text-2xl font-bold text-info">{clientStats.buyers}</p>
+                    <p className="text-2xl font-bold text-foreground">{clientStats.buyers}</p>
                     <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
-                  <div className="p-4 bg-primary/10 dark:bg-primary rounded-lg">
+                  <div className="p-4 bg-muted/50 border rounded-lg">
                     <p className="text-sm text-muted-foreground">New Sellers</p>
-                    <p className="text-2xl font-bold text-primary">{clientStats.sellers}</p>
+                    <p className="text-2xl font-bold text-foreground">{clientStats.sellers}</p>
                     <p className="text-xs text-muted-foreground mt-1">In selected period</p>
                   </div>
                 </div>

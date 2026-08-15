@@ -33,7 +33,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format, subDays, startOfMonth, endOfMonth, startOfDay, endOfDay } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, ComposedChart, Bar, Legend } from "recharts";
 import { PermissionGate } from "@/components/PermissionGate";
 import { useNavigate } from "react-router-dom";
 import { DateRange } from "react-day-picker";
@@ -109,9 +109,12 @@ export default function Financials() {
       // Get bank balances (exclude audit/adjustment buckets)
       const { data: bankDataRaw } = await supabase
         .from('bank_accounts')
-        .select('account_name, balance, bank_name')
+        .select('id, account_name, balance, bank_name')
         .eq('status', 'ACTIVE');
       const bankData = (bankDataRaw || []).filter(b => !isAdjustmentBank(b.account_name));
+      const adjustmentBankIds = new Set(
+        (bankDataRaw || []).filter(b => isAdjustmentBank(b.account_name)).map(b => b.id)
+      );
 
       // Get recent transactions
       const { data: transactionsData } = await supabase
@@ -122,11 +125,47 @@ export default function Financials() {
         .order('transaction_date', { ascending: false })
         .limit(10);
 
+      // Cash flow ledger: all INCOME/EXPENSE bank movements in range (same ledger for both sides)
+      const cashFlowRows = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('bank_transactions')
+          .select('amount, transaction_type, transaction_date, category, bank_account_id')
+          .in('transaction_type', ['INCOME', 'EXPENSE'])
+          .not('category', 'in', '("Payment Gateway Settlement","Settlement")')
+          .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
+          .lte('transaction_date', format(endDate, 'yyyy-MM-dd'))
+          .order('transaction_date', { ascending: true }));
+
+      const rangeDays = Math.max(
+        1,
+        Math.round((endOfDay(endDate).getTime() - startOfDay(startDate).getTime()) / 86400000) + 1
+      );
+      const bucketMode: 'day' | 'month' = rangeDays > 62 ? 'month' : 'day';
+      const buckets = new Map<string, { bucket: string; label: string; inflow: number; outflow: number; net: number }>();
+
+      (cashFlowRows || []).forEach((tx) => {
+        if (!tx.transaction_date) return;
+        if (tx.bank_account_id && adjustmentBankIds.has(tx.bank_account_id)) return;
+        const d = new Date(`${String(tx.transaction_date).slice(0, 10)}T00:00:00`);
+        const key = bucketMode === 'day' ? format(d, 'yyyy-MM-dd') : format(d, 'yyyy-MM');
+        const label = bucketMode === 'day' ? format(d, 'dd MMM') : format(d, 'MMM yy');
+        if (!buckets.has(key)) buckets.set(key, { bucket: key, label, inflow: 0, outflow: 0, net: 0 });
+        const b = buckets.get(key)!;
+        const amt = Math.abs(Number(tx.amount) || 0);
+        if (tx.transaction_type === 'INCOME') b.inflow += amt;
+        else b.outflow += amt;
+        b.net = b.inflow - b.outflow;
+      });
+
+      const cashFlowSeries = Array.from(buckets.values()).sort((a, b) => a.bucket.localeCompare(b.bucket));
+
       const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
       // Total Expenses = Operating Expenses only (NOT including purchases which are COGS)
       const totalExpenses = operatingExpenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
       const totalBankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
       const netCashFlow = totalRevenue - totalExpenses;
+
+
 
       return {
         totalRevenue,
@@ -136,8 +175,11 @@ export default function Financials() {
         bankAccounts: bankData || [],
         recentTransactions: transactionsData || [],
         salesData: salesData || [],
-        purchaseData: purchaseData || []
+        purchaseData: purchaseData || [],
+        cashFlowSeries,
+        cashFlowBucketMode: bucketMode
       };
+
     },
   });
 
@@ -295,25 +337,45 @@ export default function Financials() {
                   <div className="p-2 bg-muted rounded-lg">
                     <BarChart3 className="h-6 w-6" />
                   </div>
-                  Cash Flow Overview
+                  <div>
+                    <div>Cash Flow Overview</div>
+                    <p className="text-xs font-normal text-muted-foreground mt-0.5">
+                      Money in vs money out ({financialData?.cashFlowBucketMode === 'month' ? 'monthly' : 'daily'})
+                    </p>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={[
-                      { name: 'Revenue', value: financialData?.totalRevenue || 0, fill: 'hsl(var(--success))' },
-                      { name: 'Expenses', value: financialData?.totalExpenses || 0, fill: 'hsl(var(--destructive))' }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value) => `₹${(value / 1000)}K`} />
-                      <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Amount']} />
-                      <Area type="monotone" dataKey="value" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.6} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {(financialData?.cashFlowSeries?.length ?? 0) === 0 ? (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                      No cash movements in the selected period
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={financialData?.cashFlowSeries || []} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={16} />
+                        <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v: number) => formatCompactINR(v)} />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [formatExactINR(value), name]}
+                          contentStyle={{
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 8,
+                            color: 'hsl(var(--foreground))'
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="inflow" name="Money In" fill="hsl(var(--success))" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="outflow" name="Money Out" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} />
+                        <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
+
             </Card>
 
             {/* Quick Actions */}

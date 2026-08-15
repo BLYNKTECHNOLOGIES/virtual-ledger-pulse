@@ -173,92 +173,93 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="bg-gradient-to-br from-warning to-warning text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                 <p className="text-primary-foreground/80 text-sm font-medium">Total Platform Fees</p>
-                <p className="text-2xl font-bold mt-2">{formatCurrency(totalFeesINR)}</p>
-                <p className="text-sm text-primary-foreground/75 mt-1">{formatUSDT(combinedTotalUSDT)}</p>
+        <Card className="bg-card border border-border shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Platform Fees</p>
+                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatCurrency(totalFeesINR)}</p>
+                <p className="text-xs text-muted-foreground mt-1 tabular-nums">{formatUSDT(combinedTotalUSDT)}</p>
               </div>
-              <div className="bg-primary-foreground/20 p-3 rounded-xl">
-                <Coins className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-success to-success text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                 <p className="text-primary-foreground/80 text-sm font-medium">Fees from Sales</p>
-                <p className="text-2xl font-bold mt-2">{formatCurrency(salesFeesINR)}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <ArrowUpIcon className="h-3 w-3" />
-                  <span className="text-sm text-primary-foreground/75">{formatUSDT(salesFeesUSDT)}</span>
-                </div>
-              </div>
-              <div className="bg-primary-foreground/20 p-3 rounded-xl">
-                <TrendingUp className="h-6 w-6" />
+              <div className="bg-warning/10 p-2 rounded-lg shrink-0">
+                <Coins className="h-4 w-4 text-warning" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-info to-primary text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                 <p className="text-primary-foreground/80 text-sm font-medium">Fees from Purchases</p>
-                <p className="text-2xl font-bold mt-2">{formatCurrency(purchaseFeesINR)}</p>
+        <Card className="bg-card border border-border shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Fees from Sales</p>
+                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatCurrency(salesFeesINR)}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <ArrowDownIcon className="h-3 w-3" />
-                  <span className="text-sm text-primary-foreground/75">{formatUSDT(purchaseFeesUSDT)}</span>
+                  <ArrowUpIcon className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground tabular-nums">{formatUSDT(salesFeesUSDT)}</span>
                 </div>
               </div>
-              <div className="bg-primary-foreground/20 p-3 rounded-xl">
-                <DollarSign className="h-6 w-6" />
+              <div className="bg-success/10 p-2 rounded-lg shrink-0">
+                <TrendingUp className="h-4 w-4 text-success" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-info to-teal-600 text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                 <p className="text-primary-foreground/80 text-sm font-medium">Conversion Fees</p>
-                <p className="text-2xl font-bold mt-2">{formatUSDT(conversionFeesUSDT)}</p>
+        <Card className="bg-card border border-border shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Fees from Purchases</p>
+                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatCurrency(purchaseFeesINR)}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <ArrowRightLeft className="h-3 w-3" />
-                  <span className="text-sm text-primary-foreground/75">{conversionFeeData?.length || 0} conversions</span>
+                  <ArrowDownIcon className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground tabular-nums">{formatUSDT(purchaseFeesUSDT)}</span>
                 </div>
               </div>
-              <div className="bg-primary-foreground/20 p-3 rounded-xl">
-                <Coins className="h-6 w-6" />
+              <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                <DollarSign className="h-4 w-4 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-primary to-primary text-primary-foreground border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                 <p className="text-primary-foreground/80 text-sm font-medium">Transfer Fees</p>
-                <p className="text-2xl font-bold mt-2">{formatUSDT(transferFeesUSDT)}</p>
+        <Card className="bg-card border border-border shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Conversion Fees</p>
+                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatUSDT(conversionFeesUSDT)}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <ArrowRightLeft className="h-3 w-3" />
-                  <span className="text-sm text-primary-foreground/75">{transferFeeData?.length || 0} transfers</span>
+                  <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{conversionFeeData?.length || 0} conversions</span>
                 </div>
               </div>
-              <div className="bg-primary-foreground/20 p-3 rounded-xl">
-                <ArrowRightLeft className="h-6 w-6" />
+              <div className="bg-info/10 p-2 rounded-lg shrink-0">
+                <Coins className="h-4 w-4 text-info" />
               </div>
             </div>
           </CardContent>
         </Card>
+
+        <Card className="bg-card border border-border shadow-none">
+          <CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Transfer Fees</p>
+                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatUSDT(transferFeesUSDT)}</p>
+                <div className="flex items-center gap-1 mt-1">
+                  <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{transferFeeData?.length || 0} transfers</span>
+                </div>
+              </div>
+              <div className="bg-muted p-2 rounded-lg shrink-0">
+                <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
       </div>
 
       {/* Avg Fee Rate Row */}

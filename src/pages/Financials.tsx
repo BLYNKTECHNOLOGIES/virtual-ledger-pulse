@@ -171,8 +171,8 @@ export default function Financials() {
           <PageHeader
             title={
               <span className="flex items-center gap-3">
-                <span className="p-3 bg-success/10 rounded-xl shadow-sm">
-                  <Calculator className="h-8 w-8 text-success" />
+                <span className="p-2 bg-muted rounded-lg">
+                  <Calculator className="h-5 w-5 text-muted-foreground" />
                 </span>
                 Financial Management
               </span>
@@ -190,7 +190,7 @@ export default function Financials() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-card border border-success text-success hover:bg-success/10 shadow-md"
+                  
                 >
                   <Download className="h-4 w-4 mr-2" />
                   Export
@@ -198,7 +198,7 @@ export default function Financials() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-card border border-success text-success hover:bg-success/10 shadow-md"
+                  
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   New Transaction
@@ -220,25 +220,26 @@ export default function Financials() {
             dateTo: endDate 
           })}
         >
-          <Card className="bg-success text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-success text-sm font-medium">Total Revenue</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Revenue</p>
+                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
                     {formatCurrency(financialData?.totalRevenue || 0)}
                   </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowUpIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">Click to view sales →</span>
+                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
+                    <ArrowUpIcon className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Click to view sales →</span>
                   </div>
                 </div>
-                <div className="bg-success p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <DollarSign className="h-8 w-8" />
+                <div className="bg-success/10 p-2 rounded-lg shrink-0">
+                  <DollarSign className="h-5 w-5 text-success" />
                 </div>
               </div>
             </CardContent>
           </Card>
+
         </ClickableCard>
 
         {/* Total Expenses - Clickable to BAMS Journal */}
@@ -246,25 +247,26 @@ export default function Financials() {
           to="/bams" 
           searchParams={{ tab: 'journal' }}
         >
-          <Card className="bg-destructive text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-destructive text-sm font-medium">Total Expenses</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Expenses</p>
+                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
                     {formatCurrency(financialData?.totalExpenses || 0)}
                   </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowDownIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">Click to view transactions →</span>
+                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
+                    <ArrowDownIcon className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Click to view transactions →</span>
                   </div>
                 </div>
-                <div className="bg-destructive p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <TrendingDown className="h-8 w-8" />
+                <div className="bg-destructive/10 p-2 rounded-lg shrink-0">
+                  <TrendingDown className="h-5 w-5 text-destructive" />
                 </div>
               </div>
             </CardContent>
           </Card>
+
         </ClickableCard>
 
         {/* Total Asset Value */}
@@ -272,25 +274,26 @@ export default function Financials() {
 
         {/* Bank Balance - Clickable to BAMS */}
         <ClickableCard to="/bams">
-          <Card className="bg-primary text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-primary text-sm font-medium">Bank Balance</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Bank Balance</p>
+                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
                     {formatCurrency(financialData?.totalBankBalance || 0)}
                   </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <Wallet className="h-4 w-4" />
-                    <span className="text-sm font-medium">Click to view accounts →</span>
+                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
+                    <Wallet className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Click to view accounts →</span>
                   </div>
                 </div>
-                <div className="bg-primary p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <Wallet className="h-8 w-8" />
+                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                  <Wallet className="h-5 w-5 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
+
         </ClickableCard>
       </div>
 
@@ -323,9 +326,9 @@ export default function Financials() {
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Cash Flow Chart */}
             <Card className="bg-card border border-border shadow-sm">
-              <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
+              <CardHeader className="border-b border-border">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-success rounded-lg shadow-md">
+                  <div className="p-2 bg-muted rounded-lg">
                     <BarChart3 className="h-6 w-6" />
                   </div>
                   Cash Flow Overview
@@ -351,28 +354,28 @@ export default function Financials() {
 
             {/* Quick Actions */}
             <Card className="bg-card border border-border shadow-sm">
-              <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
+              <CardHeader className="border-b border-border">
                 <CardTitle className="flex items-center gap-3 text-xl">
-                  <div className="p-2 bg-success rounded-lg shadow-md">
+                  <div className="p-2 bg-muted rounded-lg">
                     <Target className="h-6 w-6" />
                   </div>
                   Quick Actions
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-4">
-                <Button className="w-full bg-success hover:bg-success">
+                <Button className="w-full">
                   <Plus className="h-4 w-4 mr-2" />
                   Record Income
                 </Button>
-                <Button variant="outline" className="w-full border-success/20 text-success hover:bg-success/10">
+                <Button variant="outline" className="w-full">
                   <CreditCard className="h-4 w-4 mr-2" />
                   Record Expense
                 </Button>
-                <Button variant="outline" className="w-full border-success/20 text-success hover:bg-success/10">
+                <Button variant="outline" className="w-full">
                   <FileText className="h-4 w-4 mr-2" />
                   Generate Report
                 </Button>
-                <Button variant="outline" className="w-full border-success/20 text-success hover:bg-success/10">
+                <Button variant="outline" className="w-full">
                   <Calculator className="h-4 w-4 mr-2" />
                   Financial Calculator
                 </Button>
@@ -385,7 +388,7 @@ export default function Financials() {
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {financialData?.bankAccounts.map((account, index) => (
               <Card key={index} className="bg-card border border-border shadow-sm hover:shadow-sm transition-all duration-300">
-                <CardHeader className="bg-gradient-to-r from-info to-primary text-primary-foreground rounded-t-lg">
+                <CardHeader className="border-b border-border">
                   <CardTitle className="flex items-center gap-2 text-lg">
                     <Building className="h-5 w-5" />
                     {account.account_name}
@@ -424,9 +427,9 @@ export default function Financials() {
 
         <TabsContent value="transactions" className="space-y-6">
           <Card className="bg-card border border-border shadow-sm">
-            <CardHeader className="bg-success text-primary-foreground rounded-t-lg">
+            <CardHeader className="border-b border-border">
               <CardTitle className="flex items-center gap-3 text-xl">
-                <div className="p-2 bg-success rounded-lg shadow-md">
+                <div className="p-2 bg-muted rounded-lg">
                   <CreditCard className="h-6 w-6" />
                 </div>
                 Recent Transactions
@@ -485,7 +488,7 @@ export default function Financials() {
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Profit & Loss</h3>
                 <p className="text-sm text-muted-foreground mb-4">Comprehensive P&L statement</p>
-                <Button size="sm" className="bg-success hover:bg-success">
+                <Button size="sm" >
                   Generate Report
                 </Button>
               </CardContent>
@@ -511,7 +514,7 @@ export default function Financials() {
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Balance Sheet</h3>
                 <p className="text-sm text-muted-foreground mb-4">Assets, liabilities & equity</p>
-                <Button size="sm" className="bg-primary hover:bg-primary">
+                <Button size="sm" >
                   Generate Report
                 </Button>
               </CardContent>

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, CalendarDays, AlertTriangle, TrendingUp, Timer, CheckCircle } from 'lucide-react';
+import { Clock, CalendarDays, AlertTriangle, Timer, CheckCircle } from 'lucide-react';
 import RegularizationCard from './RegularizationCard';
 import TodayAttendanceCard from './TodayAttendanceCard';
 import MyCompOffCard from './MyCompOffCard';
@@ -108,7 +108,6 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
   const s = monthlySummary;
   const workedHrs = Number(s?.total_worked_hours || 0);
-  const otHrs = Number(s?.total_overtime_hours || 0);
   const presentDays = Number(s?.present_days || 0);
   const absentDays = Number(s?.absent_days || 0);
   const lateCount = Number(s?.late_count || 0);

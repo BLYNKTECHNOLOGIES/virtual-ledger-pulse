@@ -434,7 +434,7 @@ export default function StatutorySettingsPage() {
 
       {isLoading ? null : rows.length === 0 ? (
         <EmptyState icon={ShieldCheck} title="No employees match" description="Adjust the search or filter." />
-      ) : (
+      ) : viewMode === "cards" ? (
         <ResponsiveList
           items={rows}
           isLoading={isLoading}
@@ -495,6 +495,74 @@ export default function StatutorySettingsPage() {
             </div>
           )}
         />
+      ) : (
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50 sticky top-0">
+                <TableRow>
+                  <TableHead className="w-10"></TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Employee</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right">Monthly CTC</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Effective From</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">PF</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">PF Wage Base</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">VPF</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">ESI</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">PT</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">UAN</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">ESIC Number</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Flag</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map(({ emp, p }: any) => {
+                  const monthlyCtc = Math.round(Number(emp.total_salary || 0) / 12);
+                  const pf = p?.pf_enabled ? "Yes" : "No";
+                  const pfWage = p?.pf_enabled ? (p.pf_wage_basis === "actual" ? "Actual" : "Capped ₹15k") : "—";
+                  const vpf = !p?.pf_enabled || !p.vpf_mode || p.vpf_mode === "none" ? "None" : p.vpf_mode === "percent" ? `${p.vpf_value}%` : inr(p.vpf_value);
+                  const esi = p?.esi_enabled ? "Yes" : "No";
+                  const pt = p?.pt_enabled ? "Yes" : "No";
+                  const flags: string[] = [];
+                  if (p?.pf_enabled && !p?.uan) flags.push("Missing UAN");
+                  if (p?.esi_enabled && !p?.esic_number) flags.push("Missing ESIC");
+                  return (
+                    <TableRow key={emp.id} className="even:bg-muted/30">
+                      <TableCell className="py-2 px-3">
+                        <Checkbox checked={selected.includes(emp.id)} onCheckedChange={() => toggleSelect(emp.id)} />
+                      </TableCell>
+                      <TableCell className="py-2 px-3">
+                        <div className="font-medium">{emp.first_name} {emp.last_name}</div>
+                        <div className="text-xs text-muted-foreground">{emp.badge_id}</div>
+                      </TableCell>
+                      <TableCell className="py-2 px-3 text-right tabular-nums">{inr(monthlyCtc)}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{p?.effective_from ?? "—"}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{pf}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{pfWage}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{vpf}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{esi}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{pt}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{p?.uan ?? "—"}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">{p?.esic_number ?? "—"}</TableCell>
+                      <TableCell className="py-2 px-3 text-sm">
+                        {flags.length > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-destructive">
+                            <AlertTriangle className="h-3 w-3" /> {flags.join(", ")}
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="py-2 px-3 text-right whitespace-nowrap">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(emp)}>Edit</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setHistoryFor(emp)}><History className="h-4 w-4" /></Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
 

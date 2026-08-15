@@ -88,20 +88,21 @@ export function CollapsibleSidebarGroup({
 
   return (
     <>
-      <Collapsible open={isExpanded && isUnlocked && !isDragMode} onOpenChange={setIsExpanded}>
-        <SidebarMenuItem ref={setNodeRef} style={style} className={isDragging ? 'relative z-50' : ''}>
+      <Collapsible open={isExpanded && isUnlocked && !isDragMode && !isCollapsed} onOpenChange={setIsExpanded}>
+        <SidebarMenuItem ref={setNodeRef} style={style} className={`${isDragging ? 'relative z-50' : ''} ${isCollapsed ? 'w-8' : ''}`}>
           <CollapsibleTrigger asChild>
             <SidebarMenuButton
               onClick={handleToggle}
+              tooltip={isCollapsed ? group.title : undefined}
               className={`
                 hover:bg-muted/10 text-muted-foreground hover:text-foreground transition-all duration-200 rounded-xl group border border-transparent hover:border-muted/20 shadow-sm hover:shadow-md
                 ${hasActiveChild ? 'bg-info/10 text-info font-semibold shadow-md border-info/20' : ''}
                 ${isDragMode ? 'cursor-default' : 'cursor-pointer'}
                 ${isDragging ? 'opacity-50 z-50' : ''}
-                ${isCollapsed ? 'justify-center' : ''}
+                ${isCollapsed ? 'justify-center group-data-[collapsible=icon]:!p-0' : ''}
               `}
             >
-              <div className={`flex items-center w-full ${isCollapsed ? 'justify-center px-1 py-3' : 'gap-2 px-3 py-3'}`}>
+              <div className={`flex items-center ${isCollapsed ? 'h-8 w-8 justify-center p-0' : 'w-full gap-2 px-3 py-3'}`}>
                 {isDragMode && !isCollapsed && (
                   <div
                     {...attributes}
@@ -111,10 +112,11 @@ export function CollapsibleSidebarGroup({
                     <GripVertical className="h-4 w-4 text-muted-foreground" />
                   </div>
                 )}
-                <div className={`flex items-center flex-1 min-w-0 ${isCollapsed ? 'justify-center' : 'gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}>
-                  <div className={`p-2 rounded-lg ${hasActiveChild ? 'bg-info/10' : group.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'w-8 h-8 flex items-center justify-center' : ''}`}>
+                <div className={`flex items-center min-w-0 ${isCollapsed ? 'h-8 w-8 justify-center' : 'flex-1 gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}>
+                  <div className={`rounded-lg ${hasActiveChild ? 'bg-info/10' : group.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'h-8 w-8 flex items-center justify-center' : 'p-2'}`}>
                     <GroupIcon className={`h-4 w-4 ${hasActiveChild ? 'text-info' : group.color} transition-colors duration-200`} />
                   </div>
+
                   {!isCollapsed && (
                     <>
                       <span className="font-medium text-sm truncate transition-all duration-200 flex-1">

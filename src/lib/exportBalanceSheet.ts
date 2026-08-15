@@ -269,15 +269,17 @@ export async function exportBalanceSheetXlsx(
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF252F3F" } };
     });
     for (const r of g.rows) {
+      const isNa = r.amount === null || r.amount === undefined;
       const row = ws.addRow({
         label: r.line_label,
-        amount: Number(r.amount),
+        amount: isNa ? NOT_AVAILABLE : Number(r.amount),
         basis: r.confidence,
         note: r.note || "",
       });
       row.font = { name: "Arial", bold: /^total_/.test(r.line_key) };
-      row.getCell("amount").numFmt = '#,##0.00;(#,##0.00);"-"';
+      if (!isNa) row.getCell("amount").numFmt = '#,##0.00;(#,##0.00);"-"';
     }
+
     ws.addRow([]);
   }
 

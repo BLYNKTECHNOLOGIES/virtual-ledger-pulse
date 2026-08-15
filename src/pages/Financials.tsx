@@ -24,8 +24,11 @@ import {
   Calendar,
   Target,
   Shield,
-  Percent
+  Percent,
+  ChevronRight
 } from "lucide-react";
+import { StatTile } from "@/components/financials/StatTile";
+import { formatCompactINR, formatExactINR } from "@/lib/formatCompactCurrency";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";

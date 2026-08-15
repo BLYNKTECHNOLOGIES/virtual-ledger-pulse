@@ -79,8 +79,10 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
       toast.success("Attendance status updated");
       setReason("");
       qc.invalidateQueries({ queryKey: ["hr_day_detail", employeeId, date] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance_day_v1"] });
       qc.invalidateQueries({ queryKey: ["hr_attendance_calendar"] });
       qc.invalidateQueries({ queryKey: ["hr_attendance_month"] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance"] });
     },
     onError: (e: any) => toast.error(e?.message || "Could not update status"),
   });

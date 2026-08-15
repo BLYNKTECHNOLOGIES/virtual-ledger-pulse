@@ -123,27 +123,32 @@ export function AssetValueHistoryTab() {
 
       {/* Chart */}
       <Card className="bg-card border border-border shadow-sm">
-        <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 bg-primary rounded-lg shadow-md">
-                <BarChart3 className="h-6 w-6" />
-              </div>
-              Asset Value Trend
-            </CardTitle>
+        <CardHeader className="border-b border-border">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <span className="p-2 bg-muted rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </span>
+                Asset Value Trend
+              </CardTitle>
+              {excludedCount > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {excludedCount} outlier {excludedCount === 1 ? "point" : "points"} hidden (&gt;50% single-day swing)
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-card text-primary" : "text-primary-foreground hover:bg-primary"}
+                variant={viewMode === "day" ? "default" : "outline"}
                 onClick={() => setViewMode("day")}
               >
                 Day
               </Button>
               <Button
                 size="sm"
-                variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-card text-primary" : "text-primary-foreground hover:bg-primary"}
+                variant={viewMode === "month" ? "default" : "outline"}
                 onClick={() => setViewMode("month")}
               >
                 Month
@@ -151,6 +156,7 @@ export function AssetValueHistoryTab() {
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-6">
           {isLoading ? (
             <div className="h-72 flex items-center justify-center text-muted-foreground">

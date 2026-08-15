@@ -24610,6 +24610,19 @@ export type Database = {
           },
         ]
       }
+      fin_intercompany_excluded_reversals_v: {
+        Row: {
+          excluded_amount: number | null
+          excluded_count: number | null
+          exclusion_reason: string | null
+          from_legal_name: string | null
+          from_subsidiary_id: string | null
+          last_excluded_date: string | null
+          to_legal_name: string | null
+          to_subsidiary_id: string | null
+        }
+        Relationships: []
+      }
       fin_intercompany_position_v: {
         Row: {
           counterparty_legal_name: string | null

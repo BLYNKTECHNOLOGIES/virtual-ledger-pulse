@@ -92,12 +92,63 @@ export default function LateComeEarlyOutPage() {
     monthOptions.push(format(d, "yyyy-MM"));
   }
 
+  const downloadCsv = (rows: (string | number)[][], filename: string) => {
+    const csv = rows
+      .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = () => {
+    if (activeTab === "summary") {
+      downloadCsv(
+        [
+          ["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"],
+          ...summaryList.map((s) => [
+            s.name.trim(), s.badge, s.lateCount, s.totalLateMins || 0, s.earlyCount, s.totalEarlyMins || 0, s.lateCount + s.earlyCount,
+          ]),
+        ],
+        `late-early-summary-${monthFilter}.csv`
+      );
+    } else {
+      downloadCsv(
+        [
+          ["Date", "Employee", "Badge ID", "Type", "Minutes"],
+          ...filtered.map((r: any) => [
+            r.attendance_date,
+            `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim(),
+            r.hr_employees?.badge_id || "",
+            r.type === "late_come" ? "Late Come" : "Early Out",
+            (r.type === "late_come" ? r.late_minutes : r.early_minutes) || 0,
+          ]),
+        ],
+        `late-early-records-${monthFilter}.csv`
+      );
+    }
+  };
+
+  const isTable = viewMode === "table";
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Late Come & Early Out"
         description="Track and report late arrivals and early departures with penalty linkage"
+        actions={
+          <div className="flex items-center gap-2">
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+            <Button variant="outline" size="sm" className="h-9" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1.5" /> Export CSV
+            </Button>
+          </div>
+        }
       />
+
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">

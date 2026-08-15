@@ -109,9 +109,12 @@ export default function Financials() {
       // Get bank balances (exclude audit/adjustment buckets)
       const { data: bankDataRaw } = await supabase
         .from('bank_accounts')
-        .select('account_name, balance, bank_name')
+        .select('id, account_name, balance, bank_name')
         .eq('status', 'ACTIVE');
       const bankData = (bankDataRaw || []).filter(b => !isAdjustmentBank(b.account_name));
+      const adjustmentBankIds = new Set(
+        (bankDataRaw || []).filter(b => isAdjustmentBank(b.account_name)).map(b => b.id)
+      );
 
       // Get recent transactions
       const { data: transactionsData } = await supabase
@@ -122,11 +125,39 @@ export default function Financials() {
         .order('transaction_date', { ascending: false })
         .limit(10);
 
-      const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
-      // Total Expenses = Operating Expenses only (NOT including purchases which are COGS)
-      const totalExpenses = operatingExpenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
-      const totalBankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
-      const netCashFlow = totalRevenue - totalExpenses;
+      // Cash flow ledger: all INCOME/EXPENSE bank movements in range (same ledger for both sides)
+      const cashFlowRows = await fetchAllPaginated<any>(() =>
+        supabase
+          .from('bank_transactions')
+          .select('amount, transaction_type, transaction_date, category, bank_account_id')
+          .in('transaction_type', ['INCOME', 'EXPENSE'])
+          .not('category', 'in', '("Payment Gateway Settlement","Settlement")')
+          .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
+          .lte('transaction_date', format(endDate, 'yyyy-MM-dd'))
+          .order('transaction_date', { ascending: true }));
+
+      const rangeDays = Math.max(
+        1,
+        Math.round((endOfDay(endDate).getTime() - startOfDay(startDate).getTime()) / 86400000) + 1
+      );
+      const bucketMode: 'day' | 'month' = rangeDays > 62 ? 'month' : 'day';
+      const buckets = new Map<string, { bucket: string; label: string; inflow: number; outflow: number; net: number }>();
+
+      (cashFlowRows || []).forEach((tx) => {
+        if (!tx.transaction_date) return;
+        if (tx.bank_account_id && adjustmentBankIds.has(tx.bank_account_id)) return;
+        const d = new Date(`${String(tx.transaction_date).slice(0, 10)}T00:00:00`);
+        const key = bucketMode === 'day' ? format(d, 'yyyy-MM-dd') : format(d, 'yyyy-MM');
+        const label = bucketMode === 'day' ? format(d, 'dd MMM') : format(d, 'MMM yy');
+        if (!buckets.has(key)) buckets.set(key, { bucket: key, label, inflow: 0, outflow: 0, net: 0 });
+        const b = buckets.get(key)!;
+        const amt = Math.abs(Number(tx.amount) || 0);
+        if (tx.transaction_type === 'INCOME') b.inflow += amt;
+        else b.outflow += amt;
+        b.net = b.inflow - b.outflow;
+      });
+
+      const cashFlowSeries = Array.from(buckets.values()).sort((a, b) => a.bucket.localeCompare(b.bucket));
 
       return {
         totalRevenue,
@@ -136,8 +167,11 @@ export default function Financials() {
         bankAccounts: bankData || [],
         recentTransactions: transactionsData || [],
         salesData: salesData || [],
-        purchaseData: purchaseData || []
+        purchaseData: purchaseData || [],
+        cashFlowSeries,
+        cashFlowBucketMode: bucketMode
       };
+
     },
   });
 

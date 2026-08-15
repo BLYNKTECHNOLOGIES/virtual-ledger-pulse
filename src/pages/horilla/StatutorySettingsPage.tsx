@@ -358,17 +358,23 @@ export default function StatutorySettingsPage() {
     <div className="space-y-4">
       <div className="flex items-start justify-between gap-3">
         <PageHeader title="Statutory Settings" description="PF · ESI · PT enrolment" />
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label="About statutory settings">
-              <Info className="h-4 w-4" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 text-xs text-muted-foreground z-50 bg-popover">
-            CTC stays fixed — enrolling moves money inside the same CTC. VPF is an employee-side deduction
-            only and must be mirrored manually in the RazorpayX dashboard.
-          </PopoverContent>
-        </Popover>
+        <div className="flex items-center gap-2 shrink-0">
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+          <Button variant="outline" onClick={exportCsv} disabled={rows.length === 0} className="h-9">
+            <Download className="h-4 w-4 mr-2" /> Export CSV
+          </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="About statutory settings">
+                <Info className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80 text-xs text-muted-foreground z-50 bg-popover">
+              CTC stays fixed — enrolling moves money inside the same CTC. VPF is an employee-side deduction
+              only and must be mirrored manually in the RazorpayX dashboard.
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

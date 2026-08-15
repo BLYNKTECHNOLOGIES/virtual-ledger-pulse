@@ -206,7 +206,7 @@ export default function LateComeEarlyOutPage() {
                     <thead className="bg-muted/50 border-b">
                       <tr>
                         {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents", ""].map((h, i) => (
-                          <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
+                          <th key={h || `col-${i}`} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                         ))}
                       </tr>
                     </thead>

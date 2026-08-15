@@ -159,6 +159,14 @@ export default function Financials() {
 
       const cashFlowSeries = Array.from(buckets.values()).sort((a, b) => a.bucket.localeCompare(b.bucket));
 
+      const totalRevenue = salesData?.reduce((sum, order) => sum + Number(order.total_amount), 0) || 0;
+      // Total Expenses = Operating Expenses only (NOT including purchases which are COGS)
+      const totalExpenses = operatingExpenses?.reduce((sum, exp) => sum + Number(exp.amount), 0) || 0;
+      const totalBankBalance = bankData?.reduce((sum, account) => sum + Number(account.balance), 0) || 0;
+      const netCashFlow = totalRevenue - totalExpenses;
+
+
+
       return {
         totalRevenue,
         totalExpenses,

@@ -8,6 +8,8 @@ import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { format } from "date-fns";
 import { useUSDTRate } from "@/hooks/useUSDTRate";
 import { openTransaction } from "@/components/transaction-detail";
+import { StatTile } from "@/components/financials/StatTile";
+import { formatCompactINR, formatCompactUSDT } from "@/lib/formatCompactCurrency";
 
 interface PlatformFeesSummaryProps {
   startDate: Date;

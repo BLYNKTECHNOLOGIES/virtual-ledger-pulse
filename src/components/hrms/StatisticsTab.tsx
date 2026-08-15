@@ -31,14 +31,15 @@ const normalizeExpenseCategory = (category?: string | null, description?: string
   return category || 'Other';
 };
 
+// Restrained slate / blue / teal analytical ramp (no neon, no candy colours)
 const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(142, 76%, 36%)", // green
-  "hsl(45, 93%, 47%)",  // yellow
-  "hsl(0, 84%, 60%)",   // red
-  "hsl(262, 83%, 58%)", // purple
-  "hsl(199, 89%, 48%)", // blue
-  "hsl(25, 95%, 53%)",  // orange
+  "hsl(215, 40%, 34%)", // deep slate blue
+  "hsl(199, 60%, 44%)", // steel blue
+  "hsl(186, 45%, 42%)", // teal
+  "hsl(215, 16%, 55%)", // slate grey
+  "hsl(160, 34%, 42%)", // muted green
+  "hsl(224, 30%, 62%)", // soft indigo grey
+  "hsl(30, 30%, 52%)",  // muted clay
 ];
 
 const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {

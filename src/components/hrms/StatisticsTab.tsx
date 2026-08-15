@@ -662,7 +662,7 @@ export function StatisticsTab() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <ClickableCard to="/sales">
           <StatTile
-            tone="success"
+            tone={kpi.revenueChange >= 0 ? "success" : "destructive"}
             label="Revenue"
             value={formatCurrency(kpi.revenue)}
             icon={DollarSign}
@@ -677,7 +677,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/clients">
           <StatTile
-            tone="info"
+            tone={clientGrowthChange >= 0 ? "success" : "destructive"}
             label="New Clients"
             value={clientStats.newInPeriod}
             icon={UserPlus}
@@ -692,7 +692,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/clients">
           <StatTile
-            tone="primary"
+            tone="muted"
             label="KYC Verified"
             value={kycStats.newVerifiedInPeriod}
             icon={UserCheck}
@@ -702,7 +702,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/leads">
           <StatTile
-            tone="warning"
+            tone={leadStats.leadsChange >= 0 ? "success" : "destructive"}
             label="New Leads"
             value={leadStats.newInPeriod}
             icon={Target}
@@ -717,7 +717,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/leads">
           <StatTile
-            tone="info"
+            tone="muted"
             label="Conversion Rate"
             value={`${leadStats.conversionRate.toFixed(1)}%`}
             icon={CheckCircle}

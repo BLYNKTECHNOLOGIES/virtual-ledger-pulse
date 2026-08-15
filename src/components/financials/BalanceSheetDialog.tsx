@@ -22,14 +22,17 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle, Download, FileSpreadsheet, Info } from "lucide-react";
+import { AlertTriangle, Download, FileSpreadsheet, Info, ShieldAlert } from "lucide-react";
 import {
   exportBalanceSheetPdf,
   exportBalanceSheetXlsx,
+  balanceSheetChecksum,
+  cryptoDisclosureNote,
   inr,
   type BalanceSheetLine,
   type IntegrityFinding,
 } from "@/lib/exportBalanceSheet";
+import { WalletEntityMappingPanel } from "./balance-sheet/WalletEntityMappingPanel";
 
 interface Props {
   open: boolean;
@@ -41,6 +44,7 @@ interface EntityRow {
   legal_name: string;
   gst_number: string | null;
   pan_number: string | null;
+  firm_composition: string | null;
 }
 
 const basisTone: Record<string, string> = {
@@ -55,6 +59,8 @@ const basisTone: Record<string, string> = {
 export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   const [entityId, setEntityId] = useState<string>("");
   const [asOf, setAsOf] = useState<string>(() => format(new Date(), "yyyy-MM-dd"));
+  const [valuationBasis, setValuationBasis] = useState<string>("COST");
+  const [showMapping, setShowMapping] = useState(false);
 
   const { data: entities, isLoading: entitiesLoading } = useQuery({
     queryKey: ["fin-entity-master"],
@@ -62,7 +68,7 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fin_entity_master_v" as any)
-        .select("subsidiary_id, legal_name, gst_number, pan_number")
+        .select("subsidiary_id, legal_name, gst_number, pan_number, firm_composition")
         .order("legal_name");
       if (error) throw error;
       return (data || []) as unknown as EntityRow[];
@@ -72,13 +78,14 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   const entity = entities?.find((e) => e.subsidiary_id === entityId);
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ["fin-balance-sheet", entityId, asOf],
+    queryKey: ["fin-balance-sheet", entityId, asOf, valuationBasis],
     enabled: open && !!entityId && !!asOf,
     queryFn: async () => {
       const [sheet, integrity] = await Promise.all([
         supabase.rpc("fin_entity_balance_sheet" as any, {
           p_subsidiary_id: entityId,
           p_as_of: asOf,
+          p_valuation_basis: valuationBasis,
         }),
         supabase.rpc("fin_entity_integrity" as any, {
           p_subsidiary_id: entityId,
@@ -98,13 +105,61 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
 
   const lines = data?.lines || [];
   const findings = data?.findings || [];
+
+  const failedChecks = findings.filter((f) => f.severity === "critical").map((f) => f.title);
+  const balanceCheck = lines.find((l) => l.line_key === "balance_check");
+  const balanceOff = Math.abs(Number(balanceCheck?.amount || 0)) > 0.01;
+  if (balanceOff) failedChecks.push("Assets do not equal liabilities plus equity");
+  const isDraft = failedChecks.length > 0;
+
+  const inventoryLine = lines.find((l) => l.line_key === "inventory");
+  const isCompany = (entity?.firm_composition || "").toUpperCase() === "PRIVATE_LIMITED";
+  const cryptoNote = isCompany
+    ? cryptoDisclosureNote(Number(inventoryLine?.amount || 0), valuationBasis)
+    : null;
+
   const meta = {
     entityName: entity?.legal_name?.trim() || "",
     gstin: entity?.gst_number,
     pan: entity?.pan_number,
     asOf,
     generatedAt: format(new Date(), "dd MMM yyyy, HH:mm"),
+    firmComposition: entity?.firm_composition,
+    valuationBasis,
+    isDraft,
+    failedChecks,
+    checksum: lines.length
+      ? balanceSheetChecksum(lines, { entityName: entity?.legal_name?.trim() || "", asOf })
+      : undefined,
+    cryptoNote,
   };
+
+  const logGeneration = async (formatKind: "PDF" | "XLSX") => {
+    try {
+      const { data: userRes } = await supabase.auth.getUser();
+      await supabase.from("fin_balance_sheet_generation_log" as any).insert({
+        subsidiary_id: entityId,
+        period_start: asOf,
+        period_end: asOf,
+        valuation_basis: valuationBasis,
+        is_draft: isDraft,
+        failed_checks: failedChecks,
+        checksum: meta.checksum ?? null,
+        totals: {
+          total_assets: Number(lines.find((l) => l.line_key === "total_assets")?.amount || 0),
+          total_liabilities: Number(
+            lines.find((l) => l.line_key === "total_liabilities")?.amount || 0,
+          ),
+          total_equity: Number(lines.find((l) => l.line_key === "total_equity")?.amount || 0),
+        },
+        export_format: formatKind,
+        generated_by: userRes?.user?.id ?? null,
+      } as any);
+    } catch {
+      /* logging must never block the export */
+    }
+  };
+
 
   const renderSection = (section: string, title: string) => {
     const rows = lines.filter((l) => l.section === section);
@@ -202,7 +257,10 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               variant="outline"
               size="sm"
               disabled={!lines.length}
-              onClick={() => exportBalanceSheetPdf(lines, findings, meta)}
+              onClick={() => {
+                exportBalanceSheetPdf(lines, findings, meta);
+                logGeneration("PDF");
+              }}
             >
               <Download className="mr-1.5 h-4 w-4" />
               PDF
@@ -211,13 +269,44 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               variant="outline"
               size="sm"
               disabled={!lines.length}
-              onClick={() => exportBalanceSheetXlsx(lines, findings, meta)}
+              onClick={() => {
+                exportBalanceSheetXlsx(lines, findings, meta);
+                logGeneration("XLSX");
+              }}
             >
               <FileSpreadsheet className="mr-1.5 h-4 w-4" />
               Excel
             </Button>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Crypto inventory valuation basis</Label>
+            <Select value={valuationBasis} onValueChange={setValuationBasis}>
+              <SelectTrigger className="w-[280px] text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="COST">Cost (weighted average purchase)</SelectItem>
+                <SelectItem value="MARKET">Market (latest available price)</SelectItem>
+                <SelectItem value="LCOM">Lower of cost or market</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setShowMapping((v) => !v)}>
+            {showMapping ? "Hide" : "Manage"} wallet mapping
+          </Button>
+        </div>
+
+        {showMapping && (
+          <WalletEntityMappingPanel
+            entities={(entities || []).map((e) => ({
+              subsidiary_id: e.subsidiary_id,
+              legal_name: e.legal_name,
+            }))}
+          />
+        )}
 
         <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
           {!entityId && (
@@ -226,11 +315,36 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             </p>
           )}
 
+          {isDraft && !!lines.length && (
+            <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div className="text-xs text-destructive">
+                <p className="font-semibold">DRAFT — FAILED VERIFICATION</p>
+                <p className="mt-0.5">
+                  {failedChecks.join("; ")}. Exports carry the same watermark and must not be used as
+                  final financial statements.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {cryptoNote && !!lines.length && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
+              <p className="text-xs font-semibold text-foreground">Crypto currency disclosure</p>
+              <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
+                {cryptoNote.slice(1).map((l, i) => (
+                  <li key={i}>{l}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {error && (
             <p className="text-sm text-destructive">
               {(error as Error).message || "Could not generate the balance sheet."}
             </p>
           )}
+
 
           {entityId && isFetching && (
             <div className="space-y-2">

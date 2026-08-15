@@ -496,6 +496,8 @@ export default function Financials() {
           <AssetValueHistoryTab />
         </TabsContent>
       </Tabs>
+
+      <BalanceSheetDialog open={balanceSheetOpen} onOpenChange={setBalanceSheetOpen} />
     </div>
     </PermissionGate>
   );

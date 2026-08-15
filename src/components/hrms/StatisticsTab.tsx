@@ -48,6 +48,7 @@ const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {
   primary: { icon: "text-primary", chip: "bg-primary/10" },
   warning: { icon: "text-warning", chip: "bg-warning/10" },
   destructive: { icon: "text-destructive", chip: "bg-destructive/10" },
+  muted: { icon: "text-muted-foreground", chip: "bg-muted" },
 };
 
 function StatTile({

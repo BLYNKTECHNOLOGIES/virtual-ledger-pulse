@@ -26959,6 +26959,7 @@ export type Database = {
         }[]
       }
       hr_command_queue_sweep: { Args: never; Returns: Json }
+      hr_compoff_auto_close_prior_months: { Args: never; Returns: Json }
       hr_compoff_close_month: {
         Args: { p_period_month: string }
         Returns: number

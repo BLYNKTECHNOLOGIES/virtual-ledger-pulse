@@ -42,9 +42,11 @@ import { PlatformFeesSummary } from "@/components/financials/PlatformFeesSummary
 import { TotalAssetValueWidget } from "@/components/financials/TotalAssetValueWidget";
 import { AssetValueHistoryTab } from "@/components/financials/AssetValueHistoryTab";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
+import { BalanceSheetDialog } from "@/components/financials/BalanceSheetDialog";
 
 export default function Financials() {
   const navigate = useNavigate();
+  const [balanceSheetOpen, setBalanceSheetOpen] = useState(false);
   const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
     const saved = localStorage.getItem('financials_date_preset');
     return (saved as DateRangePreset) || 'today';

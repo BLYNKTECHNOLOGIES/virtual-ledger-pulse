@@ -1353,7 +1353,7 @@ export default function EmployeeProfilePage() {
                 <div><p className="text-xs text-muted-foreground">Branch</p><p className="text-sm text-foreground">{bankInfo?.branch || "None"}</p></div>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Document upload functionality will be available in a future update.</p>
+            <EmployeeDocumentsPanel employeeId={id!} />
           </div>
         )}
 

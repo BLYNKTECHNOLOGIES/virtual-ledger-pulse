@@ -166,7 +166,7 @@ export function exportBalanceSheetPdf(
       head: [[g.title, "Amount (INR)", "Basis"]],
       body: g.rows.map((r) => [
         r.line_label + (r.note ? `\n${r.note}` : ""),
-        inr(Number(r.amount)),
+        amountText(r.amount),
         r.confidence,
       ]),
       styles: { fontSize: 8, cellPadding: 4, valign: "middle" },

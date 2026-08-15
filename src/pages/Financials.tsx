@@ -477,8 +477,8 @@ export default function Financials() {
                   <PieChart className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Balance Sheet</h3>
-                <p className="text-sm text-muted-foreground mb-4">Assets, liabilities & equity</p>
-                <Button size="sm" >
+                <p className="text-sm text-muted-foreground mb-4">Company-wise, ledger-supported</p>
+                <Button size="sm" onClick={() => setBalanceSheetOpen(true)}>
                   Generate Report
                 </Button>
               </CardContent>

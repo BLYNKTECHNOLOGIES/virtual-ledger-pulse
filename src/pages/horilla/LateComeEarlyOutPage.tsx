@@ -175,6 +175,7 @@ export default function LateComeEarlyOutPage() {
       </div>
 
       {/* Summary Cards */}
+      {!isTable && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
@@ -204,8 +205,10 @@ export default function LateComeEarlyOutPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-      <Tabs defaultValue="summary" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+
         <TabsList>
           <TabsTrigger value="summary">Employee Summary</TabsTrigger>
           <TabsTrigger value="details">All Records</TabsTrigger>

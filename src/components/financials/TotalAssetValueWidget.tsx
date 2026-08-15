@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TrendingUp, Layers, ChevronDown, ChevronRight } from "lucide-react";
+import { StatTile } from "@/components/financials/StatTile";
+import { formatCompactINR } from "@/lib/formatCompactCurrency";
 
 interface BankDetail { account_name: string; bank_name: string; balance: number; status: string; dormant_at: string | null }
 interface GatewayGroup { gateway_name: string; total: number; count: number }

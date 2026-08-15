@@ -244,7 +244,17 @@ export function ShiftScheduleAssigner() {
     });
   }, [schedules, search]);
 
+  const openForEmployee = (s: any) => {
+    setForm({
+      employee_id: s.employee_id,
+      shift_id: s.shift_id ?? "",
+      effective_from: new Date().toISOString().slice(0, 10),
+    });
+    setShowDialog(true);
+  };
+
   const exportCsv = () => {
+
     if (!visibleSchedules.length) {
       toast.error("Nothing to export");
       return;

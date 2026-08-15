@@ -640,31 +640,20 @@ export function StatisticsTab() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-6">
-      {/* Header with Title and Date Filter */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <BarChart3 className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Statistics & Analytics</h1>
-            <p className="text-muted-foreground text-sm">Comprehensive business insights and growth metrics</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <DateRangePicker
-            dateRange={dateRange}
-            onDateRangeChange={setDateRange}
-            preset={datePreset}
-            onPresetChange={setDatePreset}
-            className="min-w-[200px]"
-          />
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
-        </div>
+    <div className="space-y-6">
+      {/* Toolbar */}
+      <div className="flex items-center justify-end gap-3 flex-wrap">
+        <DateRangePicker
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+          preset={datePreset}
+          onPresetChange={setDatePreset}
+          className="min-w-[200px]"
+        />
+        <Button variant="outline" size="sm">
+          <Download className="h-4 w-4 mr-2" />
+          Export
+        </Button>
       </div>
 
       {/* Primary KPI Cards - Clickable */}

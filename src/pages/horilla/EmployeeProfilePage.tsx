@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { DriftBadge } from "@/components/hrms/DriftBadge";
 import NewJoinerReadinessCard from "@/components/hrms/NewJoinerReadinessCard";
+import { EmployeeDocumentsPanel } from "@/components/hrms/EmployeeDocumentsPanel";
 
 // ─── Tabs matching Horilla ───
 const TABS = [
@@ -1353,7 +1354,7 @@ export default function EmployeeProfilePage() {
                 <div><p className="text-xs text-muted-foreground">Branch</p><p className="text-sm text-foreground">{bankInfo?.branch || "None"}</p></div>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Document upload functionality will be available in a future update.</p>
+            <EmployeeDocumentsPanel employeeId={id!} />
           </div>
         )}
 

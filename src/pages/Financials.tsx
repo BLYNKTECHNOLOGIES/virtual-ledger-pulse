@@ -337,25 +337,45 @@ export default function Financials() {
                   <div className="p-2 bg-muted rounded-lg">
                     <BarChart3 className="h-6 w-6" />
                   </div>
-                  Cash Flow Overview
+                  <div>
+                    <div>Cash Flow Overview</div>
+                    <p className="text-xs font-normal text-muted-foreground mt-0.5">
+                      Money in vs money out ({financialData?.cashFlowBucketMode === 'month' ? 'monthly' : 'daily'})
+                    </p>
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={[
-                      { name: 'Revenue', value: financialData?.totalRevenue || 0, fill: 'hsl(var(--success))' },
-                      { name: 'Expenses', value: financialData?.totalExpenses || 0, fill: 'hsl(var(--destructive))' }
-                    ]}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis tickFormatter={(value) => `₹${(value / 1000)}K`} />
-                      <Tooltip formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Amount']} />
-                      <Area type="monotone" dataKey="value" stroke="hsl(var(--success))" fill="hsl(var(--success))" fillOpacity={0.6} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {(financialData?.cashFlowSeries?.length ?? 0) === 0 ? (
+                    <div className="h-full flex items-center justify-center text-sm text-muted-foreground">
+                      No cash movements in the selected period
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={financialData?.cashFlowSeries || []} margin={{ top: 8, right: 8, left: 8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={16} />
+                        <YAxis tick={{ fontSize: 11 }} width={70} tickFormatter={(v: number) => formatCompactINR(v)} />
+                        <Tooltip
+                          formatter={(value: number, name: string) => [formatExactINR(value), name]}
+                          contentStyle={{
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 8,
+                            color: 'hsl(var(--foreground))'
+                          }}
+                        />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        <Bar dataKey="inflow" name="Money In" fill="hsl(var(--success))" radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="outflow" name="Money Out" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} />
+                        <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </CardContent>
+
             </Card>
 
             {/* Quick Actions */}

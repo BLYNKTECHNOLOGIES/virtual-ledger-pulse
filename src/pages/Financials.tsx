@@ -274,25 +274,26 @@ export default function Financials() {
 
         {/* Bank Balance - Clickable to BAMS */}
         <ClickableCard to="/bams">
-          <Card className="bg-primary text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-primary text-sm font-medium">Bank Balance</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Bank Balance</p>
+                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
                     {formatCurrency(financialData?.totalBankBalance || 0)}
                   </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <Wallet className="h-4 w-4" />
-                    <span className="text-sm font-medium">Click to view accounts →</span>
+                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
+                    <Wallet className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Click to view accounts →</span>
                   </div>
                 </div>
-                <div className="bg-primary p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <Wallet className="h-8 w-8" />
+                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+                  <Wallet className="h-5 w-5 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
+
         </ClickableCard>
       </div>
 

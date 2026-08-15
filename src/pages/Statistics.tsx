@@ -35,15 +35,15 @@ export default function Statistics() {
       }
     >
     <div className="p-4 md:p-6">
-        {/* Header */}
+        {/* Header (single source of truth — StatisticsTab must never render its own) */}
         <div className="mb-6">
           <PageHeader
             title={
-              <span className="flex items-center gap-3">
-                <span className="p-3 bg-muted rounded-xl shadow-sm">
-                  <BarChart3 className="h-8 w-8 text-muted-foreground" />
+              <span className="flex items-center gap-2.5">
+                <span className="p-2 bg-muted rounded-md border border-border">
+                  <BarChart3 className="h-5 w-5 text-muted-foreground" />
                 </span>
-                Statistics & Analytics
+                Statistics &amp; Analytics
               </span>
             }
             description="Comprehensive business insights and analytics"

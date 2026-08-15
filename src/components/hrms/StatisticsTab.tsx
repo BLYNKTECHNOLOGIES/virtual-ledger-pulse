@@ -31,14 +31,15 @@ const normalizeExpenseCategory = (category?: string | null, description?: string
   return category || 'Other';
 };
 
+// Restrained slate / blue / teal analytical ramp (no neon, no candy colours)
 const CHART_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(142, 76%, 36%)", // green
-  "hsl(45, 93%, 47%)",  // yellow
-  "hsl(0, 84%, 60%)",   // red
-  "hsl(262, 83%, 58%)", // purple
-  "hsl(199, 89%, 48%)", // blue
-  "hsl(25, 95%, 53%)",  // orange
+  "hsl(215, 40%, 34%)", // deep slate blue
+  "hsl(199, 60%, 44%)", // steel blue
+  "hsl(186, 45%, 42%)", // teal
+  "hsl(215, 16%, 55%)", // slate grey
+  "hsl(160, 34%, 42%)", // muted green
+  "hsl(224, 30%, 62%)", // soft indigo grey
+  "hsl(30, 30%, 52%)",  // muted clay
 ];
 
 const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {
@@ -47,6 +48,7 @@ const TONE_ACCENT: Record<string, { icon: string; chip: string }> = {
   primary: { icon: "text-primary", chip: "bg-primary/10" },
   warning: { icon: "text-warning", chip: "bg-warning/10" },
   destructive: { icon: "text-destructive", chip: "bg-destructive/10" },
+  muted: { icon: "text-muted-foreground", chip: "bg-muted" },
 };
 
 function StatTile({
@@ -66,19 +68,19 @@ function StatTile({
 }) {
   const accent = TONE_ACCENT[tone] || TONE_ACCENT.primary;
   return (
-    <Card className="h-full bg-card border shadow-sm hover:shadow-md transition-shadow">
+    <Card className="h-full bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
-            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-bold text-foreground leading-tight mt-1`}>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate">{label}</p>
+            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-semibold text-foreground leading-tight mt-1 tabular-nums`}>
               {value}
             </p>
-            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon}`}>{sub}</div>}
+            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon} tabular-nums`}>{sub}</div>}
           </div>
           {Icon && (
-            <div className={`shrink-0 rounded-lg p-2 ${accent.chip}`}>
-              <Icon className={`h-5 w-5 ${accent.icon}`} />
+            <div className={`shrink-0 rounded-md p-2 ${accent.chip}`}>
+              <Icon className={`h-4 w-4 ${accent.icon}`} />
             </div>
           )}
         </div>
@@ -660,7 +662,7 @@ export function StatisticsTab() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <ClickableCard to="/sales">
           <StatTile
-            tone="success"
+            tone={kpi.revenueChange >= 0 ? "success" : "destructive"}
             label="Revenue"
             value={formatCurrency(kpi.revenue)}
             icon={DollarSign}
@@ -675,7 +677,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/clients">
           <StatTile
-            tone="info"
+            tone={clientGrowthChange >= 0 ? "success" : "destructive"}
             label="New Clients"
             value={clientStats.newInPeriod}
             icon={UserPlus}
@@ -690,7 +692,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/clients">
           <StatTile
-            tone="primary"
+            tone="muted"
             label="KYC Verified"
             value={kycStats.newVerifiedInPeriod}
             icon={UserCheck}
@@ -700,7 +702,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/leads">
           <StatTile
-            tone="warning"
+            tone={leadStats.leadsChange >= 0 ? "success" : "destructive"}
             label="New Leads"
             value={leadStats.newInPeriod}
             icon={Target}
@@ -715,7 +717,7 @@ export function StatisticsTab() {
 
         <ClickableCard to="/leads">
           <StatTile
-            tone="info"
+            tone="muted"
             label="Conversion Rate"
             value={`${leadStats.conversionRate.toFixed(1)}%`}
             icon={CheckCircle}
@@ -749,7 +751,7 @@ export function StatisticsTab() {
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Growth Trends Chart */}
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -773,7 +775,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Revenue Chart */}
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-success" />
@@ -796,42 +798,42 @@ export function StatisticsTab() {
 
           {/* Quick Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4 text-center">
                 <Users className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-2xl font-bold">{clientStats.newInPeriod}</p>
                 <p className="text-xs text-muted-foreground">New Clients</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4 text-center">
                 <ShoppingCart className="h-6 w-6 mx-auto text-info mb-2" />
                 <p className="text-2xl font-bold">{kpi.trades}</p>
                 <p className="text-xs text-muted-foreground">Trades</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4 text-center">
                 <Target className="h-6 w-6 mx-auto text-warning mb-2" />
                 <p className="text-2xl font-bold">{leadStats.open}</p>
                 <p className="text-xs text-muted-foreground">Open Leads</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4 text-center">
                 <Clock className="h-6 w-6 mx-auto text-warning mb-2" />
                 <p className="text-2xl font-bold">{onboardingStats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pending Approvals</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4 text-center">
                 <Briefcase className="h-6 w-6 mx-auto text-primary mb-2" />
                 <p className="text-2xl font-bold">{kpi.employees}</p>
                 <p className="text-xs text-muted-foreground">Employees</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4 text-center">
                 <Building className="h-6 w-6 mx-auto text-info mb-2" />
                 <p className="text-2xl font-bold">{departmentData.length}</p>
@@ -852,7 +854,7 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* KYC Status Pie Chart */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <UserCheck className="h-5 w-5 text-primary" />
@@ -885,7 +887,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Client Type Breakdown */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Users className="h-5 w-5 text-primary" />
@@ -925,7 +927,7 @@ export function StatisticsTab() {
         {/* Leads Tab */}
         <TabsContent value="leads" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -936,7 +938,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -947,7 +949,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -958,7 +960,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -969,7 +971,7 @@ export function StatisticsTab() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -986,7 +988,7 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Lead Sources */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Phone className="h-5 w-5 text-primary" />
@@ -1028,7 +1030,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Lead Trend Chart */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
@@ -1054,7 +1056,7 @@ export function StatisticsTab() {
 
         {/* Performance Tab */}
         <TabsContent value="performance" className="space-y-6">
-          <Card className="shadow-sm">
+          <Card className="border border-border shadow-none">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Award className="h-5 w-5 text-primary" />
@@ -1123,7 +1125,7 @@ export function StatisticsTab() {
           </Card>
 
           {/* Top Clients */}
-          <Card className="shadow-sm">
+          <Card className="border border-border shadow-none">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary" />
@@ -1166,19 +1168,19 @@ export function StatisticsTab() {
         {/* Financial Tab */}
         <TabsContent value="financial" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
                 <p className="text-2xl font-bold text-success">{formatCurrency(kpi.revenue)}</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Operating Expenses</p>
                 <p className="text-2xl font-bold text-destructive">{formatCurrency(totalExpenses)}</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Net Profit</p>
                 <p className={`text-2xl font-bold ${kpi.profit >= 0 ? 'text-success' : 'text-destructive'}`}>
@@ -1186,7 +1188,7 @@ export function StatisticsTab() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm border">
+            <Card className="border border-border shadow-none">
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Monthly Salary</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalSalary)}</p>
@@ -1213,7 +1215,7 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Expense Breakdown */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileBarChart className="h-5 w-5 text-destructive" />
@@ -1253,7 +1255,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Expense Breakdown Pie Chart */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-warning" />
@@ -1292,7 +1294,7 @@ export function StatisticsTab() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Income Breakdown */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FileBarChart className="h-5 w-5 text-success" />
@@ -1331,7 +1333,7 @@ export function StatisticsTab() {
             </Card>
 
             {/* Income Distribution */}
-            <Card className="shadow-sm">
+            <Card className="border border-border shadow-none">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="h-5 w-5 text-success" />

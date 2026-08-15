@@ -58,17 +58,30 @@ export function AssetValueHistoryTab() {
       }));
     }
 
-    // Month aggregation - use last value of each month
-    const monthMap = new Map<string, number>();
+    // Month aggregation — closing value per month, but guarded by the month's
+    // median so a bad last-day snapshot can't distort the monthly scale.
+    const monthMap = new Map<string, number[]>();
     for (const item of cleanedHistory) {
       const monthKey = format(new Date(item.snapshot_date), "yyyy-MM");
-      monthMap.set(monthKey, Number(item.total_asset_value));
+      const bucket = monthMap.get(monthKey) ?? [];
+      bucket.push(Number(item.total_asset_value));
+      monthMap.set(monthKey, bucket);
     }
-    return Array.from(monthMap.entries()).map(([key, value]) => ({
-      date: format(new Date(key + "-01"), "MMM yyyy"),
-      value,
-    }));
+    return Array.from(monthMap.entries()).map(([key, values]) => {
+      const sorted = [...values].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      const median =
+        sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+      const closing = values[values.length - 1];
+      const robust =
+        median > 0 && Math.abs(closing - median) / median > 0.5 ? median : closing;
+      return {
+        date: format(new Date(key + "-01"), "MMM yyyy"),
+        value: robust,
+      };
+    });
   }, [cleanedHistory, viewMode]);
+
 
 
   const formatCurrency = (value: number) =>

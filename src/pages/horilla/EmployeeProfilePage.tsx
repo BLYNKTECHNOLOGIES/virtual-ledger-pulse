@@ -21,6 +21,7 @@ import { Progress } from "@/components/ui/progress";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { DriftBadge } from "@/components/hrms/DriftBadge";
 import NewJoinerReadinessCard from "@/components/hrms/NewJoinerReadinessCard";
+import { EmployeeDocumentsPanel } from "@/components/hrms/EmployeeDocumentsPanel";
 
 // ─── Tabs matching Horilla ───
 const TABS = [

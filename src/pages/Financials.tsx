@@ -247,25 +247,26 @@ export default function Financials() {
           to="/bams" 
           searchParams={{ tab: 'journal' }}
         >
-          <Card className="bg-destructive text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
+          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <p className="text-destructive text-sm font-medium">Total Expenses</p>
-                  <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Expenses</p>
+                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
                     {formatCurrency(financialData?.totalExpenses || 0)}
                   </p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <ArrowDownIcon className="h-4 w-4" />
-                    <span className="text-sm font-medium">Click to view transactions →</span>
+                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
+                    <ArrowDownIcon className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">Click to view transactions →</span>
                   </div>
                 </div>
-                <div className="bg-destructive p-3 rounded-xl shadow-sm flex-shrink-0">
-                  <TrendingDown className="h-8 w-8" />
+                <div className="bg-destructive/10 p-2 rounded-lg shrink-0">
+                  <TrendingDown className="h-5 w-5 text-destructive" />
                 </div>
               </div>
             </CardContent>
           </Card>
+
         </ClickableCard>
 
         {/* Total Asset Value */}

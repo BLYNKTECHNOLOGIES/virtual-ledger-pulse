@@ -850,57 +850,10 @@ export function StatisticsTab() {
         {/* Clients & KYC Tab */}
         <TabsContent value="clients" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="shadow-md bg-gradient-to-br from-info to-info dark:from-info dark:to-info">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-info dark:text-info font-medium">New Clients</p>
-                    <p className="text-3xl font-bold text-info dark:text-info">{clientStats.newInPeriod}</p>
-                    <p className="text-xs text-info mt-1">This period</p>
-                  </div>
-                  <UserPlus className="h-10 w-10 text-info" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-md bg-gradient-to-br from-success to-success dark:from-success dark:to-success">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-success dark:text-success font-medium">KYC Verified</p>
-                    <p className="text-3xl font-bold text-success dark:text-success">{kycStats.verified}</p>
-                    <p className="text-xs text-success mt-1">In selected period ({kycStats.verifiedAllTime} all-time)</p>
-                  </div>
-                  <CheckCircle className="h-10 w-10 text-success" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-md bg-gradient-to-br from-warning to-warning dark:from-warning dark:to-warning">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-warning dark:text-warning font-medium">KYC Pending</p>
-                    <p className="text-3xl font-bold text-warning dark:text-warning">{kycStats.pending}</p>
-                    <p className="text-xs text-warning mt-1">In selected period</p>
-                  </div>
-                  <AlertCircle className="h-10 w-10 text-warning" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-md bg-gradient-to-br from-destructive to-destructive dark:from-destructive dark:to-destructive">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-destructive dark:text-destructive font-medium">KYC Rejected</p>
-                    <p className="text-3xl font-bold text-destructive dark:text-destructive">{kycStats.rejected}</p>
-                    <p className="text-xs text-destructive mt-1">In selected period</p>
-                  </div>
-                  <XCircle className="h-10 w-10 text-destructive" />
-                </div>
-              </CardContent>
-            </Card>
+            <StatTile size="md" tone="info" label="New Clients" value={clientStats.newInPeriod} sub="This period" icon={UserPlus} />
+            <StatTile size="md" tone="success" label="KYC Verified" value={kycStats.verified} sub={`In selected period (${kycStats.verifiedAllTime} all-time)`} icon={CheckCircle} />
+            <StatTile size="md" tone="warning" label="KYC Pending" value={kycStats.pending} sub="In selected period" icon={AlertCircle} />
+            <StatTile size="md" tone="destructive" label="KYC Rejected" value={kycStats.rejected} sub="In selected period" icon={XCircle} />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

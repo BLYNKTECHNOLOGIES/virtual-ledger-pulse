@@ -72,6 +72,13 @@ export type Database = {
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_investigations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
         ]
       }
       ad_action_logs: {
@@ -737,6 +744,13 @@ export type Database = {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["subsidiary_id"]
             isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
           },
@@ -947,6 +961,13 @@ export type Database = {
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bank_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
         ]
       }
       bank_communications: {
@@ -1113,6 +1134,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "bank_transactions_client_id_fkey"
             columns: ["client_id"]
             isOneToOne: false
@@ -1134,10 +1162,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "bank_transactions_related_transaction_id_fkey"
+            columns: ["related_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_txn_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "bank_transactions_reverses_transaction_id_fkey"
             columns: ["reverses_transaction_id"]
             isOneToOne: false
             referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_reverses_transaction_id_fkey"
+            columns: ["reverses_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_txn_v"
             referencedColumns: ["id"]
           },
           {
@@ -1215,6 +1257,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "banking_credentials_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
           },
         ]
       }
@@ -1313,6 +1362,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beneficiary_bank_additions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "beneficiary_bank_additions_beneficiary_id_fkey"
@@ -3537,6 +3593,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "erp_balance_baseline_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: true
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "erp_balance_baseline_wallet_id_fkey"
             columns: ["wallet_id"]
             isOneToOne: false
@@ -4302,6 +4365,39 @@ export type Database = {
           id?: string
           snapshot_date?: string
           terminal_usdt_balance?: number | null
+        }
+        Relationships: []
+      }
+      fin_account_classification: {
+        Row: {
+          bs_section: string
+          category_top: string
+          confidence: string
+          created_at: string
+          id: string
+          notes: string | null
+          statement: string
+          updated_at: string
+        }
+        Insert: {
+          bs_section: string
+          category_top: string
+          confidence?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          statement: string
+          updated_at?: string
+        }
+        Update: {
+          bs_section?: string
+          category_top?: string
+          confidence?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          statement?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -12628,6 +12724,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "hr_razorpay_ledger_matches_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_txn_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "hr_razorpay_ledger_matches_payout_record_id_fkey"
             columns: ["payout_record_id"]
             isOneToOne: true
@@ -16216,6 +16319,13 @@ export type Database = {
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lien_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
         ]
       }
       lien_updates: {
@@ -17618,6 +17728,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payment_gateway_settlements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "payment_gateway_settlements_reversed_by_fkey"
             columns: ["reversed_by"]
             isOneToOne: false
@@ -17828,6 +17945,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "fk_pending_settlements_payment_method"
@@ -18215,6 +18339,13 @@ export type Database = {
             foreignKeyName: "purchase_action_timings_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "fin_entity_payable_v"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_action_timings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
           },
@@ -18260,6 +18391,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_payable_v"
             referencedColumns: ["id"]
           },
           {
@@ -18312,10 +18450,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "purchase_order_payment_splits_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_payment_splits_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_payable_v"
             referencedColumns: ["id"]
           },
           {
@@ -18488,6 +18640,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_orders_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "purchase_orders_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -18588,6 +18747,20 @@ export type Database = {
             columns: ["bank_account_name"]
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["account_name"]
+          },
+          {
+            foreignKeyName: "purchase_payment_methods_bank_account_name_fkey"
+            columns: ["bank_account_name"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["account_name"]
+          },
+          {
+            foreignKeyName: "purchase_payment_methods_bank_account_name_fkey"
+            columns: ["bank_account_name"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_txn_v"
             referencedColumns: ["account_name"]
           },
         ]
@@ -19480,6 +19653,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sales_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
             foreignKeyName: "sales_order_payment_splits_payment_method_id_fkey"
             columns: ["payment_method_id"]
             isOneToOne: false
@@ -19742,6 +19922,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_payment_methods_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
           },
         ]
       }
@@ -20686,11 +20873,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tds_payment_allocations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "tds_payment_allocations_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_payable_v"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tds_payment_allocations_purchase_order_id_fkey"
             columns: ["purchase_order_id"]
             isOneToOne: false
             referencedRelation: "purchase_orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_payment_allocations_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
           },
           {
             foreignKeyName: "tds_payment_allocations_subsidiary_id_fkey"
@@ -20782,6 +20990,20 @@ export type Database = {
             columns: ["payment_bank_account_id"]
             isOneToOne: false
             referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_records_payment_bank_account_id_fkey"
+            columns: ["payment_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "tds_records_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_payable_v"
             referencedColumns: ["id"]
           },
           {
@@ -22036,6 +22258,13 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "terminal_purchase_sync_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_payable_v"
             referencedColumns: ["id"]
           },
           {
@@ -23698,6 +23927,248 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_bank_entity_map_v: {
+        Row: {
+          account_last4: string | null
+          account_name: string | null
+          account_status: string | null
+          account_type: string | null
+          bank_account_id: string | null
+          bank_name: string | null
+          cached_balance: number | null
+          dormant_at: string | null
+          is_adjustment_bucket: boolean | null
+          legal_name: string | null
+          lien_amount: number | null
+          status: string | null
+          subsidiary_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_entity_master_v: {
+        Row: {
+          bank_account_count: number | null
+          city: string | null
+          date_of_incorporation: string | null
+          firm_composition: string | null
+          gst_missing_or_invalid: boolean | null
+          gst_number: string | null
+          legal_name: string | null
+          pan_missing_or_invalid: boolean | null
+          pan_number: string | null
+          pincode: string | null
+          registered_address: string | null
+          state: string | null
+          status: string | null
+          subsidiary_id: string | null
+        }
+        Insert: {
+          bank_account_count?: never
+          city?: string | null
+          date_of_incorporation?: string | null
+          firm_composition?: string | null
+          gst_missing_or_invalid?: never
+          gst_number?: never
+          legal_name?: string | null
+          pan_missing_or_invalid?: never
+          pan_number?: never
+          pincode?: string | null
+          registered_address?: string | null
+          state?: string | null
+          status?: string | null
+          subsidiary_id?: string | null
+        }
+        Update: {
+          bank_account_count?: never
+          city?: string | null
+          date_of_incorporation?: string | null
+          firm_composition?: string | null
+          gst_missing_or_invalid?: never
+          gst_number?: never
+          legal_name?: string | null
+          pan_missing_or_invalid?: never
+          pan_number?: never
+          pincode?: string | null
+          registered_address?: string | null
+          state?: string | null
+          status?: string | null
+          subsidiary_id?: string | null
+        }
+        Relationships: []
+      }
+      fin_entity_payable_v: {
+        Row: {
+          bank_account_id: string | null
+          id: string | null
+          legal_name: string | null
+          order_date: string | null
+          order_number: string | null
+          outstanding_amount: number | null
+          paid_amount: number | null
+          payable_amount: number | null
+          subsidiary_id: string | null
+          supplier_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_entity_receivable_v: {
+        Row: {
+          bank_account_id: string | null
+          client_name: string | null
+          expected_settlement_date: string | null
+          id: string | null
+          legal_name: string | null
+          mdr_amount: number | null
+          order_date: string | null
+          order_number: string | null
+          settlement_amount: number | null
+          subsidiary_id: string | null
+          total_amount: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+        ]
+      }
+      fin_entity_txn_v: {
+        Row: {
+          account_name: string | null
+          amount: number | null
+          balance_after: number | null
+          bank_account_id: string | null
+          bank_name: string | null
+          bs_section: string | null
+          category: string | null
+          category_top: string | null
+          confidence: string | null
+          counterparty_entity: string | null
+          description: string | null
+          id: string | null
+          is_adjustment_bucket: boolean | null
+          is_reversed: boolean | null
+          legal_name: string | null
+          reference_number: string | null
+          related_account_name: string | null
+          sequence_no: number | null
+          signed_amount: number | null
+          statement: string | null
+          subsidiary_id: string | null
+          transaction_date: string | null
+          transaction_type: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+        ]
+      }
+      fin_unattributed_pool_v: {
+        Row: {
+          amount_inr: number | null
+          asset_code: string | null
+          label: string | null
+          pool: string | null
+          quantity: number | null
+          reason: string | null
+          ref_id: string | null
+        }
+        Relationships: []
+      }
       hr_absent_marker_last_run_v: {
         Row: {
           last_marked_count: number | null
@@ -25172,6 +25643,60 @@ export type Database = {
       extract_client_bank_number: {
         Args: { account_entry: Json }
         Returns: string
+      }
+      fin_entity_balance_sheet: {
+        Args: { p_as_of?: string; p_subsidiary_id: string }
+        Returns: {
+          amount: number
+          confidence: string
+          line_key: string
+          line_label: string
+          note: string
+          section: string
+          sort_order: number
+        }[]
+      }
+      fin_entity_bank_position: {
+        Args: { p_as_of?: string; p_subsidiary_id: string }
+        Returns: {
+          account_last4: string
+          account_name: string
+          account_type: string
+          bank_account_id: string
+          bank_name: string
+          cached_balance: number
+          confidence: string
+          drift: number
+          last_txn_date: string
+          ledger_balance: number
+          lien_amount: number
+          txn_count: number
+        }[]
+      }
+      fin_entity_integrity: {
+        Args: { p_as_of?: string; p_subsidiary_id: string }
+        Returns: {
+          affected_count: number
+          code: string
+          detail: string
+          impact_amount: number
+          severity: string
+          title: string
+        }[]
+      }
+      fin_entity_line_detail: {
+        Args: { p_as_of: string; p_line_key: string; p_subsidiary_id: string }
+        Returns: {
+          account_name: string
+          amount: number
+          bank_name: string
+          category: string
+          counterparty: string
+          description: string
+          ref_date: string
+          ref_id: string
+          reference_number: string
+        }[]
       }
       flag_counterparty_for_payment_method_cancellations: {
         Args: { _nickname: string }

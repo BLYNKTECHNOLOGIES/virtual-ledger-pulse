@@ -42,9 +42,11 @@ import { PlatformFeesSummary } from "@/components/financials/PlatformFeesSummary
 import { TotalAssetValueWidget } from "@/components/financials/TotalAssetValueWidget";
 import { AssetValueHistoryTab } from "@/components/financials/AssetValueHistoryTab";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
+import { BalanceSheetDialog } from "@/components/financials/BalanceSheetDialog";
 
 export default function Financials() {
   const navigate = useNavigate();
+  const [balanceSheetOpen, setBalanceSheetOpen] = useState(false);
   const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
     const saved = localStorage.getItem('financials_date_preset');
     return (saved as DateRangePreset) || 'today';
@@ -475,8 +477,8 @@ export default function Financials() {
                   <PieChart className="h-8 w-8 text-primary" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">Balance Sheet</h3>
-                <p className="text-sm text-muted-foreground mb-4">Assets, liabilities & equity</p>
-                <Button size="sm" >
+                <p className="text-sm text-muted-foreground mb-4">Company-wise, ledger-supported</p>
+                <Button size="sm" onClick={() => setBalanceSheetOpen(true)}>
                   Generate Report
                 </Button>
               </CardContent>
@@ -494,6 +496,8 @@ export default function Financials() {
           <AssetValueHistoryTab />
         </TabsContent>
       </Tabs>
+
+      <BalanceSheetDialog open={balanceSheetOpen} onOpenChange={setBalanceSheetOpen} />
     </div>
     </PermissionGate>
   );

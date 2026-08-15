@@ -339,7 +339,7 @@ export default function LateComeEarlyOutPage() {
               ) : (
                 <>
                   {/* Mobile */}
-                  <div className="md:hidden divide-y">
+                  <div className={isTable ? "hidden" : "md:hidden divide-y"}>
                     {filtered.map((r: any) => (
                       <div key={r.id} className="p-3 flex items-center justify-between gap-2">
                         <div className="min-w-0">
@@ -357,8 +357,8 @@ export default function LateComeEarlyOutPage() {
                   </div>
 
                   {/* Desktop */}
-                  <table className="hidden md:table w-full text-sm min-w-[600px]">
-                    <thead className="bg-muted/50 border-b">
+                  <table className={`${isTable ? "table" : "hidden md:table"} w-full text-sm min-w-[600px]`}>
+                    <thead className="bg-card sticky top-0 z-10 border-b">
                       <tr>
                         {["Date", "Employee", "Badge ID", "Type", "Minutes"].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
@@ -367,15 +367,20 @@ export default function LateComeEarlyOutPage() {
                     </thead>
                     <tbody>
                       {filtered.map((r: any) => (
-                        <tr key={r.id} className="border-b hover:bg-muted/50">
+                        <tr key={r.id} className={`border-b hover:bg-muted/50 ${isTable ? "even:bg-muted/20" : ""}`}>
                           <td className="px-4 py-3 tabular-nums">{r.attendance_date}</td>
                           <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
                           <td className="px-4 py-3">
-                            <span className={`border rounded-full px-2 py-0.5 text-[10px] font-medium ${r.type === "late_come" ? "bg-warning/10 text-warning border-warning/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
-                              {r.type === "late_come" ? "Late Come" : "Early Out"}
-                            </span>
+                            {isTable ? (
+                              r.type === "late_come" ? "Late Come" : "Early Out"
+                            ) : (
+                              <span className={`border rounded-full px-2 py-0.5 text-[10px] font-medium ${r.type === "late_come" ? "bg-warning/10 text-warning border-warning/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
+                                {r.type === "late_come" ? "Late Come" : "Early Out"}
+                              </span>
+                            )}
                           </td>
+
                           <td className="px-4 py-3 font-medium tabular-nums">
                             {r.type === "late_come" ? r.late_minutes : r.early_minutes} min
                           </td>

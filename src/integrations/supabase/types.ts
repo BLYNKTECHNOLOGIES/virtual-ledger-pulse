@@ -10607,6 +10607,85 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_leave_worked_days: {
+        Row: {
+          attendance_date: string
+          created_at: string
+          days_restored: number
+          detected_at: string
+          employee_id: string
+          id: string
+          leave_request_id: string | null
+          leave_type_id: string | null
+          net_work_minutes: number | null
+        }
+        Insert: {
+          attendance_date: string
+          created_at?: string
+          days_restored?: number
+          detected_at?: string
+          employee_id: string
+          id?: string
+          leave_request_id?: string | null
+          leave_type_id?: string | null
+          net_work_minutes?: number | null
+        }
+        Update: {
+          attendance_date?: string
+          created_at?: string
+          days_restored?: number
+          detected_at?: string
+          employee_id?: string
+          id?: string
+          leave_request_id?: string | null
+          leave_type_id?: string | null
+          net_work_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_loan_repayments: {
         Row: {
           amount: number
@@ -27390,6 +27469,10 @@ export type Database = {
       hr_reconcile_one_time_payouts: {
         Args: { p_period: string }
         Returns: Json
+      }
+      hr_reconcile_worked_leave_days: {
+        Args: { p_employee_id?: string; p_from: string; p_to: string }
+        Returns: number
       }
       hr_record_manual_loan_repayment: {
         Args: {

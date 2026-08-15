@@ -45,6 +45,11 @@ const SECTION_TITLES: Record<string, string> = {
 export const inr = (n: number) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n || 0);
 
+/** A null amount means the figure does not exist in the ERP at all — never render it as zero. */
+export const NOT_AVAILABLE = "NOT AVAILABLE";
+export const amountText = (amount: number | null | undefined) =>
+  amount === null || amount === undefined ? NOT_AVAILABLE : inr(Number(amount));
+
 /** Deterministic checksum over the presented figures, so a printed copy can be tied back. */
 export function balanceSheetChecksum(lines: BalanceSheetLine[], meta: { entityName: string; asOf: string }) {
   const payload =
@@ -55,8 +60,9 @@ export function balanceSheetChecksum(lines: BalanceSheetLine[], meta: { entityNa
     lines
       .slice()
       .sort((a, b) => a.sort_order - b.sort_order)
-      .map((l) => `${l.line_key}:${Number(l.amount).toFixed(2)}`)
+      .map((l) => `${l.line_key}:${l.amount === null || l.amount === undefined ? "NA" : Number(l.amount).toFixed(2)}`)
       .join(",");
+
   let h1 = 0x811c9dc5;
   let h2 = 0x01000193;
   for (let i = 0; i < payload.length; i++) {

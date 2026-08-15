@@ -6,7 +6,7 @@ export interface BalanceSheetLine {
   section: string;
   line_key: string;
   line_label: string;
-  amount: number;
+  amount: number | null;
   confidence: string;
   note: string | null;
   sort_order: number;

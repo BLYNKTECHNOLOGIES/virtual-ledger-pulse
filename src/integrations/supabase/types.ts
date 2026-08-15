@@ -4499,6 +4499,168 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_balance_sheet_generation_log: {
+        Row: {
+          checksum: string | null
+          created_at: string
+          export_format: string | null
+          failed_checks: string[]
+          generated_by: string | null
+          id: string
+          is_draft: boolean
+          period_end: string
+          period_start: string
+          subsidiary_id: string | null
+          totals: Json
+          valuation_basis: string
+        }
+        Insert: {
+          checksum?: string | null
+          created_at?: string
+          export_format?: string | null
+          failed_checks?: string[]
+          generated_by?: string | null
+          id?: string
+          is_draft?: boolean
+          period_end: string
+          period_start: string
+          subsidiary_id?: string | null
+          totals?: Json
+          valuation_basis?: string
+        }
+        Update: {
+          checksum?: string | null
+          created_at?: string
+          export_format?: string | null
+          failed_checks?: string[]
+          generated_by?: string | null
+          id?: string
+          is_draft?: boolean
+          period_end?: string
+          period_start?: string
+          subsidiary_id?: string | null
+          totals?: Json
+          valuation_basis?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_balance_sheet_generation_log_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "fin_balance_sheet_generation_log_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fin_wallet_entity_assignment_log: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_subsidiary_id: string | null
+          notes: string | null
+          old_subsidiary_id: string | null
+          wallet_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_subsidiary_id?: string | null
+          notes?: string | null
+          old_subsidiary_id?: string | null
+          wallet_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_subsidiary_id?: string | null
+          notes?: string | null
+          old_subsidiary_id?: string | null
+          wallet_id?: string
+        }
+        Relationships: []
+      }
+      fin_wallet_entity_map: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          previous_subsidiary_id: string | null
+          subsidiary_id: string | null
+          updated_at: string
+          wallet_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          previous_subsidiary_id?: string | null
+          subsidiary_id?: string | null
+          updated_at?: string
+          wallet_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          previous_subsidiary_id?: string | null
+          subsidiary_id?: string | null
+          updated_at?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fin_wallet_entity_map_previous_subsidiary_id_fkey"
+            columns: ["previous_subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "fin_wallet_entity_map_previous_subsidiary_id_fkey"
+            columns: ["previous_subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_wallet_entity_map_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "fin_wallet_entity_map_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fin_wallet_entity_map_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: true
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_announcements: {
         Row: {
           category: string | null

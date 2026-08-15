@@ -9,9 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight } from "lucide-react";
+import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import EmployeeIncidentsDialog from "@/components/hrms/attendance/EmployeeIncidentsDialog";
+import { useViewMode } from "@/hooks/useViewMode";
+import { ViewToggle } from "@/components/hrms/ViewToggle";
+import { Button } from "@/components/ui/button";
 
 export default function LateComeEarlyOutPage() {
   const now = new Date();
@@ -19,6 +22,8 @@ export default function LateComeEarlyOutPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [selectedEmp, setSelectedEmp] = useState<{ id: string; name: string; badge: string } | null>(null);
+  const [viewMode, setViewMode] = useViewMode("late-early");
+  const [activeTab, setActiveTab] = useState("summary");
 
   const monthStart = format(startOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
@@ -87,12 +92,63 @@ export default function LateComeEarlyOutPage() {
     monthOptions.push(format(d, "yyyy-MM"));
   }
 
+  const downloadCsv = (rows: (string | number)[][], filename: string) => {
+    const csv = rows
+      .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = () => {
+    if (activeTab === "summary") {
+      downloadCsv(
+        [
+          ["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"],
+          ...summaryList.map((s) => [
+            s.name.trim(), s.badge, s.lateCount, s.totalLateMins || 0, s.earlyCount, s.totalEarlyMins || 0, s.lateCount + s.earlyCount,
+          ]),
+        ],
+        `late-early-summary-${monthFilter}.csv`
+      );
+    } else {
+      downloadCsv(
+        [
+          ["Date", "Employee", "Badge ID", "Type", "Minutes"],
+          ...filtered.map((r: any) => [
+            r.attendance_date,
+            `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim(),
+            r.hr_employees?.badge_id || "",
+            r.type === "late_come" ? "Late Come" : "Early Out",
+            (r.type === "late_come" ? r.late_minutes : r.early_minutes) || 0,
+          ]),
+        ],
+        `late-early-records-${monthFilter}.csv`
+      );
+    }
+  };
+
+  const isTable = viewMode === "table";
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Late Come & Early Out"
         description="Track and report late arrivals and early departures with penalty linkage"
+        actions={
+          <div className="flex items-center gap-2">
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+            <Button variant="outline" size="sm" className="h-9" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-1.5" /> Export CSV
+            </Button>
+          </div>
+        }
       />
+
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -119,6 +175,7 @@ export default function LateComeEarlyOutPage() {
       </div>
 
       {/* Summary Cards */}
+      {!isTable && (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
@@ -148,8 +205,10 @@ export default function LateComeEarlyOutPage() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-      <Tabs defaultValue="summary" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+
         <TabsList>
           <TabsTrigger value="summary">Employee Summary</TabsTrigger>
           <TabsTrigger value="details">All Records</TabsTrigger>
@@ -170,7 +229,8 @@ export default function LateComeEarlyOutPage() {
               ) : (
                 <>
                   {/* Mobile */}
-                  <div className="md:hidden divide-y">
+                  <div className={isTable ? "hidden" : "md:hidden divide-y"}>
+
                     {summaryList.map((s) => (
                       <div
                         key={s.id}
@@ -202,8 +262,9 @@ export default function LateComeEarlyOutPage() {
                   </div>
 
                   {/* Desktop */}
-                  <table className="hidden md:table w-full text-sm min-w-[600px]">
-                    <thead className="bg-muted/50 border-b">
+                  <table className={`${isTable ? "table" : "hidden md:table"} w-full text-sm min-w-[600px]`}>
+                    <thead className="bg-card sticky top-0 z-10 border-b">
+
                       <tr>
                         {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents", ""].map((h, i) => (
                           <th key={h || `col-${i}`} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
@@ -218,22 +279,27 @@ export default function LateComeEarlyOutPage() {
                           tabIndex={0}
                           onClick={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
                           onKeyDown={(e) => { if (e.key === "Enter") setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
-                          className="border-b hover:bg-muted/50 cursor-pointer"
+                          className={`border-b hover:bg-muted/50 cursor-pointer ${isTable ? "even:bg-muted/20" : ""}`}
                         >
                           <td className="px-4 py-3 font-medium">{s.name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
                           <td className="px-4 py-3 tabular-nums">
-                            {s.lateCount > 0 ? (
+                            {isTable ? (
+                              s.lateCount
+                            ) : s.lateCount > 0 ? (
                               <span className="bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.lateCount}</span>
                             ) : <span className="text-muted-foreground">0</span>}
                           </td>
-                          <td className="px-4 py-3 text-warning font-medium tabular-nums">{s.totalLateMins || "—"}</td>
+                          <td className={`px-4 py-3 font-medium tabular-nums ${isTable ? "" : "text-warning"}`}>{s.totalLateMins || (isTable ? 0 : "—")}</td>
                           <td className="px-4 py-3 tabular-nums">
-                            {s.earlyCount > 0 ? (
+                            {isTable ? (
+                              s.earlyCount
+                            ) : s.earlyCount > 0 ? (
                               <span className="bg-destructive/10 text-destructive border border-destructive/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{s.earlyCount}</span>
                             ) : <span className="text-muted-foreground">0</span>}
                           </td>
-                          <td className="px-4 py-3 text-destructive font-medium tabular-nums">{s.totalEarlyMins || "—"}</td>
+                          <td className={`px-4 py-3 font-medium tabular-nums ${isTable ? "" : "text-destructive"}`}>{s.totalEarlyMins || (isTable ? 0 : "—")}</td>
+
                           <td className="px-4 py-3 font-bold tabular-nums">{s.lateCount + s.earlyCount}</td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <button
@@ -273,7 +339,7 @@ export default function LateComeEarlyOutPage() {
               ) : (
                 <>
                   {/* Mobile */}
-                  <div className="md:hidden divide-y">
+                  <div className={isTable ? "hidden" : "md:hidden divide-y"}>
                     {filtered.map((r: any) => (
                       <div key={r.id} className="p-3 flex items-center justify-between gap-2">
                         <div className="min-w-0">
@@ -291,8 +357,8 @@ export default function LateComeEarlyOutPage() {
                   </div>
 
                   {/* Desktop */}
-                  <table className="hidden md:table w-full text-sm min-w-[600px]">
-                    <thead className="bg-muted/50 border-b">
+                  <table className={`${isTable ? "table" : "hidden md:table"} w-full text-sm min-w-[600px]`}>
+                    <thead className="bg-card sticky top-0 z-10 border-b">
                       <tr>
                         {["Date", "Employee", "Badge ID", "Type", "Minutes"].map((h) => (
                           <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
@@ -301,15 +367,20 @@ export default function LateComeEarlyOutPage() {
                     </thead>
                     <tbody>
                       {filtered.map((r: any) => (
-                        <tr key={r.id} className="border-b hover:bg-muted/50">
+                        <tr key={r.id} className={`border-b hover:bg-muted/50 ${isTable ? "even:bg-muted/20" : ""}`}>
                           <td className="px-4 py-3 tabular-nums">{r.attendance_date}</td>
                           <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{r.hr_employees?.badge_id}</td>
                           <td className="px-4 py-3">
-                            <span className={`border rounded-full px-2 py-0.5 text-[10px] font-medium ${r.type === "late_come" ? "bg-warning/10 text-warning border-warning/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
-                              {r.type === "late_come" ? "Late Come" : "Early Out"}
-                            </span>
+                            {isTable ? (
+                              r.type === "late_come" ? "Late Come" : "Early Out"
+                            ) : (
+                              <span className={`border rounded-full px-2 py-0.5 text-[10px] font-medium ${r.type === "late_come" ? "bg-warning/10 text-warning border-warning/20" : "bg-destructive/10 text-destructive border-destructive/20"}`}>
+                                {r.type === "late_come" ? "Late Come" : "Early Out"}
+                              </span>
+                            )}
                           </td>
+
                           <td className="px-4 py-3 font-medium tabular-nums">
                             {r.type === "late_come" ? r.late_minutes : r.early_minutes} min
                           </td>

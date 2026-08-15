@@ -262,28 +262,27 @@ export default function Financials() {
 
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full flex-wrap gap-1 print:hidden">
-          <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
-          <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <span className="hidden sm:inline">Bank Accounts</span>
-            <span className="sm:hidden">Banks</span>
-          </TabsTrigger>
-          <TabsTrigger value="transactions" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <span className="hidden sm:inline">Transactions</span>
-            <span className="sm:hidden">Trans.</span>
-          </TabsTrigger>
-          <TabsTrigger value="platform-fees" className="flex items-center gap-1 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <Percent className="h-3 w-3" />
-            <span className="hidden sm:inline">Platform Fees</span>
-            <span className="sm:hidden">Fees</span>
-          </TabsTrigger>
-          <TabsTrigger value="asset-history" className="flex items-center gap-1 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <TrendingUp className="h-3 w-3" />
-            <span className="hidden sm:inline">Asset Value History</span>
-            <span className="sm:hidden">Assets</span>
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Reports</TabsTrigger>
+        <TabsList className="flex w-full flex-wrap gap-1 h-auto justify-start bg-transparent p-0 mb-4 border-b border-border rounded-none print:hidden">
+          {[
+            { value: 'overview', label: 'Overview', short: 'Overview' },
+            { value: 'accounts', label: 'Bank Accounts', short: 'Banks' },
+            { value: 'transactions', label: 'Transactions', short: 'Trans.' },
+            { value: 'platform-fees', label: 'Platform Fees', short: 'Fees', icon: <Percent className="h-3.5 w-3.5" /> },
+            { value: 'asset-history', label: 'Asset Value History', short: 'Assets', icon: <TrendingUp className="h-3.5 w-3.5" /> },
+            { value: 'reports', label: 'Reports', short: 'Reports' },
+          ].map((t) => (
+            <TabsTrigger
+              key={t.value}
+              value={t.value}
+              className="flex items-center gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              {t.icon}
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="sm:hidden">{t.short}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
+
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

@@ -309,7 +309,15 @@ export function ShiftScheduleAssigner() {
                 </thead>
                 <tbody>
                   {visibleSchedules.map((s: any) => (
-                    <tr key={s.id} className="border-b hover:bg-muted/30">
+                    <tr
+                      key={s.id}
+                      className="border-b hover:bg-muted/30 cursor-pointer"
+                      tabIndex={0}
+                      role="button"
+                      title="Click to change shift"
+                      onClick={() => openForEmployee(s)}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openForEmployee(s); } }}
+                    >
                       <td className="px-3 py-2">
                         {s.hr_employees?.first_name} {s.hr_employees?.last_name}
                         <span className="text-xs text-muted-foreground ml-1">({s.hr_employees?.badge_id})</span>
@@ -318,6 +326,7 @@ export function ShiftScheduleAssigner() {
                       <td className="px-3 py-2 text-muted-foreground">{s.effective_from}</td>
                     </tr>
                   ))}
+
                 </tbody>
               </table>
             </div>

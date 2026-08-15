@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Clock, CalendarDays, AlertTriangle, TrendingUp, Timer, CheckCircle } from 'lucide-react';
+import { Clock, CalendarDays, AlertTriangle, Timer, CheckCircle } from 'lucide-react';
 import RegularizationCard from './RegularizationCard';
 import TodayAttendanceCard from './TodayAttendanceCard';
 import MyCompOffCard from './MyCompOffCard';
@@ -108,7 +108,6 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
   const s = monthlySummary;
   const workedHrs = Number(s?.total_worked_hours || 0);
-  const otHrs = Number(s?.total_overtime_hours || 0);
   const presentDays = Number(s?.present_days || 0);
   const absentDays = Number(s?.absent_days || 0);
   const lateCount = Number(s?.late_count || 0);
@@ -156,7 +155,7 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
       </div>
 
       {/* Summary stats */}
-      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         <Card>
           <CardContent className="p-3 sm:p-4 text-center">
             <CheckCircle className="h-5 w-5 text-success mx-auto mb-1" />
@@ -176,13 +175,6 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
             <Clock className="h-5 w-5 text-info mx-auto mb-1" />
             <p className="text-xl sm:text-2xl font-bold text-foreground">{workedHrs.toFixed(1)}</p>
             <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">Worked hrs</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-3 sm:p-4 text-center">
-            <TrendingUp className="h-5 w-5 text-primary mx-auto mb-1" />
-            <p className="text-xl sm:text-2xl font-bold text-foreground">{otHrs.toFixed(1)}</p>
-            <p className="text-[11px] sm:text-xs text-muted-foreground leading-tight">OT hrs</p>
           </CardContent>
         </Card>
         <Card>

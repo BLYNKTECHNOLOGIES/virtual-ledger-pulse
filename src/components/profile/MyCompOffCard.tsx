@@ -111,12 +111,6 @@ export default function MyCompOffCard({ employeeId }: MyCompOffCardProps) {
           </div>
         )}
 
-        <p className="text-[11px] text-muted-foreground">
-          Comp-off is earned automatically for approved Sunday/holiday work and is settled every month —
-          it never carries forward. Days you take as Comp-off leave are used first, remaining days cancel
-          any Loss of Pay for that month, and whatever is still left is encashed in that month's salary at
-          your per-day rate.
-        </p>
 
       </CardContent>
     </Card>

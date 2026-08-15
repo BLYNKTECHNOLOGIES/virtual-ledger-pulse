@@ -26,11 +26,33 @@ export function AssetValueHistoryTab() {
     },
   });
 
+  // Drop single-day spikes >50% vs the last accepted point — almost always
+  // snapshot errors that wreck the chart scale. Table data stays untouched.
+  const { cleanedHistory, excludedCount } = useMemo(() => {
+    if (!historyData?.length) return { cleanedHistory: [], excludedCount: 0 };
+    const kept: typeof historyData = [];
+    let lastAccepted: number | null = null;
+    let excluded = 0;
+    for (const item of historyData) {
+      const value = Number(item.total_asset_value);
+      if (lastAccepted !== null && lastAccepted > 0) {
+        const change = Math.abs(value - lastAccepted) / lastAccepted;
+        if (change > 0.5) {
+          excluded += 1;
+          continue;
+        }
+      }
+      kept.push(item);
+      lastAccepted = value;
+    }
+    return { cleanedHistory: kept, excludedCount: excluded };
+  }, [historyData]);
+
   const chartData = useMemo(() => {
-    if (!historyData?.length) return [];
+    if (!cleanedHistory.length) return [];
 
     if (viewMode === "day") {
-      return historyData.map((item) => ({
+      return cleanedHistory.map((item) => ({
         date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
         value: Number(item.total_asset_value),
       }));
@@ -38,7 +60,7 @@ export function AssetValueHistoryTab() {
 
     // Month aggregation - use last value of each month
     const monthMap = new Map<string, number>();
-    for (const item of historyData) {
+    for (const item of cleanedHistory) {
       const monthKey = format(new Date(item.snapshot_date), "yyyy-MM");
       monthMap.set(monthKey, Number(item.total_asset_value));
     }
@@ -46,7 +68,8 @@ export function AssetValueHistoryTab() {
       date: format(new Date(key + "-01"), "MMM yyyy"),
       value,
     }));
-  }, [historyData, viewMode]);
+  }, [cleanedHistory, viewMode]);
+
 
   const formatCurrency = (value: number) =>
     `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;

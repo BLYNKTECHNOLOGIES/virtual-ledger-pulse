@@ -163,6 +163,41 @@ export default function LeaveAllocationsPage() {
   const totalUsed = cumulativeData.reduce((s, e) => s + Object.values(e.balances).reduce((ss, b) => ss + b.totalUsed, 0), 0);
   const uniqueEmployees = cumulativeData.length;
 
+  const exportCsv = () => {
+    const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const header = ["Employee", "Badge", "Status", ...leaveTypes.map((lt: any) => `${lt.name} (Bal)`), "Total Balance"];
+    const rows = (groupedArr as any[]).map((g: any) => {
+      const empCumulative = cumulativeData.find(c => c.employee?.id === g.employee?.id);
+      const probation = isOnProbation(g.employee?.id);
+      let total = 0;
+      const balCells = leaveTypes.map((lt: any) => {
+        const alloc = g.allocations.find((a: any) => a.leave_type_id === lt.id);
+        const cumBal = empCumulative?.balances[lt.id];
+        const bal = cumBal
+          ? cumBal.totalAllocated - cumBal.totalUsed
+          : Number(alloc?.allocated_days || 0) - Number(alloc?.used_days || 0);
+        total += bal;
+        if (!alloc && isSickLeaveType(lt) && probation) return "Not allocated";
+        return bal;
+      });
+      return [
+        `${g.employee?.first_name || ""} ${g.employee?.last_name || ""}`.trim(),
+        g.employee?.badge_id || "",
+        probation ? `Probation${probationEndDate(g.employee?.id) ? ` till ${probationEndDate(g.employee?.id)}` : ""}` : "Confirmed",
+        ...balCells,
+        total,
+      ];
+    });
+    const csv = [header, ...rows].map(r => r.map(esc).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leave-balances-${getQuarterLabel(quarter).replace(/[^\w]/g, "")}-${year}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exported");
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
@@ -171,6 +206,9 @@ export default function LeaveAllocationsPage() {
         actions={
           <>
             <ViewToggle value={viewMode} onChange={setViewMode} />
+            <Button variant="outline" onClick={exportCsv} disabled={groupedArr.length === 0} className="h-9">
+              <Download className="h-4 w-4 mr-2" /> Export CSV
+            </Button>
             <Button variant="outline" onClick={() => setShowBulk(true)} className="h-9">
               <Users className="h-4 w-4 mr-2" /> Bulk Allocate
             </Button>

@@ -430,7 +430,7 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
       
-      <SidebarContent className="bg-sidebar overflow-y-auto max-h-screen">
+      <SidebarContent className="bg-sidebar overflow-y-auto group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext

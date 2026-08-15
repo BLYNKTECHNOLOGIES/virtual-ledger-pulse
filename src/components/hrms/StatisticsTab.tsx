@@ -67,19 +67,19 @@ function StatTile({
 }) {
   const accent = TONE_ACCENT[tone] || TONE_ACCENT.primary;
   return (
-    <Card className="h-full bg-card border shadow-sm hover:shadow-md transition-shadow">
+    <Card className="h-full bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
-            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-bold text-foreground leading-tight mt-1`}>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground truncate">{label}</p>
+            <p className={`${size === "md" ? "text-2xl" : "text-xl"} font-semibold text-foreground leading-tight mt-1 tabular-nums`}>
               {value}
             </p>
-            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon}`}>{sub}</div>}
+            {sub && <div className={`text-xs mt-1 flex items-center ${accent.icon} tabular-nums`}>{sub}</div>}
           </div>
           {Icon && (
-            <div className={`shrink-0 rounded-lg p-2 ${accent.chip}`}>
-              <Icon className={`h-5 w-5 ${accent.icon}`} />
+            <div className={`shrink-0 rounded-md p-2 ${accent.chip}`}>
+              <Icon className={`h-4 w-4 ${accent.icon}`} />
             </div>
           )}
         </div>

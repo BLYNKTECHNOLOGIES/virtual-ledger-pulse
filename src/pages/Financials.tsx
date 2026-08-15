@@ -24,8 +24,11 @@ import {
   Calendar,
   Target,
   Shield,
-  Percent
+  Percent,
+  ChevronRight
 } from "lucide-react";
+import { StatTile } from "@/components/financials/StatTile";
+import { formatCompactINR, formatExactINR } from "@/lib/formatCompactCurrency";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -166,52 +169,42 @@ export default function Financials() {
     >
     <div className="min-h-screen bg-muted/50 p-6">
       {/* Header */}
-      <div className="bg-card rounded-xl mb-6 shadow-sm border border-border">
-        <div className="px-6 py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-2 bg-muted rounded-lg">
-                  <Calculator className="h-5 w-5 text-muted-foreground" />
-                </span>
-                Financial Management
-              </span>
-            }
-            description="Comprehensive financial overview and management"
-            actions={
-              <div className="flex flex-wrap items-center gap-2 print:hidden">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                  preset={datePreset}
-                  onPresetChange={handleDatePresetChange}
-                  className="w-auto min-w-[200px]"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  New Transaction
-                </Button>
-              </div>
-            }
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="p-2 bg-card border border-border rounded-lg shrink-0">
+            <Calculator className="h-5 w-5 text-muted-foreground" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold text-foreground leading-tight truncate">
+              Financial Management
+            </h1>
+            <p className="text-xs text-muted-foreground truncate">
+              Comprehensive financial overview and management
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          <DateRangePicker
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
+            preset={datePreset}
+            onPresetChange={handleDatePresetChange}
+            className="w-auto"
           />
-
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button variant="outline" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            New Transaction
+          </Button>
         </div>
       </div>
 
+
       {/* Key Financial Metrics - Clickable */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 items-stretch">
         {/* Total Revenue - Clickable to Sales */}
         <ClickableCard 
           to="/sales" 
@@ -219,108 +212,77 @@ export default function Financials() {
             dateFrom: startDate, 
             dateTo: endDate 
           })}
+          className="h-full"
         >
-          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Revenue</p>
-                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                    {formatCurrency(financialData?.totalRevenue || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                    <ArrowUpIcon className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Click to view sales →</span>
-                  </div>
-                </div>
-                <div className="bg-success/10 p-2 rounded-lg shrink-0">
-                  <DollarSign className="h-5 w-5 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+          <StatTile
+            label="Total Revenue"
+            value={formatCompactINR(financialData?.totalRevenue || 0)}
+            exactValue={formatExactINR(financialData?.totalRevenue || 0)}
+            hint={<><span>View sales</span><ChevronRight className="h-3.5 w-3.5" /></>}
+            icon={<DollarSign className="h-5 w-5 text-success" />}
+            iconClassName="bg-success/10"
+            interactive
+          />
         </ClickableCard>
 
         {/* Total Expenses - Clickable to BAMS Journal */}
         <ClickableCard 
           to="/bams" 
           searchParams={{ tab: 'journal' }}
+          className="h-full"
         >
-          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Expenses</p>
-                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                    {formatCurrency(financialData?.totalExpenses || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                    <ArrowDownIcon className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Click to view transactions →</span>
-                  </div>
-                </div>
-                <div className="bg-destructive/10 p-2 rounded-lg shrink-0">
-                  <TrendingDown className="h-5 w-5 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+          <StatTile
+            label="Total Expenses"
+            value={formatCompactINR(financialData?.totalExpenses || 0)}
+            exactValue={formatExactINR(financialData?.totalExpenses || 0)}
+            hint={<><span>View transactions</span><ChevronRight className="h-3.5 w-3.5" /></>}
+            icon={<TrendingDown className="h-5 w-5 text-destructive" />}
+            iconClassName="bg-destructive/10"
+            interactive
+          />
         </ClickableCard>
 
         {/* Total Asset Value */}
         <TotalAssetValueWidget />
 
         {/* Bank Balance - Clickable to BAMS */}
-        <ClickableCard to="/bams">
-          <Card className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Bank Balance</p>
-                  <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                    {formatCurrency(financialData?.totalBankBalance || 0)}
-                  </p>
-                  <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                    <Wallet className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">Click to view accounts →</span>
-                  </div>
-                </div>
-                <div className="bg-primary/10 p-2 rounded-lg shrink-0">
-                  <Wallet className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
+        <ClickableCard to="/bams" className="h-full">
+          <StatTile
+            label="Bank Balance"
+            value={formatCompactINR(financialData?.totalBankBalance || 0)}
+            exactValue={formatExactINR(financialData?.totalBankBalance || 0)}
+            hint={<><span>View accounts</span><ChevronRight className="h-3.5 w-3.5" /></>}
+            icon={<Wallet className="h-5 w-5 text-primary" />}
+            iconClassName="bg-primary/10"
+            interactive
+          />
         </ClickableCard>
       </div>
 
+
       {/* Financial Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full flex-wrap gap-1 print:hidden">
-          <TabsTrigger value="overview" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Overview</TabsTrigger>
-          <TabsTrigger value="accounts" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <span className="hidden sm:inline">Bank Accounts</span>
-            <span className="sm:hidden">Banks</span>
-          </TabsTrigger>
-          <TabsTrigger value="transactions" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <span className="hidden sm:inline">Transactions</span>
-            <span className="sm:hidden">Trans.</span>
-          </TabsTrigger>
-          <TabsTrigger value="platform-fees" className="flex items-center gap-1 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <Percent className="h-3 w-3" />
-            <span className="hidden sm:inline">Platform Fees</span>
-            <span className="sm:hidden">Fees</span>
-          </TabsTrigger>
-          <TabsTrigger value="asset-history" className="flex items-center gap-1 text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">
-            <TrendingUp className="h-3 w-3" />
-            <span className="hidden sm:inline">Asset Value History</span>
-            <span className="sm:hidden">Assets</span>
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="text-xs md:text-sm whitespace-nowrap px-2 md:px-4 min-w-fit">Reports</TabsTrigger>
+        <TabsList className="flex w-full flex-wrap gap-1 h-auto justify-start bg-transparent p-0 mb-4 border-b border-border rounded-none print:hidden">
+          {[
+            { value: 'overview', label: 'Overview', short: 'Overview' },
+            { value: 'accounts', label: 'Bank Accounts', short: 'Banks' },
+            { value: 'transactions', label: 'Transactions', short: 'Trans.' },
+            { value: 'platform-fees', label: 'Platform Fees', short: 'Fees', icon: <Percent className="h-3.5 w-3.5" /> },
+            { value: 'asset-history', label: 'Asset Value History', short: 'Assets', icon: <TrendingUp className="h-3.5 w-3.5" /> },
+            { value: 'reports', label: 'Reports', short: 'Reports' },
+          ].map((t) => (
+            <TabsTrigger
+              key={t.value}
+              value={t.value}
+              className="flex items-center gap-1.5 rounded-none border-b-2 border-transparent bg-transparent px-3 py-2 text-xs md:text-sm font-medium text-muted-foreground whitespace-nowrap shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+            >
+              {t.icon}
+              <span className="hidden sm:inline">{t.label}</span>
+              <span className="sm:hidden">{t.short}</span>
+            </TabsTrigger>
+          ))}
         </TabsList>
+
 
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

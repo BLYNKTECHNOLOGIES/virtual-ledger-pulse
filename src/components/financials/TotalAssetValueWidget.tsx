@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { TrendingUp, Layers, ChevronDown, ChevronRight } from "lucide-react";
+import { StatTile } from "@/components/financials/StatTile";
+import { formatCompactINR } from "@/lib/formatCompactCurrency";
 
 interface BankDetail { account_name: string; bank_name: string; balance: number; status: string; dormant_at: string | null }
 interface GatewayGroup { gateway_name: string; total: number; count: number }
@@ -184,28 +186,18 @@ export function TotalAssetValueWidget() {
 
   return (
     <>
-      <Card
-        className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors cursor-pointer"
-        onClick={() => setShowBreakdown(true)}
-      >
-        <CardContent className="p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Asset Value</p>
-              <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
-                {fmt(total)}
-              </p>
-              <div className="flex items-center gap-1 mt-2 text-muted-foreground">
-                <Layers className="h-3.5 w-3.5" />
-                <span className="text-xs font-medium">Banks + POS + Stock − TDS</span>
-              </div>
-            </div>
-            <div className="bg-primary/10 p-2 rounded-lg shrink-0">
-              <TrendingUp className="h-5 w-5 text-primary" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="h-full cursor-pointer" onClick={() => setShowBreakdown(true)}>
+        <StatTile
+          label="Total Asset Value"
+          value={formatCompactINR(total)}
+          exactValue={fmt(total)}
+          hint={<><Layers className="h-3.5 w-3.5" /><span>Banks + POS + Stock − TDS</span></>}
+          icon={<TrendingUp className="h-5 w-5 text-primary" />}
+          iconClassName="bg-primary/10"
+          interactive
+        />
+      </div>
+
 
 
       <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>

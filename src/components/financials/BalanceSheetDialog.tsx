@@ -203,11 +203,18 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
                 </div>
                 <span
                   className={`shrink-0 tabular-nums text-sm ${
-                    isTotal ? "font-semibold text-foreground" : "text-foreground"
+                    r.amount === null || r.amount === undefined
+                      ? "text-[11px] uppercase tracking-wide text-muted-foreground"
+                      : isTotal
+                        ? "font-semibold text-foreground"
+                        : "text-foreground"
                   }`}
                 >
-                  ₹{inr(Number(r.amount))}
+                  {r.amount === null || r.amount === undefined
+                    ? NOT_AVAILABLE
+                    : `₹${inr(Number(r.amount))}`}
                 </span>
+
               </div>
             );
           })}

@@ -155,6 +155,60 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
               </div>
             )}
 
+            {/* Manual status override */}
+            <div className="rounded-lg border bg-muted/20 p-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Set status manually
+                </p>
+                {manualStatus && (
+                  <Badge variant="outline" className="border-primary/40 text-[10px] text-primary">
+                    manual override active
+                  </Badge>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {([
+                  { key: "present", label: "Present" },
+                  { key: "half_day", label: "Half day" },
+                  { key: "absent", label: "Absent" },
+                ] as const).map((o) => (
+                  <Button
+                    key={o.key}
+                    size="sm"
+                    variant={manualStatus === o.key ? "default" : "outline"}
+                    className="h-8"
+                    disabled={setStatus.isPending}
+                    onClick={() => setStatus.mutate(o.key)}
+                  >
+                    {o.label}
+                  </Button>
+                ))}
+                {manualStatus && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8"
+                    disabled={setStatus.isPending}
+                    onClick={() => setStatus.mutate(null)}
+                  >
+                    Clear override
+                  </Button>
+                )}
+              </div>
+              <Input
+                className="mt-2 h-8 text-xs"
+                placeholder="Reason (optional, recorded in the audit log)"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+              />
+              {manualStatus && daily?.manual_status_reason && (
+                <p className="mt-1.5 text-[11px] text-muted-foreground">
+                  Existing note: {daily.manual_status_reason}
+                </p>
+              )}
+            </div>
+
 
             {/* Summary */}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">

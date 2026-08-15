@@ -38,6 +38,9 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "wa
 }
 
 export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeName, badgeId, date }: Props) {
+  const qc = useQueryClient();
+  const [reason, setReason] = useState("");
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["hr_day_detail", employeeId, date],
     enabled: open && !!employeeId && !!date,
@@ -60,10 +63,32 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
   const stale: any[] = data?.stale_sessions || [];
   const lop = Number(data?.lop_contribution ?? 0);
   const status = (daily?.status || "no_data") as AttendanceDayStatus;
+  const manualStatus: string | null = daily?.manual_status ?? null;
+
+  const setStatus = useMutation({
+    mutationFn: async (next: "present" | "absent" | "half_day" | null) => {
+      const { error } = await (supabase as any).rpc("hr_set_manual_day_status", {
+        p_employee_id: employeeId,
+        p_date: date,
+        p_status: next,
+        p_reason: reason.trim() || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Attendance status updated");
+      setReason("");
+      qc.invalidateQueries({ queryKey: ["hr_day_detail", employeeId, date] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance_calendar"] });
+      qc.invalidateQueries({ queryKey: ["hr_attendance_month"] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not update status"),
+  });
 
   const firstIn = istTime(daily?.first_in);
   const lastOut = istTime(daily?.last_out);
   const outNextDay = !!(daily?.last_out && istDate(daily.last_out) !== date);
+
 
   return (
     <ResponsiveDialog

@@ -408,27 +408,35 @@ export default function FnFSettlementPage() {
                         Approve
                       </Button>
                     )}
-                    {s.status === "approved" && (
-                      <Button
-                        size="sm"
-                        className="h-8 bg-success hover:bg-success"
-                        disabled={!["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source)}
-                        title={
-                          ["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source)
-                            ? undefined
-                            : "Final-month salary is not confirmed from RazorpayX yet"
-                        }
-                        onClick={() => {
-                          setPaymentRef("");
-                          setPayPrompt({
-                            id: s.id,
-                            name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
-                          });
-                        }}
-                      >
-                        Mark Paid
-                      </Button>
-                    )}
+                    {s.status === "approved" && (() => {
+                      const sourceConfirmed = ["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source);
+                      const nothingToPay = Number(s.net_payable ?? 0) === 0;
+                      const canMarkPaid = sourceConfirmed || nothingToPay;
+                      return (
+                        <Button
+                          size="sm"
+                          className="h-8 bg-success hover:bg-success"
+                          disabled={!canMarkPaid}
+                          title={
+                            canMarkPaid
+                              ? nothingToPay && !sourceConfirmed
+                                ? "Zero-value settlement — nothing to pay"
+                                : undefined
+                              : "Final-month salary is not confirmed from RazorpayX yet"
+                          }
+                          onClick={() => {
+                            setPaymentRef("");
+                            setPayPrompt({
+                              id: s.id,
+                              name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
+                            });
+                          }}
+                        >
+                          Mark Paid
+                        </Button>
+                      );
+                    })()}
+
 
                   </div>
                 </div>

@@ -233,6 +233,76 @@ export default function LeaveAllocationsPage() {
             />
           </CardContent>
         </Card>
+      ) : viewMode === "table" ? (
+        <Card>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader className="bg-muted/50">
+                <TableRow>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium sticky left-0 bg-muted/50">Employee</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Badge</TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium">Status</TableHead>
+                  {leaveTypes.map((lt: any) => (
+                    <TableHead key={lt.id} className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: lt.color || "#E8604C" }} />
+                        {lt.name}
+                      </span>
+                      <span className="block text-[9px] normal-case tracking-normal">Qtr / Bal / Used</span>
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right">Total Bal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(groupedArr as any[]).map((g: any) => {
+                  const empCumulative = cumulativeData.find(c => c.employee?.id === g.employee?.id);
+                  const probation = isOnProbation(g.employee?.id);
+                  let totalBal = 0;
+                  const cells = leaveTypes.map((lt: any) => {
+                    const alloc = g.allocations.find((a: any) => a.leave_type_id === lt.id);
+                    const cumBal = empCumulative?.balances[lt.id];
+                    const qtr = Number(alloc?.allocated_days || 0);
+                    const used = Number(cumBal?.totalUsed ?? alloc?.used_days ?? 0);
+                    const bal = cumBal ? cumBal.totalAllocated - cumBal.totalUsed : qtr - used;
+                    totalBal += bal;
+                    const blocked = !alloc && isSickLeaveType(lt) && probation;
+                    return { lt, qtr, used, bal, blocked, has: !!alloc };
+                  });
+                  return (
+                    <TableRow key={g.employee?.id} className="odd:bg-muted/20">
+                      <TableCell className="text-sm font-medium whitespace-nowrap sticky left-0 bg-background">
+                        {g.employee?.first_name} {g.employee?.last_name}
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">{g.employee?.badge_id || "—"}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">
+                        {probation ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
+                            Probation{probationEndDate(g.employee?.id) ? ` till ${probationEndDate(g.employee?.id)}` : ""}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Confirmed</span>
+                        )}
+                      </TableCell>
+                      {cells.map((c: any) => (
+                        <TableCell key={c.lt.id} className="text-right text-xs tabular-nums whitespace-nowrap">
+                          {c.blocked ? (
+                            <span className="text-warning text-[11px]">Not allocated</span>
+                          ) : (
+                            <span className={c.has ? "text-foreground" : "text-muted-foreground"}>
+                              {c.qtr} / <span className="font-medium">{c.bal}</span> / {c.used}
+                            </span>
+                          )}
+                        </TableCell>
+                      ))}
+                      <TableCell className="text-right text-sm font-semibold tabular-nums">{totalBal}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-4">
           {(groupedArr as any[]).map((g: any) => {

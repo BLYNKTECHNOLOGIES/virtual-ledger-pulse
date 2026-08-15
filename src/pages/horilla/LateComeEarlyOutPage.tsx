@@ -205,7 +205,7 @@ export default function LateComeEarlyOutPage() {
                   <table className="hidden md:table w-full text-sm min-w-[600px]">
                     <thead className="bg-muted/50 border-b">
                       <tr>
-                        {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents"].map((h) => (
+                        {["Employee", "Badge ID", "Late Count", "Total Late (min)", "Early Out Count", "Total Early (min)", "Total Incidents", ""].map((h, i) => (
                           <th key={h} className="text-left px-4 py-3 text-[11px] uppercase tracking-wide text-muted-foreground font-medium whitespace-nowrap">{h}</th>
                         ))}
                       </tr>

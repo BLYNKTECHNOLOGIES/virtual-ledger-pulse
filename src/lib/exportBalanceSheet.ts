@@ -93,8 +93,8 @@ function drawWatermark(doc: jsPDF) {
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.saveGraphicsState();
-    // @ts-expect-error GState typing is loose in jspdf
-    doc.setGState(new (doc as any).GState({ opacity: 0.12 }));
+    (doc as any).setGState(new (doc as any).GState({ opacity: 0.12 }));
+
     doc.setTextColor(200, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(46);

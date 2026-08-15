@@ -229,7 +229,8 @@ export default function LateComeEarlyOutPage() {
               ) : (
                 <>
                   {/* Mobile */}
-                  <div className="md:hidden divide-y">
+                  <div className={isTable ? "hidden" : "md:hidden divide-y"}>
+
                     {summaryList.map((s) => (
                       <div
                         key={s.id}

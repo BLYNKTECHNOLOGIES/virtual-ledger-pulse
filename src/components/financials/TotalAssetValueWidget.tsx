@@ -185,27 +185,28 @@ export function TotalAssetValueWidget() {
   return (
     <>
       <Card
-        className="bg-primary text-primary-foreground border-0 shadow-sm hover:shadow-sm transition-all duration-300 cursor-pointer"
+        className="bg-card border border-border shadow-none hover:border-foreground/20 transition-colors cursor-pointer"
         onClick={() => setShowBreakdown(true)}
       >
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-primary text-sm font-medium">Total Asset Value</p>
-              <p className="text-2xl xl:text-3xl font-bold mt-2 truncate">
+              <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Asset Value</p>
+              <p className="text-2xl xl:text-3xl font-semibold mt-2 text-foreground tabular-nums truncate">
                 {fmt(total)}
               </p>
-              <div className="flex items-center gap-1 mt-2">
-                <Layers className="h-4 w-4" />
-                <span className="text-sm font-medium">Banks + POS + Stock − TDS</span>
+              <div className="flex items-center gap-1 mt-2 text-muted-foreground">
+                <Layers className="h-3.5 w-3.5" />
+                <span className="text-xs font-medium">Banks + POS + Stock − TDS</span>
               </div>
             </div>
-            <div className="bg-primary p-3 rounded-xl shadow-sm flex-shrink-0">
-              <TrendingUp className="h-8 w-8" />
+            <div className="bg-primary/10 p-2 rounded-lg shrink-0">
+              <TrendingUp className="h-5 w-5 text-primary" />
             </div>
           </div>
         </CardContent>
       </Card>
+
 
       <Dialog open={showBreakdown} onOpenChange={setShowBreakdown}>
         <DialogContent className="md:max-w-2xl w-full max-h-[85vh] overflow-y-auto">

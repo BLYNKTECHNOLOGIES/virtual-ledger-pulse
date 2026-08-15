@@ -263,7 +263,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
 
       {/* Avg Fee Rate Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-muted to-muted text-primary-foreground border-0">
+        <Card className="bg-muted text-foreground border-0">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -271,7 +271,7 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
                 <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
                 <p className="text-sm text-muted-foreground mt-1">On sales/purchase orders</p>
               </div>
-              <div className="bg-muted p-3 rounded-xl">
+              <div className="bg-background p-3 rounded-xl">
                 <Percent className="h-6 w-6" />
               </div>
             </div>

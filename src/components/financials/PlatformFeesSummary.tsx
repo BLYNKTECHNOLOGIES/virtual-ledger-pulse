@@ -172,113 +172,64 @@ export function PlatformFeesSummary({ startDate, endDate }: PlatformFeesSummaryP
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="bg-card border border-border shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Total Platform Fees</p>
-                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatCurrency(totalFeesINR)}</p>
-                <p className="text-xs text-muted-foreground mt-1 tabular-nums">{formatUSDT(combinedTotalUSDT)}</p>
-              </div>
-              <div className="bg-warning/10 p-2 rounded-lg shrink-0">
-                <Coins className="h-4 w-4 text-warning" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-stretch">
+        <StatTile
+          label="Total Platform Fees"
+          value={formatCompactINR(totalFeesINR)}
+          exactValue={formatCurrency(totalFeesINR)}
+          hint={<span className="tabular-nums">{formatUSDT(combinedTotalUSDT)}</span>}
+          icon={<Coins className="h-4 w-4 text-warning" />}
+          iconClassName="bg-warning/10"
+        />
 
-        <Card className="bg-card border border-border shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Fees from Sales</p>
-                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatCurrency(salesFeesINR)}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <ArrowUpIcon className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground tabular-nums">{formatUSDT(salesFeesUSDT)}</span>
-                </div>
-              </div>
-              <div className="bg-success/10 p-2 rounded-lg shrink-0">
-                <TrendingUp className="h-4 w-4 text-success" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatTile
+          label="Fees from Sales"
+          value={formatCompactINR(salesFeesINR)}
+          exactValue={formatCurrency(salesFeesINR)}
+          hint={<><ArrowUpIcon className="h-3 w-3" /><span className="tabular-nums">{formatUSDT(salesFeesUSDT)}</span></>}
+          icon={<TrendingUp className="h-4 w-4 text-success" />}
+          iconClassName="bg-success/10"
+        />
 
-        <Card className="bg-card border border-border shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Fees from Purchases</p>
-                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatCurrency(purchaseFeesINR)}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <ArrowDownIcon className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground tabular-nums">{formatUSDT(purchaseFeesUSDT)}</span>
-                </div>
-              </div>
-              <div className="bg-primary/10 p-2 rounded-lg shrink-0">
-                <DollarSign className="h-4 w-4 text-primary" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatTile
+          label="Fees from Purchases"
+          value={formatCompactINR(purchaseFeesINR)}
+          exactValue={formatCurrency(purchaseFeesINR)}
+          hint={<><ArrowDownIcon className="h-3 w-3" /><span className="tabular-nums">{formatUSDT(purchaseFeesUSDT)}</span></>}
+          icon={<DollarSign className="h-4 w-4 text-primary" />}
+          iconClassName="bg-primary/10"
+        />
 
-        <Card className="bg-card border border-border shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Conversion Fees</p>
-                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatUSDT(conversionFeesUSDT)}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{conversionFeeData?.length || 0} conversions</span>
-                </div>
-              </div>
-              <div className="bg-info/10 p-2 rounded-lg shrink-0">
-                <Coins className="h-4 w-4 text-info" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatTile
+          label="Conversion Fees"
+          value={formatCompactUSDT(conversionFeesUSDT)}
+          exactValue={formatUSDT(conversionFeesUSDT)}
+          hint={<><ArrowRightLeft className="h-3 w-3" /><span>{conversionFeeData?.length || 0} conversions</span></>}
+          icon={<Coins className="h-4 w-4 text-info" />}
+          iconClassName="bg-info/10"
+        />
 
-        <Card className="bg-card border border-border shadow-none">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">Transfer Fees</p>
-                <p className="text-2xl font-semibold mt-2 text-foreground tabular-nums truncate">{formatUSDT(transferFeesUSDT)}</p>
-                <div className="flex items-center gap-1 mt-1">
-                  <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">{transferFeeData?.length || 0} transfers</span>
-                </div>
-              </div>
-              <div className="bg-muted p-2 rounded-lg shrink-0">
-                <ArrowRightLeft className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        <StatTile
+          label="Transfer Fees"
+          value={formatCompactUSDT(transferFeesUSDT)}
+          exactValue={formatUSDT(transferFeesUSDT)}
+          hint={<><ArrowRightLeft className="h-3 w-3" /><span>{transferFeeData?.length || 0} transfers</span></>}
+          icon={<ArrowRightLeft className="h-4 w-4 text-muted-foreground" />}
+          iconClassName="bg-muted"
+        />
       </div>
 
       {/* Avg Fee Rate Row */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-muted text-foreground border-0">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-muted-foreground text-sm font-medium">Average Fee Rate</p>
-                <p className="text-2xl font-bold mt-2">{avgFeeRate}%</p>
-                <p className="text-sm text-muted-foreground mt-1">On sales/purchase orders</p>
-              </div>
-              <div className="bg-background p-3 rounded-xl">
-                <Percent className="h-6 w-6" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <StatTile
+          label="Average Fee Rate"
+          value={`${avgFeeRate}%`}
+          hint={<span>On sales/purchase orders</span>}
+          icon={<Percent className="h-4 w-4 text-muted-foreground" />}
+          iconClassName="bg-muted"
+        />
       </div>
+
 
       {/* Info Card about calculation */}
       <Card className="border-warning/20 bg-warning/10">

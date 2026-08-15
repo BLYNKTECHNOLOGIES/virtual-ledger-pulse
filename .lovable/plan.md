@@ -1,25 +1,18 @@
-# Cards / Table toggle + CSV export on Statutory Settings
-
-Apply the same view switch used on Leave Allocations to the Statutory Settings page.
+# Shifts page: full-width Shift Schedule + CSV export
 
 ## What you will see
 
-- The **Cards | Table** toggle and an **Export CSV** button sit in the page header row, next to the info (i) button.
-- **Cards view**: unchanged — the current employee rows with PF / ESI / PT badge chips, Edit and history buttons (the existing responsive list keeps behaving as it does today).
-- **Table view**: KPI tiles, search, filter and Bulk action all stay. The list is replaced by a flat data table with one row per employee:
-  - Employee, Badge ID, Monthly CTC, Effective From, PF (Yes/No), PF Wage Base (Capped ₹15k / Actual), VPF (mode + value), ESI (Yes/No), PT (Yes/No), UAN, ESIC Number, Flag (missing UAN / missing ESIC), and Edit + history actions.
-  - Plain styling: sticky header, zebra rows, right-aligned numbers, horizontal scroll on narrow screens. Row selection checkbox kept so Bulk still works from table view.
-- **Export CSV**: downloads exactly the rows currently visible (respects search + filter) with the same columns as the table, minus the action buttons.
-- The chosen view is remembered for this page across reloads.
+- On the Shifts page, **Shift Schedule** moves out of the two-column row and spans the **full page width** on its own. **Weekly-Off Patterns** sits below it, also full width (it is a short card, so no wasted space).
+- With the extra width the schedule table breathes: Employee, Shift and Effective From columns no longer clip, and the sticky header aligns properly with the first row (the current overlap of the header over "Vikas Kumar Sahu" goes away).
+- A new **Export CSV** button appears in the Shift Schedule card header, next to "Change Shift". It downloads the rows currently shown (respects the search box) with columns: Employee Name, Badge ID, Shift, Effective From. Filename `shift-schedule-<YYYY-MM-DD>.csv`.
+- Row height and max-height scrolling stay as they are.
 
 ## Technical notes
 
-- Reuse `ViewToggle` (`src/components/hrms/ViewToggle.tsx`) and `useViewMode("statutory-settings")` — no new shared primitives.
-- `StatutorySettingsPage.tsx`: keep all queries, `activeByEmp`, `rows`, `stats`, mutation and dialog logic untouched. Branch only at the list render between the existing `ResponsiveList` block and a new shadcn `Table` block driven by the same `rows` array.
-- CSV built client-side from `rows` (quote-escaped, Blob download), filename `statutory-settings-<YYYY-MM-DD>.csv`.
-- Presentation only: no query, schema, RLS or payroll logic changes.
+- `src/pages/horilla/ShiftsPage.tsx`: change the `grid lg:grid-cols-2` wrapper (line ~169) to a single-column stack so `ShiftScheduleAssigner` and `WeeklyOffManager` each take full width.
+- `src/components/hrms/ShiftScheduleManager.tsx` (`ShiftScheduleAssigner`): lift the search-filtered list into a memo so both the table and the export use the same rows; add a `Download`-icon button in `CardHeader`; build the CSV client-side (quote-escaped) and trigger a Blob download. Fix the sticky header overlap by giving the sticky `thead` a solid background.
+- Presentation only — no query, schema or shift-assignment logic changes.
 
 ## Not in scope
 
-- Column sorting or a column chooser.
-- Other HRMS pages (awaiting your next list).
+- Column sorting, pagination, or Excel/PDF export.

@@ -37,6 +37,7 @@ export default function LeaveAllocationsPage() {
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", allocated_days: 12 });
 
   const { isOnProbation, probationEndDate } = useProbationStatus();
+  const [viewMode, setViewMode] = useViewMode("leave-allocations");
 
   const year = parseInt(yearFilter);
   const quarter = parseInt(quarterFilter);
@@ -169,6 +170,7 @@ export default function LeaveAllocationsPage() {
         description="Quarterly leave allocation — all leaves carry forward infinitely"
         actions={
           <>
+            <ViewToggle value={viewMode} onChange={setViewMode} />
             <Button variant="outline" onClick={() => setShowBulk(true)} className="h-9">
               <Users className="h-4 w-4 mr-2" /> Bulk Allocate
             </Button>

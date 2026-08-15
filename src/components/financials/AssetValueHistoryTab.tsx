@@ -26,11 +26,33 @@ export function AssetValueHistoryTab() {
     },
   });
 
+  // Drop single-day spikes >50% vs the last accepted point — almost always
+  // snapshot errors that wreck the chart scale. Table data stays untouched.
+  const { cleanedHistory, excludedCount } = useMemo(() => {
+    if (!historyData?.length) return { cleanedHistory: [], excludedCount: 0 };
+    const kept: typeof historyData = [];
+    let lastAccepted: number | null = null;
+    let excluded = 0;
+    for (const item of historyData) {
+      const value = Number(item.total_asset_value);
+      if (lastAccepted !== null && lastAccepted > 0) {
+        const change = Math.abs(value - lastAccepted) / lastAccepted;
+        if (change > 0.5) {
+          excluded += 1;
+          continue;
+        }
+      }
+      kept.push(item);
+      lastAccepted = value;
+    }
+    return { cleanedHistory: kept, excludedCount: excluded };
+  }, [historyData]);
+
   const chartData = useMemo(() => {
-    if (!historyData?.length) return [];
+    if (!cleanedHistory.length) return [];
 
     if (viewMode === "day") {
-      return historyData.map((item) => ({
+      return cleanedHistory.map((item) => ({
         date: format(new Date(item.snapshot_date), "dd MMM yyyy"),
         value: Number(item.total_asset_value),
       }));
@@ -38,7 +60,7 @@ export function AssetValueHistoryTab() {
 
     // Month aggregation - use last value of each month
     const monthMap = new Map<string, number>();
-    for (const item of historyData) {
+    for (const item of cleanedHistory) {
       const monthKey = format(new Date(item.snapshot_date), "yyyy-MM");
       monthMap.set(monthKey, Number(item.total_asset_value));
     }
@@ -46,7 +68,8 @@ export function AssetValueHistoryTab() {
       date: format(new Date(key + "-01"), "MMM yyyy"),
       value,
     }));
-  }, [historyData, viewMode]);
+  }, [cleanedHistory, viewMode]);
+
 
   const formatCurrency = (value: number) =>
     `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
@@ -100,27 +123,32 @@ export function AssetValueHistoryTab() {
 
       {/* Chart */}
       <Card className="bg-card border border-border shadow-sm">
-        <CardHeader className="bg-primary text-primary-foreground rounded-t-lg">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-3 text-xl">
-              <div className="p-2 bg-primary rounded-lg shadow-md">
-                <BarChart3 className="h-6 w-6" />
-              </div>
-              Asset Value Trend
-            </CardTitle>
+        <CardHeader className="border-b border-border">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <span className="p-2 bg-muted rounded-lg">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                </span>
+                Asset Value Trend
+              </CardTitle>
+              {excludedCount > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {excludedCount} outlier {excludedCount === 1 ? "point" : "points"} hidden (&gt;50% single-day swing)
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant={viewMode === "day" ? "secondary" : "ghost"}
-                className={viewMode === "day" ? "bg-card text-primary" : "text-primary-foreground hover:bg-primary"}
+                variant={viewMode === "day" ? "default" : "outline"}
                 onClick={() => setViewMode("day")}
               >
                 Day
               </Button>
               <Button
                 size="sm"
-                variant={viewMode === "month" ? "secondary" : "ghost"}
-                className={viewMode === "month" ? "bg-card text-primary" : "text-primary-foreground hover:bg-primary"}
+                variant={viewMode === "month" ? "default" : "outline"}
                 onClick={() => setViewMode("month")}
               >
                 Month
@@ -128,6 +156,7 @@ export function AssetValueHistoryTab() {
             </div>
           </div>
         </CardHeader>
+
         <CardContent className="p-6">
           {isLoading ? (
             <div className="h-72 flex items-center justify-center text-muted-foreground">

@@ -6,8 +6,8 @@ import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Sett
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay } from "@dnd-kit/core";
+import { arrayMove, SortableContext, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
 import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSection";
 import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";

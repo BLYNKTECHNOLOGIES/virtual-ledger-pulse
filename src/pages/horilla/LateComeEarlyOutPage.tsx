@@ -80,7 +80,7 @@ export default function LateComeEarlyOutPage() {
 
   const summaryList = Object.entries(employeeSummary)
     .map(([id, s]) => ({ id, ...s }))
-    .sort((a, b) => (b.lateCount + b.earlyCount) - (a.lateCount + a.earlyCount));
+    .sort((a, b) => a.name.trim().localeCompare(b.name.trim(), undefined, { sensitivity: "base" }));
 
   const totalLateRecords = filtered.filter((r: any) => r.type === "late_come").length;
   const totalEarlyRecords = filtered.filter((r: any) => r.type === "early_out").length;

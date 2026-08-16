@@ -321,57 +321,49 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
     },
   });
 
-  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading payslips...</p>;
+  if (isLoading) return <ProfileSkeleton rows={5} />;
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-sm text-destructive">
-          Could not load your payslips: {(error as any)?.message ?? 'unknown error'}
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={Receipt}
+        title="Could not load your payslips"
+        description={(error as any)?.message ?? 'Unknown error'}
+      />
     );
   }
 
-
   if (payslips.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Payslips Yet</h3>
-          <p className="text-muted-foreground">
-            Your payslips will appear here once payroll for the month is processed.
-          </p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={Receipt}
+        title="No payslips yet"
+        description="Your payslips will appear here once payroll for the month is processed."
+      />
     );
   }
 
   const fmt = (n: number | null | undefined) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
   const Row = ({ label, value, tone }: { label: string; value: number | null | undefined; tone?: 'neg' }) => (
-    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-border/40 last:border-0">
-      <span className="text-sm text-muted-foreground truncate">{label}</span>
-      <span className={`text-sm font-medium tabular-nums ${tone === 'neg' ? 'text-destructive' : 'text-foreground'}`}>
-        {tone === 'neg' ? '− ' : ''}{fmt(value)}
-      </span>
-    </div>
+    <MoneyRow
+      label={label}
+      value={`${tone === 'neg' ? '− ' : ''}${fmt(value)}`}
+      tone={tone === 'neg' ? 'negative' : 'neutral'}
+    />
   );
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between flex-wrap gap-2">
-        <div>
-          <h3 className="text-lg font-semibold tracking-tight">My Payslips</h3>
-          <p className="text-[11px] text-muted-foreground max-w-2xl">
-            Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
-            run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
-          </p>
-        </div>
+      <div>
+        <h2 className="t-section text-foreground">My Payslips</h2>
+        <p className="t-secondary max-w-3xl">
+          Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
+          run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
+        </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {payslips.map((p) => {
           const period = p.period_month
             ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -394,39 +386,39 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
           const netDeductions = (Number(p.total_deductions) || 0) - oneTimeRecovery;
 
           return (
-            <Card key={p.id} className="overflow-hidden border-border/70 shadow-sm">
+            <article key={p.id} className="ds-panel overflow-hidden">
               {/* Header band */}
-              <div className="flex items-center justify-between gap-3 flex-wrap px-5 py-4 bg-muted/40 border-b border-border/60">
+              <header className="ds-panel-head flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold text-foreground text-base">{period}</h4>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-medium ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
+                    <h3 className="t-card-title text-foreground">{period}</h3>
+                    <StatusPill tone={hasReg ? 'success' : 'warning'}>
                       {hasReg ? 'Detailed' : 'Breakdown pending'}
-                    </span>
+                    </StatusPill>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="t-secondary mt-0.5">
                     Salary slip{p.working_days ? ` · ${p.working_days} working days` : ''}
                     {p.pulled_at ? ` · updated ${formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}` : ''}
                   </p>
                 </div>
                 <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
-              </div>
+              </header>
 
-              <CardContent className="p-5 space-y-5">
-                {/* Net pay hero + summary */}
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center rounded-xl border border-border/60 bg-gradient-to-r from-primary/5 to-transparent px-4 py-4">
+              <div className="ds-panel-body space-y-4">
+                {/* Net pay + summary strip */}
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center rounded-md border border-border bg-muted/30 px-4 py-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Net pay credited</p>
-                    <p className="text-3xl font-bold tabular-nums text-foreground mt-0.5">{fmt(p.net)}</p>
+                    <p className="ds-field-label">Net pay credited</p>
+                    <p className="t-kpi text-foreground mt-0.5">{fmt(p.net)}</p>
                   </div>
-                  <div className="flex items-center gap-6 sm:gap-8">
+                  <div className="flex items-center gap-8">
                     <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Gross</p>
-                      <p className="text-base font-semibold tabular-nums">{fmt(p.gross)}</p>
+                      <p className="ds-field-label">Gross</p>
+                      <p className="text-sm font-semibold tabular-nums mt-0.5">{fmt(p.gross)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Deductions</p>
-                      <p className="text-base font-semibold tabular-nums text-destructive">
+                      <p className="ds-field-label">Deductions</p>
+                      <p className="text-sm font-semibold tabular-nums text-destructive mt-0.5">
                         {hasReg ? `− ${fmt(netDeductions)}` : '—'}
                       </p>
                     </div>
@@ -435,33 +427,31 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
 
                 {hasReg ? (
                   <>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-lg border border-border/60 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Earnings</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-md border border-border p-3">
+                        <p className="ds-field-label mb-1">Earnings</p>
                         {earnings.length > 0 ? earnings.map(([k, v]) => <Row key={k} label={k} value={v} />) : (
-                          <p className="text-sm text-muted-foreground">No component-wise earnings published.</p>
+                          <p className="t-secondary">No component-wise earnings published.</p>
                         )}
-                        <div className="flex items-baseline justify-between pt-2.5 mt-1 border-t border-border">
-                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total earnings</span>
-                          <span className="text-sm font-semibold tabular-nums">{fmt(p.gross)}</span>
+                        <div className="border-t border-border mt-1 pt-1">
+                          <MoneyRow label="Total earnings" value={fmt(p.gross)} strong />
                         </div>
                       </div>
 
-                      <div className="rounded-lg border border-border/60 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Deductions</p>
+                      <div className="rounded-md border border-border p-3">
+                        <p className="ds-field-label mb-1">Deductions</p>
                         {deductions.length > 0 ? deductions.map(([k, v]) => <Row key={k} label={k} value={v} tone="neg" />) : (
-                          <p className="text-sm text-muted-foreground">No deductions this month.</p>
+                          <p className="t-secondary">No deductions this month.</p>
                         )}
-                        <div className="flex items-baseline justify-between pt-2.5 mt-1 border-t border-border">
-                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total deductions</span>
-                          <span className="text-sm font-semibold tabular-nums text-destructive">− {fmt(netDeductions)}</span>
+                        <div className="border-t border-border mt-1 pt-1">
+                          <MoneyRow label="Total deductions" value={`− ${fmt(netDeductions)}`} tone="negative" strong />
                         </div>
                       </div>
                     </div>
 
                     {oneTimeHeads.length > 0 && (
-                      <div className="rounded-lg border border-border/60 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Paid separately</p>
+                      <div className="rounded-md border border-border p-3">
+                        <p className="ds-field-label mb-1">Paid separately</p>
                         <div className="grid gap-x-6 sm:grid-cols-2">
                           {oneTimeHeads.map((l) => <Row key={l.label} label={l.label} value={l.amount} />)}
                         </div>
@@ -469,7 +459,7 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
                     )}
 
                     {(oneTimeRecovery > 0 || Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
-                      <div className="space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                      <div className="space-y-1.5 t-secondary">
                         {oneTimeRecovery > 0 && (
                           <p>
                             One-time payments totalling {fmt(oneTimeRecovery)} were settled outside this month's salary,
@@ -484,21 +474,21 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
                     )}
                   </>
                 ) : (
-                  <div className="text-xs text-muted-foreground bg-muted/40 border border-border/60 rounded-lg p-4">
+                  <p className="t-secondary bg-muted/40 border border-border rounded-md p-3">
                     The detailed breakdown for this month has not been published yet, so component-wise
                     Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
                     shown. HR will publish the full breakdown after the payroll run is finalised.
-                  </div>
+                  </p>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </article>
           );
         })}
       </div>
-
     </div>
   );
 }
+
 
 
 // ─── Employee Documents Sub-Component (view own docs uploaded by HR) ───

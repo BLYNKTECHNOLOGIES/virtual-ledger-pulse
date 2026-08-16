@@ -185,23 +185,8 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         </DialogHeader>
 
         <div className="space-y-3">
-          <div>
-            <Label>Leave type *</Label>
-            <Select value={form.leave_type_id} onValueChange={(v) => setForm((p) => ({ ...p, leave_type_id: v }))}>
-              <SelectTrigger className="text-foreground"><SelectValue placeholder="Select leave type" /></SelectTrigger>
-              <SelectContent>
-                {(leaveTypes as any[]).map((lt) => (
-                  <SelectItem key={lt.id} value={lt.id}>
-                    {lt.name}{lt.is_paid === false ? ' (unpaid)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.leave_type_id && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Available balance: <strong>{available}</strong> day(s)
-              </p>
-            )}
+          <div className="rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+            The leave type is assigned by HR when your request is approved.
           </div>
 
           <div className="flex items-center gap-2">

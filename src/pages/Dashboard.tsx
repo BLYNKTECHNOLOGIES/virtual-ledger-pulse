@@ -813,7 +813,7 @@ export default function Dashboard() {
         onDragCancel={() => setDraggingId(null)}
       >
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-12 auto-rows-auto items-start gap-3 stagger-children md:gap-3.5">
+          <div className="grid grid-cols-12 auto-rows-[8px] items-start gap-3 stagger-children md:gap-3.5">
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>

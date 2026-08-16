@@ -418,7 +418,7 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar" collapsible="icon">
       <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-sidebar ${isCollapsed ? 'p-2' : 'px-4 py-3'}`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center min-h-[44px]' : 'justify-start min-h-[52px]'}`}>
+        <div className={`flex items-center justify-center ${isCollapsed ? 'min-h-[44px]' : 'min-h-[52px]'}`}>
           {isCollapsed ? (
             <img
               src={blynkIcon}

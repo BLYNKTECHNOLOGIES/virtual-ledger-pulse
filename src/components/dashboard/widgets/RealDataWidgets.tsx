@@ -1241,28 +1241,34 @@ export function UpcomingTasksWidget() {
     enabled: hasClientsView || hasHrmsView,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={3} />;
 
   if (!data || data.length === 0) {
-    return (
-      <div className="p-4 text-center text-sm text-muted-foreground">
-        No pending actions for your role
-      </div>
-    );
+    return <WidgetEmpty icon={Bell} title="No pending actions for your role" />;
   }
 
+  const toneFor = (color: string): 'destructive' | 'warning' | 'primary' =>
+    color === 'bg-destructive' ? 'destructive' : color === 'bg-warning' ? 'warning' : 'primary';
+
   return (
-    <div className="p-4 space-y-3">
-      {data.map(t => (
-        <div key={t.label} className="flex items-center gap-3">
-          <div className={`w-2 h-2 ${t.color} rounded-full flex-shrink-0`} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">{t.label}</p>
-            <p className="text-xs text-muted-foreground">{t.count > 0 ? `${t.count} ${t.urgency.toLowerCase()}` : 'All clear'}</p>
-          </div>
-          {t.count > 0 && <Badge variant="outline" className="text-[10px]">{t.count}</Badge>}
-        </div>
-      ))}
+    <div className="p-1.5">
+      <WidgetList>
+        {data.map(t => {
+          const tone = t.count > 0 ? toneFor(t.color) : 'neutral';
+          return (
+            <WidgetListRow
+              key={t.label}
+              icon={t.label === 'Leave Requests' ? Calendar : t.label === 'Onboarding' ? UserCheck : FileText}
+              iconTone={tone}
+              title={t.label}
+              subtitle={t.count > 0 ? `${t.count} ${t.urgency.toLowerCase()}` : 'All clear'}
+              trailing={
+                <WidgetStatus tone={tone}>{t.count > 0 ? String(t.count) : 'Clear'}</WidgetStatus>
+              }
+            />
+          );
+        })}
+      </WidgetList>
     </div>
   );
 }

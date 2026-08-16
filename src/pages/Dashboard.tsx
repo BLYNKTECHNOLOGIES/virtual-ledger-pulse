@@ -457,7 +457,11 @@ export default function Dashboard() {
   };
 
   // ── DnD ──
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // Pointer for mouse/touch, keyboard sensor so reordering is possible without a pointer.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

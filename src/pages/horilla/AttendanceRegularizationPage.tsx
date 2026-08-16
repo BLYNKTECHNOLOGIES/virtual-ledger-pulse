@@ -542,10 +542,14 @@ export default function AttendanceRegularizationPage() {
                   )}
                 </>
               )}
-              <div>
-                <Label>Notes *</Label>
-                <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Explain the intervention — this is stored in the audit log." />
-              </div>
+              {decision === 'rejected' && (
+                <div>
+                  <Label>Rejection reason *</Label>
+                  <Textarea rows={3} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="Why is this being rejected — stored in the audit log." />
+                </div>
+              )}
+
             </div>
           )}
           <DialogFooter>

@@ -528,104 +528,48 @@ export default function Dashboard() {
       case 'metric-total-sales':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
-                    <div className="flex items-center gap-1 mt-2">
-                      {(metrics?.salesGrowth ?? 0) >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 text-success" />
-                      ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <DollarSign className="h-8 w-8 text-metric-sales-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total Sales"
+              icon={DollarSign}
+              value={`₹${Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}`}
+              deltaPercent={metrics?.salesGrowth ?? 0}
+            />
           </ClickableCard>
         );
 
       case 'metric-sales-orders':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sales Orders</p>
-                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-foreground">{metrics?.totalSalesOrders || 0}</p>
-                    <div className="flex items-center gap-1 mt-2">
-                      {(metrics?.ordersGrowth ?? 0) >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 text-success" />
-                      ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-primary/10 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Sales Orders"
+              icon={TrendingUp}
+              value={(metrics?.totalSalesOrders || 0).toLocaleString('en-IN')}
+              deltaPercent={metrics?.ordersGrowth ?? 0}
+            />
           </ClickableCard>
         );
 
       case 'metric-total-clients':
         return (
           <ClickableCard to="/clients">
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Clients</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">{metrics?.totalClients || 0}</div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-info" />
-                      <span className="text-sm font-medium text-muted-foreground">Verified: {metrics?.verifiedClients || 0}</span>
-                    </div>
-                  </div>
-                  <div className="bg-info/10 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <Users className="h-8 w-8 text-metric-clients-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total Clients"
+              icon={Users}
+              value={(metrics?.totalClients || 0).toLocaleString('en-IN')}
+              helper={`Verified: ${metrics?.verifiedClients || 0}`}
+            />
           </ClickableCard>
         );
 
       case 'metric-total-cash':
         return (
           <ClickableCard to="/bams">
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0 relative z-10">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-warning" />
-                      <span className="text-sm font-medium text-muted-foreground">Banks + Stock</span>
-                    </div>
-                  </div>
-                  <div className="bg-warning/10 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
-                    <Wallet className="h-8 w-8 text-metric-cash-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total Cash"
+              icon={Wallet}
+              value={`₹${Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}`}
+              helper="Banks + Stock"
+            />
           </ClickableCard>
         );
 

@@ -752,19 +752,26 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
-  const isPositive = Number(data?.growth) >= 0;
+  if (isLoading) return <WidgetSkeleton variant="metric" />;
+  const growth = Number(data?.growth || 0);
+  const isPositive = growth >= 0;
 
   return (
-    <div className="text-center p-4">
-      <div className={`text-3xl font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-        {isPositive ? '+' : ''}{data?.growth}%
-      </div>
-      <p className="text-sm text-muted-foreground mt-1">Revenue Growth ({data?.periodLabel})</p>
-      <div className="flex items-center justify-center gap-1 mt-2">
-        {isPositive ? <TrendingUp className="h-4 w-4 text-success" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-        <span className="text-xs text-muted-foreground">vs previous period</span>
-      </div>
+    <div className="flex h-full flex-col justify-center gap-3 p-3">
+      <WidgetMetric
+        label={`Revenue growth · ${data?.periodLabel || ''}`}
+        value={`${isPositive ? '+' : ''}${data?.growth}%`}
+        tone={isPositive ? 'success' : 'destructive'}
+        size="lg"
+        helper="vs previous period"
+      />
+      <WidgetStatGrid
+        columns={2}
+        items={[
+          { label: 'This period', value: `₹${Math.round(data?.currentTotal || 0).toLocaleString('en-IN')}` },
+          { label: 'Previous', value: `₹${Math.round(data?.previousTotal || 0).toLocaleString('en-IN')}` },
+        ]}
+      />
     </div>
   );
 }

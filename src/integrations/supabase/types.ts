@@ -24461,6 +24461,20 @@ export type Database = {
         }
         Relationships: []
       }
+      fin_crypto_order_mv: {
+        Row: {
+          counterparty: string | null
+          implied_rate: number | null
+          order_date: string | null
+          order_id: string | null
+          order_number: string | null
+          qty: number | null
+          side: string | null
+          subsidiary_id: string | null
+          total_amount: number | null
+        }
+        Relationships: []
+      }
       fin_crypto_order_v: {
         Row: {
           counterparty: string | null
@@ -26575,6 +26589,7 @@ export type Database = {
           wallet_qty: number
         }[]
       }
+      fin_crypto_refresh: { Args: never; Returns: string }
       fin_entity_balance_sheet:
         | {
             Args: {

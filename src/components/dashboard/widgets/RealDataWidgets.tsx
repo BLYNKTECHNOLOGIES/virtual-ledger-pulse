@@ -411,22 +411,26 @@ export function EarningsRateWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
   const todayEarnings = data?.[data.length - 1]?.amount || 0;
+  const weekTotal = (data || []).reduce((s, d) => s + d.amount, 0);
 
   return (
-    <div className="p-4">
-      <div className="text-center mb-3">
-        <div className="text-lg font-bold text-info">₹{Math.round(todayEarnings).toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Today's Sales</p>
-      </div>
-      <ResponsiveContainer width="100%" height={80}>
-        <BarChart data={data || []}>
-          <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-          <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetMetric
+        label="Today's sales"
+        value={`₹${Math.round(todayEarnings).toLocaleString('en-IN')}`}
+        tone="primary"
+        size="sm"
+        helper={`₹${Math.round(weekTotal).toLocaleString('en-IN')} last 7 days`}
+      />
+      <WidgetChart height={90}>
+        <BarChart data={data || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <XAxis dataKey="name" {...axisProps} />
+          <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} />
+          <Bar dataKey="amount" fill={chartColor.primary()} radius={[3, 3, 0, 0]} />
         </BarChart>
-      </ResponsiveContainer>
+      </WidgetChart>
     </div>
   );
 }

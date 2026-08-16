@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { TopHeader } from "./TopHeader";
 import { SidebarEditProvider } from "@/contexts/SidebarEditContext";
 import { PinUnlockProvider } from "@/contexts/PinUnlockContext";
@@ -14,6 +14,28 @@ import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
 import { useIsStandby } from "@/hooks/useIsStandby";
 
 
+
+/**
+ * Collapses the desktop sidebar to the icon rail as soon as the user starts
+ * working inside the main content area (click / type / scroll). Presentation
+ * only — no logic or data behaviour changes.
+ */
+function MainWorkArea({ children }: { children: React.ReactNode }) {
+  const { open, setOpen, isMobile } = useSidebar();
+  const collapse = () => {
+    if (!isMobile && open) setOpen(false);
+  };
+  return (
+    <main
+      className="flex-1 overflow-auto bg-background pb-16 md:pb-0"
+      onPointerDown={collapse}
+      onKeyDown={collapse}
+      onWheel={collapse}
+    >
+      {children}
+    </main>
+  );
+}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -48,11 +70,11 @@ export function Layout({ children }: LayoutProps) {
                 <SidebarInset className="flex flex-col flex-1 min-w-0">
                   <TopHeader />
 
-                  <main className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
+                  <MainWorkArea>
                     <div key={location.pathname} className="page-mount">
                       {children}
                     </div>
-                  </main>
+                  </MainWorkArea>
                   {/* Mobile bottom navigation */}
                   {!isStandby && <MobileBottomNav />}
 

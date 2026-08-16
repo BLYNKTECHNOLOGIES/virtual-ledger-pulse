@@ -94,86 +94,82 @@ export function CollapsibleSidebarGroup({
             <SidebarMenuButton
               onClick={handleToggle}
               tooltip={isCollapsed ? group.title : undefined}
-              className={`
-                hover:bg-muted/10 text-muted-foreground hover:text-foreground transition-all duration-200 rounded-xl group border border-transparent hover:border-muted/20 shadow-sm hover:shadow-md
-                ${hasActiveChild ? 'bg-info/10 text-info font-semibold shadow-md border-info/20' : ''}
-                ${isDragMode ? 'cursor-default' : 'cursor-pointer'}
-                ${isDragging ? 'opacity-50 z-50' : ''}
-                ${isCollapsed ? 'justify-center group-data-[collapsible=icon]:!p-0' : ''}
-              `}
+              className={`h-auto p-0 hover:bg-transparent group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0 ${isDragMode ? 'cursor-default' : 'cursor-pointer'}`}
             >
-              <div className={`flex items-center ${isCollapsed ? 'h-8 w-8 justify-center p-0' : 'w-full gap-2 px-3 py-3'}`}>
+              <div
+                className="ds-nav-row"
+                data-collapsed={isCollapsed}
+                data-contains-active={hasActiveChild}
+                title={isCollapsed ? undefined : group.title}
+              >
                 {isDragMode && !isCollapsed && (
-                  <div
+                  <span
                     {...attributes}
                     {...listeners}
-                    className="touch-none flex-shrink-0 p-1.5 hover:bg-info/10 bg-muted/10 rounded-lg transition-colors cursor-grab active:cursor-grabbing border border-muted/20"
+                    className="-ml-1 flex cursor-grab touch-none items-center rounded p-0.5 text-muted-foreground active:cursor-grabbing"
                   >
-                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                  </div>
+                    <GripVertical className="h-4 w-4" />
+                  </span>
                 )}
-                <div className={`flex items-center min-w-0 ${isCollapsed ? 'h-8 w-8 justify-center' : 'flex-1 gap-3'} ${isDragMode ? 'pointer-events-none' : ''}`}>
-                  <div className={`rounded-lg ${hasActiveChild ? 'bg-info/10' : group.bgColor} transition-all duration-200 flex-shrink-0 ${isCollapsed ? 'h-8 w-8 flex items-center justify-center' : 'p-2'}`}>
-                    <GroupIcon className={`h-4 w-4 ${hasActiveChild ? 'text-info' : group.color} transition-colors duration-200`} />
-                  </div>
-
-                  {!isCollapsed && (
-                    <>
-                      <span className="font-medium text-sm truncate transition-all duration-200 flex-1">
-                        {group.title}
-                      </span>
-                      <div className={`flex items-center gap-1 flex-shrink-0 ${isDragMode ? 'hidden' : ''}`}>
-                        {group.pinProtected && (
-                          isUnlocked ? (
-                            <LockOpen className="h-3 w-3 text-success" />
-                          ) : (
-                            <Lock className="h-3 w-3 text-warning" />
-                          )
-                        )}
-                        {isExpanded && isUnlocked ? (
-                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <span className="ds-nav-icon">
+                  <GroupIcon className="h-4 w-4" />
+                </span>
+                {!isCollapsed && (
+                  <>
+                    <span className={`ds-nav-label ${isExpanded && isUnlocked ? 'ds-nav-grouplabel' : ''}`}>
+                      {group.title}
+                    </span>
+                    <span className={`flex flex-shrink-0 items-center gap-1 ${isDragMode ? 'hidden' : ''}`}>
+                      {group.pinProtected && (
+                        isUnlocked ? (
+                          <LockOpen className="h-3 w-3 text-success" />
                         ) : (
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
+                          <Lock className="h-3 w-3 text-warning" />
+                        )
+                      )}
+                      {isExpanded && isUnlocked ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </span>
+                  </>
+                )}
               </div>
             </SidebarMenuButton>
           </CollapsibleTrigger>
-          
-          <CollapsibleContent className="pl-4">
+
+          <CollapsibleContent className="ds-nav-children mt-0.5 space-y-0.5">
             {group.children.map((item) => {
               const ItemIcon = item.icon;
               const isExternal = item.url.startsWith('http');
               const isActive = !isExternal && location.pathname === item.url;
-              
-              const linkContent = (
-                <div className="flex items-center gap-2 px-2 py-2">
-                  <div className={`p-1.5 rounded-md ${isActive ? 'bg-info/10' : item.bgColor} transition-all duration-200`}>
-                    <ItemIcon className={`h-3.5 w-3.5 ${isActive ? 'text-info' : item.color}`} />
-                  </div>
-                  <span className="text-sm truncate">{item.title}</span>
-                </div>
+
+              const inner = (
+                <>
+                  <span className="ds-nav-icon">
+                    <ItemIcon className="h-4 w-4" />
+                  </span>
+                  <span className="ds-nav-label">{item.title}</span>
+                </>
               );
 
               return (
                 <SidebarMenuItem key={item.id}>
-                  <SidebarMenuButton
-                    asChild
-                    className={`
-                      hover:bg-muted/10 text-muted-foreground hover:text-foreground transition-all duration-200 rounded-lg group border border-transparent hover:border-muted/20 my-0.5
-                      ${isActive ? 'bg-info/10 text-info font-medium border-info/20' : ''}
-                    `}
-                  >
+                  <SidebarMenuButton asChild className="h-auto p-0 hover:bg-transparent">
                     {isExternal ? (
-                      <a href={item.url} target="_blank" rel="noopener noreferrer">
-                        {linkContent}
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="ds-nav-row"
+                        title={item.title}
+                      >
+                        {inner}
                       </a>
                     ) : (
-                      <Link to={item.url}>
-                        {linkContent}
+                      <Link to={item.url} className="ds-nav-row" data-active={isActive} title={item.title}>
+                        {inner}
                       </Link>
                     )}
                   </SidebarMenuButton>

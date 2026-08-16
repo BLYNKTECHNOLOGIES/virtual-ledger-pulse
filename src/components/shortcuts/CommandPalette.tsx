@@ -351,11 +351,24 @@ export function CommandPalette({ open, onOpenChange }: Props) {
         )}
       </CommandList>
 
-      <div className="flex items-center gap-4 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
-        <span>↑↓ navigate</span>
-        <span>↵ open</span>
-        <span className="ml-auto">esc to close</span>
+      <div className="flex items-center gap-3 border-t border-border px-3 py-2 text-[11px] text-muted-foreground">
+        <span className="flex items-center gap-1">
+          <kbd className="ds-kbd">↑</kbd><kbd className="ds-kbd">↓</kbd> navigate
+        </span>
+        <span className="flex items-center gap-1"><kbd className="ds-kbd">↵</kbd> open</span>
+        <span className="flex items-center gap-1"><kbd className="ds-kbd">esc</kbd> close</span>
+        {shouldSearch && !isFetching && (
+          <span className="ml-auto tabular-nums">
+            {results.clients.length + results.sales.length + results.purchases.length + results.employees.length} result(s)
+          </span>
+        )}
+        {!shouldSearch && (
+          <span className="ml-auto flex items-center gap-1">
+            <kbd className="ds-kbd">{isMac ? "⌘" : "Ctrl"}</kbd><kbd className="ds-kbd">K</kbd>
+          </span>
+        )}
       </div>
+
     </CommandDialog>
   );
 }

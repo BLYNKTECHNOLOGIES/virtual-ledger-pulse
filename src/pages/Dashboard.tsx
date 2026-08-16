@@ -14,6 +14,9 @@ import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/da
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ShiftReconciliationWidget } from "@/components/dashboard/ShiftReconciliationWidget";
 import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";
@@ -528,104 +531,48 @@ export default function Dashboard() {
       case 'metric-total-sales':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Sales</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">₹{Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}</div>
-                    <div className="flex items-center gap-1 mt-2">
-                      {(metrics?.salesGrowth ?? 0) >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 text-success" />
-                      ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className={`text-sm font-medium ${(metrics?.salesGrowth ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {(metrics?.salesGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.salesGrowth ?? 0).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-success/10 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <DollarSign className="h-8 w-8 text-metric-sales-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total Sales"
+              icon={DollarSign}
+              value={`₹${Math.round(metrics?.totalSales || 0).toLocaleString('en-IN')}`}
+              deltaPercent={metrics?.salesGrowth ?? 0}
+            />
           </ClickableCard>
         );
 
       case 'metric-sales-orders':
         return (
           <ClickableCard to="/sales" searchParams={buildTransactionFilters({ dateFrom: startDate, dateTo: endDate })}>
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sales Orders</p>
-                    <p className="text-2xl xl:text-3xl font-semibold tabular-nums mt-2 truncate text-foreground">{metrics?.totalSalesOrders || 0}</p>
-                    <div className="flex items-center gap-1 mt-2">
-                      {(metrics?.ordersGrowth ?? 0) >= 0 ? (
-                        <ArrowUpIcon className="h-4 w-4 text-success" />
-                      ) : (
-                        <ArrowDownIcon className="h-4 w-4 text-destructive" />
-                      )}
-                      <span className={`text-sm font-medium ${(metrics?.ordersGrowth ?? 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-                        {(metrics?.ordersGrowth ?? 0) >= 0 ? '+' : ''}{(metrics?.ordersGrowth ?? 0).toFixed(1)}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="bg-primary/10 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <TrendingUp className="h-8 w-8 text-metric-orders-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Sales Orders"
+              icon={TrendingUp}
+              value={(metrics?.totalSalesOrders || 0).toLocaleString('en-IN')}
+              deltaPercent={metrics?.ordersGrowth ?? 0}
+            />
           </ClickableCard>
         );
 
       case 'metric-total-clients':
         return (
           <ClickableCard to="/clients">
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Clients</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">{metrics?.totalClients || 0}</div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-info" />
-                      <span className="text-sm font-medium text-muted-foreground">Verified: {metrics?.verifiedClients || 0}</span>
-                    </div>
-                  </div>
-                  <div className="bg-info/10 p-3 rounded-lg shadow-sm flex-shrink-0">
-                    <Users className="h-8 w-8 text-metric-clients-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total Clients"
+              icon={Users}
+              value={(metrics?.totalClients || 0).toLocaleString('en-IN')}
+              helper={`Verified: ${metrics?.verifiedClients || 0}`}
+            />
           </ClickableCard>
         );
 
       case 'metric-total-cash':
         return (
           <ClickableCard to="/bams">
-            <Card className="bg-card border border-border shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-px h-full">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1 min-w-0 relative z-10">
-                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Cash</p>
-                    <div className="text-xl xl:text-2xl font-semibold tabular-nums mt-2 leading-tight break-words text-foreground">₹{Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}</div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <ArrowUpIcon className="h-4 w-4 text-warning" />
-                      <span className="text-sm font-medium text-muted-foreground">Banks + Stock</span>
-                    </div>
-                  </div>
-                  <div className="bg-warning/10 p-3 rounded-lg shadow-sm flex-shrink-0 relative z-0">
-                    <Wallet className="h-8 w-8 text-metric-cash-icon" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StatCard
+              label="Total Cash"
+              icon={Wallet}
+              value={`₹${Math.round(metrics?.totalCash || 0).toLocaleString('en-IN')}`}
+              helper="Banks + Stock"
+            />
           </ClickableCard>
         );
 
@@ -640,46 +587,43 @@ export default function Dashboard() {
 
       case 'recent-activity':
         return (
-          <Card className="bg-card border border-border shadow-sm h-full">
-            <CardHeader className="bg-info text-primary-foreground rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="p-2 bg-info/80 rounded-lg shadow-md"><Activity className="h-5 w-5" /></div>
-                Recent Activity
-              </CardTitle>
+          <Card className="h-full flex flex-col">
+            <CardHeader className="border-b border-border py-3 px-4">
+              <SectionHeader title="Recent Activity" icon={Activity} />
             </CardHeader>
-            <CardContent className="p-6 space-y-4 overflow-y-auto max-h-[500px]">
-              {recentActivity?.slice(0, 8).map((activity) => (
-                <div
-                  key={activity.id}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
-                    openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
-                  }}
-                  className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-all duration-200 cursor-pointer"
-                >
-
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-success/10' : 'bg-muted'}`}>
-                      {activity.type === 'sale' ? <ArrowUpIcon className="h-4 w-4 text-success" /> : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
+            <CardContent className="p-2 overflow-y-auto max-h-[500px]">
+              <div className="divide-y divide-border/70">
+                {recentActivity?.slice(0, 8).map((activity) => (
+                  <div
+                    key={activity.id}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
+                      openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
+                    }}
+                    className="flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-muted/50 motion-reduce:transition-none"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                        {activity.type === 'sale'
+                          ? <ArrowUpIcon className="h-4 w-4 text-success" />
+                          : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="t-card-title text-foreground truncate">{activity.title}</p>
+                        <p className="t-secondary">{format(new Date(activity.timestamp), "MMM dd, HH:mm")}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm text-foreground">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(activity.timestamp), "MMM dd, HH:mm")}</p>
+                    <div className="text-right shrink-0">
+                      <p className={`text-[13px] font-semibold tabular-nums ${activity.type === 'sale' ? 'text-success' : 'text-foreground'}`}>
+                        {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
+                      </p>
+                      <p className="t-secondary">{activity.reference}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-success' : 'text-muted-foreground'}`}>
-                      {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{activity.reference}</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
               {(!recentActivity || recentActivity.length === 0) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4"><Activity className="h-8 w-8 opacity-50" /></div>
-                  <p className="font-medium">No activity in selected period</p>
-                </div>
+                <EmptyState icon={Activity} title="No activity in selected period" className="py-10" />
               )}
             </CardContent>
           </Card>
@@ -759,103 +703,89 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
+    <div className="page-shell min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
-        <div className="px-4 md:px-6 py-4 md:py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
-                  <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
-                </span>
-                Welcome, {userDisplayName}
-              </span>
-            }
-            description="Monitor your business performance"
-            actions={
-              <div className="flex flex-col items-start md:items-end gap-3 flex-shrink-0">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                  preset={datePreset}
-                  onPresetChange={setDatePreset}
-                  className="w-full md:w-auto md:min-w-[200px]"
-                />
-                <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pt-2 pb-1">
+      <PageHeader
+        title={<span className="t-page-title">Welcome, {userDisplayName}</span>}
+        description="Monitor your business performance"
+        actions={
+          <div className="flex flex-col items-start md:items-end gap-2 flex-shrink-0">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              preset={datePreset}
+              onPresetChange={setDatePreset}
+              className="w-full md:w-auto md:min-w-[200px]"
+            />
+            <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pb-1">
+              <Button
+                variant={isEditMode ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setIsEditMode(!isEditMode);
+                  if (!isEditMode) setIsRearrangeMode(true);
+                  else setIsRearrangeMode(false);
+                }}
+                className="flex-shrink-0"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="whitespace-nowrap">{isEditMode ? 'Done' : 'Customize'}</span>
+              </Button>
+
+              {isEditMode && (
+                <>
+                  <AddWidgetDialog
+                    onAddWidget={handleAddWidget}
+                    existingWidgets={activeWidgetIds}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setIsEditMode(!isEditMode);
-                      if (!isEditMode) setIsRearrangeMode(true);
-                      else setIsRearrangeMode(false);
-                    }}
-                    className={`flex-shrink-0 ${isEditMode ? 
-                      "bg-warning/10 border border-warning text-warning hover:bg-warning/10 shadow-sm" : 
-                      "bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
-                    }`}
+                    onClick={handleResetDashboard}
+                    className="flex-shrink-0"
                   >
-                    <Settings className="h-4 w-4 mr-1 md:mr-2" />
-                    <span className="whitespace-nowrap">{isEditMode ? 'Done' : 'Customize'}</span>
+                    <RotateCcw className="h-4 w-4" />
+                    <span className="hidden sm:inline">Reset</span>
                   </Button>
-                  
-                  {isEditMode && (
-                    <>
-                      <AddWidgetDialog 
-                        onAddWidget={handleAddWidget}
-                        existingWidgets={activeWidgetIds}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleResetDashboard}
-                        className="flex-shrink-0 bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
-                      >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">Reset</span>
-                      </Button>
-                    </>
-                  )}
+                </>
+              )}
 
-                  <ShiftReconciliationWidget />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUniversalSync}
-                    disabled={universalSyncing || syncMutation.isPending}
-                    className="bg-info/10 border border-info/20 text-info hover:bg-info/10 shadow-sm flex-shrink-0"
-                    title="Universal Sync"
-                  >
-                    <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
-                    <span className="hidden sm:inline ml-2">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
-                  </Button>
-                </div>
-              </div>
-            }
-          />
-
-        </div>
-      </div>
+              <ShiftReconciliationWidget />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUniversalSync}
+                disabled={universalSyncing || syncMutation.isPending}
+                loading={universalSyncing}
+                className="flex-shrink-0"
+                title="Universal Sync"
+              >
+                {!universalSyncing && <CloudDownload className="h-4 w-4" />}
+                <span className="hidden sm:inline">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
+              </Button>
+            </div>
+          </div>
+        }
+      />
 
       {/* Sync Indicator */}
       {universalSyncing && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-info/10 border border-info/20 text-xs text-info mb-4">
-          <RefreshCw className="h-3 w-3 animate-spin" />
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-info/10 border border-info/20 text-xs text-info">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
           Universal sync in progress — orders, purchases, sales, assets...
         </div>
       )}
 
       {/* Edit Mode Banner */}
       {isEditMode && (
-        <div className="bg-warning/10 border border-warning text-warning rounded-xl p-4 md:p-6 shadow-md mb-4">
-          <div className="flex items-start md:items-center gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-warning rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-              <Settings className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
-            </div>
+        <div className="rounded-xl border border-warning/40 bg-warning/10 p-4">
+          <div className="flex items-start md:items-center gap-3">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/20 text-warning">
+              <Settings className="h-4 w-4" />
+            </span>
             <div className="min-w-0 flex-1">
-              <h3 className="text-base md:text-lg font-bold">🎨 Customize Mode Active</h3>
-              <p className="text-warning mt-1 text-sm md:text-base">
+              <h3 className="t-card-title text-foreground">Customize mode active</h3>
+              <p className="t-secondary mt-0.5">
                 Drag widgets to reorder • Hover & click ✕ to remove • Use "Add Widget" to add new ones
               </p>
             </div>
@@ -863,7 +793,7 @@ export default function Dashboard() {
               size="sm"
               variant="outline"
               onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
-              className="border-warning text-warning hover:bg-warning/10 flex-shrink-0"
+              className="flex-shrink-0"
             >
               Done
             </Button>
@@ -874,7 +804,7 @@ export default function Dashboard() {
       {/* Widget Grid */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className={`grid grid-cols-12 gap-3 md:gap-6 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
+          <div className={`grid grid-cols-12 gap-3 md:gap-4 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>
@@ -882,14 +812,13 @@ export default function Dashboard() {
 
       {/* Empty state */}
       {visibleWidgetIds.length === 0 && (
-        <div className="text-center py-20">
-          <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <BarChart3 className="h-10 w-10 text-muted-foreground opacity-50" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Dashboard is empty</h3>
-          <p className="text-muted-foreground mb-6">Add widgets to customize your dashboard view</p>
-          <AddWidgetDialog onAddWidget={handleAddWidget} existingWidgets={activeWidgetIds} />
-        </div>
+        <EmptyState
+          icon={BarChart3}
+          title="Dashboard is empty"
+          description="Add widgets to customize your dashboard view"
+          action={<AddWidgetDialog onAddWidget={handleAddWidget} existingWidgets={activeWidgetIds} />}
+          className="py-16"
+        />
       )}
     </div>
   );

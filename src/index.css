@@ -1361,3 +1361,158 @@ html {
   display: none;
   height: 0;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   BLYNK DESIGN SYSTEM — enterprise foundation layer
+   Typography · spacing · radius · surfaces · motion.
+   Consume these tokens/utilities instead of ad-hoc values.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  /* Spacing ladder — 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+
+  /* Radius scale — controls / cards / containers */
+  --radius-control: 0.5rem;   /* 8px  — buttons, inputs, chips */
+  --radius-card: 0.75rem;     /* 12px — cards, panels */
+  --radius-container: 1rem;   /* 16px — page shells, dialogs */
+
+  /* Motion — fast and subtle */
+  --ds-duration: 150ms;
+  --ds-ease: cubic-bezier(0.2, 0, 0, 1);
+  --ds-transition: var(--ds-duration) var(--ds-ease);
+}
+
+/* ── Typography scale ───────────────────────────────────────── */
+.t-page-title {
+  font-size: 1.625rem;      /* 26px */
+  line-height: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+@media (max-width: 640px) {
+  .t-page-title { font-size: 1.375rem; line-height: 1.75rem; }
+}
+.t-section {
+  font-size: 1.0625rem;     /* 17px */
+  line-height: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.011em;
+}
+.t-card-title {
+  font-size: 0.875rem;      /* 14px */
+  line-height: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.006em;
+}
+.t-body {
+  font-size: 0.875rem;      /* 14px */
+  line-height: 1.375rem;
+  font-weight: 400;
+}
+.t-secondary {
+  font-size: 0.75rem;       /* 12px */
+  line-height: 1.125rem;
+  font-weight: 400;
+  color: hsl(var(--muted-foreground));
+}
+.t-label {
+  font-size: 0.6875rem;     /* 11px */
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+.t-kpi {
+  font-size: 1.75rem;       /* 28px */
+  line-height: 2.125rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 640px) {
+  .t-kpi { font-size: 1.5rem; line-height: 1.875rem; }
+}
+
+/* ── Page shell — consistent page padding + rhythm ──────────── */
+.page-shell {
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 100%;
+}
+@media (min-width: 768px) {
+  .page-shell {
+    padding: var(--space-6);
+    gap: var(--space-6);
+  }
+}
+
+/* ── Surfaces ───────────────────────────────────────────────── */
+.ds-surface {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-xs);
+}
+.ds-surface-interactive {
+  transition: box-shadow var(--ds-transition), border-color var(--ds-transition);
+}
+.ds-surface-interactive:hover {
+  box-shadow: var(--shadow-sm);
+  border-color: hsl(var(--border));
+}
+.ds-container {
+  border-radius: var(--radius-container);
+}
+
+/* ── Enterprise table density ───────────────────────────────── */
+.ds-table-wrap {
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-card);
+  overflow: auto;
+  background: hsl(var(--card));
+}
+.ds-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.ds-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: hsl(var(--muted) / 0.6);
+  backdrop-filter: blur(6px);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid hsl(var(--border));
+  white-space: nowrap;
+}
+.ds-table tbody td {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border-bottom: 1px solid hsl(var(--border) / 0.7);
+  color: hsl(var(--foreground));
+}
+.ds-table tbody tr:last-child td { border-bottom: 0; }
+.ds-table tbody tr { transition: background-color var(--ds-transition); }
+.ds-table tbody tr:hover { background: hsl(var(--muted) / 0.45); }
+.ds-table .ds-num { font-variant-numeric: tabular-nums; text-align: right; }
+
+/* ── Motion guard ───────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .ds-surface-interactive,
+  .ds-table tbody tr {
+    transition: none;
+  }
+}

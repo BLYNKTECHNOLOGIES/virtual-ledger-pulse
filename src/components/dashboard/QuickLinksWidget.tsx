@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetEmpty } from "./primitives/WidgetShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -78,42 +78,36 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
 
   const renderLink = (link: QuickLink) => {
     const linkContent = (
-      <div className="flex items-center justify-between p-4 border rounded-xl hover:bg-gradient-to-r hover:from-info hover:to-primary transition-all duration-300 group hover:shadow-md hover:border-info/20">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-gradient-to-br from-info to-primary rounded-xl shadow-sm group-hover:shadow-md transition-all duration-300">
-            <LinkIcon className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <p className="font-semibold text-foreground group-hover:text-info">{link.title}</p>
+      <div className="group/link flex h-full items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-muted/50">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <LinkIcon className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-medium leading-tight text-foreground">{link.title}</p>
             {link.description && (
-              <p className="text-sm text-muted-foreground group-hover:text-info">{link.description}</p>
+              <p className="truncate text-[11px] leading-tight text-muted-foreground">{link.description}</p>
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300">
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/link:opacity-100 group-focus-within/link:opacity-100">
+          {link.isExternal && <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />}
           <Button
             variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.preventDefault();
-              handleEditLink(link);
-            }}
-            className="h-9 w-9 p-0 hover:bg-info/10 hover:text-info"
+            size="icon"
+            onClick={(e) => { e.preventDefault(); handleEditLink(link); }}
+            className="h-7 w-7"
           >
-            <Edit className="h-4 w-4" />
+            <Edit className="h-3.5 w-3.5" />
           </Button>
           <Button
             variant="ghost"
-            size="sm"
-            onClick={(e) => {
-              e.preventDefault();
-              handleDeleteLink(link.id);
-            }}
-            className="h-9 w-9 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+            size="icon"
+            onClick={(e) => { e.preventDefault(); handleDeleteLink(link.id); }}
+            className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
-          {link.isExternal && <ExternalLink className="h-4 w-4 text-muted-foreground" />}
         </div>
       </div>
     );
@@ -134,109 +128,104 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
   };
 
   return (
-    <Card className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4 bg-card shadow-sm border-0">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 bg-gradient-to-r from-muted to-muted">
-        <CardTitle className="text-xl font-bold flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-info to-primary rounded-lg shadow-sm">
-            <LinkIcon className="h-5 w-5 text-primary-foreground" />
-          </div>
-          Quick Links
-        </CardTitle>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary text-primary-foreground shadow-sm">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Link
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">
-                {editingLink ? 'Edit Quick Link' : 'Add Quick Link'}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title" className="text-sm font-medium">Title</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Enter link title"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="url" className="text-sm font-medium">URL</Label>
-                <Input
-                  id="url"
-                  value={formData.url}
-                  onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                  placeholder="/sales or https://example.com"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description" className="text-sm font-medium">Description (Optional)</Label>
-                <Input
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Brief description"
-                  className="mt-1"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="isExternal"
-                  checked={formData.isExternal}
-                  onChange={(e) => setFormData(prev => ({ ...prev, isExternal: e.target.checked }))}
-                  className="w-4 h-4 text-info rounded border-border focus:ring-info"
-                />
-                <Label htmlFor="isExternal" className="text-sm">External link (opens in new tab)</Label>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <Button onClick={handleAddLink} className="flex-1 bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary">
-                  {editingLink ? 'Update Link' : 'Add Link'}
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowAddDialog(false);
-                    setEditingLink(null);
-                    setFormData({ title: '', url: '', description: '', isExternal: false });
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </CardHeader>
-      <CardContent className="p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {quickLinks.map(renderLink)}
-          {quickLinks.length === 0 && (
-            <div className="col-span-full text-center py-12">
-              <div className="w-16 h-16 bg-gradient-to-br from-info to-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <LinkIcon className="h-8 w-8 text-info" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">No quick links added yet</h3>
-              <p className="text-muted-foreground mb-4">Create shortcuts to your most-used pages and external tools</p>
-              <Button
-                onClick={() => setShowAddDialog(true)}
-                className="bg-gradient-to-r from-info to-primary hover:from-info hover:to-primary"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Your First Link
+    <WidgetShell className="col-span-1 md:col-span-2 lg:col-span-3 xl:col-span-4">
+      <WidgetHeader
+        icon={LinkIcon}
+        title="Quick Links"
+        subtitle="Shortcuts to frequently used pages"
+        actions={
+          <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="h-7 px-2.5 text-[11px]">
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add
               </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{editingLink ? 'Edit Quick Link' : 'Add Quick Link'}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="title" className="text-sm font-medium">Title</Label>
+                  <Input
+                    id="title"
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter link title"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="url" className="text-sm font-medium">URL</Label>
+                  <Input
+                    id="url"
+                    value={formData.url}
+                    onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="/sales or https://example.com"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description" className="text-sm font-medium">Description (Optional)</Label>
+                  <Input
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Brief description"
+                    className="mt-1"
+                  />
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="isExternal"
+                    checked={formData.isExternal}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isExternal: e.target.checked }))}
+                    className="h-4 w-4 rounded border-border"
+                  />
+                  <Label htmlFor="isExternal" className="text-sm">External link (opens in new tab)</Label>
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={handleAddLink} className="flex-1">
+                    {editingLink ? 'Update Link' : 'Add Link'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddDialog(false);
+                      setEditingLink(null);
+                      setFormData({ title: '', url: '', description: '', isExternal: false });
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        }
+      />
+      <WidgetBody>
+        {quickLinks.length === 0 ? (
+          <WidgetEmpty
+            icon={LinkIcon}
+            title="No quick links yet"
+            description="Create shortcuts to your most-used pages and external tools"
+            action={
+              <Button size="sm" variant="outline" onClick={() => setShowAddDialog(true)}>
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add your first link
+              </Button>
+            }
+          />
+        ) : (
+          <div className="grid grid-cols-1 gap-2 @md/widget:grid-cols-2 @3xl/widget:grid-cols-3 @5xl/widget:grid-cols-4">
+            {quickLinks.map(renderLink)}
+          </div>
+        )}
+      </WidgetBody>
+    </WidgetShell>
   );
 }

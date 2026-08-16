@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WidgetShell, WidgetHeader, WidgetBody } from "./primitives/WidgetShell";
+import { WidgetMetric, WidgetStatGrid } from "./primitives/WidgetAtoms";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart3, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Area, AreaChart } from "recharts";
@@ -153,17 +154,14 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
   };
 
   return (
-    <Card className="bg-card border border-border shadow-sm">
-      <CardHeader className="bg-secondary text-secondary-foreground rounded-t-lg">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-3 text-xl">
-            <div className="p-2 bg-muted rounded-lg shadow-md">
-              <BarChart3 className="h-6 w-6" />
-            </div>
-            Performance Analytics
-          </CardTitle>
+    <WidgetShell>
+      <WidgetHeader
+        icon={BarChart3}
+        title="Performance Analytics"
+        subtitle={`${getMetricLabel()} · ${selectedPeriod}`}
+        actions={
           <Select value={selectedMetric} onValueChange={setSelectedMetric}>
-            <SelectTrigger className="w-40 bg-card text-foreground">
+            <SelectTrigger className="h-7 w-36 text-[11px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -172,52 +170,30 @@ export function InteractiveHeatmap({ selectedPeriod }: InteractiveHeatmapProps) 
               <SelectItem value="orders">Orders Count</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-      </CardHeader>
-      <CardContent className="p-8">
-        {/* Metric Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Card className="border border-success/20 bg-success/10">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-success">Total {getMetricLabel()}</p>
-                  <p className="text-2xl font-bold text-success">{getMetricValue(chartData?.totalValue || 0)}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-success" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border border-primary/20 bg-primary/10">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-primary">Current Period {getMetricLabel()}</p>
-                  <p className="text-2xl font-bold text-primary">{getMetricValue(chartData?.currentPeriodValue || 0)}</p>
-                </div>
-                <BarChart3 className="h-8 w-8 text-primary" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Performance Overview */}
-        <div className="mb-6">
-          <h3 className="text-lg font-semibold text-foreground mb-4">{getMetricLabel()} Performance Overview</h3>
-          <div className="text-center p-8 bg-muted rounded-lg">
-            <div className="text-4xl font-bold text-primary mb-2">
-              {getMetricValue(chartData?.currentPeriodValue || 0)}
-            </div>
-            <p className="text-muted-foreground">
-              {getMetricLabel()} in selected period ({selectedPeriod})
-            </p>
-            <div className="mt-4 text-sm text-muted-foreground">
-              Total all-time: {getMetricValue(chartData?.totalValue || 0)}
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        }
+      />
+      <WidgetBody className="space-y-3">
+        <WidgetMetric
+          label={`${getMetricLabel()} in selected period`}
+          value={getMetricValue(chartData?.currentPeriodValue || 0)}
+          helper={`All-time total ${getMetricValue(chartData?.totalValue || 0)}`}
+          size="lg"
+        />
+        <WidgetStatGrid
+          items={[
+            {
+              label: `Total ${getMetricLabel()}`,
+              value: getMetricValue(chartData?.totalValue || 0),
+              tone: 'success',
+            },
+            {
+              label: `Current period`,
+              value: getMetricValue(chartData?.currentPeriodValue || 0),
+              tone: 'primary',
+            },
+          ]}
+        />
+      </WidgetBody>
+    </WidgetShell>
   );
 }

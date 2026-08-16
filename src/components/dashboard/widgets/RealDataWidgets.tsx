@@ -15,8 +15,18 @@ import {
   Clock, FileText, Activity, Zap, Calendar, ShoppingCart, CreditCard,
   UserCheck, PieChart, BarChart3, Bell
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
-import { chartSeriesColors } from "@/lib/dashboard/chartTheme";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
+import { chartSeriesColors, axisProps, tooltipProps, gridProps, chartColor } from "@/lib/dashboard/chartTheme";
+import { WidgetSkeleton, WidgetEmpty, WidgetError } from "@/components/dashboard/primitives/WidgetShell";
+import {
+  WidgetMetric,
+  WidgetList,
+  WidgetListRow,
+  WidgetStatGrid,
+  WidgetProgressRow,
+  WidgetStatus,
+  WidgetChart,
+} from "@/components/dashboard/primitives/WidgetAtoms";
 
 // Categorical series palette resolved from design tokens (never raw hex).
 const COLORS = chartSeriesColors();
@@ -50,27 +60,26 @@ export function CustomerGrowthWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
-  const growth = data && data.length >= 2 ? ((data[data.length - 1].clients - data[data.length - 2].clients) / (data[data.length - 2].clients || 1) * 100).toFixed(1) : '0';
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
+  const growth = data && data.length >= 2 ? ((data[data.length - 1].clients - data[data.length - 2].clients) / (data[data.length - 2].clients || 1) * 100) : 0;
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <div className="text-2xl font-bold text-foreground">{data?.[data.length - 1]?.clients || 0}</div>
-          <p className="text-xs text-muted-foreground">Total Clients</p>
-        </div>
-        <Badge className={`${Number(growth) >= 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-          {Number(growth) >= 0 ? '+' : ''}{growth}% this month
-        </Badge>
-      </div>
-      <ResponsiveContainer width="100%" height={120}>
-        <RechartsLineChart data={data || []}>
-          <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ fontSize: 12, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-          <Line type="monotone" dataKey="clients" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetMetric
+        label="Total clients"
+        value={data?.[data.length - 1]?.clients || 0}
+        size="sm"
+        delta={growth}
+        helper="this month"
+      />
+      <WidgetChart height={120}>
+        <RechartsLineChart data={data || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey="name" {...axisProps} />
+          <Tooltip {...tooltipProps} />
+          <Line type="monotone" dataKey="clients" stroke={chartColor.primary()} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
         </RechartsLineChart>
-      </ResponsiveContainer>
+      </WidgetChart>
     </div>
   );
 }
@@ -86,23 +95,27 @@ export function RecentOrdersWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={5} />;
+
+  const orders = data || [];
+  if (orders.length === 0) return <WidgetEmpty icon={ShoppingCart} title="No recent orders" />;
 
   return (
-    <div className="p-4 space-y-2.5">
-      {(data || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No recent orders</p>}
-      {(data || []).map((o: any) => (
-        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-muted/20 last:border-0 cursor-pointer hover:bg-muted/50 transition-colors rounded px-1" title="Click to view full order details">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{o.order_number}</p>
-            <p className="text-xs text-muted-foreground truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-sm font-semibold text-foreground">₹{Math.round(Number(o.total_amount)).toLocaleString('en-IN')}</p>
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.status || 'Pending'}</Badge>
-          </div>
-        </div>
-      ))}
+    <div className="p-1.5">
+      <WidgetList>
+        {orders.map((o: any) => (
+          <WidgetListRow
+            key={o.id}
+            icon={ShoppingCart}
+            iconTone="primary"
+            title={o.order_number}
+            subtitle={`${o.client_name} · ${format(new Date(o.created_at), 'MMM dd')}`}
+            value={`₹${Math.round(Number(o.total_amount)).toLocaleString('en-IN')}`}
+            meta={o.status || 'Pending'}
+            onClick={() => openTransaction({ type: 'sales_order', id: o.id })}
+          />
+        ))}
+      </WidgetList>
     </div>
   );
 }
@@ -125,22 +138,18 @@ export function DailyActivityWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
-
-  const stats = [
-    { label: 'Sales Today', value: data?.sales || 0, color: 'text-success', bg: 'bg-success/10' },
-    { label: 'Purchases', value: data?.purchases || 0, color: 'text-info', bg: 'bg-info/10' },
-    { label: 'New Clients', value: data?.newClients || 0, color: 'text-primary', bg: 'bg-primary/10' },
-  ];
+  if (isLoading) return <WidgetSkeleton variant="stats" />;
 
   return (
-    <div className="p-4 grid grid-cols-3 gap-3">
-      {stats.map(s => (
-        <div key={s.label} className={`text-center p-3 ${s.bg} rounded-lg`}>
-          <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
-        </div>
-      ))}
+    <div className="p-3">
+      <WidgetStatGrid
+        columns={3}
+        items={[
+          { label: 'Sales today', value: data?.sales || 0, tone: 'success' },
+          { label: 'Purchases', value: data?.purchases || 0, tone: 'primary' },
+          { label: 'New clients', value: data?.newClients || 0, tone: 'warning' },
+        ]}
+      />
     </div>
   );
 }
@@ -176,28 +185,21 @@ export function QuickStatsWidget({ metrics, dateRange }: { metrics?: any; dateRa
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="stats" />;
 
   const stats = data || { orders: 0, purchases: 0, verifiedClients: 0, totalClients: 0 };
 
   return (
-    <div className="p-4 grid grid-cols-2 gap-3">
-      <div className="text-center p-3 bg-info/10 dark:bg-info/30 rounded-lg">
-        <div className="text-xl font-bold text-info">{stats.orders.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Orders</p>
-      </div>
-      <div className="text-center p-3 bg-success/10 dark:bg-success/30 rounded-lg">
-        <div className="text-xl font-bold text-success">{stats.verifiedClients.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Verified Clients</p>
-      </div>
-      <div className="text-center p-3 bg-primary/10 dark:bg-primary/30 rounded-lg">
-        <div className="text-xl font-bold text-primary">{stats.totalClients.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Total Clients</p>
-      </div>
-      <div className="text-center p-3 bg-warning/10 dark:bg-warning/30 rounded-lg">
-        <div className="text-xl font-bold text-warning">{stats.purchases.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Purchases</p>
-      </div>
+    <div className="p-3">
+      <WidgetStatGrid
+        columns={4}
+        items={[
+          { label: 'Orders', value: stats.orders.toLocaleString('en-IN') },
+          { label: 'Verified clients', value: stats.verifiedClients.toLocaleString('en-IN'), tone: 'success' },
+          { label: 'Total clients', value: stats.totalClients.toLocaleString('en-IN'), tone: 'primary' },
+          { label: 'Purchases', value: stats.purchases.toLocaleString('en-IN'), tone: 'warning' },
+        ]}
+      />
     </div>
   );
 }
@@ -238,50 +240,61 @@ export function ExpenseBreakdownWidget() {
 
   const navigate = useNavigate();
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="status" rows={5} />;
 
   const hasData = (data?.categories?.length || 0) > 0;
 
   return (
-    <div className="p-4 space-y-3 cursor-pointer" onClick={() => navigate('/statistics?tab=financial')}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{data?.month}</span>
-        <span className="text-lg font-bold text-foreground">₹{Math.round(data?.totalExpense || 0).toLocaleString('en-IN')}</span>
+    <div
+      className="flex h-full cursor-pointer flex-col"
+      onClick={() => navigate('/statistics?tab=financial')}
+      title="Open financial statistics"
+    >
+      <div className="border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label={data?.month}
+          value={`₹${Math.round(data?.totalExpense || 0).toLocaleString('en-IN')}`}
+          size="sm"
+          helper="Operating expenses this month"
+        />
       </div>
-      {!hasData && <p className="text-sm text-muted-foreground text-center py-4">No expenses this month</p>}
-      {hasData && (
-        <>
+      {!hasData ? (
+        <WidgetEmpty icon={PieChart} title="No expenses this month" />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <div className="space-y-2">
-            {data!.categories.map((e, i) => {
-              const pct = data!.totalExpense > 0 ? (e.amount / data!.totalExpense) * 100 : 0;
-              return (
-                <div key={e.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="font-medium text-foreground truncate max-w-[140px]">{e.name}</span>
-                    </div>
-                    <span className="font-semibold text-foreground">₹{Math.round(e.amount).toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
-                  </div>
-                </div>
-              );
-            })}
+            {data!.categories.map((e, i) => (
+              <WidgetProgressRow
+                key={e.name}
+                label={e.name}
+                value={`₹${Math.round(e.amount).toLocaleString('en-IN')}`}
+                percent={data!.totalExpense > 0 ? (e.amount / data!.totalExpense) * 100 : 0}
+                tone="primary"
+                leading={
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                  />
+                }
+              />
+            ))}
           </div>
           {(data?.recentItems?.length || 0) > 0 && (
-            <div className="pt-2 border-t border-border">
-              <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">RECENT</p>
+            <div className="mt-3 border-t border-border pt-2">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Recent
+              </p>
               {data!.recentItems.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-1">
-                  <span className="text-muted-foreground truncate max-w-[60%]">{item.desc}</span>
-                  <span className="font-medium text-foreground">₹{Math.round(item.amount).toLocaleString('en-IN')}</span>
+                <div key={i} className="flex items-center justify-between gap-3 py-1 text-[12px]">
+                  <span className="min-w-0 truncate text-muted-foreground">{item.desc}</span>
+                  <span className="shrink-0 font-medium tabular-nums text-foreground">
+                    ₹{Math.round(item.amount).toLocaleString('en-IN')}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -340,38 +353,32 @@ export function RevenueChartWidget() {
     refetchInterval: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
 
   const hasData = (data?.totalRevenue || 0) > 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-muted/50 p-2">
-          <p className="text-[10px] text-muted-foreground">7D Revenue</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.totalRevenue || 0).toLocaleString('en-IN')}</p>
-        </div>
-        <div className="rounded-lg bg-muted/50 p-2">
-          <p className="text-[10px] text-muted-foreground">Today</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.todayRevenue || 0).toLocaleString('en-IN')}</p>
-        </div>
-        <div className="rounded-lg bg-muted/50 p-2">
-          <p className="text-[10px] text-muted-foreground">Avg / Order</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.avgOrderValue || 0).toLocaleString('en-IN')}</p>
-        </div>
-      </div>
-
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetStatGrid
+        columns={3}
+        items={[
+          { label: '7D revenue', value: `₹${Math.round(data?.totalRevenue || 0).toLocaleString('en-IN')}` },
+          { label: 'Today', value: `₹${Math.round(data?.todayRevenue || 0).toLocaleString('en-IN')}` },
+          { label: 'Avg / order', value: `₹${Math.round(data?.avgOrderValue || 0).toLocaleString('en-IN')}` },
+        ]}
+      />
       {hasData ? (
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={data?.chartData || []}>
-            <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-            <Bar dataKey="revenue" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+        <WidgetChart height={140}>
+          <BarChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} width={44} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} />
+            <Bar dataKey="revenue" fill={chartColor.success()} radius={[4, 4, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
+        </WidgetChart>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-6">No sales revenue in last 7 days</p>
+        <WidgetEmpty icon={BarChart3} title="No sales revenue in last 7 days" />
       )}
     </div>
   );
@@ -401,22 +408,26 @@ export function EarningsRateWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
   const todayEarnings = data?.[data.length - 1]?.amount || 0;
+  const weekTotal = (data || []).reduce((s, d) => s + d.amount, 0);
 
   return (
-    <div className="p-4">
-      <div className="text-center mb-3">
-        <div className="text-lg font-bold text-info">₹{Math.round(todayEarnings).toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Today's Sales</p>
-      </div>
-      <ResponsiveContainer width="100%" height={80}>
-        <BarChart data={data || []}>
-          <XAxis dataKey="name" fontSize={9} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-          <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-          <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} />
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetMetric
+        label="Today's sales"
+        value={`₹${Math.round(todayEarnings).toLocaleString('en-IN')}`}
+        tone="primary"
+        size="sm"
+        helper={`₹${Math.round(weekTotal).toLocaleString('en-IN')} last 7 days`}
+      />
+      <WidgetChart height={90}>
+        <BarChart data={data || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <XAxis dataKey="name" {...axisProps} />
+          <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} />
+          <Bar dataKey="amount" fill={chartColor.primary()} radius={[3, 3, 0, 0]} />
         </BarChart>
-      </ResponsiveContainer>
+      </WidgetChart>
     </div>
   );
 }
@@ -467,13 +478,26 @@ export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; t
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="metric" />;
+
+  const positive = Number(data?.margin) >= 0;
 
   return (
-    <div className="text-center p-4">
-      <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-success' : 'text-destructive'}`}>{data?.margin}%</div>
-      <p className="text-sm text-muted-foreground mt-1">Profit Margin ({data?.periodLabel})</p>
-      <p className="text-xs text-muted-foreground mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString('en-IN')}</p>
+    <div className="flex h-full flex-col justify-center gap-3 p-3">
+      <WidgetMetric
+        label={`Profit margin · ${data?.periodLabel || ''}`}
+        value={`${data?.margin}%`}
+        tone={positive ? 'success' : 'destructive'}
+        size="lg"
+        helper={`Profit ₹${Math.round(data?.profit || 0).toLocaleString('en-IN')}`}
+      />
+      <WidgetStatGrid
+        columns={2}
+        items={[
+          { label: 'Sales', value: `₹${Math.round(data?.totalSales || 0).toLocaleString('en-IN')}` },
+          { label: 'Purchases', value: `₹${Math.round(data?.totalPurchases || 0).toLocaleString('en-IN')}` },
+        ]}
+      />
     </div>
   );
 }
@@ -668,31 +692,27 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
     },
   ];
 
+  const toneOf = (label: string) =>
+    label === 'Gross Profit' ? 'success' : label === 'Profit Margin' ? 'primary' : label === 'Volume Traded' ? 'warning' : 'neutral';
+
   return (
-    <div className="p-4">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="flex h-full flex-col p-3">
+      <div className="grid grid-cols-1 gap-x-4 gap-y-3 @[22rem]:grid-cols-2">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className={`${kpi.bgColor} rounded-lg p-3`}>
-            <p className="text-xs text-muted-foreground mb-1">{kpi.label}</p>
-            <p className={`text-lg font-bold ${kpi.color}`}>{kpi.value}</p>
-            {kpi.change !== null && (
-              <div className="flex items-center gap-1 mt-1">
-                {kpi.change >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-success" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-destructive" />
-                )}
-                <span className={`text-xs ${kpi.change >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% MoM
-                </span>
-              </div>
-            )}
-          </div>
+          <WidgetMetric
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            tone={toneOf(kpi.label) as any}
+            size="sm"
+            delta={kpi.change}
+            helper={kpi.change !== null ? 'MoM' : undefined}
+          />
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
-        <span>{data?.orderCount || 0} orders this month</span>
-        <span>{data?.totalClients || 0} clients ({data?.newClients || 0} new in 30d)</span>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
+        <span>{data?.orderCount || 0} orders this period</span>
+        <span>{data?.totalClients || 0} clients · {data?.newClients || 0} new in 30d</span>
       </div>
     </div>
   );
@@ -700,12 +720,17 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
 
 // ── Conversion Rate Widget ──
 export function ConversionRateWidget({ metrics }: { metrics?: any }) {
-  const rate = metrics?.totalClients > 0 ? ((metrics.verifiedClients / metrics.totalClients) * 100).toFixed(1) : '0';
+  const pct = metrics?.totalClients > 0 ? (metrics.verifiedClients / metrics.totalClients) * 100 : 0;
   return (
-    <div className="text-center p-4">
-      <div className="text-3xl font-bold text-info">{rate}%</div>
-      <p className="text-sm text-muted-foreground mt-1">KYC Conversion Rate</p>
-      <p className="text-xs text-muted-foreground mt-2">{metrics?.verifiedClients || 0} verified of {metrics?.totalClients || 0}</p>
+    <div className="flex h-full flex-col justify-center gap-3 p-3">
+      <WidgetMetric
+        label="KYC conversion rate"
+        value={`${pct.toFixed(1)}%`}
+        tone="primary"
+        size="lg"
+        helper={`${metrics?.verifiedClients || 0} verified of ${metrics?.totalClients || 0}`}
+      />
+      <WidgetProgressRow label="Verified clients" value={`${pct.toFixed(1)}%`} percent={pct} tone="primary" />
     </div>
   );
 }
@@ -742,19 +767,26 @@ export function GrowthRateWidget({ dateRange }: { dateRange?: { from?: Date; to?
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
-  const isPositive = Number(data?.growth) >= 0;
+  if (isLoading) return <WidgetSkeleton variant="metric" />;
+  const growth = Number(data?.growth || 0);
+  const isPositive = growth >= 0;
 
   return (
-    <div className="text-center p-4">
-      <div className={`text-3xl font-bold ${isPositive ? 'text-success' : 'text-destructive'}`}>
-        {isPositive ? '+' : ''}{data?.growth}%
-      </div>
-      <p className="text-sm text-muted-foreground mt-1">Revenue Growth ({data?.periodLabel})</p>
-      <div className="flex items-center justify-center gap-1 mt-2">
-        {isPositive ? <TrendingUp className="h-4 w-4 text-success" /> : <TrendingDown className="h-4 w-4 text-destructive" />}
-        <span className="text-xs text-muted-foreground">vs previous period</span>
-      </div>
+    <div className="flex h-full flex-col justify-center gap-3 p-3">
+      <WidgetMetric
+        label={`Revenue growth · ${data?.periodLabel || ''}`}
+        value={`${isPositive ? '+' : ''}${data?.growth}%`}
+        tone={isPositive ? 'success' : 'destructive'}
+        size="lg"
+        helper="vs previous period"
+      />
+      <WidgetStatGrid
+        columns={2}
+        items={[
+          { label: 'This period', value: `₹${Math.round(data?.currentTotal || 0).toLocaleString('en-IN')}` },
+          { label: 'Previous', value: `₹${Math.round(data?.previousTotal || 0).toLocaleString('en-IN')}` },
+        ]}
+      />
     </div>
   );
 }
@@ -813,40 +845,34 @@ export function CashFlowWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
 
   const hasData = (data?.totalIncome || 0) > 0 || (data?.totalExpense || 0) > 0;
+  const net = data?.net || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="bg-success/10 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Gross Profit</p>
-          <p className="text-sm font-bold text-success">₹{((data?.totalIncome || 0) / 1000).toFixed(1)}k</p>
-        </div>
-        <div className="bg-destructive/10 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Expense</p>
-          <p className="text-sm font-bold text-destructive">₹{((data?.totalExpense || 0) / 1000).toFixed(1)}k</p>
-        </div>
-        <div className="bg-info/10 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Net</p>
-          <p className={`text-sm font-bold ${(data?.net || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {(data?.net || 0) >= 0 ? '+' : ''}₹{((data?.net || 0) / 1000).toFixed(1)}k
-          </p>
-        </div>
-      </div>
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetStatGrid
+        columns={3}
+        items={[
+          { label: 'Gross profit', value: `₹${((data?.totalIncome || 0) / 1000).toFixed(1)}k`, tone: 'success' },
+          { label: 'Expense', value: `₹${((data?.totalExpense || 0) / 1000).toFixed(1)}k`, tone: 'destructive' },
+          { label: 'Net', value: `${net >= 0 ? '+' : ''}₹${(net / 1000).toFixed(1)}k`, tone: net >= 0 ? 'success' : 'destructive' },
+        ]}
+      />
       {hasData ? (
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={data?.chartData || []}>
-            <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-            <Bar dataKey="income" fill="hsl(var(--success))" radius={[3, 3, 0, 0]} name="Gross Profit" />
-            <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} name="Expense" />
+        <WidgetChart height={140}>
+          <BarChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: -12 }} barGap={2}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} width={44} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} />
+            <Bar dataKey="income" fill={chartColor.success()} radius={[3, 3, 0, 0]} name="Gross Profit" />
+            <Bar dataKey="expense" fill={chartColor.destructive()} radius={[3, 3, 0, 0]} name="Expense" />
           </BarChart>
-        </ResponsiveContainer>
+        </WidgetChart>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-6">No data in last 7 days</p>
+        <WidgetEmpty icon={BarChart3} title="No data in last 7 days" />
       )}
     </div>
   );
@@ -900,49 +926,48 @@ export function ExpenseTrendsWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
 
   const hasData = (data?.chartData || []).some(d => d.expense > 0);
+  const change = data?.change || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">{data?.periodLabel || 'This Month'}</p>
-          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentValue || 0).toLocaleString('en-IN')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {data?.change !== 0 && (
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
-              {(data?.change || 0) > 0 ? '↑' : '↓'} {Math.abs(data?.change || 0).toFixed(1)}%
-            </span>
-          )}
-          <div className="flex rounded-md border border-border overflow-hidden text-[10px]">
+    <div className="flex h-full flex-col gap-3 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <WidgetMetric
+          label={data?.periodLabel || 'This Month'}
+          value={`₹${Math.round(data?.currentValue || 0).toLocaleString('en-IN')}`}
+          size="sm"
+          helper={
+            change !== 0 ? (
+              <span className={change > 0 ? 'font-semibold text-destructive' : 'font-semibold text-success'}>
+                {change > 0 ? '+' : ''}{change.toFixed(1)}% vs previous
+              </span>
+            ) : 'vs previous'
+          }
+        />
+        <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-border text-[11px]">
+          {(['month', 'day'] as const).map(mode => (
             <button
-              onClick={() => setViewMode('month')}
-              className={`px-2 py-0.5 transition-colors ${viewMode === 'month' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-2.5 py-1 font-medium capitalize transition-colors ${viewMode === mode ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
             >
-              Month
+              {mode}
             </button>
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-2 py-0.5 transition-colors ${viewMode === 'day' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
-            >
-              Day
-            </button>
-          </div>
+          ))}
         </div>
       </div>
       {hasData ? (
-        <ResponsiveContainer width="100%" height={100}>
-          <RechartsLineChart data={data?.chartData || []}>
-            <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-            <Line type="monotone" dataKey="expense" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ r: 3 }} />
+        <WidgetChart height={110}>
+          <RechartsLineChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <XAxis dataKey="name" {...axisProps} />
+            <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} />
+            <Line type="monotone" dataKey="expense" stroke={chartColor.destructive()} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
           </RechartsLineChart>
-        </ResponsiveContainer>
+        </WidgetChart>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-4">No expense data available</p>
+        <WidgetEmpty icon={BarChart3} title="No expense data available" />
       )}
     </div>
   );
@@ -984,35 +1009,45 @@ export function PendingSettlementsWidget() {
     staleTime: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={4} />;
+
+  const groups = data?.groups || [];
+  const totalAmount = data?.totalAmount || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Pending settlements</p>
-          <p className="text-lg font-bold text-foreground">{data?.total || 0}</p>
-        </div>
-        <Badge className="bg-muted text-foreground border-border">₹{(data?.totalAmount || 0).toLocaleString('en-IN')}</Badge>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label="Pending settlements"
+          value={data?.total || 0}
+          size="sm"
+          helper={`across ${groups.length} gateway${groups.length === 1 ? '' : 's'}`}
+        />
+        <WidgetMetric
+          label="Value"
+          value={`₹${Math.round(totalAmount).toLocaleString('en-IN')}`}
+          size="sm"
+          align="center"
+          tone="warning"
+        />
       </div>
-
-      <div className="space-y-2 max-h-40 overflow-y-auto">
-        {(data?.groups || []).length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-3">No pending settlements</p>
-        )}
-
-        {(data?.groups || []).map((g, i) => (
-          <div key={i} className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
-            <div className="min-w-0 flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-primary" />
-              <div>
-                <p className="text-xs font-semibold text-foreground truncate">{g.name}</p>
-                <p className="text-[10px] text-muted-foreground">{g.count} order{g.count !== 1 ? 's' : ''}</p>
-              </div>
-            </div>
-            <p className="text-xs font-semibold text-foreground">₹{g.amount.toLocaleString('en-IN')}</p>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {groups.length === 0 ? (
+          <WidgetEmpty icon={CreditCard} title="No pending settlements" />
+        ) : (
+          <div className="space-y-2.5">
+            {groups.map((g, i) => (
+              <WidgetProgressRow
+                key={i}
+                label={g.name}
+                value={`₹${Math.round(g.amount).toLocaleString('en-IN')}`}
+                percent={totalAmount > 0 ? (g.amount / totalAmount) * 100 : 0}
+                tone="primary"
+                leading={<span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{g.count}x</span>}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -1074,46 +1109,46 @@ export function TeamStatusWidget() {
     refetchInterval: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="stats" />;
+
+  const active = data?.activeNow || [];
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-4 gap-2">
-        <div className="text-center p-2 bg-info/10 rounded-lg">
-          <div className="text-lg font-bold text-info">{data?.total || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Total</p>
-        </div>
-        <div className="text-center p-2 bg-success/10 rounded-lg">
-          <div className="text-lg font-bold text-success">{data?.present || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Present</p>
-        </div>
-        <div className="text-center p-2 bg-destructive/10 rounded-lg">
-          <div className="text-lg font-bold text-destructive">{data?.absent || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Absent</p>
-        </div>
-        <div className="text-center p-2 bg-warning/10 rounded-lg">
-          <div className="text-lg font-bold text-warning">{data?.late || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Late</p>
-        </div>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border px-3 py-2.5">
+        <WidgetStatGrid
+          columns={4}
+          items={[
+            { label: 'Total', value: data?.total || 0 },
+            { label: 'Present', value: data?.present || 0, tone: 'success' },
+            { label: 'Absent', value: data?.absent || 0, tone: 'destructive' },
+            { label: 'Late', value: data?.late || 0, tone: 'warning' },
+          ]}
+        />
       </div>
-
-      <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-          <span className="text-xs font-semibold text-foreground">Currently In Office ({data?.activeNow?.length || 0})</span>
-        </div>
-        <div className="max-h-32 overflow-y-auto space-y-1">
-          {(data?.activeNow || []).length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">No one currently checked in</p>
-          ) : (
-            (data?.activeNow || []).map((emp: any, i: number) => (
-              <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 bg-muted/50 rounded">
-                <span className="font-medium text-foreground">{emp.name || 'Unknown'}</span>
-                <span className="text-muted-foreground">{emp.checkIn?.slice(0, 5)}</span>
-              </div>
-            ))
-          )}
-        </div>
+      <div className="flex items-center justify-between px-3 pt-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Currently in office
+        </p>
+        <WidgetStatus tone={active.length > 0 ? 'success' : 'neutral'}>{active.length}</WidgetStatus>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {active.length === 0 ? (
+          <WidgetEmpty icon={UserCheck} title="No one currently checked in" />
+        ) : (
+          <WidgetList>
+            {active.map((emp: any, i: number) => (
+              <WidgetListRow
+                key={i}
+                icon={UserCheck}
+                iconTone="success"
+                title={emp.name || 'Unknown'}
+                subtitle="Checked in"
+                value={emp.checkIn?.slice(0, 5)}
+              />
+            ))}
+          </WidgetList>
+        )}
       </div>
     </div>
   );
@@ -1164,27 +1199,47 @@ export function InventoryStatusWidget() {
     staleTime: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="table" rows={5} />;
+
+  const rows = data || [];
+  if (rows.length === 0) return <WidgetEmpty icon={Package} title="No assets in inventory" />;
+
+  const totalValue = rows.reduce((s, a) => s + a.inrValue, 0);
 
   return (
-    <div className="p-4 space-y-2.5">
-      {(data || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No assets</p>}
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wide pb-1 border-b border-border">
-        <span>Asset</span>
-        <div className="flex gap-6">
-          <span className="w-20 text-right">Qty</span>
-          <span className="w-24 text-right">Value (₹)</span>
-        </div>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label="Inventory value"
+          value={`₹${Math.round(totalValue).toLocaleString('en-IN')}`}
+          size="sm"
+          helper={`${rows.length} asset${rows.length === 1 ? '' : 's'}`}
+        />
       </div>
-      {(data || []).slice(0, 6).map(a => (
-        <div key={a.code} className="flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground">{a.code}</span>
-          <div className="flex gap-6">
-            <span className="text-sm font-semibold text-foreground w-20 text-right">{a.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-            <span className="text-sm text-muted-foreground w-24 text-right">₹{Math.round(a.inrValue).toLocaleString('en-IN')}</span>
-          </div>
-        </div>
-      ))}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <table className="w-full text-[13px]">
+          <thead>
+            <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
+              <th className="px-3 py-1.5 text-left font-semibold">Asset</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Qty</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Value</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border/60">
+            {rows.slice(0, 8).map(a => (
+              <tr key={a.code} className="transition-colors hover:bg-muted/50">
+                <td className="px-3 py-1.5 font-medium text-foreground">{a.code}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums text-foreground">
+                  {a.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                </td>
+                <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                  ₹{Math.round(a.inrValue).toLocaleString('en-IN')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -1231,43 +1286,41 @@ export function UpcomingTasksWidget() {
     enabled: hasClientsView || hasHrmsView,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={3} />;
 
   if (!data || data.length === 0) {
-    return (
-      <div className="p-4 text-center text-sm text-muted-foreground">
-        No pending actions for your role
-      </div>
-    );
+    return <WidgetEmpty icon={Bell} title="No pending actions for your role" />;
   }
 
+  const toneFor = (color: string): 'destructive' | 'warning' | 'primary' =>
+    color === 'bg-destructive' ? 'destructive' : color === 'bg-warning' ? 'warning' : 'primary';
+
   return (
-    <div className="p-4 space-y-3">
-      {data.map(t => (
-        <div key={t.label} className="flex items-center gap-3">
-          <div className={`w-2 h-2 ${t.color} rounded-full flex-shrink-0`} />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground">{t.label}</p>
-            <p className="text-xs text-muted-foreground">{t.count > 0 ? `${t.count} ${t.urgency.toLowerCase()}` : 'All clear'}</p>
-          </div>
-          {t.count > 0 && <Badge variant="outline" className="text-[10px]">{t.count}</Badge>}
-        </div>
-      ))}
+    <div className="p-1.5">
+      <WidgetList>
+        {data.map(t => {
+          const tone = t.count > 0 ? toneFor(t.color) : 'neutral';
+          return (
+            <WidgetListRow
+              key={t.label}
+              icon={t.label === 'Leave Requests' ? Calendar : t.label === 'Onboarding' ? UserCheck : FileText}
+              iconTone={tone}
+              title={t.label}
+              subtitle={t.count > 0 ? `${t.count} ${t.urgency.toLowerCase()}` : 'All clear'}
+              trailing={
+                <WidgetStatus tone={tone}>{t.count > 0 ? String(t.count) : 'Clear'}</WidgetStatus>
+              }
+            />
+          );
+        })}
+      </WidgetList>
     </div>
   );
 }
 
 // ── Shared loader ──
 function WidgetLoader() {
-  return (
-    <div className="p-6 text-center">
-      <div className="animate-pulse space-y-3">
-        <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
-        <div className="h-8 bg-muted rounded w-1/2 mx-auto" />
-        <div className="h-3 bg-muted rounded w-2/3 mx-auto" />
-      </div>
-    </div>
-  );
+  return <WidgetSkeleton variant="metric" />;
 }
 
 // ── Terminal Sales Approval Widget ──
@@ -1308,42 +1361,56 @@ export function TerminalSalesApprovalWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={3} />;
+
+  const pending = data?.pending || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div
-        className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-        onClick={() => navigate('/sales?tab=terminal-sync')}
-      >
-        <span className="text-sm font-medium text-foreground">Pending Approval</span>
-        <Badge variant="secondary" className="bg-warning/10 text-warning text-sm font-bold">{data?.pending || 0}</Badge>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label="Pending approval"
+          value={pending}
+          tone={pending > 0 ? 'warning' : 'neutral'}
+          size="sm"
+          helper={pending === 1 ? 'sell order' : 'sell orders'}
+        />
+        <Button variant="ghost" size="sm" onClick={() => navigate('/sales?tab=terminal-sync')}>
+          Open queue
+        </Button>
       </div>
-      {(data?.recentPending?.length || 0) > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
-          {data?.recentPending.map((r: any) => {
-            const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
-            const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
-            return (
-              <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
-                <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 px-2 text-[10px] text-success border-success hover:bg-success/10"
-                    onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
-                  >
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {(data?.recentPending?.length || 0) === 0 ? (
+          <WidgetEmpty icon={ShoppingCart} title="No sell orders awaiting approval" />
+        ) : (
+          <WidgetList>
+            {data?.recentPending.map((r: any) => {
+              const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+              const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
+              return (
+                <WidgetListRow
+                  key={r.id}
+                  icon={ShoppingCart}
+                  iconTone="warning"
+                  title={r.counterparty_name || 'Unknown'}
+                  subtitle="Awaiting approval"
+                  value={`₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  trailing={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-1 h-7 shrink-0 px-2 text-[11px]"
+                      onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
+                    >
+                      Approve
+                    </Button>
+                  }
+                />
+              );
+            })}
+          </WidgetList>
+        )}
+      </div>
       {approvalRecord && (
         <TerminalSalesApprovalDialog
           open={!!approvalRecord}
@@ -1397,42 +1464,56 @@ export function TerminalPurchaseApprovalWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={3} />;
+
+  const pending = data?.pending || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div
-        className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-        onClick={() => navigate('/purchase?tab=terminal_sync')}
-      >
-        <span className="text-sm font-medium text-foreground">Pending Approval</span>
-        <Badge variant="secondary" className="bg-warning/10 text-warning text-sm font-bold">{data?.pending || 0}</Badge>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label="Pending approval"
+          value={pending}
+          tone={pending > 0 ? 'warning' : 'neutral'}
+          size="sm"
+          helper={pending === 1 ? 'buy order' : 'buy orders'}
+        />
+        <Button variant="ghost" size="sm" onClick={() => navigate('/purchase?tab=terminal_sync')}>
+          Open queue
+        </Button>
       </div>
-      {(data?.recentPending?.length || 0) > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
-          {data?.recentPending.map((r: any) => {
-            const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
-            const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
-            return (
-              <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
-                <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 px-2 text-[10px] text-success border-success hover:bg-success/10"
-                    onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
-                  >
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {(data?.recentPending?.length || 0) === 0 ? (
+          <WidgetEmpty icon={Package} title="No buy orders awaiting approval" />
+        ) : (
+          <WidgetList>
+            {data?.recentPending.map((r: any) => {
+              const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+              const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
+              return (
+                <WidgetListRow
+                  key={r.id}
+                  icon={Package}
+                  iconTone="warning"
+                  title={r.counterparty_name || 'Unknown'}
+                  subtitle="Awaiting approval"
+                  value={`₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  trailing={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-1 h-7 shrink-0 px-2 text-[11px]"
+                      onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
+                    >
+                      Approve
+                    </Button>
+                  }
+                />
+              );
+            })}
+          </WidgetList>
+        )}
+      </div>
       {approvalRecord && (
         <TerminalPurchaseApprovalDialog
           open={!!approvalRecord}

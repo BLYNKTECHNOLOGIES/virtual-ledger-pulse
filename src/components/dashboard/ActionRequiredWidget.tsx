@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetEmpty, WidgetSkeleton } from "./primitives/WidgetShell";
+import { WidgetList, WidgetListRow, WidgetStatus } from "./primitives/WidgetAtoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -80,35 +81,33 @@ export function ActionRequiredWidget() {
 
   return (
     <>
-      <Card className="bg-card border-2 border-border shadow-xl">
-        <CardHeader
-          className="bg-muted/80 border-b border-border rounded-t-lg cursor-pointer hover:bg-muted/90 transition-colors group"
-          onClick={() => setHistoryOpen(true)}
-          title="Click to view full history"
-        >
-          <CardTitle className="flex items-center gap-2 text-lg text-foreground">
-            <div className="p-2 bg-muted rounded-lg border border-border">
-              <AlertTriangle className="h-5 w-5 text-muted-foreground" />
-            </div>
-            Action Required
-            <div className="ml-auto flex items-center gap-2">
+      <WidgetShell>
+        <WidgetHeader
+          icon={AlertTriangle}
+          title="Action Required"
+          subtitle={
+            pendingItems.length > 0
+              ? `${pendingItems.length} movement${pendingItems.length === 1 ? '' : 's'} pending`
+              : 'Wallet movements awaiting an ERP entry'
+          }
+          actions={
+            <>
               {deposits.length > 0 && (
-               <Badge variant="secondary" className="text-xs">
-                  <ArrowDownLeft className="h-3 w-3 mr-1" />
-                  {deposits.length} Deposits
-                </Badge>
+                <WidgetStatus tone="primary">{deposits.length} in</WidgetStatus>
               )}
               {withdrawals.length > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  <ArrowUpRight className="h-3 w-3 mr-1" />
-                  {withdrawals.length} Withdrawals
-                </Badge>
+                <WidgetStatus tone="warning">{withdrawals.length} out</WidgetStatus>
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="p-1.5 rounded-md text-muted-foreground group-hover:text-foreground transition-colors">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7"
+                    onClick={() => setHistoryOpen(true)}
+                  >
                     <History className="h-4 w-4" />
-                  </div>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   <p className="text-xs">View full history</p>
@@ -117,95 +116,90 @@ export function ActionRequiredWidget() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:bg-muted"
+                className="h-7 w-7"
                 onClick={(e) => { e.stopPropagation(); checkMutation.mutate({ force: true }); }}
                 disabled={checkMutation.isPending}
               >
                 <RefreshCw className={`h-4 w-4 ${checkMutation.isPending ? "animate-spin" : ""}`} />
               </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
+            </>
+          }
+        />
+        <WidgetBody padded={false} className="max-h-[420px] p-1.5">
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">Loading...</div>
+            <WidgetSkeleton variant="list" rows={4} />
           ) : pendingItems.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="text-sm font-medium">All caught up!</p>
-              <p className="text-xs">No pending movements require action</p>
-            </div>
+            <WidgetEmpty
+              icon={CheckCircle}
+              title="All caught up"
+              description="No pending movements require action"
+            />
           ) : (
-            <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              <TooltipProvider>
-                {pendingItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
-                  >
-                    {/* Type icon */}
-                    <div className={`p-1.5 rounded-md ${item.movement_type === "deposit" ? "bg-secondary" : "bg-muted"}`}>
-                      {item.movement_type === "deposit" ? (
-                        <ArrowDownLeft className="h-4 w-4 text-secondary-foreground" />
-                      ) : (
-                        <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">{item.asset}</span>
-                        <span className="text-sm text-foreground">{Number(item.amount).toLocaleString(undefined, { maximumFractionDigits: 8 })}</span>
-                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                          {item.movement_type === "deposit" ? "Deposit" : "Withdrawal"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        <span>{formatTime(item.movement_time)}</span>
-                        {item.tx_id && (
-                          <>
-                            <span>·</span>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="font-mono cursor-help">{truncateTxId(item.tx_id)}</span>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="font-mono text-xs break-all max-w-xs">{item.tx_id}</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </>
-                        )}
-                        {item.network && (
-                          <>
-                            <span>·</span>
-                            <span>{item.network}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-1.5 flex-shrink-0">
-                      <Button size="sm" className="h-7 text-xs" onClick={() => setEntryItem(item)}>
-                        Entry
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => setRejectItem(item)}
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </TooltipProvider>
-            </div>
+            <TooltipProvider>
+              <WidgetList>
+                {pendingItems.map((item) => {
+                  const isDeposit = item.movement_type === "deposit";
+                  return (
+                    <WidgetListRow
+                      key={item.id}
+                      icon={isDeposit ? ArrowDownLeft : ArrowUpRight}
+                      iconTone={isDeposit ? "success" : "warning"}
+                      title={
+                        <span className="flex items-center gap-1.5">
+                          <span>{item.asset}</span>
+                          <span className="tabular-nums text-muted-foreground">
+                            {Number(item.amount).toLocaleString(undefined, { maximumFractionDigits: 8 })}
+                          </span>
+                        </span>
+                      }
+                      subtitle={
+                        <span className="flex items-center gap-1.5">
+                          <span>{formatTime(item.movement_time)}</span>
+                          {item.tx_id && (
+                            <>
+                              <span aria-hidden>·</span>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="cursor-help font-mono">{truncateTxId(item.tx_id)}</span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="max-w-xs break-all font-mono text-xs">{item.tx_id}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </>
+                          )}
+                          {item.network && (
+                            <>
+                              <span aria-hidden>·</span>
+                              <span>{item.network}</span>
+                            </>
+                          )}
+                        </span>
+                      }
+                      trailing={
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Button size="sm" className="h-7 px-2.5 text-[11px]" onClick={() => setEntryItem(item)}>
+                            Entry
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-[11px] text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => setRejectItem(item)}
+                          >
+                            Reject
+                          </Button>
+                        </div>
+                      }
+                    />
+                  );
+                })}
+              </WidgetList>
+            </TooltipProvider>
           )}
-        </CardContent>
-      </Card>
+        </WidgetBody>
+      </WidgetShell>
+
 
       {/* Reject dialog */}
       <RejectDialog

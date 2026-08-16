@@ -34,7 +34,7 @@ export function WidgetShell({ children, className, isEditing, isDragging }: Widg
   return (
     <div
       className={cn(
-        "group/widget relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground",
+        "group/widget @container relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground",
         "shadow-xs transition-[box-shadow,border-color,opacity] duration-200 ease-out motion-reduce:transition-none",
         !isEditing && "hover:shadow-sm",
         isEditing && "border-dashed border-primary/45 bg-card",
@@ -263,7 +263,7 @@ export function WidgetMenu({
  * States: skeleton / empty / error
  * ------------------------------------------------------------------ */
 
-export type WidgetSkeletonVariant = "metric" | "chart" | "list" | "table";
+export type WidgetSkeletonVariant = "metric" | "chart" | "list" | "table" | "status" | "stats";
 
 export function WidgetSkeleton({
   variant = "list",
@@ -297,6 +297,36 @@ export function WidgetSkeleton({
       </div>
     );
   }
+
+  if (variant === "stats") {
+    return (
+      <div className={cn("grid grid-cols-2 gap-3 p-4", className)}>
+        {Array.from({ length: Math.max(2, Math.min(rows, 4)) }).map((_, i) => (
+          <div key={i} className="space-y-1.5">
+            <Skeleton className="h-2.5 w-16" />
+            <Skeleton className="h-5 w-24" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (variant === "status") {
+    return (
+      <div className={cn("space-y-3 p-4", className)}>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <Skeleton className="h-3 w-28" />
+              <Skeleton className="h-3 w-10" />
+            </div>
+            <Skeleton className="h-1.5 w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
 
   return (
     <div className={cn("space-y-2 p-3", className)}>

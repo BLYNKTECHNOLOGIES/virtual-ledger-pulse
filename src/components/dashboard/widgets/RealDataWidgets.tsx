@@ -922,8 +922,13 @@ export function ExpenseTrendsWidget() {
           label={data?.periodLabel || 'This Month'}
           value={`₹${Math.round(data?.currentValue || 0).toLocaleString('en-IN')}`}
           size="sm"
-          delta={change !== 0 ? -change : null}
-          helper="vs previous"
+          helper={
+            change !== 0 ? (
+              <span className={change > 0 ? 'font-semibold text-destructive' : 'font-semibold text-success'}>
+                {change > 0 ? '+' : ''}{change.toFixed(1)}% vs previous
+              </span>
+            ) : 'vs previous'
+          }
         />
         <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-border text-[11px]">
           {(['month', 'day'] as const).map(mode => (

@@ -127,15 +127,9 @@ const getSizeClasses = (size: WidgetType["size"]) => {
 };
 
 const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true, dateRange }: DashboardWidgetProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: widget.id,
-    disabled: !isDraggable,
-  });
+  // Drag/sort is owned by the tile wrapper (DraggableDashboardSection); this
+  // component only renders the standardized widget shell + content.
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
 
   const IconComponent = widget.icon || widgetIconMap[widget.id] || BarChart3;
 

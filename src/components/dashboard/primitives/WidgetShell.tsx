@@ -2,7 +2,6 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/shared/EmptyState";
 import { AlertTriangle, MoreVertical, RefreshCw } from "lucide-react";
 import {
   DropdownMenu,
@@ -274,7 +273,7 @@ export function WidgetSkeleton({
 }) {
   if (variant === "metric") {
     return (
-      <div className={cn("flex h-full flex-col justify-center gap-2 p-4", className)}>
+      <div className={cn("flex h-full flex-col justify-center gap-2 p-3", className)}>
         <Skeleton className="h-3 w-20" />
         <Skeleton className="h-7 w-32" />
         <Skeleton className="h-3 w-24" />
@@ -284,7 +283,7 @@ export function WidgetSkeleton({
 
   if (variant === "chart") {
     return (
-      <div className={cn("flex h-full flex-col gap-3 p-4", className)}>
+      <div className={cn("flex h-full flex-col gap-3 p-3", className)}>
         <Skeleton className="h-3 w-24" />
         <div className="flex flex-1 items-end gap-2" aria-hidden>
           {[45, 70, 35, 85, 55, 75, 40].map((h, i) => (
@@ -298,7 +297,7 @@ export function WidgetSkeleton({
 
   if (variant === "stats") {
     return (
-      <div className={cn("grid grid-cols-2 gap-3 p-4", className)}>
+      <div className={cn("grid grid-cols-2 gap-3 p-3", className)}>
         {Array.from({ length: Math.max(2, Math.min(rows, 4)) }).map((_, i) => (
           <div key={i} className="space-y-1.5">
             <Skeleton className="h-2.5 w-16" />
@@ -311,7 +310,7 @@ export function WidgetSkeleton({
 
   if (variant === "status") {
     return (
-      <div className={cn("space-y-3 p-4", className)}>
+      <div className={cn("space-y-3 p-3", className)}>
         {Array.from({ length: rows }).map((_, i) => (
           <div key={i} className="space-y-1.5">
             <div className="flex items-center justify-between gap-3">

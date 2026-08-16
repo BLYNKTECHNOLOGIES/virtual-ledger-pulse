@@ -27,7 +27,6 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    leave_type_id: '',
     start_date: '',
     end_date: '',
     is_half_day: false,
@@ -96,18 +95,9 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
     return n;
   }, [form.start_date, form.end_date, form.is_half_day, offDays]);
 
-  const available = useMemo(() => {
-    if (!form.leave_type_id) return 0;
-    return (allocations as any[])
-      .filter((a) => a.leave_type_id === form.leave_type_id)
-      .reduce((s, a) => s + Number(a.available_days || 0), 0);
-  }, [allocations, form.leave_type_id]);
-
-  const excess = Math.max(0, workingDays - available);
-
   const submit = useMutation({
     mutationFn: async () => {
-      if (!form.leave_type_id || !form.start_date) throw new Error('Leave type and start date are required');
+      if (!form.start_date) throw new Error('Start date is required');
       if (!form.reason.trim()) throw new Error('Please add a reason');
       const end = form.is_half_day ? form.start_date : form.end_date || form.start_date;
       if (workingDays <= 0) throw new Error('Selected dates contain no working days');
@@ -116,7 +106,6 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         .from('hr_leave_requests')
         .insert({
           employee_id: employeeId,
-          leave_type_id: form.leave_type_id,
           start_date: form.start_date,
           end_date: end,
           total_days: workingDays,
@@ -132,10 +121,8 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
       if (error) throw error;
 
       // ── Emails (non-blocking) ──
-      const [{ data: me }, { data: type }] = await Promise.all([
-        (supabase as any).from('hr_employees').select('first_name, last_name').eq('id', employeeId).maybeSingle(),
-        (supabase as any).from('hr_leave_types').select('name').eq('id', form.leave_type_id).maybeSingle(),
-      ]);
+      const { data: me } = await (supabase as any)
+        .from('hr_employees').select('first_name, last_name').eq('id', employeeId).maybeSingle();
       let managerEmail: string | null = null;
       let managerName: string | null = null;
       if (data?.manager_id) {
@@ -148,13 +135,12 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         eventType: 'leave_requested',
         requestId: data.id,
         employeeName: me ? `${me.first_name || ''} ${me.last_name || ''}`.trim() : 'Employee',
-        leaveType: type?.name,
+        leaveType: 'To be assigned by HR',
         startDate: form.start_date,
         endDate: end,
         totalDays: workingDays,
         reason: form.reason.trim(),
         contactDuringLeave: form.contact_during_leave.trim() || undefined,
-        balanceNote: `${available} day(s) available${excess > 0 ? ` · ${excess} day(s) would be loss of pay` : ''}`,
         managerEmail,
         managerName,
       });
@@ -162,7 +148,7 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
     onSuccess: () => {
       toast.success('Leave request submitted');
       setForm({
-        leave_type_id: '', start_date: '', end_date: '', is_half_day: false,
+        start_date: '', end_date: '', is_half_day: false,
         half_day_period: 'morning', reason: '', contact_during_leave: '',
       });
       setOpen(false);
@@ -268,7 +254,7 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
           <Button
-            disabled={submit.isPending || !form.leave_type_id || !form.start_date || !form.reason.trim() || workingDays <= 0}
+            disabled={submit.isPending || !form.start_date || !form.reason.trim() || workingDays <= 0}
             onClick={() => submit.mutate()}
           >
             {submit.isPending ? 'Submitting…' : 'Submit request'}

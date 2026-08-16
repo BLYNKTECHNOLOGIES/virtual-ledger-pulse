@@ -92,23 +92,82 @@ export default function LeaveRequestsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date, form.employee_id);
-      const { error } = await (supabase as any).from("hr_leave_requests").insert({
+      const emp = (employees as any[]).find((e) => e.id === form.employee_id);
+      const employeeName = `${emp?.first_name || ""} ${emp?.last_name || ""}`.trim() || "Employee";
+      const endDate = form.is_half_day ? form.start_date : form.end_date;
+      const typeName = (leaveTypes as any[]).find((lt: any) => lt.id === form.leave_type_id)?.name;
+
+      const { data: created, error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
-        leave_type_id: form.leave_type_id,
+        leave_type_id: form.leave_type_id || null,
         start_date: form.start_date,
-        end_date: form.is_half_day ? form.start_date : form.end_date,
+        end_date: endDate,
         reason: form.reason || null,
         total_days: days,
         is_half_day: form.is_half_day,
         half_day_period: form.is_half_day ? form.half_day_period : null,
-      });
+        status: "requested",
+      }).select("id, manager_id").single();
       if (error) throw error;
+
+      if (form.routing === "hr") {
+        // HR approves immediately — the status change trigger runs the balance cascade.
+        const { error: upErr } = await (supabase as any).from("hr_leave_requests").update({
+          status: "approved",
+          leave_type_id: form.leave_type_id,
+          approved_at: new Date().toISOString(),
+          hr_approved_at: new Date().toISOString(),
+        }).eq("id", created.id);
+        if (upErr) throw upErr;
+
+        sendLeaveEmail({
+          eventType: "leave_approved",
+          requestId: created.id,
+          employeeName,
+          leaveType: typeName,
+          startDate: form.start_date,
+          endDate,
+          totalDays: days,
+          reason: form.reason,
+          decidedBy: "HR",
+          employeeEmail: emp?.email || null,
+        });
+        return { routedToManager: false };
+      }
+
+      // Route to the reporting manager for the first-stage approval.
+      let managerEmail: string | null = null;
+      let managerName: string | null = null;
+      if (created?.manager_id) {
+        const { data: mgr } = await (supabase as any)
+          .from("hr_employees").select("first_name, last_name, email").eq("id", created.manager_id).maybeSingle();
+        managerEmail = mgr?.email || null;
+        managerName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : null;
+      }
+      sendLeaveEmail({
+        eventType: "leave_requested",
+        requestId: created.id,
+        employeeName,
+        leaveType: typeName || "To be assigned by HR",
+        startDate: form.start_date,
+        endDate,
+        totalDays: days,
+        reason: form.reason,
+        managerEmail,
+        managerName,
+      });
+      return { routedToManager: true, hasManager: !!managerEmail };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
+      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
       setShowAdd(false);
-      setForm({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
-      toast.success("Leave request created");
+      setForm({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning", routing: "manager" });
+      toast.success(
+        res?.routedToManager
+          ? res.hasManager ? "Sent to the reporting manager for approval" : "Created — no reporting manager on record, awaiting HR"
+          : "Leave approved by HR",
+      );
     },
     onError: (e: any) => toast.error(e.message),
   });

@@ -1,6 +1,7 @@
 
 import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard, Mail, CircleUser } from "lucide-react";
 import blynkLogoWhite from "@/assets/brand/blynk-logo-white.svg";
+import blynkLogoDark from "@/assets/brand/blynk-logo-dark.svg";
 import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
@@ -425,14 +426,22 @@ export function AppSidebar() {
               className="h-8 w-8 flex-shrink-0"
             />
           ) : (
-            <img
-              src={blynkLogoWhite}
-              alt="BLYNK Virtual Technologies"
-              className="h-9 w-auto flex-shrink-0 dark:brightness-100"
-            />
+            <>
+              <img
+                src={blynkLogoDark}
+                alt="BLYNK Virtual Technologies"
+                className="h-9 w-auto flex-shrink-0 dark:hidden"
+              />
+              <img
+                src={blynkLogoWhite}
+                alt="BLYNK Virtual Technologies"
+                className="hidden h-9 w-auto flex-shrink-0 dark:block"
+              />
+            </>
           )}
         </div>
       </SidebarHeader>
+
       
       <SidebarContent className="ds-nav-scroll bg-sidebar overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-x-hidden">
         <SidebarGroup>

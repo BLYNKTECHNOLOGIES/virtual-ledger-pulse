@@ -157,9 +157,27 @@ export default function HoursOverviewPage() {
     }
   };
 
+  // Contract-type staff are out of scope for hours/overtime analytics.
+  const { data: workInfo = [] } = useQuery({
+    queryKey: ["hr_work_info_contract_type"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_employee_work_info")
+        .select("employee_id, employee_type");
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+  const contractIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const w of workInfo as any[]) if (w.employee_type === "contract" && w.employee_id) set.add(w.employee_id);
+    return set;
+  }, [workInfo]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = rows.filter((r) => {
+      if (contractIds.has(r.employee_id)) return false;
       const matchQ = !q || r.employee_name.toLowerCase().includes(q) || (r.badge_id || "").toLowerCase().includes(q);
       const matchS = statusFilter === "all" || statusOf(r) === statusFilter;
       return matchQ && matchS;
@@ -171,7 +189,7 @@ export default function HoursOverviewPage() {
       const bv = sort.key === "utilisation" ? utilisationOf(b) : (b as any)[sort.key] || 0;
       return (av - bv) * dir;
     });
-  }, [rows, search, statusFilter, sort]);
+  }, [rows, search, statusFilter, sort, contractIds]);
 
   const totals = useMemo(() => {
     const t = filtered.reduce(

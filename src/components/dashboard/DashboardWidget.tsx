@@ -307,24 +307,23 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'total-purchases':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-warning to-destructive rounded-full flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalSpending || 0) / 100000).toFixed(1)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Total Purchases</p>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Total Purchases"
+              value={`₹${((metrics?.totalSpending || 0) / 100000).toFixed(1)}L`}
+              helper="Selected period"
+            />
           </div>
         );
 
       case 'purchase-orders-count':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-warning to-warning rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">{metrics?.totalPurchases || 0}</div>
-            <p className="text-sm text-muted-foreground mt-1">Purchase Orders</p>
-            <Badge className="mt-3 bg-warning/10 text-warning border-warning/20">Selected Period</Badge>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Purchase Orders"
+              value={(metrics?.totalPurchases || 0).toLocaleString('en-IN')}
+              helper="Selected period"
+            />
           </div>
         );
 
@@ -334,35 +333,34 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'stock-value':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-warning to-warning rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.stockValue || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Stock Value (INR)</p>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Stock Value"
+              value={`₹${((metrics?.stockValue || 0) / 100000).toFixed(2)}L`}
+              helper="INR equivalent"
+            />
           </div>
         );
 
       case 'bank-balance-total':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-success to-success rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.bankBalance || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Bank Balance</p>
-            <Badge className="mt-3 bg-success/10 text-success border-success/20">Active Accounts</Badge>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Bank Balance"
+              value={`₹${((metrics?.bankBalance || 0) / 100000).toFixed(2)}L`}
+              helper="Active accounts"
+            />
           </div>
         );
 
       case 'total-cash':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-info to-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalCash || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Total Cash (Banks + Stock)</p>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Total Cash"
+              value={`₹${((metrics?.totalCash || 0) / 100000).toFixed(2)}L`}
+              helper="Banks + Stock"
+            />
           </div>
         );
 
@@ -384,17 +382,11 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       default:
         return (
-          <div className="p-6 text-center">
-            <div className={`w-16 h-16 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm`}>
-              {IconComponent && typeof IconComponent === 'function' ? (
-                <IconComponent className="h-8 w-8 text-primary-foreground" />
-              ) : (
-                <BarChart3 className="h-8 w-8 text-primary-foreground" />
-              )}
-            </div>
-            <h4 className="font-semibold text-foreground mb-2">{widget.name}</h4>
-            <p className="text-sm text-muted-foreground">{widget.description}</p>
-          </div>
+          <WidgetEmpty
+            icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
+            title={widget.name}
+            description={widget.description}
+          />
         );
     }
   };

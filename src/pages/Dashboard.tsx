@@ -782,38 +782,49 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Edit Mode Banner */}
+      {/* Edit Mode Bar — quiet, informational, never shouty */}
       {isEditMode && (
-        <div className="rounded-xl border border-warning/40 bg-warning/10 p-4">
-          <div className="flex items-start md:items-center gap-3">
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/20 text-warning">
-              <Settings className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="t-card-title text-foreground">Customize mode active</h3>
-              <p className="t-secondary mt-0.5">
-                Drag widgets to reorder • Hover & click ✕ to remove • Use "Add Widget" to add new ones
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
-              className="flex-shrink-0"
-            >
-              Done
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            <Settings className="h-3 w-3" />
+            Customizing
+          </span>
+          <p className="t-secondary min-w-0 flex-1">
+            Drag a tile by its handle to reorder, resize from the tile toolbar, or add widgets.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
+            className="flex-shrink-0"
+          >
+            Done
+          </Button>
         </div>
       )}
 
       {/* Widget Grid */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setDraggingId(null)}
+      >
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className={`grid grid-cols-12 gap-3 md:gap-4 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
+          <div className="grid grid-cols-12 auto-rows-auto items-stretch gap-3 stagger-children md:gap-4">
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>
+        <DragOverlay dropAnimation={null}>
+          {draggingId ? (
+            <div className="rounded-xl border border-primary/50 bg-card/95 px-3 py-2 shadow-md backdrop-blur">
+              <span className="t-card-title text-foreground">
+                {widgetRegistry.find(w => w.id === draggingId)?.name ?? 'Widget'}
+              </span>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Empty state */}

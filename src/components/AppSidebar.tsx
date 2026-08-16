@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 import { useAuth } from "@/hooks/useAuth";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Reconciliation cockpit item (gated by reconciliation function, not a permission string)
 const reconciliationItem: SidebarGroupItem = {
@@ -267,7 +268,7 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
   const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const isSuperAdmin = hasRole("super admin");
   const isCollapsed = state === "collapsed";
 
@@ -365,6 +366,17 @@ export function AppSidebar() {
     }
   };
 
+  const userName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.username || "Account";
+  const userRole = user?.roles?.[0] || "user";
+  const userInitials =
+    (userName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((n) => n[0])
+      .join("") || "U").toUpperCase();
+
   if (isLoading) {
     return (
       <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm">
@@ -407,13 +419,9 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm" collapsible="icon">
-      <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-primary ${isCollapsed ? 'p-2' : 'p-4'}`}>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary-foreground/40 to-transparent"
-        />
-        <div className={`flex items-center justify-center min-h-[60px] ${isCollapsed ? 'min-h-[56px]' : 'min-h-[60px]'}`}>
+    <Sidebar className="border-r border-sidebar-border bg-sidebar" collapsible="icon">
+      <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-sidebar ${isCollapsed ? 'p-2' : 'px-4 py-3'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center min-h-[44px]' : 'justify-start min-h-[52px]'}`}>
           {isCollapsed ? (
             <img
               src={blynkIcon}
@@ -424,13 +432,13 @@ export function AppSidebar() {
             <img
               src={blynkLogoWhite}
               alt="BLYNK Virtual Technologies"
-              className="h-10 w-auto flex-shrink-0"
+              className="h-9 w-auto flex-shrink-0 dark:brightness-100"
             />
           )}
         </div>
       </SidebarHeader>
       
-      <SidebarContent className={`bg-sidebar overflow-y-auto group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden ${isCollapsed ? "scrollbar-hidden" : ""}`}>
+      <SidebarContent className="ds-nav-scroll bg-sidebar overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-x-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext
@@ -442,23 +450,178 @@ export function AppSidebar() {
                 items={sortableIds}
                 strategy={verticalListSortingStrategy}
               >
-                <SidebarMenu className={`space-y-1 ${isCollapsed ? 'px-0 items-center' : 'px-2'}`}>
-                  <SidebarMenuItem className={isCollapsed ? 'w-8' : undefined}>
+                <SidebarMenu className={`gap-2 py-1 ${isCollapsed ? 'px-0 items-center' : 'px-2'}`}>
+                  <SidebarMenuItem className={isCollapsed ? 'flex justify-center' : undefined}>
                     <SidebarMenuButton
                       asChild
-                      isActive={location.pathname === "/profile"}
                       tooltip={isCollapsed ? "Profile" : undefined}
-                      className="rounded-xl border border-transparent transition-all duration-150 hover:border-sidebar-border hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:shadow-sm data-[active=true]:border-sidebar-border data-[active=true]:font-semibold data-[active=true]:shadow-sm group-data-[collapsible=icon]:!p-0"
+                      className="h-auto p-0 hover:bg-transparent group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0"
                     >
                       <Link
                         to="/profile"
                         aria-label="Profile"
-                        className={`flex items-center ${isCollapsed ? 'h-8 w-8 justify-center p-0' : 'gap-3 px-3 py-3'}`}
+                        className="ds-nav-row"
+                        data-collapsed={isCollapsed}
+                        data-active={location.pathname === "/profile"}
                       >
-                        <span className={`flex flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 ${isCollapsed ? 'h-8 w-8' : 'h-8 w-8'}`}>
-                          <CircleUser className="h-4 w-4 text-primary" />
+                        <span className="ds-nav-icon">
+                          <CircleUser className="h-[18px] w-[18px]" />
                         </span>
-                        {!isCollapsed && <span className="truncate text-sm font-medium">Profile</span>}
+                        {!isCollapsed && <span className="ds-nav-label">Profile</span>}
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+
+                  {orderedEntries.map(entry => {
+                    if (entry.type === 'group') {
+                      return (
+                        <CollapsibleSidebarGroup
+                          key={entry.data.id}
+                          group={entry.data}
+                          isCollapsed={isCollapsed}
+                          isDragMode={isDragMode}
+                        />
+                      );
+                    }
+                    
+                    return (
+                      <DraggableSidebarItem
+                        key={entry.data.id}
+                        item={entry.data}
+                        isCollapsed={isCollapsed}
+                        isDragMode={isDragMode}
+                      />
+                    );
+                  })}
+                </SidebarMenu>
+              </SortableContext>
+            </DndContext>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        
+        {orderedEntries.length === 0 && (
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <div className="text-center py-8 text-muted-foreground">
+                <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <Shield className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">No accessible modules</p>
+              </div>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+      </SidebarContent>
+      
+      <SidebarFooter className={`border-t border-sidebar-border bg-sidebar ${isCollapsed ? 'p-2' : 'px-2 py-2.5'}`}>
+        <div className="flex flex-col gap-2">
+          <Link
+            to="/terminal"
+            aria-label="Terminal"
+            title={isCollapsed ? undefined : "Terminal"}
+            className={`flex items-center rounded-lg border border-warning/30 bg-warning/5 text-warning transition-colors duration-150 hover:bg-warning/10 ${isCollapsed ? 'mx-auto h-9 w-9 justify-center' : 'h-8 gap-2 px-2.5'}`}
+          >
+            <Megaphone className="h-[18px] w-[18px] flex-shrink-0" />
+            {!isCollapsed && <span className="text-xs font-semibold tracking-wide">Terminal</span>}
+          </Link>
+
+          <div className={`flex items-center gap-2 ${isCollapsed ? 'flex-col' : ''}`}>
+            <Link
+              to="/profile"
+              aria-label="Your profile"
+              title={userName}
+              className={`flex min-w-0 items-center gap-2 rounded-lg transition-colors duration-150 hover:bg-sidebar-accent ${isCollapsed ? 'h-9 w-9 justify-center' : 'flex-1 px-1.5 py-1'}`}
+            >
+              <Avatar className="h-7 w-7 flex-shrink-0">
+                <AvatarImage src={user?.avatar_url || undefined} alt={userName} />
+                <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+              {!isCollapsed && (
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-[13px] font-medium text-sidebar-foreground">{userName}</span>
+                  <span className="block truncate text-[11px] capitalize text-muted-foreground">{userRole}</span>
+                </span>
+              )}
+            </Link>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="h-8 w-8 flex-shrink-0 rounded-lg p-0 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {!isCollapsed && (
+            <p className="px-1.5 text-[10px] text-muted-foreground">
+              © {new Date().getFullYear()} BLYNK Virtual Technologies
+            </p>
+          )}
+        </div>
+      </SidebarFooter>
+      </Sidebar>
+    );
+  }
+
+  const sortableIds = orderedEntries.map(entry => 
+    entry.type === 'item' ? entry.data.id : entry.data.id
+  );
+
+  return (
+    <Sidebar className="border-r border-sidebar-border bg-sidebar" collapsible="icon">
+      <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-sidebar ${isCollapsed ? 'p-2' : 'px-4 py-3'}`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center min-h-[44px]' : 'justify-start min-h-[52px]'}`}>
+          {isCollapsed ? (
+            <img
+              src={blynkIcon}
+              alt="BLYNK Virtual Technologies"
+              className="h-8 w-8 flex-shrink-0"
+            />
+          ) : (
+            <img
+              src={blynkLogoWhite}
+              alt="BLYNK Virtual Technologies"
+              className="h-9 w-auto flex-shrink-0 dark:brightness-100"
+            />
+          )}
+        </div>
+      </SidebarHeader>
+      
+      <SidebarContent className="ds-nav-scroll bg-sidebar overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-x-hidden">
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sortableIds}
+                strategy={verticalListSortingStrategy}
+              >
+                <SidebarMenu className={`gap-2 py-1 ${isCollapsed ? 'px-0 items-center' : 'px-2'}`}>
+                  <SidebarMenuItem className={isCollapsed ? 'flex justify-center' : undefined}>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip={isCollapsed ? "Profile" : undefined}
+                      className="h-auto p-0 hover:bg-transparent group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0"
+                    >
+                      <Link
+                        to="/profile"
+                        aria-label="Profile"
+                        className="ds-nav-row"
+                        data-collapsed={isCollapsed}
+                        data-active={location.pathname === "/profile"}
+                      >
+                        <span className="ds-nav-icon">
+                          <CircleUser className="h-[18px] w-[18px]" />
+                        </span>
+                        {!isCollapsed && <span className="ds-nav-label">Profile</span>}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

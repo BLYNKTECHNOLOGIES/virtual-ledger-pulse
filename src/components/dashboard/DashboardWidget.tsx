@@ -438,7 +438,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
         return (
           <WidgetEmpty
             icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
-          iconTone={headerTone}
+            tone={headerTone}
             title={widget.name}
             description={widget.description}
           />

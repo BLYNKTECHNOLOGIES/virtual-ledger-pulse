@@ -412,7 +412,7 @@ export async function exportBalanceSheetXlsx(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Balance-Sheet_${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.xlsx`;
+  a.download = `Balance-Sheet_${isManagement ? "Management_" : ""}${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }

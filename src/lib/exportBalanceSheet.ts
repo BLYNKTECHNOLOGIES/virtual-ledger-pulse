@@ -21,6 +21,8 @@ export interface IntegrityFinding {
   affected_count: number | null;
 }
 
+export type BalanceSheetMode = "MANAGEMENT" | "VERIFICATION";
+
 export interface BalanceSheetMeta {
   entityName: string;
   gstin?: string | null;
@@ -33,6 +35,7 @@ export interface BalanceSheetMeta {
   failedChecks?: string[];
   checksum?: string;
   cryptoNote?: string[] | null;
+  mode?: BalanceSheetMode;
 }
 
 const SECTION_TITLES: Record<string, string> = {
@@ -49,6 +52,18 @@ export const inr = (n: number) =>
 export const NOT_AVAILABLE = "NOT AVAILABLE";
 export const amountText = (amount: number | null | undefined) =>
   amount === null || amount === undefined ? NOT_AVAILABLE : inr(Number(amount));
+
+/**
+ * Registration identifiers are only meaningful at their statutory length.
+ * Anything shorter (placeholders such as "D") is not an identifier — print NOT AVAILABLE.
+ */
+export const statutoryId = (value: string | null | undefined, requiredLength: number) => {
+  const v = (value || "").trim().toUpperCase();
+  return v.length === requiredLength ? v : NOT_AVAILABLE;
+};
+export const gstinText = (v: string | null | undefined) => statutoryId(v, 15);
+export const panText = (v: string | null | undefined) => statutoryId(v, 10);
+
 
 /** Deterministic checksum over the presented figures, so a printed copy can be tied back. */
 export function balanceSheetChecksum(lines: BalanceSheetLine[], meta: { entityName: string; asOf: string }) {
@@ -96,6 +111,9 @@ function drawWatermark(doc: jsPDF) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const pages = doc.getNumberOfPages();
+  const label = "DRAFT - FAILED VERIFICATION";
+  const angle = 32;
+
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.saveGraphicsState();
@@ -103,11 +121,26 @@ function drawWatermark(doc: jsPDF) {
 
     doc.setTextColor(200, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(46);
-    doc.text("DRAFT - FAILED VERIFICATION", pageWidth / 2, pageHeight / 2, {
+
+    // Size the text so the rotated bounding box always fits inside the page.
+    const rad = (angle * Math.PI) / 180;
+    let size = 46;
+    for (; size > 10; size -= 1) {
+      doc.setFontSize(size);
+      const w = doc.getTextWidth(label);
+      const h = size * 1.2;
+      const boxW = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad));
+      const boxH = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
+      if (boxW <= pageWidth - 48 && boxH <= pageHeight - 48) break;
+    }
+    doc.setFontSize(size);
+
+    doc.text(label, pageWidth / 2, pageHeight / 2, {
       align: "center",
-      angle: 32,
-    });
+      baseline: "middle",
+      angle,
+      renderingMode: "fill",
+    } as any);
     doc.restoreGraphicsState();
     doc.setTextColor(0);
   }
@@ -120,29 +153,52 @@ export function exportBalanceSheetPdf(
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const isManagement = (meta.mode || "MANAGEMENT") === "MANAGEMENT";
+  const showDraft = !isManagement && !!meta.isDraft;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.text(meta.entityName, 40, 48);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Statement of Financial Position (ledger-supported)", 40, 66);
+  doc.text(
+    isManagement
+      ? "Management Statement of Financial Position (indicative)"
+      : "Statement of Financial Position (ledger-supported)",
+    40,
+    66,
+  );
   doc.text(`As at ${meta.asOf}`, 40, 82);
-  const idBits = [meta.gstin ? `GSTIN: ${meta.gstin}` : null, meta.pan ? `PAN: ${meta.pan}` : null]
-    .filter(Boolean)
-    .join("   ");
-  if (idBits) doc.text(idBits, 40, 98);
+  const idBits = `GSTIN: ${gstinText(meta.gstin)}   PAN: ${panText(meta.pan)}`;
+  doc.text(idBits, 40, 98);
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(`Generated ${meta.generatedAt}`, pageWidth - 40, 48, { align: "right" });
   if (meta.checksum) doc.text(`Checksum ${meta.checksum}`, pageWidth - 40, 60, { align: "right" });
   if (meta.valuationBasis)
     doc.text(`Inventory basis: ${meta.valuationBasis}`, pageWidth - 40, 72, { align: "right" });
+  doc.text(isManagement ? "Mode: Management view" : "Mode: Verification view", pageWidth - 40, 84, {
+    align: "right",
+  });
   doc.setTextColor(0);
 
-  let y = idBits ? 116 : 100;
+  let y = 116;
 
-  if (meta.isDraft) {
+  if (isManagement) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Management report - indicative, not audited"]],
+      body: [
+        [
+          "Prepared for internal management use from the data held in the ERP. Figures are directionally accurate, not audited and not statutory. Crypto inventory is derived from order quantities and allocated across companies on purchase value where wallets are not mapped. Known gaps are listed under 'Limitations and known gaps' and are not adjusted away.",
+        ],
+      ],
+      styles: { fontSize: 8, cellPadding: 6, textColor: [60, 60, 60] },
+      headStyles: { fillColor: [37, 47, 63], textColor: 255, fontStyle: "bold" },
+      margin: { left: 40, right: 40 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 16;
+  } else if (showDraft) {
     autoTable(doc, {
       startY: y,
       head: [["DRAFT - FAILED VERIFICATION"]],
@@ -159,8 +215,10 @@ export function exportBalanceSheetPdf(
     y = (doc as any).lastAutoTable.finalY + 16;
   }
 
+
   for (const g of grouped(lines)) {
     if (!g.rows.length) continue;
+    if (isManagement && g.section === "CHECK") continue;
     autoTable(doc, {
       startY: y,
       head: [[g.title, "Amount (INR)", "Basis"]],
@@ -191,7 +249,14 @@ export function exportBalanceSheetPdf(
   if (findings.length) {
     autoTable(doc, {
       startY: y,
-      head: [["Data-integrity findings", "Severity", "Impact (INR)", "Count"]],
+      head: [
+        [
+          isManagement ? "Limitations and known gaps" : "Data-integrity findings",
+          "Severity",
+          "Impact (INR)",
+          "Count",
+        ],
+      ],
       body: findings.map((f) => [
         f.title + (f.detail ? `\n${f.detail}` : ""),
         f.severity,
@@ -220,14 +285,18 @@ export function exportBalanceSheetPdf(
 
   doc.setFontSize(7.5);
   doc.setTextColor(110);
-  const disclaimer =
-    "Prepared from bank ledger data recorded in the ERP. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. Crypto inventory is presented only for wallets mapped to this company. No balancing or plug entries have been made: any difference is shown in the reconciliation check.";
+  const disclaimer = isManagement
+    ? "Indicative management report prepared from the data held in the ERP. Not audited and not a statutory financial statement. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. Crypto inventory is derived from order quantities net of sales and wallet fees, and is allocated on purchase value where wallets are not mapped to a company. No balancing or plug entries have been made: the unexplained difference is presented as a named line in equity."
+    : "Prepared from bank ledger data recorded in the ERP. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. Crypto inventory is presented only for wallets mapped to this company. No balancing or plug entries have been made: any difference is shown in the reconciliation check.";
   doc.text(doc.splitTextToSize(disclaimer, pageWidth - 80), 40, Math.min(y, doc.internal.pageSize.getHeight() - 50));
 
-  if (meta.isDraft) drawWatermark(doc);
+  if (showDraft) drawWatermark(doc);
 
-  doc.save(`Balance-Sheet_${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.pdf`);
+  doc.save(
+    `Balance-Sheet_${isManagement ? "Management_" : ""}${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.pdf`,
+  );
 }
+
 
 export async function exportBalanceSheetXlsx(
   lines: BalanceSheetLine[],
@@ -244,25 +313,37 @@ export async function exportBalanceSheetXlsx(
     { key: "note", width: 70 },
   ];
 
+  const isManagement = (meta.mode || "MANAGEMENT") === "MANAGEMENT";
   const title = ws.addRow([meta.entityName]);
   title.font = { bold: true, size: 14, name: "Arial" };
-  ws.addRow(["Statement of Financial Position (ledger-supported)"]).font = { name: "Arial", size: 10 };
+  ws.addRow([
+    isManagement
+      ? "Management Statement of Financial Position (indicative, not audited)"
+      : "Statement of Financial Position (ledger-supported)",
+  ]).font = { name: "Arial", size: 10 };
   ws.addRow([`As at ${meta.asOf}`]).font = { name: "Arial", size: 10 };
-  if (meta.gstin || meta.pan) ws.addRow([`GSTIN: ${meta.gstin || "-"}    PAN: ${meta.pan || "-"}`]);
+  ws.addRow([`GSTIN: ${gstinText(meta.gstin)}    PAN: ${panText(meta.pan)}`]);
   if (meta.valuationBasis) ws.addRow([`Inventory valuation basis: ${meta.valuationBasis}`]);
   ws.addRow([`Generated ${meta.generatedAt}`]).font = { name: "Arial", size: 9, color: { argb: "FF808080" } };
   if (meta.checksum) ws.addRow([`Checksum ${meta.checksum}`]).font = { name: "Arial", size: 9 };
-  if (meta.isDraft) {
+  if (!isManagement && meta.isDraft) {
     const w = ws.addRow([
       "DRAFT - FAILED VERIFICATION: " +
         (meta.failedChecks?.length ? meta.failedChecks.join(", ") : "see Data Integrity sheet"),
     ]);
     w.font = { bold: true, name: "Arial", color: { argb: "FFBE1E1E" } };
   }
+  if (isManagement) {
+    ws.addRow([
+      "Indicative management report. Crypto inventory is derived from order quantities and allocated on purchase value where wallets are not mapped. Known gaps are listed on the 'Limitations' sheet and are not adjusted away.",
+    ]).font = { name: "Arial", size: 9, italic: true };
+  }
   ws.addRow([]);
 
   for (const g of grouped(lines)) {
     if (!g.rows.length) continue;
+    if (isManagement && g.section === "CHECK") continue;
+
     const head = ws.addRow([g.title, "Amount (INR)", "Basis", "Note"]);
     head.font = { bold: true, name: "Arial", color: { argb: "FFFFFFFF" } };
     head.eachCell((c) => {
@@ -290,7 +371,8 @@ export async function exportBalanceSheetXlsx(
   }
 
   if (findings.length) {
-    const fs = wb.addWorksheet("Data Integrity");
+    const fs = wb.addWorksheet(isManagement ? "Limitations" : "Data Integrity");
+
     fs.columns = [
       { key: "severity", width: 12 },
       { key: "title", width: 46 },
@@ -298,7 +380,14 @@ export async function exportBalanceSheetXlsx(
       { key: "impact", width: 18 },
       { key: "count", width: 10 },
     ];
-    const h = fs.addRow(["Severity", "Finding", "Detail", "Impact (INR)", "Count"]);
+    const h = fs.addRow([
+      "Severity",
+      isManagement ? "Limitation" : "Finding",
+      "Detail",
+      "Impact (INR)",
+      "Count",
+    ]);
+
     h.font = { bold: true, name: "Arial", color: { argb: "FFFFFFFF" } };
     h.eachCell((c) => {
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF7C2D12" } };
@@ -323,7 +412,7 @@ export async function exportBalanceSheetXlsx(
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `Balance-Sheet_${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.xlsx`;
+  a.download = `Balance-Sheet_${isManagement ? "Management_" : ""}${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.xlsx`;
   a.click();
   URL.revokeObjectURL(url);
 }

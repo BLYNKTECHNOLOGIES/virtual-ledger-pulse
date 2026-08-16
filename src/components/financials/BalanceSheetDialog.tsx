@@ -30,10 +30,14 @@ import {
 
   balanceSheetChecksum,
   cryptoDisclosureNote,
+  gstinText,
+  panText,
   inr,
   type BalanceSheetLine,
+  type BalanceSheetMode,
   type IntegrityFinding,
 } from "@/lib/exportBalanceSheet";
+
 import { WalletEntityMappingPanel } from "./balance-sheet/WalletEntityMappingPanel";
 
 interface Props {
@@ -62,7 +66,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   const [entityId, setEntityId] = useState<string>("");
   const [asOf, setAsOf] = useState<string>(() => format(new Date(), "yyyy-MM-dd"));
   const [valuationBasis, setValuationBasis] = useState<string>("COST");
+  const [mode, setMode] = useState<BalanceSheetMode>("MANAGEMENT");
   const [showMapping, setShowMapping] = useState(false);
+  const isManagement = mode === "MANAGEMENT";
 
   const { data: entities, isLoading: entitiesLoading } = useQuery({
     queryKey: ["fin-entity-master"],
@@ -80,14 +86,18 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   const entity = entities?.find((e) => e.subsidiary_id === entityId);
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ["fin-balance-sheet", entityId, asOf, valuationBasis],
+    queryKey: ["fin-balance-sheet", entityId, asOf, valuationBasis, mode],
     enabled: open && !!entityId && !!asOf,
     queryFn: async () => {
+      // Bring the cached crypto order feed up to date before deriving inventory.
+      await supabase.rpc("fin_crypto_refresh" as any);
+
       const [sheet, integrity] = await Promise.all([
         supabase.rpc("fin_entity_balance_sheet" as any, {
           p_subsidiary_id: entityId,
           p_as_of: asOf,
           p_valuation_basis: valuationBasis,
+          p_mode: mode,
         }),
         supabase.rpc("fin_entity_integrity" as any, {
           p_subsidiary_id: entityId,
@@ -114,6 +124,8 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   if (balanceOff) failedChecks.push("Assets do not equal liabilities plus equity");
   const isDraft = failedChecks.length > 0;
 
+  const visibleLines = isManagement ? lines.filter((l) => l.section !== "CHECK") : lines;
+
   const inventoryLine = lines.find((l) => l.line_key === "inventory");
   const isCompany = (entity?.firm_composition || "").toUpperCase() === "PRIVATE_LIMITED";
   const cryptoNote = isCompany
@@ -134,7 +146,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
       ? balanceSheetChecksum(lines, { entityName: entity?.legal_name?.trim() || "", asOf })
       : undefined,
     cryptoNote,
+    mode,
   };
+
 
   const logGeneration = async (formatKind: "PDF" | "XLSX") => {
     try {
@@ -144,8 +158,10 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
         period_start: asOf,
         period_end: asOf,
         valuation_basis: valuationBasis,
-        is_draft: isDraft,
+        mode,
+        is_draft: isManagement ? false : isDraft,
         failed_checks: failedChecks,
+
         checksum: meta.checksum ?? null,
         totals: {
           total_assets: Number(lines.find((l) => l.line_key === "total_assets")?.amount || 0),
@@ -231,10 +247,12 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>Balance Sheet</DialogTitle>
           <DialogDescription>
-            Company-wise statement of financial position built from the bank ledger. Unsupported
-            areas are disclosed, never estimated.
+            {isManagement
+              ? "Indicative company-wise position built from the data the ERP holds. Directional, not audited — gaps are listed, never plugged."
+              : "Company-wise statement of financial position built from the bank ledger. Unsupported areas are disclosed, never estimated."}
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <div className="space-y-1.5">
@@ -265,9 +283,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             <Button
               variant="outline"
               size="sm"
-              disabled={!lines.length}
+              disabled={!visibleLines.length}
               onClick={() => {
-                exportBalanceSheetPdf(lines, findings, meta);
+                exportBalanceSheetPdf(visibleLines, findings, meta);
                 logGeneration("PDF");
               }}
             >
@@ -277,9 +295,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             <Button
               variant="outline"
               size="sm"
-              disabled={!lines.length}
+              disabled={!visibleLines.length}
               onClick={() => {
-                exportBalanceSheetXlsx(lines, findings, meta);
+                exportBalanceSheetXlsx(visibleLines, findings, meta);
                 logGeneration("XLSX");
               }}
             >
@@ -288,6 +306,27 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             </Button>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Report mode</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as BalanceSheetMode)}>
+              <SelectTrigger className="w-[260px] text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MANAGEMENT">Management view (indicative)</SelectItem>
+                <SelectItem value="VERIFICATION">Verification view (strict)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="max-w-md pb-2 text-[11px] text-muted-foreground">
+            {isManagement
+              ? "Usable internal report. The unexplained difference is shown as a named equity line and gaps appear under limitations."
+              : "Strict audit view. Every failing check is raised and exports carry the draft watermark."}
+          </p>
+        </div>
+
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-1.5">
@@ -324,7 +363,15 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             </p>
           )}
 
-          {isDraft && !!lines.length && (
+          {isManagement && !!lines.length && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
+              <span className="font-semibold text-foreground">Management report — indicative.</span>{" "}
+              Directional figures for internal use, not audited and not statutory.{" "}
+              {`GSTIN: ${gstinText(entity?.gst_number)} · PAN: ${panText(entity?.pan_number)}`}
+            </div>
+          )}
+
+          {!isManagement && isDraft && !!lines.length && (
             <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
               <div className="text-xs text-destructive">
@@ -336,6 +383,7 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
           )}
+
 
           {cryptoNote && !!lines.length && (
             <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">
@@ -368,23 +416,35 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               {renderSection("ASSETS", "Assets")}
               {renderSection("LIABILITIES", "Liabilities")}
               {renderSection("EQUITY", "Equity (derived from ledger flows)")}
-              {renderSection("CHECK", "Reconciliation check")}
+              {!isManagement && renderSection("CHECK", "Reconciliation check")}
 
               {findings.length > 0 && (
-                <div className="rounded-lg border border-warning/40 bg-warning/5">
-                  <div className="flex items-center gap-2 border-b border-warning/30 px-4 py-2.5">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
+                <div
+                  className={`rounded-lg border ${isManagement ? "border-border bg-muted/30" : "border-warning/40 bg-warning/5"}`}
+                >
+                  <div
+                    className={`flex items-center gap-2 border-b px-4 py-2.5 ${isManagement ? "border-border" : "border-warning/30"}`}
+                  >
+                    <AlertTriangle
+                      className={`h-4 w-4 ${isManagement ? "text-muted-foreground" : "text-warning"}`}
+                    />
                     <h4 className="text-sm font-semibold text-foreground">
-                      Data-integrity findings
+                      {isManagement ? "Limitations and known gaps" : "Data-integrity findings"}
                     </h4>
                   </div>
-                  <div className="divide-y divide-warning/20">
+                  <div className={`divide-y ${isManagement ? "divide-border/60" : "divide-warning/20"}`}>
                     {findings.map((f, i) => (
                       <div key={`${f.code}-${i}`} className="px-4 py-2.5">
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-sm font-medium text-foreground">{f.title}</span>
                           <Badge
-                            variant={f.severity === "critical" ? "destructive" : "secondary"}
+                            variant={
+                              isManagement
+                                ? "secondary"
+                                : f.severity === "critical"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
                             className="shrink-0 text-[10px] uppercase"
                           >
                             {f.severity}
@@ -406,14 +466,14 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               )}
 
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Prepared from bank ledger data recorded in the ERP. Crypto inventory, fixed assets,
-                capital accounts, borrowings and statutory dues are not maintained as ledgers and are
-                therefore not presented. No balancing or plug entries are made — any difference is
-                reported in the reconciliation check.
+                {isManagement
+                  ? "Indicative management report prepared from the data held in the ERP. Crypto inventory is derived from order quantities net of sales and wallet fees, and allocated on purchase value where wallets are not mapped to a company. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers. No plug entries are made — the unexplained difference is shown as a named line in equity."
+                  : "Prepared from bank ledger data recorded in the ERP. Crypto inventory, fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. No balancing or plug entries are made — any difference is reported in the reconciliation check."}
               </p>
             </>
           )}
         </div>
+
       </DialogContent>
     </Dialog>
   );

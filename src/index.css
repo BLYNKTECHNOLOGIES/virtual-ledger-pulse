@@ -1701,3 +1701,102 @@ html {
   font-weight: 500;
   line-height: 1;
 }
+
+/* ============================================================
+   Sidebar navigation rows — shared anatomy for items & groups
+   ============================================================ */
+.ds-nav-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: hsl(var(--sidebar-foreground));
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.25;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+.ds-nav-row:hover {
+  background: hsl(var(--sidebar-accent));
+  color: hsl(var(--sidebar-accent-foreground));
+}
+.ds-nav-row .ds-nav-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  flex: 0 0 20px;
+  color: hsl(var(--muted-foreground));
+  transition: color 120ms ease;
+}
+.ds-nav-row:hover .ds-nav-icon { color: hsl(var(--sidebar-accent-foreground)); }
+.ds-nav-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.ds-nav-row[data-active="true"] {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-weight: 600;
+}
+.ds-nav-row[data-active="true"] .ds-nav-icon { color: hsl(var(--primary)); }
+.ds-nav-row[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 18px;
+  border-radius: 999px;
+  background: hsl(var(--primary));
+}
+/* Parent group containing the active route — quieter cue */
+.ds-nav-row[data-contains-active="true"] .ds-nav-icon { color: hsl(var(--primary)); }
+.ds-nav-row[data-contains-active="true"] { color: hsl(var(--sidebar-accent-foreground)); font-weight: 500; }
+
+/* Collapsed (icon) mode */
+.ds-nav-row[data-collapsed="true"] {
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  gap: 0;
+}
+
+/* Group header label when expanded */
+.ds-nav-grouplabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Child rail under an expanded group */
+.ds-nav-children {
+  margin-left: 19px;
+  padding-left: 11px;
+  border-left: 1px solid hsl(var(--sidebar-border));
+}
+
+/* Thin auto-hiding sidebar scrollbar */
+.ds-nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.ds-nav-scroll::-webkit-scrollbar { width: 6px; }
+.ds-nav-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
+.ds-nav-scroll:hover { scrollbar-color: hsl(var(--sidebar-border)) transparent; }
+.ds-nav-scroll:hover::-webkit-scrollbar-thumb { background: hsl(var(--sidebar-border)); }

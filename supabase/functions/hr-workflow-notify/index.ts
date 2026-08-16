@@ -186,9 +186,13 @@ function render(kind: string, eventType: string, d: Record<string, any>) {
 
   const dateTag = kind === "leave" ? shortDate(d.startDate) : shortDate(d.attendanceDate);
   const subjectBase = kind === "leave" ? "Leave" : "Attendance regularization";
-  const subject = `${subjectBase}: ${meta.chip}${dateTag ? ` — ${dateTag}` : ""}${
-    d.recipientRole !== "employee" && d.employeeName ? ` · ${d.employeeName}` : ""
-  }`;
+  // Keep the subject plain ASCII and short: denomailer mis-encodes long
+  // non-ASCII headers, which leaks the raw MIME envelope into the mail body.
+  const subject = asciiSubject(
+    `${subjectBase}: ${meta.chip}${dateTag ? ` - ${dateTag}` : ""}${
+      d.recipientRole !== "employee" && d.employeeName ? ` - ${d.employeeName}` : ""
+    }`,
+  );
 
   const ref = `${(dateTag || "").replace(/\s/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 

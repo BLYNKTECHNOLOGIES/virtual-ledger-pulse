@@ -871,16 +871,19 @@ function App() {
 
   return (
     <React.StrictMode>
-      <AuthProvider>
-        <Suspense fallback={<RouteFallback />}>
-          <RouterProvider router={router} />
-        </Suspense>
-        <Toaster />
-        <SonnerToaster position="top-right" richColors closeButton />
+      <ThemeProvider>
+        <AuthProvider>
+          <Suspense fallback={<RouteFallback />}>
+            <RouterProvider router={router} />
+          </Suspense>
+          <Toaster />
+          <SonnerToaster position="top-right" richColors closeButton />
 
-      </AuthProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </React.StrictMode>
   );
 }
+
 
 export default App;

@@ -186,28 +186,21 @@ export function QuickStatsWidget({ metrics, dateRange }: { metrics?: any; dateRa
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="stats" />;
 
   const stats = data || { orders: 0, purchases: 0, verifiedClients: 0, totalClients: 0 };
 
   return (
-    <div className="p-4 grid grid-cols-2 gap-3">
-      <div className="text-center p-3 bg-info/10 dark:bg-info/30 rounded-lg">
-        <div className="text-xl font-bold text-info">{stats.orders.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Orders</p>
-      </div>
-      <div className="text-center p-3 bg-success/10 dark:bg-success/30 rounded-lg">
-        <div className="text-xl font-bold text-success">{stats.verifiedClients.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Verified Clients</p>
-      </div>
-      <div className="text-center p-3 bg-primary/10 dark:bg-primary/30 rounded-lg">
-        <div className="text-xl font-bold text-primary">{stats.totalClients.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Total Clients</p>
-      </div>
-      <div className="text-center p-3 bg-warning/10 dark:bg-warning/30 rounded-lg">
-        <div className="text-xl font-bold text-warning">{stats.purchases.toLocaleString('en-IN')}</div>
-        <p className="text-xs text-muted-foreground">Purchases</p>
-      </div>
+    <div className="p-3">
+      <WidgetStatGrid
+        columns={4}
+        items={[
+          { label: 'Orders', value: stats.orders.toLocaleString('en-IN') },
+          { label: 'Verified clients', value: stats.verifiedClients.toLocaleString('en-IN'), tone: 'success' },
+          { label: 'Total clients', value: stats.totalClients.toLocaleString('en-IN'), tone: 'primary' },
+          { label: 'Purchases', value: stats.purchases.toLocaleString('en-IN'), tone: 'warning' },
+        ]}
+      />
     </div>
   );
 }

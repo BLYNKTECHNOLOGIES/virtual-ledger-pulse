@@ -16,7 +16,17 @@ import {
   UserCheck, PieChart, BarChart3, Bell
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
-import { chartSeriesColors } from "@/lib/dashboard/chartTheme";
+import { chartSeriesColors, axisProps, tooltipProps, gridProps, chartColor } from "@/lib/dashboard/chartTheme";
+import { WidgetSkeleton, WidgetEmpty, WidgetError } from "@/components/dashboard/primitives/WidgetShell";
+import {
+  WidgetMetric,
+  WidgetList,
+  WidgetListRow,
+  WidgetStatGrid,
+  WidgetProgressRow,
+  WidgetStatus,
+  WidgetChart,
+} from "@/components/dashboard/primitives/WidgetAtoms";
 
 // Categorical series palette resolved from design tokens (never raw hex).
 const COLORS = chartSeriesColors();

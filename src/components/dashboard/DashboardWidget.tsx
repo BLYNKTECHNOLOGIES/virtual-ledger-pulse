@@ -405,23 +405,11 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className={`h-full ${getSizeClasses(widget.size)}`}>
-      <WidgetShell isEditing={isDraggable} isDragging={isDragging} className="h-full">
+    <div className="h-full">
+      <WidgetShell className="h-full">
         <WidgetHeader
           title={widget.name}
           icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
-          leading={
-            isDraggable ? (
-              <button
-                type="button"
-                {...listeners}
-                aria-label={`Drag to reorder ${widget.name}`}
-                className="inline-flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-lg text-muted-foreground hover:bg-muted active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <GripVertical className="h-4 w-4" />
-              </button>
-            ) : undefined
-          }
           actions={
             <WidgetMenu
               title={widget.name}

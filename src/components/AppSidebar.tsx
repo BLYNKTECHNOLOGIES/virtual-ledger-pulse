@@ -443,7 +443,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       
-      <SidebarContent className="ds-nav-scroll bg-sidebar overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-x-hidden">
+      <SidebarContent className="ds-nav-scroll bg-sidebar overflow-y-auto overflow-x-hidden group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:overflow-x-hidden">
         <SidebarGroup>
           <SidebarGroupContent>
             <DndContext

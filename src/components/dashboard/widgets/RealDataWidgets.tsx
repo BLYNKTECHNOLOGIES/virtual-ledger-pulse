@@ -16,6 +16,7 @@ import {
   UserCheck, PieChart, BarChart3, Bell
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
+import { chartSeriesColors } from "@/lib/dashboard/chartTheme";
 
 // Categorical series palette resolved from design tokens (never raw hex).
 const COLORS = chartSeriesColors();

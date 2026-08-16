@@ -118,6 +118,52 @@ const widgetIconMap: Record<string, any> = {
   "expense-trends": TrendingDown,
   "wallet-balance": Wallet,
   "team-status": UserCheck,
+  "recent-orders": ShoppingCart,
+  "expense-breakdown": PieChart,
+  "customer-growth": Users,
+  "inventory-status": Package,
+  "upcoming-tasks": Bell,
+  "daily-activity": Activity,
+  "growth-rate": TrendingUp,
+  "profit-margin": TrendingUp,
+  "conversion-rate": Zap,
+  "earnings-rate": DollarSign,
+  "gross-profit": DollarSign,
+  "quick-stats": BarChart3,
+  "performance-overview": LineChart,
+  "bank-balance": Building,
+  "shift-reconciliation": Timer,
+  "terminal-sales-approval": ShoppingCart,
+  "terminal-purchase-approval": Package,
+};
+
+/** Header icon tint per widget: money = primary, people = success,
+ *  cost/risk = warning, approvals/alerts = destructive. Tints only. */
+type HeaderTone = "neutral" | "primary" | "success" | "warning" | "destructive";
+const widgetToneMap: Record<string, HeaderTone> = {
+  "revenue-chart": "success",
+  "earnings-rate": "success",
+  "gross-profit": "success",
+  "cash-flow": "success",
+  "profit-margin": "success",
+  "growth-rate": "success",
+  "customer-growth": "success",
+  "team-status": "success",
+  "wallet-balance": "primary",
+  "bank-balance": "primary",
+  "recent-orders": "primary",
+  "quick-stats": "primary",
+  "performance-overview": "primary",
+  "conversion-rate": "primary",
+  "inventory-status": "primary",
+  "daily-activity": "primary",
+  "expense-breakdown": "warning",
+  "expense-trends": "warning",
+  "pending-settlements": "warning",
+  "shift-reconciliation": "warning",
+  "upcoming-tasks": "destructive",
+  "terminal-sales-approval": "destructive",
+  "terminal-purchase-approval": "destructive",
 };
 
 const getSizeClasses = (size: WidgetType["size"]) => {
@@ -132,6 +178,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
 
   const IconComponent = widget.icon || widgetIconMap[widget.id] || BarChart3;
+  const headerTone: HeaderTone = widgetToneMap[widget.id] || "primary";
 
   const GrossProfitWidgetContent = () => {
     // Gross Profit must match the P&L page (source of truth):
@@ -391,6 +438,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
         return (
           <WidgetEmpty
             icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
+          iconTone={headerTone}
             title={widget.name}
             description={widget.description}
           />
@@ -404,6 +452,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
         <WidgetHeader
           title={widget.name}
           icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
+          iconTone={headerTone}
           actions={
             <WidgetMenu
               title={widget.name}

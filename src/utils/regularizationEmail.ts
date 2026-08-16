@@ -49,12 +49,13 @@ export async function sendRegularizationEmail(params: RegEmailParams) {
   await Promise.all(
     recipients.map((r) =>
       supabase.functions
-        .invoke('send-transactional-email', {
+        .invoke('hr-workflow-notify', {
           body: {
-            templateName: 'regularization-approval',
+            kind: 'regularization',
+            eventType,
             recipientEmail: r.email,
             idempotencyKey: `reg-${eventType}-${requestId}-${r.email}-${today}`,
-            templateData: {
+            data: {
               eventType,
               requestId,
               recipientRole: r.role,

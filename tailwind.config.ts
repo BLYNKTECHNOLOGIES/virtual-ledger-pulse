@@ -121,5 +121,5 @@ export default {
 		'lg:col-span-11', 'lg:col-span-12',
 		'col-span-6', 'col-span-12',
 	],
-	plugins: [require("tailwindcss-animate")],
+	plugins: [require("tailwindcss-animate"), require("@tailwindcss/container-queries")],
 } satisfies Config;

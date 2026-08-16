@@ -158,8 +158,10 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
         period_start: asOf,
         period_end: asOf,
         valuation_basis: valuationBasis,
-        is_draft: isDraft,
+        mode,
+        is_draft: isManagement ? false : isDraft,
         failed_checks: failedChecks,
+
         checksum: meta.checksum ?? null,
         totals: {
           total_assets: Number(lines.find((l) => l.line_key === "total_assets")?.amount || 0),

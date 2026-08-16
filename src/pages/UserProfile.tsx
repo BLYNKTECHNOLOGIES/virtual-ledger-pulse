@@ -107,79 +107,41 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
     enabled: !!employeeId,
   });
 
-  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading bank details...</p>;
+  if (isLoading) return <ProfileSkeleton rows={4} />;
 
   if (bankDetails.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Bank Details Found</h3>
-          <p className="text-muted-foreground">Your salary bank details have not been added by HR yet. Please contact HR.</p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={CreditCard}
+        title="No bank details on file"
+        description="Your salary bank details have not been added by HR yet. Please contact HR."
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Salary Bank Account</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {bankDetails.map((bank: any) => (
-          <Card key={bank.id}>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-success/10 rounded-lg"><CreditCard className="h-5 w-5 text-success" /></div>
-                <div>
-                  <h4 className="font-semibold text-foreground">{bank.bank_name || 'Bank'}</h4>
-                  {bank.branch && <p className="text-sm text-muted-foreground">{bank.branch}</p>}
-                </div>
-              </div>
-              <div className="space-y-2 text-sm">
-                {bank.account_number && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">Account Number</span>
-                    <span className="font-mono font-medium">{bank.account_number}</span>
-                  </div>
-                )}
-                {bank.ifsc_code && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">IFSC Code</span>
-                    <span className="font-mono font-medium">{bank.ifsc_code}</span>
-                  </div>
-                )}
-                {bank.bank_code_2 && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">Bank Code 2</span>
-                    <span className="font-mono font-medium">{bank.bank_code_2}</span>
-                  </div>
-                )}
-                {bank.city && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">City</span>
-                    <span className="font-medium">{bank.city}</span>
-                  </div>
-                )}
-                {bank.state && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">State</span>
-                    <span className="font-medium">{bank.state}</span>
-                  </div>
-                )}
-                {bank.country && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Country</span>
-                    <span className="font-medium">{bank.country}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {bankDetails.map((bank: any) => (
+        <SectionBlock
+          key={bank.id}
+          title={bank.bank_name || 'Salary Bank Account'}
+          description={bank.branch || undefined}
+          icon={CreditCard}
+        >
+          <FieldGrid wide>
+            {bank.account_number && <Field label="Account Number" value={bank.account_number} mono />}
+            {bank.ifsc_code && <Field label="IFSC Code" value={bank.ifsc_code} mono />}
+            {bank.bank_code_2 && <Field label="Bank Code 2" value={bank.bank_code_2} mono />}
+            {bank.city && <Field label="City" value={bank.city} />}
+            {bank.state && <Field label="State" value={bank.state} />}
+            {bank.country && <Field label="Country" value={bank.country} />}
+          </FieldGrid>
+        </SectionBlock>
+      ))}
     </div>
   );
 }
+
 
 // ─── Salary & PF Sub-Component ───────────────────────────────────────────────
 // RazorpayX is the primary authority for salary. We mirror the assigned

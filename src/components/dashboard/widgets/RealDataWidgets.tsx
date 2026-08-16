@@ -26,6 +26,9 @@ import {
   WidgetProgressRow,
   WidgetStatus,
   WidgetChart,
+  WidgetRankRow,
+  WidgetSectionLabel,
+  WidgetKeyValueRow,
 } from "@/components/dashboard/primitives/WidgetAtoms";
 
 // Categorical series palette resolved from design tokens (never raw hex).
@@ -262,35 +265,35 @@ export function ExpenseBreakdownWidget() {
         <WidgetEmpty icon={PieChart} title="No expenses this month" />
       ) : (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <div className="space-y-2">
-            {data!.categories.map((e, i) => (
-              <WidgetProgressRow
-                key={e.name}
-                label={e.name}
-                value={`₹${Math.round(e.amount).toLocaleString('en-IN')}`}
-                percent={data!.totalExpense > 0 ? (e.amount / data!.totalExpense) * 100 : 0}
-                tone="primary"
-                leading={
-                  <span
-                    className="h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                  />
-                }
-              />
-            ))}
+          <div className="space-y-0.5">
+            {(() => {
+              const peak = Math.max(...data!.categories.map(c => c.amount), 1);
+              return data!.categories.map((e, i) => (
+                <WidgetRankRow
+                  key={e.name}
+                  label={e.name}
+                  value={`₹${Math.round(e.amount).toLocaleString('en-IN')}`}
+                  percent={(e.amount / peak) * 100}
+                  tone="primary"
+                  leading={
+                    <span
+                      className="h-1.5 w-1.5 rounded-full"
+                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                    />
+                  }
+                />
+              ));
+            })()}
           </div>
           {(data?.recentItems?.length || 0) > 0 && (
-            <div className="mt-3 border-t border-border pt-2">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Recent
-              </p>
+            <div className="mt-3 border-t border-border/60 pt-2">
+              <WidgetSectionLabel className="mb-1">Recent</WidgetSectionLabel>
               {data!.recentItems.map((item, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 py-1 text-[12px]">
-                  <span className="min-w-0 truncate text-muted-foreground">{item.desc}</span>
-                  <span className="shrink-0 font-medium tabular-nums text-foreground">
-                    ₹{Math.round(item.amount).toLocaleString('en-IN')}
-                  </span>
-                </div>
+                <WidgetKeyValueRow
+                  key={i}
+                  label={item.desc}
+                  value={`₹${Math.round(item.amount).toLocaleString('en-IN')}`}
+                />
               ))}
             </div>
           )}
@@ -1127,9 +1130,7 @@ export function TeamStatusWidget() {
         />
       </div>
       <div className="flex items-center justify-between px-3 pt-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Currently in office
-        </p>
+        <p className="text-[11px] font-medium text-muted-foreground">Currently in office</p>
         <WidgetStatus tone={active.length > 0 ? 'success' : 'neutral'}>{active.length}</WidgetStatus>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
@@ -1219,10 +1220,10 @@ export function InventoryStatusWidget() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <table className="w-full text-[13px]">
           <thead>
-            <tr className="border-b border-border text-[10px] uppercase tracking-wider text-muted-foreground">
-              <th className="px-3 py-1.5 text-left font-semibold">Asset</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Qty</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Value</th>
+            <tr className="border-b border-border/60 bg-surface-subtle text-[10.5px] font-medium text-muted-foreground">
+              <th className="px-3 py-1.5 text-left font-medium">Asset</th>
+              <th className="px-3 py-1.5 text-right font-medium">Qty</th>
+              <th className="px-3 py-1.5 text-right font-medium">Value</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/60">

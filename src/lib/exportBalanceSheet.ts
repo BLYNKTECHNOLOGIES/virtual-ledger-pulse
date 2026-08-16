@@ -218,6 +218,7 @@ export function exportBalanceSheetPdf(
 
   for (const g of grouped(lines)) {
     if (!g.rows.length) continue;
+    if (isManagement && g.section === "CHECK") continue;
     autoTable(doc, {
       startY: y,
       head: [[g.title, "Amount (INR)", "Basis"]],
@@ -248,7 +249,14 @@ export function exportBalanceSheetPdf(
   if (findings.length) {
     autoTable(doc, {
       startY: y,
-      head: [["Data-integrity findings", "Severity", "Impact (INR)", "Count"]],
+      head: [
+        [
+          isManagement ? "Limitations and known gaps" : "Data-integrity findings",
+          "Severity",
+          "Impact (INR)",
+          "Count",
+        ],
+      ],
       body: findings.map((f) => [
         f.title + (f.detail ? `\n${f.detail}` : ""),
         f.severity,
@@ -277,14 +285,18 @@ export function exportBalanceSheetPdf(
 
   doc.setFontSize(7.5);
   doc.setTextColor(110);
-  const disclaimer =
-    "Prepared from bank ledger data recorded in the ERP. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. Crypto inventory is presented only for wallets mapped to this company. No balancing or plug entries have been made: any difference is shown in the reconciliation check.";
+  const disclaimer = isManagement
+    ? "Indicative management report prepared from the data held in the ERP. Not audited and not a statutory financial statement. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. Crypto inventory is derived from order quantities net of sales and wallet fees, and is allocated on purchase value where wallets are not mapped to a company. No balancing or plug entries have been made: the unexplained difference is presented as a named line in equity."
+    : "Prepared from bank ledger data recorded in the ERP. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. Crypto inventory is presented only for wallets mapped to this company. No balancing or plug entries have been made: any difference is shown in the reconciliation check.";
   doc.text(doc.splitTextToSize(disclaimer, pageWidth - 80), 40, Math.min(y, doc.internal.pageSize.getHeight() - 50));
 
-  if (meta.isDraft) drawWatermark(doc);
+  if (showDraft) drawWatermark(doc);
 
-  doc.save(`Balance-Sheet_${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.pdf`);
+  doc.save(
+    `Balance-Sheet_${isManagement ? "Management_" : ""}${meta.entityName.replace(/[^\w]+/g, "-")}_${meta.asOf}.pdf`,
+  );
 }
+
 
 export async function exportBalanceSheetXlsx(
   lines: BalanceSheetLine[],

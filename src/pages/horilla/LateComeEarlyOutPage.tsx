@@ -56,6 +56,10 @@ export default function LateComeEarlyOutPage() {
     const q = search.toLowerCase();
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(q) || r.hr_employees?.badge_id?.toLowerCase().includes(q);
+  }).sort((a: any, b: any) => {
+    const aName = `${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""}`.trim();
+    const bName = `${b.hr_employees?.first_name || ""} ${b.hr_employees?.last_name || ""}`.trim();
+    return aName.localeCompare(bName, undefined, { sensitivity: "base" });
   });
 
   // Compute summary by employee

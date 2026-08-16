@@ -253,24 +253,31 @@
 @layer base {
   :root {
     /* Modern VASP Design System - BitPay Inspired */
-    --background: 0 0% 100%;
-    --foreground: 220 13% 13%;
+    /* Application canvas: #F6F8FC — cool off-white, almost imperceptible */
+    --background: 220 50% 98%;
+    --foreground: 220 16% 14%;
+    /* Primary surfaces stay pure white so cards lift off the canvas */
     --card: 0 0% 100%;
-    --card-foreground: 220 13% 13%;
+    --card-foreground: 220 16% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 220 13% 13%;
+    --popover-foreground: 220 16% 14%;
     --primary: 231 81% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 13% 95%;
-    --secondary-foreground: 220 13% 13%;
-    --muted: 220 13% 95%;
-    --muted-foreground: 220 8.6% 46.1%;
-    --accent: 220 13% 95%;
-    --accent-foreground: 220 13% 13%;
-    --destructive: 0 84.2% 60.2%;
+    /* Secondary / subtle surfaces: #F1F4F9 */
+    --secondary: 220 33% 96%;
+    --secondary-foreground: 220 16% 14%;
+    --muted: 220 33% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 33% 96%;
+    --accent-foreground: 220 16% 14%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    /* Hairline borders: #E5E9F0 */
+    --border: 218 27% 92%;
+    --input: 218 27% 92%;
+    /* Extra surface tokens */
+    --surface-subtle: 220 43% 99%;   /* #FAFBFD — inputs, table headers, inner panels */
+    --surface-canvas: 220 50% 98%;   /* #F6F8FC */
     --ring: 231 81% 60%;
     
     /* VASP specific colors */
@@ -296,7 +303,7 @@
     --shadow-sm: 0 1px 3px 0 hsl(220 13% 18% / 0.06), 0 1px 2px -1px hsl(220 13% 18% / 0.05);
     --shadow-md: 0 4px 12px -2px hsl(220 13% 18% / 0.08), 0 2px 6px -2px hsl(220 13% 18% / 0.05);
     --shadow-lg: 0 12px 28px -6px hsl(220 13% 18% / 0.12), 0 4px 10px -4px hsl(220 13% 18% / 0.07);
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 220 43% 99%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
     --sidebar-primary-foreground: 0 0% 98%;

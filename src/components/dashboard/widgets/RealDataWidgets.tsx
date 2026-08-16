@@ -135,22 +135,18 @@ export function DailyActivityWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
-
-  const stats = [
-    { label: 'Sales Today', value: data?.sales || 0, color: 'text-success', bg: 'bg-success/10' },
-    { label: 'Purchases', value: data?.purchases || 0, color: 'text-info', bg: 'bg-info/10' },
-    { label: 'New Clients', value: data?.newClients || 0, color: 'text-primary', bg: 'bg-primary/10' },
-  ];
+  if (isLoading) return <WidgetSkeleton variant="stats" />;
 
   return (
-    <div className="p-4 grid grid-cols-3 gap-3">
-      {stats.map(s => (
-        <div key={s.label} className={`text-center p-3 ${s.bg} rounded-lg`}>
-          <div className={`text-xl font-bold ${s.color}`}>{s.value}</div>
-          <p className="text-[10px] text-muted-foreground mt-0.5">{s.label}</p>
-        </div>
-      ))}
+    <div className="p-3">
+      <WidgetStatGrid
+        columns={3}
+        items={[
+          { label: 'Sales today', value: data?.sales || 0, tone: 'success' },
+          { label: 'Purchases', value: data?.purchases || 0, tone: 'primary' },
+          { label: 'New clients', value: data?.newClients || 0, tone: 'warning' },
+        ]}
+      />
     </div>
   );
 }

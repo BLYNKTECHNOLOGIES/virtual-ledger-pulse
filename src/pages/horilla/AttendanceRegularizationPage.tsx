@@ -44,7 +44,6 @@ export default function AttendanceRegularizationPage() {
   const [search, setSearch] = useState('');
   const [reviewing, setReviewing] = useState<any>(null);
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
-  const [notes, setNotes] = useState('');
   const [reasonCode, setReasonCode] = useState<string>('');
   // F4 · propose-and-validate
   const [evidence, setEvidence] = useState<any>(null);
@@ -99,7 +98,6 @@ export default function AttendanceRegularizationPage() {
   const openReview = async (r: any, dec: 'approved' | 'rejected') => {
     setReviewing(r);
     setDecision(dec);
-    setNotes('');
     setReasonCode('');
     setOverrideReason('');
     setEvidence(null);
@@ -182,13 +180,20 @@ export default function AttendanceRegularizationPage() {
     mutationFn: async () => {
       if (!reviewing) return;
       if (decision === 'approved' && !reasonCode) throw new Error('Pick a reason code before approving');
-      if (!notes.trim()) throw new Error('Notes are mandatory for every intervention');
       const isOverride = decision === 'approved' && evidence && !evidence.evidence_ok;
       if (isOverride && !overrideReason.trim()) {
         throw new Error('Unsupported edits require an override reason (this is audited).');
       }
+      if (decision === 'rejected' && !overrideReason.trim()) {
+        throw new Error('A rejection reason is required (this is audited).');
+      }
+      const auditNote = overrideReason.trim()
+        || (decision === 'approved'
+          ? (REASON_CODES.find((c) => c.value === reasonCode)?.label || 'Approved')
+          : 'Rejected');
       const { data: u } = await supabase.auth.getUser();
       const nowIso = new Date().toISOString();
+
 
       const evidenceStatus = decision === 'approved'
         ? (evidence?.evidence_ok ? 'evidence_ok' : 'unsupported_override')
@@ -200,7 +205,7 @@ export default function AttendanceRegularizationPage() {
           status: decision,
           reason_code: decision === 'approved' ? reasonCode : null,
           approver_id: u?.user?.id,
-          approver_notes: notes,
+          approver_notes: auditNote,
           approved_at: nowIso,
           evidence_status: evidenceStatus,
           evidence_payload: evidence ?? null,
@@ -217,7 +222,7 @@ export default function AttendanceRegularizationPage() {
           ? (isOverride ? 'regularization_unsupported_override' : 'regularization_approved')
           : 'regularization_rejected',
         reason_code: decision === 'approved' ? reasonCode : null,
-        notes,
+        notes: auditNote,
         actor_id: u?.user?.id ?? null,
         actor_email: u?.user?.email ?? null,
         payload: {
@@ -245,13 +250,13 @@ export default function AttendanceRegularizationPage() {
           : null,
         managerRemarks: reviewing.manager_remarks || null,
         decidedBy: 'HR',
-        approverNotes: notes,
+        approverNotes: auditNote,
         employeeEmail: reviewing.hr_employees?.email || null,
       });
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null); setNotes(''); setReasonCode(''); setEvidence(null); setOverrideReason('');
+      setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason('');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
     },
@@ -542,10 +547,14 @@ export default function AttendanceRegularizationPage() {
                   )}
                 </>
               )}
-              <div>
-                <Label>Notes *</Label>
-                <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Explain the intervention — this is stored in the audit log." />
-              </div>
+              {decision === 'rejected' && (
+                <div>
+                  <Label>Rejection reason *</Label>
+                  <Textarea rows={3} value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)}
+                    placeholder="Why is this being rejected — stored in the audit log." />
+                </div>
+              )}
+
             </div>
           )}
           <DialogFooter>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { WidgetShell, WidgetHeader, WidgetBody } from "./primitives/WidgetShell";
-import { WidgetList, WidgetListRow, WidgetEmpty, WidgetSkeleton, WidgetStatus } from "./primitives/WidgetAtoms";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetEmpty, WidgetSkeleton } from "./primitives/WidgetShell";
+import { WidgetList, WidgetListRow, WidgetStatus } from "./primitives/WidgetAtoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

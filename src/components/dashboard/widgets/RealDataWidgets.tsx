@@ -910,49 +910,43 @@ export function ExpenseTrendsWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
 
   const hasData = (data?.chartData || []).some(d => d.expense > 0);
+  const change = data?.change || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">{data?.periodLabel || 'This Month'}</p>
-          <p className="text-lg font-bold text-foreground">₹{Math.round(data?.currentValue || 0).toLocaleString('en-IN')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {data?.change !== 0 && (
-            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${(data?.change || 0) > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'}`}>
-              {(data?.change || 0) > 0 ? '↑' : '↓'} {Math.abs(data?.change || 0).toFixed(1)}%
-            </span>
-          )}
-          <div className="flex rounded-md border border-border overflow-hidden text-[10px]">
+    <div className="flex h-full flex-col gap-3 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <WidgetMetric
+          label={data?.periodLabel || 'This Month'}
+          value={`₹${Math.round(data?.currentValue || 0).toLocaleString('en-IN')}`}
+          size="sm"
+          delta={change !== 0 ? -change : null}
+          helper="vs previous"
+        />
+        <div className="inline-flex shrink-0 overflow-hidden rounded-lg border border-border text-[11px]">
+          {(['month', 'day'] as const).map(mode => (
             <button
-              onClick={() => setViewMode('month')}
-              className={`px-2 py-0.5 transition-colors ${viewMode === 'month' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`px-2.5 py-1 font-medium capitalize transition-colors ${viewMode === mode ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
             >
-              Month
+              {mode}
             </button>
-            <button
-              onClick={() => setViewMode('day')}
-              className={`px-2 py-0.5 transition-colors ${viewMode === 'day' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
-            >
-              Day
-            </button>
-          </div>
+          ))}
         </div>
       </div>
       {hasData ? (
-        <ResponsiveContainer width="100%" height={100}>
-          <RechartsLineChart data={data?.chartData || []}>
-            <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <Tooltip formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-            <Line type="monotone" dataKey="expense" stroke="hsl(var(--destructive))" strokeWidth={2} dot={{ r: 3 }} />
+        <WidgetChart height={110}>
+          <RechartsLineChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <XAxis dataKey="name" {...axisProps} />
+            <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} />
+            <Line type="monotone" dataKey="expense" stroke={chartColor.destructive()} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
           </RechartsLineChart>
-        </ResponsiveContainer>
+        </WidgetChart>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-4">No expense data available</p>
+        <WidgetEmpty icon={BarChart3} title="No expense data available" />
       )}
     </div>
   );

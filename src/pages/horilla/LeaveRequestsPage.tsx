@@ -199,7 +199,7 @@ export default function LeaveRequestsPage() {
       if (error) throw error;
 
       if (request && (status === "approved" || status === "rejected")) {
-        sendLeaveEmail({
+        const res = await sendLeaveEmail({
           eventType: status === "approved" ? "leave_approved" : "leave_rejected",
           requestId: id,
           employeeName: `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
@@ -213,16 +213,21 @@ export default function LeaveRequestsPage() {
           decidedBy: "HR",
           employeeEmail: request.hr_employees?.email || null,
         });
+        return { emailFailures: res?.failures || [], noEmail: !request.hr_employees?.email };
       }
+      return { emailFailures: [], noEmail: false };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
       setApproveTarget(null);
       setApproveTypeId("");
       toast.success("Status updated");
+      if (res?.noEmail) toast.warning("No email on record for this employee — notification not sent");
+      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
     },
     onError: (e: any) => toast.error(e.message),
+
   });
 
   const filtered = requests.filter((r: any) => {

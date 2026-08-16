@@ -70,6 +70,17 @@ import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
 import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  FieldGrid,
+  Field,
+  SectionBlock,
+  MoneyRow,
+  StatusPill,
+  statusTone,
+  ProfileEmptyState,
+  ProfileSkeleton,
+} from '@/components/profile/primitives';
+
 
 
 interface BankAccount {
@@ -96,79 +107,41 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
     enabled: !!employeeId,
   });
 
-  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading bank details...</p>;
+  if (isLoading) return <ProfileSkeleton rows={4} />;
 
   if (bankDetails.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Bank Details Found</h3>
-          <p className="text-muted-foreground">Your salary bank details have not been added by HR yet. Please contact HR.</p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={CreditCard}
+        title="No bank details on file"
+        description="Your salary bank details have not been added by HR yet. Please contact HR."
+      />
     );
   }
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold">Salary Bank Account</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {bankDetails.map((bank: any) => (
-          <Card key={bank.id}>
-            <CardContent className="p-5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-success/10 rounded-lg"><CreditCard className="h-5 w-5 text-success" /></div>
-                <div>
-                  <h4 className="font-semibold text-foreground">{bank.bank_name || 'Bank'}</h4>
-                  {bank.branch && <p className="text-sm text-muted-foreground">{bank.branch}</p>}
-                </div>
-              </div>
-              <div className="space-y-2 text-sm">
-                {bank.account_number && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">Account Number</span>
-                    <span className="font-mono font-medium">{bank.account_number}</span>
-                  </div>
-                )}
-                {bank.ifsc_code && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">IFSC Code</span>
-                    <span className="font-mono font-medium">{bank.ifsc_code}</span>
-                  </div>
-                )}
-                {bank.bank_code_2 && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">Bank Code 2</span>
-                    <span className="font-mono font-medium">{bank.bank_code_2}</span>
-                  </div>
-                )}
-                {bank.city && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">City</span>
-                    <span className="font-medium">{bank.city}</span>
-                  </div>
-                )}
-                {bank.state && (
-                  <div className="flex justify-between border-b border-border/50 pb-2">
-                    <span className="text-muted-foreground">State</span>
-                    <span className="font-medium">{bank.state}</span>
-                  </div>
-                )}
-                {bank.country && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Country</span>
-                    <span className="font-medium">{bank.country}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {bankDetails.map((bank: any) => (
+        <SectionBlock
+          key={bank.id}
+          title={bank.bank_name || 'Salary Bank Account'}
+          description={bank.branch || undefined}
+          icon={CreditCard}
+        >
+          <FieldGrid wide>
+            {bank.account_number && <Field label="Account Number" value={bank.account_number} mono />}
+            {bank.ifsc_code && <Field label="IFSC Code" value={bank.ifsc_code} mono />}
+            {bank.bank_code_2 && <Field label="Bank Code 2" value={bank.bank_code_2} mono />}
+            {bank.city && <Field label="City" value={bank.city} />}
+            {bank.state && <Field label="State" value={bank.state} />}
+            {bank.country && <Field label="Country" value={bank.country} />}
+          </FieldGrid>
+        </SectionBlock>
+      ))}
     </div>
   );
 }
+
 
 // ─── Salary & PF Sub-Component ───────────────────────────────────────────────
 // RazorpayX is the primary authority for salary. We mirror the assigned
@@ -237,98 +210,83 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     const rupees = isRupees(r);
     const raw = Number(r.amount) || 0;
     const monthly = rupees ? toMonthly(raw) : 0;
-    const annual = rupees ? toAnnual(raw) : 0;
     return (
-      <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2 gap-3">
-        <Label className={tone === 'ded' ? 'text-destructive' : 'text-[#00bcd4]'}>
-          {r.hr_salary_components?.name || '—'}
-        </Label>
-        {rupees ? (
-          <div className="text-right tabular-nums">
-            <div className={`text-sm font-semibold ${tone === 'ded' ? 'text-destructive' : ''}`}>
-              {tone === 'ded' ? '-' : ''}{fmt(monthly)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span>
-            </div>
-          </div>
-        ) : (
-          <span className="text-base font-semibold">{raw}%</span>
-        )}
-      </div>
+      <MoneyRow
+        key={r.id}
+        label={r.hr_salary_components?.name || '—'}
+        tone={tone === 'ded' ? 'negative' : 'neutral'}
+        value={rupees ? `${tone === 'ded' ? '−' : ''}${fmt(monthly)}` : `${raw}%`}
+        suffix={rupees ? '/mo' : undefined}
+      />
     );
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {/* Salary Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IndianRupee className="h-5 w-5" />
-            Salary Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
-              <Label className="text-[#00bcd4] text-xs">Annual CTC</Label>
-              <div className="text-lg font-bold text-success">{fmt(annualCTC)}</div>
-            </div>
-            <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
-              <Label className="text-[#00bcd4] text-xs">Monthly CTC</Label>
-              <div className="text-lg font-bold text-success">{fmt(monthlyCTC)}</div>
-            </div>
+      <SectionBlock title="Salary Information" icon={IndianRupee} bodyClassName="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="ds-field-label">Annual CTC</p>
+            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{fmt(annualCTC)}</p>
           </div>
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="ds-field-label">Monthly CTC</p>
+            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{fmt(monthlyCTC)}</p>
+          </div>
+        </div>
 
-          <Separator />
-
-          {isLoading ? (
-            <p className="text-muted-foreground text-sm">Loading salary structure…</p>
-          ) : rows.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-4 text-center space-y-1">
-              <p className="font-medium text-foreground">Component breakdown not published yet</p>
-              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.</p>
+        {isLoading ? (
+          <ProfileSkeleton rows={4} className="border-0 p-0" />
+        ) : rows.length === 0 ? (
+          <div className="text-center py-6 space-y-1">
+            <p className="t-card-title text-foreground">Component breakdown not published yet</p>
+            <p className="t-secondary max-w-md mx-auto">
+              Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="ds-field-label">Earnings</p>
+                <p className="text-[10px] text-muted-foreground">monthly</p>
+              </div>
+              {earnings.map((r) => renderRow(r, 'earn'))}
+              <MoneyRow label="Gross Earnings" value={fmt(monthlyEarnings)} suffix="/mo" strong />
             </div>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
-                  <p className="text-[10px] text-muted-foreground">monthly</p>
-                </div>
-                {earnings.map((r) => renderRow(r, 'earn'))}
-                <div className="flex justify-between items-center pt-2 text-sm">
-                  <span className="text-muted-foreground">Gross Earnings</span>
-                  <span className="tabular-nums font-semibold">{fmt(monthlyEarnings)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
-                </div>
+
+            {deductions.length > 0 && (
+              <div>
+                <p className="ds-field-label mb-1">Deductions</p>
+                {deductions.map((r) => renderRow(r, 'ded'))}
+                <MoneyRow
+                  label="Total Deductions"
+                  value={`−${fmt(monthlyDeductions)}`}
+                  suffix="/mo"
+                  tone="negative"
+                  strong
+                />
               </div>
+            )}
 
-              {deductions.length > 0 && (
-                <div className="space-y-1 pt-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
-                  {deductions.map((r) => renderRow(r, 'ded'))}
-                  <div className="flex justify-between items-center pt-2 text-sm">
-                    <span className="text-muted-foreground">Total Deductions</span>
-                    <span className="tabular-nums font-semibold text-destructive">-{fmt(monthlyDeductions)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
-                  </div>
-                </div>
-              )}
+            <div className="flex items-baseline justify-between gap-3 border-t border-border pt-3">
+              <span className="t-card-title text-foreground">Net Pay (approx)</span>
+              <span className="text-xl font-semibold text-foreground tabular-nums">
+                {fmt(monthlyNet)} <span className="text-xs font-normal text-muted-foreground">/mo</span>
+              </span>
+            </div>
 
-              <Separator />
-              <div className="flex justify-between items-center pt-1">
-                <Label className="text-base font-bold">Net Pay (approx)</Label>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-success tabular-nums">{fmt(monthlyNet)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
-                </div>
-              </div>
+            {hasDrift && (
+              <p className="text-[11px] rounded-md border border-warning/30 bg-warning/10 text-foreground px-2.5 py-2">
+                Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by{' '}
+                {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
+              </p>
+            )}
+          </>
+        )}
+      </SectionBlock>
 
-              {hasDrift && (
-                <div className="text-[11px] rounded-md border border-warning/40 bg-warning/10 text-warning-foreground p-2">
-                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Loans, Salary Advances & Deposits */}
       <MyLoansCard employeeId={hrEmployee.id} showDeposits />
@@ -363,57 +321,49 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
     },
   });
 
-  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading payslips...</p>;
+  if (isLoading) return <ProfileSkeleton rows={5} />;
 
   if (error) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center text-sm text-destructive">
-          Could not load your payslips: {(error as any)?.message ?? 'unknown error'}
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={Receipt}
+        title="Could not load your payslips"
+        description={(error as any)?.message ?? 'Unknown error'}
+      />
     );
   }
 
-
   if (payslips.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <Receipt className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Payslips Yet</h3>
-          <p className="text-muted-foreground">
-            Your payslips will appear here once payroll for the month is processed.
-          </p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={Receipt}
+        title="No payslips yet"
+        description="Your payslips will appear here once payroll for the month is processed."
+      />
     );
   }
 
   const fmt = (n: number | null | undefined) => `₹${Math.round(Number(n) || 0).toLocaleString('en-IN')}`;
 
   const Row = ({ label, value, tone }: { label: string; value: number | null | undefined; tone?: 'neg' }) => (
-    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-border/40 last:border-0">
-      <span className="text-sm text-muted-foreground truncate">{label}</span>
-      <span className={`text-sm font-medium tabular-nums ${tone === 'neg' ? 'text-destructive' : 'text-foreground'}`}>
-        {tone === 'neg' ? '− ' : ''}{fmt(value)}
-      </span>
-    </div>
+    <MoneyRow
+      label={label}
+      value={`${tone === 'neg' ? '− ' : ''}${fmt(value)}`}
+      tone={tone === 'neg' ? 'negative' : 'neutral'}
+    />
   );
 
   return (
     <div className="space-y-4">
-      <div className="flex items-end justify-between flex-wrap gap-2">
-        <div>
-          <h3 className="text-lg font-semibold tracking-tight">My Payslips</h3>
-          <p className="text-[11px] text-muted-foreground max-w-2xl">
-            Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
-            run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
-          </p>
-        </div>
+      <div>
+        <h2 className="t-section text-foreground">My Payslips</h2>
+        <p className="t-secondary max-w-3xl">
+          Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
+          run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
+        </p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {payslips.map((p) => {
           const period = p.period_month
             ? new Date(p.period_month).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
@@ -436,39 +386,39 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
           const netDeductions = (Number(p.total_deductions) || 0) - oneTimeRecovery;
 
           return (
-            <Card key={p.id} className="overflow-hidden border-border/70 shadow-sm">
+            <article key={p.id} className="ds-panel overflow-hidden">
               {/* Header band */}
-              <div className="flex items-center justify-between gap-3 flex-wrap px-5 py-4 bg-muted/40 border-b border-border/60">
+              <header className="ds-panel-head flex-wrap">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold text-foreground text-base">{period}</h4>
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wider font-medium ${hasReg ? 'bg-success/15 text-success' : 'bg-warning/15 text-warning-foreground'}`}>
+                    <h3 className="t-card-title text-foreground">{period}</h3>
+                    <StatusPill tone={hasReg ? 'success' : 'warning'}>
                       {hasReg ? 'Detailed' : 'Breakdown pending'}
-                    </span>
+                    </StatusPill>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                  <p className="t-secondary mt-0.5">
                     Salary slip{p.working_days ? ` · ${p.working_days} working days` : ''}
                     {p.pulled_at ? ` · updated ${formatDistanceToNow(new Date(p.pulled_at), { addSuffix: true })}` : ''}
                   </p>
                 </div>
                 <PayslipPdfDownloadButton storagePath={p.pdf_storage_path} periodMonth={p.period_month} />
-              </div>
+              </header>
 
-              <CardContent className="p-5 space-y-5">
-                {/* Net pay hero + summary */}
-                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center rounded-xl border border-border/60 bg-gradient-to-r from-primary/5 to-transparent px-4 py-4">
+              <div className="ds-panel-body space-y-4">
+                {/* Net pay + summary strip */}
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] items-center rounded-md border border-border bg-muted/30 px-4 py-3">
                   <div>
-                    <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Net pay credited</p>
-                    <p className="text-3xl font-bold tabular-nums text-foreground mt-0.5">{fmt(p.net)}</p>
+                    <p className="ds-field-label">Net pay credited</p>
+                    <p className="t-kpi text-foreground mt-0.5">{fmt(p.net)}</p>
                   </div>
-                  <div className="flex items-center gap-6 sm:gap-8">
+                  <div className="flex items-center gap-8">
                     <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Gross</p>
-                      <p className="text-base font-semibold tabular-nums">{fmt(p.gross)}</p>
+                      <p className="ds-field-label">Gross</p>
+                      <p className="text-sm font-semibold tabular-nums mt-0.5">{fmt(p.gross)}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Deductions</p>
-                      <p className="text-base font-semibold tabular-nums text-destructive">
+                      <p className="ds-field-label">Deductions</p>
+                      <p className="text-sm font-semibold tabular-nums text-destructive mt-0.5">
                         {hasReg ? `− ${fmt(netDeductions)}` : '—'}
                       </p>
                     </div>
@@ -477,33 +427,31 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
 
                 {hasReg ? (
                   <>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="rounded-lg border border-border/60 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Earnings</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <div className="rounded-md border border-border p-3">
+                        <p className="ds-field-label mb-1">Earnings</p>
                         {earnings.length > 0 ? earnings.map(([k, v]) => <Row key={k} label={k} value={v} />) : (
-                          <p className="text-sm text-muted-foreground">No component-wise earnings published.</p>
+                          <p className="t-secondary">No component-wise earnings published.</p>
                         )}
-                        <div className="flex items-baseline justify-between pt-2.5 mt-1 border-t border-border">
-                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total earnings</span>
-                          <span className="text-sm font-semibold tabular-nums">{fmt(p.gross)}</span>
+                        <div className="border-t border-border mt-1 pt-1">
+                          <MoneyRow label="Total earnings" value={fmt(p.gross)} strong />
                         </div>
                       </div>
 
-                      <div className="rounded-lg border border-border/60 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Deductions</p>
+                      <div className="rounded-md border border-border p-3">
+                        <p className="ds-field-label mb-1">Deductions</p>
                         {deductions.length > 0 ? deductions.map(([k, v]) => <Row key={k} label={k} value={v} tone="neg" />) : (
-                          <p className="text-sm text-muted-foreground">No deductions this month.</p>
+                          <p className="t-secondary">No deductions this month.</p>
                         )}
-                        <div className="flex items-baseline justify-between pt-2.5 mt-1 border-t border-border">
-                          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Total deductions</span>
-                          <span className="text-sm font-semibold tabular-nums text-destructive">− {fmt(netDeductions)}</span>
+                        <div className="border-t border-border mt-1 pt-1">
+                          <MoneyRow label="Total deductions" value={`− ${fmt(netDeductions)}`} tone="negative" strong />
                         </div>
                       </div>
                     </div>
 
                     {oneTimeHeads.length > 0 && (
-                      <div className="rounded-lg border border-border/60 p-4">
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-2">Paid separately</p>
+                      <div className="rounded-md border border-border p-3">
+                        <p className="ds-field-label mb-1">Paid separately</p>
                         <div className="grid gap-x-6 sm:grid-cols-2">
                           {oneTimeHeads.map((l) => <Row key={l.label} label={l.label} value={l.amount} />)}
                         </div>
@@ -511,7 +459,7 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
                     )}
 
                     {(oneTimeRecovery > 0 || Number(p.employer_pf) > 0 || Number(p.employer_esi) > 0) && (
-                      <div className="space-y-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                      <div className="space-y-1.5 t-secondary">
                         {oneTimeRecovery > 0 && (
                           <p>
                             One-time payments totalling {fmt(oneTimeRecovery)} were settled outside this month's salary,
@@ -526,21 +474,21 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
                     )}
                   </>
                 ) : (
-                  <div className="text-xs text-muted-foreground bg-muted/40 border border-border/60 rounded-lg p-4">
+                  <p className="t-secondary bg-muted/40 border border-border rounded-md p-3">
                     The detailed breakdown for this month has not been published yet, so component-wise
                     Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
                     shown. HR will publish the full breakdown after the payroll run is finalised.
-                  </div>
+                  </p>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </article>
           );
         })}
       </div>
-
     </div>
   );
 }
+
 
 
 // ─── Employee Documents Sub-Component (view own docs uploaded by HR) ───
@@ -559,66 +507,58 @@ function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
     enabled: !!employeeId,
   });
 
-  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading documents…</p>;
+  if (isLoading) return <ProfileSkeleton rows={4} />;
 
   if (docs.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Documents Yet</h3>
-          <p className="text-muted-foreground">Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here.</p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={FileText}
+        title="No documents yet"
+        description="Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here."
+      />
     );
   }
 
   const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">My Documents</h3>
-        <Badge variant="outline">{docs.length} file{docs.length === 1 ? '' : 's'}</Badge>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <SectionBlock
+      title="My Documents"
+      icon={FileText}
+      description="Need a new document uploaded or a certificate? Contact HR."
+      actions={<span className="t-secondary">{docs.length} file{docs.length === 1 ? '' : 's'}</span>}
+      bodyClassName="p-0"
+    >
+      <ul className="divide-y divide-border">
         {docs.map((doc: any) => (
-          <Card key={doc.id} className="hover:border-primary/40 transition-colors">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 bg-info/10 rounded-lg shrink-0">
-                <FileText className="h-6 w-6 text-info" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{doc.document_name || typeLabel(doc.document_type)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {typeLabel(doc.document_type)}
-                  {doc.uploaded_at ? ` • ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  {doc.is_verified ? (
-                    <Badge variant="outline" className="text-success border-success/40 text-[10px]">Verified</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-warning border-warning/40 text-[10px]">Pending Verification</Badge>
-                  )}
-                </div>
-              </div>
-              {doc.file_url ? (
-                <Button asChild variant="outline" size="sm">
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" disabled>Unavailable</Button>
-              )}
-            </CardContent>
-          </Card>
+          <li key={doc.id} className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/40 transition-colors">
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-foreground truncate">
+                {doc.document_name || typeLabel(doc.document_type)}
+              </p>
+              <p className="t-secondary truncate">
+                {typeLabel(doc.document_type)}
+                {doc.uploaded_at ? ` · ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
+              </p>
+            </div>
+            <StatusPill tone={doc.is_verified ? 'success' : 'warning'}>
+              {doc.is_verified ? 'Verified' : 'Pending'}
+            </StatusPill>
+            {doc.file_url ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" disabled>Unavailable</Button>
+            )}
+          </li>
         ))}
-      </div>
-      <p className="text-xs text-muted-foreground text-center pt-2">
-        Need a new document uploaded or a certificate? Contact HR.
-      </p>
-    </div>
+      </ul>
+    </SectionBlock>
   );
 }
+
 
 export default function UserProfile() {
 
@@ -1064,199 +1004,157 @@ export default function UserProfile() {
       : user?.username || '';
 
   const NoEmployeeProfile = () => (
-    <Card>
-      <CardContent className="text-center py-12">
-        <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">Employee record not linked</h3>
-        <p className="text-muted-foreground max-w-md mx-auto text-sm">
-          Your ERP login isn't linked to an HRMS employee record yet. Profile, Tasks,
-          Documents and Settings still work — leave, attendance and payroll will appear
-          once HR links your record (matched by badge ID, email or phone).
-        </p>
-      </CardContent>
-    </Card>
+    <ProfileEmptyState
+      icon={User}
+      title="Employee record not linked"
+      description="Your ERP login isn't linked to an HRMS employee record yet. Profile, Tasks, Documents and Settings still work — leave, attendance and payroll will appear once HR links your record (matched by badge ID, email or phone)."
+    />
   );
+
+  const PROFILE_TABS: Array<{ value: string; label: string }> = [
+    { value: 'profile', label: 'Profile' },
+    { value: 'tasks', label: 'My Tasks' },
+    { value: 'attendance', label: 'Attendance' },
+    { value: 'salary', label: 'Salary & PF' },
+    { value: 'payslips', label: 'Payslips' },
+    { value: 'banking', label: 'Banking' },
+    { value: 'leaves', label: 'Leaves' },
+    { value: 'requests', label: 'Requests' },
+    { value: 'documents', label: 'Documents' },
+    { value: 'assets', label: 'Assets' },
+    { value: 'policies', label: 'Policies' },
+    { value: 'helpdesk', label: 'Help' },
+    { value: 'settings', label: 'Settings' },
+  ];
+
+  const jobTitle = (workInfo as any)?.positions?.title || (workInfo as any)?.job_role || null;
+  const deptName = (workInfo as any)?.departments?.name || null;
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-      {/* ─── Header ─── */}
-      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-4 sm:p-6 text-primary-foreground shadow-lg">
-        <div className="flex items-center gap-3 sm:gap-6">
-          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border-4 border-white/20 shrink-0">
+      {/* ─── Identity header ─── */}
+      <header className="ds-panel overflow-hidden">
+        <div className="h-0.5 w-full bg-primary" />
+        <div className="p-4 sm:p-5 flex items-start gap-4">
+          <Avatar className="h-14 w-14 sm:h-16 sm:w-16 border border-border shrink-0">
             {user?.avatar_url ? (
-              <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+              <img src={user.avatar_url} alt={displayName || 'Profile'} className="object-cover w-full h-full" />
             ) : (
-              <AvatarFallback className="text-2xl font-bold bg-white/20 text-primary-foreground">
+              <AvatarFallback className="text-base font-semibold">
                 {displayName ? getInitials(displayName) : 'U'}
               </AvatarFallback>
             )}
           </Avatar>
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-3xl font-semibold mb-1 truncate">{displayName}</h1>
-            <p className="text-sm sm:text-lg opacity-90 break-all">{user?.email}</p>
-            {/* Linkage warnings are intentionally hidden from employees — HR-internal concern. */}
 
-            {hrEmployee && (
-              <div className="flex items-center gap-4 text-sm opacity-80 mt-1">
-                {hrEmployee.phone && (
-                  <div className="flex items-center gap-1">
-                    <Phone className="h-4 w-4" />
-                    <span>{hrEmployee.phone}</span>
-                  </div>
-                )}
-                {hrEmployee.gender && (
-                  <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    <span>{hrEmployee.gender}</span>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="t-page-title text-foreground truncate">{displayName}</h1>
+              {hrEmployee && (
+                <StatusPill tone={hrEmployee.is_active === false ? 'neutral' : 'success'}>
+                  {hrEmployee.is_active === false ? 'Inactive' : 'Active'}
+                </StatusPill>
+              )}
+            </div>
+
+            <div className="mt-1 flex items-center gap-x-3 gap-y-1 flex-wrap t-secondary">
+              {hrEmployee?.badge_id && <span className="font-mono">#{hrEmployee.badge_id}</span>}
+              {jobTitle && <span className="truncate">{jobTitle}</span>}
+              {deptName && <span className="truncate">{deptName}</span>}
+            </div>
+
+            <div className="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
+              {user?.email && (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{user.email}</span>
+                </span>
+              )}
+              {hrEmployee?.phone && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  {hrEmployee.phone}
+                </span>
+              )}
+              {hrEmployee?.gender && (
+                <span className="inline-flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  {hrEmployee.gender}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList
-          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start h-auto md:flex-wrap md:h-auto md:overflow-visible md:py-1"
-        >
-          <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
-          <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
-          <TabsTrigger value="attendance" className="shrink-0">Attendance</TabsTrigger>
-          <TabsTrigger value="salary" className="shrink-0">Salary &amp; PF</TabsTrigger>
-          <TabsTrigger value="payslips" className="shrink-0">Payslips</TabsTrigger>
-          <TabsTrigger value="banking" className="shrink-0">Banking</TabsTrigger>
-          <TabsTrigger value="leaves" className="shrink-0">Leaves</TabsTrigger>
-          <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
-          <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
-          <TabsTrigger value="assets" className="shrink-0">Assets</TabsTrigger>
-          <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
-          <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
-          <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
+        <TabsList className="ds-subnav w-full h-auto p-0 bg-transparent rounded-none justify-start">
+          {PROFILE_TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="ds-subnav-item">
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
+
 
         {/* ═══════ Profile Tab ═══════ */}
         <TabsContent value="profile" className="space-y-6">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <AnnouncementsBanner />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Identity & Contact */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Identity &amp; Contact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    { label: 'Full Name', value: `${hrEmployee.first_name || ''} ${hrEmployee.last_name || ''}`.trim() || 'None', hint: 'KYC-locked' },
-                    { label: 'Date of Birth', value: hrEmployee.dob || 'None' },
-                    { label: 'Gender', value: hrEmployee.gender || 'None' },
-                    { label: 'Marital Status', value: hrEmployee.marital_status || 'None' },
-                    { label: 'Phone', value: hrEmployee.phone || 'None' },
-                    { label: 'Work Email', value: hrEmployee.email || 'None' },
-                    { label: 'Qualification', value: hrEmployee.qualification || 'None' },
-                    { label: 'Experience', value: hrEmployee.experience || 'None' },
-                  ].map((item, idx) => (
-                    <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                        {item.hint && <span className="text-[10px] text-muted-foreground">{item.hint}</span>}
-                      </div>
-                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              <SectionBlock title="Work Information" icon={Briefcase}>
+                <FieldGrid wide>
+                  <Field label="Badge Id" value={hrEmployee.badge_id ?? '—'} mono />
+                  <Field label="Job Position" value={(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || '—'} />
+                  <Field label="Department" value={(workInfo as any)?.departments?.name || '—'} />
+                  <Field label="Shift" value={(workInfo as any)?.shift_name || '—'} />
+                  <Field label="Work Type" value={(workInfo as any)?.work_type || '—'} />
+                </FieldGrid>
+              </SectionBlock>
 
+              <SectionBlock title="Identity & Contact" icon={User}>
+                <FieldGrid wide>
+                  <Field
+                    label="Full Name"
+                    hint="KYC-locked"
+                    value={`${hrEmployee.first_name || ''} ${hrEmployee.last_name || ''}`.trim() || '—'}
+                  />
+                  <Field label="Date of Birth" value={hrEmployee.dob || '—'} />
+                  <Field label="Gender" value={hrEmployee.gender || '—'} />
+                  <Field label="Marital Status" value={hrEmployee.marital_status || '—'} />
+                  <Field label="Phone" value={hrEmployee.phone || '—'} />
+                  <Field label="Work Email" value={hrEmployee.email || '—'} />
+                  <Field label="Qualification" value={hrEmployee.qualification || '—'} />
+                  <Field label="Experience" value={hrEmployee.experience || '—'} />
+                </FieldGrid>
+              </SectionBlock>
 
+              <SectionBlock
+                title="Statutory IDs"
+                icon={Shield}
+                description="Digits are masked for privacy. Full values are visible to Payroll / HR only."
+              >
+                {(() => {
+                  const mask = (v?: string | null, keep = 4) => {
+                    if (!v) return '—';
+                    const s = String(v);
+                    if (s.length <= keep) return s;
+                    return `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
+                  };
+                  return (
+                    <FieldGrid wide>
+                      <Field label="PAN" mono value={mask((hrEmployee as any).pan_number, 4)} />
+                      <Field label="UAN (PF Universal)" mono value={mask((hrEmployee as any).uan_number, 4)} />
+                      <Field label="PF Number" mono value={mask((hrEmployee as any).pf_number, 4)} />
+                      <Field label="ESIC Number" mono value={mask((hrEmployee as any).esi_number, 4)} />
+                    </FieldGrid>
+                  );
+                })()}
+              </SectionBlock>
 
-
-              {/* Statutory IDs — masked, read-only */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Statutory IDs</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(() => {
-                    const mask = (v?: string | null, keep = 4) => {
-                      if (!v) return 'None';
-                      const s = String(v);
-                      if (s.length <= keep) return s;
-                      return `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
-                    };
-                    const rows = [
-                      { label: 'PAN', value: mask((hrEmployee as any).pan_number, 4) },
-                      { label: 'UAN (PF Universal)', value: mask((hrEmployee as any).uan_number, 4) },
-                      { label: 'PF Number', value: mask((hrEmployee as any).pf_number, 4) },
-                      { label: 'ESIC Number', value: mask((hrEmployee as any).esi_number, 4) },
-                    ];
-                    return rows.map((item, idx) => (
-                      <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                        <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                        <p className="text-sm font-semibold text-foreground font-mono">{item.value}</p>
-                      </div>
-                    ));
-                  })()}
-                  <p className="text-[11px] text-muted-foreground pt-1">
-                    Digits are masked for privacy. Full values are visible to Payroll / HR only.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Work Information - Read Only */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-[#00bcd4]" />
-                    <CardTitle className="text-base text-[#00bcd4]">Work Information</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {/* Desktop table */}
-                  <div className="hidden md:block border border-border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-muted/50 border-b border-border">
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Badge Id</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Job Position</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Department</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Shift</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Work Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="py-3 px-4 text-foreground">{hrEmployee.badge_id}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.departments?.name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.shift_name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.work_type || 'N/A'}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  {/* Mobile stacked */}
-                  <div className="md:hidden space-y-2">
-                    {[
-                      { label: 'Badge Id', value: hrEmployee.badge_id },
-                      { label: 'Job Position', value: (workInfo as any)?.positions?.title || (workInfo as any)?.job_role || 'N/A' },
-                      { label: 'Department', value: (workInfo as any)?.departments?.name || 'N/A' },
-                      { label: 'Shift', value: (workInfo as any)?.shift_name || 'N/A' },
-                      { label: 'Work Type', value: (workInfo as any)?.work_type || 'N/A' },
-                    ].map((r, i) => (
-                      <div key={i} className="flex justify-between border-b border-border/50 pb-2 last:border-b-0">
-                        <span className="text-xs text-muted-foreground">{r.label}</span>
-                        <span className="text-sm font-medium text-foreground">{r.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              </div>
 
               {/* Phase 6 — Team & Reporting */}
               <MyTeamCard employeeId={hrEmployee.id} workInfo={workInfo} />
@@ -1277,27 +1175,19 @@ export default function UserProfile() {
         </TabsContent>
 
         {/* ═══════ Salary & PF Tab ═══════ */}
-        <TabsContent value="salary" className="space-y-6">
+        <TabsContent value="salary" className="space-y-4">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Compensation History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CompensationHistory employeeId={hrEmployee.id} />
-                </CardContent>
-              </Card>
-
+              <SectionBlock title="Compensation History" icon={TrendingUp}>
+                <CompensationHistory employeeId={hrEmployee.id} />
+              </SectionBlock>
             </>
           )}
         </TabsContent>
+
 
 
         {/* ═══════ Payslips Tab ═══════ */}
@@ -1319,21 +1209,22 @@ export default function UserProfile() {
         </TabsContent>
 
         {/* ═══════ Leaves Tab — Horilla-style ═══════ */}
-        <TabsContent value="leaves" className="space-y-6">
+        <TabsContent value="leaves" className="space-y-4">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
             <>
               {/* ─── Header row ─── */}
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-lg font-bold text-foreground">My Leave requests</h2>
+                <h2 className="t-section text-foreground">My Leave requests</h2>
                 <div className="flex items-center gap-2">
                   <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground gap-1.5">
+                      <Button size="sm" className="gap-1.5">
                         <Plus className="h-4 w-4" /> Create
                       </Button>
                     </DialogTrigger>
+
                     <DialogContent>
                       <DialogHeader><DialogTitle>New Leave Request</DialogTitle></DialogHeader>
                       <div className="space-y-4">
@@ -1373,7 +1264,6 @@ export default function UserProfile() {
                         <Button
                           onClick={() => applyLeaveMutation.mutate(leaveRequest)}
                           disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
-                          className="bg-[#E8604C] hover:bg-[#d4553f]"
                         >
                           {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
                         </Button>
@@ -1385,121 +1275,106 @@ export default function UserProfile() {
 
               <OrgLeaveCalendarCard />
 
-              {/* ─── Leave Balance Cards ─── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-
-                {leaveTypes.map((lt: any) => {
-                  const bal = cumulativeLeaveBalances[lt.id];
-                  const allocated = bal?.totalAllocated || 0;
-                  const used = bal?.totalUsed || 0;
-                  const available = allocated - used;
-                  return (
-                    <div key={lt.id} className="border border-border rounded-lg p-5 bg-card">
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm mb-3"
-                        style={{ backgroundColor: lt.color || '#888' }}
-                      >
-                        {lt.code || '??'}
-                      </div>
-                      <p className="text-sm font-bold text-foreground mb-3">{lt.name}</p>
-                      <div className="space-y-1 text-[13px]">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Available Leave Days</span>
-                          <span className="font-semibold text-foreground">{available.toFixed(1)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Total Leave Days</span>
-                          <span className="font-semibold text-foreground">{allocated.toFixed(1)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Total Leave Taken</span>
-                          <span className="font-semibold text-foreground">{used}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {leaveTypes.length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 col-span-full">No leave types configured. Contact HR.</p>
+              {/* ─── Leave Balances ─── */}
+              <SectionBlock title="Leave Balances" icon={CalendarDays} bodyClassName="p-0">
+                {leaveTypes.length === 0 ? (
+                  <p className="t-secondary p-4">No leave types configured. Contact HR.</p>
+                ) : (
+                  <div className="ds-table-wrap border-0 rounded-none">
+                    <table className="ds-table">
+                      <thead>
+                        <tr>
+                          <th>Leave Type</th>
+                          <th className="ds-num">Available</th>
+                          <th className="ds-num">Allocated</th>
+                          <th className="ds-num">Taken</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaveTypes.map((lt: any) => {
+                          const bal = cumulativeLeaveBalances[lt.id];
+                          const allocated = bal?.totalAllocated || 0;
+                          const used = bal?.totalUsed || 0;
+                          const available = allocated - used;
+                          return (
+                            <tr key={lt.id}>
+                              <td>
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: lt.color || 'hsl(var(--muted-foreground))' }}
+                                  />
+                                  <span className="font-medium truncate">{lt.name}</span>
+                                  {lt.code && <span className="text-muted-foreground text-[11px]">{lt.code}</span>}
+                                </span>
+                              </td>
+                              <td className="ds-num font-semibold">{available.toFixed(1)}</td>
+                              <td className="ds-num">{allocated.toFixed(1)}</td>
+                              <td className="ds-num">{Number(used).toFixed(1)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </div>
+              </SectionBlock>
 
-              {/* ─── Status Legend + Count ─── */}
+              {/* ─── Request count ─── */}
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-xs text-muted-foreground font-medium">
+                <span className="t-secondary">
                   {leaveRequests.length > 0 ? `${leaveRequests.length} request(s)` : ''}
                 </span>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive" /> Rejected</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted" /> Cancelled</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success" /> Approved</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning" /> Requested</span>
-                </div>
               </div>
 
+
               {/* ─── Leave Requests Table ─── */}
-              <div className="border border-border rounded-lg overflow-hidden bg-card">
-                <table className="w-full text-sm">
+              <div className="ds-table-wrap">
+                <table className="ds-table">
                   <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Leave Type</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Start Date</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">End Date</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Requested Days</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Comment</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Options</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Actions</th>
+                    <tr>
+                      <th>Leave Type</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th className="ds-num">Days</th>
+                      <th>Status</th>
+                      <th>Comment</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leaveRequests.length === 0 ? (
-                      <tr><td colSpan={8} className="text-center py-10 text-muted-foreground">No leave requests yet. Click "Create" to apply for leave.</td></tr>
+                      <tr><td colSpan={7} className="text-center py-10 text-muted-foreground">No leave requests yet. Click "Create" to apply for leave.</td></tr>
                     ) : (
                       leaveRequests.map((req: any) => {
                         const lt = getLeaveType(req.leave_type_id);
                         const isCancellable = req.status === 'pending' || req.status === 'approved';
                         const isEditable = req.status === 'pending';
+                        const tone = req.status === 'approved' ? 'success'
+                          : req.status === 'rejected' ? 'danger'
+                          : req.status === 'pending' ? 'warning' : 'neutral';
                         return (
-                          <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                            req.status === 'pending' ? 'border-l-4 border-l-amber-400' :
-                            req.status === 'approved' ? 'border-l-4 border-l-green-500' :
-                            req.status === 'rejected' ? 'border-l-4 border-l-red-500' :
-                            'border-l-4 border-l-gray-300'
-                          }`}>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-full text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
-                                  {lt?.code?.substring(0, 2) || '??'}
-                                </span>
-                                <span className="font-medium text-foreground">{lt?.name || 'Unknown'}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground">{req.start_date}</td>
-                            <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
-                            <td className="py-3 px-4 text-foreground font-medium">{req.total_days}</td>
-                            <td className="py-3 px-4">
-                              <span className={`capitalize font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>
-                                {req.status === 'pending' ? 'Requested' : req.status}
+                          <tr key={req.id}>
+                            <td>
+                              <span className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="h-2 w-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: lt?.color || 'hsl(var(--muted-foreground))' }}
+                                />
+                                <span className="font-medium truncate">{lt?.name || 'Unknown'}</span>
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-muted-foreground max-w-[150px] truncate">{req.reason || '—'}</td>
-                            <td className="py-3 px-4 text-center">
-                              {isCancellable ? (
-                                <Button
-                                  size="sm"
-                                  className="bg-muted hover:bg-muted text-primary-foreground text-xs px-5"
-                                  onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
-                                  disabled={cancelLeaveMutation.isPending}
-                                >
-                                  Cancel
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
+                            <td className="text-muted-foreground whitespace-nowrap">{req.start_date}</td>
+                            <td className="text-muted-foreground whitespace-nowrap">{req.end_date}</td>
+                            <td className="ds-num font-medium">{req.total_days}</td>
+                            <td>
+                              <StatusPill tone={tone as any}>
+                                {req.status === 'pending' ? 'Requested' : req.status}
+                              </StatusPill>
                             </td>
-                            <td className="py-3 px-4 text-center">
-                              <div className="flex items-center justify-center gap-1">
+                            <td className="text-muted-foreground max-w-[180px] truncate">{req.reason || '—'}</td>
+                            <td>
+                              <div className="flex items-center justify-end gap-1">
                                 {isEditable && (
                                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                                     onClick={() => {
@@ -1524,6 +1399,18 @@ export default function UserProfile() {
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
+                                {isCancellable && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
+                                    disabled={cancelLeaveMutation.isPending}
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
+                                {!isCancellable && !isEditable && <span className="text-xs text-muted-foreground">—</span>}
                               </div>
                             </td>
                           </tr>
@@ -1533,6 +1420,7 @@ export default function UserProfile() {
                   </tbody>
                 </table>
               </div>
+
               <UpcomingHolidaysCard />
             </>
           )}

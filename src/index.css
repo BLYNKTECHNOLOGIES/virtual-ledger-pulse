@@ -1833,3 +1833,216 @@ html {
 .ds-nav-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
 .ds-nav-scroll:hover { scrollbar-color: hsl(var(--sidebar-border)) transparent; }
 .ds-nav-scroll:hover::-webkit-scrollbar-thumb { background: hsl(var(--sidebar-border)); }
+
+/* ============================================================
+   DARK MODE — global safety net & interaction polish
+   Semantic tokens drive 99% of the UI; this section catches the
+   handful of legacy hard-coded light utilities and browser chrome
+   so no accidental white surfaces survive in dark mode.
+   The `.terminal` scope keeps its own isolated exchange palette.
+   ============================================================ */
+
+/* --- Colour scheme hint for native controls (scrollbars, pickers) --- */
+.dark {
+  color-scheme: dark;
+}
+
+/* --- Themed scrollbars --- */
+* {
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.28);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* --- Legacy hard-coded light surfaces (outside the terminal scope) --- */
+.dark :not(.terminal):not(.terminal *) > .bg-white,
+.dark .bg-white:not(.terminal *),
+.dark .bg-gray-50:not(.terminal *),
+.dark .bg-gray-100:not(.terminal *),
+.dark .bg-slate-50:not(.terminal *),
+.dark .bg-slate-100:not(.terminal *),
+.dark .bg-neutral-50:not(.terminal *),
+.dark .bg-zinc-50:not(.terminal *) {
+  background-color: hsl(var(--card));
+}
+
+.dark .text-black:not(.terminal *),
+.dark .text-gray-900:not(.terminal *),
+.dark .text-slate-900:not(.terminal *),
+.dark .text-neutral-900:not(.terminal *),
+.dark .text-zinc-900:not(.terminal *) {
+  color: hsl(var(--foreground));
+}
+
+.dark .text-gray-800:not(.terminal *),
+.dark .text-gray-700:not(.terminal *),
+.dark .text-gray-600:not(.terminal *),
+.dark .text-slate-700:not(.terminal *),
+.dark .text-slate-600:not(.terminal *) {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .text-gray-500:not(.terminal *),
+.dark .text-gray-400:not(.terminal *),
+.dark .text-slate-500:not(.terminal *),
+.dark .text-slate-400:not(.terminal *) {
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+
+.dark .border-gray-100:not(.terminal *),
+.dark .border-gray-200:not(.terminal *),
+.dark .border-gray-300:not(.terminal *),
+.dark .border-slate-100:not(.terminal *),
+.dark .border-slate-200:not(.terminal *),
+.dark .border-slate-300:not(.terminal *) {
+  border-color: hsl(var(--border));
+}
+
+/* --- Tables: subtle header separation, visible rows, readable hovers --- */
+.dark table thead,
+.dark table thead th,
+.dark [data-slot="table-header"] {
+  background-color: hsl(var(--surface-subtle));
+  color: hsl(var(--muted-foreground));
+}
+.dark table tbody tr {
+  border-color: hsl(var(--border));
+}
+.dark table tbody tr:hover {
+  background-color: hsl(var(--accent) / 0.7);
+}
+.dark table tbody tr[data-state="selected"] {
+  background-color: hsl(var(--primary) / 0.14);
+}
+/* Sticky headers must never fall back to a light surface */
+.dark thead.sticky,
+.dark tr.sticky,
+.dark th.sticky,
+.dark .sticky.bg-background,
+.dark .sticky.bg-card {
+  background-color: hsl(var(--surface-subtle));
+}
+
+/* --- Overlays: modals, dropdowns, popovers, command palette --- */
+.dark [data-radix-popper-content-wrapper] > * {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+.dark [role="dialog"],
+.dark [cmdk-root],
+.dark [cmdk-list] {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+.dark [data-radix-popper-content-wrapper] [cmdk-item][data-selected="true"],
+.dark [cmdk-item][data-selected="true"] {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* --- Inputs & form controls --- */
+.dark input:not([type="checkbox"]):not([type="radio"]):not(.terminal *),
+.dark textarea:not(.terminal *),
+.dark select:not(.terminal *) {
+  background-color: hsl(var(--surface-subtle));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--input));
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.75);
+}
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled,
+.dark button:disabled {
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+.dark input[type="file"]::file-selector-button {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: 1px solid hsl(var(--border));
+}
+/* Native date/time picker indicators stay visible */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.7);
+}
+
+/* --- Charts (recharts) --- */
+.dark .recharts-cartesian-grid line,
+.dark .recharts-polar-grid line {
+  stroke: hsl(var(--border));
+}
+.dark .recharts-cartesian-axis-line,
+.dark .recharts-cartesian-axis-tick-line {
+  stroke: hsl(var(--border));
+}
+.dark .recharts-text,
+.dark .recharts-cartesian-axis-tick-value tspan,
+.dark .recharts-legend-item-text {
+  fill: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground)) !important;
+}
+.dark .recharts-default-tooltip,
+.dark .recharts-tooltip-wrapper > div {
+  background-color: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-md);
+}
+.dark .recharts-tooltip-item {
+  color: hsl(var(--popover-foreground)) !important;
+}
+.dark .recharts-tooltip-cursor {
+  fill: hsl(var(--foreground) / 0.06);
+}
+.dark .recharts-reference-line line {
+  stroke: hsl(var(--muted-foreground) / 0.6);
+}
+
+/* --- Focus rings: always visible on dark surfaces --- */
+.dark :focus-visible {
+  outline-color: hsl(var(--ring));
+}
+
+/* --- Selection --- */
+.dark ::selection {
+  background-color: hsl(var(--primary) / 0.32);
+  color: hsl(var(--foreground));
+}
+
+/* --- Skeletons / empty & loading states --- */
+.dark .skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--foreground) / 0.08) 50%,
+    hsl(var(--muted)) 100%
+  );
+}
+
+/* --- File upload / dropzones that relied on light dashed panels --- */
+.dark .border-dashed {
+  border-color: hsl(var(--border));
+}

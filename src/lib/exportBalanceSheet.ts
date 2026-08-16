@@ -111,6 +111,9 @@ function drawWatermark(doc: jsPDF) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const pages = doc.getNumberOfPages();
+  const label = "DRAFT - FAILED VERIFICATION";
+  const angle = 32;
+
   for (let i = 1; i <= pages; i++) {
     doc.setPage(i);
     doc.saveGraphicsState();
@@ -118,11 +121,26 @@ function drawWatermark(doc: jsPDF) {
 
     doc.setTextColor(200, 0, 0);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(46);
-    doc.text("DRAFT - FAILED VERIFICATION", pageWidth / 2, pageHeight / 2, {
+
+    // Size the text so the rotated bounding box always fits inside the page.
+    const rad = (angle * Math.PI) / 180;
+    let size = 46;
+    for (; size > 10; size -= 1) {
+      doc.setFontSize(size);
+      const w = doc.getTextWidth(label);
+      const h = size * 1.2;
+      const boxW = Math.abs(w * Math.cos(rad)) + Math.abs(h * Math.sin(rad));
+      const boxH = Math.abs(w * Math.sin(rad)) + Math.abs(h * Math.cos(rad));
+      if (boxW <= pageWidth - 48 && boxH <= pageHeight - 48) break;
+    }
+    doc.setFontSize(size);
+
+    doc.text(label, pageWidth / 2, pageHeight / 2, {
       align: "center",
-      angle: 32,
-    });
+      baseline: "middle",
+      angle,
+      renderingMode: "fill",
+    } as any);
     doc.restoreGraphicsState();
     doc.setTextColor(0);
   }
@@ -135,29 +153,52 @@ export function exportBalanceSheetPdf(
 ) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  const isManagement = (meta.mode || "MANAGEMENT") === "MANAGEMENT";
+  const showDraft = !isManagement && !!meta.isDraft;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(15);
   doc.text(meta.entityName, 40, 48);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text("Statement of Financial Position (ledger-supported)", 40, 66);
+  doc.text(
+    isManagement
+      ? "Management Statement of Financial Position (indicative)"
+      : "Statement of Financial Position (ledger-supported)",
+    40,
+    66,
+  );
   doc.text(`As at ${meta.asOf}`, 40, 82);
-  const idBits = [meta.gstin ? `GSTIN: ${meta.gstin}` : null, meta.pan ? `PAN: ${meta.pan}` : null]
-    .filter(Boolean)
-    .join("   ");
-  if (idBits) doc.text(idBits, 40, 98);
+  const idBits = `GSTIN: ${gstinText(meta.gstin)}   PAN: ${panText(meta.pan)}`;
+  doc.text(idBits, 40, 98);
   doc.setFontSize(8);
   doc.setTextColor(120);
   doc.text(`Generated ${meta.generatedAt}`, pageWidth - 40, 48, { align: "right" });
   if (meta.checksum) doc.text(`Checksum ${meta.checksum}`, pageWidth - 40, 60, { align: "right" });
   if (meta.valuationBasis)
     doc.text(`Inventory basis: ${meta.valuationBasis}`, pageWidth - 40, 72, { align: "right" });
+  doc.text(isManagement ? "Mode: Management view" : "Mode: Verification view", pageWidth - 40, 84, {
+    align: "right",
+  });
   doc.setTextColor(0);
 
-  let y = idBits ? 116 : 100;
+  let y = 116;
 
-  if (meta.isDraft) {
+  if (isManagement) {
+    autoTable(doc, {
+      startY: y,
+      head: [["Management report - indicative, not audited"]],
+      body: [
+        [
+          "Prepared for internal management use from the data held in the ERP. Figures are directionally accurate, not audited and not statutory. Crypto inventory is derived from order quantities and allocated across companies on purchase value where wallets are not mapped. Known gaps are listed under 'Limitations and known gaps' and are not adjusted away.",
+        ],
+      ],
+      styles: { fontSize: 8, cellPadding: 6, textColor: [60, 60, 60] },
+      headStyles: { fillColor: [37, 47, 63], textColor: 255, fontStyle: "bold" },
+      margin: { left: 40, right: 40 },
+    });
+    y = (doc as any).lastAutoTable.finalY + 16;
+  } else if (showDraft) {
     autoTable(doc, {
       startY: y,
       head: [["DRAFT - FAILED VERIFICATION"]],
@@ -173,6 +214,7 @@ export function exportBalanceSheetPdf(
     });
     y = (doc as any).lastAutoTable.finalY + 16;
   }
+
 
   for (const g of grouped(lines)) {
     if (!g.rows.length) continue;

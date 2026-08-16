@@ -72,23 +72,32 @@ function WalletBalanceWidgetContent() {
   const totalBalance = (wallets || []).reduce((sum, w) => sum + (Number(w.current_balance) || 0), 0);
 
   if (isLoading) {
-    return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
+    return <WidgetSkeleton variant="list" rows={3} />;
   }
 
+  const funded = (wallets || []).filter((w: any) => Number(w.current_balance) > 0);
+
   return (
-    <div className="p-4 flex flex-col h-full w-full">
-      <div className="text-center mb-3">
-        <p className="text-2xl font-bold text-foreground">{totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</p>
-        <p className="text-xs text-muted-foreground mt-1">Total across {(wallets || []).length} wallets</p>
-      </div>
-      <div className="space-y-1 flex-1 overflow-y-auto w-full">
-        {(wallets || []).filter(w => Number(w.current_balance) > 0).map((w: any) => (
-          <div key={w.id} className="flex items-center justify-between text-sm px-4 py-2.5 rounded-lg bg-muted/50 w-full">
-            <span className="text-muted-foreground font-medium truncate mr-4">{w.wallet_name}</span>
-            <span className="font-semibold text-foreground whitespace-nowrap">{Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-          </div>
-        ))}
-      </div>
+    <div className="flex h-full w-full flex-col p-3">
+      <WidgetMetric
+        label="Wallet Balance"
+        value={`${totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`}
+        helper={`Across ${(wallets || []).length} wallets`}
+        className="mb-2 px-1"
+      />
+      {funded.length === 0 ? (
+        <WidgetEmpty icon={Wallet} title="No funded wallets" />
+      ) : (
+        <WidgetList className="min-w-0 flex-1 overflow-y-auto">
+          {funded.map((w: any) => (
+            <WidgetListRow
+              key={w.id}
+              title={w.wallet_name}
+              value={Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            />
+          ))}
+        </WidgetList>
+      )}
     </div>
   );
 }

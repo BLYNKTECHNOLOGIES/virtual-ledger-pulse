@@ -247,10 +247,12 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle>Balance Sheet</DialogTitle>
           <DialogDescription>
-            Company-wise statement of financial position built from the bank ledger. Unsupported
-            areas are disclosed, never estimated.
+            {isManagement
+              ? "Indicative company-wise position built from the data the ERP holds. Directional, not audited — gaps are listed, never plugged."
+              : "Company-wise statement of financial position built from the bank ledger. Unsupported areas are disclosed, never estimated."}
           </DialogDescription>
         </DialogHeader>
+
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
           <div className="space-y-1.5">

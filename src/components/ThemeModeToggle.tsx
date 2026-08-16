@@ -1,6 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useThemeMode } from "@/contexts/ThemeContext";
 
 /**
@@ -13,6 +13,7 @@ export function ThemeModeToggle({ className = "" }: { className?: string }) {
   const label = isDark ? "Switch to light mode" : "Switch to dark mode";
 
   return (
+    <TooltipProvider delayDuration={300}>
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
@@ -27,5 +28,6 @@ export function ThemeModeToggle({ className = "" }: { className?: string }) {
       </TooltipTrigger>
       <TooltipContent side="bottom">{label}</TooltipContent>
     </Tooltip>
+    </TooltipProvider>
   );
 }

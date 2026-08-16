@@ -112,33 +112,22 @@ export default function LeaveRequestsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status, request }: { id: string; status: string; request?: any }) => {
-      // Validate balance before approving
-      if (status === "approved" && request) {
-        const totalDays = Number(request.total_days || 0);
-
-        // Get all allocations for this employee+leave type (cumulative balance)
-        const { data: allocations } = await (supabase as any)
-          .from("hr_leave_allocations")
-          .select("allocated_days, used_days, available_days")
-          .eq("employee_id", request.employee_id)
-          .eq("leave_type_id", request.leave_type_id);
-
-        if (allocations && allocations.length > 0) {
-          const totalAllocated = allocations.reduce((s: number, a: any) => s + Number(a.allocated_days || 0), 0);
-          const totalUsed = allocations.reduce((s: number, a: any) => s + Number(a.used_days || 0), 0);
-          const available = totalAllocated - totalUsed;
-
-          if (totalDays > available) {
-            throw new Error(`Insufficient leave balance. Available: ${available} days, Requested: ${totalDays} days`);
-          }
-        }
+    mutationFn: async ({ id, status, request, leaveTypeId }: { id: string; status: string; request?: any; leaveTypeId?: string }) => {
+      // HR assigns the leave type at approval time; the DB cascade consumes
+      // assigned type -> comp-off -> casual leave -> LOP, so no client-side block.
+      if (status === "approved" && !leaveTypeId && !request?.leave_type_id) {
+        throw new Error("Select a leave type before approving");
       }
 
-      // Update status — DB trigger handles balance deduction/restoration automatically
       const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
-        ...(status === "approved" ? { approved_at: new Date().toISOString(), hr_approved_at: new Date().toISOString() } : {}),
+        ...(status === "approved"
+          ? {
+              leave_type_id: leaveTypeId || request?.leave_type_id,
+              approved_at: new Date().toISOString(),
+              hr_approved_at: new Date().toISOString(),
+            }
+          : {}),
         ...(status === "rejected" ? { rejection_reason: "Rejected by HR" } : {}),
       }).eq("id", id);
       if (error) throw error;

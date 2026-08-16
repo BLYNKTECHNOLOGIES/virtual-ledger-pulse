@@ -1626,3 +1626,61 @@ html {
   background: transparent;
   box-shadow: none;
 }
+
+/* ── Interaction & motion layer ──────────────────────────────
+   Fast, subtle micro-interactions shared across the ERP.
+   Everything here is presentational and reduced-motion safe. */
+.ds-press {
+  transition: transform var(--ds-transition);
+}
+.ds-press:active { transform: scale(0.985); }
+
+.ds-elevate {
+  transition: box-shadow var(--ds-transition), border-color var(--ds-transition), transform var(--ds-transition);
+}
+.ds-elevate:hover {
+  border-color: hsl(var(--border));
+  box-shadow: 0 6px 16px -8px hsl(var(--foreground) / 0.18), 0 1px 2px hsl(var(--foreground) / 0.06);
+  transform: translateY(-1px);
+}
+.ds-elevate:active { transform: translateY(0); }
+
+/* Table row interaction: hover + selected */
+.ds-row {
+  transition: background-color var(--ds-transition), box-shadow var(--ds-transition);
+}
+.ds-row:hover { background: hsl(var(--muted) / 0.5); }
+.ds-row[data-state="selected"],
+.ds-row[aria-selected="true"] {
+  background: hsl(var(--primary) / 0.07);
+  box-shadow: inset 2px 0 0 0 hsl(var(--primary));
+}
+
+/* Route-level entrance: opacity only, no layout shift */
+.ds-route-enter { animation: ds-route-fade 140ms var(--ds-ease) both; }
+@keyframes ds-route-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Thin top progress bar for lazy route/chunk loads */
+.ds-topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  z-index: 200;
+  background: linear-gradient(90deg, hsl(var(--primary) / 0.25), hsl(var(--primary)));
+  transform-origin: 0 50%;
+  animation: ds-topbar-grow 1.6s var(--ds-ease) forwards;
+}
+@keyframes ds-topbar-grow {
+  0% { transform: scaleX(0.04); }
+  60% { transform: scaleX(0.7); }
+  100% { transform: scaleX(0.92); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-press, .ds-elevate, .ds-row { transition: none !important; }
+  .ds-press:active, .ds-elevate:hover, .ds-elevate:active { transform: none !important; }
+  .ds-route-enter, .ds-topbar { animation: none !important; }
+}

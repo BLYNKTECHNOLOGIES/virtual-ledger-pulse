@@ -162,7 +162,7 @@ export function CaseTrackingTab() {
             <div className="flex items-center gap-1">
 
               <Select value={selectedCaseTypeFilter} onValueChange={setSelectedCaseTypeFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Filter by case type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -186,10 +186,10 @@ export function CaseTrackingTab() {
             </div>
 
             {/* Bank Filter */}
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+              <Filter className="h-4 w-4 text-muted-foreground" />
               <Select value={selectedBankFilter} onValueChange={setSelectedBankFilter}>
-                <SelectTrigger className="w-48">
+                <SelectTrigger className="w-full sm:w-44">
                   <SelectValue placeholder="Filter by bank" />
                 </SelectTrigger>
                 <SelectContent>
@@ -213,9 +213,9 @@ export function CaseTrackingTab() {
             </div>
 
             {/* Status Filter */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
               <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-36">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -239,7 +239,7 @@ export function CaseTrackingTab() {
 
             <ViewOnlyWrapper isViewOnly={!canManage}>
               <Button 
-                className="bg-destructive hover:bg-destructive/90"
+                className="bg-destructive hover:bg-destructive/90 w-full sm:w-auto"
                 onClick={() => setShowNewCaseDialog(true)}
               >
                 <Plus className="h-4 w-4 mr-2" />
@@ -252,9 +252,9 @@ export function CaseTrackingTab() {
       <CardContent>
         <div className="space-y-4">
           {(bankCases || []).map((bankCase) => (
-            <div key={bankCase.id} className={`border rounded-lg p-4 ${getStatusColor(bankCase.status)}`}>
-              <div className="flex justify-between items-start mb-2">
-                <div>
+            <div key={bankCase.id} className={`border rounded-lg p-4 md:p-5 ${getStatusColor(bankCase.status)}`}>
+              <div className="flex flex-wrap justify-between items-start gap-3 mb-2">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {getCaseTypeIcon(bankCase.case_type)}
                     <h4 className="font-medium">{bankCase.case_number}</h4>
@@ -278,7 +278,7 @@ export function CaseTrackingTab() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
                 {bankCase.amount_involved !== null && bankCase.amount_involved !== undefined && 
                  bankCase.case_type !== 'ACCOUNT_NOT_WORKING' && (
                   <div>
@@ -308,7 +308,7 @@ export function CaseTrackingTab() {
                 )}
               </div>
               
-              <div className="flex gap-2 mt-3">
+              <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/60">
                 {bankCase.investigation_status === 'UNDER_INVESTIGATION' ? (
                   <Button 
                     variant="secondary" 

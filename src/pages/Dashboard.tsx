@@ -703,103 +703,89 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/50 p-3 md:p-6">
+    <div className="page-shell min-h-screen bg-background">
       {/* Header */}
-      <div className="bg-card rounded-xl mb-4 md:mb-6 shadow-sm border border-border">
-        <div className="px-4 md:px-6 py-4 md:py-8">
-          <PageHeader
-            title={
-              <span className="flex items-center gap-3">
-                <span className="p-2 md:p-3 bg-info/10 rounded-xl shadow-sm">
-                  <BarChart3 className="h-6 w-6 md:h-8 md:w-8 text-info" />
-                </span>
-                Welcome, {userDisplayName}
-              </span>
-            }
-            description="Monitor your business performance"
-            actions={
-              <div className="flex flex-col items-start md:items-end gap-3 flex-shrink-0">
-                <DateRangePicker
-                  dateRange={dateRange}
-                  onDateRangeChange={setDateRange}
-                  preset={datePreset}
-                  onPresetChange={setDatePreset}
-                  className="w-full md:w-auto md:min-w-[200px]"
-                />
-                <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pt-2 pb-1">
+      <PageHeader
+        title={<span className="t-page-title">Welcome, {userDisplayName}</span>}
+        description="Monitor your business performance"
+        actions={
+          <div className="flex flex-col items-start md:items-end gap-2 flex-shrink-0">
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+              preset={datePreset}
+              onPresetChange={setDatePreset}
+              className="w-full md:w-auto md:min-w-[200px]"
+            />
+            <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pb-1">
+              <Button
+                variant={isEditMode ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setIsEditMode(!isEditMode);
+                  if (!isEditMode) setIsRearrangeMode(true);
+                  else setIsRearrangeMode(false);
+                }}
+                className="flex-shrink-0"
+              >
+                <Settings className="h-4 w-4" />
+                <span className="whitespace-nowrap">{isEditMode ? 'Done' : 'Customize'}</span>
+              </Button>
+
+              {isEditMode && (
+                <>
+                  <AddWidgetDialog
+                    onAddWidget={handleAddWidget}
+                    existingWidgets={activeWidgetIds}
+                  />
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => {
-                      setIsEditMode(!isEditMode);
-                      if (!isEditMode) setIsRearrangeMode(true);
-                      else setIsRearrangeMode(false);
-                    }}
-                    className={`flex-shrink-0 ${isEditMode ? 
-                      "bg-warning/10 border border-warning text-warning hover:bg-warning/10 shadow-sm" : 
-                      "bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
-                    }`}
+                    onClick={handleResetDashboard}
+                    className="flex-shrink-0"
                   >
-                    <Settings className="h-4 w-4 mr-1 md:mr-2" />
-                    <span className="whitespace-nowrap">{isEditMode ? 'Done' : 'Customize'}</span>
+                    <RotateCcw className="h-4 w-4" />
+                    <span className="hidden sm:inline">Reset</span>
                   </Button>
-                  
-                  {isEditMode && (
-                    <>
-                      <AddWidgetDialog 
-                        onAddWidget={handleAddWidget}
-                        existingWidgets={activeWidgetIds}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleResetDashboard}
-                        className="flex-shrink-0 bg-card border border-border text-foreground hover:bg-muted/50 shadow-sm"
-                      >
-                        <RotateCcw className="h-4 w-4 mr-1" />
-                        <span className="hidden sm:inline">Reset</span>
-                      </Button>
-                    </>
-                  )}
+                </>
+              )}
 
-                  <ShiftReconciliationWidget />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUniversalSync}
-                    disabled={universalSyncing || syncMutation.isPending}
-                    className="bg-info/10 border border-info/20 text-info hover:bg-info/10 shadow-sm flex-shrink-0"
-                    title="Universal Sync"
-                  >
-                    <CloudDownload className={`h-4 w-4 ${universalSyncing ? 'animate-pulse' : ''}`} />
-                    <span className="hidden sm:inline ml-2">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
-                  </Button>
-                </div>
-              </div>
-            }
-          />
-
-        </div>
-      </div>
+              <ShiftReconciliationWidget />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleUniversalSync}
+                disabled={universalSyncing || syncMutation.isPending}
+                loading={universalSyncing}
+                className="flex-shrink-0"
+                title="Universal Sync"
+              >
+                {!universalSyncing && <CloudDownload className="h-4 w-4" />}
+                <span className="hidden sm:inline">{universalSyncing ? 'Syncing...' : 'Terminal Sync'}</span>
+              </Button>
+            </div>
+          </div>
+        }
+      />
 
       {/* Sync Indicator */}
       {universalSyncing && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-info/10 border border-info/20 text-xs text-info mb-4">
-          <RefreshCw className="h-3 w-3 animate-spin" />
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-info/10 border border-info/20 text-xs text-info">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin" />
           Universal sync in progress — orders, purchases, sales, assets...
         </div>
       )}
 
       {/* Edit Mode Banner */}
       {isEditMode && (
-        <div className="bg-warning/10 border border-warning text-warning rounded-xl p-4 md:p-6 shadow-md mb-4">
-          <div className="flex items-start md:items-center gap-3 md:gap-4">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-warning rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
-              <Settings className="h-5 w-5 md:h-6 md:w-6 text-primary-foreground" />
-            </div>
+        <div className="rounded-xl border border-warning/40 bg-warning/10 p-4">
+          <div className="flex items-start md:items-center gap-3">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/20 text-warning">
+              <Settings className="h-4 w-4" />
+            </span>
             <div className="min-w-0 flex-1">
-              <h3 className="text-base md:text-lg font-bold">🎨 Customize Mode Active</h3>
-              <p className="text-warning mt-1 text-sm md:text-base">
+              <h3 className="t-card-title text-foreground">Customize mode active</h3>
+              <p className="t-secondary mt-0.5">
                 Drag widgets to reorder • Hover & click ✕ to remove • Use "Add Widget" to add new ones
               </p>
             </div>
@@ -807,7 +793,7 @@ export default function Dashboard() {
               size="sm"
               variant="outline"
               onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
-              className="border-warning text-warning hover:bg-warning/10 flex-shrink-0"
+              className="flex-shrink-0"
             >
               Done
             </Button>
@@ -818,7 +804,7 @@ export default function Dashboard() {
       {/* Widget Grid */}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className={`grid grid-cols-12 gap-3 md:gap-6 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
+          <div className={`grid grid-cols-12 gap-3 md:gap-4 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>
@@ -826,14 +812,13 @@ export default function Dashboard() {
 
       {/* Empty state */}
       {visibleWidgetIds.length === 0 && (
-        <div className="text-center py-20">
-          <div className="w-20 h-20 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <BarChart3 className="h-10 w-10 text-muted-foreground opacity-50" />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">Dashboard is empty</h3>
-          <p className="text-muted-foreground mb-6">Add widgets to customize your dashboard view</p>
-          <AddWidgetDialog onAddWidget={handleAddWidget} existingWidgets={activeWidgetIds} />
-        </div>
+        <EmptyState
+          icon={BarChart3}
+          title="Dashboard is empty"
+          description="Add widgets to customize your dashboard view"
+          action={<AddWidgetDialog onAddWidget={handleAddWidget} existingWidgets={activeWidgetIds} />}
+          className="py-16"
+        />
       )}
     </div>
   );

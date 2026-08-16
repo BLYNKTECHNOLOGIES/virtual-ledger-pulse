@@ -178,6 +178,19 @@ function buildRows(kind: string, d: Record<string, any>): Array<[string, string]
   return rows;
 }
 
+/** ASCII-only, <=70 char subject — avoids broken RFC 2047 header encoding. */
+function asciiSubject(s: string): string {
+  const clean = s
+    .replace(/[\u2012-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u00B7\u2022]/g, "-")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.length > 70 ? `${clean.slice(0, 67).trimEnd()}...` : clean;
+}
+
 function render(kind: string, eventType: string, d: Record<string, any>) {
   const meta = kind === "leave" ? leaveMeta(eventType, d) : regMeta(eventType, d);
   const tone = TONE[meta.tone];
@@ -186,9 +199,13 @@ function render(kind: string, eventType: string, d: Record<string, any>) {
 
   const dateTag = kind === "leave" ? shortDate(d.startDate) : shortDate(d.attendanceDate);
   const subjectBase = kind === "leave" ? "Leave" : "Attendance regularization";
-  const subject = `${subjectBase}: ${meta.chip}${dateTag ? ` — ${dateTag}` : ""}${
-    d.recipientRole !== "employee" && d.employeeName ? ` · ${d.employeeName}` : ""
-  }`;
+  // Keep the subject plain ASCII and short: denomailer mis-encodes long
+  // non-ASCII headers, which leaks the raw MIME envelope into the mail body.
+  const subject = asciiSubject(
+    `${subjectBase}: ${meta.chip}${dateTag ? ` - ${dateTag}` : ""}${
+      d.recipientRole !== "employee" && d.employeeName ? ` - ${d.employeeName}` : ""
+    }`,
+  );
 
   const ref = `${(dateTag || "").replace(/\s/g, "")}-${crypto.randomUUID().slice(0, 6).toUpperCase()}`;
 
@@ -284,7 +301,7 @@ Deno.serve(async (req) => {
     if (!mailbox) return json({ error: "No active HR mailbox configured" }, 400);
 
     const rendered = render(kind, eventType, data);
-    const subject = sample ? `[SAMPLE] ${rendered.subject}` : rendered.subject;
+    const subject = asciiSubject(sample ? `[SAMPLE] ${rendered.subject}` : rendered.subject);
 
     const { client, user } = makeClient(mailbox);
     try {

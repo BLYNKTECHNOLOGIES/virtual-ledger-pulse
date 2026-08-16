@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { Clock, AlertTriangle, Search, TrendingDown, ChevronRight, Download } from "lucide-react";
+import { Clock, AlertTriangle, Search, TrendingDown, ChevronDown, Download } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import EmployeeIncidentsDialog from "@/components/hrms/attendance/EmployeeIncidentsDialog";
 import { useViewMode } from "@/hooks/useViewMode";
@@ -24,6 +24,7 @@ export default function LateComeEarlyOutPage() {
   const [selectedEmp, setSelectedEmp] = useState<{ id: string; name: string; badge: string } | null>(null);
   const [viewMode, setViewMode] = useViewMode("late-early");
   const [activeTab, setActiveTab] = useState("summary");
+  const [expandedEmp, setExpandedEmp] = useState<string | null>(null);
 
   const monthStart = format(startOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
   const monthEnd = format(endOfMonth(new Date(monthFilter + "-01")), "yyyy-MM-dd");
@@ -89,6 +90,12 @@ export default function LateComeEarlyOutPage() {
       employeeSummary[empId].earlyCount++;
       employeeSummary[empId].totalEarlyMins += r.early_minutes || 0;
     }
+  });
+
+  // Incidents grouped per employee for the inline expandable panel.
+  const incidentsByEmployee: Record<string, any[]> = {};
+  filtered.forEach((r: any) => {
+    (incidentsByEmployee[r.employee_id] ||= []).push(r);
   });
 
   const summaryList = Object.entries(employeeSummary)
@@ -249,8 +256,9 @@ export default function LateComeEarlyOutPage() {
                         key={s.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); } }}
+                        aria-expanded={expandedEmp === s.id}
+                        onClick={() => setExpandedEmp(expandedEmp === s.id ? null : s.id)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpandedEmp(expandedEmp === s.id ? null : s.id); } }}
                         className="p-3 space-y-2 cursor-pointer active:bg-muted/50"
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -258,7 +266,10 @@ export default function LateComeEarlyOutPage() {
                             <div className="font-medium truncate">{s.name}</div>
                             <div className="text-xs text-muted-foreground">{s.badge}</div>
                           </div>
-                          <span className="font-bold tabular-nums text-sm shrink-0">{s.lateCount + s.earlyCount}</span>
+                          <span className="flex shrink-0 items-center gap-1.5 text-sm font-bold tabular-nums">
+                            {s.lateCount + s.earlyCount}
+                            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${expandedEmp === s.id ? "rotate-180" : ""}`} />
+                          </span>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="flex items-center justify-between p-2 rounded bg-warning/5">
@@ -270,6 +281,14 @@ export default function LateComeEarlyOutPage() {
                             <span className="tabular-nums">{s.earlyCount} · {s.totalEarlyMins || 0}m</span>
                           </div>
                         </div>
+                        {expandedEmp === s.id && (
+                          <div className="rounded-md border bg-surface-subtle p-2" onClick={(e) => e.stopPropagation()}>
+                            <IncidentBreakdown
+                              rows={incidentsByEmployee[s.id] || []}
+                              onOpenFull={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
+                            />
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -286,13 +305,14 @@ export default function LateComeEarlyOutPage() {
                     </thead>
                     <tbody>
                       {summaryList.map((s) => (
+                        <FragmentRow key={s.id}>
                         <tr
-                          key={s.id}
                           role="button"
                           tabIndex={0}
-                          onClick={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
-                          onKeyDown={(e) => { if (e.key === "Enter") setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
-                          className={`border-b hover:bg-muted/50 cursor-pointer ${isTable ? "even:bg-muted/20" : ""}`}
+                          aria-expanded={expandedEmp === s.id}
+                          onClick={() => setExpandedEmp(expandedEmp === s.id ? null : s.id)}
+                          onKeyDown={(e) => { if (e.key === "Enter") setExpandedEmp(expandedEmp === s.id ? null : s.id); }}
+                          className={`border-b hover:bg-muted/50 cursor-pointer ${expandedEmp === s.id ? "bg-muted/40" : ""} ${isTable ? "even:bg-muted/20" : ""}`}
                         >
                           <td className="px-4 py-3 font-medium">{s.name}</td>
                           <td className="px-4 py-3 text-muted-foreground">{s.badge}</td>
@@ -317,13 +337,26 @@ export default function LateComeEarlyOutPage() {
                           <td className="px-4 py-3 text-right whitespace-nowrap">
                             <button
                               type="button"
-                              onClick={(e) => { e.stopPropagation(); setSelectedEmp({ id: s.id, name: s.name, badge: s.badge }); }}
-                              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-primary hover:bg-muted"
+                              aria-label={expandedEmp === s.id ? `Collapse ${s.name}` : `Expand ${s.name}`}
+                              aria-expanded={expandedEmp === s.id}
+                              onClick={(e) => { e.stopPropagation(); setExpandedEmp(expandedEmp === s.id ? null : s.id); }}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
                             >
-                              View <ChevronRight className="h-3 w-3" />
+                              <ChevronDown className={`h-4 w-4 transition-transform duration-150 ${expandedEmp === s.id ? "rotate-180" : ""}`} />
                             </button>
                           </td>
                         </tr>
+                        {expandedEmp === s.id && (
+                          <tr className="border-b bg-surface-subtle">
+                            <td colSpan={8} className="px-4 py-3">
+                              <IncidentBreakdown
+                                rows={incidentsByEmployee[s.id] || []}
+                                onOpenFull={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                        </FragmentRow>
                       ))}
                     </tbody>
                   </table>
@@ -419,6 +452,52 @@ export default function LateComeEarlyOutPage() {
         monthLabel={format(new Date(monthFilter + "-01"), "MMMM yyyy")}
         records={selectedEmp ? filtered.filter((r: any) => r.employee_id === selectedEmp.id) : []}
       />
+    </div>
+  );
+}
+
+
+/** Fragment wrapper so an expandable pair of <tr> rows can carry a key. */
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+/** Inline per-employee incident breakdown shown when a summary row is expanded. */
+function IncidentBreakdown({ rows, onOpenFull }: { rows: any[]; onOpenFull: () => void }) {
+  const sorted = [...rows].sort((a, b) => (a.attendance_date < b.attendance_date ? 1 : -1));
+  if (sorted.length === 0) {
+    return <p className="text-xs text-muted-foreground">No incidents recorded for this month.</p>;
+  }
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {sorted.length} incident{sorted.length === 1 ? "" : "s"}
+        </p>
+        <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onOpenFull}>
+          Open full details
+        </Button>
+      </div>
+      <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
+        {sorted.map((r: any) => {
+          const late = r.type === "late_come";
+          const mins = (late ? r.late_minutes : r.early_minutes) || 0;
+          return (
+            <div
+              key={r.id}
+              className="flex items-center justify-between gap-2 rounded-md border bg-card px-2.5 py-1.5 text-xs"
+            >
+              <span className="tabular-nums text-muted-foreground">
+                {format(new Date(r.attendance_date), "dd MMM")}
+              </span>
+              <span className={`font-medium ${late ? "text-warning" : "text-destructive"}`}>
+                {late ? "Late come" : "Early out"}
+              </span>
+              <span className="tabular-nums font-semibold">{mins}m</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

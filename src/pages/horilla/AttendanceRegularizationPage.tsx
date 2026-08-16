@@ -80,6 +80,39 @@ export default function AttendanceRegularizationPage() {
     },
   });
 
+  /** Collapse consecutive identical entries (same action/reason/actor) into one readable line. */
+  const groupedInterventions = useMemo(() => {
+    const out: Array<{
+      key: string; action: string; reason_code: string | null; notes: string | null;
+      actor: string; count: number; firstAt: string; lastAt: string;
+    }> = [];
+    for (const l of recentInterventions as any[]) {
+      const actor = l.actor_email || 'system';
+      const prev = out[out.length - 1];
+      if (
+        prev &&
+        prev.action === l.action &&
+        (prev.reason_code || '') === (l.reason_code || '') &&
+        prev.actor === actor
+      ) {
+        prev.count += 1;
+        prev.firstAt = l.created_at;
+        continue;
+      }
+      out.push({
+        key: l.id,
+        action: l.action,
+        reason_code: l.reason_code || null,
+        notes: (l.notes || '').trim() || null,
+        actor,
+        count: 1,
+        firstAt: l.created_at,
+        lastAt: l.created_at,
+      });
+    }
+    return out;
+  }, [recentInterventions]);
+
   const filtered = rows.filter((r: any) => {
     if (!search) return true;
     const emp = r.hr_employees;
@@ -444,31 +477,59 @@ export default function AttendanceRegularizationPage() {
         </CardContent>
       </Card>
 
-      {/* Intervention audit log */}
-      {recentInterventions.length > 0 && (
+      {/* Intervention audit log — grouped so repeat system actions read as one line */}
+      {groupedInterventions.length > 0 && (
         <Card>
-          <CardContent className="p-4">
-            <div className="text-sm font-medium mb-2">Recent intervention log</div>
-            <div className="space-y-1 text-xs">
-              {recentInterventions.map((l: any) => (
-                <div key={l.id} className="flex items-start justify-between gap-3 border-b border-border/50 pb-1">
-                  <div className="min-w-0">
-                    <div className="font-medium">{l.action.replace(/_/g, ' ')}</div>
-                    <div className="text-muted-foreground truncate">
-                      {l.notes} {l.reason_code && <span className="uppercase">· {l.reason_code}</span>}
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Recent intervention log</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-border/60">
+              {groupedInterventions.map((g) => (
+                <div key={g.key} className="flex items-start gap-3 px-4 py-2.5">
+                  <span
+                    className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
+                      g.actor === 'system' ? 'bg-muted-foreground/50' : 'bg-primary'
+                    }`}
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-[13px] font-medium capitalize text-foreground">
+                        {g.action.replace(/_/g, ' ')}
+                      </span>
+                      {g.count > 1 && (
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-semibold tabular-nums">
+                          x{g.count}
+                        </Badge>
+                      )}
+                      {g.reason_code && (
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                          {g.reason_code.replace(/_/g, ' ')}
+                        </span>
+                      )}
                     </div>
+                    {g.notes && (
+                      <p className="mt-0.5 truncate text-xs text-muted-foreground">{g.notes}</p>
+                    )}
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {g.actor}
+                      {' · '}
+                      {formatDistanceToNow(new Date(g.lastAt), { addSuffix: true })}
+                      {g.count > 1 && g.firstAt !== g.lastAt && (
+                        <> · {format(new Date(g.firstAt), 'd MMM, HH:mm')}–{format(new Date(g.lastAt), 'HH:mm')}</>
+                      )}
+                    </p>
                   </div>
-                  <div className="text-right shrink-0 text-muted-foreground">
-                    <div>{l.actor_email || 'system'}</div>
-                    <div>{new Date(l.created_at).toLocaleString('en-IN')}</div>
-                  </div>
+                  <span className="shrink-0 whitespace-nowrap pt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                    {format(new Date(g.lastAt), 'd MMM, HH:mm')}
+                  </span>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
-
 
       {/* ============ Legacy review dialog ============ */}
       <Dialog open={!!reviewing} onOpenChange={(o) => !o && setReviewing(null)}>

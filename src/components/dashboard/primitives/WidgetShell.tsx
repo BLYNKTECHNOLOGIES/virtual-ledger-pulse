@@ -34,7 +34,7 @@ export function WidgetShell({ children, className, isEditing, isDragging }: Widg
   return (
     <div
       className={cn(
-        "group/widget relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground",
+        "group/widget @container relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground",
         "shadow-xs transition-[box-shadow,border-color,opacity] duration-200 ease-out motion-reduce:transition-none",
         !isEditing && "hover:shadow-sm",
         isEditing && "border-dashed border-primary/45 bg-card",

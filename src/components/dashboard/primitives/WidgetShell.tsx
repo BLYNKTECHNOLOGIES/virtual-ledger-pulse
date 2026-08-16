@@ -34,9 +34,9 @@ export function WidgetShell({ children, className, isEditing, isDragging }: Widg
   return (
     <div
       className={cn(
-        "group/widget @container relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground",
-        "shadow-xs transition-[box-shadow,border-color,opacity] duration-200 ease-out motion-reduce:transition-none",
-        !isEditing && "hover:shadow-sm",
+        "group/widget @container relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border/70 bg-card text-card-foreground",
+        "shadow-none transition-[box-shadow,border-color,opacity] duration-150 ease-out motion-reduce:transition-none",
+        !isEditing && "hover:border-border hover:shadow-xs",
         isEditing && "border-dashed border-primary/45 bg-card",
         isDragging && "opacity-60 shadow-md",
         className
@@ -76,18 +76,16 @@ export function WidgetHeader({
   return (
     <div
       className={cn(
-        "flex min-h-10 shrink-0 items-center gap-2 border-b border-border px-3 py-2",
+        "flex min-h-9 shrink-0 items-center gap-2 border-b border-border/60 px-3 py-1.5",
         className
       )}
     >
       {leading}
       {Icon && (
-        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-          <Icon className="h-3.5 w-3.5" />
-        </span>
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} />
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13px] font-semibold leading-tight text-foreground">{title}</p>
+        <p className="truncate text-[12.5px] font-semibold leading-tight tracking-[-0.01em] text-foreground">{title}</p>
         {subtitle && (
           <p className="truncate text-[11px] leading-tight text-muted-foreground">{subtitle}</p>
         )}
@@ -126,7 +124,7 @@ export function WidgetBody({
     <div
       className={cn(
         "min-w-0 flex-1",
-        padded && "p-3",
+        padded && "px-3 py-2.5",
         scroll && "overflow-y-auto overflow-x-hidden",
         className
       )}
@@ -146,7 +144,7 @@ export function WidgetFooter({
   return (
     <div
       className={cn(
-        "flex shrink-0 items-center gap-2 border-t border-border px-3 py-2 text-[11px] text-muted-foreground",
+        "flex shrink-0 items-center gap-2 border-t border-border/60 bg-surface-subtle px-3 py-1.5 text-[11px] text-muted-foreground",
         className
       )}
     >
@@ -357,14 +355,21 @@ export function WidgetEmpty({
   action?: React.ReactNode;
   className?: string;
 }) {
+  const Icon = icon;
   return (
-    <EmptyState
-      icon={icon}
-      title={title}
-      description={description}
-      action={action}
-      className={cn("py-8", className)}
-    />
+    <div
+      className={cn(
+        "flex min-h-[84px] flex-col items-center justify-center gap-1 px-3 py-5 text-center",
+        className
+      )}
+    >
+      <Icon className="h-4 w-4 text-muted-foreground/70" aria-hidden />
+      <p className="text-[12px] font-medium text-foreground">{title}</p>
+      {description && (
+        <p className="max-w-[18rem] text-[11px] leading-snug text-muted-foreground">{description}</p>
+      )}
+      {action && <div className="mt-1.5">{action}</div>}
+    </div>
   );
 }
 
@@ -376,11 +381,9 @@ export function WidgetError({
   message?: string;
 }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 px-4 py-8 text-center">
-      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-        <AlertTriangle className="h-4 w-4" />
-      </span>
-      <p className="text-[13px] font-medium text-foreground">Couldn't load</p>
+    <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-6 text-center">
+      <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden />
+      <p className="text-[12.5px] font-medium text-foreground">Couldn't load</p>
       <p className="max-w-[16rem] text-xs text-muted-foreground">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" className="mt-1" onClick={onRetry}>

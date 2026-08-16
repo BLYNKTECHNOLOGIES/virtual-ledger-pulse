@@ -379,14 +379,10 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-      <Sidebar className="border-r border-sidebar-border bg-sidebar shadow-sm">
-        <SidebarHeader className="relative p-4 border-b border-sidebar-border bg-primary overflow-hidden">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary-foreground/40 to-transparent"
-          />
-          <div className="flex items-center justify-center min-h-[60px]">
-            <Skeleton className="h-8 w-8 rounded-lg bg-primary-foreground/20" />
+      <Sidebar className="border-r border-sidebar-border bg-sidebar">
+        <SidebarHeader className="relative overflow-hidden border-b border-sidebar-border bg-sidebar px-4 py-3">
+          <div className="flex min-h-[52px] items-center">
+            <Skeleton className="h-8 w-32 rounded-md" />
           </div>
         </SidebarHeader>
 
@@ -395,9 +391,9 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <div className="space-y-2 px-2 py-2">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="flex items-center gap-3 px-2 py-2">
-                    <Skeleton className="h-6 w-6 rounded-md" />
-                    <Skeleton className="h-4 flex-1 rounded" />
+                  <div key={i} className="flex items-center gap-2.5 px-2.5 py-1.5">
+                    <Skeleton className="h-5 w-5 rounded" />
+                    <Skeleton className="h-3.5 flex-1 rounded" />
                   </div>
                 ))}
               </div>
@@ -405,7 +401,7 @@ export function AppSidebar() {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="p-4 border-t border-sidebar-border bg-sidebar-accent">
+        <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
           <Button variant="ghost" size="sm" onClick={toggleSidebar} className="text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ml-auto rounded-lg">
             {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>

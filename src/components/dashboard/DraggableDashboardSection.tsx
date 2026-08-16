@@ -49,10 +49,13 @@ function useMasonryRowSpan() {
     if (cs.display !== 'grid') return;
     const rowUnit = parseFloat(cs.gridAutoRows) || 0;
     if (!rowUnit) return;
-    const gap = parseFloat(cs.rowGap) || 0;
+    const gutter = parseFloat(cs.getPropertyValue('--dashboard-widget-gutter')) || 0;
     const height = el.getBoundingClientRect().height;
     if (!height) return;
-    setRowSpan(Math.max(1, Math.ceil((height + gap) / (rowUnit + gap))));
+    // The grid uses 1px rows with no row-gap. Include the visual gutter in
+    // the span itself so every tile starts at the same exact interval without
+    // the large rounding errors caused by combining tiny rows and CSS gaps.
+    setRowSpan(Math.max(1, Math.ceil((height + gutter) / rowUnit)));
   }, []);
 
   useLayoutEffect(() => {
@@ -90,7 +93,7 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
   if (!isEditMode) {
     return (
       <div ref={setNodeRef} style={style} className={cn('relative min-w-0', className)}>
-        <div ref={contentRef}>{children}</div>
+        <div ref={contentRef} className="h-fit">{children}</div>
       </div>
     );
   }

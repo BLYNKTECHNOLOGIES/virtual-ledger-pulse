@@ -1173,122 +1173,59 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <AnnouncementsBanner />
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-              {/* Identity & Contact */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Identity &amp; Contact</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {[
-                    { label: 'Full Name', value: `${hrEmployee.first_name || ''} ${hrEmployee.last_name || ''}`.trim() || 'None', hint: 'KYC-locked' },
-                    { label: 'Date of Birth', value: hrEmployee.dob || 'None' },
-                    { label: 'Gender', value: hrEmployee.gender || 'None' },
-                    { label: 'Marital Status', value: hrEmployee.marital_status || 'None' },
-                    { label: 'Phone', value: hrEmployee.phone || 'None' },
-                    { label: 'Work Email', value: hrEmployee.email || 'None' },
-                    { label: 'Qualification', value: hrEmployee.qualification || 'None' },
-                    { label: 'Experience', value: hrEmployee.experience || 'None' },
-                  ].map((item, idx) => (
-                    <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                        {item.hint && <span className="text-[10px] text-muted-foreground">{item.hint}</span>}
-                      </div>
-                      <p className="text-sm font-semibold text-foreground break-words">{item.value}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
+              <SectionBlock title="Work Information" icon={Briefcase}>
+                <FieldGrid wide>
+                  <Field label="Badge Id" value={hrEmployee.badge_id ?? '—'} mono />
+                  <Field label="Job Position" value={(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || '—'} />
+                  <Field label="Department" value={(workInfo as any)?.departments?.name || '—'} />
+                  <Field label="Shift" value={(workInfo as any)?.shift_name || '—'} />
+                  <Field label="Work Type" value={(workInfo as any)?.work_type || '—'} />
+                </FieldGrid>
+              </SectionBlock>
 
+              <SectionBlock title="Identity & Contact" icon={User}>
+                <FieldGrid wide>
+                  <Field
+                    label="Full Name"
+                    hint="KYC-locked"
+                    value={`${hrEmployee.first_name || ''} ${hrEmployee.last_name || ''}`.trim() || '—'}
+                  />
+                  <Field label="Date of Birth" value={hrEmployee.dob || '—'} />
+                  <Field label="Gender" value={hrEmployee.gender || '—'} />
+                  <Field label="Marital Status" value={hrEmployee.marital_status || '—'} />
+                  <Field label="Phone" value={hrEmployee.phone || '—'} />
+                  <Field label="Work Email" value={hrEmployee.email || '—'} />
+                  <Field label="Qualification" value={hrEmployee.qualification || '—'} />
+                  <Field label="Experience" value={hrEmployee.experience || '—'} />
+                </FieldGrid>
+              </SectionBlock>
 
+              <SectionBlock
+                title="Statutory IDs"
+                icon={Shield}
+                description="Digits are masked for privacy. Full values are visible to Payroll / HR only."
+              >
+                {(() => {
+                  const mask = (v?: string | null, keep = 4) => {
+                    if (!v) return '—';
+                    const s = String(v);
+                    if (s.length <= keep) return s;
+                    return `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
+                  };
+                  return (
+                    <FieldGrid wide>
+                      <Field label="PAN" mono value={mask((hrEmployee as any).pan_number, 4)} />
+                      <Field label="UAN (PF Universal)" mono value={mask((hrEmployee as any).uan_number, 4)} />
+                      <Field label="PF Number" mono value={mask((hrEmployee as any).pf_number, 4)} />
+                      <Field label="ESIC Number" mono value={mask((hrEmployee as any).esi_number, 4)} />
+                    </FieldGrid>
+                  );
+                })()}
+              </SectionBlock>
 
-
-              {/* Statutory IDs — masked, read-only */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Statutory IDs</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(() => {
-                    const mask = (v?: string | null, keep = 4) => {
-                      if (!v) return 'None';
-                      const s = String(v);
-                      if (s.length <= keep) return s;
-                      return `${'•'.repeat(Math.max(4, s.length - keep))}${s.slice(-keep)}`;
-                    };
-                    const rows = [
-                      { label: 'PAN', value: mask((hrEmployee as any).pan_number, 4) },
-                      { label: 'UAN (PF Universal)', value: mask((hrEmployee as any).uan_number, 4) },
-                      { label: 'PF Number', value: mask((hrEmployee as any).pf_number, 4) },
-                      { label: 'ESIC Number', value: mask((hrEmployee as any).esi_number, 4) },
-                    ];
-                    return rows.map((item, idx) => (
-                      <div key={idx} className="border-b border-border/50 pb-2 last:border-b-0">
-                        <p className="text-xs text-[#00bcd4] font-medium">{item.label}</p>
-                        <p className="text-sm font-semibold text-foreground font-mono">{item.value}</p>
-                      </div>
-                    ));
-                  })()}
-                  <p className="text-[11px] text-muted-foreground pt-1">
-                    Digits are masked for privacy. Full values are visible to Payroll / HR only.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Work Information - Read Only */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Briefcase className="h-4 w-4 text-[#00bcd4]" />
-                    <CardTitle className="text-base text-[#00bcd4]">Work Information</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {/* Desktop table */}
-                  <div className="hidden md:block border border-border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-muted/50 border-b border-border">
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Badge Id</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Job Position</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Department</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Shift</th>
-                          <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Work Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td className="py-3 px-4 text-foreground">{hrEmployee.badge_id}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.positions?.title || (workInfo as any)?.job_role || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.departments?.name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.shift_name || 'N/A'}</td>
-                          <td className="py-3 px-4 text-foreground">{(workInfo as any)?.work_type || 'N/A'}</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  {/* Mobile stacked */}
-                  <div className="md:hidden space-y-2">
-                    {[
-                      { label: 'Badge Id', value: hrEmployee.badge_id },
-                      { label: 'Job Position', value: (workInfo as any)?.positions?.title || (workInfo as any)?.job_role || 'N/A' },
-                      { label: 'Department', value: (workInfo as any)?.departments?.name || 'N/A' },
-                      { label: 'Shift', value: (workInfo as any)?.shift_name || 'N/A' },
-                      { label: 'Work Type', value: (workInfo as any)?.work_type || 'N/A' },
-                    ].map((r, i) => (
-                      <div key={i} className="flex justify-between border-b border-border/50 pb-2 last:border-b-0">
-                        <span className="text-xs text-muted-foreground">{r.label}</span>
-                        <span className="text-sm font-medium text-foreground">{r.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-              </div>
 
               {/* Phase 6 — Team & Reporting */}
               <MyTeamCard employeeId={hrEmployee.id} workInfo={workInfo} />

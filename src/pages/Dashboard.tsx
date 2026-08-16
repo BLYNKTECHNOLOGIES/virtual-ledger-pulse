@@ -463,8 +463,15 @@ export default function Dashboard() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDraggingId(String(event.active.id));
+  };
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setDraggingId(null);
     if (over && active.id !== over.id) {
       setActiveWidgetIds(prev => {
         const oldIndex = prev.indexOf(active.id as string);

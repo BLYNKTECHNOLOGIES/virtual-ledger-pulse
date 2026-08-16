@@ -278,6 +278,8 @@
     /* Extra surface tokens */
     --surface-subtle: 220 43% 99%;   /* #FAFBFD — inputs, table headers, inner panels */
     --surface-canvas: 220 50% 98%;   /* #F6F8FC */
+    --surface-elevated: 0 0% 100%;   /* modals, popovers, sticky heads */
+
     --ring: 231 81% 60%;
     
     /* VASP specific colors */

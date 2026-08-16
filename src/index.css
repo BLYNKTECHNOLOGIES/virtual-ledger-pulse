@@ -1735,12 +1735,12 @@ html {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  flex: 0 0 20px;
-  color: hsl(var(--muted-foreground));
-  transition: color 120ms ease;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 8px;
+  transition: color 120ms ease, background-color 120ms ease;
 }
-.ds-nav-row:hover .ds-nav-icon { color: hsl(var(--sidebar-accent-foreground)); }
 .ds-nav-label {
   min-width: 0;
   flex: 1 1 auto;
@@ -1755,7 +1755,6 @@ html {
   color: hsl(var(--primary));
   font-weight: 600;
 }
-.ds-nav-row[data-active="true"] .ds-nav-icon { color: hsl(var(--primary)); }
 .ds-nav-row[data-active="true"]::before {
   content: "";
   position: absolute;

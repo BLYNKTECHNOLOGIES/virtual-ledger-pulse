@@ -67,7 +67,7 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
                 <GripVertical className="h-4 w-4" />
               </span>
             )}
-            <span className="ds-nav-icon">
+            <span className={`ds-nav-icon ${item.bgColor} ${item.color}`}>
               <Icon className="h-4 w-4" />
             </span>
             {!isCollapsed && <span className="ds-nav-label">{item.title}</span>}
@@ -81,7 +81,7 @@ export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: Draggabl
             data-collapsed={isCollapsed}
             data-active={isActive}
           >
-            <span className="ds-nav-icon">
+            <span className={`ds-nav-icon ${item.bgColor} ${item.color}`}>
               <Icon className="h-4 w-4" />
             </span>
             {!isCollapsed && <span className="ds-nav-label">{item.title}</span>}

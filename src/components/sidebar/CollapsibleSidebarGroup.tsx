@@ -111,7 +111,7 @@ export function CollapsibleSidebarGroup({
                     <GripVertical className="h-4 w-4" />
                   </span>
                 )}
-                <span className="ds-nav-icon">
+                <span className={`ds-nav-icon ${group.bgColor} ${group.color}`}>
                   <GroupIcon className="h-4 w-4" />
                 </span>
                 {!isCollapsed && (
@@ -147,7 +147,7 @@ export function CollapsibleSidebarGroup({
 
               const inner = (
                 <>
-                  <span className="ds-nav-icon">
+                  <span className={`ds-nav-icon ${item.bgColor} ${item.color}`}>
                     <ItemIcon className="h-4 w-4" />
                   </span>
                   <span className="ds-nav-label">{item.title}</span>

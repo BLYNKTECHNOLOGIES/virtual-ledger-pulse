@@ -678,31 +678,27 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
     },
   ];
 
+  const toneOf = (label: string) =>
+    label === 'Gross Profit' ? 'success' : label === 'Profit Margin' ? 'primary' : label === 'Volume Traded' ? 'warning' : 'neutral';
+
   return (
-    <div className="p-4">
-      <div className="grid grid-cols-2 gap-3">
+    <div className="flex h-full flex-col p-3">
+      <div className="grid grid-cols-1 gap-x-4 gap-y-3 @[22rem]:grid-cols-2">
         {kpis.map((kpi) => (
-          <div key={kpi.label} className={`${kpi.bgColor} rounded-lg p-3`}>
-            <p className="text-xs text-muted-foreground mb-1">{kpi.label}</p>
-            <p className={`text-lg font-bold ${kpi.color}`}>{kpi.value}</p>
-            {kpi.change !== null && (
-              <div className="flex items-center gap-1 mt-1">
-                {kpi.change >= 0 ? (
-                  <TrendingUp className="h-3 w-3 text-success" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-destructive" />
-                )}
-                <span className={`text-xs ${kpi.change >= 0 ? 'text-success' : 'text-destructive'}`}>
-                  {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% MoM
-                </span>
-              </div>
-            )}
-          </div>
+          <WidgetMetric
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            tone={toneOf(kpi.label) as any}
+            size="sm"
+            delta={kpi.change}
+            helper={kpi.change !== null ? 'MoM' : undefined}
+          />
         ))}
       </div>
-      <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
-        <span>{data?.orderCount || 0} orders this month</span>
-        <span>{data?.totalClients || 0} clients ({data?.newClients || 0} new in 30d)</span>
+      <div className="mt-auto flex items-center justify-between gap-2 border-t border-border pt-2 text-[11px] text-muted-foreground">
+        <span>{data?.orderCount || 0} orders this period</span>
+        <span>{data?.totalClients || 0} clients · {data?.newClients || 0} new in 30d</span>
       </div>
     </div>
   );

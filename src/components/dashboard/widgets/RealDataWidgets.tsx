@@ -350,38 +350,32 @@ export function RevenueChartWidget() {
     refetchInterval: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
 
   const hasData = (data?.totalRevenue || 0) > 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-lg bg-muted/50 p-2">
-          <p className="text-[10px] text-muted-foreground">7D Revenue</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.totalRevenue || 0).toLocaleString('en-IN')}</p>
-        </div>
-        <div className="rounded-lg bg-muted/50 p-2">
-          <p className="text-[10px] text-muted-foreground">Today</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.todayRevenue || 0).toLocaleString('en-IN')}</p>
-        </div>
-        <div className="rounded-lg bg-muted/50 p-2">
-          <p className="text-[10px] text-muted-foreground">Avg / Order</p>
-          <p className="text-sm font-bold text-foreground">₹{Math.round(data?.avgOrderValue || 0).toLocaleString('en-IN')}</p>
-        </div>
-      </div>
-
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetStatGrid
+        columns={3}
+        items={[
+          { label: '7D revenue', value: `₹${Math.round(data?.totalRevenue || 0).toLocaleString('en-IN')}` },
+          { label: 'Today', value: `₹${Math.round(data?.todayRevenue || 0).toLocaleString('en-IN')}` },
+          { label: 'Avg / order', value: `₹${Math.round(data?.avgOrderValue || 0).toLocaleString('en-IN')}` },
+        ]}
+      />
       {hasData ? (
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={data?.chartData || []}>
-            <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-            <Bar dataKey="revenue" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+        <WidgetChart height={140}>
+          <BarChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: -12 }}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} width={44} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} />
+            <Bar dataKey="revenue" fill={chartColor.success()} radius={[4, 4, 0, 0]} />
           </BarChart>
-        </ResponsiveContainer>
+        </WidgetChart>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-6">No sales revenue in last 7 days</p>
+        <WidgetEmpty icon={BarChart3} title="No sales revenue in last 7 days" />
       )}
     </div>
   );

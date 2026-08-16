@@ -75,7 +75,7 @@ export default function Compliance() {
         <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
           <ErrorBoundary>
             <Tabs defaultValue="banking" className="space-y-6">
-              <TabsList className="h-auto w-full justify-start gap-1 bg-transparent border-b border-border rounded-none p-0">
+              <TabsList className="h-auto w-full justify-start gap-1 bg-transparent border-b border-border rounded-none p-0 overflow-x-auto">
                 <TabsTrigger
                   value="banking"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"

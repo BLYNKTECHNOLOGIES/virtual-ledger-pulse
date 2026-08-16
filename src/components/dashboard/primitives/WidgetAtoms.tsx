@@ -56,7 +56,7 @@ export function WidgetMetric({
       )}
     >
       {label && (
-        <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="truncate text-[11.5px] font-medium leading-tight text-muted-foreground">
           {label}
         </p>
       )}
@@ -74,11 +74,11 @@ export function WidgetMetric({
           {delta != null && (
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 font-semibold tabular-nums",
-                up ? "text-success" : "text-destructive"
+                "inline-flex items-center gap-0.5 rounded-md px-1.5 py-[1px] text-[10.5px] font-semibold tabular-nums",
+                up ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
               )}
             >
-              <span aria-hidden>{up ? "▲" : "▼"}</span>
+              <span aria-hidden>{up ? "↑" : "↓"}</span>
               {Math.abs(delta).toFixed(1)}%
             </span>
           )}
@@ -127,11 +127,11 @@ export function WidgetListRow({
       {Icon && (
         <span
           className={cn(
-            "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
-            TONE_CHIP[iconTone]
+            "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+            iconTone === "neutral" ? "text-muted-foreground" : TONE_CHIP[iconTone]
           )}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
         </span>
       )}
       <div className="min-w-0 flex-1">
@@ -256,7 +256,7 @@ export function WidgetStatGrid({
     <div className={cn("grid gap-x-3 gap-y-2.5", colClass, className)}>
       {items.map((it, i) => (
         <div key={i} className="min-w-0">
-          <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="truncate text-[11px] font-medium leading-tight text-muted-foreground">
             {it.label}
           </p>
           <p
@@ -353,6 +353,145 @@ export function WidgetSparkline({
           className={cn("min-w-[3px] flex-1 rounded-sm", bar[tone])}
           style={{ height: `${Math.max(6, (Math.abs(v) / max) * 100)}%` }}
         />
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * WidgetSectionLabel — quiet in-body grouping label (not shouty caps).
+ * ------------------------------------------------------------------ */
+export function WidgetSectionLabel({
+  children,
+  trailing,
+  className,
+}: {
+  children: React.ReactNode;
+  trailing?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex min-w-0 items-center justify-between gap-2", className)}>
+      <p className="truncate text-[11px] font-medium text-muted-foreground">{children}</p>
+      {trailing}
+    </div>
+  );
+}
+
+/** WidgetRankRow — ranked breakdown row where magnitude is read from a
+ *  quiet bar sitting *behind* the label/value, not from a separate track.
+ *  Best for category / gateway / department distributions. */
+export function WidgetRankRow({
+  label,
+  value,
+  percent,
+  tone = "primary",
+  leading,
+  onClick,
+  className,
+}: {
+  label: React.ReactNode;
+  value?: React.ReactNode;
+  /** 0–100, relative to the largest item in the set */
+  percent: number;
+  tone?: SemanticTone;
+  leading?: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0));
+  const fill: Record<SemanticTone, string> = {
+    neutral: "bg-muted-foreground/12",
+    primary: "bg-primary/12",
+    success: "bg-success/12",
+    warning: "bg-warning/14",
+    destructive: "bg-destructive/12",
+  };
+  const Tag: any = onClick ? "button" : "div";
+  return (
+    <Tag
+      type={onClick ? "button" : undefined}
+      onClick={onClick}
+      className={cn(
+        "relative flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-2 py-[7px] text-left",
+        onClick && "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className
+      )}
+    >
+      <span
+        aria-hidden
+        className={cn(
+          "absolute inset-y-0 left-0 rounded-md transition-[width] duration-300 motion-reduce:transition-none",
+          fill[tone]
+        )}
+        style={{ width: `${pct}%` }}
+      />
+      {leading && <span className="relative z-10 shrink-0">{leading}</span>}
+      <span className="relative z-10 min-w-0 flex-1 truncate text-[12.5px] font-medium text-foreground">
+        {label}
+      </span>
+      {value != null && (
+        <span className="relative z-10 shrink-0 text-[12.5px] font-semibold tabular-nums text-foreground">
+          {value}
+        </span>
+      )}
+    </Tag>
+  );
+}
+
+/** WidgetKeyValueRow — dense two-column fact row (no plates, no cards). */
+export function WidgetKeyValueRow({
+  label,
+  value,
+  tone = "neutral",
+  className,
+}: {
+  label: React.ReactNode;
+  value: React.ReactNode;
+  tone?: SemanticTone;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex min-w-0 items-baseline justify-between gap-3 py-[5px]", className)}>
+      <span className="min-w-0 truncate text-[12px] text-muted-foreground">{label}</span>
+      <span className={cn("shrink-0 text-[12.5px] font-semibold tabular-nums", TONE_TEXT[tone])}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/** WidgetKpiStrip — 2–4 headline figures in one compact band, hairline split. */
+export function WidgetKpiStrip({
+  items,
+  className,
+}: {
+  items: Array<{ label: React.ReactNode; value: React.ReactNode; tone?: SemanticTone; helper?: React.ReactNode }>;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "grid divide-x divide-border/60",
+        items.length >= 4 ? "grid-cols-2 @[24rem]:grid-cols-4" : items.length === 3 ? "grid-cols-3" : "grid-cols-2",
+        className
+      )}
+    >
+      {items.map((it, i) => (
+        <div key={i} className="min-w-0 px-3 py-2 first:pl-0 last:pr-0">
+          <p className="truncate text-[11px] font-medium leading-tight text-muted-foreground">{it.label}</p>
+          <p
+            className={cn(
+              "truncate text-[17px] font-semibold leading-tight tracking-tight tabular-nums",
+              TONE_TEXT[it.tone ?? "neutral"]
+            )}
+          >
+            {it.value}
+          </p>
+          {it.helper && (
+            <p className="truncate text-[10.5px] leading-tight text-muted-foreground">{it.helper}</p>
+          )}
+        </div>
       ))}
     </div>
   );

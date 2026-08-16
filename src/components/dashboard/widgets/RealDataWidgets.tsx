@@ -15,7 +15,7 @@ import {
   Clock, FileText, Activity, Zap, Calendar, ShoppingCart, CreditCard,
   UserCheck, PieChart, BarChart3, Bell
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
 import { chartSeriesColors, axisProps, tooltipProps, gridProps, chartColor } from "@/lib/dashboard/chartTheme";
 import { WidgetSkeleton, WidgetEmpty, WidgetError } from "@/components/dashboard/primitives/WidgetShell";
 import {

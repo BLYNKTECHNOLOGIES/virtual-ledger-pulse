@@ -820,7 +820,7 @@ export default function Dashboard() {
           {draggingId ? (
             <div className="rounded-xl border border-primary/50 bg-card/95 px-3 py-2 shadow-md backdrop-blur">
               <span className="t-card-title text-foreground">
-                {widgetRegistry.find(w => w.id === draggingId)?.name ?? 'Widget'}
+                {widgetRegistry.get(draggingId)?.name ?? 'Widget'}
               </span>
             </div>
           ) : null}

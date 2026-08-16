@@ -210,29 +210,32 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       staleTime: 60000,
     });
 
+    if (isLoading) return <WidgetSkeleton variant="metric" />;
+
     return (
-      <div className="text-center p-4">
-        <div className={`text-3xl font-bold ${Number(gross || 0) >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-          {isLoading ? '—' : `₹${Math.round(Number(gross || 0)).toLocaleString('en-IN')}`}
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">Gross Profit</p>
+      <div className="flex h-full items-center p-4">
+        <WidgetMetric
+          label="Gross Profit"
+          value={`₹${Math.round(Number(gross || 0)).toLocaleString('en-IN')}`}
+          tone={Number(gross || 0) >= 0 ? 'neutral' : 'destructive'}
+          helper="Selected period"
+        />
       </div>
     );
   };
 
   const ComplianceAlertsWidgetContent = () => (
-    <div className="text-center p-4">
-      <div className="text-3xl font-bold text-foreground">{metrics?.pendingActions || 0}</div>
-      <p className="text-sm text-muted-foreground mt-1">Compliance Alerts</p>
+    <div className="flex h-full items-center p-4">
+      <WidgetMetric label="Compliance Alerts" value={metrics?.pendingActions || 0} />
     </div>
   );
 
   const PayrollSummaryWidgetContent = () => (
-    <div className="text-center p-4">
-      <div className="text-3xl font-bold text-foreground">{metrics?.employees || 0}</div>
-      <p className="text-sm text-muted-foreground mt-1">Payroll Summary</p>
+    <div className="flex h-full items-center p-4">
+      <WidgetMetric label="Payroll Summary" value={metrics?.employees || 0} helper="Employees" />
     </div>
   );
+
 
   const getCategoryGradient = (category: string) => {
     const gradients: Record<string, string> = {

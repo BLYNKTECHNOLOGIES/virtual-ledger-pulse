@@ -294,10 +294,10 @@ export default function AttendanceSummaryPage() {
         {viewMode === "cards" && <AttendanceInsights
           month={month}
           summary={summary as any}
-          maintained={maintained as MaintainedRow[]}
-          maintainedPrev={maintainedPrev as MaintainedRow[]}
-          daily={daily as DailyRow[]}
-          employees={allEmployees as any[]}
+          maintained={maintainedFiltered}
+          maintainedPrev={maintainedPrevFiltered}
+          daily={dailyFiltered}
+          employees={insightEmployees}
           activeIds={activeIds}
           deptByEmployee={deptByEmployee}
           shiftMinutesByEmployee={shiftMinutesByEmployee}

@@ -145,7 +145,7 @@ export default function LeaveRequestsPage() {
         managerEmail = mgr?.email || null;
         managerName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : null;
       }
-      sendLeaveEmail({
+      const res = await sendLeaveEmail({
         eventType: "leave_requested",
         requestId: created.id,
         employeeName,
@@ -157,7 +157,8 @@ export default function LeaveRequestsPage() {
         managerEmail,
         managerName,
       });
-      return { routedToManager: true, hasManager: !!managerEmail };
+      return { routedToManager: true, hasManager: !!managerEmail, emailFailures: res?.failures || [] };
+
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });

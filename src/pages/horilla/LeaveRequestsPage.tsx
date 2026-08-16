@@ -170,7 +170,10 @@ export default function LeaveRequestsPage() {
           ? res.hasManager ? "Sent to the reporting manager for approval" : "Created — no reporting manager on record, awaiting HR"
           : "Leave approved by HR",
       );
+      if (res?.noEmail) toast.warning("No email on record for this employee — approval mail not sent");
+      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

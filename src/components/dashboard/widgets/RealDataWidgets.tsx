@@ -994,35 +994,45 @@ export function PendingSettlementsWidget() {
     staleTime: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={4} />;
+
+  const groups = data?.groups || [];
+  const totalAmount = data?.totalAmount || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-muted-foreground">Pending settlements</p>
-          <p className="text-lg font-bold text-foreground">{data?.total || 0}</p>
-        </div>
-        <Badge className="bg-muted text-foreground border-border">₹{(data?.totalAmount || 0).toLocaleString('en-IN')}</Badge>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label="Pending settlements"
+          value={data?.total || 0}
+          size="sm"
+          helper={`across ${groups.length} gateway${groups.length === 1 ? '' : 's'}`}
+        />
+        <WidgetMetric
+          label="Value"
+          value={`₹${Math.round(totalAmount).toLocaleString('en-IN')}`}
+          size="sm"
+          align="center"
+          tone="warning"
+        />
       </div>
-
-      <div className="space-y-2 max-h-40 overflow-y-auto">
-        {(data?.groups || []).length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-3">No pending settlements</p>
-        )}
-
-        {(data?.groups || []).map((g, i) => (
-          <div key={i} className="flex items-center justify-between rounded-md bg-muted/40 px-2 py-1.5">
-            <div className="min-w-0 flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-primary" />
-              <div>
-                <p className="text-xs font-semibold text-foreground truncate">{g.name}</p>
-                <p className="text-[10px] text-muted-foreground">{g.count} order{g.count !== 1 ? 's' : ''}</p>
-              </div>
-            </div>
-            <p className="text-xs font-semibold text-foreground">₹{g.amount.toLocaleString('en-IN')}</p>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        {groups.length === 0 ? (
+          <WidgetEmpty icon={CreditCard} title="No pending settlements" />
+        ) : (
+          <div className="space-y-2.5">
+            {groups.map((g, i) => (
+              <WidgetProgressRow
+                key={i}
+                label={g.name}
+                value={`₹${Math.round(g.amount).toLocaleString('en-IN')}`}
+                percent={totalAmount > 0 ? (g.amount / totalAmount) * 100 : 0}
+                tone="primary"
+                leading={`${g.count} order${g.count !== 1 ? 's' : ''}`}
+              />
+            ))}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

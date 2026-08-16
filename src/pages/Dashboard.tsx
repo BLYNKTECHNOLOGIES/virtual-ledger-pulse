@@ -586,46 +586,43 @@ export default function Dashboard() {
 
       case 'recent-activity':
         return (
-          <Card className="bg-card border border-border shadow-sm h-full">
-            <CardHeader className="bg-info text-primary-foreground rounded-t-lg">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <div className="p-2 bg-info/80 rounded-lg shadow-md"><Activity className="h-5 w-5" /></div>
-                Recent Activity
-              </CardTitle>
+          <Card className="h-full flex flex-col">
+            <CardHeader className="border-b border-border py-3 px-4">
+              <SectionHeader title="Recent Activity" icon={Activity} />
             </CardHeader>
-            <CardContent className="p-6 space-y-4 overflow-y-auto max-h-[500px]">
-              {recentActivity?.slice(0, 8).map((activity) => (
-                <div
-                  key={activity.id}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
-                    openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
-                  }}
-                  className="flex items-center justify-between p-4 bg-card rounded-xl shadow-sm border border-border hover:shadow-md transition-all duration-200 cursor-pointer"
-                >
-
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${activity.type === 'sale' ? 'bg-success/10' : 'bg-muted'}`}>
-                      {activity.type === 'sale' ? <ArrowUpIcon className="h-4 w-4 text-success" /> : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
+            <CardContent className="p-2 overflow-y-auto max-h-[500px]">
+              <div className="divide-y divide-border/70">
+                {recentActivity?.slice(0, 8).map((activity) => (
+                  <div
+                    key={activity.id}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
+                      openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
+                    }}
+                    className="flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-muted/50 motion-reduce:transition-none"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                        {activity.type === 'sale'
+                          ? <ArrowUpIcon className="h-4 w-4 text-success" />
+                          : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="t-card-title text-foreground truncate">{activity.title}</p>
+                        <p className="t-secondary">{format(new Date(activity.timestamp), "MMM dd, HH:mm")}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-sm text-foreground">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground">{format(new Date(activity.timestamp), "MMM dd, HH:mm")}</p>
+                    <div className="text-right shrink-0">
+                      <p className={`text-[13px] font-semibold tabular-nums ${activity.type === 'sale' ? 'text-success' : 'text-foreground'}`}>
+                        {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
+                      </p>
+                      <p className="t-secondary">{activity.reference}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-bold text-sm ${activity.type === 'sale' ? 'text-success' : 'text-muted-foreground'}`}>
-                      {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{activity.reference}</p>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
               {(!recentActivity || recentActivity.length === 0) && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <div className="w-16 h-16 bg-muted rounded-2xl flex items-center justify-center mx-auto mb-4"><Activity className="h-8 w-8 opacity-50" /></div>
-                  <p className="font-medium">No activity in selected period</p>
-                </div>
+                <EmptyState icon={Activity} title="No activity in selected period" className="py-10" />
               )}
             </CardContent>
           </Card>

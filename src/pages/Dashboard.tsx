@@ -15,6 +15,7 @@ import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ShiftReconciliationWidget } from "@/components/dashboard/ShiftReconciliationWidget";
 import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";

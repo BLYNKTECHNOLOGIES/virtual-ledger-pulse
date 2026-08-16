@@ -1,3 +1,4 @@
+import { StatGridSkeleton, ChartSkeleton, TableSkeleton } from "@/components/shared/skeletons";
 import React, { useState } from 'react';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useQuery } from '@tanstack/react-query';

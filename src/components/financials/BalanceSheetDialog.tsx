@@ -363,7 +363,15 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             </p>
           )}
 
-          {isDraft && !!lines.length && (
+          {isManagement && !!lines.length && (
+            <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5 text-[11px] text-muted-foreground">
+              <span className="font-semibold text-foreground">Management report — indicative.</span>{" "}
+              Directional figures for internal use, not audited and not statutory.{" "}
+              {`GSTIN: ${gstinText(entity?.gst_number)} · PAN: ${panText(entity?.pan_number)}`}
+            </div>
+          )}
+
+          {!isManagement && isDraft && !!lines.length && (
             <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2.5">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
               <div className="text-xs text-destructive">
@@ -375,6 +383,7 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               </div>
             </div>
           )}
+
 
           {cryptoNote && !!lines.length && (
             <div className="rounded-md border border-border bg-muted/40 px-3 py-2.5">

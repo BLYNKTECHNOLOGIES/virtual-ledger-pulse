@@ -1264,7 +1264,6 @@ export default function UserProfile() {
                         <Button
                           onClick={() => applyLeaveMutation.mutate(leaveRequest)}
                           disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
-                          className="bg-[#E8604C] hover:bg-[#d4553f]"
                         >
                           {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
                         </Button>
@@ -1276,57 +1275,58 @@ export default function UserProfile() {
 
               <OrgLeaveCalendarCard />
 
-              {/* ─── Leave Balance Cards ─── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-
-                {leaveTypes.map((lt: any) => {
-                  const bal = cumulativeLeaveBalances[lt.id];
-                  const allocated = bal?.totalAllocated || 0;
-                  const used = bal?.totalUsed || 0;
-                  const available = allocated - used;
-                  return (
-                    <div key={lt.id} className="border border-border rounded-lg p-5 bg-card">
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm mb-3"
-                        style={{ backgroundColor: lt.color || '#888' }}
-                      >
-                        {lt.code || '??'}
-                      </div>
-                      <p className="text-sm font-bold text-foreground mb-3">{lt.name}</p>
-                      <div className="space-y-1 text-[13px]">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Available Leave Days</span>
-                          <span className="font-semibold text-foreground">{available.toFixed(1)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Total Leave Days</span>
-                          <span className="font-semibold text-foreground">{allocated.toFixed(1)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Total Leave Taken</span>
-                          <span className="font-semibold text-foreground">{used}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                {leaveTypes.length === 0 && (
-                  <p className="text-sm text-muted-foreground py-4 col-span-full">No leave types configured. Contact HR.</p>
+              {/* ─── Leave Balances ─── */}
+              <SectionBlock title="Leave Balances" icon={CalendarDays} bodyClassName="p-0">
+                {leaveTypes.length === 0 ? (
+                  <p className="t-secondary p-4">No leave types configured. Contact HR.</p>
+                ) : (
+                  <div className="ds-table-wrap border-0 rounded-none">
+                    <table className="ds-table">
+                      <thead>
+                        <tr>
+                          <th>Leave Type</th>
+                          <th className="ds-num">Available</th>
+                          <th className="ds-num">Allocated</th>
+                          <th className="ds-num">Taken</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaveTypes.map((lt: any) => {
+                          const bal = cumulativeLeaveBalances[lt.id];
+                          const allocated = bal?.totalAllocated || 0;
+                          const used = bal?.totalUsed || 0;
+                          const available = allocated - used;
+                          return (
+                            <tr key={lt.id}>
+                              <td>
+                                <span className="flex items-center gap-2 min-w-0">
+                                  <span
+                                    className="h-2 w-2 rounded-full shrink-0"
+                                    style={{ backgroundColor: lt.color || 'hsl(var(--muted-foreground))' }}
+                                  />
+                                  <span className="font-medium truncate">{lt.name}</span>
+                                  {lt.code && <span className="text-muted-foreground text-[11px]">{lt.code}</span>}
+                                </span>
+                              </td>
+                              <td className="ds-num font-semibold">{available.toFixed(1)}</td>
+                              <td className="ds-num">{allocated.toFixed(1)}</td>
+                              <td className="ds-num">{Number(used).toFixed(1)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </div>
+              </SectionBlock>
 
-              {/* ─── Status Legend + Count ─── */}
+              {/* ─── Request count ─── */}
               <div className="flex items-center justify-between flex-wrap gap-2">
-                <span className="text-xs text-muted-foreground font-medium">
+                <span className="t-secondary">
                   {leaveRequests.length > 0 ? `${leaveRequests.length} request(s)` : ''}
                 </span>
-                <div className="flex items-center gap-4 text-xs">
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-destructive" /> Rejected</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-muted" /> Cancelled</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-success" /> Approved</span>
-                  <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-warning" /> Requested</span>
-                </div>
               </div>
+
 
               {/* ─── Leave Requests Table ─── */}
               <div className="border border-border rounded-lg overflow-hidden bg-card">

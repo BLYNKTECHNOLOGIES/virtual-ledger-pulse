@@ -283,9 +283,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             <Button
               variant="outline"
               size="sm"
-              disabled={!lines.length}
+              disabled={!visibleLines.length}
               onClick={() => {
-                exportBalanceSheetPdf(lines, findings, meta);
+                exportBalanceSheetPdf(visibleLines, findings, meta);
                 logGeneration("PDF");
               }}
             >
@@ -295,9 +295,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             <Button
               variant="outline"
               size="sm"
-              disabled={!lines.length}
+              disabled={!visibleLines.length}
               onClick={() => {
-                exportBalanceSheetXlsx(lines, findings, meta);
+                exportBalanceSheetXlsx(visibleLines, findings, meta);
                 logGeneration("XLSX");
               }}
             >
@@ -306,6 +306,27 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
             </Button>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Report mode</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as BalanceSheetMode)}>
+              <SelectTrigger className="w-[260px] text-foreground">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MANAGEMENT">Management view (indicative)</SelectItem>
+                <SelectItem value="VERIFICATION">Verification view (strict)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <p className="max-w-md pb-2 text-[11px] text-muted-foreground">
+            {isManagement
+              ? "Usable internal report. The unexplained difference is shown as a named equity line and gaps appear under limitations."
+              : "Strict audit view. Every failing check is raised and exports carry the draft watermark."}
+          </p>
+        </div>
+
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-1.5">

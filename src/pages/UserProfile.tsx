@@ -1209,21 +1209,22 @@ export default function UserProfile() {
         </TabsContent>
 
         {/* ═══════ Leaves Tab — Horilla-style ═══════ */}
-        <TabsContent value="leaves" className="space-y-6">
+        <TabsContent value="leaves" className="space-y-4">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
             <>
               {/* ─── Header row ─── */}
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <h2 className="text-lg font-bold text-foreground">My Leave requests</h2>
+                <h2 className="t-section text-foreground">My Leave requests</h2>
                 <div className="flex items-center gap-2">
                   <Dialog open={showLeaveCreate} onOpenChange={setShowLeaveCreate}>
                     <DialogTrigger asChild>
-                      <Button size="sm" className="bg-[#E8604C] hover:bg-[#d4553f] text-primary-foreground gap-1.5">
+                      <Button size="sm" className="gap-1.5">
                         <Plus className="h-4 w-4" /> Create
                       </Button>
                     </DialogTrigger>
+
                     <DialogContent>
                       <DialogHeader><DialogTitle>New Leave Request</DialogTitle></DialogHeader>
                       <div className="space-y-4">

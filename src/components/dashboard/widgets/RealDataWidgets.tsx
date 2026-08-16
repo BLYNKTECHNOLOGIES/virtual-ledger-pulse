@@ -1397,42 +1397,56 @@ export function TerminalPurchaseApprovalWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={3} />;
+
+  const pending = data?.pending || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div
-        className="flex items-center justify-between rounded-lg px-3 py-2 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-        onClick={() => navigate('/purchase?tab=terminal_sync')}
-      >
-        <span className="text-sm font-medium text-foreground">Pending Approval</span>
-        <Badge variant="secondary" className="bg-warning/10 text-warning text-sm font-bold">{data?.pending || 0}</Badge>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label="Pending approval"
+          value={pending}
+          tone={pending > 0 ? 'warning' : 'neutral'}
+          size="sm"
+          helper={pending === 1 ? 'buy order' : 'buy orders'}
+        />
+        <Button variant="ghost" size="sm" onClick={() => navigate('/purchase?tab=terminal_sync')}>
+          Open queue
+        </Button>
       </div>
-      {(data?.recentPending?.length || 0) > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-medium text-muted-foreground">Recent Pending</p>
-          {data?.recentPending.map((r: any) => {
-            const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
-            const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
-            return (
-              <div key={r.id} className="flex items-center justify-between text-xs border rounded px-2 py-1.5">
-                <span className="font-medium truncate max-w-[100px]">{r.counterparty_name || 'Unknown'}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-muted-foreground">₹{Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 px-2 text-[10px] text-success border-success hover:bg-success/10"
-                    onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
-                  >
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {(data?.recentPending?.length || 0) === 0 ? (
+          <WidgetEmpty icon={Package} title="No buy orders awaiting approval" />
+        ) : (
+          <WidgetList>
+            {data?.recentPending.map((r: any) => {
+              const orderData = typeof r.order_data === 'string' ? JSON.parse(r.order_data) : r.order_data;
+              const amount = orderData?.total_price || orderData?.totalPrice || orderData?.amount || '—';
+              return (
+                <WidgetListRow
+                  key={r.id}
+                  icon={Package}
+                  iconTone="warning"
+                  title={r.counterparty_name || 'Unknown'}
+                  subtitle="Awaiting approval"
+                  value={`₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                  trailing={
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="ml-1 h-7 shrink-0 px-2 text-[11px]"
+                      onClick={(e) => { e.stopPropagation(); setApprovalRecord(r); }}
+                    >
+                      Approve
+                    </Button>
+                  }
+                />
+              );
+            })}
+          </WidgetList>
+        )}
+      </div>
       {approvalRecord && (
         <TerminalPurchaseApprovalDialog
           open={!!approvalRecord}

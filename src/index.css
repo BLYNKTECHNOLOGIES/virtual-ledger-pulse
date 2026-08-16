@@ -1829,10 +1829,11 @@ html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
-.ds-nav-scroll::-webkit-scrollbar { width: 6px; }
-.ds-nav-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
-.ds-nav-scroll:hover { scrollbar-color: hsl(var(--sidebar-border)) transparent; }
-.ds-nav-scroll:hover::-webkit-scrollbar-thumb { background: hsl(var(--sidebar-border)); }
+.ds-nav-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+.ds-nav-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+
+
+
 
 /* ============================================================
    DARK MODE — global safety net & interaction polish

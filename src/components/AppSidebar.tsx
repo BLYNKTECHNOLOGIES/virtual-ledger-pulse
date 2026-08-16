@@ -418,7 +418,7 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border bg-sidebar" collapsible="icon">
       <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-sidebar ${isCollapsed ? 'p-2' : 'px-4 py-3'}`}>
-        <div className={`flex items-center justify-center ${isCollapsed ? 'min-h-[44px]' : 'min-h-[52px]'}`}>
+        <div className={`flex items-center justify-center ${isCollapsed ? 'min-h-[44px]' : 'min-h-[64px]'}`}>
           {isCollapsed ? (
             <img
               src={blynkIcon}
@@ -430,12 +430,12 @@ export function AppSidebar() {
               <img
                 src={blynkLogoDark}
                 alt="BLYNK Virtual Technologies"
-                className="h-9 w-auto flex-shrink-0 dark:hidden"
+                className="h-14 w-auto max-w-[190px] object-contain flex-shrink-0 dark:hidden"
               />
               <img
                 src={blynkLogoWhite}
                 alt="BLYNK Virtual Technologies"
-                className="hidden h-9 w-auto flex-shrink-0 dark:block"
+                className="hidden h-14 w-auto max-w-[190px] object-contain flex-shrink-0 dark:block"
               />
             </>
           )}

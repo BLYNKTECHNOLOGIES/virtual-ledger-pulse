@@ -14,6 +14,8 @@ import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/da
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatCard } from "@/components/shared/StatCard";
+import { SectionHeader } from "@/components/shared/SectionHeader";
 import { ShiftReconciliationWidget } from "@/components/dashboard/ShiftReconciliationWidget";
 import { ActionRequiredWidget } from "@/components/dashboard/ActionRequiredWidget";
 import { QuickLinksWidget } from "@/components/dashboard/QuickLinksWidget";

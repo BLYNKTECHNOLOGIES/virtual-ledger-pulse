@@ -178,6 +178,19 @@ function buildRows(kind: string, d: Record<string, any>): Array<[string, string]
   return rows;
 }
 
+/** ASCII-only, <=70 char subject — avoids broken RFC 2047 header encoding. */
+function asciiSubject(s: string): string {
+  const clean = s
+    .replace(/[\u2012-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u00B7\u2022]/g, "-")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.length > 70 ? `${clean.slice(0, 67).trimEnd()}...` : clean;
+}
+
 function render(kind: string, eventType: string, d: Record<string, any>) {
   const meta = kind === "leave" ? leaveMeta(eventType, d) : regMeta(eventType, d);
   const tone = TONE[meta.tone];

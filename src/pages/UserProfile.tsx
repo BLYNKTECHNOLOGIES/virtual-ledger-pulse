@@ -507,66 +507,58 @@ function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
     enabled: !!employeeId,
   });
 
-  if (isLoading) return <p className="text-muted-foreground text-sm py-8 text-center">Loading documents…</p>;
+  if (isLoading) return <ProfileSkeleton rows={4} />;
 
   if (docs.length === 0) {
     return (
-      <Card>
-        <CardContent className="text-center py-12">
-          <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No Documents Yet</h3>
-          <p className="text-muted-foreground">Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here.</p>
-        </CardContent>
-      </Card>
+      <ProfileEmptyState
+        icon={FileText}
+        title="No documents yet"
+        description="Your HR-uploaded documents (offer letter, ID proofs, policies, certificates) will appear here."
+      />
     );
   }
 
   const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">My Documents</h3>
-        <Badge variant="outline">{docs.length} file{docs.length === 1 ? '' : 's'}</Badge>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <SectionBlock
+      title="My Documents"
+      icon={FileText}
+      description="Need a new document uploaded or a certificate? Contact HR."
+      actions={<span className="t-secondary">{docs.length} file{docs.length === 1 ? '' : 's'}</span>}
+      bodyClassName="p-0"
+    >
+      <ul className="divide-y divide-border">
         {docs.map((doc: any) => (
-          <Card key={doc.id} className="hover:border-primary/40 transition-colors">
-            <CardContent className="p-4 flex items-center gap-4">
-              <div className="p-3 bg-info/10 rounded-lg shrink-0">
-                <FileText className="h-6 w-6 text-info" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{doc.document_name || typeLabel(doc.document_type)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {typeLabel(doc.document_type)}
-                  {doc.uploaded_at ? ` • ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  {doc.is_verified ? (
-                    <Badge variant="outline" className="text-success border-success/40 text-[10px]">Verified</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-warning border-warning/40 text-[10px]">Pending Verification</Badge>
-                  )}
-                </div>
-              </div>
-              {doc.file_url ? (
-                <Button asChild variant="outline" size="sm">
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
-                </Button>
-              ) : (
-                <Button variant="outline" size="sm" disabled>Unavailable</Button>
-              )}
-            </CardContent>
-          </Card>
+          <li key={doc.id} className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/40 transition-colors">
+            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-foreground truncate">
+                {doc.document_name || typeLabel(doc.document_type)}
+              </p>
+              <p className="t-secondary truncate">
+                {typeLabel(doc.document_type)}
+                {doc.uploaded_at ? ` · ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
+              </p>
+            </div>
+            <StatusPill tone={doc.is_verified ? 'success' : 'warning'}>
+              {doc.is_verified ? 'Verified' : 'Pending'}
+            </StatusPill>
+            {doc.file_url ? (
+              <Button asChild variant="outline" size="sm">
+                <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" disabled>Unavailable</Button>
+            )}
+          </li>
         ))}
-      </div>
-      <p className="text-xs text-muted-foreground text-center pt-2">
-        Need a new document uploaded or a certificate? Contact HR.
-      </p>
-    </div>
+      </ul>
+    </SectionBlock>
   );
 }
+
 
 export default function UserProfile() {
 

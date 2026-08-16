@@ -1329,68 +1329,52 @@ export default function UserProfile() {
 
 
               {/* ─── Leave Requests Table ─── */}
-              <div className="border border-border rounded-lg overflow-hidden bg-card">
-                <table className="w-full text-sm">
+              <div className="ds-table-wrap">
+                <table className="ds-table">
                   <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Leave Type</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Start Date</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">End Date</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Requested Days</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Status</th>
-                      <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground">Comment</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Options</th>
-                      <th className="text-center py-3 px-4 text-xs font-semibold text-muted-foreground">Actions</th>
+                    <tr>
+                      <th>Leave Type</th>
+                      <th>Start</th>
+                      <th>End</th>
+                      <th className="ds-num">Days</th>
+                      <th>Status</th>
+                      <th>Comment</th>
+                      <th className="text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {leaveRequests.length === 0 ? (
-                      <tr><td colSpan={8} className="text-center py-10 text-muted-foreground">No leave requests yet. Click "Create" to apply for leave.</td></tr>
+                      <tr><td colSpan={7} className="text-center py-10 text-muted-foreground">No leave requests yet. Click "Create" to apply for leave.</td></tr>
                     ) : (
                       leaveRequests.map((req: any) => {
                         const lt = getLeaveType(req.leave_type_id);
                         const isCancellable = req.status === 'pending' || req.status === 'approved';
                         const isEditable = req.status === 'pending';
+                        const tone = req.status === 'approved' ? 'success'
+                          : req.status === 'rejected' ? 'danger'
+                          : req.status === 'pending' ? 'warning' : 'neutral';
                         return (
-                          <tr key={req.id} className={`border-b border-border/50 hover:bg-muted/20 transition-colors ${
-                            req.status === 'pending' ? 'border-l-4 border-l-amber-400' :
-                            req.status === 'approved' ? 'border-l-4 border-l-green-500' :
-                            req.status === 'rejected' ? 'border-l-4 border-l-red-500' :
-                            'border-l-4 border-l-gray-300'
-                          }`}>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-2">
-                                <span className="w-7 h-7 rounded-full text-primary-foreground text-[10px] font-bold flex items-center justify-center shrink-0" style={{ backgroundColor: lt?.color || '#888' }}>
-                                  {lt?.code?.substring(0, 2) || '??'}
-                                </span>
-                                <span className="font-medium text-foreground">{lt?.name || 'Unknown'}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-muted-foreground">{req.start_date}</td>
-                            <td className="py-3 px-4 text-muted-foreground">{req.end_date}</td>
-                            <td className="py-3 px-4 text-foreground font-medium">{req.total_days}</td>
-                            <td className="py-3 px-4">
-                              <span className={`capitalize font-medium ${statusColors[req.status] || 'text-muted-foreground'}`}>
-                                {req.status === 'pending' ? 'Requested' : req.status}
+                          <tr key={req.id}>
+                            <td>
+                              <span className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="h-2 w-2 rounded-full shrink-0"
+                                  style={{ backgroundColor: lt?.color || 'hsl(var(--muted-foreground))' }}
+                                />
+                                <span className="font-medium truncate">{lt?.name || 'Unknown'}</span>
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-muted-foreground max-w-[150px] truncate">{req.reason || '—'}</td>
-                            <td className="py-3 px-4 text-center">
-                              {isCancellable ? (
-                                <Button
-                                  size="sm"
-                                  className="bg-muted hover:bg-muted text-primary-foreground text-xs px-5"
-                                  onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
-                                  disabled={cancelLeaveMutation.isPending}
-                                >
-                                  Cancel
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
-                              )}
+                            <td className="text-muted-foreground whitespace-nowrap">{req.start_date}</td>
+                            <td className="text-muted-foreground whitespace-nowrap">{req.end_date}</td>
+                            <td className="ds-num font-medium">{req.total_days}</td>
+                            <td>
+                              <StatusPill tone={tone as any}>
+                                {req.status === 'pending' ? 'Requested' : req.status}
+                              </StatusPill>
                             </td>
-                            <td className="py-3 px-4 text-center">
-                              <div className="flex items-center justify-center gap-1">
+                            <td className="text-muted-foreground max-w-[180px] truncate">{req.reason || '—'}</td>
+                            <td>
+                              <div className="flex items-center justify-end gap-1">
                                 {isEditable && (
                                   <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                                     onClick={() => {
@@ -1415,6 +1399,18 @@ export default function UserProfile() {
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
                                 )}
+                                {isCancellable && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => cancelLeaveMutation.mutate({ requestId: req.id, wasApproved: req.status === 'approved' })}
+                                    disabled={cancelLeaveMutation.isPending}
+                                  >
+                                    Cancel
+                                  </Button>
+                                )}
+                                {!isCancellable && !isEditable && <span className="text-xs text-muted-foreground">—</span>}
                               </div>
                             </td>
                           </tr>
@@ -1424,6 +1420,7 @@ export default function UserProfile() {
                   </tbody>
                 </table>
               </div>
+
               <UpcomingHolidaysCard />
             </>
           )}

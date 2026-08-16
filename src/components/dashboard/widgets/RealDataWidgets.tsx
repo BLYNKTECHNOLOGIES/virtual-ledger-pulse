@@ -1028,7 +1028,7 @@ export function PendingSettlementsWidget() {
                 value={`₹${Math.round(g.amount).toLocaleString('en-IN')}`}
                 percent={totalAmount > 0 ? (g.amount / totalAmount) * 100 : 0}
                 tone="primary"
-                leading={`${g.count} order${g.count !== 1 ? 's' : ''}`}
+                leading={<span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{g.count}x</span>}
               />
             ))}
           </div>

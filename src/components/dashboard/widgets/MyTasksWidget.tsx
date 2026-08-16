@@ -164,14 +164,16 @@ export function MyTasksWidget() {
             })}
           </div>
 
+        </WidgetBody>
+        <WidgetFooter>
           <button
-            className="w-full mt-2 text-xs text-primary flex items-center justify-center gap-1 hover:underline"
+            className="flex w-full items-center justify-center gap-1 text-[11px] font-medium text-primary hover:underline"
             onClick={() => navigate('/tasks')}
           >
             View all tasks <ArrowRight className="h-3 w-3" />
           </button>
-        </CardContent>
-      </Card>
+        </WidgetFooter>
+      </WidgetShell>
 
       <TaskDetailDialog taskId={selectedTaskId} open={detailOpen} onOpenChange={setDetailOpen} />
     </>

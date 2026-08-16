@@ -151,15 +151,16 @@ export function CaseTrackingTab() {
 
   return (
     <Card>
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <CardTitle className="flex items-center gap-2">
+      <CardHeader className="gap-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <CardTitle className="flex items-center gap-2 shrink-0">
             <AlertTriangle className="h-5 w-5 text-destructive" />
             Case Tracking
           </CardTitle>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
             {/* Case Type Filter */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1">
+
               <Select value={selectedCaseTypeFilter} onValueChange={setSelectedCaseTypeFilter}>
                 <SelectTrigger className="w-48">
                   <SelectValue placeholder="Filter by case type" />

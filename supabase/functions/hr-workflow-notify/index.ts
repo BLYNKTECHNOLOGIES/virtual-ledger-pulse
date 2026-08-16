@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
     if (!mailbox) return json({ error: "No active HR mailbox configured" }, 400);
 
     const rendered = render(kind, eventType, data);
-    const subject = sample ? `[SAMPLE] ${rendered.subject}` : rendered.subject;
+    const subject = asciiSubject(sample ? `[SAMPLE] ${rendered.subject}` : rendered.subject);
 
     const { client, user } = makeClient(mailbox);
     try {

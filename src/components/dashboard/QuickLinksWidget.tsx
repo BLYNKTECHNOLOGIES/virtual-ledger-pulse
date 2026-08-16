@@ -78,11 +78,9 @@ export function QuickLinksWidget({ onRemove }: QuickLinksWidgetProps) {
 
   const renderLink = (link: QuickLink) => {
     const linkContent = (
-      <div className="group/link flex h-full items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-muted/50">
+      <div className="group/link flex h-full items-center justify-between gap-2 rounded-md border border-border/60 bg-surface-subtle px-2.5 py-2 transition-colors duration-150 hover:border-border hover:bg-muted/50">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <LinkIcon className="h-4 w-4" />
-          </span>
+          <LinkIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover/link:text-primary" strokeWidth={2} />
           <div className="min-w-0">
             <p className="truncate text-[13px] font-medium leading-tight text-foreground">{link.title}</p>
             {link.description && (

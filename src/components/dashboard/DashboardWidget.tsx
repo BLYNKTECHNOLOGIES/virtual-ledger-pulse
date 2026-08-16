@@ -1,5 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetMenu, WidgetEmpty, WidgetSkeleton } from "./primitives/WidgetShell";
+import { WidgetMetric, WidgetList, WidgetListRow } from "./primitives/WidgetAtoms";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -70,23 +72,32 @@ function WalletBalanceWidgetContent() {
   const totalBalance = (wallets || []).reduce((sum, w) => sum + (Number(w.current_balance) || 0), 0);
 
   if (isLoading) {
-    return <div className="p-6 text-center text-sm text-muted-foreground">Loading...</div>;
+    return <WidgetSkeleton variant="list" rows={3} />;
   }
 
+  const funded = (wallets || []).filter((w: any) => Number(w.current_balance) > 0);
+
   return (
-    <div className="p-4 flex flex-col h-full w-full">
-      <div className="text-center mb-3">
-        <p className="text-2xl font-bold text-foreground">{totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</p>
-        <p className="text-xs text-muted-foreground mt-1">Total across {(wallets || []).length} wallets</p>
-      </div>
-      <div className="space-y-1 flex-1 overflow-y-auto w-full">
-        {(wallets || []).filter(w => Number(w.current_balance) > 0).map((w: any) => (
-          <div key={w.id} className="flex items-center justify-between text-sm px-4 py-2.5 rounded-lg bg-muted/50 w-full">
-            <span className="text-muted-foreground font-medium truncate mr-4">{w.wallet_name}</span>
-            <span className="font-semibold text-foreground whitespace-nowrap">{Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-          </div>
-        ))}
-      </div>
+    <div className="flex h-full w-full flex-col p-3">
+      <WidgetMetric
+        label="Wallet Balance"
+        value={`${totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`}
+        helper={`Across ${(wallets || []).length} wallets`}
+        className="mb-2 px-1"
+      />
+      {funded.length === 0 ? (
+        <WidgetEmpty icon={Wallet} title="No funded wallets" />
+      ) : (
+        <WidgetList className="min-w-0 flex-1 overflow-y-auto">
+          {funded.map((w: any) => (
+            <WidgetListRow
+              key={w.id}
+              title={w.wallet_name}
+              value={Number(w.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            />
+          ))}
+        </WidgetList>
+      )}
     </div>
   );
 }
@@ -116,15 +127,9 @@ const getSizeClasses = (size: WidgetType["size"]) => {
 };
 
 const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true, dateRange }: DashboardWidgetProps) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: widget.id,
-    disabled: !isDraggable,
-  });
+  // Drag/sort is owned by the tile wrapper (DraggableDashboardSection); this
+  // component only renders the standardized widget shell + content.
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
 
   const IconComponent = widget.icon || widgetIconMap[widget.id] || BarChart3;
 
@@ -208,29 +213,32 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
       staleTime: 60000,
     });
 
+    if (isLoading) return <WidgetSkeleton variant="metric" />;
+
     return (
-      <div className="text-center p-4">
-        <div className={`text-3xl font-bold ${Number(gross || 0) >= 0 ? 'text-foreground' : 'text-destructive'}`}>
-          {isLoading ? '—' : `₹${Math.round(Number(gross || 0)).toLocaleString('en-IN')}`}
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">Gross Profit</p>
+      <div className="flex h-full items-center p-4">
+        <WidgetMetric
+          label="Gross Profit"
+          value={`₹${Math.round(Number(gross || 0)).toLocaleString('en-IN')}`}
+          tone={Number(gross || 0) >= 0 ? 'neutral' : 'destructive'}
+          helper="Selected period"
+        />
       </div>
     );
   };
 
   const ComplianceAlertsWidgetContent = () => (
-    <div className="text-center p-4">
-      <div className="text-3xl font-bold text-foreground">{metrics?.pendingActions || 0}</div>
-      <p className="text-sm text-muted-foreground mt-1">Compliance Alerts</p>
+    <div className="flex h-full items-center p-4">
+      <WidgetMetric label="Compliance Alerts" value={metrics?.pendingActions || 0} />
     </div>
   );
 
   const PayrollSummaryWidgetContent = () => (
-    <div className="text-center p-4">
-      <div className="text-3xl font-bold text-foreground">{metrics?.employees || 0}</div>
-      <p className="text-sm text-muted-foreground mt-1">Payroll Summary</p>
+    <div className="flex h-full items-center p-4">
+      <WidgetMetric label="Payroll Summary" value={metrics?.employees || 0} helper="Employees" />
     </div>
   );
+
 
   const getCategoryGradient = (category: string) => {
     const gradients: Record<string, string> = {
@@ -306,24 +314,23 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'total-purchases':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-warning to-destructive rounded-full flex items-center justify-center mx-auto mb-4">
-              <DollarSign className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalSpending || 0) / 100000).toFixed(1)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Total Purchases</p>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Total Purchases"
+              value={`₹${((metrics?.totalSpending || 0) / 100000).toFixed(1)}L`}
+              helper="Selected period"
+            />
           </div>
         );
 
       case 'purchase-orders-count':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-warning to-warning rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">{metrics?.totalPurchases || 0}</div>
-            <p className="text-sm text-muted-foreground mt-1">Purchase Orders</p>
-            <Badge className="mt-3 bg-warning/10 text-warning border-warning/20">Selected Period</Badge>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Purchase Orders"
+              value={(metrics?.totalPurchases || 0).toLocaleString('en-IN')}
+              helper="Selected period"
+            />
           </div>
         );
 
@@ -333,35 +340,34 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'stock-value':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-warning to-warning rounded-full flex items-center justify-center mx-auto mb-4">
-              <Package className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.stockValue || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Stock Value (INR)</p>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Stock Value"
+              value={`₹${((metrics?.stockValue || 0) / 100000).toFixed(2)}L`}
+              helper="INR equivalent"
+            />
           </div>
         );
 
       case 'bank-balance-total':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-success to-success rounded-full flex items-center justify-center mx-auto mb-4">
-              <Building className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.bankBalance || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Bank Balance</p>
-            <Badge className="mt-3 bg-success/10 text-success border-success/20">Active Accounts</Badge>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Bank Balance"
+              value={`₹${((metrics?.bankBalance || 0) / 100000).toFixed(2)}L`}
+              helper="Active accounts"
+            />
           </div>
         );
 
       case 'total-cash':
         return (
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-info to-primary rounded-full flex items-center justify-center mx-auto mb-4">
-              <Wallet className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <div className="text-3xl font-bold text-foreground">₹{((metrics?.totalCash || 0) / 100000).toFixed(2)}L</div>
-            <p className="text-sm text-muted-foreground mt-1">Total Cash (Banks + Stock)</p>
+          <div className="flex h-full items-center p-4">
+            <WidgetMetric
+              label="Total Cash"
+              value={`₹${((metrics?.totalCash || 0) / 100000).toFixed(2)}L`}
+              helper="Banks + Stock"
+            />
           </div>
         );
 
@@ -383,70 +389,34 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       default:
         return (
-          <div className="p-6 text-center">
-            <div className={`w-16 h-16 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm`}>
-              {IconComponent && typeof IconComponent === 'function' ? (
-                <IconComponent className="h-8 w-8 text-primary-foreground" />
-              ) : (
-                <BarChart3 className="h-8 w-8 text-primary-foreground" />
-              )}
-            </div>
-            <h4 className="font-semibold text-foreground mb-2">{widget.name}</h4>
-            <p className="text-sm text-muted-foreground">{widget.description}</p>
-          </div>
+          <WidgetEmpty
+            icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
+            title={widget.name}
+            description={widget.description}
+          />
         );
     }
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className={`h-full ${getSizeClasses(widget.size)}`}>
-      <Card className={`h-full bg-card shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-muted ${isDraggable ? 'ring-2 ring-info cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-sm' : ''}`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-muted to-muted">
-          <div className="flex items-center gap-2">
-            {isDraggable && (
-              <div {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-              </div>
-            )}
-            <div className={`p-1.5 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-lg shadow-sm`}>
-              {IconComponent && typeof IconComponent === 'function' ? (
-                <IconComponent className="h-4 w-4 text-primary-foreground" />
-              ) : (
-                <BarChart3 className="h-4 w-4 text-primary-foreground" />
-              )}
-            </div>
-            <CardTitle className="text-sm font-semibold text-foreground">{widget.name}</CardTitle>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/80">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => onMove(widget.id, 'up')}>
-                <Move className="h-4 w-4 mr-2" />
-                Move Up
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMove(widget.id, 'down')}>
-                <Move className="h-4 w-4 mr-2" />
-                Move Down
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => onRemove(widget.id)}
-                className="text-destructive focus:text-destructive"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Remove Widget
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </CardHeader>
-        <CardContent className={`p-0 ${widget.size === 'small' ? 'min-h-[180px] flex flex-col items-stretch justify-center' : ''}`}>
+    <div className="h-full">
+      <WidgetShell className="h-full">
+        <WidgetHeader
+          title={widget.name}
+          icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
+          actions={
+            <WidgetMenu
+              title={widget.name}
+              onMoveUp={() => onMove(widget.id, 'up')}
+              onMoveDown={() => onMove(widget.id, 'down')}
+              onRemove={() => onRemove(widget.id)}
+            />
+          }
+        />
+        <WidgetBody padded={false} className={widget.size === 'small' ? 'flex min-h-[150px] flex-col justify-center' : 'min-h-[150px]'}>
           <div className="w-full">{renderWidgetContent()}</div>
-        </CardContent>
-      </Card>
+        </WidgetBody>
+      </WidgetShell>
     </div>
   );
 }

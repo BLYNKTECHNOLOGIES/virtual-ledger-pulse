@@ -6,13 +6,15 @@ import { ArrowUpIcon, ArrowDownIcon, DollarSign, TrendingUp, Users, Wallet, Sett
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
-import { arrayMove, SortableContext, rectSortingStrategy } from "@dnd-kit/sortable";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay } from "@dnd-kit/core";
+import { arrayMove, SortableContext, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
 import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSection";
 import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetEmpty } from "@/components/dashboard/primitives/WidgetShell";
+import { WidgetList, WidgetListRow } from "@/components/dashboard/primitives/WidgetAtoms";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -457,10 +459,21 @@ export default function Dashboard() {
   };
 
   // ── DnD ──
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // Pointer for mouse/touch, keyboard sensor so reordering is possible without a pointer.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setDraggingId(String(event.active.id));
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
+    setDraggingId(null);
     if (over && active.id !== over.id) {
       setActiveWidgetIds(prev => {
         const oldIndex = prev.indexOf(active.id as string);
@@ -587,46 +600,39 @@ export default function Dashboard() {
 
       case 'recent-activity':
         return (
-          <Card className="h-full flex flex-col">
-            <CardHeader className="border-b border-border py-3 px-4">
-              <SectionHeader title="Recent Activity" icon={Activity} />
-            </CardHeader>
-            <CardContent className="p-2 overflow-y-auto max-h-[500px]">
-              <div className="divide-y divide-border/70">
-                {recentActivity?.slice(0, 8).map((activity) => (
-                  <div
-                    key={activity.id}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
-                      openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
-                    }}
-                    className="flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-muted/50 motion-reduce:transition-none"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                        {activity.type === 'sale'
-                          ? <ArrowUpIcon className="h-4 w-4 text-success" />
-                          : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="t-card-title text-foreground truncate">{activity.title}</p>
-                        <p className="t-secondary">{format(new Date(activity.timestamp), "MMM dd, HH:mm")}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-[13px] font-semibold tabular-nums ${activity.type === 'sale' ? 'text-success' : 'text-foreground'}`}>
-                        {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
-                      </p>
-                      <p className="t-secondary">{activity.reference}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {(!recentActivity || recentActivity.length === 0) && (
-                <EmptyState icon={Activity} title="No activity in selected period" className="py-10" />
+          <WidgetShell className="h-full">
+            <WidgetHeader
+              title="Recent Activity"
+              subtitle="Latest sales and purchases"
+              icon={Activity}
+            />
+            <WidgetBody padded={false} className="max-h-[500px] p-2">
+              {recentActivity && recentActivity.length > 0 ? (
+                <WidgetList>
+                  {recentActivity.slice(0, 8).map((activity) => (
+                    <WidgetListRow
+                      key={activity.id}
+                      icon={activity.type === 'sale' ? ArrowUpIcon : ArrowDownIcon}
+                      iconTone={activity.type === 'sale' ? 'success' : 'neutral'}
+                      title={activity.title}
+                      subtitle={format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                      value={`${activity.type === 'sale' ? '+' : '-'}₹${Number(activity.amount).toLocaleString('en-IN')}`}
+                      valueTone={activity.type === 'sale' ? 'success' : 'neutral'}
+                      meta={activity.reference}
+                      onClick={() =>
+                        openTransaction({
+                          type: activity.type === 'sale' ? 'sales_order' : 'purchase_order',
+                          id: activity.id,
+                        })
+                      }
+                    />
+                  ))}
+                </WidgetList>
+              ) : (
+                <WidgetEmpty icon={Activity} title="No activity in selected period" />
               )}
-            </CardContent>
-          </Card>
+            </WidgetBody>
+          </WidgetShell>
         );
 
 
@@ -776,38 +782,49 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Edit Mode Banner */}
+      {/* Edit Mode Bar — quiet, informational, never shouty */}
       {isEditMode && (
-        <div className="rounded-xl border border-warning/40 bg-warning/10 p-4">
-          <div className="flex items-start md:items-center gap-3">
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/20 text-warning">
-              <Settings className="h-4 w-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="t-card-title text-foreground">Customize mode active</h3>
-              <p className="t-secondary mt-0.5">
-                Drag widgets to reorder • Hover & click ✕ to remove • Use "Add Widget" to add new ones
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
-              className="flex-shrink-0"
-            >
-              Done
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-muted/40 px-3 py-2">
+          <span className="inline-flex items-center gap-1.5 rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            <Settings className="h-3 w-3" />
+            Customizing
+          </span>
+          <p className="t-secondary min-w-0 flex-1">
+            Drag a tile by its handle to reorder, resize from the tile toolbar, or add widgets.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => { setIsEditMode(false); setIsRearrangeMode(false); }}
+            className="flex-shrink-0"
+          >
+            Done
+          </Button>
         </div>
       )}
 
       {/* Widget Grid */}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setDraggingId(null)}
+      >
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className={`grid grid-cols-12 gap-3 md:gap-4 auto-rows-auto items-stretch stagger-children ${canDrag ? 'pl-4' : ''}`}>
+          <div className="grid grid-cols-12 auto-rows-auto items-stretch gap-3 stagger-children md:gap-4">
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>
+        <DragOverlay dropAnimation={null}>
+          {draggingId ? (
+            <div className="rounded-xl border border-primary/50 bg-card/95 px-3 py-2 shadow-md backdrop-blur">
+              <span className="t-card-title text-foreground">
+                {widgetRegistry.get(draggingId)?.name ?? 'Widget'}
+              </span>
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
 
       {/* Empty state */}

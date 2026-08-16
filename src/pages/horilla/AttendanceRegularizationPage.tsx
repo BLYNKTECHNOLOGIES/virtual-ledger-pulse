@@ -182,13 +182,20 @@ export default function AttendanceRegularizationPage() {
     mutationFn: async () => {
       if (!reviewing) return;
       if (decision === 'approved' && !reasonCode) throw new Error('Pick a reason code before approving');
-      if (!notes.trim()) throw new Error('Notes are mandatory for every intervention');
       const isOverride = decision === 'approved' && evidence && !evidence.evidence_ok;
       if (isOverride && !overrideReason.trim()) {
         throw new Error('Unsupported edits require an override reason (this is audited).');
       }
+      if (decision === 'rejected' && !overrideReason.trim()) {
+        throw new Error('A rejection reason is required (this is audited).');
+      }
+      const auditNote = overrideReason.trim()
+        || (decision === 'approved'
+          ? (REASON_CODES.find((c) => c.value === reasonCode)?.label || 'Approved')
+          : 'Rejected');
       const { data: u } = await supabase.auth.getUser();
       const nowIso = new Date().toISOString();
+
 
       const evidenceStatus = decision === 'approved'
         ? (evidence?.evidence_ok ? 'evidence_ok' : 'unsupported_override')

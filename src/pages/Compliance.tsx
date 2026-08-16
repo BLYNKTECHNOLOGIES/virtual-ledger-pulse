@@ -1,10 +1,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Scale, Receipt, Shield, Building } from "lucide-react";
+import { Building2, Scale, Shield, Building } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";
 import { LegalComplianceTab } from "@/components/compliance/LegalComplianceTab";
-import { TaxationComplianceTab } from "@/components/compliance/TaxationComplianceTab";
 import { CompanyComplianceTab } from "@/components/compliance/CompanyComplianceTab";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PermissionGate } from "@/components/PermissionGate";

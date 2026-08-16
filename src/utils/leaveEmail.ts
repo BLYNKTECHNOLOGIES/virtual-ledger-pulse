@@ -50,12 +50,13 @@ export async function sendLeaveEmail(params: LeaveEmailParams) {
   await Promise.all(
     recipients.map((r) =>
       supabase.functions
-        .invoke('send-transactional-email', {
+        .invoke('hr-workflow-notify', {
           body: {
-            templateName: 'leave-approval',
+            kind: 'leave',
+            eventType,
             recipientEmail: r.email,
             idempotencyKey: `leave-${eventType}-${requestId}-${r.email}-${today}`,
-            templateData: {
+            data: {
               eventType,
               requestId,
               recipientRole: r.role,

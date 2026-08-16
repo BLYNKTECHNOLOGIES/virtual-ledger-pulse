@@ -188,13 +188,6 @@ export default function AttendanceSummaryPage() {
       )) || [],
   });
 
-  const { data: workInfo = [] } = useQuery({
-    queryKey: ["hr_work_info_dept_shift"],
-    queryFn: async () =>
-      (await fetchAllPaginated<any>(() =>
-        (supabase as any).from("hr_employee_work_info").select("employee_id, department_id, shift_id"),
-      )) || [],
-  });
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments_list"],

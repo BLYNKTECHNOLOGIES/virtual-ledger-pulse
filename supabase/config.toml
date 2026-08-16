@@ -19,6 +19,8 @@ project_id = "vagiqbespusdxsbqpvbo"
   port = 54322
 
 [functions]
+  [functions.hr-workflow-notify]
+    verify_jwt = false
   [functions.hr-attendance-exception-notify]
     verify_jwt = false
   [functions.hr-razorpay-orphan-scan]

@@ -24,7 +24,7 @@ export default function LeaveRequestsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
+  const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning", routing: "manager" as "manager" | "hr" });
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [approveTypeId, setApproveTypeId] = useState("");
 
@@ -47,7 +47,7 @@ export default function LeaveRequestsPage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
     queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").eq("is_active", true));
+      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, email").eq("is_active", true));
       return data || [];
     },
   });
@@ -92,23 +92,82 @@ export default function LeaveRequestsPage() {
   const createMutation = useMutation({
     mutationFn: async () => {
       const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date, form.employee_id);
-      const { error } = await (supabase as any).from("hr_leave_requests").insert({
+      const emp = (employees as any[]).find((e) => e.id === form.employee_id);
+      const employeeName = `${emp?.first_name || ""} ${emp?.last_name || ""}`.trim() || "Employee";
+      const endDate = form.is_half_day ? form.start_date : form.end_date;
+      const typeName = (leaveTypes as any[]).find((lt: any) => lt.id === form.leave_type_id)?.name;
+
+      const { data: created, error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
-        leave_type_id: form.leave_type_id,
+        leave_type_id: form.leave_type_id || null,
         start_date: form.start_date,
-        end_date: form.is_half_day ? form.start_date : form.end_date,
+        end_date: endDate,
         reason: form.reason || null,
         total_days: days,
         is_half_day: form.is_half_day,
         half_day_period: form.is_half_day ? form.half_day_period : null,
-      });
+        status: "requested",
+      }).select("id, manager_id").single();
       if (error) throw error;
+
+      if (form.routing === "hr") {
+        // HR approves immediately — the status change trigger runs the balance cascade.
+        const { error: upErr } = await (supabase as any).from("hr_leave_requests").update({
+          status: "approved",
+          leave_type_id: form.leave_type_id,
+          approved_at: new Date().toISOString(),
+          hr_approved_at: new Date().toISOString(),
+        }).eq("id", created.id);
+        if (upErr) throw upErr;
+
+        sendLeaveEmail({
+          eventType: "leave_approved",
+          requestId: created.id,
+          employeeName,
+          leaveType: typeName,
+          startDate: form.start_date,
+          endDate,
+          totalDays: days,
+          reason: form.reason,
+          decidedBy: "HR",
+          employeeEmail: emp?.email || null,
+        });
+        return { routedToManager: false };
+      }
+
+      // Route to the reporting manager for the first-stage approval.
+      let managerEmail: string | null = null;
+      let managerName: string | null = null;
+      if (created?.manager_id) {
+        const { data: mgr } = await (supabase as any)
+          .from("hr_employees").select("first_name, last_name, email").eq("id", created.manager_id).maybeSingle();
+        managerEmail = mgr?.email || null;
+        managerName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : null;
+      }
+      sendLeaveEmail({
+        eventType: "leave_requested",
+        requestId: created.id,
+        employeeName,
+        leaveType: typeName || "To be assigned by HR",
+        startDate: form.start_date,
+        endDate,
+        totalDays: days,
+        reason: form.reason,
+        managerEmail,
+        managerName,
+      });
+      return { routedToManager: true, hasManager: !!managerEmail };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
+      qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
       setShowAdd(false);
-      setForm({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
-      toast.success("Leave request created");
+      setForm({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning", routing: "manager" });
+      toast.success(
+        res?.routedToManager
+          ? res.hasManager ? "Sent to the reporting manager for approval" : "Created — no reporting manager on record, awaiting HR"
+          : "Leave approved by HR",
+      );
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -259,7 +318,9 @@ export default function LeaveRequestsPage() {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || !form.start_date || (!form.is_half_day && !form.end_date)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Submit</Button>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.employee_id || !form.start_date || (!form.is_half_day && !form.end_date) || (form.routing === "hr" && !form.leave_type_id)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+              {form.routing === "hr" ? "Approve now" : "Send to manager"}
+            </Button>
           </>
         }
       >
@@ -269,7 +330,22 @@ export default function LeaveRequestsPage() {
               <EmployeePicker employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
             </div>
             <div>
-              <Label>Leave Type</Label>
+              <Label>Approval routing</Label>
+              <Select value={form.routing} onValueChange={(v) => setForm({ ...form, routing: v as "manager" | "hr" })}>
+                <SelectTrigger className="h-9 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manager">Send to reporting manager first</SelectItem>
+                  <SelectItem value="hr">Approve myself as HR (skip manager)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {form.routing === "hr"
+                  ? "Approved immediately — balance is consumed now (assigned type → Comp-Off → Casual → LOP)."
+                  : "The reporting manager is emailed and approves first; HR gives the final approval."}
+              </p>
+            </div>
+            <div>
+              <Label>Leave Type {form.routing === "manager" && <span className="text-[11px] text-muted-foreground">(optional — HR assigns at approval)</span>}</Label>
               <Select value={form.leave_type_id} onValueChange={(v) => setForm({ ...form, leave_type_id: v })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>

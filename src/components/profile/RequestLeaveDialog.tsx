@@ -273,13 +273,9 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
             <p className="text-foreground">
               Working days requested: <strong>{workingDays || '—'}</strong>
             </p>
-            {excess > 0 && (
-              <p className="text-destructive">
-                Balance covers {Math.min(workingDays, available)} day(s). The remaining {excess} day(s) will be treated as loss of pay if approved.
-              </p>
-            )}
             <p className="text-muted-foreground">
-              Goes to your reporting manager first, then HR for final approval.
+              Goes to your reporting manager first, then HR for final approval. HR assigns the leave type
+              and adjusts the balance at approval.
             </p>
           </div>
         </div>

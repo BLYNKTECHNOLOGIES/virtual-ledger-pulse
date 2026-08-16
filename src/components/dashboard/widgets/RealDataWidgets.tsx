@@ -60,27 +60,26 @@ export function CustomerGrowthWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
-  const growth = data && data.length >= 2 ? ((data[data.length - 1].clients - data[data.length - 2].clients) / (data[data.length - 2].clients || 1) * 100).toFixed(1) : '0';
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
+  const growth = data && data.length >= 2 ? ((data[data.length - 1].clients - data[data.length - 2].clients) / (data[data.length - 2].clients || 1) * 100) : 0;
 
   return (
-    <div className="p-4">
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <div className="text-2xl font-bold text-foreground">{data?.[data.length - 1]?.clients || 0}</div>
-          <p className="text-xs text-muted-foreground">Total Clients</p>
-        </div>
-        <Badge className={`${Number(growth) >= 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-          {Number(growth) >= 0 ? '+' : ''}{growth}% this month
-        </Badge>
-      </div>
-      <ResponsiveContainer width="100%" height={120}>
-        <RechartsLineChart data={data || []}>
-          <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ fontSize: 12, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-          <Line type="monotone" dataKey="clients" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 3 }} />
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetMetric
+        label="Total clients"
+        value={data?.[data.length - 1]?.clients || 0}
+        size="sm"
+        delta={growth}
+        helper="this month"
+      />
+      <WidgetChart height={120}>
+        <RechartsLineChart data={data || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <CartesianGrid {...gridProps} />
+          <XAxis dataKey="name" {...axisProps} />
+          <Tooltip {...tooltipProps} />
+          <Line type="monotone" dataKey="clients" stroke={chartColor.primary()} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
         </RechartsLineChart>
-      </ResponsiveContainer>
+      </WidgetChart>
     </div>
   );
 }

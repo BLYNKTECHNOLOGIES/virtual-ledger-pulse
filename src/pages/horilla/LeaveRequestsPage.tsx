@@ -298,12 +298,52 @@ export default function LeaveRequestsPage() {
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave..." /></div>
           </div>
       </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={!!approveTarget}
+        onOpenChange={(o) => { if (!o) { setApproveTarget(null); setApproveTypeId(""); } }}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><CheckCircle className="h-4 w-4 text-success" /> Approve Leave</span>}
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={() => setApproveTarget(null)}>Cancel</Button>
+            <Button
+              className="bg-[#E8604C] hover:bg-[#d4553f] h-9"
+              disabled={!approveTypeId || statusMutation.isPending}
+              onClick={() => statusMutation.mutate({ id: approveTarget.id, status: "approved", request: approveTarget, leaveTypeId: approveTypeId })}
+            >
+              Approve
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {approveTarget && (
+            <div className="text-xs text-muted-foreground">
+              {approveTarget.hr_employees?.first_name} {approveTarget.hr_employees?.last_name} · {approveTarget.start_date} → {approveTarget.end_date} · {approveTarget.total_days} day(s)
+            </div>
+          )}
+          <div>
+            <Label>Leave Type (assigned by HR)</Label>
+            <Select value={approveTypeId} onValueChange={setApproveTypeId}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select leave type" /></SelectTrigger>
+              <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            If the chosen type has insufficient balance, the system automatically draws from Comp-Off, then Casual Leave, and only the remainder becomes Loss of Pay.
+          </p>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }
 
 function LeaveTypeBadge({ name }: { name?: string }) {
-  return <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-primary/10 text-primary border-primary/20">{name || "Leave"}</span>;
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${name ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"}`}>
+      {name || "HR to assign"}
+    </span>
+  );
 }
 
 function LeaveDays({ request }: { request: any }) {

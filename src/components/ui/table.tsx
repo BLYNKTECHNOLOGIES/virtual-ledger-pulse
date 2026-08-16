@@ -93,7 +93,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
     <tr
       ref={ref}
       className={cn(
-        "border-b border-border transition-colors duration-150 hover:bg-muted/50 data-[state=selected]:bg-primary/5",
+        "ds-row border-b border-border",
         flash && "row-flash",
         className
       )}
@@ -101,6 +101,7 @@ const TableRow = React.forwardRef<HTMLTableRowElement, TableRowProps>(
     />
   )
 )
+
 TableRow.displayName = "TableRow"
 
 const TableHead = React.forwardRef<

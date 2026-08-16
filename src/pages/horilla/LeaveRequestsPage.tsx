@@ -137,7 +137,9 @@ export default function LeaveRequestsPage() {
           eventType: status === "approved" ? "leave_approved" : "leave_rejected",
           requestId: id,
           employeeName: `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
-          leaveType: request.hr_leave_types?.name,
+          leaveType:
+            (leaveTypes as any[]).find((lt: any) => lt.id === (leaveTypeId || request.leave_type_id))?.name ||
+            request.hr_leave_types?.name,
           startDate: request.start_date,
           endDate: request.end_date,
           totalDays: request.total_days,
@@ -150,8 +152,11 @@ export default function LeaveRequestsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
+      setApproveTarget(null);
+      setApproveTypeId("");
       toast.success("Status updated");
     },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filtered = requests.filter((r: any) => {

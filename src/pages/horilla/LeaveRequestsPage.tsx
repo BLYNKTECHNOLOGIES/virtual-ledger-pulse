@@ -246,7 +246,7 @@ export default function LeaveRequestsPage() {
                 <span>Clashes</span><span>{(r.leave_clashes_count || 0) > 0 ? r.leave_clashes_count : "None"}</span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
-              <LeaveActions request={r} statusMutation={statusMutation} mobile />
+              <LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />
             </div>
           )}
         />

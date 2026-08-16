@@ -15,6 +15,8 @@ import { AuthCheck } from './components/AuthCheck';
 import { Toaster } from '@/components/ui/toaster';
 import { Toaster as SonnerToaster } from '@/components/ui/sonner';
 import { RouteFallback } from './components/shared/RouteFallback';
+import { ThemeProvider } from './contexts/ThemeContext';
+
 
 // --- Lazy: all route page modules (all default exports) ---
 const TerminalComingSoon = lazy(() => import('./pages/terminal/TerminalComingSoon'));

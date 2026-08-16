@@ -120,7 +120,7 @@ export default function LeaveRequestsPage() {
         }).eq("id", created.id);
         if (upErr) throw upErr;
 
-        sendLeaveEmail({
+        const res = await sendLeaveEmail({
           eventType: "leave_approved",
           requestId: created.id,
           employeeName,
@@ -132,7 +132,8 @@ export default function LeaveRequestsPage() {
           decidedBy: "HR",
           employeeEmail: emp?.email || null,
         });
-        return { routedToManager: false };
+        return { routedToManager: false, emailFailures: res?.failures || [], noEmail: !emp?.email };
+
       }
 
       // Route to the reporting manager for the first-stage approval.
@@ -144,7 +145,7 @@ export default function LeaveRequestsPage() {
         managerEmail = mgr?.email || null;
         managerName = mgr ? `${mgr.first_name || ""} ${mgr.last_name || ""}`.trim() : null;
       }
-      sendLeaveEmail({
+      const res = await sendLeaveEmail({
         eventType: "leave_requested",
         requestId: created.id,
         employeeName,
@@ -156,7 +157,8 @@ export default function LeaveRequestsPage() {
         managerEmail,
         managerName,
       });
-      return { routedToManager: true, hasManager: !!managerEmail };
+      return { routedToManager: true, hasManager: !!managerEmail, emailFailures: res?.failures || [] };
+
     },
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
@@ -168,7 +170,10 @@ export default function LeaveRequestsPage() {
           ? res.hasManager ? "Sent to the reporting manager for approval" : "Created — no reporting manager on record, awaiting HR"
           : "Leave approved by HR",
       );
+      if (res?.noEmail) toast.warning("No email on record for this employee — approval mail not sent");
+      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -194,7 +199,7 @@ export default function LeaveRequestsPage() {
       if (error) throw error;
 
       if (request && (status === "approved" || status === "rejected")) {
-        sendLeaveEmail({
+        const res = await sendLeaveEmail({
           eventType: status === "approved" ? "leave_approved" : "leave_rejected",
           requestId: id,
           employeeName: `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
@@ -208,16 +213,21 @@ export default function LeaveRequestsPage() {
           decidedBy: "HR",
           employeeEmail: request.hr_employees?.email || null,
         });
+        return { emailFailures: res?.failures || [], noEmail: !request.hr_employees?.email };
       }
+      return { emailFailures: [], noEmail: false };
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
       setApproveTarget(null);
       setApproveTypeId("");
       toast.success("Status updated");
+      if (res?.noEmail) toast.warning("No email on record for this employee — notification not sent");
+      else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);
     },
     onError: (e: any) => toast.error(e.message),
+
   });
 
   const filtered = requests.filter((r: any) => {

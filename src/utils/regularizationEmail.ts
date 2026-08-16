@@ -46,28 +46,35 @@ export async function sendRegularizationEmail(params: RegEmailParams) {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  await Promise.all(
-    recipients.map((r) =>
-      supabase.functions
-        .invoke('hr-workflow-notify', {
-          body: {
-            kind: 'regularization',
+  const failures: string[] = [];
+  for (const r of recipients) {
+    try {
+      const { data, error } = await supabase.functions.invoke('hr-workflow-notify', {
+        body: {
+          kind: 'regularization',
+          eventType,
+          recipientEmail: r.email,
+          idempotencyKey: `reg-${eventType}-${requestId}-${r.email}-${today}`,
+          data: {
             eventType,
-            recipientEmail: r.email,
-            idempotencyKey: `reg-${eventType}-${requestId}-${r.email}-${today}`,
-            data: {
-              eventType,
-              requestId,
-              recipientRole: r.role,
-              recipientName: r.name,
-              ...rest,
-            },
+            requestId,
+            recipientRole: r.role,
+            recipientName: r.name,
+            ...rest,
           },
-        })
-        .catch((err) => console.warn('Regularization email failed (non-blocking):', err)),
-    ),
-  );
+        },
+      });
+      if (error || (data && (data as any).error)) {
+        failures.push(`${r.email}: ${error?.message || (data as any)?.error}`);
+      }
+    } catch (err: any) {
+      failures.push(`${r.email}: ${err?.message || String(err)}`);
+    }
+  }
+  if (failures.length) console.warn('Regularization email failures:', failures);
+  return { sent: recipients.length - failures.length, failures };
 }
+
 
 export const REG_CATEGORIES: Array<{ value: string; label: string }> = [
   { value: 'missed_punch', label: 'Missed punch' },

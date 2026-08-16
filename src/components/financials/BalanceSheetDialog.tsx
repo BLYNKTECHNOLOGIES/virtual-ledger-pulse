@@ -30,10 +30,14 @@ import {
 
   balanceSheetChecksum,
   cryptoDisclosureNote,
+  gstinText,
+  panText,
   inr,
   type BalanceSheetLine,
+  type BalanceSheetMode,
   type IntegrityFinding,
 } from "@/lib/exportBalanceSheet";
+
 import { WalletEntityMappingPanel } from "./balance-sheet/WalletEntityMappingPanel";
 
 interface Props {

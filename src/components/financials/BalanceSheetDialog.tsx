@@ -62,7 +62,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   const [entityId, setEntityId] = useState<string>("");
   const [asOf, setAsOf] = useState<string>(() => format(new Date(), "yyyy-MM-dd"));
   const [valuationBasis, setValuationBasis] = useState<string>("COST");
+  const [mode, setMode] = useState<BalanceSheetMode>("MANAGEMENT");
   const [showMapping, setShowMapping] = useState(false);
+  const isManagement = mode === "MANAGEMENT";
 
   const { data: entities, isLoading: entitiesLoading } = useQuery({
     queryKey: ["fin-entity-master"],
@@ -80,14 +82,18 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   const entity = entities?.find((e) => e.subsidiary_id === entityId);
 
   const { data, isFetching, error } = useQuery({
-    queryKey: ["fin-balance-sheet", entityId, asOf, valuationBasis],
+    queryKey: ["fin-balance-sheet", entityId, asOf, valuationBasis, mode],
     enabled: open && !!entityId && !!asOf,
     queryFn: async () => {
+      // Bring the cached crypto order feed up to date before deriving inventory.
+      await supabase.rpc("fin_crypto_refresh" as any);
+
       const [sheet, integrity] = await Promise.all([
         supabase.rpc("fin_entity_balance_sheet" as any, {
           p_subsidiary_id: entityId,
           p_as_of: asOf,
           p_valuation_basis: valuationBasis,
+          p_mode: mode,
         }),
         supabase.rpc("fin_entity_integrity" as any, {
           p_subsidiary_id: entityId,
@@ -114,6 +120,8 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
   if (balanceOff) failedChecks.push("Assets do not equal liabilities plus equity");
   const isDraft = failedChecks.length > 0;
 
+  const visibleLines = isManagement ? lines.filter((l) => l.section !== "CHECK") : lines;
+
   const inventoryLine = lines.find((l) => l.line_key === "inventory");
   const isCompany = (entity?.firm_composition || "").toUpperCase() === "PRIVATE_LIMITED";
   const cryptoNote = isCompany
@@ -134,7 +142,9 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
       ? balanceSheetChecksum(lines, { entityName: entity?.legal_name?.trim() || "", asOf })
       : undefined,
     cryptoNote,
+    mode,
   };
+
 
   const logGeneration = async (formatKind: "PDF" | "XLSX") => {
     try {

@@ -371,7 +371,8 @@ export async function exportBalanceSheetXlsx(
   }
 
   if (findings.length) {
-    const fs = wb.addWorksheet("Data Integrity");
+    const fs = wb.addWorksheet(isManagement ? "Limitations" : "Data Integrity");
+
     fs.columns = [
       { key: "severity", width: 12 },
       { key: "title", width: 46 },

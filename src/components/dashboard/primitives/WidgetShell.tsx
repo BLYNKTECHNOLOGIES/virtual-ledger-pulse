@@ -20,6 +20,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export type WidgetState = "ready" | "loading" | "empty" | "error";
 
+/** Semantic tones shared by the shell (header icon tile, empty states). */
+export type WidgetTone = "neutral" | "primary" | "success" | "warning" | "destructive";
+
+const TONE_TINT: Record<WidgetTone, string> = {
+  neutral: "bg-muted text-muted-foreground",
+  primary: "bg-primary/10 text-primary",
+  success: "bg-success/10 text-success",
+  warning: "bg-warning/10 text-warning",
+  destructive: "bg-destructive/10 text-destructive",
+};
+
 interface WidgetShellProps {
   children: React.ReactNode;
   className?: string;
@@ -60,6 +71,8 @@ interface WidgetHeaderProps {
   leading?: React.ReactNode;
   /** Trailing node rendered after the controls (usually WidgetMenu). */
   actions?: React.ReactNode;
+  /** Semantic tint for the header icon tile. Defaults to a quiet neutral. */
+  iconTone?: WidgetTone;
   className?: string;
 }
 
@@ -70,6 +83,7 @@ export function WidgetHeader({
   controls,
   leading,
   actions,
+  iconTone = "neutral",
   className,
 }: WidgetHeaderProps) {
   return (
@@ -81,7 +95,15 @@ export function WidgetHeader({
     >
       {leading}
       {Icon && (
-        <Icon className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} />
+        <span
+          aria-hidden
+          className={cn(
+            "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+            TONE_TINT[iconTone]
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" strokeWidth={2} />
+        </span>
       )}
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12.5px] font-semibold leading-tight tracking-[-0.01em] text-foreground">{title}</p>
@@ -346,12 +368,14 @@ export function WidgetEmpty({
   title = "Nothing to show",
   description,
   action,
+  tone = "neutral",
   className,
 }: {
   icon: LucideIcon;
   title?: string;
   description?: string;
   action?: React.ReactNode;
+  tone?: WidgetTone;
   className?: string;
 }) {
   const Icon = icon;
@@ -362,7 +386,16 @@ export function WidgetEmpty({
         className
       )}
     >
-      <Icon className="h-4 w-4 text-muted-foreground/70" aria-hidden />
+      <span
+        aria-hidden
+        className={cn(
+          "mb-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full",
+          TONE_TINT[tone],
+          tone === "neutral" && "bg-muted/70 text-muted-foreground/80"
+        )}
+      >
+        <Icon className="h-4 w-4" />
+      </span>
       <p className="text-[12px] font-medium text-foreground">{title}</p>
       {description && (
         <p className="max-w-[18rem] text-[11px] leading-snug text-muted-foreground">{description}</p>
@@ -381,7 +414,12 @@ export function WidgetError({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-1.5 px-4 py-6 text-center">
-      <AlertTriangle className="h-4 w-4 text-destructive" aria-hidden />
+      <span
+        aria-hidden
+        className="mb-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full bg-destructive/10 text-destructive"
+      >
+        <AlertTriangle className="h-4 w-4" />
+      </span>
       <p className="text-[12.5px] font-medium text-foreground">Couldn't load</p>
       <p className="max-w-[16rem] text-xs text-muted-foreground">{message}</p>
       {onRetry && (

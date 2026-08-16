@@ -37,7 +37,7 @@ export default function LateComeEarlyOutPage() {
         _from: monthStart,
         _to: monthEnd,
       });
-      return await fetchAllPaginated<any>(() => {
+      const rawRecords = await fetchAllPaginated<any>(() => {
         let query = (supabase as any)
           .from("hr_late_come_early_out")
           .select("*, hr_employees!hr_late_come_early_out_employee_id_fkey(badge_id, first_name, last_name)")
@@ -47,6 +47,15 @@ export default function LateComeEarlyOutPage() {
         if (typeFilter !== "all") query = query.eq("type", typeFilter);
         return query;
       });
+      // Exclude contract-type employees from the list and all statistical calculations.
+      const employeeIds = [...new Set(rawRecords.map((r: any) => r.employee_id))];
+      if (employeeIds.length === 0) return [];
+      const { data: workInfo = [] } = await (supabase as any)
+        .from("hr_employee_work_info")
+        .select("employee_id, employee_type")
+        .in("employee_id", employeeIds);
+      const contractIds = new Set((workInfo as any[]).filter((w) => w.employee_type === "contract").map((w) => w.employee_id));
+      return rawRecords.filter((r: any) => !contractIds.has(r.employee_id));
     },
   });
 

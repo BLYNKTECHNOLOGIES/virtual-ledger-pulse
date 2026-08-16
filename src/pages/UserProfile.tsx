@@ -1246,27 +1246,19 @@ export default function UserProfile() {
         </TabsContent>
 
         {/* ═══════ Salary & PF Tab ═══════ */}
-        <TabsContent value="salary" className="space-y-6">
+        <TabsContent value="salary" className="space-y-4">
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
             <>
               <SalaryPFTab hrEmployee={hrEmployee} />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5" />
-                    Compensation History
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <CompensationHistory employeeId={hrEmployee.id} />
-                </CardContent>
-              </Card>
-
+              <SectionBlock title="Compensation History" icon={TrendingUp}>
+                <CompensationHistory employeeId={hrEmployee.id} />
+              </SectionBlock>
             </>
           )}
         </TabsContent>
+
 
 
         {/* ═══════ Payslips Tab ═══════ */}

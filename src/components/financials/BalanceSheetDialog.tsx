@@ -416,23 +416,35 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               {renderSection("ASSETS", "Assets")}
               {renderSection("LIABILITIES", "Liabilities")}
               {renderSection("EQUITY", "Equity (derived from ledger flows)")}
-              {renderSection("CHECK", "Reconciliation check")}
+              {!isManagement && renderSection("CHECK", "Reconciliation check")}
 
               {findings.length > 0 && (
-                <div className="rounded-lg border border-warning/40 bg-warning/5">
-                  <div className="flex items-center gap-2 border-b border-warning/30 px-4 py-2.5">
-                    <AlertTriangle className="h-4 w-4 text-warning" />
+                <div
+                  className={`rounded-lg border ${isManagement ? "border-border bg-muted/30" : "border-warning/40 bg-warning/5"}`}
+                >
+                  <div
+                    className={`flex items-center gap-2 border-b px-4 py-2.5 ${isManagement ? "border-border" : "border-warning/30"}`}
+                  >
+                    <AlertTriangle
+                      className={`h-4 w-4 ${isManagement ? "text-muted-foreground" : "text-warning"}`}
+                    />
                     <h4 className="text-sm font-semibold text-foreground">
-                      Data-integrity findings
+                      {isManagement ? "Limitations and known gaps" : "Data-integrity findings"}
                     </h4>
                   </div>
-                  <div className="divide-y divide-warning/20">
+                  <div className={`divide-y ${isManagement ? "divide-border/60" : "divide-warning/20"}`}>
                     {findings.map((f, i) => (
                       <div key={`${f.code}-${i}`} className="px-4 py-2.5">
                         <div className="flex items-center justify-between gap-3">
                           <span className="text-sm font-medium text-foreground">{f.title}</span>
                           <Badge
-                            variant={f.severity === "critical" ? "destructive" : "secondary"}
+                            variant={
+                              isManagement
+                                ? "secondary"
+                                : f.severity === "critical"
+                                  ? "destructive"
+                                  : "secondary"
+                            }
                             className="shrink-0 text-[10px] uppercase"
                           >
                             {f.severity}
@@ -454,14 +466,14 @@ export function BalanceSheetDialog({ open, onOpenChange }: Props) {
               )}
 
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Prepared from bank ledger data recorded in the ERP. Crypto inventory, fixed assets,
-                capital accounts, borrowings and statutory dues are not maintained as ledgers and are
-                therefore not presented. No balancing or plug entries are made — any difference is
-                reported in the reconciliation check.
+                {isManagement
+                  ? "Indicative management report prepared from the data held in the ERP. Crypto inventory is derived from order quantities net of sales and wallet fees, and allocated on purchase value where wallets are not mapped to a company. Fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers. No plug entries are made — the unexplained difference is shown as a named line in equity."
+                  : "Prepared from bank ledger data recorded in the ERP. Crypto inventory, fixed assets, capital accounts, borrowings and statutory dues are not maintained as ledgers and are therefore not presented. No balancing or plug entries are made — any difference is reported in the reconciliation check."}
               </p>
             </>
           )}
         </div>
+
       </DialogContent>
     </Dialog>
   );

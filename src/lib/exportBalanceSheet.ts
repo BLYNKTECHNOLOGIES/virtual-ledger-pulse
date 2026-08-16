@@ -380,7 +380,14 @@ export async function exportBalanceSheetXlsx(
       { key: "impact", width: 18 },
       { key: "count", width: 10 },
     ];
-    const h = fs.addRow(["Severity", "Finding", "Detail", "Impact (INR)", "Count"]);
+    const h = fs.addRow([
+      "Severity",
+      isManagement ? "Limitation" : "Finding",
+      "Detail",
+      "Impact (INR)",
+      "Count",
+    ]);
+
     h.font = { bold: true, name: "Arial", color: { argb: "FFFFFFFF" } };
     h.eachCell((c) => {
       c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF7C2D12" } };

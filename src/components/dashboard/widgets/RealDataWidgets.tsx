@@ -823,40 +823,34 @@ export function CashFlowWidget() {
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="chart" />;
 
   const hasData = (data?.totalIncome || 0) > 0 || (data?.totalExpense || 0) > 0;
+  const net = data?.net || 0;
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <div className="bg-success/10 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Gross Profit</p>
-          <p className="text-sm font-bold text-success">₹{((data?.totalIncome || 0) / 1000).toFixed(1)}k</p>
-        </div>
-        <div className="bg-destructive/10 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Expense</p>
-          <p className="text-sm font-bold text-destructive">₹{((data?.totalExpense || 0) / 1000).toFixed(1)}k</p>
-        </div>
-        <div className="bg-info/10 rounded-lg p-2">
-          <p className="text-xs text-muted-foreground">Net</p>
-          <p className={`text-sm font-bold ${(data?.net || 0) >= 0 ? 'text-success' : 'text-destructive'}`}>
-            {(data?.net || 0) >= 0 ? '+' : ''}₹{((data?.net || 0) / 1000).toFixed(1)}k
-          </p>
-        </div>
-      </div>
+    <div className="flex h-full flex-col gap-3 p-3">
+      <WidgetStatGrid
+        columns={3}
+        items={[
+          { label: 'Gross profit', value: `₹${((data?.totalIncome || 0) / 1000).toFixed(1)}k`, tone: 'success' },
+          { label: 'Expense', value: `₹${((data?.totalExpense || 0) / 1000).toFixed(1)}k`, tone: 'destructive' },
+          { label: 'Net', value: `${net >= 0 ? '+' : ''}₹${(net / 1000).toFixed(1)}k`, tone: net >= 0 ? 'success' : 'destructive' },
+        ]}
+      />
       {hasData ? (
-        <ResponsiveContainer width="100%" height={140}>
-          <BarChart data={data?.chartData || []}>
-            <XAxis dataKey="name" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-            <YAxis fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-            <Tooltip formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} contentStyle={{ fontSize: 11, background: "hsl(var(--popover))", border: "1px solid hsl(var(--border))", borderRadius: 8, color: "hsl(var(--popover-foreground))" }} />
-            <Bar dataKey="income" fill="hsl(var(--success))" radius={[3, 3, 0, 0]} name="Gross Profit" />
-            <Bar dataKey="expense" fill="hsl(var(--destructive))" radius={[3, 3, 0, 0]} name="Expense" />
+        <WidgetChart height={140}>
+          <BarChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: -12 }} barGap={2}>
+            <CartesianGrid {...gridProps} />
+            <XAxis dataKey="name" {...axisProps} />
+            <YAxis {...axisProps} width={44} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+            <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Math.round(Number(v)).toLocaleString('en-IN')}`} />
+            <Bar dataKey="income" fill={chartColor.success()} radius={[3, 3, 0, 0]} name="Gross Profit" />
+            <Bar dataKey="expense" fill={chartColor.destructive()} radius={[3, 3, 0, 0]} name="Expense" />
           </BarChart>
-        </ResponsiveContainer>
+        </WidgetChart>
       ) : (
-        <p className="text-sm text-muted-foreground text-center py-6">No data in last 7 days</p>
+        <WidgetEmpty icon={BarChart3} title="No data in last 7 days" />
       )}
     </div>
   );

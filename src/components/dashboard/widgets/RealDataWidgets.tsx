@@ -1084,46 +1084,46 @@ export function TeamStatusWidget() {
     refetchInterval: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="stats" />;
+
+  const active = data?.activeNow || [];
 
   return (
-    <div className="p-4 space-y-3">
-      <div className="grid grid-cols-4 gap-2">
-        <div className="text-center p-2 bg-info/10 rounded-lg">
-          <div className="text-lg font-bold text-info">{data?.total || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Total</p>
-        </div>
-        <div className="text-center p-2 bg-success/10 rounded-lg">
-          <div className="text-lg font-bold text-success">{data?.present || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Present</p>
-        </div>
-        <div className="text-center p-2 bg-destructive/10 rounded-lg">
-          <div className="text-lg font-bold text-destructive">{data?.absent || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Absent</p>
-        </div>
-        <div className="text-center p-2 bg-warning/10 rounded-lg">
-          <div className="text-lg font-bold text-warning">{data?.late || 0}</div>
-          <p className="text-[10px] text-muted-foreground">Late</p>
-        </div>
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border px-3 py-2.5">
+        <WidgetStatGrid
+          columns={4}
+          items={[
+            { label: 'Total', value: data?.total || 0 },
+            { label: 'Present', value: data?.present || 0, tone: 'success' },
+            { label: 'Absent', value: data?.absent || 0, tone: 'destructive' },
+            { label: 'Late', value: data?.late || 0, tone: 'warning' },
+          ]}
+        />
       </div>
-
-      <div>
-        <div className="flex items-center gap-1.5 mb-2">
-          <div className="h-2 w-2 rounded-full bg-success animate-pulse" />
-          <span className="text-xs font-semibold text-foreground">Currently In Office ({data?.activeNow?.length || 0})</span>
-        </div>
-        <div className="max-h-32 overflow-y-auto space-y-1">
-          {(data?.activeNow || []).length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-2">No one currently checked in</p>
-          ) : (
-            (data?.activeNow || []).map((emp: any, i: number) => (
-              <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 bg-muted/50 rounded">
-                <span className="font-medium text-foreground">{emp.name || 'Unknown'}</span>
-                <span className="text-muted-foreground">{emp.checkIn?.slice(0, 5)}</span>
-              </div>
-            ))
-          )}
-        </div>
+      <div className="flex items-center justify-between px-3 pt-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Currently in office
+        </p>
+        <WidgetStatus tone={active.length > 0 ? 'success' : 'neutral'}>{active.length}</WidgetStatus>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {active.length === 0 ? (
+          <WidgetEmpty icon={UserCheck} title="No one currently checked in" />
+        ) : (
+          <WidgetList>
+            {active.map((emp: any, i: number) => (
+              <WidgetListRow
+                key={i}
+                icon={UserCheck}
+                iconTone="success"
+                title={emp.name || 'Unknown'}
+                subtitle="Checked in"
+                value={emp.checkIn?.slice(0, 5)}
+              />
+            ))}
+          </WidgetList>
+        )}
       </div>
     </div>
   );

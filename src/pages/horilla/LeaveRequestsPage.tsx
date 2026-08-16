@@ -120,7 +120,7 @@ export default function LeaveRequestsPage() {
         }).eq("id", created.id);
         if (upErr) throw upErr;
 
-        sendLeaveEmail({
+        const res = await sendLeaveEmail({
           eventType: "leave_approved",
           requestId: created.id,
           employeeName,
@@ -132,7 +132,8 @@ export default function LeaveRequestsPage() {
           decidedBy: "HR",
           employeeEmail: emp?.email || null,
         });
-        return { routedToManager: false };
+        return { routedToManager: false, emailFailures: res?.failures || [], noEmail: !emp?.email };
+
       }
 
       // Route to the reporting manager for the first-stage approval.

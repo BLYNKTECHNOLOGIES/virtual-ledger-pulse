@@ -188,6 +188,19 @@ export default function AttendanceSummaryPage() {
       )) || [],
   });
 
+  // Contract-type staff are out of scope for attendance analytics everywhere on
+  // this page, including the anomaly/insight panels below.
+  const nonContract = useMemo(
+    () => <T extends { employee_id?: string }>(arr: T[]) => arr.filter((r) => r.employee_id && !contractIdSet.has(r.employee_id)),
+    [contractIdSet],
+  );
+  const maintainedFiltered = useMemo(() => nonContract(maintained as MaintainedRow[]), [maintained, nonContract]);
+  const maintainedPrevFiltered = useMemo(() => nonContract(maintainedPrev as MaintainedRow[]), [maintainedPrev, nonContract]);
+  const dailyFiltered = useMemo(() => nonContract(daily as DailyRow[]), [daily, nonContract]);
+  const insightEmployees = useMemo(
+    () => (allEmployees as any[]).filter((e) => !contractIdSet.has(e.id)),
+    [allEmployees, contractIdSet],
+  );
 
   const { data: departments = [] } = useQuery({
     queryKey: ["departments_list"],

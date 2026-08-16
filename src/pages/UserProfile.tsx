@@ -70,6 +70,17 @@ import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
 import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  FieldGrid,
+  Field,
+  SectionBlock,
+  MoneyRow,
+  StatusPill,
+  statusTone,
+  ProfileEmptyState,
+  ProfileSkeleton,
+} from '@/components/profile/primitives';
+
 
 
 interface BankAccount {

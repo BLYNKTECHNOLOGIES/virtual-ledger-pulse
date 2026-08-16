@@ -1373,18 +1373,6 @@ html {
   }
 }
 
-/* Dashboard masonry uses a 1px measurement grid. Vertical spacing is folded
-   into each calculated row span, avoiding variable gap/row rounding artifacts. */
-.dashboard-widget-grid {
-  --dashboard-widget-gutter: 0.75rem;
-}
-
-@media (min-width: 768px) {
-  .dashboard-widget-grid {
-    --dashboard-widget-gutter: 0.875rem;
-  }
-}
-
 /* ── Dark sidebar scrollbar (HRMS/ERP left nav) ─────────── */
 .sidebar-scroll {
   scrollbar-width: thin;

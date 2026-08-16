@@ -210,98 +210,83 @@ function SalaryPFTab({ hrEmployee }: { hrEmployee: any }) {
     const rupees = isRupees(r);
     const raw = Number(r.amount) || 0;
     const monthly = rupees ? toMonthly(raw) : 0;
-    const annual = rupees ? toAnnual(raw) : 0;
     return (
-      <div key={r.id} className="flex justify-between items-center border-b border-border/50 pb-2 gap-3">
-        <Label className={tone === 'ded' ? 'text-destructive' : 'text-[#00bcd4]'}>
-          {r.hr_salary_components?.name || '—'}
-        </Label>
-        {rupees ? (
-          <div className="text-right tabular-nums">
-            <div className={`text-sm font-semibold ${tone === 'ded' ? 'text-destructive' : ''}`}>
-              {tone === 'ded' ? '-' : ''}{fmt(monthly)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span>
-            </div>
-          </div>
-        ) : (
-          <span className="text-base font-semibold">{raw}%</span>
-        )}
-      </div>
+      <MoneyRow
+        key={r.id}
+        label={r.hr_salary_components?.name || '—'}
+        tone={tone === 'ded' ? 'negative' : 'neutral'}
+        value={rupees ? `${tone === 'ded' ? '−' : ''}${fmt(monthly)}` : `${raw}%`}
+        suffix={rupees ? '/mo' : undefined}
+      />
     );
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
       {/* Salary Breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <IndianRupee className="h-5 w-5" />
-            Salary Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
-              <Label className="text-[#00bcd4] text-xs">Annual CTC</Label>
-              <div className="text-lg font-bold text-success">{fmt(annualCTC)}</div>
-            </div>
-            <div className="space-y-1 p-3 rounded-md border border-border/60 bg-muted/30">
-              <Label className="text-[#00bcd4] text-xs">Monthly CTC</Label>
-              <div className="text-lg font-bold text-success">{fmt(monthlyCTC)}</div>
-            </div>
+      <SectionBlock title="Salary Information" icon={IndianRupee} bodyClassName="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="ds-field-label">Annual CTC</p>
+            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{fmt(annualCTC)}</p>
           </div>
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
+            <p className="ds-field-label">Monthly CTC</p>
+            <p className="text-lg font-semibold text-foreground tabular-nums mt-0.5">{fmt(monthlyCTC)}</p>
+          </div>
+        </div>
 
-          <Separator />
-
-          {isLoading ? (
-            <p className="text-muted-foreground text-sm">Loading salary structure…</p>
-          ) : rows.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-4 text-center space-y-1">
-              <p className="font-medium text-foreground">Component breakdown not published yet</p>
-              <p>Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.</p>
+        {isLoading ? (
+          <ProfileSkeleton rows={4} className="border-0 p-0" />
+        ) : rows.length === 0 ? (
+          <div className="text-center py-6 space-y-1">
+            <p className="t-card-title text-foreground">Component breakdown not published yet</p>
+            <p className="t-secondary max-w-md mx-auto">
+              Your CTC above is what payroll will pay. The component-wise breakdown appears here once HR publishes it.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="ds-field-label">Earnings</p>
+                <p className="text-[10px] text-muted-foreground">monthly</p>
+              </div>
+              {earnings.map((r) => renderRow(r, 'earn'))}
+              <MoneyRow label="Gross Earnings" value={fmt(monthlyEarnings)} suffix="/mo" strong />
             </div>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earnings</p>
-                  <p className="text-[10px] text-muted-foreground">monthly</p>
-                </div>
-                {earnings.map((r) => renderRow(r, 'earn'))}
-                <div className="flex justify-between items-center pt-2 text-sm">
-                  <span className="text-muted-foreground">Gross Earnings</span>
-                  <span className="tabular-nums font-semibold">{fmt(monthlyEarnings)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
-                </div>
+
+            {deductions.length > 0 && (
+              <div>
+                <p className="ds-field-label mb-1">Deductions</p>
+                {deductions.map((r) => renderRow(r, 'ded'))}
+                <MoneyRow
+                  label="Total Deductions"
+                  value={`−${fmt(monthlyDeductions)}`}
+                  suffix="/mo"
+                  tone="negative"
+                  strong
+                />
               </div>
+            )}
 
-              {deductions.length > 0 && (
-                <div className="space-y-1 pt-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Deductions</p>
-                  {deductions.map((r) => renderRow(r, 'ded'))}
-                  <div className="flex justify-between items-center pt-2 text-sm">
-                    <span className="text-muted-foreground">Total Deductions</span>
-                    <span className="tabular-nums font-semibold text-destructive">-{fmt(monthlyDeductions)} <span className="text-[10px] text-muted-foreground font-normal">/mo</span></span>
-                  </div>
-                </div>
-              )}
+            <div className="flex items-baseline justify-between gap-3 border-t border-border pt-3">
+              <span className="t-card-title text-foreground">Net Pay (approx)</span>
+              <span className="text-xl font-semibold text-foreground tabular-nums">
+                {fmt(monthlyNet)} <span className="text-xs font-normal text-muted-foreground">/mo</span>
+              </span>
+            </div>
 
-              <Separator />
-              <div className="flex justify-between items-center pt-1">
-                <Label className="text-base font-bold">Net Pay (approx)</Label>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-success tabular-nums">{fmt(monthlyNet)} <span className="text-xs text-muted-foreground font-normal">/mo</span></div>
-                </div>
-              </div>
+            {hasDrift && (
+              <p className="text-[11px] rounded-md border border-warning/30 bg-warning/10 text-foreground px-2.5 py-2">
+                Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by{' '}
+                {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
+              </p>
+            )}
+          </>
+        )}
+      </SectionBlock>
 
-              {hasDrift && (
-                <div className="text-[11px] rounded-md border border-warning/40 bg-warning/10 text-warning-foreground p-2">
-                  Heads up — component sum ({fmt(annualEarnings)}) differs from CTC on record ({fmt(annualCTC)}) by {(ctcDriftPct * 100).toFixed(1)}%. HR has been notified to reconcile this.
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Loans, Salary Advances & Deposits */}
       <MyLoansCard employeeId={hrEmployee.id} showDeposits />

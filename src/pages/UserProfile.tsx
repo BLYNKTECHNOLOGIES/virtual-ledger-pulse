@@ -1064,77 +1064,98 @@ export default function UserProfile() {
       : user?.username || '';
 
   const NoEmployeeProfile = () => (
-    <Card>
-      <CardContent className="text-center py-12">
-        <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h3 className="text-lg font-medium mb-2">Employee record not linked</h3>
-        <p className="text-muted-foreground max-w-md mx-auto text-sm">
-          Your ERP login isn't linked to an HRMS employee record yet. Profile, Tasks,
-          Documents and Settings still work — leave, attendance and payroll will appear
-          once HR links your record (matched by badge ID, email or phone).
-        </p>
-      </CardContent>
-    </Card>
+    <ProfileEmptyState
+      icon={User}
+      title="Employee record not linked"
+      description="Your ERP login isn't linked to an HRMS employee record yet. Profile, Tasks, Documents and Settings still work — leave, attendance and payroll will appear once HR links your record (matched by badge ID, email or phone)."
+    />
   );
+
+  const PROFILE_TABS: Array<{ value: string; label: string }> = [
+    { value: 'profile', label: 'Profile' },
+    { value: 'tasks', label: 'My Tasks' },
+    { value: 'attendance', label: 'Attendance' },
+    { value: 'salary', label: 'Salary & PF' },
+    { value: 'payslips', label: 'Payslips' },
+    { value: 'banking', label: 'Banking' },
+    { value: 'leaves', label: 'Leaves' },
+    { value: 'requests', label: 'Requests' },
+    { value: 'documents', label: 'Documents' },
+    { value: 'assets', label: 'Assets' },
+    { value: 'policies', label: 'Policies' },
+    { value: 'helpdesk', label: 'Help' },
+    { value: 'settings', label: 'Settings' },
+  ];
+
+  const jobTitle = (workInfo as any)?.positions?.title || (workInfo as any)?.job_role || null;
+  const deptName = (workInfo as any)?.departments?.name || null;
 
   return (
     <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl mx-auto">
-      {/* ─── Header ─── */}
-      <div className="bg-gradient-to-r from-primary via-primary to-primary/80 rounded-xl p-4 sm:p-6 text-primary-foreground shadow-lg">
-        <div className="flex items-center gap-3 sm:gap-6">
-          <Avatar className="h-16 w-16 sm:h-24 sm:w-24 border-4 border-white/20 shrink-0">
+      {/* ─── Identity header ─── */}
+      <header className="ds-panel overflow-hidden">
+        <div className="h-0.5 w-full bg-primary" />
+        <div className="p-4 sm:p-5 flex items-start gap-4">
+          <Avatar className="h-14 w-14 sm:h-16 sm:w-16 border border-border shrink-0">
             {user?.avatar_url ? (
-              <img src={user.avatar_url} alt="Profile" className="object-cover w-full h-full" />
+              <img src={user.avatar_url} alt={displayName || 'Profile'} className="object-cover w-full h-full" />
             ) : (
-              <AvatarFallback className="text-2xl font-bold bg-white/20 text-primary-foreground">
+              <AvatarFallback className="text-base font-semibold">
                 {displayName ? getInitials(displayName) : 'U'}
               </AvatarFallback>
             )}
           </Avatar>
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-3xl font-semibold mb-1 truncate">{displayName}</h1>
-            <p className="text-sm sm:text-lg opacity-90 break-all">{user?.email}</p>
-            {/* Linkage warnings are intentionally hidden from employees — HR-internal concern. */}
 
-            {hrEmployee && (
-              <div className="flex items-center gap-4 text-sm opacity-80 mt-1">
-                {hrEmployee.phone && (
-                  <div className="flex items-center gap-1">
-                    <Phone className="h-4 w-4" />
-                    <span>{hrEmployee.phone}</span>
-                  </div>
-                )}
-                {hrEmployee.gender && (
-                  <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    <span>{hrEmployee.gender}</span>
-                  </div>
-                )}
-              </div>
-            )}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="t-page-title text-foreground truncate">{displayName}</h1>
+              {hrEmployee && (
+                <StatusPill tone={hrEmployee.is_active === false ? 'neutral' : 'success'}>
+                  {hrEmployee.is_active === false ? 'Inactive' : 'Active'}
+                </StatusPill>
+              )}
+            </div>
+
+            <div className="mt-1 flex items-center gap-x-3 gap-y-1 flex-wrap t-secondary">
+              {hrEmployee?.badge_id && <span className="font-mono">#{hrEmployee.badge_id}</span>}
+              {jobTitle && <span className="truncate">{jobTitle}</span>}
+              {deptName && <span className="truncate">{deptName}</span>}
+            </div>
+
+            <div className="mt-2 flex items-center gap-x-4 gap-y-1 flex-wrap text-xs text-muted-foreground">
+              {user?.email && (
+                <span className="inline-flex items-center gap-1.5 min-w-0">
+                  <Mail className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{user.email}</span>
+                </span>
+              )}
+              {hrEmployee?.phone && (
+                <span className="inline-flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                  {hrEmployee.phone}
+                </span>
+              )}
+              {hrEmployee?.gender && (
+                <span className="inline-flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5 shrink-0" />
+                  {hrEmployee.gender}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* ─── Tabs ─── */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList
-          className="flex w-full overflow-x-auto no-scrollbar gap-1 justify-start h-auto md:flex-wrap md:h-auto md:overflow-visible md:py-1"
-        >
-          <TabsTrigger value="profile" className="shrink-0">Profile</TabsTrigger>
-          <TabsTrigger value="tasks" className="shrink-0">My Tasks</TabsTrigger>
-          <TabsTrigger value="attendance" className="shrink-0">Attendance</TabsTrigger>
-          <TabsTrigger value="salary" className="shrink-0">Salary &amp; PF</TabsTrigger>
-          <TabsTrigger value="payslips" className="shrink-0">Payslips</TabsTrigger>
-          <TabsTrigger value="banking" className="shrink-0">Banking</TabsTrigger>
-          <TabsTrigger value="leaves" className="shrink-0">Leaves</TabsTrigger>
-          <TabsTrigger value="requests" className="shrink-0">Requests</TabsTrigger>
-          <TabsTrigger value="documents" className="shrink-0">Documents</TabsTrigger>
-          <TabsTrigger value="assets" className="shrink-0">Assets</TabsTrigger>
-          <TabsTrigger value="policies" className="shrink-0">Policies</TabsTrigger>
-          <TabsTrigger value="helpdesk" className="shrink-0">Help</TabsTrigger>
-          <TabsTrigger value="settings" className="shrink-0">Settings</TabsTrigger>
+        <TabsList className="ds-subnav w-full h-auto p-0 bg-transparent rounded-none justify-start">
+          {PROFILE_TABS.map((t) => (
+            <TabsTrigger key={t.value} value={t.value} className="ds-subnav-item">
+              {t.label}
+            </TabsTrigger>
+          ))}
         </TabsList>
+
 
         {/* ═══════ Profile Tab ═══════ */}
         <TabsContent value="profile" className="space-y-6">

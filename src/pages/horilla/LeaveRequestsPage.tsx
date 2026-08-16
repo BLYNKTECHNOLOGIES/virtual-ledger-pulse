@@ -348,7 +348,7 @@ function LeaveStatusBadge({ status }: { status?: string }) {
   );
 }
 
-function LeaveActions({ request, statusMutation, mobile = false }: { request: any; statusMutation: any; mobile?: boolean }) {
+function LeaveActions({ request, statusMutation, onApprove, mobile = false }: { request: any; statusMutation: any; onApprove: (r: any) => void; mobile?: boolean }) {
   if (request.status === "requested") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>
@@ -362,7 +362,7 @@ function LeaveActions({ request, statusMutation, mobile = false }: { request: an
   if (request.status === "manager_approved") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2" : "flex gap-1"}>
-        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "approved", request })}>
+        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => onApprove(request)}>
           <CheckCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Approve</span> : null}
         </Button>
         <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>

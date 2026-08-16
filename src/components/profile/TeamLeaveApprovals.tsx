@@ -107,7 +107,7 @@ export default function TeamLeaveApprovals({ employeeId }: Props) {
                       <span className="text-muted-foreground text-xs">{r.hr_employees?.badge_id}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {r.hr_leave_types?.name || 'Leave'} · {r.start_date} → {r.end_date} · {r.total_days} day(s)
+                      {r.hr_leave_types?.name || 'Type set by HR'} · {r.start_date} → {r.end_date} · {r.total_days} day(s)
                     </p>
                     {r.reason && <p className="text-xs text-muted-foreground mt-1">Reason: {r.reason}</p>}
                     {(r.leave_clashes_count || 0) > 0 && (

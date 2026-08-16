@@ -21,45 +21,18 @@ interface Props {
 /**
  * ESS — Employee raises a leave request from the ERP profile.
  * Routes to the reporting manager first, then HR (two-stage approval).
- * Shows live balance and warns when the request exceeds it (excess = loss of pay).
+ * HR assigns the leave type at final approval; balances cascade automatically.
  */
 export default function RequestLeaveDialog({ employeeId }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    leave_type_id: '',
     start_date: '',
     end_date: '',
     is_half_day: false,
     half_day_period: 'morning',
     reason: '',
     contact_during_leave: '',
-  });
-
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['ess_leave_types'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_leave_types')
-        .select('id, name, is_paid')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const { data: allocations = [] } = useQuery({
-    queryKey: ['ess_leave_allocations', employeeId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_leave_allocations')
-        .select('leave_type_id, available_days, year, quarter')
-        .eq('employee_id', employeeId);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!employeeId,
   });
 
   const { data: weeklyOffs = [] } = useQuery({
@@ -96,18 +69,9 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
     return n;
   }, [form.start_date, form.end_date, form.is_half_day, offDays]);
 
-  const available = useMemo(() => {
-    if (!form.leave_type_id) return 0;
-    return (allocations as any[])
-      .filter((a) => a.leave_type_id === form.leave_type_id)
-      .reduce((s, a) => s + Number(a.available_days || 0), 0);
-  }, [allocations, form.leave_type_id]);
-
-  const excess = Math.max(0, workingDays - available);
-
   const submit = useMutation({
     mutationFn: async () => {
-      if (!form.leave_type_id || !form.start_date) throw new Error('Leave type and start date are required');
+      if (!form.start_date) throw new Error('Start date is required');
       if (!form.reason.trim()) throw new Error('Please add a reason');
       const end = form.is_half_day ? form.start_date : form.end_date || form.start_date;
       if (workingDays <= 0) throw new Error('Selected dates contain no working days');
@@ -116,7 +80,6 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         .from('hr_leave_requests')
         .insert({
           employee_id: employeeId,
-          leave_type_id: form.leave_type_id,
           start_date: form.start_date,
           end_date: end,
           total_days: workingDays,
@@ -132,10 +95,8 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
       if (error) throw error;
 
       // ── Emails (non-blocking) ──
-      const [{ data: me }, { data: type }] = await Promise.all([
-        (supabase as any).from('hr_employees').select('first_name, last_name').eq('id', employeeId).maybeSingle(),
-        (supabase as any).from('hr_leave_types').select('name').eq('id', form.leave_type_id).maybeSingle(),
-      ]);
+      const { data: me } = await (supabase as any)
+        .from('hr_employees').select('first_name, last_name').eq('id', employeeId).maybeSingle();
       let managerEmail: string | null = null;
       let managerName: string | null = null;
       if (data?.manager_id) {
@@ -148,13 +109,12 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         eventType: 'leave_requested',
         requestId: data.id,
         employeeName: me ? `${me.first_name || ''} ${me.last_name || ''}`.trim() : 'Employee',
-        leaveType: type?.name,
+        leaveType: 'To be assigned by HR',
         startDate: form.start_date,
         endDate: end,
         totalDays: workingDays,
         reason: form.reason.trim(),
         contactDuringLeave: form.contact_during_leave.trim() || undefined,
-        balanceNote: `${available} day(s) available${excess > 0 ? ` · ${excess} day(s) would be loss of pay` : ''}`,
         managerEmail,
         managerName,
       });
@@ -162,7 +122,7 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
     onSuccess: () => {
       toast.success('Leave request submitted');
       setForm({
-        leave_type_id: '', start_date: '', end_date: '', is_half_day: false,
+        start_date: '', end_date: '', is_half_day: false,
         half_day_period: 'morning', reason: '', contact_during_leave: '',
       });
       setOpen(false);
@@ -185,23 +145,8 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         </DialogHeader>
 
         <div className="space-y-3">
-          <div>
-            <Label>Leave type *</Label>
-            <Select value={form.leave_type_id} onValueChange={(v) => setForm((p) => ({ ...p, leave_type_id: v }))}>
-              <SelectTrigger className="text-foreground"><SelectValue placeholder="Select leave type" /></SelectTrigger>
-              <SelectContent>
-                {(leaveTypes as any[]).map((lt) => (
-                  <SelectItem key={lt.id} value={lt.id}>
-                    {lt.name}{lt.is_paid === false ? ' (unpaid)' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {form.leave_type_id && (
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Available balance: <strong>{available}</strong> day(s)
-              </p>
-            )}
+          <div className="rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+            The leave type is assigned by HR when your request is approved.
           </div>
 
           <div className="flex items-center gap-2">
@@ -273,13 +218,9 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
             <p className="text-foreground">
               Working days requested: <strong>{workingDays || '—'}</strong>
             </p>
-            {excess > 0 && (
-              <p className="text-destructive">
-                Balance covers {Math.min(workingDays, available)} day(s). The remaining {excess} day(s) will be treated as loss of pay if approved.
-              </p>
-            )}
             <p className="text-muted-foreground">
-              Goes to your reporting manager first, then HR for final approval.
+              Goes to your reporting manager first, then HR for final approval. HR assigns the leave type
+              and adjusts the balance at approval.
             </p>
           </div>
         </div>
@@ -287,7 +228,7 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
           <Button
-            disabled={submit.isPending || !form.leave_type_id || !form.start_date || !form.reason.trim() || workingDays <= 0}
+            disabled={submit.isPending || !form.start_date || !form.reason.trim() || workingDays <= 0}
             onClick={() => submit.mutate()}
           >
             {submit.isPending ? 'Submitting…' : 'Submit request'}

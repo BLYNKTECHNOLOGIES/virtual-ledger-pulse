@@ -25,6 +25,8 @@ export default function LeaveRequestsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [approveTypeId, setApproveTypeId] = useState("");
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests", statusFilter],
@@ -112,33 +114,22 @@ export default function LeaveRequestsPage() {
   });
 
   const statusMutation = useMutation({
-    mutationFn: async ({ id, status, request }: { id: string; status: string; request?: any }) => {
-      // Validate balance before approving
-      if (status === "approved" && request) {
-        const totalDays = Number(request.total_days || 0);
-
-        // Get all allocations for this employee+leave type (cumulative balance)
-        const { data: allocations } = await (supabase as any)
-          .from("hr_leave_allocations")
-          .select("allocated_days, used_days, available_days")
-          .eq("employee_id", request.employee_id)
-          .eq("leave_type_id", request.leave_type_id);
-
-        if (allocations && allocations.length > 0) {
-          const totalAllocated = allocations.reduce((s: number, a: any) => s + Number(a.allocated_days || 0), 0);
-          const totalUsed = allocations.reduce((s: number, a: any) => s + Number(a.used_days || 0), 0);
-          const available = totalAllocated - totalUsed;
-
-          if (totalDays > available) {
-            throw new Error(`Insufficient leave balance. Available: ${available} days, Requested: ${totalDays} days`);
-          }
-        }
+    mutationFn: async ({ id, status, request, leaveTypeId }: { id: string; status: string; request?: any; leaveTypeId?: string }) => {
+      // HR assigns the leave type at approval time; the DB cascade consumes
+      // assigned type -> comp-off -> casual leave -> LOP, so no client-side block.
+      if (status === "approved" && !leaveTypeId && !request?.leave_type_id) {
+        throw new Error("Select a leave type before approving");
       }
 
-      // Update status — DB trigger handles balance deduction/restoration automatically
       const { error } = await (supabase as any).from("hr_leave_requests").update({
         status,
-        ...(status === "approved" ? { approved_at: new Date().toISOString(), hr_approved_at: new Date().toISOString() } : {}),
+        ...(status === "approved"
+          ? {
+              leave_type_id: leaveTypeId || request?.leave_type_id,
+              approved_at: new Date().toISOString(),
+              hr_approved_at: new Date().toISOString(),
+            }
+          : {}),
         ...(status === "rejected" ? { rejection_reason: "Rejected by HR" } : {}),
       }).eq("id", id);
       if (error) throw error;
@@ -148,7 +139,9 @@ export default function LeaveRequestsPage() {
           eventType: status === "approved" ? "leave_approved" : "leave_rejected",
           requestId: id,
           employeeName: `${request.hr_employees?.first_name || ""} ${request.hr_employees?.last_name || ""}`.trim() || "Employee",
-          leaveType: request.hr_leave_types?.name,
+          leaveType:
+            (leaveTypes as any[]).find((lt: any) => lt.id === (leaveTypeId || request.leave_type_id))?.name ||
+            request.hr_leave_types?.name,
           startDate: request.start_date,
           endDate: request.end_date,
           totalDays: request.total_days,
@@ -161,8 +154,11 @@ export default function LeaveRequestsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
+      setApproveTarget(null);
+      setApproveTypeId("");
       toast.success("Status updated");
     },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const filtered = requests.filter((r: any) => {
@@ -228,7 +224,7 @@ export default function LeaveRequestsPage() {
               <td className="px-4 py-3"><ClashBadge request={r} /></td>
               <td className="px-4 py-3"><LeaveStatusBadge status={r.status} /></td>
               <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
-              <td className="px-4 py-3"><LeaveActions request={r} statusMutation={statusMutation} /></td>
+              <td className="px-4 py-3"><LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} /></td>
             </>
           )}
           renderCard={(r: any) => (
@@ -250,7 +246,7 @@ export default function LeaveRequestsPage() {
                 <span>Clashes</span><span>{(r.leave_clashes_count || 0) > 0 ? r.leave_clashes_count : "None"}</span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
-              <LeaveActions request={r} statusMutation={statusMutation} mobile />
+              <LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />
             </div>
           )}
         />
@@ -302,12 +298,52 @@ export default function LeaveRequestsPage() {
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Reason for leave..." /></div>
           </div>
       </ResponsiveDialog>
+
+      <ResponsiveDialog
+        open={!!approveTarget}
+        onOpenChange={(o) => { if (!o) { setApproveTarget(null); setApproveTypeId(""); } }}
+        title={<span className="text-sm font-semibold flex items-center gap-2"><CheckCircle className="h-4 w-4 text-success" /> Approve Leave</span>}
+        footer={
+          <>
+            <Button variant="outline" className="h-9" onClick={() => setApproveTarget(null)}>Cancel</Button>
+            <Button
+              className="bg-[#E8604C] hover:bg-[#d4553f] h-9"
+              disabled={!approveTypeId || statusMutation.isPending}
+              onClick={() => statusMutation.mutate({ id: approveTarget.id, status: "approved", request: approveTarget, leaveTypeId: approveTypeId })}
+            >
+              Approve
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {approveTarget && (
+            <div className="text-xs text-muted-foreground">
+              {approveTarget.hr_employees?.first_name} {approveTarget.hr_employees?.last_name} · {approveTarget.start_date} → {approveTarget.end_date} · {approveTarget.total_days} day(s)
+            </div>
+          )}
+          <div>
+            <Label>Leave Type (assigned by HR)</Label>
+            <Select value={approveTypeId} onValueChange={setApproveTypeId}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Select leave type" /></SelectTrigger>
+              <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            If the chosen type has insufficient balance, the system automatically draws from Comp-Off, then Casual Leave, and only the remainder becomes Loss of Pay.
+          </p>
+        </div>
+      </ResponsiveDialog>
     </div>
   );
 }
 
 function LeaveTypeBadge({ name }: { name?: string }) {
-  return <span className="px-2 py-0.5 rounded-full text-[10px] font-medium border bg-primary/10 text-primary border-primary/20">{name || "Leave"}</span>;
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${name ? "bg-primary/10 text-primary border-primary/20" : "bg-muted text-muted-foreground border-border"}`}>
+      {name || "HR to assign"}
+    </span>
+  );
 }
 
 function LeaveDays({ request }: { request: any }) {
@@ -352,7 +388,7 @@ function LeaveStatusBadge({ status }: { status?: string }) {
   );
 }
 
-function LeaveActions({ request, statusMutation, mobile = false }: { request: any; statusMutation: any; mobile?: boolean }) {
+function LeaveActions({ request, statusMutation, onApprove, mobile = false }: { request: any; statusMutation: any; onApprove: (r: any) => void; mobile?: boolean }) {
   if (request.status === "requested") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>
@@ -366,7 +402,7 @@ function LeaveActions({ request, statusMutation, mobile = false }: { request: an
   if (request.status === "manager_approved") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2" : "flex gap-1"}>
-        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "approved", request })}>
+        <Button size="sm" variant="ghost" className="text-success h-8" onClick={() => onApprove(request)}>
           <CheckCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Approve</span> : null}
         </Button>
         <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>

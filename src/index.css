@@ -278,6 +278,8 @@
     /* Extra surface tokens */
     --surface-subtle: 220 43% 99%;   /* #FAFBFD — inputs, table headers, inner panels */
     --surface-canvas: 220 50% 98%;   /* #F6F8FC */
+    --surface-elevated: 0 0% 100%;   /* modals, popovers, sticky heads */
+
     --ring: 231 81% 60%;
     
     /* VASP specific colors */
@@ -314,52 +316,77 @@
   }
 
   .dark {
-    /* Dark theme for VASP */
-    --background: 220 13% 9%;
-    --foreground: 220 13% 95%;
-    --card: 220 13% 12%;
-    --card-foreground: 220 13% 95%;
-    /* Subtle enterprise elevation scale (dark, deeper shadows) */
-    --shadow-xs: 0 1px 2px 0 hsl(220 13% 3% / 0.4);
-    --shadow-sm: 0 1px 3px 0 hsl(220 13% 3% / 0.5), 0 1px 2px -1px hsl(220 13% 3% / 0.4);
-    --shadow-md: 0 4px 12px -2px hsl(220 13% 3% / 0.55), 0 2px 6px -2px hsl(220 13% 3% / 0.4);
-    --shadow-lg: 0 12px 28px -6px hsl(220 13% 3% / 0.6), 0 4px 10px -4px hsl(220 13% 3% / 0.45);
-    --popover: 220 13% 12%;
-    --popover-foreground: 220 13% 95%;
-    --primary: 231 81% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 13% 16%;
-    --secondary-foreground: 220 13% 95%;
-    --muted: 220 13% 16%;
-    --muted-foreground: 220 8.6% 65%;
-    --accent: 220 13% 16%;
-    --accent-foreground: 220 13% 95%;
-    --destructive: 0 84.2% 60.2%;
+    /* ═══════════════════════════════════════════════════════
+       BLYNK ERP — Dark Theme (layered neutral slate)
+       canvas #0F1115 → surface #16191F → elevated #1D2128
+       borders #292E37 · text #F3F4F6 / #A7AFBC / #737C8A
+       ═══════════════════════════════════════════════════════ */
+    --background: 220 13% 7%;
+    --foreground: 220 14% 96%;
+
+    /* Surfaces */
+    --card: 220 16% 11%;
+    --card-foreground: 220 14% 96%;
+    --popover: 220 15% 13%;
+    --popover-foreground: 220 14% 96%;
+    --surface-subtle: 220 15% 13%;   /* inputs, table headers, inner panels */
+    --surface-canvas: 220 13% 7%;
+    --surface-elevated: 220 15% 15%; /* modals, dropdown hover, sticky heads */
+
+    /* Accent */
+    --primary: 228 84% 67%;
+    --primary-foreground: 224 40% 10%;
+    --secondary: 220 15% 15%;
+    --secondary-foreground: 220 14% 92%;
+    --muted: 220 15% 14%;
+    --muted-foreground: 217 13% 68%;
+    --accent: 220 15% 17%;
+    --accent-foreground: 220 14% 96%;
+
+    /* Semantic */
+    --destructive: 0 70% 58%;
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 16%;
-    --input: 220 13% 16%;
-    --ring: 231 81% 60%;
-    
-    /* Dark mode crypto colors */
-    --crypto-bitcoin: 36 100% 60%;
-    --crypto-ethereum: 214 100% 70%;
-    --success: 142 76% 45%;
-    --warning: 38 92% 60%;
-    --info: 199 89% 58%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 94.1%;
-    --sidebar-primary-foreground: 240 5.9% 10%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 152 55% 47%;
+    --warning: 38 88% 58%;
+    --info: 205 82% 60%;
+
+    /* Lines & focus */
+    --border: 220 14% 20%;
+    --input: 220 14% 22%;
+    --ring: 228 84% 67%;
+
+    /* Elevation — deeper, low-spread shadows on dark canvas */
+    --shadow-xs: 0 1px 2px 0 hsl(220 30% 2% / 0.5);
+    --shadow-sm: 0 1px 3px 0 hsl(220 30% 2% / 0.55), 0 1px 2px -1px hsl(220 30% 2% / 0.45);
+    --shadow-md: 0 4px 12px -2px hsl(220 30% 2% / 0.6), 0 2px 6px -2px hsl(220 30% 2% / 0.45);
+    --shadow-lg: 0 12px 28px -6px hsl(220 30% 2% / 0.68), 0 4px 10px -4px hsl(220 30% 2% / 0.5);
+
+    /* Crypto / metric icon accents */
+    --crypto-bitcoin: 36 90% 58%;
+    --crypto-ethereum: 214 80% 68%;
+    --metric-sales-icon: 152 55% 50%;
+    --metric-orders-icon: 262 60% 68%;
+    --metric-clients-icon: 221 75% 66%;
+    --metric-cash-icon: 35 80% 58%;
+
+    /* Charts — restrained, readable on dark neutrals */
+    --chart-1: 221 75% 66%;
+    --chart-2: 152 50% 48%;
+    --chart-3: 38 80% 60%;
+    --chart-4: 268 55% 68%;
+    --chart-5: 0 62% 62%;
+
+    /* Sidebar — one step off the canvas, never pure black */
+    --sidebar-background: 220 15% 9%;
+    --sidebar-foreground: 217 13% 72%;
+    --sidebar-primary: 228 84% 67%;
+    --sidebar-primary-foreground: 224 40% 10%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 220 14% 96%;
+    --sidebar-border: 220 14% 18%;
+    --sidebar-ring: 228 84% 67%;
   }
+
 
   /* ═══════════════════════════════════════════════════════
      P2P TRADING TERMINAL — Dark Exchange Theme
@@ -1806,3 +1833,216 @@ html {
 .ds-nav-scroll::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
 .ds-nav-scroll:hover { scrollbar-color: hsl(var(--sidebar-border)) transparent; }
 .ds-nav-scroll:hover::-webkit-scrollbar-thumb { background: hsl(var(--sidebar-border)); }
+
+/* ============================================================
+   DARK MODE — global safety net & interaction polish
+   Semantic tokens drive 99% of the UI; this section catches the
+   handful of legacy hard-coded light utilities and browser chrome
+   so no accidental white surfaces survive in dark mode.
+   The `.terminal` scope keeps its own isolated exchange palette.
+   ============================================================ */
+
+/* --- Colour scheme hint for native controls (scrollbars, pickers) --- */
+.dark {
+  color-scheme: dark;
+}
+
+/* --- Themed scrollbars --- */
+* {
+  scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.28);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.45);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* --- Legacy hard-coded light surfaces (outside the terminal scope) --- */
+.dark :not(.terminal):not(.terminal *) > .bg-white,
+.dark .bg-white:not(.terminal *),
+.dark .bg-gray-50:not(.terminal *),
+.dark .bg-gray-100:not(.terminal *),
+.dark .bg-slate-50:not(.terminal *),
+.dark .bg-slate-100:not(.terminal *),
+.dark .bg-neutral-50:not(.terminal *),
+.dark .bg-zinc-50:not(.terminal *) {
+  background-color: hsl(var(--card));
+}
+
+.dark .text-black:not(.terminal *),
+.dark .text-gray-900:not(.terminal *),
+.dark .text-slate-900:not(.terminal *),
+.dark .text-neutral-900:not(.terminal *),
+.dark .text-zinc-900:not(.terminal *) {
+  color: hsl(var(--foreground));
+}
+
+.dark .text-gray-800:not(.terminal *),
+.dark .text-gray-700:not(.terminal *),
+.dark .text-gray-600:not(.terminal *),
+.dark .text-slate-700:not(.terminal *),
+.dark .text-slate-600:not(.terminal *) {
+  color: hsl(var(--muted-foreground));
+}
+
+.dark .text-gray-500:not(.terminal *),
+.dark .text-gray-400:not(.terminal *),
+.dark .text-slate-500:not(.terminal *),
+.dark .text-slate-400:not(.terminal *) {
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+
+.dark .border-gray-100:not(.terminal *),
+.dark .border-gray-200:not(.terminal *),
+.dark .border-gray-300:not(.terminal *),
+.dark .border-slate-100:not(.terminal *),
+.dark .border-slate-200:not(.terminal *),
+.dark .border-slate-300:not(.terminal *) {
+  border-color: hsl(var(--border));
+}
+
+/* --- Tables: subtle header separation, visible rows, readable hovers --- */
+.dark table thead,
+.dark table thead th,
+.dark [data-slot="table-header"] {
+  background-color: hsl(var(--surface-subtle));
+  color: hsl(var(--muted-foreground));
+}
+.dark table tbody tr {
+  border-color: hsl(var(--border));
+}
+.dark table tbody tr:hover {
+  background-color: hsl(var(--accent) / 0.7);
+}
+.dark table tbody tr[data-state="selected"] {
+  background-color: hsl(var(--primary) / 0.14);
+}
+/* Sticky headers must never fall back to a light surface */
+.dark thead.sticky,
+.dark tr.sticky,
+.dark th.sticky,
+.dark .sticky.bg-background,
+.dark .sticky.bg-card {
+  background-color: hsl(var(--surface-subtle));
+}
+
+/* --- Overlays: modals, dropdowns, popovers, command palette --- */
+.dark [data-radix-popper-content-wrapper] > * {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+.dark [role="dialog"],
+.dark [cmdk-root],
+.dark [cmdk-list] {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+.dark [data-radix-popper-content-wrapper] [cmdk-item][data-selected="true"],
+.dark [cmdk-item][data-selected="true"] {
+  background-color: hsl(var(--accent));
+  color: hsl(var(--accent-foreground));
+}
+
+/* --- Inputs & form controls --- */
+.dark input:not([type="checkbox"]):not([type="radio"]):not(.terminal *),
+.dark textarea:not(.terminal *),
+.dark select:not(.terminal *) {
+  background-color: hsl(var(--surface-subtle));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--input));
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.75);
+}
+.dark input:disabled,
+.dark textarea:disabled,
+.dark select:disabled,
+.dark button:disabled {
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+.dark input[type="file"]::file-selector-button {
+  background-color: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+  border: 1px solid hsl(var(--border));
+}
+/* Native date/time picker indicators stay visible */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator,
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.dark input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.7);
+}
+
+/* --- Charts (recharts) --- */
+.dark .recharts-cartesian-grid line,
+.dark .recharts-polar-grid line {
+  stroke: hsl(var(--border));
+}
+.dark .recharts-cartesian-axis-line,
+.dark .recharts-cartesian-axis-tick-line {
+  stroke: hsl(var(--border));
+}
+.dark .recharts-text,
+.dark .recharts-cartesian-axis-tick-value tspan,
+.dark .recharts-legend-item-text {
+  fill: hsl(var(--muted-foreground));
+  color: hsl(var(--muted-foreground)) !important;
+}
+.dark .recharts-default-tooltip,
+.dark .recharts-tooltip-wrapper > div {
+  background-color: hsl(var(--popover)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  color: hsl(var(--popover-foreground)) !important;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-md);
+}
+.dark .recharts-tooltip-item {
+  color: hsl(var(--popover-foreground)) !important;
+}
+.dark .recharts-tooltip-cursor {
+  fill: hsl(var(--foreground) / 0.06);
+}
+.dark .recharts-reference-line line {
+  stroke: hsl(var(--muted-foreground) / 0.6);
+}
+
+/* --- Focus rings: always visible on dark surfaces --- */
+.dark :focus-visible {
+  outline-color: hsl(var(--ring));
+}
+
+/* --- Selection --- */
+.dark ::selection {
+  background-color: hsl(var(--primary) / 0.32);
+  color: hsl(var(--foreground));
+}
+
+/* --- Skeletons / empty & loading states --- */
+.dark .skeleton-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--foreground) / 0.08) 50%,
+    hsl(var(--muted)) 100%
+  );
+}
+
+/* --- File upload / dropzones that relied on light dashed panels --- */
+.dark .border-dashed {
+  border-color: hsl(var(--border));
+}

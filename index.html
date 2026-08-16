@@ -48,6 +48,19 @@
         -moz-osx-font-smoothing: grayscale;
       }
     </style>
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('blynk-theme');
+          if (t === 'dark') {
+            document.documentElement.classList.add('dark');
+            document.documentElement.style.colorScheme = 'dark';
+          } else {
+            document.documentElement.style.colorScheme = 'light';
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
 
   <body>

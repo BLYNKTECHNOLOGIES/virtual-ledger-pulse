@@ -224,7 +224,7 @@ export default function LeaveRequestsPage() {
               <td className="px-4 py-3"><ClashBadge request={r} /></td>
               <td className="px-4 py-3"><LeaveStatusBadge status={r.status} /></td>
               <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
-              <td className="px-4 py-3"><LeaveActions request={r} statusMutation={statusMutation} /></td>
+              <td className="px-4 py-3"><LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} /></td>
             </>
           )}
           renderCard={(r: any) => (

@@ -52,13 +52,27 @@ export default function AttendanceSummaryPage() {
     queryKey: ["hr_employees_all_for_attendance"],
     queryFn: async () => {
       const data = await fetchAllPaginated<any>(() =>
-        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").order("first_name"),
+        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active, employee_work_info_id").order("first_name"),
       );
       return data || [];
     },
   });
 
-  const employees = useMemo(() => (allEmployees as any[]).filter((e) => e.is_active), [allEmployees]);
+  const { data: workInfo = [] } = useQuery({
+    queryKey: ["hr_work_info_contract_type"],
+    queryFn: async () =>
+      (await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_employee_work_info").select("employee_id, employee_type, department_id, shift_id"),
+      )) || [],
+  });
+
+  const contractIdSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const w of workInfo as any[]) if (w.employee_type === "contract" && w.employee_id) set.add(w.employee_id);
+    return set;
+  }, [workInfo]);
+
+  const employees = useMemo(() => (allEmployees as any[]).filter((e) => e.is_active && !contractIdSet.has(e.id)), [allEmployees, contractIdSet]);
   const activeIds = useMemo(() => new Set((employees as any[]).map((e) => e.id)), [employees]);
 
   const empIds = useMemo(() => (employees as any[]).map((e) => e.id), [employees]);

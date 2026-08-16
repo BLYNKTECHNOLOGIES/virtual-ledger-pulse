@@ -5,17 +5,22 @@ import { cn } from "@/lib/utils"
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & {
+    /** Adds a subtle hover lift. Use only for clickable / navigable cards. */
+    interactive?: boolean
+  }
+>(({ className, interactive, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
       "rounded-xl border border-border bg-card text-card-foreground shadow-xs transition-[box-shadow,border-color] duration-150 ease-out hover:shadow-sm motion-reduce:transition-none",
+      interactive && "ds-elevate cursor-pointer",
       className
     )}
     {...props}
   />
 ))
+
 Card.displayName = "Card"
 
 const CardHeader = React.forwardRef<

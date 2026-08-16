@@ -1,6 +1,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { WidgetShell, WidgetHeader, WidgetBody, WidgetMenu, WidgetEmpty } from "./primitives/WidgetShell";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetMenu, WidgetEmpty, WidgetSkeleton } from "./primitives/WidgetShell";
 import { WidgetMetric } from "./primitives/WidgetAtoms";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

@@ -21,7 +21,7 @@ interface Props {
 /**
  * ESS — Employee raises a leave request from the ERP profile.
  * Routes to the reporting manager first, then HR (two-stage approval).
- * Shows live balance and warns when the request exceeds it (excess = loss of pay).
+ * HR assigns the leave type at final approval; balances cascade automatically.
  */
 export default function RequestLeaveDialog({ employeeId }: Props) {
   const qc = useQueryClient();
@@ -33,32 +33,6 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
     half_day_period: 'morning',
     reason: '',
     contact_during_leave: '',
-  });
-
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ['ess_leave_types'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_leave_types')
-        .select('id, name, is_paid')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data || [];
-    },
-  });
-
-  const { data: allocations = [] } = useQuery({
-    queryKey: ['ess_leave_allocations', employeeId],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('hr_leave_allocations')
-        .select('leave_type_id, available_days, year, quarter')
-        .eq('employee_id', employeeId);
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!employeeId,
   });
 
   const { data: weeklyOffs = [] } = useQuery({

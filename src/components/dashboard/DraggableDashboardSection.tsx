@@ -1,7 +1,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X } from "lucide-react";
-import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 export type WidgetSize = 3 | 4 | 6 | 8 | 12;
@@ -55,7 +55,7 @@ function useMasonryRowSpan() {
     setRowSpan(Math.max(1, Math.ceil((height + gap) / (rowUnit + gap))));
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = contentRef.current;
     if (!el) return;
     measure();
@@ -96,16 +96,15 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        'group relative flex min-w-0 flex-col gap-1.5 rounded-xl p-1.5 transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none',
-        'bg-primary/[0.04] ring-1 ring-dashed ring-primary/40',
-        isDragging && 'opacity-50 ring-2 ring-primary',
-        className
-      )}
-    >
+    <div ref={setNodeRef} style={style} className={cn('relative min-w-0', className)}>
+      <div
+        ref={contentRef}
+        className={cn(
+          'group relative flex min-w-0 flex-col gap-1.5 rounded-xl p-1.5 transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none',
+          'bg-primary/[0.04] ring-1 ring-dashed ring-primary/40',
+          isDragging && 'opacity-50 ring-2 ring-primary'
+        )}
+      >
       {/* Edit toolbar — docked, never floating outside the grid cell */}
       <div className="flex min-w-0 items-center gap-1 px-1">
         <button
@@ -163,7 +162,8 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
           </button>
         )}
       </div>
-      <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
     </div>
   );
 }

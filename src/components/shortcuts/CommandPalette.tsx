@@ -184,8 +184,17 @@ export function CommandPalette({ open, onOpenChange }: Props) {
         value={search}
         onValueChange={setSearch}
       />
-      <CommandList>
-        <CommandEmpty>No results found.</CommandEmpty>
+      <CommandList className="max-h-[60vh]">
+        <CommandEmpty>
+          <div className="py-6 text-center">
+            <p className="text-sm font-medium text-foreground">No matches</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Try a client name, order number, badge ID or module name.
+            </p>
+          </div>
+        </CommandEmpty>
+
+
 
         {isEmpty && recents.length > 0 && (
           <CommandGroup heading="Recent">

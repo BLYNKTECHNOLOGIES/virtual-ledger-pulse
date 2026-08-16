@@ -400,53 +400,35 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} className={`h-full ${getSizeClasses(widget.size)}`}>
-      <Card className={`h-full bg-card shadow-sm hover:shadow-md transition-all duration-300 border-0 shadow-muted ${isDraggable ? 'ring-2 ring-info cursor-grab active:cursor-grabbing' : ''} ${isDragging ? 'shadow-sm' : ''}`}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 bg-gradient-to-r from-muted to-muted">
-          <div className="flex items-center gap-2">
-            {isDraggable && (
-              <div {...listeners} className="cursor-grab active:cursor-grabbing p-1 hover:bg-muted rounded">
-                <GripVertical className="h-4 w-4 text-muted-foreground" />
-              </div>
-            )}
-            <div className={`p-1.5 bg-gradient-to-br ${getCategoryGradient(widget.category)} rounded-lg shadow-sm`}>
-              {IconComponent && typeof IconComponent === 'function' ? (
-                <IconComponent className="h-4 w-4 text-primary-foreground" />
-              ) : (
-                <BarChart3 className="h-4 w-4 text-primary-foreground" />
-              )}
-            </div>
-            <CardTitle className="text-sm font-semibold text-foreground">{widget.name}</CardTitle>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white/80">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => onMove(widget.id, 'up')}>
-                <Move className="h-4 w-4 mr-2" />
-                Move Up
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMove(widget.id, 'down')}>
-                <Move className="h-4 w-4 mr-2" />
-                Move Down
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                onClick={() => onRemove(widget.id)}
-                className="text-destructive focus:text-destructive"
+      <WidgetShell isEditing={isDraggable} isDragging={isDragging} className="h-full">
+        <WidgetHeader
+          title={widget.name}
+          icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
+          leading={
+            isDraggable ? (
+              <button
+                type="button"
+                {...listeners}
+                aria-label={`Drag to reorder ${widget.name}`}
+                className="inline-flex h-7 w-7 shrink-0 cursor-grab items-center justify-center rounded-lg text-muted-foreground hover:bg-muted active:cursor-grabbing focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <X className="h-4 w-4 mr-2" />
-                Remove Widget
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </CardHeader>
-        <CardContent className={`p-0 ${widget.size === 'small' ? 'min-h-[180px] flex flex-col items-stretch justify-center' : ''}`}>
+                <GripVertical className="h-4 w-4" />
+              </button>
+            ) : undefined
+          }
+          actions={
+            <WidgetMenu
+              title={widget.name}
+              onMoveUp={() => onMove(widget.id, 'up')}
+              onMoveDown={() => onMove(widget.id, 'down')}
+              onRemove={() => onRemove(widget.id)}
+            />
+          }
+        />
+        <WidgetBody padded={false} className={widget.size === 'small' ? 'flex min-h-[150px] flex-col justify-center' : 'min-h-[150px]'}>
           <div className="w-full">{renderWidgetContent()}</div>
-        </CardContent>
-      </Card>
+        </WidgetBody>
+      </WidgetShell>
     </div>
   );
 }

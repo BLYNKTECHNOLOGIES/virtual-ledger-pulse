@@ -496,3 +496,86 @@ export function WidgetKpiStrip({
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * WidgetIconBadge — small tinted icon tile. Tint only (8–12%), the icon
+ * itself carries the full-strength tone. Used by headers, empty states
+ * and category rows so iconography reads consistently everywhere.
+ * ------------------------------------------------------------------ */
+export function WidgetIconBadge({
+  icon: Icon,
+  tone = "neutral",
+  size = "sm",
+  className,
+}: {
+  icon: LucideIcon;
+  tone?: SemanticTone;
+  size?: "xs" | "sm" | "md";
+  className?: string;
+}) {
+  const box = size === "md" ? "h-8 w-8 rounded-lg" : size === "xs" ? "h-5 w-5 rounded" : "h-6 w-6 rounded-md";
+  const glyph = size === "md" ? "h-4 w-4" : size === "xs" ? "h-3 w-3" : "h-3.5 w-3.5";
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center",
+        box,
+        tone === "neutral" ? "bg-muted text-muted-foreground" : TONE_CHIP[tone],
+        className
+      )}
+    >
+      <Icon className={glyph} strokeWidth={2} />
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Category iconography — maps a free-text category/label onto a quiet
+ * icon + semantic tone so breakdown rows get a pictorial cue without
+ * inventing data. Falls back to a neutral dot-style icon.
+ * ------------------------------------------------------------------ */
+import {
+  Banknote,
+  Building2,
+  CreditCard,
+  Cpu,
+  HeartHandshake,
+  Landmark,
+  Laptop,
+  Megaphone,
+  Plane,
+  Receipt,
+  ShieldCheck,
+  ShoppingCart,
+  Truck,
+  Users,
+  Wrench,
+  Zap,
+  Circle,
+} from "lucide-react";
+
+const CATEGORY_RULES: Array<{ test: RegExp; icon: LucideIcon; tone: SemanticTone }> = [
+  { test: /salar|wage|payroll|people cost/i, icon: Users, tone: "primary" },
+  { test: /hr |human resource|engagement|training|welfare/i, icon: HeartHandshake, tone: "success" },
+  { test: /reimburse|advance|lien/i, icon: Receipt, tone: "warning" },
+  { test: /capex|capital expenditure/i, icon: Building2, tone: "primary" },
+  { test: /hardware|it hardware|device|laptop/i, icon: Laptop, tone: "neutral" },
+  { test: /software|subscription|saas|licence|license/i, icon: Cpu, tone: "primary" },
+  { test: /support|maintenance|repair/i, icon: Wrench, tone: "neutral" },
+  { test: /bank|finance|emi|interest|loan/i, icon: Landmark, tone: "warning" },
+  { test: /gateway|processing fee|payout|charges?/i, icon: CreditCard, tone: "destructive" },
+  { test: /complian|legal|audit|tax|gst|tds/i, icon: ShieldCheck, tone: "warning" },
+  { test: /market|advertis|campaign|promo/i, icon: Megaphone, tone: "success" },
+  { test: /travel|convey|flight|hotel/i, icon: Plane, tone: "neutral" },
+  { test: /logistic|courier|shipping|delivery/i, icon: Truck, tone: "neutral" },
+  { test: /rent|office|utilit|electric|power/i, icon: Zap, tone: "warning" },
+  { test: /purchase|procure|vendor|supplier/i, icon: ShoppingCart, tone: "primary" },
+  { test: /cash|revenue|sales|income/i, icon: Banknote, tone: "success" },
+];
+
+export function categoryVisual(label?: string | null): { icon: LucideIcon; tone: SemanticTone } {
+  const text = String(label ?? "");
+  const hit = CATEGORY_RULES.find((r) => r.test.test(text));
+  return hit ? { icon: hit.icon, tone: hit.tone } : { icon: Circle, tone: "neutral" };
+}

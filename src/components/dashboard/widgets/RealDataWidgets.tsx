@@ -15,7 +15,7 @@ import {
   Clock, FileText, Activity, Zap, Calendar, ShoppingCart, CreditCard,
   UserCheck, PieChart, BarChart3, Bell
 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart as RechartsLineChart, Line, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart as RechartsLineChart, Line, AreaChart, Area, PieChart as RechartsPieChart, Pie, Cell } from "recharts";
 import { chartSeriesColors, axisProps, tooltipProps, gridProps, chartColor } from "@/lib/dashboard/chartTheme";
 import { WidgetSkeleton, WidgetEmpty, WidgetError } from "@/components/dashboard/primitives/WidgetShell";
 import {
@@ -29,6 +29,8 @@ import {
   WidgetRankRow,
   WidgetSectionLabel,
   WidgetKeyValueRow,
+  WidgetIconBadge,
+  categoryVisual,
 } from "@/components/dashboard/primitives/WidgetAtoms";
 
 // Categorical series palette resolved from design tokens (never raw hex).
@@ -76,12 +78,18 @@ export function CustomerGrowthWidget() {
         helper="this month"
       />
       <WidgetChart height={120}>
-        <RechartsLineChart data={data || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <AreaChart data={data || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="wgGrowthFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={chartColor.primary()} stopOpacity={0.22} />
+              <stop offset="100%" stopColor={chartColor.primary()} stopOpacity={0} />
+            </linearGradient>
+          </defs>
           <CartesianGrid {...gridProps} />
           <XAxis dataKey="name" {...axisProps} />
           <Tooltip {...tooltipProps} />
-          <Line type="monotone" dataKey="clients" stroke={chartColor.primary()} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-        </RechartsLineChart>
+          <Area type="monotone" dataKey="clients" stroke={chartColor.primary()} strokeWidth={2} fill="url(#wgGrowthFill)" dot={false} activeDot={{ r: 3 }} />
+        </AreaChart>
       </WidgetChart>
     </div>
   );
@@ -268,21 +276,22 @@ export function ExpenseBreakdownWidget() {
           <div className="space-y-0.5">
             {(() => {
               const peak = Math.max(...data!.categories.map(c => c.amount), 1);
-              return data!.categories.map((e, i) => (
-                <WidgetRankRow
-                  key={e.name}
-                  label={e.name}
-                  value={`₹${Math.round(e.amount).toLocaleString('en-IN')}`}
-                  percent={(e.amount / peak) * 100}
-                  tone="primary"
-                  leading={
-                    <span
-                      className="h-1.5 w-1.5 rounded-full"
-                      style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                    />
-                  }
-                />
-              ));
+              return data!.categories.map((e) => {
+                const share = (e.amount / peak) * 100;
+                const visual = categoryVisual(e.name);
+                // Largest cost centres read warmer; the tail stays quiet.
+                const tone = share >= 66 ? 'destructive' : share >= 33 ? 'warning' : 'primary';
+                return (
+                  <WidgetRankRow
+                    key={e.name}
+                    label={e.name}
+                    value={`₹${Math.round(e.amount).toLocaleString('en-IN')}`}
+                    percent={share}
+                    tone={tone}
+                    leading={<WidgetIconBadge icon={visual.icon} tone={visual.tone} size="xs" />}
+                  />
+                );
+              });
             })()}
           </div>
           {(data?.recentItems?.length || 0) > 0 && (
@@ -963,11 +972,17 @@ export function ExpenseTrendsWidget() {
       </div>
       {hasData ? (
         <WidgetChart height={110}>
-          <RechartsLineChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <AreaChart data={data?.chartData || []} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="wgExpenseFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={chartColor.destructive()} stopOpacity={0.2} />
+                <stop offset="100%" stopColor={chartColor.destructive()} stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <XAxis dataKey="name" {...axisProps} />
             <Tooltip {...tooltipProps} formatter={(v: any) => `₹${Number(v).toLocaleString('en-IN')}`} />
-            <Line type="monotone" dataKey="expense" stroke={chartColor.destructive()} strokeWidth={2} dot={false} activeDot={{ r: 3 }} />
-          </RechartsLineChart>
+            <Area type="monotone" dataKey="expense" stroke={chartColor.destructive()} strokeWidth={2} fill="url(#wgExpenseFill)" dot={false} activeDot={{ r: 3 }} />
+          </AreaChart>
         </WidgetChart>
       ) : (
         <WidgetEmpty icon={BarChart3} title="No expense data available" />
@@ -1046,7 +1061,12 @@ export function PendingSettlementsWidget() {
                 value={`₹${Math.round(g.amount).toLocaleString('en-IN')}`}
                 percent={totalAmount > 0 ? (g.amount / totalAmount) * 100 : 0}
                 tone="primary"
-                leading={<span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{g.count}x</span>}
+                leading={
+                  <span className="inline-flex shrink-0 items-center gap-1.5">
+                    <WidgetIconBadge icon={CreditCard} tone="warning" size="xs" />
+                    <span className="text-[11px] tabular-nums text-muted-foreground">{g.count}x</span>
+                  </span>
+                }
               />
             ))}
           </div>

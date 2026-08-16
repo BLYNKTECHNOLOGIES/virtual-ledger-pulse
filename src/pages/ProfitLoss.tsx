@@ -1,3 +1,4 @@
+import { StatGridSkeleton, ChartSkeleton, TableSkeleton } from "@/components/shared/skeletons";
 import React, { useState } from 'react';
 import { formatSmartDecimal } from '@/lib/format-smart-decimal';
 import { useQuery } from '@tanstack/react-query';
@@ -553,11 +554,9 @@ export default function ProfitLoss() {
 
   if (permissionsLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center page-mount">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading permissions...</p>
-        </div>
+      <div className="min-h-screen bg-background p-6 space-y-6 page-mount">
+        <StatGridSkeleton count={4} />
+        <ChartSkeleton height={280} />
       </div>
     );
   }
@@ -577,11 +576,10 @@ export default function ProfitLoss() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground">Loading P&L Dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-background p-6 space-y-6">
+        <StatGridSkeleton count={4} />
+        <ChartSkeleton height={280} />
+        <TableSkeleton rows={6} columns={6} />
       </div>
     );
   }

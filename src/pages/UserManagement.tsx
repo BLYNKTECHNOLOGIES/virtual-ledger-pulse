@@ -40,6 +40,7 @@ import { DatabaseUser } from "@/types/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { StatGridSkeleton, StatCardSkeleton } from "@/components/shared/skeletons";
 
 interface Role {
   id: string;
@@ -401,10 +402,7 @@ export default function UserManagement() {
       <div className="space-y-6 p-6 page-mount">
         <PageHeader title="User Management" description="Loading permissions..." />
 
-        <div className="flex justify-center items-center h-32">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
-          <span className="ml-2">Loading permissions...</span>
-        </div>
+        <StatGridSkeleton count={3} />
       </div>
     );
   }
@@ -520,9 +518,10 @@ export default function UserManagement() {
               </Card>
 
               {isLoading ? (
-                <div className="flex justify-center items-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-info"></div>
-                  <span className="ml-2">Loading users...</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <StatCardSkeleton key={i} />
+                  ))}
                 </div>
               ) : (
                 <div>

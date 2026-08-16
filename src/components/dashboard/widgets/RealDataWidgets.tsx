@@ -1269,15 +1269,7 @@ export function UpcomingTasksWidget() {
 
 // ── Shared loader ──
 function WidgetLoader() {
-  return (
-    <div className="p-6 text-center">
-      <div className="animate-pulse space-y-3">
-        <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
-        <div className="h-8 bg-muted rounded w-1/2 mx-auto" />
-        <div className="h-3 bg-muted rounded w-2/3 mx-auto" />
-      </div>
-    </div>
-  );
+  return <WidgetSkeleton variant="metric" />;
 }
 
 // ── Terminal Sales Approval Widget ──

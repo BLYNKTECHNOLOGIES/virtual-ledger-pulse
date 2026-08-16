@@ -91,13 +91,6 @@ export default function Compliance() {
                   Legal
                 </TabsTrigger>
                 <TabsTrigger
-                  value="taxation"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
-                >
-                  <Receipt className="h-4 w-4" />
-                  Taxation
-                </TabsTrigger>
-                <TabsTrigger
                   value="company"
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
                 >
@@ -111,9 +104,6 @@ export default function Compliance() {
               </TabsContent>
               <TabsContent value="legal" className="mt-6">
                 <ErrorBoundary><LegalComplianceTab /></ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="taxation" className="mt-6">
-                <ErrorBoundary><TaxationComplianceTab /></ErrorBoundary>
               </TabsContent>
               <TabsContent value="company" className="mt-6">
                 <ErrorBoundary><CompanyComplianceTab /></ErrorBoundary>

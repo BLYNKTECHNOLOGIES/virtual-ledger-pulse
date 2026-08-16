@@ -710,12 +710,17 @@ export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: an
 
 // ── Conversion Rate Widget ──
 export function ConversionRateWidget({ metrics }: { metrics?: any }) {
-  const rate = metrics?.totalClients > 0 ? ((metrics.verifiedClients / metrics.totalClients) * 100).toFixed(1) : '0';
+  const pct = metrics?.totalClients > 0 ? (metrics.verifiedClients / metrics.totalClients) * 100 : 0;
   return (
-    <div className="text-center p-4">
-      <div className="text-3xl font-bold text-info">{rate}%</div>
-      <p className="text-sm text-muted-foreground mt-1">KYC Conversion Rate</p>
-      <p className="text-xs text-muted-foreground mt-2">{metrics?.verifiedClients || 0} verified of {metrics?.totalClients || 0}</p>
+    <div className="flex h-full flex-col justify-center gap-3 p-3">
+      <WidgetMetric
+        label="KYC conversion rate"
+        value={`${pct.toFixed(1)}%`}
+        tone="primary"
+        size="lg"
+        helper={`${metrics?.verifiedClients || 0} verified of ${metrics?.totalClients || 0}`}
+      />
+      <WidgetProgressRow label="Verified clients" value={`${pct.toFixed(1)}%`} percent={pct} tone="primary" />
     </div>
   );
 }

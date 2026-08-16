@@ -162,38 +162,36 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
   }
 
   return (
-    <Card className={`bg-gradient-to-br from-success to-teal-50 border-success/20 ${className}`}>
-      <CardHeader className={compact ? "pb-2 pt-4 px-4" : "pb-3"}>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-success">
-            <div className="p-2 bg-success/10 rounded-lg">
-              <Building className="h-4 w-4 text-success" />
-            </div>
-            <span className={compact ? "text-sm" : "text-base"}>Bank Balance</span>
+    <Card className={`bg-card border-border ${className}`}>
+      <CardHeader className={compact ? "pb-2 pt-3 px-4" : "pb-3"}>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-foreground">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted">
+              <Building className="h-4 w-4 text-muted-foreground" />
+            </span>
+            <span className="text-sm font-semibold">Bank Balance</span>
           </CardTitle>
           {selectedBankIds.length > 0 && (
-            <Badge variant="secondary" className="bg-success/10 text-success text-xs">
+            <Badge variant="secondary" className="text-[11px] font-medium">
               {selectedBankIds.length} selected
             </Badge>
           )}
         </div>
       </CardHeader>
       <CardContent className={compact ? "pt-0 pb-4 px-4" : "pt-0"}>
-        <div className="mb-4">
+        <div className="mb-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
           {selectedBankIds.length === 0 ? (
-            <div className="text-center py-2">
-              <p className="text-2xl md:text-3xl font-bold text-muted-foreground">₹0.00</p>
-              <p className="text-xs text-muted-foreground mt-1">Select banks to view balance</p>
-            </div>
+            <>
+              <p className="text-2xl font-semibold tabular-nums tracking-tight text-muted-foreground">₹0.00</p>
+              <p className="mt-1 text-xs text-muted-foreground">Select banks to view balance</p>
+            </>
           ) : (
-            <div className="text-center py-2">
-              <p className="text-2xl md:text-3xl font-bold text-success">
+            <>
+              <p className="text-2xl font-semibold tabular-nums tracking-tight text-success md:text-3xl">
                 {formatCurrency(selectedBalance)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Combined balance (excl. lien)
-              </p>
-            </div>
+              <p className="mt-1 text-xs text-muted-foreground">Combined balance (excl. lien)</p>
+            </>
           )}
         </div>
 
@@ -201,11 +199,11 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className="w-full justify-between bg-card hover:bg-success/10 border-success/20"
+              className="w-full justify-between bg-background font-normal"
               size={compact ? "sm" : "default"}
             >
               <span className="flex items-center gap-2 text-sm">
-                <Wallet className="h-4 w-4 text-success" />
+                <Wallet className="h-4 w-4 text-muted-foreground" />
                 {selectedBankIds.length === 0
                   ? "Select bank accounts"
                   : `${selectedBankIds.length} account${selectedBankIds.length > 1 ? 's' : ''} selected`
@@ -290,7 +288,7 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
         </Popover>
 
         {selectedBankIds.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-success/20/50">
+          <div className="mt-3 pt-3 border-t border-border">
             <div className="flex flex-wrap gap-1.5">
               {bankAccounts
                 .filter(account => selectedBankIds.includes(account.id))
@@ -299,13 +297,13 @@ export function BankBalanceFilterWidget({ compact = false, className = "" }: Ban
                   <Badge
                     key={account.id}
                     variant="outline"
-                    className="text-[10px] bg-card border-success/20 text-success"
+                    className="text-[10px] font-medium text-muted-foreground"
                   >
                     {account.bank_name}
                   </Badge>
                 ))}
               {selectedBankIds.length > 3 && (
-                <Badge variant="outline" className="text-[10px] bg-card border-success/20 text-success">
+                <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
                   +{selectedBankIds.length - 3} more
                 </Badge>
               )}

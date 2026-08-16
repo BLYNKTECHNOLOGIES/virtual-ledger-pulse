@@ -21,6 +21,8 @@ export interface IntegrityFinding {
   affected_count: number | null;
 }
 
+export type BalanceSheetMode = "MANAGEMENT" | "VERIFICATION";
+
 export interface BalanceSheetMeta {
   entityName: string;
   gstin?: string | null;
@@ -33,6 +35,7 @@ export interface BalanceSheetMeta {
   failedChecks?: string[];
   checksum?: string;
   cryptoNote?: string[] | null;
+  mode?: BalanceSheetMode;
 }
 
 const SECTION_TITLES: Record<string, string> = {
@@ -49,6 +52,18 @@ export const inr = (n: number) =>
 export const NOT_AVAILABLE = "NOT AVAILABLE";
 export const amountText = (amount: number | null | undefined) =>
   amount === null || amount === undefined ? NOT_AVAILABLE : inr(Number(amount));
+
+/**
+ * Registration identifiers are only meaningful at their statutory length.
+ * Anything shorter (placeholders such as "D") is not an identifier — print NOT AVAILABLE.
+ */
+export const statutoryId = (value: string | null | undefined, requiredLength: number) => {
+  const v = (value || "").trim().toUpperCase();
+  return v.length === requiredLength ? v : NOT_AVAILABLE;
+};
+export const gstinText = (v: string | null | undefined) => statutoryId(v, 15);
+export const panText = (v: string | null | undefined) => statutoryId(v, 10);
+
 
 /** Deterministic checksum over the presented figures, so a printed copy can be tied back. */
 export function balanceSheetChecksum(lines: BalanceSheetLine[], meta: { entityName: string; asOf: string }) {

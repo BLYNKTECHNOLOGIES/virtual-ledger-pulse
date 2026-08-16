@@ -338,11 +338,6 @@ export default function LeaveRequestsPage() {
                   <SelectItem value="hr">Approve myself as HR (skip manager)</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {form.routing === "hr"
-                  ? "Approved immediately — balance is consumed now (assigned type → Comp-Off → Casual → LOP)."
-                  : "The reporting manager is emailed and approves first; HR gives the final approval."}
-              </p>
             </div>
             <div>
               <Label>Leave Type {form.routing === "manager" && <span className="text-[11px] text-muted-foreground">(optional — HR assigns at approval)</span>}</Label>

@@ -10370,6 +10370,51 @@ export type Database = {
           },
         ]
       }
+      hr_leave_request_consumption: {
+        Row: {
+          created_at: string
+          days: number
+          employee_id: string
+          id: string
+          leave_type_id: string | null
+          request_id: string
+          source: string
+        }
+        Insert: {
+          created_at?: string
+          days?: number
+          employee_id: string
+          id?: string
+          leave_type_id?: string | null
+          request_id: string
+          source: string
+        }
+        Update: {
+          created_at?: string
+          days?: number
+          employee_id?: string
+          id?: string
+          leave_type_id?: string | null
+          request_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_leave_request_consumption_leave_type_id_fkey"
+            columns: ["leave_type_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_request_consumption_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "hr_leave_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_leave_requests: {
         Row: {
           approved_at: string | null
@@ -10385,7 +10430,7 @@ export type Database = {
           id: string
           is_half_day: boolean | null
           leave_clashes_count: number | null
-          leave_type_id: string
+          leave_type_id: string | null
           manager_decided_at: string | null
           manager_decided_by: string | null
           manager_id: string | null
@@ -10415,7 +10460,7 @@ export type Database = {
           id?: string
           is_half_day?: boolean | null
           leave_clashes_count?: number | null
-          leave_type_id: string
+          leave_type_id?: string | null
           manager_decided_at?: string | null
           manager_decided_by?: string | null
           manager_id?: string | null
@@ -10445,7 +10490,7 @@ export type Database = {
           id?: string
           is_half_day?: boolean | null
           leave_clashes_count?: number | null
-          leave_type_id?: string
+          leave_type_id?: string | null
           manager_decided_at?: string | null
           manager_decided_by?: string | null
           manager_id?: string | null
@@ -27477,6 +27522,16 @@ export type Database = {
       hr_is_sick_leave_type: {
         Args: { _leave_type_id: string }
         Returns: boolean
+      }
+      hr_leave_take_from: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_leave_type_id: string
+          p_start: string
+          p_want: number
+        }
+        Returns: number
       }
       hr_lop_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }

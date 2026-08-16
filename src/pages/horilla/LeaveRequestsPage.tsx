@@ -24,7 +24,7 @@ export default function LeaveRequestsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
+  const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning", routing: "manager" as "manager" | "hr" });
   const [approveTarget, setApproveTarget] = useState<any>(null);
   const [approveTypeId, setApproveTypeId] = useState("");
 

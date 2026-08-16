@@ -229,3 +229,131 @@ export function WidgetChart({
     </div>
   );
 }
+
+/** WidgetStatGrid — 2–4 subordinate stats under a primary value or header. */
+export function WidgetStatGrid({
+  items,
+  columns,
+  className,
+}: {
+  items: Array<{
+    label: React.ReactNode;
+    value: React.ReactNode;
+    tone?: SemanticTone;
+    helper?: React.ReactNode;
+  }>;
+  columns?: 2 | 3 | 4;
+  className?: string;
+}) {
+  const cols = columns ?? (items.length >= 4 ? 4 : items.length === 3 ? 3 : 2);
+  const colClass =
+    cols === 4
+      ? "grid-cols-2 @[26rem]:grid-cols-4"
+      : cols === 3
+        ? "grid-cols-1 @[20rem]:grid-cols-3"
+        : "grid-cols-2";
+  return (
+    <div className={cn("grid gap-x-3 gap-y-2.5", colClass, className)}>
+      {items.map((it, i) => (
+        <div key={i} className="min-w-0">
+          <p className="truncate text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+            {it.label}
+          </p>
+          <p
+            className={cn(
+              "truncate text-[15px] font-semibold tabular-nums leading-tight",
+              TONE_TEXT[it.tone ?? "neutral"]
+            )}
+          >
+            {it.value}
+          </p>
+          {it.helper && (
+            <p className="truncate text-[11px] leading-tight text-muted-foreground">{it.helper}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** WidgetProgressRow — label + value on one line, quiet track beneath. */
+export function WidgetProgressRow({
+  label,
+  value,
+  percent,
+  tone = "primary",
+  leading,
+  className,
+}: {
+  label: React.ReactNode;
+  value?: React.ReactNode;
+  /** 0–100 */
+  percent: number;
+  tone?: SemanticTone;
+  leading?: React.ReactNode;
+  className?: string;
+}) {
+  const pct = Math.max(0, Math.min(100, Number.isFinite(percent) ? percent : 0));
+  const bar: Record<SemanticTone, string> = {
+    neutral: "bg-muted-foreground",
+    primary: "bg-primary",
+    success: "bg-success",
+    warning: "bg-warning",
+    destructive: "bg-destructive",
+  };
+  return (
+    <div className={cn("min-w-0 space-y-1.5 py-1.5", className)}>
+      <div className="flex min-w-0 items-center gap-2">
+        {leading}
+        <p className="min-w-0 flex-1 truncate text-[12px] font-medium text-foreground">{label}</p>
+        {value != null && (
+          <p className="shrink-0 text-[12px] font-semibold tabular-nums text-foreground">{value}</p>
+        )}
+      </div>
+      <div
+        className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div
+          className={cn("h-full rounded-full transition-[width] duration-300 motion-reduce:transition-none", bar[tone])}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/** WidgetSparkline — tiny inline trend strip built from plain divs (no chart lib cost). */
+export function WidgetSparkline({
+  values,
+  tone = "primary",
+  className,
+}: {
+  values: number[];
+  tone?: SemanticTone;
+  className?: string;
+}) {
+  if (!values.length) return null;
+  const max = Math.max(...values.map((v) => Math.abs(v)), 1);
+  const bar: Record<SemanticTone, string> = {
+    neutral: "bg-muted-foreground/40",
+    primary: "bg-primary/60",
+    success: "bg-success/60",
+    warning: "bg-warning/60",
+    destructive: "bg-destructive/60",
+  };
+  return (
+    <div className={cn("flex h-8 items-end gap-[3px]", className)} aria-hidden>
+      {values.map((v, i) => (
+        <span
+          key={i}
+          className={cn("min-w-[3px] flex-1 rounded-sm", bar[tone])}
+          style={{ height: `${Math.max(6, (Math.abs(v) / max) * 100)}%` }}
+        />
+      ))}
+    </div>
+  );
+}

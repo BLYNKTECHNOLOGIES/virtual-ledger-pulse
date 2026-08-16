@@ -13,6 +13,8 @@ import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSectio
 import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
+import { WidgetShell, WidgetHeader, WidgetBody, WidgetEmpty } from "@/components/dashboard/primitives/WidgetShell";
+import { WidgetList, WidgetListRow } from "@/components/dashboard/primitives/WidgetAtoms";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { StatCard } from "@/components/shared/StatCard";
 import { EmptyState } from "@/components/shared/EmptyState";

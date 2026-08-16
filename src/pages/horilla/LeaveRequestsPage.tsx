@@ -318,7 +318,9 @@ export default function LeaveRequestsPage() {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={!form.employee_id || !form.leave_type_id || !form.start_date || (!form.is_half_day && !form.end_date)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">Submit</Button>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.employee_id || !form.start_date || (!form.is_half_day && !form.end_date) || (form.routing === "hr" && !form.leave_type_id)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+              {form.routing === "hr" ? "Approve now" : "Send to manager"}
+            </Button>
           </>
         }
       >
@@ -328,7 +330,22 @@ export default function LeaveRequestsPage() {
               <EmployeePicker employees={employees} value={form.employee_id} onChange={(v) => setForm({ ...form, employee_id: v })} />
             </div>
             <div>
-              <Label>Leave Type</Label>
+              <Label>Approval routing</Label>
+              <Select value={form.routing} onValueChange={(v) => setForm({ ...form, routing: v as "manager" | "hr" })}>
+                <SelectTrigger className="h-9 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="manager">Send to reporting manager first</SelectItem>
+                  <SelectItem value="hr">Approve myself as HR (skip manager)</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {form.routing === "hr"
+                  ? "Approved immediately — balance is consumed now (assigned type → Comp-Off → Casual → LOP)."
+                  : "The reporting manager is emailed and approves first; HR gives the final approval."}
+              </p>
+            </div>
+            <div>
+              <Label>Leave Type {form.routing === "manager" && <span className="text-[11px] text-muted-foreground">(optional — HR assigns at approval)</span>}</Label>
               <Select value={form.leave_type_id} onValueChange={(v) => setForm({ ...form, leave_type_id: v })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
                 <SelectContent>{leaveTypes.map((lt: any) => <SelectItem key={lt.id} value={lt.id}>{lt.name}</SelectItem>)}</SelectContent>

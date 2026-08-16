@@ -313,25 +313,37 @@ export async function exportBalanceSheetXlsx(
     { key: "note", width: 70 },
   ];
 
+  const isManagement = (meta.mode || "MANAGEMENT") === "MANAGEMENT";
   const title = ws.addRow([meta.entityName]);
   title.font = { bold: true, size: 14, name: "Arial" };
-  ws.addRow(["Statement of Financial Position (ledger-supported)"]).font = { name: "Arial", size: 10 };
+  ws.addRow([
+    isManagement
+      ? "Management Statement of Financial Position (indicative, not audited)"
+      : "Statement of Financial Position (ledger-supported)",
+  ]).font = { name: "Arial", size: 10 };
   ws.addRow([`As at ${meta.asOf}`]).font = { name: "Arial", size: 10 };
-  if (meta.gstin || meta.pan) ws.addRow([`GSTIN: ${meta.gstin || "-"}    PAN: ${meta.pan || "-"}`]);
+  ws.addRow([`GSTIN: ${gstinText(meta.gstin)}    PAN: ${panText(meta.pan)}`]);
   if (meta.valuationBasis) ws.addRow([`Inventory valuation basis: ${meta.valuationBasis}`]);
   ws.addRow([`Generated ${meta.generatedAt}`]).font = { name: "Arial", size: 9, color: { argb: "FF808080" } };
   if (meta.checksum) ws.addRow([`Checksum ${meta.checksum}`]).font = { name: "Arial", size: 9 };
-  if (meta.isDraft) {
+  if (!isManagement && meta.isDraft) {
     const w = ws.addRow([
       "DRAFT - FAILED VERIFICATION: " +
         (meta.failedChecks?.length ? meta.failedChecks.join(", ") : "see Data Integrity sheet"),
     ]);
     w.font = { bold: true, name: "Arial", color: { argb: "FFBE1E1E" } };
   }
+  if (isManagement) {
+    ws.addRow([
+      "Indicative management report. Crypto inventory is derived from order quantities and allocated on purchase value where wallets are not mapped. Known gaps are listed on the 'Limitations' sheet and are not adjusted away.",
+    ]).font = { name: "Arial", size: 9, italic: true };
+  }
   ws.addRow([]);
 
   for (const g of grouped(lines)) {
     if (!g.rows.length) continue;
+    if (isManagement && g.section === "CHECK") continue;
+
     const head = ws.addRow([g.title, "Amount (INR)", "Basis", "Note"]);
     head.font = { bold: true, name: "Arial", color: { argb: "FFFFFFFF" } };
     head.eachCell((c) => {

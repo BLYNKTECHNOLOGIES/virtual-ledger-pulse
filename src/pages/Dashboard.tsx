@@ -598,46 +598,39 @@ export default function Dashboard() {
 
       case 'recent-activity':
         return (
-          <Card className="h-full flex flex-col">
-            <CardHeader className="border-b border-border py-3 px-4">
-              <SectionHeader title="Recent Activity" icon={Activity} />
-            </CardHeader>
-            <CardContent className="p-2 overflow-y-auto max-h-[500px]">
-              <div className="divide-y divide-border/70">
-                {recentActivity?.slice(0, 8).map((activity) => (
-                  <div
-                    key={activity.id}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('button, a, input, [role="button"], [data-no-row-click]')) return;
-                      openTransaction({ type: activity.type === 'sale' ? 'sales_order' : 'purchase_order', id: activity.id });
-                    }}
-                    className="flex items-center justify-between gap-3 px-2 py-2.5 rounded-lg cursor-pointer transition-colors duration-150 hover:bg-muted/50 motion-reduce:transition-none"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                        {activity.type === 'sale'
-                          ? <ArrowUpIcon className="h-4 w-4 text-success" />
-                          : <ArrowDownIcon className="h-4 w-4 text-muted-foreground" />}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="t-card-title text-foreground truncate">{activity.title}</p>
-                        <p className="t-secondary">{format(new Date(activity.timestamp), "MMM dd, HH:mm")}</p>
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-[13px] font-semibold tabular-nums ${activity.type === 'sale' ? 'text-success' : 'text-foreground'}`}>
-                        {activity.type === 'sale' ? '+' : '-'}₹{Number(activity.amount).toLocaleString('en-IN')}
-                      </p>
-                      <p className="t-secondary">{activity.reference}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {(!recentActivity || recentActivity.length === 0) && (
-                <EmptyState icon={Activity} title="No activity in selected period" className="py-10" />
+          <WidgetShell className="h-full">
+            <WidgetHeader
+              title="Recent Activity"
+              subtitle="Latest sales and purchases"
+              icon={Activity}
+            />
+            <WidgetBody padded={false} className="max-h-[500px] p-2">
+              {recentActivity && recentActivity.length > 0 ? (
+                <WidgetList>
+                  {recentActivity.slice(0, 8).map((activity) => (
+                    <WidgetListRow
+                      key={activity.id}
+                      icon={activity.type === 'sale' ? ArrowUpIcon : ArrowDownIcon}
+                      iconTone={activity.type === 'sale' ? 'success' : 'neutral'}
+                      title={activity.title}
+                      subtitle={format(new Date(activity.timestamp), "MMM dd, HH:mm")}
+                      value={`${activity.type === 'sale' ? '+' : '-'}₹${Number(activity.amount).toLocaleString('en-IN')}`}
+                      valueTone={activity.type === 'sale' ? 'success' : 'neutral'}
+                      meta={activity.reference}
+                      onClick={() =>
+                        openTransaction({
+                          type: activity.type === 'sale' ? 'sales_order' : 'purchase_order',
+                          id: activity.id,
+                        })
+                      }
+                    />
+                  ))}
+                </WidgetList>
+              ) : (
+                <WidgetEmpty icon={Activity} title="No activity in selected period" />
               )}
-            </CardContent>
-          </Card>
+            </WidgetBody>
+          </WidgetShell>
         );
 
 

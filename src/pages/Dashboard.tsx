@@ -712,10 +712,11 @@ export default function Dashboard() {
     <div className="page-shell min-h-screen bg-background">
       {/* Header */}
       <PageHeader
+        className="sm:items-center sm:gap-3"
         title={<span className="t-page-title">Welcome, {userDisplayName}</span>}
         description="Monitor your business performance"
         actions={
-          <div className="flex flex-col items-start md:items-end gap-2 flex-shrink-0">
+          <div className="flex w-full flex-wrap items-center gap-2 md:w-auto md:flex-nowrap md:justify-end">
             <DateRangePicker
               dateRange={dateRange}
               onDateRangeChange={setDateRange}
@@ -723,7 +724,7 @@ export default function Dashboard() {
               onPresetChange={setDatePreset}
               className="w-full md:w-auto md:min-w-[200px]"
             />
-            <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible pb-1">
+            <div className="flex items-center gap-2 overflow-x-auto overflow-y-visible">
               <Button
                 variant={isEditMode ? "secondary" : "outline"}
                 size="sm"
@@ -812,7 +813,7 @@ export default function Dashboard() {
         onDragCancel={() => setDraggingId(null)}
       >
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-12 auto-rows-auto items-stretch gap-3 stagger-children md:gap-4">
+          <div className="grid grid-cols-12 auto-rows-auto items-start gap-3 stagger-children md:gap-3.5">
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>

@@ -78,7 +78,7 @@ function WalletBalanceWidgetContent() {
   const funded = (wallets || []).filter((w: any) => Number(w.current_balance) > 0);
 
   return (
-    <div className="flex h-full w-full flex-col p-3">
+    <div className="flex w-full flex-col px-3 py-2.5">
       <WidgetMetric
         label="Wallet Balance"
         value={`${totalBalance.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT`}
@@ -216,7 +216,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
     if (isLoading) return <WidgetSkeleton variant="metric" />;
 
     return (
-      <div className="flex h-full items-center p-4">
+      <div className="px-3 py-2.5">
         <WidgetMetric
           label="Gross Profit"
           value={`₹${Math.round(Number(gross || 0)).toLocaleString('en-IN')}`}
@@ -228,13 +228,13 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
   };
 
   const ComplianceAlertsWidgetContent = () => (
-    <div className="flex h-full items-center p-4">
+    <div className="px-3 py-2.5">
       <WidgetMetric label="Compliance Alerts" value={metrics?.pendingActions || 0} />
     </div>
   );
 
   const PayrollSummaryWidgetContent = () => (
-    <div className="flex h-full items-center p-4">
+    <div className="px-3 py-2.5">
       <WidgetMetric label="Payroll Summary" value={metrics?.employees || 0} helper="Employees" />
     </div>
   );
@@ -314,7 +314,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'total-purchases':
         return (
-          <div className="flex h-full items-center p-4">
+          <div className="px-3 py-2.5">
             <WidgetMetric
               label="Total Purchases"
               value={`₹${((metrics?.totalSpending || 0) / 100000).toFixed(1)}L`}
@@ -325,7 +325,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'purchase-orders-count':
         return (
-          <div className="flex h-full items-center p-4">
+          <div className="px-3 py-2.5">
             <WidgetMetric
               label="Purchase Orders"
               value={(metrics?.totalPurchases || 0).toLocaleString('en-IN')}
@@ -340,7 +340,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'stock-value':
         return (
-          <div className="flex h-full items-center p-4">
+          <div className="px-3 py-2.5">
             <WidgetMetric
               label="Stock Value"
               value={`₹${((metrics?.stockValue || 0) / 100000).toFixed(2)}L`}
@@ -351,7 +351,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'bank-balance-total':
         return (
-          <div className="flex h-full items-center p-4">
+          <div className="px-3 py-2.5">
             <WidgetMetric
               label="Bank Balance"
               value={`₹${((metrics?.bankBalance || 0) / 100000).toFixed(2)}L`}
@@ -362,7 +362,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
 
       case 'total-cash':
         return (
-          <div className="flex h-full items-center p-4">
+          <div className="px-3 py-2.5">
             <WidgetMetric
               label="Total Cash"
               value={`₹${((metrics?.totalCash || 0) / 100000).toFixed(2)}L`}
@@ -399,8 +399,8 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
   };
 
   return (
-    <div className="h-full">
-      <WidgetShell className="h-full">
+    <div>
+      <WidgetShell>
         <WidgetHeader
           title={widget.name}
           icon={IconComponent && typeof IconComponent === 'function' ? IconComponent : BarChart3}
@@ -413,7 +413,7 @@ const DashboardWidget = ({ widget, onRemove, onMove, metrics, isDraggable = true
             />
           }
         />
-        <WidgetBody padded={false} className={widget.size === 'small' ? 'flex min-h-[150px] flex-col justify-center' : 'min-h-[150px]'}>
+        <WidgetBody padded={false} className={widget.size === 'small' ? 'flex flex-col justify-center' : undefined}>
           <div className="w-full">{renderWidgetContent()}</div>
         </WidgetBody>
       </WidgetShell>

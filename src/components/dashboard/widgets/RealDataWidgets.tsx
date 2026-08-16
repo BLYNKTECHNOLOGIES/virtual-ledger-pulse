@@ -248,50 +248,61 @@ export function ExpenseBreakdownWidget() {
 
   const navigate = useNavigate();
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="status" rows={5} />;
 
   const hasData = (data?.categories?.length || 0) > 0;
 
   return (
-    <div className="p-4 space-y-3 cursor-pointer" onClick={() => navigate('/statistics?tab=financial')}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{data?.month}</span>
-        <span className="text-lg font-bold text-foreground">₹{Math.round(data?.totalExpense || 0).toLocaleString('en-IN')}</span>
+    <div
+      className="flex h-full cursor-pointer flex-col"
+      onClick={() => navigate('/statistics?tab=financial')}
+      title="Open financial statistics"
+    >
+      <div className="border-b border-border px-3 py-2.5">
+        <WidgetMetric
+          label={data?.month}
+          value={`₹${Math.round(data?.totalExpense || 0).toLocaleString('en-IN')}`}
+          size="sm"
+          helper="Operating expenses this month"
+        />
       </div>
-      {!hasData && <p className="text-sm text-muted-foreground text-center py-4">No expenses this month</p>}
-      {hasData && (
-        <>
+      {!hasData ? (
+        <WidgetEmpty icon={PieChart} title="No expenses this month" />
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <div className="space-y-2">
-            {data!.categories.map((e, i) => {
-              const pct = data!.totalExpense > 0 ? (e.amount / data!.totalExpense) * 100 : 0;
-              return (
-                <div key={e.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="font-medium text-foreground truncate max-w-[140px]">{e.name}</span>
-                    </div>
-                    <span className="font-semibold text-foreground">₹{Math.round(e.amount).toLocaleString('en-IN')}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
-                  </div>
-                </div>
-              );
-            })}
+            {data!.categories.map((e, i) => (
+              <WidgetProgressRow
+                key={e.name}
+                label={e.name}
+                value={`₹${Math.round(e.amount).toLocaleString('en-IN')}`}
+                percent={data!.totalExpense > 0 ? (e.amount / data!.totalExpense) * 100 : 0}
+                tone="primary"
+                leading={
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: COLORS[i % COLORS.length] }}
+                  />
+                }
+              />
+            ))}
           </div>
           {(data?.recentItems?.length || 0) > 0 && (
-            <div className="pt-2 border-t border-border">
-              <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">RECENT</p>
+            <div className="mt-3 border-t border-border pt-2">
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Recent
+              </p>
               {data!.recentItems.map((item, i) => (
-                <div key={i} className="flex items-center justify-between text-xs py-1">
-                  <span className="text-muted-foreground truncate max-w-[60%]">{item.desc}</span>
-                  <span className="font-medium text-foreground">₹{Math.round(item.amount).toLocaleString('en-IN')}</span>
+                <div key={i} className="flex items-center justify-between gap-3 py-1 text-[12px]">
+                  <span className="min-w-0 truncate text-muted-foreground">{item.desc}</span>
+                  <span className="shrink-0 font-medium tabular-nums text-foreground">
+                    ₹{Math.round(item.amount).toLocaleString('en-IN')}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

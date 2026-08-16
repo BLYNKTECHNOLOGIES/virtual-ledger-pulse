@@ -85,7 +85,7 @@ export function MyTasksWidget() {
             items={[
               { label: 'Open', value: counts?.open ?? 0 },
               { label: 'In progress', value: counts?.in_progress ?? 0, tone: 'primary' },
-              { label: 'Overdue', value: counts?.overdue ?? 0, tone: 'danger' },
+              { label: 'Overdue', value: counts?.overdue ?? 0, tone: 'destructive' },
             ]}
           />
 

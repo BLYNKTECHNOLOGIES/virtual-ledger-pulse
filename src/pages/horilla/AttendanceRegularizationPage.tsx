@@ -44,7 +44,6 @@ export default function AttendanceRegularizationPage() {
   const [search, setSearch] = useState('');
   const [reviewing, setReviewing] = useState<any>(null);
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
-  const [notes, setNotes] = useState('');
   const [reasonCode, setReasonCode] = useState<string>('');
   // F4 · propose-and-validate
   const [evidence, setEvidence] = useState<any>(null);
@@ -99,7 +98,6 @@ export default function AttendanceRegularizationPage() {
   const openReview = async (r: any, dec: 'approved' | 'rejected') => {
     setReviewing(r);
     setDecision(dec);
-    setNotes('');
     setReasonCode('');
     setOverrideReason('');
     setEvidence(null);
@@ -258,7 +256,7 @@ export default function AttendanceRegularizationPage() {
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null); setNotes(''); setReasonCode(''); setEvidence(null); setOverrideReason('');
+      setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason('');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
     },

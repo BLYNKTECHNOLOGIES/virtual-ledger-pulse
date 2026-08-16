@@ -25,6 +25,8 @@ export default function LeaveRequestsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", start_date: "", end_date: "", reason: "", is_half_day: false, half_day_period: "morning" });
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [approveTypeId, setApproveTypeId] = useState("");
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["hr_leave_requests", statusFilter],

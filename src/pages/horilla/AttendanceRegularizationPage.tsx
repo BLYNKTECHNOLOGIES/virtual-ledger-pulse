@@ -207,7 +207,7 @@ export default function AttendanceRegularizationPage() {
           status: decision,
           reason_code: decision === 'approved' ? reasonCode : null,
           approver_id: u?.user?.id,
-          approver_notes: notes,
+          approver_notes: auditNote,
           approved_at: nowIso,
           evidence_status: evidenceStatus,
           evidence_payload: evidence ?? null,
@@ -224,7 +224,7 @@ export default function AttendanceRegularizationPage() {
           ? (isOverride ? 'regularization_unsupported_override' : 'regularization_approved')
           : 'regularization_rejected',
         reason_code: decision === 'approved' ? reasonCode : null,
-        notes,
+        notes: auditNote,
         actor_id: u?.user?.id ?? null,
         actor_email: u?.user?.email ?? null,
         payload: {
@@ -252,7 +252,7 @@ export default function AttendanceRegularizationPage() {
           : null,
         managerRemarks: reviewing.manager_remarks || null,
         decidedBy: 'HR',
-        approverNotes: notes,
+        approverNotes: auditNote,
         employeeEmail: reviewing.hr_employees?.email || null,
       });
     },

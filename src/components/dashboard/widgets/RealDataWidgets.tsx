@@ -477,13 +477,26 @@ export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; t
     staleTime: 60000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="metric" />;
+
+  const positive = Number(data?.margin) >= 0;
 
   return (
-    <div className="text-center p-4">
-      <div className={`text-3xl font-bold ${Number(data?.margin) >= 0 ? 'text-success' : 'text-destructive'}`}>{data?.margin}%</div>
-      <p className="text-sm text-muted-foreground mt-1">Profit Margin ({data?.periodLabel})</p>
-      <p className="text-xs text-muted-foreground mt-2">Profit: ₹{Math.round(data?.profit || 0).toLocaleString('en-IN')}</p>
+    <div className="flex h-full flex-col justify-center gap-3 p-3">
+      <WidgetMetric
+        label={`Profit margin · ${data?.periodLabel || ''}`}
+        value={`${data?.margin}%`}
+        tone={positive ? 'success' : 'destructive'}
+        size="lg"
+        helper={`Profit ₹${Math.round(data?.profit || 0).toLocaleString('en-IN')}`}
+      />
+      <WidgetStatGrid
+        columns={2}
+        items={[
+          { label: 'Sales', value: `₹${Math.round(data?.totalSales || 0).toLocaleString('en-IN')}` },
+          { label: 'Purchases', value: `₹${Math.round(data?.totalPurchases || 0).toLocaleString('en-IN')}` },
+        ]}
+      />
     </div>
   );
 }

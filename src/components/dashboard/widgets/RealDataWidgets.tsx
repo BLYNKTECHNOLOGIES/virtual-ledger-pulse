@@ -96,23 +96,27 @@ export function RecentOrdersWidget() {
     refetchInterval: 30000,
   });
 
-  if (isLoading) return <WidgetLoader />;
+  if (isLoading) return <WidgetSkeleton variant="list" rows={5} />;
+
+  const orders = data || [];
+  if (orders.length === 0) return <WidgetEmpty icon={ShoppingCart} title="No recent orders" />;
 
   return (
-    <div className="p-4 space-y-2.5">
-      {(data || []).length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No recent orders</p>}
-      {(data || []).map((o: any) => (
-        <div key={o.id} onClick={() => openTransaction({ type: 'sales_order', id: o.id })} className="flex items-center justify-between py-2 border-b border-muted/20 last:border-0 cursor-pointer hover:bg-muted/50 transition-colors rounded px-1" title="Click to view full order details">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{o.order_number}</p>
-            <p className="text-xs text-muted-foreground truncate">{o.client_name} · {format(new Date(o.created_at), 'MMM dd')}</p>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-sm font-semibold text-foreground">₹{Math.round(Number(o.total_amount)).toLocaleString('en-IN')}</p>
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.status || 'Pending'}</Badge>
-          </div>
-        </div>
-      ))}
+    <div className="p-1.5">
+      <WidgetList>
+        {orders.map((o: any) => (
+          <WidgetListRow
+            key={o.id}
+            icon={ShoppingCart}
+            iconTone="primary"
+            title={o.order_number}
+            subtitle={`${o.client_name} · ${format(new Date(o.created_at), 'MMM dd')}`}
+            value={`₹${Math.round(Number(o.total_amount)).toLocaleString('en-IN')}`}
+            meta={o.status || 'Pending'}
+            onClick={() => openTransaction({ type: 'sales_order', id: o.id })}
+          />
+        ))}
+      </WidgetList>
     </div>
   );
 }

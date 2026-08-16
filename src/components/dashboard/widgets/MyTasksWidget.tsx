@@ -72,27 +72,22 @@ export function MyTasksWidget() {
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <CheckSquare className="h-4 w-4" /> My Tasks
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-3 mb-3">
-            <div className="flex-1 text-center p-2 rounded bg-muted/50">
-              <p className="text-lg font-bold">{counts?.open ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground">Open</p>
-            </div>
-            <div className="flex-1 text-center p-2 rounded bg-info/10">
-              <p className="text-lg font-bold text-info">{counts?.in_progress ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground">In Progress</p>
-            </div>
-            <div className="flex-1 text-center p-2 rounded bg-destructive/10">
-              <p className="text-lg font-bold text-destructive">{counts?.overdue ?? 0}</p>
-              <p className="text-[10px] text-muted-foreground">Overdue</p>
-            </div>
-          </div>
+      <WidgetShell>
+        <WidgetHeader
+          icon={CheckSquare}
+          title="My Tasks"
+          subtitle={`${counts?.open ?? 0} open · ${counts?.overdue ?? 0} overdue`}
+        />
+        <WidgetBody className="space-y-3">
+          <WidgetStatGrid
+            columns={3}
+            items={[
+              { label: 'Open', value: counts?.open ?? 0 },
+              { label: 'In progress', value: counts?.in_progress ?? 0, tone: 'primary' },
+              { label: 'Overdue', value: counts?.overdue ?? 0, tone: 'danger' },
+            ]}
+          />
+
 
           <div className="space-y-1">
             {urgentTasks.map(task => {

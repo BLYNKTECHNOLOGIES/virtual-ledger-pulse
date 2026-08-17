@@ -365,6 +365,29 @@ export function CaseTrackingTab() {
                   </Button>
                 )}
                 <ViewTimelineDialog caseId={bankCase.id} caseType="bank_case" />
+                {canManage && bankCase.status !== 'RESOLVED' && bankCase.status !== 'CLOSED' && (
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">Change type</span>
+                    <Select
+                      value={bankCase.case_type}
+                      onValueChange={(newType) => {
+                        if (newType === bankCase.case_type) return;
+                        changeCaseTypeMutation.mutate({ caseId: bankCase.id, oldType: bankCase.case_type, newType });
+                      }}
+                      disabled={changeCaseTypeMutation.isPending}
+                    >
+                      <SelectTrigger className="h-8 w-[240px] text-xs bg-background text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {Object.entries(caseTypeLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
               </div>
             </div>
           ))}

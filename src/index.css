@@ -393,7 +393,8 @@
      Completely isolated from the main white enterprise theme.
      All terminal components must consume ONLY these tokens.
      ═══════════════════════════════════════════════════════ */
-  .terminal {
+  .terminal,
+  html.terminal-dark {
     /* ── Base backgrounds (true-black layered surfaces) ── */
     --background: 240 10% 4%;        /* deepest canvas */
     --foreground: 228 20% 93%;       /* primary text */
@@ -468,7 +469,9 @@
      Blynk indigo identity on a cool paper canvas. Same density,
      same semantics as the dark terminal — colour only.
      ═══════════════════════════════════════════════════════ */
-  .terminal.t-light {
+  .terminal.t-light,
+  html.terminal-light,
+  html.terminal-light .terminal {
     /* ── Base ── */
     --background: 218 33% 97%;       /* #F7F9FC cool paper */
     --foreground: 222 32% 14%;       /* ink */

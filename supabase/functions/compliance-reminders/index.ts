@@ -374,14 +374,17 @@ async function getMailbox(admin: any) {
   return data;
 }
 
-function makeClient(mailbox: any) {
-  const host = Deno.env.get(mailbox?.smtp_host_secret || "") || Deno.env.get("HR_SMTP_HOST");
-  const user = (Deno.env.get(mailbox?.smtp_user_secret || "") || Deno.env.get("HR_SMTP_USER") || "").trim();
-  const pass = (Deno.env.get(mailbox?.smtp_pass_secret || "") || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
-  if (!host || !user || !pass) throw new Error("SMTP credentials are not configured");
+function makeClient(_mailbox?: unknown) {
+  // Compliance notices go out on the task mailbox (task@blynkex.com), not HR.
+  const host = Deno.env.get("TASK_SMTP_HOST") || Deno.env.get("SMTP_HOST");
+  const user = (Deno.env.get("TASK_SMTP_USER") || Deno.env.get("SMTP_USER") || "").trim();
+  const pass = (Deno.env.get("TASK_SMTP_PASS") || Deno.env.get("SMTP_PASS") || "").replace(/\s+/g, "");
+  const port = Number(Deno.env.get("TASK_SMTP_PORT") || "465");
+  if (!host || !user || !pass) throw new Error("Task SMTP credentials are not configured");
   return {
     user,
-    client: new SMTPClient({ connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } } }),
+    from: `Blynkex Compliance <${user}>`,
+    client: new SMTPClient({ connection: { hostname: host, port, tls: port === 465, auth: { username: user, password: pass } } }),
   };
 }
 
@@ -404,11 +407,10 @@ Deno.serve(async (req) => {
     if (action === "preview") {
       const to = String(body.email || "").trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: "A valid email is required" }, 400);
-      const mailbox = await getMailbox(admin);
       const { subject, html, text } = renderDigest(all, dateLabel);
-      const { client, user } = makeClient(mailbox);
+      const { client, from } = makeClient();
       await client.send({
-        from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+        from,
         to, subject, content: text, html,
       });
       await client.close();
@@ -423,11 +425,10 @@ Deno.serve(async (req) => {
         .map((r: unknown) => String(r || "").trim())
         .filter((r: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r));
       if (!to.length) return json({ error: "recipients[] required" }, 400);
-      const mailbox = await getMailbox(admin);
       const { subject, html, text } = renderDigest(all, dateLabel);
-      const { client, user } = makeClient(mailbox);
+      const { client, from } = makeClient();
       await client.send({
-        from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+        from,
         to, subject, content: text, html,
       });
       await client.close();
@@ -450,11 +451,10 @@ Deno.serve(async (req) => {
     if (body.dryRun) return json({ ok: true, dryRun: true, scanned: all.length, new: fresh.length, recipients: to.length, items: fresh });
     if (!to.length) return json({ ok: true, scanned: all.length, sent: 0, reason: "no recipients with compliance permissions" });
 
-    const mailbox = await getMailbox(admin);
     const { subject, html, text } = renderDigest(fresh, dateLabel);
-    const { client, user } = makeClient(mailbox);
+    const { client, from } = makeClient();
     await client.send({
-      from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+      from,
       to, subject, content: text, html,
     });
     await client.close();

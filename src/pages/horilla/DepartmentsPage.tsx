@@ -93,7 +93,7 @@ export default function DepartmentsPage() {
   };
 
   const openEdit = (d: any) => {
-    setForm({ name: d.name, code: d.code, description: d.description || "", icon: d.icon || "📁" });
+    setForm({ name: d.name, code: d.code, description: d.description || "", icon: d.icon || "" });
     setEditId(d.id);
     setAddOpen(true);
   };

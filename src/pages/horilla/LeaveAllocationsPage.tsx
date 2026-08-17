@@ -450,7 +450,7 @@ export default function LeaveAllocationsPage() {
               <Input type="number" value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: parseFloat(e.target.value) || 0 })} className="h-9" />
             </div>
             {selectedIsProbationer && (
-              <p className="text-xs text-warning">⚠ This employee is on probation{probationEndDate(form.employee_id) ? ` until ${probationEndDate(form.employee_id)}` : ""}. Sick / Medical leave cannot be allocated as per company policy.</p>
+              <p className="text-xs text-warning">This employee is on probation{probationEndDate(form.employee_id) ? ` until ${probationEndDate(form.employee_id)}` : ""}. Sick / Medical leave cannot be allocated as per company policy.</p>
             )}
             <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • All unused days carry forward automatically</p>
           </div>

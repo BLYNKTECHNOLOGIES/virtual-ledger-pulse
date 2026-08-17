@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Plus, Trash2, DollarSign } from "lucide-react";
+import { Plus, Trash2, DollarSign, ExternalLink } from "lucide-react";
 
 interface EmployeeSalaryStructureProps {
   employeeId: string;
@@ -140,7 +140,7 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
           <Badge variant="outline" className="text-[10px] uppercase ml-1">Mirror · RazorpayX ({unit})</Badge>
         </h3>
         <Button asChild size="sm" variant="outline">
-          <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">Edit on RazorpayX ↗</a>
+          <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5">Edit on RazorpayX <ExternalLink className="h-3.5 w-3.5" /></a>
         </Button>
       </div>
 

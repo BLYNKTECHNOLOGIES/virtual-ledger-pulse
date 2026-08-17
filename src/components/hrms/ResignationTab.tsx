@@ -857,11 +857,11 @@ export function ResignationTab() {
               )}
 
               <div className="bg-success/10 dark:bg-success/30 border border-success/20 dark:border-success rounded-lg p-3">
-                <p className="text-sm text-success dark:text-success">
-                  ✓ Employee has been deactivated<br />
-                  ✓ F&F Settlement draft created with calculated values<br />
-                  ✓ Account deletion scheduled
-                </p>
+                <ul className="text-sm text-success dark:text-success space-y-1">
+                  <li className="flex items-start gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> Employee has been deactivated</li>
+                  <li className="flex items-start gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> F&amp;F Settlement draft created with calculated values</li>
+                  <li className="flex items-start gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> Account deletion scheduled</li>
+                </ul>
               </div>
             </div>
           )}

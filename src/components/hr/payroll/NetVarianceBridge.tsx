@@ -340,7 +340,7 @@ export function NetVarianceBridge({ line }: { line: BridgeLine }) {
               {signed(heads.reduce((s, h) => s + h.delta, 0))}
             </td>
             <td className="px-3 py-1.5 text-[10px] text-muted-foreground">
-              {tiesOut ? "ties out ✓" : "does not tie out"}
+              {tiesOut ? "ties out" : "does not tie out"}
             </td>
           </tr>
         </tfoot>

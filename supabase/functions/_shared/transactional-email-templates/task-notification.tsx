@@ -44,7 +44,7 @@ interface EventMeta {
 
 const eventMeta: Record<string, EventMeta> = {
   task_assigned: {
-    emoji: '📋',
+    emoji: '',
     label: 'New Task Assigned',
     intro: (a) => a ? `${a} has assigned a new task to you.` : 'A new task has been assigned to you.',
     accent: '#4361ee',
@@ -52,7 +52,7 @@ const eventMeta: Record<string, EventMeta> = {
     cta: 'Open Task',
   },
   task_reassigned: {
-    emoji: '🔄',
+    emoji: '',
     label: 'Task Reassigned to You',
     intro: (a) => a ? `${a} has reassigned this task to you.` : 'This task has been reassigned to you.',
     accent: '#7c3aed',
@@ -60,7 +60,7 @@ const eventMeta: Record<string, EventMeta> = {
     cta: 'Review Task',
   },
   task_overdue: {
-    emoji: '⚠️',
+    emoji: '',
     label: 'Task Overdue',
     intro: () => 'This task has passed its due date and still needs your attention.',
     accent: '#dc2626',
@@ -68,7 +68,7 @@ const eventMeta: Record<string, EventMeta> = {
     cta: 'Resolve Now',
   },
   task_due_soon: {
-    emoji: '⏰',
+    emoji: '',
     label: 'Task Due Soon',
     intro: () => 'Heads up — this task is coming up on its deadline.',
     accent: '#d97706',
@@ -76,7 +76,7 @@ const eventMeta: Record<string, EventMeta> = {
     cta: 'View Task',
   },
   task_mention: {
-    emoji: '💬',
+    emoji: '',
     label: 'You Were Mentioned',
     intro: (a) => a ? `${a} mentioned you in a task discussion.` : 'You were mentioned in a task discussion.',
     accent: '#0891b2',
@@ -156,7 +156,7 @@ const TaskNotificationEmail = ({
                 </div>
               </Column>
               <Column align="right" style={{ verticalAlign: 'middle' as const }}>
-                <span style={eyebrow}>{meta.emoji} Tasks</span>
+                <span style={eyebrow}>Tasks</span>
               </Column>
             </Row>
             {/* Bottom cyan accent strip */}
@@ -205,7 +205,7 @@ const TaskNotificationEmail = ({
             <Section style={metaGrid}>
               {formattedDue && (
                 <Row style={metaRow}>
-                  <Column style={metaKeyCol}><Text style={metaKey}>📅 Due</Text></Column>
+                  <Column style={metaKeyCol}><Text style={metaKey}>Due</Text></Column>
                   <Column><Text style={metaVal}>{formattedDue} IST</Text></Column>
                 </Row>
               )}

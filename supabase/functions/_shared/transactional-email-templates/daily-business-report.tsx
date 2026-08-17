@@ -512,10 +512,10 @@ export const template = {
   subject: (data: Record<string, any>) => {
     if (data.isMonthly) {
       const label = data.periodLabel || (data.periodStart ? new Date(data.periodStart + 'T00:00:00').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) : '')
-      return `📊 Monthly Business Report — ${label}`
+      return `Monthly Business Report — ${label}`
     }
     const d = data.date ? new Date(data.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : ''
-    return `📊 Daily Business Report — ${d}`
+    return `Daily Business Report — ${d}`
   },
   displayName: 'Daily Business Report',
   previewData: {

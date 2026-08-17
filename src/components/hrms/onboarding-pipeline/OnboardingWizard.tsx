@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { Stage1BasicDetails } from "./Stage1BasicDetails";
 import { Stage2SalaryConfig } from "./Stage2SalaryConfig";
 import { Stage3Documents } from "./Stage3Documents";
@@ -869,7 +869,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
               }`}
             >
               <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] border">
-                {isDone ? "✓" : stage}
+                {isDone ? <Check className="h-3 w-3" /> : stage}
               </span>
               {label}
             </button>

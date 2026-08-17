@@ -99,7 +99,7 @@ export function ResetPasswordDialog({
 
       setIsLoading(false);
       toast({
-        title: "✅ Password Reset Successful",
+        title: "Password Reset Successful",
         description: `Password has been successfully reset for ${userName}`,
       });
       resetForm();
@@ -111,7 +111,7 @@ export function ResetPasswordDialog({
       console.error("Password reset error:", error);
       setIsLoading(false);
       toast({
-        title: "❌ Reset Failed",
+        title: "Reset Failed",
         description: error.message || "Failed to reset password. Please try again.",
         variant: "destructive",
       });

@@ -36,7 +36,7 @@ const TaskCompletedEmail = ({
   recipientName,
   recipientRole = 'creator',
 }: TaskCompletedProps) => {
-  const previewText = `✅ Task Completed: ${taskTitle}`
+  const previewText = `Task Completed: ${taskTitle}`
 
   const formattedDue = dueDate
     ? new Date(dueDate).toLocaleString('en-IN', {
@@ -75,7 +75,7 @@ const TaskCompletedEmail = ({
           </Section>
 
           <Section style={content}>
-            <Heading style={h1}>✅ Task Completed</Heading>
+            <Heading style={h1}>Task Completed</Heading>
 
             {recipientName && (
               <Text style={text}>Hi {recipientName},</Text>
@@ -95,13 +95,13 @@ const TaskCompletedEmail = ({
             </Section>
 
             {completedByName && (
-              <Text style={meta}>👤 Completed by: <strong>{completedByName}</strong></Text>
+              <Text style={meta}>Completed by: <strong>{completedByName}</strong></Text>
             )}
             {formattedCompleted && (
-              <Text style={meta}>✅ Completed at: <strong>{formattedCompleted}</strong></Text>
+              <Text style={meta}>Completed at: <strong>{formattedCompleted}</strong></Text>
             )}
             {formattedDue && (
-              <Text style={meta}>📅 Was due: <strong>{formattedDue}</strong></Text>
+              <Text style={meta}>Was due: <strong>{formattedDue}</strong></Text>
             )}
 
             <Hr style={divider} />
@@ -120,7 +120,7 @@ const TaskCompletedEmail = ({
 export const template = {
   component: TaskCompletedEmail,
   subject: (data: Record<string, any>) =>
-    `✅ Task Completed: ${data.taskTitle || 'Task'}`,
+    `Task Completed: ${data.taskTitle || 'Task'}`,
   displayName: 'Task Completed',
   previewData: {
     taskTitle: 'Complete Q1 Financial Report',

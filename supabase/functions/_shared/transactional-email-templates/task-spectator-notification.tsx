@@ -36,7 +36,7 @@ const TaskSpectatorNotificationEmail = ({
   status,
   recipientName,
 }: TaskSpectatorNotificationProps) => {
-  const previewText = `👁️ You've been added as a spectator: ${taskTitle}`
+  const previewText = `You have been added as a spectator: ${taskTitle}`
   const statusLabel = status?.replace('_', ' ').toUpperCase() || ''
   const formattedDue = dueDate
     ? new Date(dueDate).toLocaleString('en-IN', {
@@ -61,7 +61,7 @@ const TaskSpectatorNotificationEmail = ({
           </Section>
 
           <Section style={content}>
-            <Heading style={h1}>👁️ You Are a Spectator</Heading>
+            <Heading style={h1}>You Are a Spectator</Heading>
 
             {recipientName && (
               <Text style={text}>Hi {recipientName},</Text>
@@ -85,13 +85,13 @@ const TaskSpectatorNotificationEmail = ({
 
             {/* Meta info */}
             {assignedToName && (
-              <Text style={meta}>👤 Assigned to: <strong>{assignedToName}</strong></Text>
+              <Text style={meta}>Assigned to: <strong>{assignedToName}</strong></Text>
             )}
             {assignedByName && (
-              <Text style={meta}>📝 Created by: <strong>{assignedByName}</strong></Text>
+              <Text style={meta}>Created by: <strong>{assignedByName}</strong></Text>
             )}
             {formattedDue && (
-              <Text style={meta}>📅 Due: <strong>{formattedDue}</strong></Text>
+              <Text style={meta}>Due: <strong>{formattedDue}</strong></Text>
             )}
             {statusLabel && (
               <Text style={meta}>Status: <strong>{statusLabel}</strong></Text>
@@ -113,7 +113,7 @@ const TaskSpectatorNotificationEmail = ({
 export const template = {
   component: TaskSpectatorNotificationEmail,
   subject: (data: Record<string, any>) =>
-    `👁️ Spectator: ${data.taskTitle || 'Task'}`,
+    `Spectator: ${data.taskTitle || 'Task'}`,
   displayName: 'Task Spectator Notification',
   previewData: {
     taskTitle: 'Complete Q1 Financial Report',

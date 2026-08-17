@@ -114,7 +114,7 @@ function StepBadge({ step }: { step: CockpitStep }) {
   if (step.ack_status === "blocked")
     return <Badge variant="destructive">Blocked</Badge>;
   if (step.live_status === "complete" && step.auto)
-    return <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30">Auto ✓</Badge>;
+    return <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30">Auto</Badge>;
   if (step.live_status === "complete")
     return <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">Ready to acknowledge</Badge>;
   return <Badge variant="outline" className="text-muted-foreground">Pending</Badge>;

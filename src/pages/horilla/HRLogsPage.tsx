@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Search, Mail, Bell } from "lucide-react";
+import { Search, Mail, Bell, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -117,7 +117,7 @@ export default function HRLogsPage() {
                       <TableCell className="text-sm font-medium">{n.title}</TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{n.message || "—"}</TableCell>
                       <TableCell className="text-xs">{n.channel || "in-app"}</TableCell>
-                      <TableCell>{n.is_read ? "✓" : "—"}</TableCell>
+                      <TableCell>{n.is_read ? <CheckCircle2 className="h-4 w-4 text-success" aria-label="Read" /> : <span className="text-muted-foreground">Unread</span>}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

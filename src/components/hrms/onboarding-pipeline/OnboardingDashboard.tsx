@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, Clock, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { Plus, Users, Clock, CheckCircle2, XCircle, Circle, Trash2 } from "lucide-react";
 
 import { format } from "date-fns";
 import {
@@ -235,7 +235,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     title={`${label}: ${ok ? "complete" : "missing"}`}
                     className={`inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded ${ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}
                   >
-                    {ok ? "✓" : "○"} {label}
+                    {ok ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <Circle className="h-3 w-3 shrink-0" />} {label}
                   </span>
                 );
 
@@ -274,7 +274,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                 const c = r.employee_id ? completeness?.[r.employee_id] : undefined;
                 const chip = (label: string, ok: boolean | undefined) => (
                   <span key={label} className={`inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded ${ok ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"}`}>
-                    {ok ? "✓" : "○"} {label}
+                    {ok ? <CheckCircle2 className="h-3 w-3 shrink-0" /> : <Circle className="h-3 w-3 shrink-0" />} {label}
                   </span>
                 );
 

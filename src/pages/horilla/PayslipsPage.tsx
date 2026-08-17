@@ -169,7 +169,7 @@ function generatePayslipPDF(detail: any) {
   if (detail.status === "paid") {
     doc.setTextColor(34, 139, 34);
     doc.setFontSize(9);
-    doc.text(`✓ Paid${detail.payment_date ? ` on ${detail.payment_date}` : ""}${detail.payment_reference ? ` | Ref: ${detail.payment_reference}` : ""}`, margin, y);
+    doc.text(`Paid${detail.payment_date ? ` on ${detail.payment_date}` : ""}${detail.payment_reference ? ` | Ref: ${detail.payment_reference}` : ""}`, margin, y);
     y += 8;
   }
 

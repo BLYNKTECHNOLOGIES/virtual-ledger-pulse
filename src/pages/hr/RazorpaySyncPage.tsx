@@ -2298,7 +2298,7 @@ export default function RazorpaySyncPage() {
                       <td className="p-2">
                         {r.action_planned === "match" && <span className="text-emerald-600">Match</span>}
                         {r.action_planned === "create_draft" && <span className="text-amber-600">Create draft</span>}
-                        {r.applied && <span className="ml-1 text-muted-foreground">✓ written</span>}
+                        {r.applied && <span className="ml-1 text-muted-foreground">written</span>}
                       </td>
                     </tr>
                   ))}
@@ -2830,7 +2830,7 @@ function PayoutReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
                         <td className="p-2">{r.paid_at ? new Date(r.paid_at).toLocaleDateString() : "—"}</td>
                         <td className="p-2">
                           {r.reconciled_at
-                            ? <Badge variant="default" className="text-[10px]">✓</Badge>
+                            ? <Badge variant="default" className="text-[10px]">Yes</Badge>
                             : <Button size="sm" variant="ghost" className="h-6 text-[10px]"
                                 onClick={() => call("reconcile_payout", { id: r.id })}
                                 disabled={!!busy}>Reconcile</Button>}

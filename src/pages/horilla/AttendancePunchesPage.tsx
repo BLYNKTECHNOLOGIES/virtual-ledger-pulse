@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
-import { Search, Fingerprint, Info } from "lucide-react";
+import { Search, Fingerprint, Info, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -138,7 +138,7 @@ export default function AttendancePunchesPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="font-mono tabular-nums text-sm">{formatInTimeZone(new Date(p.punch_time), BUSINESS_TIMEZONE, "HH:mm:ss")}</span>
-                      <span className="text-xs text-muted-foreground">{p.verified ? "✓ verified" : "—"}</span>
+                      <span className="text-xs text-muted-foreground">{p.verified ? "Verified" : "—"}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -179,7 +179,7 @@ export default function AttendancePunchesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">{p.device_name || p.device_serial || "—"}</td>
-                        <td className="px-4 py-3">{p.verified ? "✓" : "—"}</td>
+                        <td className="px-4 py-3">{p.verified ? <CheckCircle2 className="h-4 w-4 text-success" aria-label="Verified" /> : <span className="text-muted-foreground">—</span>}</td>
                       </tr>
                     );
                   })}

@@ -203,28 +203,31 @@ export default function RegularizationCard({ employeeId }: Props) {
             <DialogTitle>New Regularization Request</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <div>
+            <div className="min-w-0">
               <Label className="mb-1.5 block">Date</Label>
               <Input
                 type="date"
+                className="w-full min-w-0"
                 value={form.attendance_date}
                 onChange={(e) => setForm({ ...form, attendance_date: e.target.value })}
                 max={format(new Date(), 'yyyy-MM-dd')}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="min-w-0">
                 <Label className="mb-1.5 block">Check-In</Label>
                 <Input
                   type="time"
+                  className="w-full min-w-0"
                   value={form.requested_check_in}
                   onChange={(e) => setForm({ ...form, requested_check_in: e.target.value })}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <Label className="mb-1.5 block">Check-Out</Label>
                 <Input
                   type="time"
+                  className="w-full min-w-0"
                   value={form.requested_check_out}
                   onChange={(e) => setForm({ ...form, requested_check_out: e.target.value })}
                 />
@@ -234,7 +237,8 @@ export default function RegularizationCard({ employeeId }: Props) {
               <Label className="mb-1.5 block">Reason *</Label>
               <Textarea
                 rows={3}
-                placeholder="e.g. Forgot to punch out, biometric device was offline, on client visit..."
+                className="w-full"
+                placeholder="e.g. Forgot to punch out, device offline..."
                 value={form.reason}
                 onChange={(e) => setForm({ ...form, reason: e.target.value })}
               />
@@ -248,6 +252,7 @@ export default function RegularizationCard({ employeeId }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </Card>
   );
 }

@@ -116,6 +116,37 @@ export function CaseTrackingTab() {
     },
   });
 
+
+  // Change case type on an in-flight case (audited)
+  const changeCaseTypeMutation = useMutation({
+    mutationFn: async ({ caseId, oldType, newType }: { caseId: string; oldType: string; newType: string }) => {
+      const userId = await getCurrentUserIdAsync();
+      const { error } = await supabase
+        .from('bank_cases')
+        .update({ case_type: newType })
+        .eq('id', caseId);
+      if (error) throw error;
+
+      const { error: logError } = await supabase.from('compliance_case_updates').insert({
+        bank_case_id: caseId,
+        update_type: 'CASE_TYPE_CHANGED',
+        update_text: `Case type changed from ${caseTypeLabels[oldType as keyof typeof caseTypeLabels] || oldType} to ${caseTypeLabels[newType as keyof typeof caseTypeLabels] || newType}`,
+        created_by: userId || null,
+      });
+      if (logError) throw logError;
+    },
+    onSuccess: () => {
+      toast({ title: "Case Type Updated", description: "The change has been recorded in the case timeline." });
+      queryClient.invalidateQueries({ queryKey: ['bank_cases'] });
+      refetchCases();
+    },
+    onError: (error) => {
+      toast({ variant: "destructive", title: "Error", description: "Failed to change case type." });
+      console.error('Case type change error:', error);
+    },
+  });
+
+
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'RESOLVED':
@@ -334,6 +365,29 @@ export function CaseTrackingTab() {
                   </Button>
                 )}
                 <ViewTimelineDialog caseId={bankCase.id} caseType="bank_case" />
+                {canManage && bankCase.status !== 'RESOLVED' && bankCase.status !== 'CLOSED' && (
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">Change type</span>
+                    <Select
+                      value={bankCase.case_type}
+                      onValueChange={(newType) => {
+                        if (newType === bankCase.case_type) return;
+                        changeCaseTypeMutation.mutate({ caseId: bankCase.id, oldType: bankCase.case_type, newType });
+                      }}
+                      disabled={changeCaseTypeMutation.isPending}
+                    >
+                      <SelectTrigger className="h-8 w-[240px] text-xs bg-background text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover z-50">
+                        {Object.entries(caseTypeLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value} className="text-xs">{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
               </div>
             </div>
           ))}

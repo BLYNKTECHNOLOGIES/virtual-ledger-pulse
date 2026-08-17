@@ -1,5 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertTriangle, MessageSquare, Key, Search, Archive, Activity, Clock, ShieldAlert } from "lucide-react";
+import { AlertTriangle, MessageSquare, Key, Search, Archive, Activity, Clock } from "lucide-react";
 import { CaseTrackingTab } from "./CaseTrackingTab";
 import { ActiveInvestigationsTab } from "./ActiveInvestigationsTab";
 import { BankCommunicationsTab } from "./BankCommunicationsTab";
@@ -7,7 +7,6 @@ import { BankingCredentialsTab } from "./BankingCredentialsTab";
 import { PastInvestigationsTab } from "./PastInvestigationsTab";
 import { AccountStatusTab } from "./AccountStatusTab";
 import { PendingApprovalsTab } from "./PendingApprovalsTab";
-import { LienCaseTrackingTab } from "./LienCaseTrackingTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,11 +45,6 @@ export function BankingComplianceTab() {
             <AlertTriangle className="h-4 w-4" />
             Cases
           </TabsTrigger>
-          <TabsTrigger value="liens" className={triggerCls}>
-            <ShieldAlert className="h-4 w-4" />
-            <span className="hidden sm:inline">Lien Cases</span>
-            <span className="sm:hidden">Liens</span>
-          </TabsTrigger>
           <TabsTrigger value="active-investigations" className={triggerCls}>
             <Search className="h-4 w-4" />
             <span className="hidden sm:inline">Active Investigations</span>
@@ -86,7 +80,6 @@ export function BankingComplianceTab() {
 
       <TabsContent value="account-status"><AccountStatusTab /></TabsContent>
       <TabsContent value="cases"><CaseTrackingTab /></TabsContent>
-      <TabsContent value="liens"><LienCaseTrackingTab /></TabsContent>
       <TabsContent value="active-investigations"><ActiveInvestigationsTab /></TabsContent>
       <TabsContent value="pending-approvals"><PendingApprovalsTab /></TabsContent>
       <TabsContent value="past-investigations"><PastInvestigationsTab /></TabsContent>

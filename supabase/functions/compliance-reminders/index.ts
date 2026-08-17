@@ -29,6 +29,27 @@ function esc(s: string) {
   return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
 
+// The SMTP client quoted-printable-encodes any body that carries non-ASCII bytes
+// or long/indented lines, and several clients then render the raw "=20" soft
+// breaks. Keeping the payload pure-ASCII and single-line avoids that entirely.
+function toAscii(s: string) {
+  return String(s ?? "").replace(/[^\x00-\x7F]/g, (c) => `&#${c.codePointAt(0)};`);
+}
+
+function toAsciiText(s: string) {
+  return String(s ?? "")
+    .replace(/\u20B9/g, "INR ")
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u00B7/g, "-")
+    .replace(/[^\x00-\x7F]/g, "");
+}
+
+function mailSafeHtml(html: string) {
+  return toAscii(String(html).replace(/\r?\n\s*/g, " ")).trim();
+}
+
 function inr(n: number | null | undefined) {
   const v = Number(n || 0);
   return "\u20B9" + v.toLocaleString("en-IN", { maximumFractionDigits: 2 });
@@ -186,14 +207,14 @@ function renderDigest(items: Item[], dateLabel: string) {
 
   const text = items.length
     ? orderedTypes.map((t) => `${SECTION_TITLES[t] || t} (${groups[t].length})\n` +
-        groups[t].map((i) => `  - [${severityLabel(i.severity)}] ${i.title} — ${i.detail} (${i.due})`).join("\n")).join("\n\n")
+        groups[t].map((i) => `  - [${severityLabel(i.severity)}] ${i.title} - ${i.detail} (${i.due})`).join("\n")).join("\n\n")
     : "No compliance items need attention today.";
   return {
     subject: items.length
-      ? `Compliance digest · ${counts.critical} critical / ${items.length} item(s) · ${dateLabel}`
-      : `Compliance digest · all clear · ${dateLabel}`,
-    html,
-    text,
+      ? `Compliance digest - ${counts.critical} critical / ${items.length} item(s) - ${dateLabel}`
+      : `Compliance digest - all clear - ${dateLabel}`,
+    html: mailSafeHtml(html),
+    text: toAsciiText(text),
   };
 }
 
@@ -348,19 +369,17 @@ async function recipients(admin: any): Promise<string[]> {
     .map((u: any) => String(u.email).trim()))];
 }
 
-async function getMailbox(admin: any) {
-  const { data } = await admin.from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();
-  return data;
-}
-
-function makeClient(mailbox: any) {
-  const host = Deno.env.get(mailbox?.smtp_host_secret || "") || Deno.env.get("HR_SMTP_HOST");
-  const user = (Deno.env.get(mailbox?.smtp_user_secret || "") || Deno.env.get("HR_SMTP_USER") || "").trim();
-  const pass = (Deno.env.get(mailbox?.smtp_pass_secret || "") || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
-  if (!host || !user || !pass) throw new Error("SMTP credentials are not configured");
+function makeClient(_mailbox?: unknown) {
+  // Compliance notices go out on the task mailbox (task@blynkex.com), not HR.
+  const host = Deno.env.get("TASK_SMTP_HOST") || Deno.env.get("SMTP_HOST");
+  const user = (Deno.env.get("TASK_SMTP_USER") || Deno.env.get("SMTP_USER") || "").trim();
+  const pass = (Deno.env.get("TASK_SMTP_PASS") || Deno.env.get("SMTP_PASS") || "").replace(/\s+/g, "");
+  const port = Number(Deno.env.get("TASK_SMTP_PORT") || "465");
+  if (!host || !user || !pass) throw new Error("Task SMTP credentials are not configured");
   return {
     user,
-    client: new SMTPClient({ connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } } }),
+    from: `Blynkex Compliance <${user}>`,
+    client: new SMTPClient({ connection: { hostname: host, port, tls: port === 465, auth: { username: user, password: pass } } }),
   };
 }
 
@@ -383,11 +402,10 @@ Deno.serve(async (req) => {
     if (action === "preview") {
       const to = String(body.email || "").trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: "A valid email is required" }, 400);
-      const mailbox = await getMailbox(admin);
       const { subject, html, text } = renderDigest(all, dateLabel);
-      const { client, user } = makeClient(mailbox);
+      const { client, from } = makeClient();
       await client.send({
-        from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+        from,
         to, subject, content: text, html,
       });
       await client.close();
@@ -402,11 +420,10 @@ Deno.serve(async (req) => {
         .map((r: unknown) => String(r || "").trim())
         .filter((r: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r));
       if (!to.length) return json({ error: "recipients[] required" }, 400);
-      const mailbox = await getMailbox(admin);
       const { subject, html, text } = renderDigest(all, dateLabel);
-      const { client, user } = makeClient(mailbox);
+      const { client, from } = makeClient();
       await client.send({
-        from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+        from,
         to, subject, content: text, html,
       });
       await client.close();
@@ -429,11 +446,10 @@ Deno.serve(async (req) => {
     if (body.dryRun) return json({ ok: true, dryRun: true, scanned: all.length, new: fresh.length, recipients: to.length, items: fresh });
     if (!to.length) return json({ ok: true, scanned: all.length, sent: 0, reason: "no recipients with compliance permissions" });
 
-    const mailbox = await getMailbox(admin);
     const { subject, html, text } = renderDigest(fresh, dateLabel);
-    const { client, user } = makeClient(mailbox);
+    const { client, from } = makeClient();
     await client.send({
-      from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+      from,
       to, subject, content: text, html,
     });
     await client.close();

@@ -1,6 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { AppSidebar } from "@/components/AppSidebar";
-import { SidebarInset, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { TopHeader } from "./TopHeader";
 import { SidebarEditProvider } from "@/contexts/SidebarEditContext";
 import { PinUnlockProvider } from "@/contexts/PinUnlockContext";

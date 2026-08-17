@@ -857,6 +857,11 @@ const router = createBrowserRouter([
       path: "/raci",
       element: <RaciPage />,
     },
+    // Public candidate onboarding form (no login)
+    {
+      path: "/onboarding/apply/:token",
+      element: <OnboardingApplyPage />,
+    },
    // Catch-all route for 404 errors
     {
       path: "*",

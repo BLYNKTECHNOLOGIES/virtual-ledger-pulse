@@ -140,6 +140,9 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
 
   return (
     <div className="space-y-4">
+    {/* Candidate self-service onboarding form — kept at the top so the invite
+        link / email is the first action available in Stage 1. */}
+    <CandidateInviteCard onboardingId={data?.id} email={form.email} />
     <Card>
       <CardHeader className="py-3 px-4">
         <CardTitle className="text-base flex items-center gap-2">

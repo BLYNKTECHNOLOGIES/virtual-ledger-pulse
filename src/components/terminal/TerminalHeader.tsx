@@ -72,6 +72,16 @@ export function TerminalHeader() {
           </Button>
         )}
         <ExchangeAccountSwitcher />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent"
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
         <TerminalAlertsSettings />
         <TerminalNotificationBell />
 

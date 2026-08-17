@@ -26,7 +26,7 @@ import { Mail, Plus, Send, Trash2, Clock, ShieldAlert, X } from "lucide-react";
 interface ReportConfig {
   id: string;
   name: string;
-  variant: "profit" | "operations" | "kyc_rm";
+  variant: "profit" | "operations" | "kyc_rm" | "compliance";
   recipients: string[];
   send_time: string;
   enabled: boolean;
@@ -37,7 +37,7 @@ interface ReportConfig {
 type Draft = {
   id?: string;
   name: string;
-  variant: "profit" | "operations" | "kyc_rm";
+  variant: "profit" | "operations" | "kyc_rm" | "compliance";
   recipients: string[];
   send_time: string;
   enabled: boolean;
@@ -206,7 +206,13 @@ export default function ReportSettings() {
                     <CardTitle className="text-sm font-semibold truncate">{cfg.name}</CardTitle>
                   </div>
                   <Badge variant={cfg.variant === "profit" ? "default" : "secondary"}>
-                    {cfg.variant === "profit" ? "Profit" : cfg.variant === "kyc_rm" ? "KYC / RM" : "Operations"}
+                    {cfg.variant === "profit"
+                      ? "Profit"
+                      : cfg.variant === "kyc_rm"
+                        ? "KYC / RM"
+                        : cfg.variant === "compliance"
+                          ? "Compliance"
+                          : "Operations"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -281,6 +287,7 @@ export default function ReportSettings() {
                   <SelectItem value="profit">Profit (full report incl. P&amp;L and asset value)</SelectItem>
                   <SelectItem value="operations">Operations (no P&amp;L / asset totals)</SelectItem>
                   <SelectItem value="kyc_rm">KYC &amp; Client Management (RM)</SelectItem>
+                  <SelectItem value="compliance">Compliance Digest (cases, hearings, documents, approvals)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -8,6 +8,7 @@ import { ShieldOff, Loader2 } from 'lucide-react';
 import { TerminalPresenceAndAlerts } from './TerminalPresenceAndAlerts';
 import { ExchangeAccountProvider } from '@/contexts/ExchangeAccountContext';
 import { TerminalShortcutsProvider } from '@/contexts/TerminalShortcutsProvider';
+import { TerminalThemeProvider, useTerminalTheme } from '@/contexts/TerminalThemeContext';
 
 interface TerminalLayoutProps {
   children: React.ReactNode;

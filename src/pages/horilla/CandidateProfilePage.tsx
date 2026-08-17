@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, Star, UserCheck, UserX, Edit, Save, X, Plus,
   Calendar, FileText, MessageSquare, Clock, Video, MapPin,
-  Briefcase, Mail, Phone, Globe, User, ClipboardList, CheckSquare, Square, CheckCircle2
+  Briefcase, Mail, Phone, Globe, User, ClipboardList, CheckSquare, Square, CheckCircle2, XCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";
@@ -595,7 +595,7 @@ export default function CandidateProfilePage() {
                     </div>
                     <p className="text-xs text-muted-foreground">{iv.feedback}</p>
                     {iv.strengths && <p className="text-[10px] text-success mt-1 flex items-start gap-1"><CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" /> {iv.strengths}</p>}
-                    {iv.weaknesses && <p className="text-[10px] text-destructive mt-0.5">✗ {iv.weaknesses}</p>}
+                    {iv.weaknesses && <p className="text-[10px] text-destructive mt-0.5 flex items-start gap-1"><XCircle className="h-3 w-3 shrink-0 mt-0.5" /> {iv.weaknesses}</p>}
                   </div>
                 )}
               </div>

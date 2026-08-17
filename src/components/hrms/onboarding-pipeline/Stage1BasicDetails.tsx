@@ -138,6 +138,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   };
 
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader className="py-3 px-4">
         <CardTitle className="text-base flex items-center gap-2">

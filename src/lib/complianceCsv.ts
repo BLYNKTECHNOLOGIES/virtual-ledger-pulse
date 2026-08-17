@@ -6,7 +6,7 @@ function cell(v: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function toCsv<T extends Record<string, unknown>>(
+export function toCsv<T extends object>(
   rows: T[],
   columns: { key: keyof T | string; label: string; value?: (row: T) => unknown }[],
 ): string {
@@ -29,7 +29,7 @@ export function downloadCsv(filename: string, content: string) {
   URL.revokeObjectURL(url);
 }
 
-export function exportRowsToCsv<T extends Record<string, unknown>>(
+export function exportRowsToCsv<T extends object>(
   filename: string,
   rows: T[],
   columns: { key: keyof T | string; label: string; value?: (row: T) => unknown }[],

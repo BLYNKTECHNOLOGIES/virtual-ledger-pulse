@@ -312,7 +312,7 @@ export default function LeaveRequestsPage() {
               <div className="hrms-mobile-kv">
                 <span>Start</span><span>{r.start_date}</span>
                 <span>End</span><span>{r.end_date}</span>
-                <span>Clashes</span><span>{(r.leave_clashes_count || 0) > 0 ? r.leave_clashes_count : "None"}</span>
+                <span>Clashes</span><span><ClashBadge request={r} /></span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
               <LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />
@@ -437,22 +437,102 @@ function LeaveDays({ request }: { request: any }) {
 }
 
 function ClashBadge({ request }: { request: any }) {
-  return (request.leave_clashes_count || 0) > 0 ? (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20">
-            <AlertTriangle className="h-3 w-3" />
-            {request.leave_clashes_count}
+  const [open, setOpen] = useState(false);
+  const count = request.leave_clashes_count || 0;
+
+  const { data: clashes = [], isLoading } = useQuery({
+    queryKey: ["hr_leave_clash_detail", request.id],
+    enabled: open,
+    queryFn: async () => {
+      const { data: wi } = await (supabase as any)
+        .from("hr_employee_work_info")
+        .select("department_id")
+        .eq("employee_id", request.employee_id)
+        .maybeSingle();
+      const deptId = wi?.department_id;
+      if (!deptId) return [];
+      const { data: peers } = await (supabase as any)
+        .from("hr_employee_work_info")
+        .select("employee_id")
+        .eq("department_id", deptId);
+      const peerIds = (peers || []).map((p: any) => p.employee_id).filter((id: string) => id !== request.employee_id);
+      if (peerIds.length === 0) return [];
+      const { data, error } = await (supabase as any)
+        .from("hr_leave_requests")
+        .select("id, employee_id, start_date, end_date, total_days, status, reason, hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name, badge_id), hr_leave_types!hr_leave_requests_leave_type_id_fkey(name)")
+        .in("employee_id", peerIds)
+        .in("status", ["approved", "requested", "manager_approved"])
+        .lte("start_date", request.end_date)
+        .gte("end_date", request.start_date)
+        .order("start_date");
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
+  if (count <= 0) return <span className="text-muted-foreground text-xs">None</span>;
+
+  return (
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setOpen(true); }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-warning/10 text-warning border-warning/20 hover:bg-warning/20 transition-colors"
+            >
+              <AlertTriangle className="h-3 w-3" />
+              {count}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{count} employee(s) in the same department have overlapping leave — click for details</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      <ResponsiveDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={
+          <span className="text-sm font-semibold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-warning" /> Overlapping leave — same department
           </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{request.leave_clashes_count} employee(s) in the same department have overlapping leave</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  ) : <span className="text-muted-foreground text-xs">None</span>;
+        }
+        footer={<Button variant="outline" className="h-9" onClick={() => setOpen(false)}>Close</Button>}
+      >
+        <p className="text-xs text-muted-foreground mb-3">
+          {request.hr_employees?.first_name} {request.hr_employees?.last_name} · {request.start_date} to {request.end_date}
+        </p>
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground py-4">Loading…</p>
+        ) : clashes.length === 0 ? (
+          <p className="text-xs text-muted-foreground py-4">No overlapping requests found.</p>
+        ) : (
+          <div className="divide-y rounded-md border">
+            {clashes.map((c: any) => (
+              <div key={c.id} className="px-3 py-2 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {c.hr_employees?.first_name} {c.hr_employees?.last_name}
+                    {c.hr_employees?.badge_id && <span className="ml-1 text-[10px] text-muted-foreground tabular-nums">#{c.hr_employees.badge_id}</span>}
+                  </p>
+                  <p className="text-xs text-muted-foreground tabular-nums">
+                    {c.hr_leave_types?.name || "—"} · {c.start_date} to {c.end_date} · {c.total_days} day(s)
+                  </p>
+                  {c.reason && <p className="text-[11px] text-muted-foreground truncate max-w-[320px]">{c.reason}</p>}
+                </div>
+                <LeaveStatusBadge status={c.status} />
+              </div>
+            ))}
+          </div>
+        )}
+      </ResponsiveDialog>
+    </>
+  );
 }
+
 
 function LeaveStatusBadge({ status }: { status?: string }) {
   return (

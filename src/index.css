@@ -583,6 +583,16 @@
    into the main enterprise theme.
    ═══════════════════════════════════════════════════════ */
 
+/* Floor faded muted text so secondary copy stays readable on the black canvas */
+.terminal .text-muted-foreground\/40,
+.terminal .text-muted-foreground\/50,
+.terminal .text-muted-foreground\/60 {
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+.terminal .text-muted-foreground\/30 {
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
 /* ── Control legibility (dark terminal): triggers, inputs, outline/ghost buttons ── */
 .terminal:not(.t-light) button[data-slot="select-trigger"],
 .terminal:not(.t-light) [role="combobox"],

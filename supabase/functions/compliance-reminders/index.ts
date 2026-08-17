@@ -394,6 +394,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, sent_to: to, items: all.length });
     }
 
+    // Report-format dispatch: full current-state digest to explicit recipients
+    // (driven by report_email_configs via dispatch-report-emails). No dedup —
+    // this is a scheduled snapshot, not an incremental alert.
+    if (action === "digest") {
+      const to = (Array.isArray(body.recipients) ? body.recipients : [])
+        .map((r: unknown) => String(r || "").trim())
+        .filter((r: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r));
+      if (!to.length) return json({ error: "recipients[] required" }, 400);
+      const mailbox = await getMailbox(admin);
+      const { subject, html, text } = renderDigest(all, dateLabel);
+      const { client, user } = makeClient(mailbox);
+      await client.send({
+        from: `${mailbox?.from_name || "Blynkex Compliance"} <${mailbox?.from_address || user}>`,
+        to, subject, content: text, html,
+      });
+      await client.close();
+      return json({ ok: true, sent_to: to, items: all.length });
+    }
+
+
     // de-duplicate against the log
     const keys = all.map((i) => i.key);
     let fresh = all;

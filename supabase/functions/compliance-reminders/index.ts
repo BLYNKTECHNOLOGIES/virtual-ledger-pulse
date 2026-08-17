@@ -186,14 +186,14 @@ function renderDigest(items: Item[], dateLabel: string) {
 
   const text = items.length
     ? orderedTypes.map((t) => `${SECTION_TITLES[t] || t} (${groups[t].length})\n` +
-        groups[t].map((i) => `  - [${severityLabel(i.severity)}] ${i.title} — ${i.detail} (${i.due})`).join("\n")).join("\n\n")
+        groups[t].map((i) => `  - [${severityLabel(i.severity)}] ${i.title} - ${i.detail} (${i.due})`).join("\n")).join("\n\n")
     : "No compliance items need attention today.";
   return {
     subject: items.length
-      ? `Compliance digest · ${counts.critical} critical / ${items.length} item(s) · ${dateLabel}`
-      : `Compliance digest · all clear · ${dateLabel}`,
-    html,
-    text,
+      ? `Compliance digest - ${counts.critical} critical / ${items.length} item(s) - ${dateLabel}`
+      : `Compliance digest - all clear - ${dateLabel}`,
+    html: mailSafeHtml(html),
+    text: toAscii(text),
   };
 }
 

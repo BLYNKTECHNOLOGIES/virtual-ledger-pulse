@@ -344,20 +344,9 @@ export function CaseTrackingTab() {
         </div>
       </CardContent>
 
-      {/* New Case Dialog - Navigate to BAMS */}
-      <Dialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Case</DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-6">
-            <p className="mb-4">To create a new case, please navigate to the BAMS section where you can use the Case Generator.</p>
-            <Button onClick={() => setShowNewCaseDialog(false)}>
-              Got it
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* New Case Dialog */}
+      <CreateBankCaseDialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog} />
+
     </Card>
   );
 }

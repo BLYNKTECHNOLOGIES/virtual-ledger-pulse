@@ -165,9 +165,17 @@ export function StrRegisterTab() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth?.user?.id ?? null;
-      const { data: me } = uid
-        ? await supabase.from("users").select("name").eq("id", uid).maybeSingle()
-        : { data: null as { name: string } | null };
+      let myName: string | null = null;
+      if (uid) {
+        const { data: me } = await supabase
+          .from("users")
+          .select("first_name, last_name, username")
+          .eq("id", uid)
+          .maybeSingle();
+        if (me) {
+          myName = [me.first_name, me.last_name].filter(Boolean).join(" ").trim() || me.username;
+        }
+      }
 
       const base = {
         reference_no: form.reference_no || null,
@@ -191,7 +199,7 @@ export function StrRegisterTab() {
               decision_rationale: form.decision_rationale.trim(),
               decision_at: new Date().toISOString(),
               checker_id: uid,
-              checker_name: me?.name ?? null,
+              checker_name: myName,
             }
           : { decision: form.decision, decision_rationale: form.decision_rationale || null };
         const { error } = await supabase
@@ -204,7 +212,7 @@ export function StrRegisterTab() {
         const { error } = await supabase.from("compliance_str_register").insert({
           ...base,
           maker_id: uid,
-          maker_name: me?.name ?? null,
+          maker_name: myName,
           decision: "PENDING",
         });
         if (error) throw error;

@@ -433,8 +433,8 @@
     --surface-elevated: 240 8% 10%;
 
     /* ── Trading semantics ── */
-    --trade-buy: 142 64% 45%;        /* green (tuned for black bg) */
-    --trade-sell: 0 72% 55%;         /* red */
+    --trade-buy: 151 46% 50%;        /* muted jade green (soft on black) */
+    --trade-sell: 356 62% 61%;       /* muted rose red (soft on black) */
     --trade-pending: 45 93% 52%;     /* amber */
 
     /* ── Charts (retuned to read on black) ── */

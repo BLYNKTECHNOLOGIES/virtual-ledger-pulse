@@ -84,6 +84,8 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
           </BiometricAuthGate>
         </TerminalAccessGate>
       </TerminalAuthProvider>
-    </div>
+      </TerminalThemedShell>
+    </TerminalThemeProvider>
   );
 }
+

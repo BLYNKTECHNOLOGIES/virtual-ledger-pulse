@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User } from "lucide-react";
+import { CandidateInviteCard } from "./CandidateInviteCard";
 
 interface Stage1Props {
   data: any;
@@ -138,6 +139,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
   };
 
   return (
+    <div className="space-y-4">
     <Card>
       <CardHeader className="py-3 px-4">
         <CardTitle className="text-base flex items-center gap-2">
@@ -253,6 +255,9 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+
+      <CandidateInviteCard onboardingId={data?.id} email={form.email} />
+    </div>
   );
 }

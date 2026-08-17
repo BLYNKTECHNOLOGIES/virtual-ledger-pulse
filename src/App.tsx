@@ -34,6 +34,7 @@ const ErpEntryManager = lazy(() => import('./pages/ErpEntryManager'));
 const Reconciliation = lazy(() => import('./pages/Reconciliation'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const RaciPage = lazy(() => import('./pages/RaciPage'));
+const OnboardingApplyPage = lazy(() => import('./pages/public/OnboardingApplyPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Sales = lazy(() => import('./pages/Sales'));
 const Purchase = lazy(() => import('./pages/Purchase'));
@@ -855,6 +856,11 @@ const router = createBrowserRouter([
     {
       path: "/raci",
       element: <RaciPage />,
+    },
+    // Public candidate onboarding form (no login)
+    {
+      path: "/onboarding/apply/:token",
+      element: <OnboardingApplyPage />,
     },
    // Catch-all route for 404 errors
     {

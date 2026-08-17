@@ -6,10 +6,9 @@ At Stage 1 of the onboarding pipeline, HR generates a unique, login-free link fo
 
 Employee-supplied (in the public form):
 
-- Identity: first name, last name, date of birth, gender, marital status, number of children, personal mobile, personal email
+- Identity: first name, last name, date of birth, gender, marital status, personal mobile, personal email
 - Address: full address, city, state, PIN, country
-- Emergency contact: name, relationship, phone
-- Background: highest qualification, total years of experience, previous employer (optional)
+- Background:  previous employer (optional)
 - Statutory: PAN number, Aadhaar number, existing UAN (optional), existing ESIC number (optional), PF account number (optional)
 - Bank: account holder name, bank name, account number, re-enter account number, IFSC, branch
 - Documents (file upload): PAN card, Aadhaar (front/back, multiple files), passport photo, cancelled cheque / passbook page, educational certificate(s), previous experience / relieving letter (optional)

@@ -12013,6 +12013,59 @@ export type Database = {
           },
         ]
       }
+      hr_onboarding_invites: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          emailed_at: string | null
+          expires_at: string
+          id: string
+          onboarding_id: string
+          opened_at: string | null
+          payload: Json
+          status: string
+          submitted_at: string | null
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          emailed_at?: string | null
+          expires_at?: string
+          id?: string
+          onboarding_id: string
+          opened_at?: string | null
+          payload?: Json
+          status?: string
+          submitted_at?: string | null
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          emailed_at?: string | null
+          expires_at?: string
+          id?: string
+          onboarding_id?: string
+          opened_at?: string | null
+          payload?: Json
+          status?: string
+          submitted_at?: string | null
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_onboarding_invites_onboarding_id_fkey"
+            columns: ["onboarding_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_onboarding"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_onboarding_stage_managers: {
         Row: {
           created_at: string

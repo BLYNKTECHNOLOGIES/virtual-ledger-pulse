@@ -85,7 +85,7 @@ export default function RejectedCandidatesPage() {
                 )}
                 <div className="flex items-center gap-1 text-[11px] text-muted-foreground tabular-nums">
                   <Calendar className="h-3 w-3" />
-                  {new Date(r.rejected_at).toLocaleDateString("en-IN")}
+                  {new Date(r.created_at).toLocaleDateString("en-IN")}
                   {r.rejected_by && <span>· {r.rejected_by}</span>}
                 </div>
                 {r.rejection_stage && (
@@ -138,7 +138,7 @@ export default function RejectedCandidatesPage() {
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                       <Calendar className="h-3 w-3" />
-                      {new Date(r.rejected_at).toLocaleDateString("en-IN")}
+                      {new Date(r.created_at).toLocaleDateString("en-IN")}
                       {r.rejected_by && <span className="ml-1">· {r.rejected_by}</span>}
                     </div>
                   </td>

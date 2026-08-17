@@ -46,7 +46,7 @@ export default function Compliance() {
       <div className="min-h-screen bg-background page-mount">
         {/* Executive Header */}
         <div className="border-b border-border bg-card">
-          <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
+          <div className="px-6 md:px-10 py-5 max-w-[1600px] mx-auto">
             <PageHeader
               title={
                 <span className="flex items-center gap-4">
@@ -80,9 +80,9 @@ export default function Compliance() {
           </div>
         </div>
 
-        <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
+        <div className="px-6 md:px-10 py-5 max-w-[1600px] mx-auto">
           <ErrorBoundary>
-            <Tabs defaultValue="overview" className="space-y-6">
+            <Tabs defaultValue="overview" className="space-y-5">
               <div className={complianceTabsWrapperCls}>
                 <TabsList className={complianceTabsListCls}>
                   <TabsTrigger value="overview" className={complianceTabTriggerCls}>
@@ -112,22 +112,22 @@ export default function Compliance() {
                 </TabsList>
               </div>
 
-              <TabsContent value="overview" className="mt-6">
+              <TabsContent value="overview" className="mt-5">
                 <ErrorBoundary><ComplianceCommandCentre /></ErrorBoundary>
               </TabsContent>
-              <TabsContent value="banking" className="mt-6">
+              <TabsContent value="banking" className="mt-5">
                 <ErrorBoundary><BankingComplianceTab /></ErrorBoundary>
               </TabsContent>
-              <TabsContent value="legal" className="mt-6">
+              <TabsContent value="legal" className="mt-5">
                 <ErrorBoundary><LegalComplianceTab /></ErrorBoundary>
               </TabsContent>
-              <TabsContent value="regulatory" className="mt-6">
+              <TabsContent value="regulatory" className="mt-5">
                 <ErrorBoundary><RegulatoryComplianceTab /></ErrorBoundary>
               </TabsContent>
-              <TabsContent value="company" className="mt-6">
+              <TabsContent value="company" className="mt-5">
                 <ErrorBoundary><CompanyComplianceTab /></ErrorBoundary>
               </TabsContent>
-              <TabsContent value="governance" className="mt-6">
+              <TabsContent value="governance" className="mt-5">
                 <ErrorBoundary><ComplianceGovernanceTab /></ErrorBoundary>
               </TabsContent>
             </Tabs>

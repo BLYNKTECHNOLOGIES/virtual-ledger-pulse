@@ -3,24 +3,24 @@ import { Gavel, ShieldAlert, CalendarClock } from "lucide-react";
 import { RegulatoryCasesTab } from "./RegulatoryCasesTab";
 import { StrRegisterTab } from "./StrRegisterTab";
 import { StatutoryCalendarTab } from "./StatutoryCalendarTab";
-import { complianceTabsListCls, complianceTabTriggerCls, complianceTabsWrapperCls } from "./complianceTabStyles";
+import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabsWrapperCls } from "./complianceTabStyles";
 
 export function RegulatoryComplianceTab() {
   return (
-    <Tabs defaultValue="cases" className="space-y-6">
-      <div className={complianceTabsWrapperCls}>
-        <TabsList className={complianceTabsListCls}>
-          <TabsTrigger value="cases" className={complianceTabTriggerCls}>
+    <Tabs defaultValue="cases" className="space-y-4">
+      <div className={complianceSubTabsWrapperCls}>
+        <TabsList className={complianceSubTabsListCls}>
+          <TabsTrigger value="cases" className={complianceSubTabTriggerCls}>
             <Gavel className="h-4 w-4" />
             <span className="hidden sm:inline">NCRP / Cyber Cell</span>
             <span className="sm:hidden">NCRP</span>
           </TabsTrigger>
-          <TabsTrigger value="str" className={complianceTabTriggerCls}>
+          <TabsTrigger value="str" className={complianceSubTabTriggerCls}>
             <ShieldAlert className="h-4 w-4" />
             <span className="hidden sm:inline">STR Register</span>
             <span className="sm:hidden">STR</span>
           </TabsTrigger>
-          <TabsTrigger value="calendar" className={complianceTabTriggerCls}>
+          <TabsTrigger value="calendar" className={complianceSubTabTriggerCls}>
             <CalendarClock className="h-4 w-4" />
             <span className="hidden sm:inline">Statutory Calendar</span>
             <span className="sm:hidden">Calendar</span>

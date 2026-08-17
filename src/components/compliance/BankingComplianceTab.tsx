@@ -12,9 +12,9 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-import { complianceTabsListCls, complianceTabTriggerCls, complianceTabsWrapperCls } from "./complianceTabStyles";
+import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabsWrapperCls } from "./complianceTabStyles";
 
-const triggerCls = complianceTabTriggerCls;
+const triggerCls = complianceSubTabTriggerCls;
 
 export function BankingComplianceTab() {
   const { hasPermission } = usePermissions();
@@ -34,9 +34,9 @@ export function BankingComplianceTab() {
   });
 
   return (
-    <Tabs defaultValue="account-status" className="space-y-6">
-      <div className={complianceTabsWrapperCls}>
-        <TabsList className={complianceTabsListCls}>
+    <Tabs defaultValue="account-status" className="space-y-4">
+      <div className={complianceSubTabsWrapperCls}>
+        <TabsList className={complianceSubTabsListCls}>
           <TabsTrigger value="account-status" className={triggerCls}>
             <Activity className="h-4 w-4" />
             <span className="hidden sm:inline">Account Status</span>

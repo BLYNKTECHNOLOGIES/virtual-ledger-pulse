@@ -17,30 +17,34 @@ import { exportRowsToCsv } from "@/lib/complianceCsv";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 
-const STATUSES = ["DRAFT", "UNDER_REVIEW", "REPORTED", "NOT_REPORTABLE"];
-
-const fmt = (d: string | null) => {
-  if (!d) return "—";
-  try { return format(parseISO(d), "dd MMM yyyy"); } catch { return d; }
-};
-
-interface StrRow {
+type StrRow = {
   id: string;
   reference_no: string | null;
+  trigger_source: string;
   client_id: string | null;
   client_name: string | null;
-  detection_date: string;
-  transaction_reference: string | null;
+  counterparty_name: string | null;
   amount: number | null;
+  observed_on: string;
   red_flags: string[] | null;
   narrative: string;
-  status: string;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  reported_at: string | null;
-  fiu_reference: string | null;
+  maker_id: string | null;
+  maker_name: string | null;
+  maker_recommendation: string;
+  checker_id: string | null;
+  checker_name: string | null;
+  decision: string;
+  decision_rationale: string | null;
+  decision_at: string | null;
+  filed_reference: string | null;
+  filed_on: string | null;
+  subsidiary_id: string | null;
   created_at: string;
-}
+};
+
+const DECISIONS = ["PENDING", "FILE", "DO_NOT_FILE", "FILED"];
+const RECOMMENDATIONS = ["FILE", "DO_NOT_FILE"];
+const TRIGGERS = ["MANUAL", "BANK_CASE", "LIEN", "ORDER_PATTERN", "LEA_REQUEST"];
 
 const RED_FLAGS = [
   "Structuring / smurfing",
@@ -52,10 +56,26 @@ const RED_FLAGS = [
   "Refusal to provide KYC",
 ];
 
+const fmt = (d: string | null) => {
+  if (!d) return "—";
+  try { return format(parseISO(d), "dd MMM yyyy"); } catch { return d; }
+};
+
 const emptyForm = {
-  reference_no: "", client_id: "", client_name: "", detection_date: new Date().toISOString().slice(0, 10),
-  transaction_reference: "", amount: "", red_flags: [] as string[], narrative: "",
-  status: "DRAFT", fiu_reference: "",
+  reference_no: "",
+  trigger_source: "MANUAL",
+  client_name: "",
+  counterparty_name: "",
+  amount: "",
+  observed_on: new Date().toISOString().slice(0, 10),
+  red_flags: [] as string[],
+  narrative: "",
+  maker_recommendation: "FILE",
+  decision: "PENDING",
+  decision_rationale: "",
+  filed_reference: "",
+  filed_on: "",
+  subsidiary_id: "",
 };
 
 export function StrRegisterTab() {
@@ -69,7 +89,7 @@ export function StrRegisterTab() {
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [decisionFilter, setDecisionFilter] = useState("all");
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["compliance_str_register"],
@@ -77,30 +97,49 @@ export function StrRegisterTab() {
       const { data, error } = await supabase
         .from("compliance_str_register")
         .select("*")
-        .order("detection_date", { ascending: false });
+        .order("observed_on", { ascending: false });
       if (error) throw error;
-      return data as StrRow[];
+      return (data ?? []) as StrRow[];
+    },
+  });
+
+  const { data: firms = [] } = useQuery({
+    queryKey: ["subsidiaries_min"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("subsidiaries").select("id, firm_name").order("firm_name");
+      if (error) throw error;
+      return (data ?? []) as { id: string; firm_name: string }[];
     },
   });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rows.filter((r) => {
-      if (statusFilter !== "all" && r.status !== statusFilter) return false;
+      if (decisionFilter !== "all" && r.decision !== decisionFilter) return false;
       if (!q) return true;
-      return [r.client_name, r.reference_no, r.transaction_reference, r.narrative]
+      return [r.client_name, r.counterparty_name, r.reference_no, r.narrative]
         .some((v) => String(v || "").toLowerCase().includes(q));
     });
-  }, [rows, search, statusFilter]);
+  }, [rows, search, decisionFilter]);
 
   const openNew = () => { setEditing(null); setForm({ ...emptyForm }); setOpen(true); };
   const openEdit = (r: StrRow) => {
     setEditing(r);
     setForm({
-      reference_no: r.reference_no || "", client_id: r.client_id || "", client_name: r.client_name || "",
-      detection_date: r.detection_date, transaction_reference: r.transaction_reference || "",
-      amount: r.amount != null ? String(r.amount) : "", red_flags: r.red_flags || [],
-      narrative: r.narrative, status: r.status, fiu_reference: r.fiu_reference || "",
+      reference_no: r.reference_no || "",
+      trigger_source: r.trigger_source,
+      client_name: r.client_name || "",
+      counterparty_name: r.counterparty_name || "",
+      amount: r.amount != null ? String(r.amount) : "",
+      observed_on: r.observed_on,
+      red_flags: r.red_flags || [],
+      narrative: r.narrative,
+      maker_recommendation: r.maker_recommendation,
+      decision: r.decision,
+      decision_rationale: r.decision_rationale || "",
+      filed_reference: r.filed_reference || "",
+      filed_on: r.filed_on || "",
+      subsidiary_id: r.subsidiary_id || "",
     });
     setOpen(true);
   };
@@ -113,39 +152,65 @@ export function StrRegisterTab() {
 
   const save = async () => {
     if (!form.narrative.trim()) { toast.error("A narrative is required"); return; }
-    if (form.status !== "DRAFT" && !canApprove) {
-      toast.error("Only a compliance approver can move an STR out of draft");
+    const decisionChanged = (editing?.decision ?? "PENDING") !== form.decision;
+    if (decisionChanged && form.decision !== "PENDING" && !canApprove) {
+      toast.error("Only a compliance approver can record the checker decision");
+      return;
+    }
+    if (decisionChanged && form.decision !== "PENDING" && !form.decision_rationale.trim()) {
+      toast.error("A decision rationale is required");
       return;
     }
     setSaving(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
       const uid = auth?.user?.id ?? null;
-      const decided = ["REPORTED", "NOT_REPORTABLE"].includes(form.status);
-      const payload = {
+      const { data: me } = uid
+        ? await supabase.from("users").select("name").eq("id", uid).maybeSingle()
+        : { data: null as { name: string } | null };
+
+      const base = {
         reference_no: form.reference_no || null,
-        client_id: form.client_id || null,
+        trigger_source: form.trigger_source,
         client_name: form.client_name || null,
-        detection_date: form.detection_date,
-        transaction_reference: form.transaction_reference || null,
+        counterparty_name: form.counterparty_name || null,
         amount: form.amount ? Number(form.amount) : null,
-        red_flags: form.red_flags.length ? form.red_flags : null,
+        observed_on: form.observed_on,
+        red_flags: form.red_flags,
         narrative: form.narrative.trim(),
-        status: form.status,
-        fiu_reference: form.fiu_reference || null,
-        reviewed_by: decided ? uid : editing?.reviewed_by ?? null,
-        reviewed_at: decided ? new Date().toISOString() : editing?.reviewed_at ?? null,
-        reported_at: form.status === "REPORTED" ? (editing?.reported_at ?? new Date().toISOString()) : null,
+        maker_recommendation: form.maker_recommendation,
+        subsidiary_id: form.subsidiary_id || null,
+        filed_reference: form.filed_reference || null,
+        filed_on: form.filed_on || null,
       };
+
       if (editing) {
-        const { error } = await supabase.from("compliance_str_register").update(payload).eq("id", editing.id);
+        const decisionPatch = decisionChanged && form.decision !== "PENDING"
+          ? {
+              decision: form.decision,
+              decision_rationale: form.decision_rationale.trim(),
+              decision_at: new Date().toISOString(),
+              checker_id: uid,
+              checker_name: me?.name ?? null,
+            }
+          : { decision: form.decision, decision_rationale: form.decision_rationale || null };
+        const { error } = await supabase
+          .from("compliance_str_register")
+          .update({ ...base, ...decisionPatch })
+          .eq("id", editing.id);
         if (error) throw error;
         toast.success("STR entry updated");
       } else {
-        const { error } = await supabase.from("compliance_str_register").insert({ ...payload, created_by: uid });
+        const { error } = await supabase.from("compliance_str_register").insert({
+          ...base,
+          maker_id: uid,
+          maker_name: me?.name ?? null,
+          decision: "PENDING",
+        });
         if (error) throw error;
-        toast.success("STR entry recorded");
+        toast.success("STR entry recorded and sent for checker decision");
       }
+
       qc.invalidateQueries({ queryKey: ["compliance_str_register"] });
       qc.invalidateQueries({ queryKey: ["compliance_command_centre"] });
       setOpen(false);
@@ -156,8 +221,8 @@ export function StrRegisterTab() {
     }
   };
 
-  const statusVariant = (s: string) =>
-    s === "REPORTED" ? "destructive" : s === "NOT_REPORTABLE" ? "secondary" : s === "UNDER_REVIEW" ? "default" : "outline";
+  const decisionVariant = (d: string) =>
+    d === "FILED" ? "destructive" : d === "FILE" ? "default" : d === "DO_NOT_FILE" ? "secondary" : "outline";
 
   return (
     <div className="space-y-4">
@@ -169,7 +234,7 @@ export function StrRegisterTab() {
               <div>
                 <CardTitle>Suspicious Transaction Register</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Maker records the observation; an approver decides whether it is reportable
+                  Maker records the observation and a recommendation; a checker records the filing decision
                 </p>
               </div>
             </div>
@@ -177,14 +242,18 @@ export function StrRegisterTab() {
               <Button variant="outline" size="sm" disabled={!filtered.length}
                 onClick={() => exportRowsToCsv("str-register", filtered, [
                   { key: "reference_no", label: "Reference" },
-                  { key: "detection_date", label: "Detected on" },
+                  { key: "observed_on", label: "Observed on" },
+                  { key: "trigger_source", label: "Trigger" },
                   { key: "client_name", label: "Client" },
-                  { key: "transaction_reference", label: "Transaction" },
+                  { key: "counterparty_name", label: "Counterparty" },
                   { key: "amount", label: "Amount" },
                   { key: "red_flags", label: "Red flags" },
-                  { key: "status", label: "Status" },
-                  { key: "fiu_reference", label: "FIU reference" },
-                  { key: "reported_at", label: "Reported at" },
+                  { key: "maker_name", label: "Maker" },
+                  { key: "maker_recommendation", label: "Recommendation" },
+                  { key: "checker_name", label: "Checker" },
+                  { key: "decision", label: "Decision" },
+                  { key: "filed_reference", label: "Filed reference" },
+                  { key: "filed_on", label: "Filed on" },
                 ])}>
                 <Download className="h-4 w-4 mr-2" /> Export
               </Button>
@@ -198,14 +267,14 @@ export function StrRegisterTab() {
           <div className="flex flex-wrap gap-3">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-9 text-foreground" placeholder="Search client, reference, narrative…"
+              <Input className="pl-9 text-foreground" placeholder="Search client, counterparty, narrative…"
                      value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={decisionFilter} onValueChange={setDecisionFilter}>
               <SelectTrigger className="w-[190px] text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+                <SelectItem value="all">All decisions</SelectItem>
+                {DECISIONS.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -214,12 +283,12 @@ export function StrRegisterTab() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Detected</TableHead>
-                  <TableHead>Client</TableHead>
-                  <TableHead>Transaction</TableHead>
+                  <TableHead>Observed</TableHead>
+                  <TableHead>Client / counterparty</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Red flags</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Maker</TableHead>
+                  <TableHead>Decision</TableHead>
                   <TableHead className="text-right">Action</TableHead>
                 </TableRow>
               </TableHeader>
@@ -230,22 +299,32 @@ export function StrRegisterTab() {
                 )}
                 {filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell>{fmt(r.detection_date)}</TableCell>
-                    <TableCell className="font-medium">{r.client_name || "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">{r.transaction_reference || "—"}</TableCell>
+                    <TableCell>{fmt(r.observed_on)}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.client_name || "—"}
+                      {r.counterparty_name && <span className="block text-xs text-muted-foreground">{r.counterparty_name}</span>}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {r.amount != null ? `\u20B9${Number(r.amount).toLocaleString("en-IN")}` : "—"}
                     </TableCell>
-                    <TableCell className="max-w-[240px]">
+                    <TableCell className="max-w-[220px]">
                       <div className="flex flex-wrap gap-1">
                         {(r.red_flags || []).slice(0, 2).map((f) => <Badge key={f} variant="outline" className="text-[10px]">{f}</Badge>)}
                         {(r.red_flags || []).length > 2 && <Badge variant="outline" className="text-[10px]">+{(r.red_flags || []).length - 2}</Badge>}
                         {!r.red_flags?.length && <span className="text-muted-foreground text-sm">—</span>}
                       </div>
                     </TableCell>
-                    <TableCell><Badge variant={statusVariant(r.status) as "default"}>{r.status.replace(/_/g, " ")}</Badge></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {r.maker_name || "—"}
+                      <span className="block text-[11px]">rec. {r.maker_recommendation.replace(/_/g, " ")}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={decisionVariant(r.decision) as "default"}>{r.decision.replace(/_/g, " ")}</Badge>
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>{canManage ? "Open" : "View"}</Button>
+                      <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                        {r.decision === "PENDING" && canApprove ? "Decide" : canManage ? "Open" : "View"}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -260,42 +339,54 @@ export function StrRegisterTab() {
           <DialogHeader><DialogTitle>{editing ? "STR entry" : "New STR entry"}</DialogTitle></DialogHeader>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <Label>Detection date</Label>
-              <Input type="date" className="text-foreground" value={form.detection_date} onChange={(e) => setForm({ ...form, detection_date: e.target.value })} disabled={!canManage} />
+              <Label>Observed on</Label>
+              <Input type="date" className="text-foreground" value={form.observed_on}
+                     onChange={(e) => setForm({ ...form, observed_on: e.target.value })} disabled={!canManage} />
             </div>
             <div>
               <Label>Reference no.</Label>
-              <Input className="text-foreground" value={form.reference_no} onChange={(e) => setForm({ ...form, reference_no: e.target.value })} disabled={!canManage} />
+              <Input className="text-foreground" value={form.reference_no}
+                     onChange={(e) => setForm({ ...form, reference_no: e.target.value })} disabled={!canManage} />
             </div>
             <div>
-              <Label>Client name</Label>
-              <Input className="text-foreground" value={form.client_name} onChange={(e) => setForm({ ...form, client_name: e.target.value })} disabled={!canManage} />
-            </div>
-            <div>
-              <Label>Transaction reference</Label>
-              <Input className="text-foreground" value={form.transaction_reference} onChange={(e) => setForm({ ...form, transaction_reference: e.target.value })} disabled={!canManage} />
-            </div>
-            <div>
-              <Label>Amount</Label>
-              <Input inputMode="decimal" className="text-foreground" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} disabled={!canManage} />
-            </div>
-            <div>
-              <Label>Status</Label>
-              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })} disabled={!canManage}>
+              <Label>Trigger source</Label>
+              <Select value={form.trigger_source} onValueChange={(v) => setForm({ ...form, trigger_source: v })} disabled={!canManage}>
                 <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>{TRIGGERS.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Entity / firm</Label>
+              <Select value={form.subsidiary_id || "none"} onValueChange={(v) => setForm({ ...form, subsidiary_id: v === "none" ? "" : v })} disabled={!canManage}>
+                <SelectTrigger className="text-foreground"><SelectValue placeholder="Not linked" /></SelectTrigger>
                 <SelectContent>
-                  {STATUSES.map((s) => (
-                    <SelectItem key={s} value={s} disabled={s !== "DRAFT" && !canApprove}>{s.replace(/_/g, " ")}</SelectItem>
-                  ))}
+                  <SelectItem value="none">Not linked</SelectItem>
+                  {firms.map((f) => <SelectItem key={f.id} value={f.id}>{f.firm_name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            {form.status === "REPORTED" && (
-              <div className="sm:col-span-2">
-                <Label>FIU-IND reference</Label>
-                <Input className="text-foreground" value={form.fiu_reference} onChange={(e) => setForm({ ...form, fiu_reference: e.target.value })} disabled={!canApprove} />
-              </div>
-            )}
+            <div>
+              <Label>Client name</Label>
+              <Input className="text-foreground" value={form.client_name}
+                     onChange={(e) => setForm({ ...form, client_name: e.target.value })} disabled={!canManage} />
+            </div>
+            <div>
+              <Label>Counterparty</Label>
+              <Input className="text-foreground" value={form.counterparty_name}
+                     onChange={(e) => setForm({ ...form, counterparty_name: e.target.value })} disabled={!canManage} />
+            </div>
+            <div>
+              <Label>Amount</Label>
+              <Input inputMode="decimal" className="text-foreground" value={form.amount}
+                     onChange={(e) => setForm({ ...form, amount: e.target.value })} disabled={!canManage} />
+            </div>
+            <div>
+              <Label>Maker recommendation</Label>
+              <Select value={form.maker_recommendation} onValueChange={(v) => setForm({ ...form, maker_recommendation: v })} disabled={!canManage}>
+                <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>{RECOMMENDATIONS.map((t) => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
             <div className="sm:col-span-2">
               <Label className="mb-2 block">Red flags</Label>
               <div className="flex flex-wrap gap-2">
@@ -317,10 +408,49 @@ export function StrRegisterTab() {
                         onChange={(e) => setForm({ ...form, narrative: e.target.value })} disabled={!canManage}
                         placeholder="What was observed, why it is suspicious, what was checked and concluded." />
             </div>
+
+            {editing && (
+              <>
+                <div className="sm:col-span-2 border-t border-border pt-3">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Checker decision</p>
+                  {editing.checker_name && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Last decided by {editing.checker_name} on {fmt(editing.decision_at?.slice(0, 10) ?? null)}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label>Decision</Label>
+                  <Select value={form.decision} onValueChange={(v) => setForm({ ...form, decision: v })} disabled={!canApprove}>
+                    <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                    <SelectContent>{DECISIONS.map((d) => <SelectItem key={d} value={d}>{d.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Decision rationale</Label>
+                  <Input className="text-foreground" value={form.decision_rationale}
+                         onChange={(e) => setForm({ ...form, decision_rationale: e.target.value })} disabled={!canApprove} />
+                </div>
+                {(form.decision === "FILED" || form.decision === "FILE") && (
+                  <>
+                    <div>
+                      <Label>FIU-IND filed reference</Label>
+                      <Input className="text-foreground" value={form.filed_reference}
+                             onChange={(e) => setForm({ ...form, filed_reference: e.target.value })} disabled={!canApprove} />
+                    </div>
+                    <div>
+                      <Label>Filed on</Label>
+                      <Input type="date" className="text-foreground" value={form.filed_on}
+                             onChange={(e) => setForm({ ...form, filed_on: e.target.value })} disabled={!canApprove} />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
-            {canManage && <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
+            {(canManage || canApprove) && <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>}
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,4 +1,4 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -10,6 +10,7 @@ interface MobileNavItem {
   url: string;
   icon: typeof Home;
   permissions: string[];
+  alwaysVisible?: boolean;
 }
 
 const mainNavItems: MobileNavItem[] = [

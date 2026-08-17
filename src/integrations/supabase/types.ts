@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           bank_account_id: string
+          bank_case_id: string | null
           created_at: string
           id: string
           investigation_type: string
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           bank_account_id: string
+          bank_case_id?: string | null
           created_at?: string
           id?: string
           investigation_type: string
@@ -46,6 +48,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           bank_account_id?: string
+          bank_case_id?: string | null
           created_at?: string
           id?: string
           investigation_type?: string
@@ -85,6 +88,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "fin_unanchored_accounts_v"
             referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "account_investigations_bank_case_id_fkey"
+            columns: ["bank_case_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -27124,6 +27134,13 @@ export type Database = {
       has_help_assistant_permission: {
         Args: {
           _perm: Database["public"]["Enums"]["app_permission"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_permission: {
+        Args: {
+          _permission: Database["public"]["Enums"]["app_permission"]
           _user_id: string
         }
         Returns: boolean

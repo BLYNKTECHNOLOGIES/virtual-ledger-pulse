@@ -8,6 +8,8 @@ import { AlertTriangle, Plus, Filter, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ViewTimelineDialog } from "./ViewTimelineDialog";
+import { CreateBankCaseDialog } from "@/components/bams/CreateBankCaseDialog";
+
 import { Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -344,20 +346,9 @@ export function CaseTrackingTab() {
         </div>
       </CardContent>
 
-      {/* New Case Dialog - Navigate to BAMS */}
-      <Dialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Case</DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-6">
-            <p className="mb-4">To create a new case, please navigate to the BAMS section where you can use the Case Generator.</p>
-            <Button onClick={() => setShowNewCaseDialog(false)}>
-              Got it
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* New Case Dialog */}
+      <CreateBankCaseDialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog} />
+
     </Card>
   );
 }

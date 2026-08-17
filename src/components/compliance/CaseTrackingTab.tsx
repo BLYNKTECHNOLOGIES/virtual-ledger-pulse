@@ -114,6 +114,8 @@ export function CaseTrackingTab() {
       });
       console.error('Investigation error:', error);
     },
+  });
+
 
   // Change case type on an in-flight case (audited)
   const changeCaseTypeMutation = useMutation({

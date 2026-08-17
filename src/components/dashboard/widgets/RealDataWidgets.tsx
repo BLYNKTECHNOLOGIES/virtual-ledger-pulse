@@ -175,7 +175,7 @@ export function DailyActivityWidget() {
 
   return (
     <div className="p-3">
-      <WidgetStatGrid columns={items.length as 1 | 2 | 3} items={items} />
+      <WidgetStatGrid columns={(items.length < 2 ? 2 : items.length) as 2 | 3} items={items} />
     </div>
   );
 }

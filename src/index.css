@@ -393,7 +393,8 @@
      Completely isolated from the main white enterprise theme.
      All terminal components must consume ONLY these tokens.
      ═══════════════════════════════════════════════════════ */
-  .terminal {
+  .terminal,
+  html.terminal-dark {
     /* ── Base backgrounds (true-black layered surfaces) ── */
     --background: 240 10% 4%;        /* deepest canvas */
     --foreground: 228 20% 93%;       /* primary text */
@@ -468,7 +469,9 @@
      Blynk indigo identity on a cool paper canvas. Same density,
      same semantics as the dark terminal — colour only.
      ═══════════════════════════════════════════════════════ */
-  .terminal.t-light {
+  .terminal.t-light,
+  html.terminal-light,
+  html.terminal-light .terminal {
     /* ── Base ── */
     --background: 218 33% 97%;       /* #F7F9FC cool paper */
     --foreground: 222 32% 14%;       /* ink */
@@ -593,31 +596,52 @@
   color: hsl(var(--muted-foreground) / 0.7);
 }
 
-/* ── Control legibility (dark terminal): triggers, inputs, outline/ghost buttons ── */
+/* ── Control legibility (dark terminal): triggers, inputs, outline/ghost buttons ──
+   Scoped to both the in-page wrapper and the html-level flag so portalled
+   surfaces (dropdowns, dialogs, popovers) get the same treatment. */
+html.terminal-dark button[data-slot="select-trigger"],
+html.terminal-dark [role="combobox"],
+html.terminal-dark input:not([type="checkbox"]):not([type="radio"]),
+html.terminal-dark textarea,
+html.terminal-dark select,
 .terminal:not(.t-light) button[data-slot="select-trigger"],
 .terminal:not(.t-light) [role="combobox"],
 .terminal:not(.t-light) input:not([type="checkbox"]):not([type="radio"]),
 .terminal:not(.t-light) textarea,
 .terminal:not(.t-light) select {
-  background-color: hsl(var(--input));
-  border-color: hsl(var(--border));
-  color: hsl(var(--foreground));
+  background-color: hsl(240 8% 13%) !important;
+  border-color: hsl(240 8% 24%) !important;
+  color: hsl(228 20% 93%) !important;
 }
+html.terminal-dark input::placeholder,
+html.terminal-dark textarea::placeholder,
 .terminal:not(.t-light) input::placeholder,
 .terminal:not(.t-light) textarea::placeholder {
-  color: hsl(225 12% 62%);
+  color: hsl(225 12% 64%) !important;
   opacity: 1;
 }
+html.terminal-dark [data-placeholder],
+html.terminal-dark [role="combobox"] > span,
 .terminal:not(.t-light) [role="combobox"] [data-placeholder],
-.terminal:not(.t-light) button[data-slot="select-trigger"] [data-placeholder] {
-  color: hsl(225 12% 62%);
+.terminal:not(.t-light) [data-placeholder] {
+  color: hsl(225 12% 64%);
 }
+html.terminal-dark [role="combobox"] > span:not([data-placeholder]),
+.terminal:not(.t-light) [role="combobox"] > span:not([data-placeholder]) {
+  color: hsl(228 20% 93%);
+}
+html.terminal-dark button[data-slot="select-trigger"]:hover,
+html.terminal-dark [role="combobox"]:hover,
 .terminal:not(.t-light) button[data-slot="select-trigger"]:hover,
 .terminal:not(.t-light) [role="combobox"]:hover {
-  background-color: hsl(240 8% 17%);
-  border-color: hsl(240 8% 28%);
+  background-color: hsl(240 8% 18%) !important;
+  border-color: hsl(240 8% 32%) !important;
 }
 /* Native date/time pickers are invisible on black without inversion */
+html.terminal-dark input[type="date"]::-webkit-calendar-picker-indicator,
+html.terminal-dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+html.terminal-dark input[type="time"]::-webkit-calendar-picker-indicator,
+html.terminal-dark input[type="month"]::-webkit-calendar-picker-indicator,
 .terminal:not(.t-light) input[type="date"]::-webkit-calendar-picker-indicator,
 .terminal:not(.t-light) input[type="datetime-local"]::-webkit-calendar-picker-indicator,
 .terminal:not(.t-light) input[type="time"]::-webkit-calendar-picker-indicator,
@@ -626,25 +650,47 @@
   opacity: 0.85;
   cursor: pointer;
 }
+html.terminal-dark input[type="date"],
+html.terminal-dark input[type="datetime-local"],
 .terminal:not(.t-light) input[type="date"],
 .terminal:not(.t-light) input[type="datetime-local"] {
   color-scheme: dark;
 }
 /* Outline + ghost buttons: visible edge and readable label */
+html.terminal-dark .border.border-input,
+html.terminal-dark button.border-input,
 .terminal:not(.t-light) .border.border-input,
 .terminal:not(.t-light) button.border-input {
-  border-color: hsl(var(--border));
-  background-color: hsl(var(--input));
-  color: hsl(var(--foreground));
+  border-color: hsl(240 8% 24%) !important;
+  background-color: hsl(240 8% 13%) !important;
+  color: hsl(228 20% 93%) !important;
 }
+html.terminal-dark button.border-input:hover:not(:disabled),
 .terminal:not(.t-light) button.border-input:hover:not(:disabled) {
-  background-color: hsl(240 8% 19%);
-  border-color: hsl(240 8% 30%);
-  color: hsl(var(--foreground));
+  background-color: hsl(240 8% 19%) !important;
+  border-color: hsl(240 8% 32%) !important;
 }
+html.terminal-dark button:disabled,
 .terminal:not(.t-light) button:disabled {
   opacity: 0.55;
 }
+/* Light terminal: keep controls white-on-paper with a real edge */
+html.terminal-light button[data-slot="select-trigger"],
+html.terminal-light [role="combobox"],
+html.terminal-light input:not([type="checkbox"]):not([type="radio"]),
+html.terminal-light textarea,
+html.terminal-light select {
+  background-color: hsl(0 0% 100%);
+  border-color: hsl(218 24% 84%);
+  color: hsl(222 32% 14%);
+}
+html.terminal-light input::placeholder,
+html.terminal-light textarea::placeholder,
+html.terminal-light [data-placeholder] {
+  color: hsl(220 12% 46%);
+  opacity: 1;
+}
+
 
 /* Scrollbar inside terminal */
 .terminal ::-webkit-scrollbar {

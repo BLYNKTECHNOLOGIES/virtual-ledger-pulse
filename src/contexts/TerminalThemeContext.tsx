@@ -43,8 +43,10 @@ export function TerminalThemeProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle('terminal-light', theme === 'light');
+    root.classList.toggle('terminal-dark', theme === 'dark');
     return () => {
       root.classList.remove('terminal-light');
+      root.classList.remove('terminal-dark');
     };
   }, [theme]);
 

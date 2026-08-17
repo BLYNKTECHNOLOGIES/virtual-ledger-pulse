@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { EXCLUDED_LEGACY_PURCHASE_ORDER_IDS, resolveCarriedPurchaseRate } from "@/lib/carryForwardPurchaseRate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -555,7 +556,7 @@ export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; t
       <WidgetMetric
         label={`Profit margin · ${data?.periodLabel || ''}`}
         value={unavailable ? 'N/A' : `${data?.margin}%`}
-        tone={unavailable ? 'muted' : positive ? 'success' : 'destructive'}
+        tone={unavailable ? 'neutral' : positive ? 'success' : 'destructive'}
         size="lg"
         helper={
           unavailable

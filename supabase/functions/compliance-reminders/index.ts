@@ -29,6 +29,17 @@ function esc(s: string) {
   return String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
 }
 
+// The SMTP client quoted-printable-encodes any body that carries non-ASCII bytes
+// or long/indented lines, and several clients then render the raw "=20" soft
+// breaks. Keeping the payload pure-ASCII and single-line avoids that entirely.
+function toAscii(s: string) {
+  return String(s ?? "").replace(/[^\x00-\x7F]/g, (c) => `&#${c.codePointAt(0)};`);
+}
+
+function mailSafeHtml(html: string) {
+  return toAscii(String(html).replace(/\r?\n\s*/g, " ")).trim();
+}
+
 function inr(n: number | null | undefined) {
   const v = Number(n || 0);
   return "\u20B9" + v.toLocaleString("en-IN", { maximumFractionDigits: 2 });

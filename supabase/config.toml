@@ -117,6 +117,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.hr-projected-salary-register]
     verify_jwt = true
+  [functions.compliance-reminders]
+    verify_jwt = false
 
 
 

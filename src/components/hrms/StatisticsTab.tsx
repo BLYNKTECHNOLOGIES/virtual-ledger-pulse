@@ -486,8 +486,10 @@ export function StatisticsTab() {
         'opening_balance', 'adjustment', 'manual baseline reset',
         'settlement', 'payment gateway settlement',
       ]);
+      // Reversal / contra entries are ledger corrections, never income.
       const reportableIncomes = (incomes || []).filter(
         inc => !coreIncomeBuckets.has(String(inc.category || '').trim().toLowerCase())
+          && !isReversalTransaction(inc)
       );
       const totalIncome = reportableIncomes.reduce((sum, i) => sum + Number(i.amount || 0), 0);
       const incomeByCategory = new Map<string, number>();

@@ -14,27 +14,52 @@ interface TimelineUpdate {
 }
 
 interface ViewTimelineDialogProps {
-  lienCaseId: string;
+  caseId: string;
+  caseType: 'bank_case' | 'lien_case';
 }
 
-export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
+export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps) {
   const [open, setOpen] = useState(false);
   const [updates, setUpdates] = useState<TimelineUpdate[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchUpdates = async () => {
     if (!open) return;
-    
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('lien_updates')
-        .select('id, update_text, created_at, created_by, attachment_urls')
-        .eq('lien_case_id', lienCaseId)
-        .order('created_at', { ascending: false });
+      if (caseType === 'lien_case') {
+        const { data, error } = await supabase
+          .from('lien_updates')
+          .select('id, update_text, created_at, created_by, attachment_urls')
+          .eq('lien_case_id', caseId)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setUpdates(data || []);
+      } else {
+        // For bank cases, show the linked account investigation timeline.
+        const { data: investigation, error: investigationError } = await supabase
+          .from('account_investigations')
+          .select('id')
+          .eq('bank_case_id', caseId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-      if (error) throw error;
-      setUpdates(data || []);
+        if (investigationError) throw investigationError;
+
+        if (!investigation) {
+          setUpdates([]);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('investigation_updates')
+          .select('id, update_text, created_at, created_by, attachment_urls')
+          .eq('investigation_id', investigation.id)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setUpdates(data || []);
+      }
     } catch (error) {
       console.error('Error fetching updates:', error);
     } finally {
@@ -44,19 +69,14 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
 
   const handleViewDocument = async (fileUrl: string) => {
     try {
-      // If it's already a full URL (from getPublicUrl), open directly
       if (fileUrl.startsWith('http')) {
         window.open(fileUrl, '_blank');
         return;
       }
-
-      // Otherwise, create a signed URL from kyc-documents bucket
       const { data, error } = await supabase.storage
         .from('kyc-documents')
-        .createSignedUrl(fileUrl, 3600); // 1 hour expiry
-
+        .createSignedUrl(fileUrl, 3600);
       if (error) throw error;
-      
       if (data.signedUrl) {
         window.open(data.signedUrl, '_blank');
       }
@@ -67,12 +87,10 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
 
   const handleDownloadDocument = async (fileUrl: string) => {
     try {
-      // If it's already a full URL, trigger download directly
       if (fileUrl.startsWith('http')) {
         const fileName = fileUrl.split('/').pop() || 'document';
         const response = await fetch(fileUrl);
         const blob = await response.blob();
-        
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -83,14 +101,10 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
         URL.revokeObjectURL(url);
         return;
       }
-
-      // Otherwise, download from kyc-documents bucket
       const { data, error } = await supabase.storage
         .from('kyc-documents')
         .download(fileUrl);
-
       if (error) throw error;
-
       const fileName = fileUrl.split('/').pop() || 'document';
       const url = URL.createObjectURL(data);
       const a = document.createElement('a');
@@ -107,7 +121,9 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
 
   useEffect(() => {
     fetchUpdates();
-  }, [open, lienCaseId]);
+  }, [open, caseId, caseType]);
+
+  const title = caseType === 'lien_case' ? 'Lien Case Timeline' : 'Case Timeline';
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -119,7 +135,7 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px] max-h-[600px]">
         <DialogHeader>
-          <DialogTitle>Lien Case Timeline</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 max-h-[400px] overflow-y-auto">
           {loading ? (
@@ -134,7 +150,7 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
               <p className="text-sm text-muted-foreground">No updates found</p>
             </div>
           ) : (
-            updates.map((update, index) => (
+            updates.map((update) => (
               <div key={update.id} className="border-l-2 border-info/20 pl-4 pb-4 relative">
                 <div className="absolute -left-2 top-0 w-4 h-4 bg-info rounded-full"></div>
                 <div className="bg-muted/50 p-3 rounded-md">
@@ -142,8 +158,6 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
                     {format(new Date(update.created_at), 'PPpp')} - {update.created_by}
                   </div>
                   <div className="text-foreground mb-2">{update.update_text}</div>
-                  
-                  {/* Display attachments if any */}
                   {update.attachment_urls && update.attachment_urls.length > 0 && (
                     <div className="mt-3 space-y-2">
                       <div className="text-sm font-medium text-foreground">Attachments:</div>
@@ -151,7 +165,6 @@ export function ViewTimelineDialog({ lienCaseId }: ViewTimelineDialogProps) {
                         {update.attachment_urls.map((url, urlIndex) => {
                           const fileName = url.split('/').pop() || `Document ${urlIndex + 1}`;
                           const isPdf = fileName.toLowerCase().endsWith('.pdf');
-                          
                           return (
                             <div key={urlIndex} className="flex items-center gap-2 p-2 bg-card rounded border">
                               <FileText className="h-4 w-4 text-destructive" />

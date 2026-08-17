@@ -1,6 +1,6 @@
 // Compliance reminder engine — daily sweep that emails the compliance team about
 // document expiry, hearings, legal follow-ups, idle cases, ageing approvals,
-// regulatory response deadlines and statutory filings due.
+
 //
 // actions:
 //   run      { dryRun?: boolean }        -> daily sweep (idempotent via compliance_reminder_log)

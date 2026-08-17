@@ -36,6 +36,16 @@ function toAscii(s: string) {
   return String(s ?? "").replace(/[^\x00-\x7F]/g, (c) => `&#${c.codePointAt(0)};`);
 }
 
+function toAsciiText(s: string) {
+  return String(s ?? "")
+    .replace(/\u20B9/g, "INR ")
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u00B7/g, "-")
+    .replace(/[^\x00-\x7F]/g, "");
+}
+
 function mailSafeHtml(html: string) {
   return toAscii(String(html).replace(/\r?\n\s*/g, " ")).trim();
 }
@@ -204,7 +214,7 @@ function renderDigest(items: Item[], dateLabel: string) {
       ? `Compliance digest - ${counts.critical} critical / ${items.length} item(s) - ${dateLabel}`
       : `Compliance digest - all clear - ${dateLabel}`,
     html: mailSafeHtml(html),
-    text: toAscii(text),
+    text: toAsciiText(text),
   };
 }
 

@@ -52,7 +52,7 @@ export default function AttendanceSummaryPage() {
     queryKey: ["hr_employees_all_for_attendance"],
     queryFn: async () => {
       const data = await fetchAllPaginated<any>(() =>
-        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active, employee_work_info_id").order("first_name"),
+        (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").order("first_name"),
       );
       return data || [];
     },

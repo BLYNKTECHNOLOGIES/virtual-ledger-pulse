@@ -3069,141 +3069,6 @@ export type Database = {
           },
         ]
       }
-      compliance_regulatory_cases: {
-        Row: {
-          acknowledgment_number: string | null
-          amount_involved: number | null
-          bank_account_id: string | null
-          bank_case_id: string | null
-          client_id: string | null
-          complaint_date: string | null
-          created_at: string
-          created_by: string | null
-          deadline_date: string | null
-          details: string | null
-          id: string
-          jurisdiction: string | null
-          lea_name: string | null
-          officer_contact: string | null
-          officer_name: string | null
-          portal: string
-          reference_no: string | null
-          response_filed_date: string | null
-          response_proof_urls: string[] | null
-          status: string
-          subject: string
-          subsidiary_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          acknowledgment_number?: string | null
-          amount_involved?: number | null
-          bank_account_id?: string | null
-          bank_case_id?: string | null
-          client_id?: string | null
-          complaint_date?: string | null
-          created_at?: string
-          created_by?: string | null
-          deadline_date?: string | null
-          details?: string | null
-          id?: string
-          jurisdiction?: string | null
-          lea_name?: string | null
-          officer_contact?: string | null
-          officer_name?: string | null
-          portal?: string
-          reference_no?: string | null
-          response_filed_date?: string | null
-          response_proof_urls?: string[] | null
-          status?: string
-          subject: string
-          subsidiary_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          acknowledgment_number?: string | null
-          amount_involved?: number | null
-          bank_account_id?: string | null
-          bank_case_id?: string | null
-          client_id?: string | null
-          complaint_date?: string | null
-          created_at?: string
-          created_by?: string | null
-          deadline_date?: string | null
-          details?: string | null
-          id?: string
-          jurisdiction?: string | null
-          lea_name?: string | null
-          officer_contact?: string | null
-          officer_name?: string | null
-          portal?: string
-          reference_no?: string | null
-          response_filed_date?: string | null
-          response_proof_urls?: string[] | null
-          status?: string
-          subject?: string
-          subsidiary_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "bank_account_compliance_v"
-            referencedColumns: ["bank_account_id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "bank_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "bank_accounts_with_balance"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "fin_bank_entity_map_v"
-            referencedColumns: ["bank_account_id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
-            columns: ["bank_account_id"]
-            isOneToOne: false
-            referencedRelation: "fin_unanchored_accounts_v"
-            referencedColumns: ["bank_account_id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_bank_case_id_fkey"
-            columns: ["bank_case_id"]
-            isOneToOne: false
-            referencedRelation: "bank_cases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "compliance_regulatory_cases_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "subsidiaries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       compliance_reminder_log: {
         Row: {
           entity_id: string | null
@@ -3233,162 +3098,6 @@ export type Database = {
           sent_at?: string
         }
         Relationships: []
-      }
-      compliance_statutory_obligations: {
-        Row: {
-          created_at: string
-          due_date: string
-          filed_on: string | null
-          filed_reference: string | null
-          id: string
-          notes: string | null
-          obligation_type: string
-          owner_name: string | null
-          owner_user_id: string | null
-          period_label: string | null
-          status: string
-          subsidiary_id: string | null
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          due_date: string
-          filed_on?: string | null
-          filed_reference?: string | null
-          id?: string
-          notes?: string | null
-          obligation_type: string
-          owner_name?: string | null
-          owner_user_id?: string | null
-          period_label?: string | null
-          status?: string
-          subsidiary_id?: string | null
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          due_date?: string
-          filed_on?: string | null
-          filed_reference?: string | null
-          id?: string
-          notes?: string | null
-          obligation_type?: string
-          owner_name?: string | null
-          owner_user_id?: string | null
-          period_label?: string | null
-          status?: string
-          subsidiary_id?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compliance_statutory_obligations_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "compliance_statutory_obligations_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "subsidiaries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      compliance_str_register: {
-        Row: {
-          amount: number | null
-          checker_id: string | null
-          checker_name: string | null
-          client_id: string | null
-          client_name: string | null
-          counterparty_name: string | null
-          created_at: string
-          decision: string
-          decision_at: string | null
-          decision_rationale: string | null
-          filed_on: string | null
-          filed_reference: string | null
-          id: string
-          maker_id: string | null
-          maker_name: string | null
-          maker_recommendation: string
-          narrative: string
-          observed_on: string
-          red_flags: string[] | null
-          reference_no: string | null
-          subsidiary_id: string | null
-          trigger_source: string
-          updated_at: string
-        }
-        Insert: {
-          amount?: number | null
-          checker_id?: string | null
-          checker_name?: string | null
-          client_id?: string | null
-          client_name?: string | null
-          counterparty_name?: string | null
-          created_at?: string
-          decision?: string
-          decision_at?: string | null
-          decision_rationale?: string | null
-          filed_on?: string | null
-          filed_reference?: string | null
-          id?: string
-          maker_id?: string | null
-          maker_name?: string | null
-          maker_recommendation?: string
-          narrative: string
-          observed_on?: string
-          red_flags?: string[] | null
-          reference_no?: string | null
-          subsidiary_id?: string | null
-          trigger_source?: string
-          updated_at?: string
-        }
-        Update: {
-          amount?: number | null
-          checker_id?: string | null
-          checker_name?: string | null
-          client_id?: string | null
-          client_name?: string | null
-          counterparty_name?: string | null
-          created_at?: string
-          decision?: string
-          decision_at?: string | null
-          decision_rationale?: string | null
-          filed_on?: string | null
-          filed_reference?: string | null
-          id?: string
-          maker_id?: string | null
-          maker_name?: string | null
-          maker_recommendation?: string
-          narrative?: string
-          observed_on?: string
-          red_flags?: string[] | null
-          reference_no?: string | null
-          subsidiary_id?: string | null
-          trigger_source?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "compliance_str_register_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "compliance_str_register_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "subsidiaries"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       copilot_blacklist: {
         Row: {
@@ -17147,7 +16856,6 @@ export type Database = {
           opposing_party: string | null
           our_lawyer: string | null
           priority: string
-          regulatory_case_id: string | null
           status: string
           title: string
           updated_at: string
@@ -17171,7 +16879,6 @@ export type Database = {
           opposing_party?: string | null
           our_lawyer?: string | null
           priority?: string
-          regulatory_case_id?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -17195,7 +16902,6 @@ export type Database = {
           opposing_party?: string | null
           our_lawyer?: string | null
           priority?: string
-          regulatory_case_id?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -17206,13 +16912,6 @@ export type Database = {
             columns: ["bank_case_id"]
             isOneToOne: false
             referencedRelation: "bank_cases"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "legal_actions_regulatory_case_id_fkey"
-            columns: ["regulatory_case_id"]
-            isOneToOne: false
-            referencedRelation: "compliance_regulatory_cases"
             referencedColumns: ["id"]
           },
         ]

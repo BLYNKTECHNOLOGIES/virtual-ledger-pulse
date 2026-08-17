@@ -145,10 +145,6 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="rounded-md border border-border bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
-            The leave type is assigned by HR when your request is approved.
-          </div>
-
           <div className="flex items-center gap-2">
             <Checkbox
               id="ess-half-day"
@@ -158,32 +154,32 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
             <Label htmlFor="ess-half-day" className="cursor-pointer">Half day</Label>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <Label>From *</Label>
               <Input
                 type="date"
-                className="text-foreground"
+                className="text-foreground w-full min-w-0"
                 value={form.start_date}
                 onChange={(e) => setForm((p) => ({ ...p, start_date: e.target.value }))}
               />
             </div>
             {!form.is_half_day ? (
-              <div>
+              <div className="min-w-0">
                 <Label>To *</Label>
                 <Input
                   type="date"
-                  className="text-foreground"
+                  className="text-foreground w-full min-w-0"
                   min={form.start_date || undefined}
                   value={form.end_date}
                   onChange={(e) => setForm((p) => ({ ...p, end_date: e.target.value }))}
                 />
               </div>
             ) : (
-              <div>
+              <div className="min-w-0">
                 <Label>Period</Label>
                 <Select value={form.half_day_period} onValueChange={(v) => setForm((p) => ({ ...p, half_day_period: v }))}>
-                  <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="text-foreground w-full min-w-0"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="morning">Morning</SelectItem>
                     <SelectItem value="afternoon">Afternoon</SelectItem>
@@ -197,7 +193,7 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
             <Label>Reason *</Label>
             <Textarea
               rows={3}
-              className="text-foreground"
+              className="text-foreground w-full"
               value={form.reason}
               placeholder="Why do you need this leave?"
               onChange={(e) => setForm((p) => ({ ...p, reason: e.target.value }))}
@@ -207,27 +203,23 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
           <div>
             <Label>Contact number during leave</Label>
             <Input
-              className="text-foreground"
+              className="text-foreground w-full"
               value={form.contact_during_leave}
               placeholder="Optional"
+              inputMode="tel"
               onChange={(e) => setForm((p) => ({ ...p, contact_during_leave: e.target.value }))}
             />
           </div>
 
-          <div className="rounded-md border border-border p-2.5 text-xs space-y-1">
-            <p className="text-foreground">
-              Working days requested: <strong>{workingDays || '—'}</strong>
-            </p>
-            <p className="text-muted-foreground">
-              Goes to your reporting manager first, then HR for final approval. HR assigns the leave type
-              and adjusts the balance at approval.
-            </p>
-          </div>
+          <p className="text-xs text-foreground">
+            Working days requested: <strong>{workingDays || '—'}</strong>
+          </p>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Close</Button>
           <Button
+            className="w-full sm:w-auto"
             disabled={submit.isPending || !form.start_date || !form.reason.trim() || workingDays <= 0}
             onClick={() => submit.mutate()}
           >

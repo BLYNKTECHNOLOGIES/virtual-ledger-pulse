@@ -21,6 +21,7 @@ export interface WidgetType {
   category: string;
   size: 'small' | 'medium' | 'large';
   requiredPermissions?: string[];
+  requireAll?: boolean; // when true, ALL requiredPermissions are needed (default: any)
   isBuiltIn?: boolean; // Built-in dashboard sections
   gridSpan?: number; // Column span in 12-col grid
 }
@@ -67,7 +68,8 @@ export const builtInWidgets: WidgetType[] = [
     icon: Wallet,
     category: 'Core Metrics',
     size: 'small',
-    requiredPermissions: ['bams_view'],
+    requiredPermissions: ['bams_view', 'stock_view'],
+    requireAll: true,
     isBuiltIn: true,
     gridSpan: 3,
   },
@@ -111,7 +113,7 @@ export const builtInWidgets: WidgetType[] = [
     icon: Activity,
     category: 'Core Sections',
     size: 'medium',
-    requiredPermissions: ['dashboard_view'],
+    requiredPermissions: ['sales_view', 'purchase_view'],
     isBuiltIn: true,
     gridSpan: 4,
   },
@@ -139,7 +141,7 @@ const dynamicWidgets: WidgetType[] = [
   // Purchase
   { id: 'total-purchases', name: 'Total Purchases', description: 'Total purchase spending for the selected period', icon: HandCoins, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
   { id: 'purchase-orders-count', name: 'Purchase Orders Count', description: 'Number of purchase orders in the period', icon: Receipt, category: 'Purchase', size: 'small', requiredPermissions: ['purchase_view'] },
-  { id: 'pending-settlements', name: 'Pending Settlements', description: 'Purchase orders awaiting payment settlement', icon: Clock, category: 'Purchase', size: 'medium', requiredPermissions: ['purchase_view'] },
+  { id: 'pending-settlements', name: 'Pending Settlements', description: 'Sales orders awaiting payment settlement', icon: Clock, category: 'Sales', size: 'medium', requiredPermissions: ['sales_view'] },
   // Clients
   { id: 'customer-chart', name: 'Customer Growth', description: 'Client acquisition trend over 6 months', icon: LineChart, category: 'Clients', size: 'large', requiredPermissions: ['clients_view'] },
   // Stock
@@ -149,7 +151,7 @@ const dynamicWidgets: WidgetType[] = [
   // Banking
   { id: 'bank-balance-total', name: 'Total Bank Balance', description: 'Combined balance across all active bank accounts', icon: Landmark, category: 'Banking', size: 'small', requiredPermissions: ['bams_view'] },
   { id: 'bank-balance-filter', name: 'Bank Balance Filter', description: 'View combined balance of selected active bank accounts', icon: Building, category: 'Banking', size: 'medium', requiredPermissions: ['bams_view'] },
-  { id: 'total-cash', name: 'Total Cash', description: 'Banks + Stock combined value', icon: Banknote, category: 'Banking', size: 'small', requiredPermissions: ['bams_view'] },
+  { id: 'total-cash', name: 'Total Cash', description: 'Banks + Stock combined value', icon: Banknote, category: 'Banking', size: 'small', requiredPermissions: ['bams_view', 'stock_view'], requireAll: true },
   { id: 'cash-flow', name: 'Cash Flow', description: 'Gross profit (PNL) vs operational expenses', icon: ArrowUpRight, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
   // PNL
   { id: 'profit-margin', name: 'Profit Margin', description: 'Profit margin from sales vs purchase cost (30d)', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
@@ -161,8 +163,8 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'performance-overview', name: 'Performance Overview', description: 'Revenue, profit, margin & volume KPIs with MoM trends', icon: PieChart, category: 'Statistics', size: 'large', requiredPermissions: ['statistics_view'] },
   
   // Activity
-  { id: 'daily-activity', name: 'Daily Activity', description: "Today's sales, purchases & new clients", icon: Activity, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
-  { id: 'upcoming-tasks', name: 'Pending Actions', description: 'Pending KYC approvals, leave requests & onboarding', icon: Calendar, category: 'Activity', size: 'medium', requiredPermissions: ['dashboard_view'] },
+  { id: 'daily-activity', name: 'Daily Activity', description: "Today's sales, purchases & new clients", icon: Activity, category: 'Activity', size: 'medium', requiredPermissions: ['sales_view', 'purchase_view', 'clients_view'] },
+  { id: 'upcoming-tasks', name: 'Pending Actions', description: 'Pending KYC approvals, leave requests & onboarding', icon: Calendar, category: 'Activity', size: 'medium', requiredPermissions: ['clients_view', 'hrms_view'] },
   
   // Compliance
   { id: 'compliance-alerts', name: 'Compliance Alerts', description: 'Pending compliance items and alerts', icon: AlertTriangle, category: 'Compliance', size: 'medium', requiredPermissions: ['compliance_view'] },
@@ -178,6 +180,22 @@ const dynamicWidgets: WidgetType[] = [
 // Combined list for the dialog
 export const availableWidgets: WidgetType[] = [...builtInWidgets, ...dynamicWidgets];
 
+// ── Shared permission gate for widgets (single source of truth) ──
+export function canUseWidget(
+  widget: WidgetType | undefined,
+  hasAnyPermission: (perms: string[]) => boolean,
+  hasPermission?: (perm: string) => boolean,
+): boolean {
+  if (!widget) return false;
+  const required = widget.requiredPermissions;
+  if (!required || required.length === 0) return true;
+  if (widget.requireAll) {
+    const check = hasPermission ?? ((p: string) => hasAnyPermission([p]));
+    return required.every(check);
+  }
+  return hasAnyPermission(required);
+}
+
 // All widget definitions by ID for quick lookup
 export const widgetRegistry = new Map<string, WidgetType>();
 availableWidgets.forEach(w => widgetRegistry.set(w.id, w));
@@ -191,12 +209,11 @@ export function AddWidgetDialog({ onAddWidget, existingWidgets }: AddWidgetDialo
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const { hasAnyPermission } = usePermissions();
+  const { hasAnyPermission, hasPermission } = usePermissions();
 
-  const permittedWidgets = availableWidgets.filter(widget => {
-    if (!widget.requiredPermissions || widget.requiredPermissions.length === 0) return true;
-    return hasAnyPermission(widget.requiredPermissions);
-  });
+  const permittedWidgets = availableWidgets.filter(widget =>
+    canUseWidget(widget, hasAnyPermission, hasPermission)
+  );
 
   const categories = ['All', ...Array.from(new Set(permittedWidgets.map(w => w.category)))];
   

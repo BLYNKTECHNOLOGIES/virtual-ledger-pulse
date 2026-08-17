@@ -66,47 +66,114 @@ function severityColor(s: Item["severity"]) {
   return s === "critical" ? "#B91C1C" : s === "warning" ? "#B45309" : "#1F4FD8";
 }
 
+function severityBg(s: Item["severity"]) {
+  return s === "critical" ? "#FEF2F2" : s === "warning" ? "#FFFBEB" : "#EFF6FF";
+}
+
+function severityLabel(s: Item["severity"]) {
+  return s === "critical" ? "CRITICAL" : s === "warning" ? "ATTENTION" : "INFO";
+}
+
+const SECTION_TITLES: Record<string, string> = {
+  SLA_BREACH: "Cases past SLA",
+  DOCUMENT_EXPIRY: "Documents expiring",
+  HEARING_DUE: "Court hearings",
+  LEGAL_FOLLOW_UP: "Legal follow-ups due",
+  CASE_IDLE: "Cases with no update",
+  APPROVAL_AGEING: "Approvals waiting",
+};
+
+// Section render order — most urgent categories first.
+const SECTION_ORDER = [
+  "SLA_BREACH", "HEARING_DUE", "DOCUMENT_EXPIRY",
+  "LEGAL_FOLLOW_UP", "APPROVAL_AGEING", "CASE_IDLE",
+];
+
 function renderDigest(items: Item[], dateLabel: string) {
   const groups: Record<string, Item[]> = {};
   for (const it of items) (groups[it.reminderType] ||= []).push(it);
 
-  const sectionTitles: Record<string, string> = {
-    DOCUMENT_EXPIRY: "Documents expiring",
-    HEARING_DUE: "Court hearings",
-    LEGAL_FOLLOW_UP: "Legal follow-ups due",
-    CASE_IDLE: "Cases with no update",
-    APPROVAL_AGEING: "Approvals waiting",
-    REGULATORY_DEADLINE: "Regulatory response deadlines",
-    STATUTORY_DUE: "Statutory filings due",
-    SLA_BREACH: "Cases past SLA",
+  const sevRank = { critical: 0, warning: 1, info: 2 } as const;
+  for (const list of Object.values(groups)) list.sort((a, b) => sevRank[a.severity] - sevRank[b.severity]);
+
+  const counts = {
+    critical: items.filter((i) => i.severity === "critical").length,
+    warning: items.filter((i) => i.severity === "warning").length,
+    info: items.filter((i) => i.severity === "info").length,
   };
 
-  const rows = Object.entries(groups)
-    .map(([type, list]) => `
-      <tr><td style="padding:18px 24px 6px 24px;font:600 12px/1.4 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#64748B;">
-        ${esc(sectionTitles[type] || type)} (${list.length})
+  const orderedTypes = [
+    ...SECTION_ORDER.filter((t) => groups[t]?.length),
+    ...Object.keys(groups).filter((t) => !SECTION_ORDER.includes(t)),
+  ];
+
+  const summaryCard = (label: string, value: number, color: string, bg: string) => `
+    <td width="33%" style="padding:4px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:${bg};border:1px solid ${color}22;border-radius:8px;">
+        <tr><td align="center" style="padding:12px 6px;">
+          <div style="font:700 22px/1 Arial,sans-serif;color:${color};">${value}</div>
+          <div style="font:600 10px/1.4 Arial,sans-serif;letter-spacing:.08em;color:#64748B;margin-top:4px;">${label}</div>
+        </td></tr>
+      </table>
+    </td>`;
+
+  const summary = `
+    <tr><td style="padding:18px 20px 4px 20px;">
+      <table width="100%" cellpadding="0" cellspacing="0"><tr>
+        ${summaryCard("CRITICAL", counts.critical, "#B91C1C", "#FEF2F2")}
+        ${summaryCard("ATTENTION", counts.warning, "#B45309", "#FFFBEB")}
+        ${summaryCard("INFO", counts.info, "#1F4FD8", "#EFF6FF")}
+      </tr></table>
+    </td></tr>`;
+
+  const breakdown = orderedTypes.length
+    ? `<tr><td style="padding:8px 24px 0 24px;font:400 12px/1.9 Arial,sans-serif;color:#475569;">
+        ${orderedTypes.map((t) => `<span style="display:inline-block;background:#F1F5F9;border:1px solid #E2E8F0;border-radius:999px;padding:3px 10px;margin:0 6px 6px 0;font:600 11px Arial,sans-serif;color:#334155;">${esc(SECTION_TITLES[t] || t)} · ${groups[t].length}</span>`).join("")}
+      </td></tr>`
+    : "";
+
+  const rows = orderedTypes.map((type) => {
+    const list = groups[type];
+    return `
+      <tr><td style="padding:18px 24px 8px 24px;">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="font:700 12px/1.4 Arial,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#0F172A;">${esc(SECTION_TITLES[type] || type)}</td>
+          <td align="right" style="font:600 11px/1.4 Arial,sans-serif;color:#64748B;">${list.length} item${list.length === 1 ? "" : "s"}</td>
+        </tr></table>
+        <div style="height:2px;background:#E2E8F0;margin-top:6px;"></div>
       </td></tr>
       ${list.map((it) => `
-        <tr><td style="padding:0 24px 10px 24px;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-left:3px solid ${severityColor(it.severity)};border-radius:6px;">
-            <tr><td style="padding:10px 14px;font:400 13px/1.5 Arial,sans-serif;color:#0F172A;">
-              <strong>${esc(it.title)}</strong><br/>
+        <tr><td style="padding:0 24px 8px 24px;">
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:${severityBg(it.severity)};border:1px solid #E2E8F0;border-left:3px solid ${severityColor(it.severity)};border-radius:6px;">
+            <tr><td style="padding:11px 14px;font:400 13px/1.55 Arial,sans-serif;color:#0F172A;">
+              <span style="display:inline-block;background:${severityColor(it.severity)};color:#FFFFFF;border-radius:3px;padding:1px 6px;font:700 9px/1.6 Arial,sans-serif;letter-spacing:.06em;vertical-align:middle;">${severityLabel(it.severity)}</span>
+              <strong style="margin-left:6px;">${esc(it.title)}</strong><br/>
               <span style="color:#475569;">${esc(it.detail)}</span><br/>
               <span style="color:${severityColor(it.severity)};font-weight:600;">${esc(it.due)}</span>
             </td></tr>
           </table>
         </td></tr>`).join("")}
-    `).join("");
+    `;
+  }).join("");
+
+  const empty = items.length === 0
+    ? `<tr><td style="padding:28px 24px;text-align:center;font:400 13px/1.6 Arial,sans-serif;color:#475569;">
+         No compliance items need attention today. All documents, hearings, cases and approvals are within limits.
+       </td></tr>`
+    : "";
 
   const html = `<!doctype html><html><body style="margin:0;background:#F1F5F9;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#F1F5F9;padding:24px 0;">
     <tr><td align="center">
       <table width="640" cellpadding="0" cellspacing="0" style="background:#FFFFFF;border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;">
-        <tr><td style="background:${BRAND.accent};padding:20px 24px;font:600 16px/1.3 Arial,sans-serif;color:#FFFFFF;">
+        <tr><td style="background:${BRAND.accent};padding:20px 24px;font:600 17px/1.3 Arial,sans-serif;color:#FFFFFF;">
           Compliance Daily Digest
           <div style="font:400 12px/1.4 Arial,sans-serif;color:#DBEAFE;margin-top:4px;">${esc(dateLabel)} · ${items.length} item(s) need attention</div>
         </td></tr>
+        ${items.length ? summary : ""}
+        ${items.length ? breakdown : ""}
         ${rows}
+        ${empty}
         <tr><td style="padding:20px 24px;">
           <a href="${COMPLIANCE_LINK}" style="display:inline-block;background:${BRAND.accent};color:#fff;text-decoration:none;padding:10px 18px;border-radius:6px;font:600 13px Arial,sans-serif;">Open Compliance Management</a>
         </td></tr>
@@ -117,9 +184,19 @@ function renderDigest(items: Item[], dateLabel: string) {
     </td></tr>
   </table></body></html>`;
 
-  const text = items.map((i) => `- [${i.reminderType}] ${i.title} — ${i.detail} (${i.due})`).join("\n");
-  return { subject: `Compliance digest · ${items.length} item(s) · ${dateLabel}`, html, text };
+  const text = items.length
+    ? orderedTypes.map((t) => `${SECTION_TITLES[t] || t} (${groups[t].length})\n` +
+        groups[t].map((i) => `  - [${severityLabel(i.severity)}] ${i.title} — ${i.detail} (${i.due})`).join("\n")).join("\n\n")
+    : "No compliance items need attention today.";
+  return {
+    subject: items.length
+      ? `Compliance digest · ${counts.critical} critical / ${items.length} item(s) · ${dateLabel}`
+      : `Compliance digest · all clear · ${dateLabel}`,
+    html,
+    text,
+  };
 }
+
 
 async function collectItems(admin: any): Promise<Item[]> {
   const items: Item[] = [];

@@ -396,7 +396,7 @@ export function AccountStatusTab() {
                     priority: investigationData.priority,
                     notes: investigationData.notes,
                     assigned_to: userId,
-                    status: 'ACTIVE'
+                    status: 'OPEN'
                   });
                   if (error) {
                     toast({ title: "Error", description: error.message || "Failed to start investigation. Please try again.", variant: "destructive" });

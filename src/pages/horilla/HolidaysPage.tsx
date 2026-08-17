@@ -75,7 +75,7 @@ export default function HolidaysPage() {
       {upcoming.length > 0 && (
         <Card className="border-[#E8604C]/20 bg-[#E8604C]/5">
           <CardContent className="p-4">
-            <h3 className="font-semibold text-sm text-[#E8604C] mb-2">🎉 Upcoming Holidays</h3>
+            <h3 className="font-semibold text-sm text-[#E8604C] mb-2 flex items-center gap-2"><CalendarDays className="h-4 w-4" />Upcoming Holidays</h3>
             <div className="flex gap-3 flex-wrap">
               {upcoming.slice(0, 5).map((h: any) => (
                 <div key={h.id} className="bg-card rounded-lg px-3 py-2 text-sm border">

@@ -1109,7 +1109,7 @@ export default function RazorpaySyncPage() {
                 </button>
               ) : (
                 <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                  ✅ All done — no action needed
+                  All done — no action needed
                 </div>
               )}
             </CardContent>
@@ -1146,7 +1146,7 @@ export default function RazorpaySyncPage() {
             {setupFullyDone && setupCollapsedManual !== false && (
               <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs flex items-center justify-between gap-2">
                 <div className="text-emerald-700 dark:text-emerald-400">
-                  ✅ One-time setup is complete — steps A–E are hidden by default.
+                  One-time setup is complete — steps A–E are hidden by default.
                 </div>
                 <button
                   type="button"
@@ -1308,19 +1308,19 @@ export default function RazorpaySyncPage() {
         <CardContent className="space-y-4 text-xs">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-md border bg-background p-3">
-              <div className="font-medium mb-1">1️⃣ Preview</div>
+              <div className="font-medium mb-1">Step 1 — Preview</div>
               <div className="text-muted-foreground">See what <em>would</em> change. Nothing is sent yet — totally safe to click.</div>
             </div>
             <div className="rounded-md border bg-background p-3">
-              <div className="font-medium mb-1">2️⃣ Test one</div>
+              <div className="font-medium mb-1">Step 2 — Test one</div>
               <div className="text-muted-foreground">Send the change for a single employee. You confirm it looks correct on RazorpayX before doing everyone.</div>
             </div>
             <div className="rounded-md border bg-background p-3">
-              <div className="font-medium mb-1">3️⃣ Turn on for everyone</div>
+              <div className="font-medium mb-1">Step 3 — Turn on for everyone</div>
               <div className="text-muted-foreground">A one-time switch that unlocks the "send to all" button. Only appears after test one succeeds.</div>
             </div>
             <div className="rounded-md border bg-background p-3">
-              <div className="font-medium mb-1">4️⃣ Send to all</div>
+              <div className="font-medium mb-1">Step 4 — Send to all</div>
               <div className="text-muted-foreground">Applies the confirmed change to every matched employee.</div>
             </div>
           </div>
@@ -1340,7 +1340,7 @@ export default function RazorpaySyncPage() {
           </div>
 
           <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3">
-            <div className="font-medium mb-1">✅ Rule of thumb for HR</div>
+            <div className="font-medium mb-1">Rule of thumb for HR</div>
             <div className="text-muted-foreground">If a button feels scary, hit <b>Preview / Dry-run</b> first. It <em>never</em> changes data on RazorpayX. Everything that actually sends is clearly labelled <b>Apply</b>, <b>Push</b>, or <b>Send</b> and asks for confirmation.</div>
           </div>
         </CardContent>
@@ -1654,7 +1654,7 @@ export default function RazorpaySyncPage() {
             <br />
             <b>Status:</b>{" "}
             {settings?.push_bank_pilot_verified_at
-              ? <span className="text-emerald-600">Test employee verified ✅</span>
+              ? <span className="text-emerald-600">Test employee verified</span>
               : <span className="text-amber-600">Test employee not yet run</span>}
             {" · "}
             {settings?.bulk_bank_push_unlocked
@@ -1665,7 +1665,7 @@ export default function RazorpaySyncPage() {
         <CardContent className="space-y-3">
           <Alert variant="default" className="border-amber-500/50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-sm">⚠ This one changes where salary lands</AlertTitle>
+            <AlertTitle className="text-sm">This one changes where salary lands</AlertTitle>
             <AlertDescription className="text-xs">
               Wrong account number = salary in wrong hands. For that reason this step never sends changes silently — you'll always see a masked preview and have to click "Confirm" for each apply.
             </AlertDescription>
@@ -1801,11 +1801,11 @@ export default function RazorpaySyncPage() {
             <br />
             <b>Status:</b>{" "}
             {settings?.push_salary_endpoint_verified
-              ? <span className="text-emerald-600">API name confirmed ({settings?.push_salary_envelope_key}) ✅</span>
+              ? <span className="text-emerald-600">API name confirmed ({settings?.push_salary_envelope_key})</span>
               : <span className="text-amber-600">API name not confirmed yet</span>}
             {" · "}
             {settings?.push_salary_pilot_verified_at
-              ? <span className="text-emerald-600">Test employee verified ✅</span>
+              ? <span className="text-emerald-600">Test employee verified</span>
               : <span className="text-muted-foreground">Test employee not run yet</span>}
             {" · "}
             {settings?.bulk_salary_push_unlocked
@@ -1819,7 +1819,7 @@ export default function RazorpaySyncPage() {
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
               {settings?.push_salary_endpoint_verified
-                ? <>API name for salary updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                ? <>API name for salary updates is set up automatically — no action needed. Preview and "Send pilot" are ready.</>
                 : <>API name for salary updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>
@@ -1994,11 +1994,11 @@ export default function RazorpaySyncPage() {
             <br />
             <b>Status:</b>{" "}
             {settings?.push_attendance_endpoint_verified
-              ? <span className="text-emerald-600">API name confirmed ({settings?.push_attendance_envelope_key}) ✅</span>
+              ? <span className="text-emerald-600">API name confirmed ({settings?.push_attendance_envelope_key})</span>
               : <span className="text-amber-600">API name not confirmed yet</span>}
             {" · "}
             {settings?.push_attendance_pilot_verified_at
-              ? <span className="text-emerald-600">Test employee verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""} ✅</span>
+              ? <span className="text-emerald-600">Test employee verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span>
               : <span className="text-muted-foreground">Test employee not run yet</span>}
             {" · "}
             {settings?.bulk_attendance_push_unlocked
@@ -2012,7 +2012,7 @@ export default function RazorpaySyncPage() {
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
               {settings?.push_attendance_endpoint_verified
-                ? <>API name for attendance/LOP updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                ? <>API name for attendance/LOP updates is set up automatically — no action needed. Preview and "Send pilot" are ready.</>
                 : <>API name for attendance/LOP updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>

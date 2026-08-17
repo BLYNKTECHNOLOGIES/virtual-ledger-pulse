@@ -9,7 +9,7 @@ interface Props {
 }
 
 /**
- * Small pill showing "⚠ N drifts" for a given employee. Links to the
+ * Small pill showing "N drifts" for a given employee. Links to the
  * Data Health page filtered to that employee.
  */
 export function DriftBadge({ employeeId, variant = "chip" }: Props) {

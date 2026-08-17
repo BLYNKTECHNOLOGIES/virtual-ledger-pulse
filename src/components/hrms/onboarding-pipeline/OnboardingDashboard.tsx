@@ -245,7 +245,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                       {r.first_name || r.last_name ? `${r.first_name || ""} ${r.last_name || ""}`.trim() : "—"}
                     </td>
                     <td className="p-3 text-muted-foreground">{r.email || "—"}</td>
-                    <td className="p-3">{r.status === "completed" ? "✅ Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}</td>
+                    <td className="p-3">{r.status === "completed" ? "Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}</td>
                     <td className="p-3"><Badge className={`text-xs ${STATUS_COLORS[r.status] || ""}`}>{r.status.replace("_", " ")}</Badge></td>
                     <td className="p-3"><div className="flex flex-wrap gap-1">{item("Bank", c?.has_bank)}{item("Salary", c?.has_salary)}{item("DOJ", c?.has_doj)}</div></td>
                     <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</td>

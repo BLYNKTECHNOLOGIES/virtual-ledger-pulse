@@ -321,7 +321,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
               </span>
             </div>
             {selectedRec.meta?.name && (
-              <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">🎉 {selectedRec.meta.name}</p>
+              <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">{selectedRec.meta.name}</p>
             )}
             {(selectedRec.meta?.first_in || selectedRec.meta?.check_in) && (
               <div className="grid grid-cols-3 gap-2 mt-2">
@@ -490,7 +490,7 @@ function DayCell({
           </div>
           <div className={cn('font-semibold', legend.text)}>{legend.label}</div>
 
-          {rec.label && <div className="text-sky-600 dark:text-sky-300">🎉 {rec.label}</div>}
+          {rec.label && <div className="text-sky-600 dark:text-sky-300">{rec.label}</div>}
 
           {inT || outT ? (
             <div className="tabular-nums text-foreground">

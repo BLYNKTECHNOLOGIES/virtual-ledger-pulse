@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Clock } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock, Coffee, Timer } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -117,9 +117,9 @@ export default function ShiftsPage() {
                   <Switch checked={s.is_active} onCheckedChange={(v) => toggleMutation.mutate({ id: s.id, is_active: v })} />
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
-                  <p>🕐 {s.start_time?.slice(0, 5)} — {s.end_time?.slice(0, 5)}</p>
-                  <p>☕ Break: {s.break_duration_minutes} min</p>
-                  <p>⏱ Grace: {s.grace_period_minutes} min</p>
+                  <p className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.start_time?.slice(0, 5)} — {s.end_time?.slice(0, 5)}</p>
+                  <p className="flex items-center gap-2"><Coffee className="h-3.5 w-3.5 text-muted-foreground" />Break: {s.break_duration_minutes} min</p>
+                  <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-muted-foreground" />Grace: {s.grace_period_minutes} min</p>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>

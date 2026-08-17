@@ -416,9 +416,9 @@
     --accent-foreground: 228 20% 96%;
 
     /* ── Status / semantic ── */
-    --destructive: 0 84% 62%;
+    --destructive: 356 62% 58%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 71% 45%;
+    --success: 151 46% 48%;
     --warning: 38 92% 55%;
     --info: 199 89% 58%;
 
@@ -433,8 +433,8 @@
     --surface-elevated: 240 8% 10%;
 
     /* ── Trading semantics ── */
-    --trade-buy: 142 64% 45%;        /* green (tuned for black bg) */
-    --trade-sell: 0 72% 55%;         /* red */
+    --trade-buy: 151 46% 50%;        /* muted jade green (soft on black) */
+    --trade-sell: 356 62% 61%;       /* muted rose red (soft on black) */
     --trade-pending: 45 93% 52%;     /* amber */
 
     /* ── Charts (retuned to read on black) ── */

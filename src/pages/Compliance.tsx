@@ -1,10 +1,13 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, Scale, Shield, Building } from "lucide-react";
+import { Building2, Scale, Shield, Building, LayoutDashboard, Gavel, History } from "lucide-react";
 import { BankingComplianceTab } from "@/components/compliance/BankingComplianceTab";
 import { LegalComplianceTab } from "@/components/compliance/LegalComplianceTab";
 import { CompanyComplianceTab } from "@/components/compliance/CompanyComplianceTab";
+import { ComplianceCommandCentre } from "@/components/compliance/ComplianceCommandCentre";
+import { RegulatoryComplianceTab } from "@/components/compliance/RegulatoryComplianceTab";
+import { ComplianceGovernanceTab } from "@/components/compliance/ComplianceGovernanceTab";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
@@ -79,9 +82,13 @@ export default function Compliance() {
 
         <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
           <ErrorBoundary>
-            <Tabs defaultValue="banking" className="space-y-6">
+            <Tabs defaultValue="overview" className="space-y-6">
               <div className={complianceTabsWrapperCls}>
                 <TabsList className={complianceTabsListCls}>
+                  <TabsTrigger value="overview" className={complianceTabTriggerCls}>
+                    <LayoutDashboard className="h-4 w-4" />
+                    Overview
+                  </TabsTrigger>
                   <TabsTrigger value="banking" className={complianceTabTriggerCls}>
                     <Building2 className="h-4 w-4" />
                     Banking
@@ -90,21 +97,38 @@ export default function Compliance() {
                     <Scale className="h-4 w-4" />
                     Legal
                   </TabsTrigger>
+                  <TabsTrigger value="regulatory" className={complianceTabTriggerCls}>
+                    <Gavel className="h-4 w-4" />
+                    Regulatory
+                  </TabsTrigger>
                   <TabsTrigger value="company" className={complianceTabTriggerCls}>
                     <Building className="h-4 w-4" />
                     Company
                   </TabsTrigger>
+                  <TabsTrigger value="governance" className={complianceTabTriggerCls}>
+                    <History className="h-4 w-4" />
+                    Governance
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
+              <TabsContent value="overview" className="mt-6">
+                <ErrorBoundary><ComplianceCommandCentre /></ErrorBoundary>
+              </TabsContent>
               <TabsContent value="banking" className="mt-6">
                 <ErrorBoundary><BankingComplianceTab /></ErrorBoundary>
               </TabsContent>
               <TabsContent value="legal" className="mt-6">
                 <ErrorBoundary><LegalComplianceTab /></ErrorBoundary>
               </TabsContent>
+              <TabsContent value="regulatory" className="mt-6">
+                <ErrorBoundary><RegulatoryComplianceTab /></ErrorBoundary>
+              </TabsContent>
               <TabsContent value="company" className="mt-6">
                 <ErrorBoundary><CompanyComplianceTab /></ErrorBoundary>
+              </TabsContent>
+              <TabsContent value="governance" className="mt-6">
+                <ErrorBoundary><ComplianceGovernanceTab /></ErrorBoundary>
               </TabsContent>
             </Tabs>
           </ErrorBoundary>

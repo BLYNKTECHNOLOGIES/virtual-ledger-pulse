@@ -38,7 +38,6 @@ export function BulkActionToolbar({
   const hasOffline = selectedAds.some(ad => ad.advStatus !== BINANCE_AD_STATUS.ONLINE);
   const buyCount = selectedAds.filter(ad => ad.tradeType === 'BUY').length;
   const sellCount = selectedAds.filter(ad => ad.tradeType === 'SELL').length;
-  const totalSurplus = selectedAds.reduce((sum, ad) => sum + Number(ad.surplusAmount || 0), 0);
   const someButNotAll = typeof totalAds === 'number' && selectedAds.length > 0 && selectedAds.length < totalAds;
 
   return (
@@ -47,7 +46,7 @@ export function BulkActionToolbar({
         {selectedAds.length} ad{selectedAds.length !== 1 ? 's' : ''} selected
       </Badge>
       <span className="text-xs text-muted-foreground tabular-nums">
-        {buyCount} buy / {sellCount} sell · surplus {totalSurplus.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+        {buyCount} buy / {sellCount} sell
       </span>
 
       {someButNotAll && onSelectAll && (

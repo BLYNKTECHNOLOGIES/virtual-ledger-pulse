@@ -276,9 +276,55 @@ export function BankingCredentialsTab() {
     }));
   };
 
-  const copyToClipboard = (text: string, label: string) => {
+  const logCredentialAccess = async (
+    credential: { id: string; bank_account_id?: string | null },
+    field: string,
+    action: 'REVEAL' | 'COPY',
+  ) => {
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth?.user?.id ?? null;
+      let name: string | null = null;
+      if (uid) {
+        const { data: me } = await supabase
+          .from('users')
+          .select('first_name, last_name, username')
+          .eq('id', uid)
+          .maybeSingle();
+        if (me) name = [me.first_name, me.last_name].filter(Boolean).join(' ').trim() || me.username;
+      }
+      await supabase.from('banking_credential_access_log').insert({
+        credential_id: credential.id,
+        bank_account_id: credential.bank_account_id ?? null,
+        accessed_by: uid,
+        accessed_by_name: name,
+        field_accessed: field,
+        action,
+      });
+    } catch (e) {
+      console.error('Failed to log credential access', e);
+    }
+  };
+
+  const revealField = (
+    credential: { id: string; bank_account_id?: string | null },
+    field: string,
+  ) => {
+    const key = `${credential.id}_${field}`;
+    const nextVisible = !showPasswords[key];
+    setShowPasswords(prev => ({ ...prev, [key]: nextVisible }));
+    if (nextVisible) void logCredentialAccess(credential, field, 'REVEAL');
+  };
+
+  const copyToClipboard = (
+    text: string,
+    label: string,
+    credential?: { id: string; bank_account_id?: string | null },
+    field?: string,
+  ) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied", description: `${label} copied to clipboard` });
+    if (credential && field) void logCredentialAccess(credential, field, 'COPY');
   };
 
   const addSecurityQuestion = () => {
@@ -629,17 +675,14 @@ export function BankingCredentialsTab() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setShowPasswords(prev => ({
-                                ...prev,
-                                [`${credential.id}_customer_id`]: !prev[`${credential.id}_customer_id`]
-                              }))}
+                              onClick={() => revealField(credential, 'customer_id')}
                             >
                               {showPasswords[`${credential.id}_customer_id`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => copyToClipboard(credential.customer_id || '', 'Customer ID')}
+                              onClick={() => copyToClipboard(credential.customer_id || '', 'Customer ID', credential, 'customer_id')}
                             >
                               <Copy className="h-3 w-3" />
                             </Button>
@@ -659,17 +702,14 @@ export function BankingCredentialsTab() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setShowPasswords(prev => ({
-                                ...prev,
-                                [`${credential.id}_login_id`]: !prev[`${credential.id}_login_id`]
-                              }))}
+                              onClick={() => revealField(credential, 'login_id')}
                             >
                               {showPasswords[`${credential.id}_login_id`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => copyToClipboard(credential.login_id || '', 'Net Banking ID')}
+                              onClick={() => copyToClipboard(credential.login_id || '', 'Net Banking ID', credential, 'login_id')}
                             >
                               <Copy className="h-3 w-3" />
                             </Button>
@@ -689,17 +729,14 @@ export function BankingCredentialsTab() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setShowPasswords(prev => ({
-                                ...prev,
-                                [`${credential.id}_password`]: !prev[`${credential.id}_password`]
-                              }))}
+                              onClick={() => revealField(credential, 'password')}
                             >
                               {showPasswords[`${credential.id}_password`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => copyToClipboard(credential.password || '', 'Password')}
+                              onClick={() => copyToClipboard(credential.password || '', 'Password', credential, 'password')}
                             >
                               <Copy className="h-3 w-3" />
                             </Button>
@@ -719,17 +756,14 @@ export function BankingCredentialsTab() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setShowPasswords(prev => ({
-                                ...prev,
-                                [`${credential.id}_transaction_password`]: !prev[`${credential.id}_transaction_password`]
-                              }))}
+                              onClick={() => revealField(credential, 'transaction_password')}
                             >
                               {showPasswords[`${credential.id}_transaction_password`] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                             </Button>
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => copyToClipboard(credential.transaction_password || '', 'Transaction Password')}
+                              onClick={() => copyToClipboard(credential.transaction_password || '', 'Transaction Password', credential, 'transaction_password')}
                             >
                               <Copy className="h-3 w-3" />
                             </Button>

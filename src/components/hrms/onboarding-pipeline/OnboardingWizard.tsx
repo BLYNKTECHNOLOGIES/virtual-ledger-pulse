@@ -731,7 +731,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
                   <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Username</td><td style="padding: 8px 16px;">${erpUsername}</td></tr>
                   <tr><td style="padding: 8px 16px; font-weight: bold; background: #f5f5f5;">Temporary Password</td><td style="padding: 8px 16px; font-family: monospace;">${tempPassword}</td></tr>
                 </table>
-                <p style="color: #d32f2f; font-weight: bold;">⚠️ You will be required to change your password on first login.</p>
+                <p style="color: #d32f2f; font-weight: bold;">You will be required to change your password on first login.</p>
                 <p>If you have any questions, please contact the HR department.</p>
                 <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;" />
                 <p style="color: #888; font-size: 12px;">This is an automated message from Blynk Virtual Technologies HR.</p>
@@ -820,7 +820,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
 
       await refetch();
       queryClient.invalidateQueries({ queryKey: ["onboarding-pipeline-records"] });
-      toast.success("🎉 Employee created successfully!");
+      toast.success("Employee created successfully");
     } catch (err: any) {
       console.error("Finalize onboarding failed:", err);
       toast.error(err.message || "Failed to finalize onboarding");
@@ -845,7 +845,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
         <h2 className="text-lg font-bold">
           {isCompleted ? "Onboarding Complete" : "Employee Onboarding"}
         </h2>
-        {isCompleted && <Badge className="bg-success/10 text-success">✅ Completed</Badge>}
+        {isCompleted && <Badge className="bg-success/10 text-success">Completed</Badge>}
       </div>
 
       {/* Stage stepper */}

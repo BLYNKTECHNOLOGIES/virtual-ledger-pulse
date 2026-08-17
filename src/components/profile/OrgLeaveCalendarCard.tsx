@@ -43,7 +43,7 @@ export default function OrgLeaveCalendarCard() {
           <p className="text-sm text-muted-foreground text-center py-3">Loading…</p>
         ) : leaves.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-3">
-            Everyone's around this week 🎉
+            Full team available this week
           </p>
         ) : (
           <div className="space-y-2">

@@ -480,9 +480,9 @@ export default function LeaveAllocationsPage() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-warning">⚠ Sick / Medical leave is automatically skipped for employees currently on probation.</p>
-            <p className="text-xs text-muted-foreground">💡 Unused days from previous quarters automatically carry forward.</p>
-            {leaveTypes.length === 0 && <p className="text-xs text-warning">⚠ Create leave types first before bulk allocating.</p>}
+            <p className="text-xs text-warning">Note: Sick / Medical leave is automatically skipped for employees currently on probation.</p>
+            <p className="text-xs text-muted-foreground">Unused days from previous quarters automatically carry forward.</p>
+            {leaveTypes.length === 0 && <p className="text-xs text-warning">Create leave types first before bulk allocating.</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>

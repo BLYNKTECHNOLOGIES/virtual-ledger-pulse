@@ -423,7 +423,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       toast.dismiss(t);
       if (payload.ok) {
         setPushFeedback({ pin, deviceCount: payload.queued_count || 0, at: new Date().toISOString() });
-        toast.success(`✓ Biometric identity created for ${name} on ${payload.queued_count} device(s). Devices apply it on the next poll (30–60s).`);
+        toast.success(`Biometric identity created for ${name} on ${payload.queued_count} device(s). Devices apply it on the next poll (30–60s).`);
         queryClient.invalidateQueries({ queryKey: ["hr_essl_pushback_log_stage5", pin] });
         queryClient.invalidateQueries({ queryKey: ["hr_biometric_device_users_for_stage5"] });
       } else if (payload.skipped) {
@@ -1728,7 +1728,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
               className="bg-success hover:bg-success text-primary-foreground"
               title={reconcileReady ? undefined : reconcileBlockReason}
             >
-              {finalizing ? "Creating Employee..." : "✅ Finalize & Create Employee"}
+              {finalizing ? "Creating Employee..." : "Finalize & Create Employee"}
             </Button>
           </div>
         )}

@@ -232,7 +232,7 @@ export default function HorillaDashboard() {
             </Button>
           </div>
           {pendingLeaves.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No pending requests 🎉</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">All caught up — no pending requests</p>
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {pendingLeaves.slice(0, 5).map((lr: any) => (

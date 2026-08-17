@@ -134,7 +134,7 @@ const navGroups: NavGroup[] = [
         path: "/hrms/payroll",
         children: [
           // Month-end tooling (inputs, LOP, imports, shadow run, drift, pulse) lives INSIDE the cockpit.
-          { label: "🎯 Monthly Cockpit", path: "/hrms/payroll/cockpit" },
+          { label: "Monthly Cockpit", path: "/hrms/payroll/cockpit" },
           { label: "Dashboard", path: "/hrms/payroll" },
           { label: "Payslips", path: "/hrms/payroll/payslips" },
           { label: "Salary Revisions", path: "/hrms/payroll/salary-revisions" },

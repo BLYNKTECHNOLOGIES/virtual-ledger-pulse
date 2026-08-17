@@ -16,7 +16,7 @@ export default function DepartmentsPage() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", code: "", description: "", icon: "📁" });
+  const [form, setForm] = useState({ name: "", code: "", description: "", icon: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -89,7 +89,7 @@ export default function DepartmentsPage() {
   const closeDialog = () => {
     setAddOpen(false);
     setEditId(null);
-    setForm({ name: "", code: "", description: "", icon: "📁" });
+    setForm({ name: "", code: "", description: "", icon: "" });
   };
 
   const openEdit = (d: any) => {
@@ -110,7 +110,7 @@ export default function DepartmentsPage() {
         description={`${filteredDepts.length} department${filteredDepts.length !== 1 ? "s" : ""}`}
         actions={
           <Button
-            onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
+            onClick={() => { setForm({ name: "", code: "", description: "", icon: "" }); setEditId(null); setAddOpen(true); }}
             className="h-9 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
@@ -143,7 +143,7 @@ export default function DepartmentsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ name: "", code: "", description: "", icon: "📁" }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm({ name: "", code: "", description: "", icon: "" }); setEditId(null); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Department
@@ -157,7 +157,7 @@ export default function DepartmentsPage() {
             <div key={d.id} className="bg-card rounded-xl border border-border p-4 sm:p-5 hover:shadow-md transition-shadow min-w-0">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-lg shrink-0">
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold tracking-wide text-primary">
                     {d.icon || "📁"}
                   </div>
                   <div className="min-w-0">

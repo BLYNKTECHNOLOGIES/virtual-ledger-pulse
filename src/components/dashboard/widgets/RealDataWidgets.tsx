@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { EXCLUDED_LEGACY_PURCHASE_ORDER_IDS, resolveCarriedPurchaseRate } from "@/lib/carryForwardPurchaseRate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -460,47 +461,87 @@ export function EarningsRateWidget() {
 }
 
 // ── Profit Margin Widget ──
+// Uses the SAME realized-P&L methodology as ProfitLoss.tsx (source of truth):
+// USDT-normalised sales/purchases, fee-adjusted effective purchase rate, and
+// NPM = avgSalesRate − effectivePurchaseRate. Filtering is on order_date (not
+// created_at) so the period matches the P&L page. When the period has no
+// purchases, the carry-forward cost basis is used instead of reading the whole
+// sale value as profit.
 export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; to?: Date } }) {
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_profit_margin', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
+    queryKey: ['widget_profit_margin_v2', dateRange?.from?.toISOString(), dateRange?.to?.toISOString()],
     queryFn: async () => {
       const now = new Date();
       const periodStart = dateRange?.from ? startOfDay(dateRange.from) : startOfDay(subDays(now, 30));
       const periodEnd = dateRange?.to ? endOfDay(dateRange.to) : endOfDay(now);
-      const start = periodStart.toISOString();
-      const end = periodEnd.toISOString();
+      const startStr = format(periodStart, 'yyyy-MM-dd');
+      const endStr = format(periodEnd, 'yyyy-MM-dd');
 
-      const fetchAllAmounts = async (table: 'sales_orders' | 'purchase_orders') => {
-        let allData: any[] = [];
-        let from = 0;
-        const batchSize = 1000;
-        while (true) {
-          const { data: batch } = await supabase
-            .from(table)
-            .select('total_amount')
-            .gte('created_at', start)
-            .lte('created_at', end)
-            .eq('status', 'COMPLETED')
-            .range(from, from + batchSize - 1);
-          if (!batch || batch.length === 0) break;
-          allData = allData.concat(batch);
-          if (batch.length < batchSize) break;
-          from += batchSize;
-        }
-        return allData;
-      };
-
-      const [sales, purchases] = await Promise.all([
-        fetchAllAmounts('sales_orders'),
-        fetchAllAmounts('purchase_orders'),
+      const [sales, purchases, feeDeductions, convFees, transferFees] = await Promise.all([
+        fetchAllPaginated<any>(() => supabase.from('sales_orders').select('quantity, price_per_unit, effective_usdt_qty, effective_usdt_rate').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('purchase_orders').select('id, total_amount, effective_usdt_qty').eq('status', 'COMPLETED').gte('order_date', startStr).lte('order_date', endStr)),
+        fetchAllPaginated<any>(() => supabase.from('wallet_fee_deductions').select('fee_usdt_amount').gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('erp_product_conversions').select('fee_amount').eq('status', 'APPROVED').gte('approved_at', startStr).lte('approved_at', endStr + 'T23:59:59')),
+        fetchAllPaginated<any>(() => supabase.from('wallet_transactions').select('amount').eq('transaction_type', 'DEBIT').eq('reference_type', 'TRANSFER_FEE').eq('asset_code', 'USDT').gte('created_at', startStr).lte('created_at', endStr + 'T23:59:59')),
       ]);
 
-      const totalSales = sales.reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const totalPurchases = purchases.reduce((s, o: any) => s + Number(o.total_amount || 0), 0);
-      const profit = totalSales - totalPurchases;
-      const margin = totalSales > 0 ? (profit / totalSales * 100) : 0;
+      const totalFees =
+        (feeDeductions || []).reduce((s: number, f: any) => s + Number(f.fee_usdt_amount || 0), 0) +
+        (convFees || []).reduce((s: number, f: any) => s + Number(f.fee_amount || 0), 0) +
+        (transferFees || []).reduce((s: number, f: any) => s + Number(f.amount || 0), 0);
+
+      const totalSales = (sales || []).reduce(
+        (s: number, o: any) => s + Number(o.effective_usdt_qty || o.quantity || 0) * Number(o.effective_usdt_rate || o.price_per_unit || 0),
+        0,
+      );
+      const totalSalesQty = (sales || []).reduce(
+        (s: number, o: any) => s + Number(o.effective_usdt_qty || o.quantity || 0),
+        0,
+      );
+      const avgSalesRate = totalSalesQty > 0 ? totalSales / totalSalesQty : 0;
+
+      let purchaseValue = 0;
+      let purchaseQty = 0;
+      (purchases || []).forEach((po: any) => {
+        if (EXCLUDED_LEGACY_PURCHASE_ORDER_IDS.includes(po.id)) return;
+        const effQty = Number(po.effective_usdt_qty || 0);
+        if (effQty > 0) {
+          purchaseQty += effQty;
+          purchaseValue += Number(po.total_amount || 0);
+        }
+      });
+
+      let effectivePurchaseRate = 0;
+      let costBasisUnavailable = false;
+      let carriedFrom: string | null = null;
+
+      if (purchaseQty > 0) {
+        const avgPurchaseRate = purchaseValue / purchaseQty;
+        const netQty = purchaseQty - totalFees;
+        effectivePurchaseRate = netQty > 0 ? purchaseValue / netQty : avgPurchaseRate;
+      } else {
+        const carried = await resolveCarriedPurchaseRate(startStr, 'all');
+        if (carried) {
+          effectivePurchaseRate = carried.rate;
+          carriedFrom = carried.sourceDate;
+        } else {
+          costBasisUnavailable = true;
+        }
+      }
+
+      const profit = costBasisUnavailable ? 0 : (avgSalesRate - effectivePurchaseRate) * totalSalesQty;
+      const margin = totalSales > 0 && !costBasisUnavailable ? (profit / totalSales) * 100 : 0;
       const periodLabel = dateRange?.from ? `${format(periodStart, 'dd MMM')} - ${format(periodEnd, 'dd MMM')}` : 'Last 30d';
-      return { margin: margin.toFixed(1), totalSales, totalPurchases, profit, periodLabel };
+
+      return {
+        margin: margin.toFixed(1),
+        totalSales,
+        totalPurchases: purchaseValue,
+        profit,
+        periodLabel,
+        costBasisUnavailable,
+        carriedFrom,
+      };
     },
     staleTime: 60000,
   });
@@ -508,15 +549,20 @@ export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; t
   if (isLoading) return <WidgetSkeleton variant="metric" />;
 
   const positive = Number(data?.margin) >= 0;
+  const unavailable = !!data?.costBasisUnavailable;
 
   return (
     <div className="flex h-full flex-col justify-center gap-3 p-3">
       <WidgetMetric
         label={`Profit margin · ${data?.periodLabel || ''}`}
-        value={`${data?.margin}%`}
-        tone={positive ? 'success' : 'destructive'}
+        value={unavailable ? 'N/A' : `${data?.margin}%`}
+        tone={unavailable ? 'neutral' : positive ? 'success' : 'destructive'}
         size="lg"
-        helper={`Profit ₹${Math.round(data?.profit || 0).toLocaleString('en-IN')}`}
+        helper={
+          unavailable
+            ? 'Cost basis unavailable — no purchases found'
+            : `Gross profit ₹${Math.round(data?.profit || 0).toLocaleString('en-IN')}${data?.carriedFrom ? ` · cost basis carried from ${data.carriedFrom}` : ''}`
+        }
       />
       <WidgetStatGrid
         columns={2}
@@ -528,6 +574,7 @@ export function ProfitMarginWidget({ dateRange }: { dateRange?: { from?: Date; t
     </div>
   );
 }
+
 
 // ── Performance Overview Widget ──
 export function PerformanceOverviewWidget({ metrics, dateRange }: { metrics?: any; dateRange?: { from?: Date; to?: Date } }) {

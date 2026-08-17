@@ -279,6 +279,37 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
             ))
           )}
         </div>
+
+        {canPost && (
+          <div className="border-t border-border pt-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <Select value={updateType} onValueChange={setUpdateType}>
+                <SelectTrigger className="w-[190px] text-foreground h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UPDATE_TYPES.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Posting an update refreshes the case activity clock</p>
+            </div>
+            <Textarea
+              rows={3}
+              className="text-foreground"
+              placeholder="Add an update — what happened, who was contacted, what is next…"
+              value={newUpdate}
+              onChange={(e) => setNewUpdate(e.target.value)}
+            />
+            <div className="flex justify-end">
+              <Button size="sm" onClick={postUpdate} disabled={posting || !newUpdate.trim()}>
+                <Send className="h-4 w-4 mr-2" />
+                {posting ? "Posting…" : "Post update"}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

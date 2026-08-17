@@ -672,6 +672,48 @@
   background-size: 400% 100%;
 }
 
+/* ── Light-theme re-expression of the scoped terminal chrome ── */
+.terminal.t-light ::-webkit-scrollbar-track {
+  background: hsl(218 30% 95%);
+}
+.terminal.t-light ::-webkit-scrollbar-thumb {
+  background: hsl(218 20% 80%);
+}
+.terminal.t-light ::-webkit-scrollbar-thumb:hover {
+  background: hsl(218 18% 68%);
+}
+.terminal.t-light thead tr {
+  background: hsl(218 30% 96%);
+}
+.terminal.t-light tbody tr:hover {
+  background: hsl(231 60% 96% / 0.9);
+}
+.terminal.t-light tbody tr[data-state="selected"] {
+  background: hsl(var(--primary) / 0.09);
+}
+.terminal.t-light tbody td {
+  border-bottom: 1px solid hsl(218 24% 91%);
+}
+.terminal.t-light .t-grid-bg {
+  background-image:
+    linear-gradient(to right, hsl(222 30% 30% / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(222 30% 30% / 0.035) 1px, transparent 1px);
+}
+.terminal.t-light .t-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(218 28% 93%) 25%,
+    hsl(218 28% 97%) 37%,
+    hsl(218 28% 93%) 63%
+  );
+  background-size: 400% 100%;
+}
+.terminal.t-light .t-panel {
+  box-shadow: var(--shadow-xs);
+}
+
+
+
 @media (prefers-reduced-motion: no-preference) {
   .terminal .t-mount {
     animation: t-mount 200ms ease-out both;

@@ -407,12 +407,12 @@
     /* ── Accent / interactive ── */
     --primary: 199 95% 55%;          /* electric cyan-blue */
     --primary-foreground: 240 20% 8%;/* near-black on electric accent */
-    --secondary: 240 8% 11%;         /* secondary surface */
-    --secondary-foreground: 228 18% 90%;
-    --muted: 240 8% 12%;             /* subtle graphite surface */
-    --muted-foreground: 225 12% 68%; /* high-contrast muted text */
-    --accent: 240 8% 14%;            /* hover / selected surface */
-    --accent-foreground: 228 20% 93%;
+    --secondary: 240 8% 14%;         /* secondary surface */
+    --secondary-foreground: 228 18% 92%;
+    --muted: 240 8% 15%;             /* subtle graphite surface */
+    --muted-foreground: 225 14% 76%; /* high-contrast muted text */
+    --accent: 240 8% 18%;            /* hover / selected surface */
+    --accent-foreground: 228 20% 96%;
 
     /* ── Status / semantic ── */
     --destructive: 0 84% 62%;

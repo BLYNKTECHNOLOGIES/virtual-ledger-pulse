@@ -573,6 +573,59 @@
    into the main enterprise theme.
    ═══════════════════════════════════════════════════════ */
 
+/* ── Control legibility (dark terminal): triggers, inputs, outline/ghost buttons ── */
+.terminal:not(.t-light) button[data-slot="select-trigger"],
+.terminal:not(.t-light) [role="combobox"],
+.terminal:not(.t-light) input:not([type="checkbox"]):not([type="radio"]),
+.terminal:not(.t-light) textarea,
+.terminal:not(.t-light) select {
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+.terminal:not(.t-light) input::placeholder,
+.terminal:not(.t-light) textarea::placeholder {
+  color: hsl(225 12% 62%);
+  opacity: 1;
+}
+.terminal:not(.t-light) [role="combobox"] [data-placeholder],
+.terminal:not(.t-light) button[data-slot="select-trigger"] [data-placeholder] {
+  color: hsl(225 12% 62%);
+}
+.terminal:not(.t-light) button[data-slot="select-trigger"]:hover,
+.terminal:not(.t-light) [role="combobox"]:hover {
+  background-color: hsl(240 8% 17%);
+  border-color: hsl(240 8% 28%);
+}
+/* Native date/time pickers are invisible on black without inversion */
+.terminal:not(.t-light) input[type="date"]::-webkit-calendar-picker-indicator,
+.terminal:not(.t-light) input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.terminal:not(.t-light) input[type="time"]::-webkit-calendar-picker-indicator,
+.terminal:not(.t-light) input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  opacity: 0.85;
+  cursor: pointer;
+}
+.terminal:not(.t-light) input[type="date"],
+.terminal:not(.t-light) input[type="datetime-local"] {
+  color-scheme: dark;
+}
+/* Outline + ghost buttons: visible edge and readable label */
+.terminal:not(.t-light) .border.border-input,
+.terminal:not(.t-light) button.border-input {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+.terminal:not(.t-light) button.border-input:hover:not(:disabled) {
+  background-color: hsl(240 8% 19%);
+  border-color: hsl(240 8% 30%);
+  color: hsl(var(--foreground));
+}
+.terminal:not(.t-light) button:disabled {
+  opacity: 0.55;
+}
+
 /* Scrollbar inside terminal */
 .terminal ::-webkit-scrollbar {
   width: 6px;

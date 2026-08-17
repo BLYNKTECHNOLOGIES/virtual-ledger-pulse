@@ -49,12 +49,12 @@ export function MobileBottomNav() {
   const isTerminalActive = location.pathname.startsWith("/terminal");
 
   const visibleMainNavItems = useMemo(
-    () => mainNavItems.filter((item) => hasAnyPermission(item.permissions)),
+    () => mainNavItems.filter((item) => item.alwaysVisible || hasAnyPermission(item.permissions)),
     [hasAnyPermission]
   );
 
   const visibleMoreNavItems = useMemo(
-    () => moreNavItems.filter((item) => hasAnyPermission(item.permissions)),
+    () => moreNavItems.filter((item) => item.alwaysVisible || hasAnyPermission(item.permissions)),
     [hasAnyPermission]
   );
 

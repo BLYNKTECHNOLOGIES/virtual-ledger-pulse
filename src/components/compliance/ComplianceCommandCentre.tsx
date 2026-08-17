@@ -25,10 +25,6 @@ interface CommandCentre {
   documents_expiring: { id: string; name: string; category: string | null; expiry_date: string }[];
   approvals_pending: number;
   approvals_pending_48h: number;
-  regulatory_open: number;
-  regulatory_due_7d: number;
-  str_pending: number;
-  obligations_due_30d: { id: string; obligation_type: string; period_label: string | null; due_date: string; status: string; firm_name: string | null }[];
   idle_cases: { id: string; case_number: string; title: string; status: string; last_activity_at: string }[];
 }
 
@@ -123,10 +119,6 @@ export function ComplianceCommandCentre() {
              sub={`${data.approvals_pending_48h} over 48h`} tone={data.approvals_pending_48h > 0 ? "critical" : "neutral"} />
         <Kpi icon={FileWarning} label="Docs expiring (60d)" value={String(data.documents_expiring.length)}
              sub="Includes already expired" tone={data.documents_expiring.length > 0 ? "warning" : "positive"} />
-        <Kpi icon={Gavel} label="Regulatory open" value={String(data.regulatory_open)}
-             sub={`${data.regulatory_due_7d} due within 7 days`} tone={data.regulatory_due_7d > 0 ? "critical" : "neutral"} />
-        <Kpi icon={Timer} label="STR decisions pending" value={String(data.str_pending)}
-             sub="Awaiting checker" tone={data.str_pending > 0 ? "warning" : "positive"} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -199,21 +191,6 @@ export function ComplianceCommandCentre() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3"><CardTitle className="text-sm">Statutory filings due (30 days)</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {data.obligations_due_30d.length === 0 && <p className="text-sm text-muted-foreground">Nothing due.</p>}
-            {data.obligations_due_30d.map((o) => (
-              <div key={o.id} className="flex items-center justify-between text-sm gap-3">
-                <span className="text-foreground truncate">
-                  {o.obligation_type.replace(/_/g, " ")}{o.period_label ? ` · ${o.period_label}` : ""}
-                  {o.firm_name ? ` — ${o.firm_name}` : ""}
-                </span>
-                <span className="text-muted-foreground shrink-0">{safeDate(o.due_date)}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
       </div>
 
       <Card>

@@ -72,29 +72,22 @@ export function LegalActionsTab() {
   const { data: sourceCaseRefs } = useQuery({
     queryKey: ['legal_action_source_refs'],
     queryFn: async () => {
-      const [bank, reg] = await Promise.all([
-        supabase.from('bank_cases').select('id, case_number, case_type'),
-        supabase.from('compliance_regulatory_cases').select('id, reference_no, acknowledgment_number, subject'),
-      ]);
+      const { data } = await supabase.from('bank_cases').select('id, case_number');
       const map: Record<string, string> = {};
-      (bank.data || []).forEach((c: any) => { map[c.id] = c.case_number; });
-      (reg.data || []).forEach((c: any) => {
-        map[c.id] = c.reference_no || c.acknowledgment_number || c.subject;
-      });
+      (data || []).forEach((c: any) => { map[c.id] = c.case_number; });
       return map;
     },
   });
 
   const sourceRef = (action: any): string | null => {
-    const id = action?.bank_case_id || action?.regulatory_case_id;
+    const id = action?.bank_case_id;
     if (!id) return null;
     const label = sourceCaseRefs?.[id];
-    const prefix = action.bank_case_id ? 'Bank case' : 'Regulatory case';
-    return `${prefix}: ${label || id.slice(0, 8)}`;
+    return `Bank case: ${label || id.slice(0, 8)}`;
   };
 
   const matchesLinkage = (action: any) => {
-    const linked = !!(action.bank_case_id || action.regulatory_case_id);
+    const linked = !!action.bank_case_id;
     if (filterLinkage === 'linked') return linked;
     if (filterLinkage === 'standalone') return !linked;
     return true;

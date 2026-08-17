@@ -23,7 +23,7 @@ export const LEGAL_ACTION_TYPES = [
 ];
 
 export interface EscalationSource {
-  kind: "bank_case" | "regulatory_case";
+  kind: "bank_case";
   id: string;
   /** Reference shown to the user, e.g. case number */
   reference: string;
@@ -87,7 +87,7 @@ export function EscalateToLegalDialog({ open, onOpenChange, source }: Props) {
     queryKey: ["legal_actions_for_case", source?.kind, source?.id],
     enabled: open && !!source,
     queryFn: async () => {
-      const column = source!.kind === "bank_case" ? "bank_case_id" : "regulatory_case_id";
+      const column = "bank_case_id";
       const { data, error } = await supabase
         .from("legal_actions")
         .select("id, title, status, action_type, created_at")
@@ -121,7 +121,7 @@ export function EscalateToLegalDialog({ open, onOpenChange, source }: Props) {
         estimated_cost: form.estimated_cost ? Number(form.estimated_cost) : 0,
         actual_cost: 0,
         escalation_reason: form.reason.trim(),
-        notes: `Escalated from ${source.kind === "bank_case" ? "bank case" : "regulatory case"} ${source.reference}`,
+        notes: `Escalated from bank case ${source.reference}`,
       };
       if (source.kind === "bank_case") payload.bank_case_id = source.id;
       else payload.regulatory_case_id = source.id;

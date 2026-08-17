@@ -128,7 +128,7 @@ export function EscalateToLegalDialog({ open, onOpenChange, source }: Props) {
 
       const { data: created, error } = await supabase
         .from("legal_actions")
-        .insert(payload)
+        .insert(payload as any)
         .select("id")
         .single();
       if (error) throw error;

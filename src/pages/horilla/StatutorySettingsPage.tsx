@@ -150,8 +150,8 @@ export default function StatutorySettingsPage() {
       // Closed-month guard
       const { data: lock } = await (supabase as any)
         .from("hr_payroll_runs")
-        .select("id,status,period_month")
-        .eq("period_month", form.effective_from)
+        .select("id,status,pay_period_start")
+        .eq("pay_period_start", form.effective_from)
         .in("status", ["closed", "completed", "locked"])
         .maybeSingle();
       if (lock) throw new Error("That payroll month is already closed — pick a later effective month");

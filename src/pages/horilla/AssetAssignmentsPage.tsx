@@ -28,7 +28,7 @@ export default function AssetAssignmentsPage() {
     queryFn: async () => {
       let query = (supabase as any)
         .from("hr_asset_assignments")
-        .select("*, hr_assets(name, serial_number, asset_type), hr_employees(employee_name, employee_id)")
+        .select("*, hr_assets(name, serial_number, asset_type), hr_employees(first_name, last_name, badge_id)")
         .order("created_at", { ascending: false });
       if (statusFilter !== "all") query = query.eq("status", statusFilter);
       const { data, error } = await query;
@@ -49,7 +49,7 @@ export default function AssetAssignmentsPage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_list"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("hr_employees").select("id, employee_name, employee_id").eq("status", "active");
+      const { data, error } = await (supabase as any).from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true);
       if (error) throw error;
       return data || [];
     },
@@ -108,7 +108,7 @@ export default function AssetAssignmentsPage() {
 
   const filtered = assignments.filter((a: any) =>
     (a.hr_assets?.name || "").toLowerCase().includes(search.toLowerCase()) ||
-    (a.hr_employees?.employee_name || "").toLowerCase().includes(search.toLowerCase())
+    (`${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""}`).toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -150,7 +150,7 @@ export default function AssetAssignmentsPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="font-medium truncate">{a.hr_assets?.name || "—"}</div>
-                  <div className="text-xs text-muted-foreground capitalize truncate">{a.hr_assets?.asset_type || "—"} · {a.hr_employees?.employee_name || "—"}</div>
+                  <div className="text-xs text-muted-foreground capitalize truncate">{a.hr_assets?.asset_type || "—"} · {`${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""}`.trim() || "—"}</div>
                 </div>
                 <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium border shrink-0 ${a.status === "active" ? "bg-success/10 text-success border-success/20" : "bg-muted text-foreground border-border"}`}>{a.status}</span>
               </div>
@@ -190,7 +190,7 @@ export default function AssetAssignmentsPage() {
                 <tr key={a.id} className="border-b hover:bg-muted/50">
                   <td className="px-4 py-3 font-medium">{a.hr_assets?.name || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground capitalize">{a.hr_assets?.asset_type || "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{a.hr_employees?.employee_name || "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{`${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""}`.trim() || "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.assigned_date}</td>
                   <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.return_date || "—"}</td>
                   <td className="px-4 py-3">
@@ -237,8 +237,8 @@ export default function AssetAssignmentsPage() {
                 onChange={(v) => setForm({ ...form, employee_id: v })}
                 options={(employees || []).map((e: any) => ({
                   value: e.id,
-                  label: `${e.employee_name} (${e.employee_id})`,
-                  keywords: e.employee_id || "",
+                  label: `${`${e.first_name || ""} ${e.last_name || ""}`.trim()}${e.badge_id ? ` (${e.badge_id})` : ""}`,
+                  keywords: e.badge_id || "",
                 }))}
               />
             </div>

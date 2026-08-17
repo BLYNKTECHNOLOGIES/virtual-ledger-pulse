@@ -105,7 +105,7 @@ export function useSystemPulseExtras(refetchMs = 60_000) {
           .eq("status", "dead_lettered"),
         client
           .from("hr_ghost_email_residual_v")
-          .select("id", { count: "exact", head: true }),
+          .select("hr_employee_id", { count: "exact", head: true }),
         client
           .from("hr_absent_marker_last_run_v")
           .select("*")

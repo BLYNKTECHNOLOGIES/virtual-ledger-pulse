@@ -22,6 +22,7 @@ export function LegalActionsTab() {
   const [selectedAction, setSelectedAction] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterLinkage, setFilterLinkage] = useState<"all" | "linked" | "standalone">("all");
   const [newAction, setNewAction] = useState({
     action_type: "",
     title: "",
@@ -66,6 +67,38 @@ export function LegalActionsTab() {
       return data || [];
     },
   });
+
+  // Source case references for linked legal actions
+  const { data: sourceCaseRefs } = useQuery({
+    queryKey: ['legal_action_source_refs'],
+    queryFn: async () => {
+      const [bank, reg] = await Promise.all([
+        supabase.from('bank_cases').select('id, case_number, case_type'),
+        supabase.from('compliance_regulatory_cases').select('id, reference_no, acknowledgment_number, subject'),
+      ]);
+      const map: Record<string, string> = {};
+      (bank.data || []).forEach((c: any) => { map[c.id] = c.case_number; });
+      (reg.data || []).forEach((c: any) => {
+        map[c.id] = c.reference_no || c.acknowledgment_number || c.subject;
+      });
+      return map;
+    },
+  });
+
+  const sourceRef = (action: any): string | null => {
+    const id = action?.bank_case_id || action?.regulatory_case_id;
+    if (!id) return null;
+    const label = sourceCaseRefs?.[id];
+    const prefix = action.bank_case_id ? 'Bank case' : 'Regulatory case';
+    return `${prefix}: ${label || id.slice(0, 8)}`;
+  };
+
+  const matchesLinkage = (action: any) => {
+    const linked = !!(action.bank_case_id || action.regulatory_case_id);
+    if (filterLinkage === 'linked') return linked;
+    if (filterLinkage === 'standalone') return !linked;
+    return true;
+  };
 
   // Create legal action mutation
   const createActionMutation = useMutation({
@@ -405,6 +438,16 @@ export function LegalActionsTab() {
                     />
                   </div>
                 </div>
+                <Select value={filterLinkage} onValueChange={(v) => setFilterLinkage(v as any)}>
+                  <SelectTrigger className="w-[200px] text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">All legal actions</SelectItem>
+                    <SelectItem value="linked">Linked to a case</SelectItem>
+                    <SelectItem value="standalone">Standalone</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-4">
@@ -422,6 +465,7 @@ export function LegalActionsTab() {
                       action.case_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       action.opposing_party?.toLowerCase().includes(searchTerm.toLowerCase())
                     )
+                    .filter(matchesLinkage)
                     .map((action) => (
                     <div key={action.id} className="border rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
@@ -430,6 +474,12 @@ export function LegalActionsTab() {
                           <p className="text-sm text-muted-foreground">{action.action_type}</p>
                           {action.case_number && (
                             <p className="text-sm text-muted-foreground">Case: {action.case_number}</p>
+                          )}
+                          {sourceRef(action) && (
+                            <Badge variant="outline" className="mt-1 gap-1 text-[11px]">
+                              <Scale className="h-3 w-3" />
+                              {sourceRef(action)}
+                            </Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2">
@@ -521,6 +571,16 @@ export function LegalActionsTab() {
                     />
                   </div>
                 </div>
+                <Select value={filterLinkage} onValueChange={(v) => setFilterLinkage(v as any)}>
+                  <SelectTrigger className="w-[200px] text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    <SelectItem value="all">All legal actions</SelectItem>
+                    <SelectItem value="linked">Linked to a case</SelectItem>
+                    <SelectItem value="standalone">Standalone</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-4">
@@ -538,6 +598,7 @@ export function LegalActionsTab() {
                       action.case_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                       action.opposing_party?.toLowerCase().includes(searchTerm.toLowerCase())
                     )
+                    .filter(matchesLinkage)
                     .map((action) => (
                     <div key={action.id} className="border rounded-lg p-4 bg-muted/50">
                       <div className="flex justify-between items-start mb-2">
@@ -546,6 +607,12 @@ export function LegalActionsTab() {
                           <p className="text-sm text-muted-foreground">{action.action_type}</p>
                           {action.case_number && (
                             <p className="text-sm text-muted-foreground">Case: {action.case_number}</p>
+                          )}
+                          {sourceRef(action) && (
+                            <Badge variant="outline" className="mt-1 gap-1 text-[11px]">
+                              <Scale className="h-3 w-3" />
+                              {sourceRef(action)}
+                            </Badge>
                           )}
                         </div>
                         <div className="flex items-center gap-2">

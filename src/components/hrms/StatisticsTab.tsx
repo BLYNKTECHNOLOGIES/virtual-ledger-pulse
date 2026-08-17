@@ -1206,7 +1206,7 @@ export function StatisticsTab() {
             </Card>
             <Card className="border border-border shadow-none">
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">Monthly Salary</p>
+                <p className="text-sm text-muted-foreground">Monthly Salary (active CTC / 12)</p>
                 <p className="text-2xl font-bold">{formatCurrency(totalSalary)}</p>
               </CardContent>
             </Card>

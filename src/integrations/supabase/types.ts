@@ -65,6 +65,13 @@ export type Database = {
             foreignKeyName: "account_investigations_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "account_investigations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -820,6 +827,7 @@ export type Database = {
           beneficiary_name: string | null
           case_number: string
           case_type: string
+          client_id: string | null
           contact_details: string | null
           contact_person: string | null
           created_at: string
@@ -837,6 +845,8 @@ export type Database = {
           investigation_assigned_to: string | null
           investigation_started_at: string | null
           investigation_status: string | null
+          last_activity_at: string | null
+          order_references: string[] | null
           pending_since: string | null
           priority: string
           proof_of_debit: string | null
@@ -848,6 +858,7 @@ export type Database = {
           screenshots: string[] | null
           settlement_date: string | null
           settlement_reference_id: string | null
+          sla_days: number | null
           statement_proof: string | null
           status: string
           supporting_document: string | null
@@ -872,6 +883,7 @@ export type Database = {
           beneficiary_name?: string | null
           case_number: string
           case_type: string
+          client_id?: string | null
           contact_details?: string | null
           contact_person?: string | null
           created_at?: string
@@ -889,6 +901,8 @@ export type Database = {
           investigation_assigned_to?: string | null
           investigation_started_at?: string | null
           investigation_status?: string | null
+          last_activity_at?: string | null
+          order_references?: string[] | null
           pending_since?: string | null
           priority?: string
           proof_of_debit?: string | null
@@ -900,6 +914,7 @@ export type Database = {
           screenshots?: string[] | null
           settlement_date?: string | null
           settlement_reference_id?: string | null
+          sla_days?: number | null
           statement_proof?: string | null
           status?: string
           supporting_document?: string | null
@@ -924,6 +939,7 @@ export type Database = {
           beneficiary_name?: string | null
           case_number?: string
           case_type?: string
+          client_id?: string | null
           contact_details?: string | null
           contact_person?: string | null
           created_at?: string
@@ -941,6 +957,8 @@ export type Database = {
           investigation_assigned_to?: string | null
           investigation_started_at?: string | null
           investigation_status?: string | null
+          last_activity_at?: string | null
+          order_references?: string[] | null
           pending_since?: string | null
           priority?: string
           proof_of_debit?: string | null
@@ -952,6 +970,7 @@ export type Database = {
           screenshots?: string[] | null
           settlement_date?: string | null
           settlement_reference_id?: string | null
+          sla_days?: number | null
           statement_proof?: string | null
           status?: string
           supporting_document?: string | null
@@ -964,6 +983,13 @@ export type Database = {
           wrong_beneficiary_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "bank_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "bank_cases_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -1147,6 +1173,13 @@ export type Database = {
             foreignKeyName: "bank_transactions_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -1292,6 +1325,39 @@ export type Database = {
           },
         ]
       }
+      banking_credential_access_log: {
+        Row: {
+          accessed_at: string
+          accessed_by: string | null
+          accessed_by_name: string | null
+          action: string
+          bank_account_id: string | null
+          credential_id: string | null
+          field_accessed: string | null
+          id: string
+        }
+        Insert: {
+          accessed_at?: string
+          accessed_by?: string | null
+          accessed_by_name?: string | null
+          action?: string
+          bank_account_id?: string | null
+          credential_id?: string | null
+          field_accessed?: string | null
+          id?: string
+        }
+        Update: {
+          accessed_at?: string
+          accessed_by?: string | null
+          accessed_by_name?: string | null
+          action?: string
+          bank_account_id?: string | null
+          credential_id?: string | null
+          field_accessed?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       banking_credentials: {
         Row: {
           bank_account_id: string
@@ -1345,6 +1411,13 @@ export type Database = {
           upi_pin?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "banking_credentials_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "banking_credentials_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -1457,6 +1530,13 @@ export type Database = {
           id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "beneficiary_bank_additions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "beneficiary_bank_additions_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -2822,6 +2902,113 @@ export type Database = {
         }
         Relationships: []
       }
+      compliance_audit_log: {
+        Row: {
+          action: string
+          after_data: Json | null
+          before_data: Json | null
+          changed_at: string
+          changed_by: string | null
+          changed_fields: string[] | null
+          id: string
+          record_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          after_data?: Json | null
+          before_data?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          changed_fields?: string[] | null
+          id?: string
+          record_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          after_data?: Json | null
+          before_data?: Json | null
+          changed_at?: string
+          changed_by?: string | null
+          changed_fields?: string[] | null
+          id?: string
+          record_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
+      compliance_case_updates: {
+        Row: {
+          attachment_urls: string[] | null
+          bank_case_id: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          update_text: string
+          update_type: string
+        }
+        Insert: {
+          attachment_urls?: string[] | null
+          bank_case_id: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          update_text: string
+          update_type?: string
+        }
+        Update: {
+          attachment_urls?: string[] | null
+          bank_case_id?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          update_text?: string
+          update_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_case_updates_bank_case_id_fkey"
+            columns: ["bank_case_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_config_options: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          option_group: string
+          sort_order: number
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          option_group: string
+          sort_order?: number
+          value: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          option_group?: string
+          sort_order?: number
+          value?: string
+        }
+        Relationships: []
+      }
       compliance_documents: {
         Row: {
           category: string
@@ -2833,6 +3020,7 @@ export type Database = {
           id: string
           name: string
           status: string
+          subsidiary_id: string | null
           updated_at: string
           uploaded_by: string | null
         }
@@ -2846,6 +3034,7 @@ export type Database = {
           id?: string
           name: string
           status?: string
+          subsidiary_id?: string | null
           updated_at?: string
           uploaded_by?: string | null
         }
@@ -2859,10 +3048,347 @@ export type Database = {
           id?: string
           name?: string
           status?: string
+          subsidiary_id?: string | null
           updated_at?: string
           uploaded_by?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_documents_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "compliance_documents_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_regulatory_cases: {
+        Row: {
+          acknowledgment_number: string | null
+          amount_involved: number | null
+          bank_account_id: string | null
+          bank_case_id: string | null
+          client_id: string | null
+          complaint_date: string | null
+          created_at: string
+          created_by: string | null
+          deadline_date: string | null
+          details: string | null
+          id: string
+          jurisdiction: string | null
+          lea_name: string | null
+          officer_contact: string | null
+          officer_name: string | null
+          portal: string
+          reference_no: string | null
+          response_filed_date: string | null
+          response_proof_urls: string[] | null
+          status: string
+          subject: string
+          subsidiary_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          acknowledgment_number?: string | null
+          amount_involved?: number | null
+          bank_account_id?: string | null
+          bank_case_id?: string | null
+          client_id?: string | null
+          complaint_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_date?: string | null
+          details?: string | null
+          id?: string
+          jurisdiction?: string | null
+          lea_name?: string | null
+          officer_contact?: string | null
+          officer_name?: string | null
+          portal?: string
+          reference_no?: string | null
+          response_filed_date?: string | null
+          response_proof_urls?: string[] | null
+          status?: string
+          subject: string
+          subsidiary_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          acknowledgment_number?: string | null
+          amount_involved?: number | null
+          bank_account_id?: string | null
+          bank_case_id?: string | null
+          client_id?: string | null
+          complaint_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_date?: string | null
+          details?: string | null
+          id?: string
+          jurisdiction?: string | null
+          lea_name?: string | null
+          officer_contact?: string | null
+          officer_name?: string | null
+          portal?: string
+          reference_no?: string | null
+          response_filed_date?: string | null
+          response_proof_urls?: string[] | null
+          status?: string
+          subject?: string
+          subsidiary_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_accounts_with_balance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_bank_entity_map_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "fin_unanchored_accounts_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_bank_case_id_fkey"
+            columns: ["bank_case_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "compliance_regulatory_cases_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_reminder_log: {
+        Row: {
+          entity_id: string | null
+          entity_type: string
+          id: string
+          recipients: string[] | null
+          reminder_key: string
+          reminder_type: string
+          sent_at: string
+        }
+        Insert: {
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          recipients?: string[] | null
+          reminder_key: string
+          reminder_type: string
+          sent_at?: string
+        }
+        Update: {
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          recipients?: string[] | null
+          reminder_key?: string
+          reminder_type?: string
+          sent_at?: string
+        }
         Relationships: []
+      }
+      compliance_statutory_obligations: {
+        Row: {
+          created_at: string
+          due_date: string
+          filed_on: string | null
+          filed_reference: string | null
+          id: string
+          notes: string | null
+          obligation_type: string
+          owner_name: string | null
+          owner_user_id: string | null
+          period_label: string | null
+          status: string
+          subsidiary_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          due_date: string
+          filed_on?: string | null
+          filed_reference?: string | null
+          id?: string
+          notes?: string | null
+          obligation_type: string
+          owner_name?: string | null
+          owner_user_id?: string | null
+          period_label?: string | null
+          status?: string
+          subsidiary_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string
+          filed_on?: string | null
+          filed_reference?: string | null
+          id?: string
+          notes?: string | null
+          obligation_type?: string
+          owner_name?: string | null
+          owner_user_id?: string | null
+          period_label?: string | null
+          status?: string
+          subsidiary_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_statutory_obligations_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "compliance_statutory_obligations_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      compliance_str_register: {
+        Row: {
+          amount: number | null
+          checker_id: string | null
+          checker_name: string | null
+          client_id: string | null
+          client_name: string | null
+          counterparty_name: string | null
+          created_at: string
+          decision: string
+          decision_at: string | null
+          decision_rationale: string | null
+          filed_on: string | null
+          filed_reference: string | null
+          id: string
+          maker_id: string | null
+          maker_name: string | null
+          maker_recommendation: string
+          narrative: string
+          observed_on: string
+          red_flags: string[] | null
+          reference_no: string | null
+          subsidiary_id: string | null
+          trigger_source: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          checker_id?: string | null
+          checker_name?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          counterparty_name?: string | null
+          created_at?: string
+          decision?: string
+          decision_at?: string | null
+          decision_rationale?: string | null
+          filed_on?: string | null
+          filed_reference?: string | null
+          id?: string
+          maker_id?: string | null
+          maker_name?: string | null
+          maker_recommendation?: string
+          narrative: string
+          observed_on?: string
+          red_flags?: string[] | null
+          reference_no?: string | null
+          subsidiary_id?: string | null
+          trigger_source?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          checker_id?: string | null
+          checker_name?: string | null
+          client_id?: string | null
+          client_name?: string | null
+          counterparty_name?: string | null
+          created_at?: string
+          decision?: string
+          decision_at?: string | null
+          decision_rationale?: string | null
+          filed_on?: string | null
+          filed_reference?: string | null
+          id?: string
+          maker_id?: string | null
+          maker_name?: string | null
+          maker_recommendation?: string
+          narrative?: string
+          observed_on?: string
+          red_flags?: string[] | null
+          reference_no?: string | null
+          subsidiary_id?: string | null
+          trigger_source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "compliance_str_register_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "compliance_str_register_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       copilot_blacklist: {
         Row: {
@@ -3693,6 +4219,13 @@ export type Database = {
           wallet_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "erp_balance_baseline_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: true
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "erp_balance_baseline_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -16724,12 +17257,17 @@ export type Database = {
           acknowledgment_number: string | null
           amount: number
           bank_account_id: string | null
+          bank_case_id: string | null
           city: string | null
+          client_id: string | null
           created_at: string
           date_imposed: string
+          freeze_type: string
           id: string
           lawyer: string | null
           lien_number: string
+          order_references: string[] | null
+          release_date: string | null
           state: string | null
           status: string
           updated_at: string
@@ -16738,12 +17276,17 @@ export type Database = {
           acknowledgment_number?: string | null
           amount: number
           bank_account_id?: string | null
+          bank_case_id?: string | null
           city?: string | null
+          client_id?: string | null
           created_at?: string
           date_imposed: string
+          freeze_type?: string
           id?: string
           lawyer?: string | null
           lien_number: string
+          order_references?: string[] | null
+          release_date?: string | null
           state?: string | null
           status?: string
           updated_at?: string
@@ -16752,17 +17295,29 @@ export type Database = {
           acknowledgment_number?: string | null
           amount?: number
           bank_account_id?: string | null
+          bank_case_id?: string | null
           city?: string | null
+          client_id?: string | null
           created_at?: string
           date_imposed?: string
+          freeze_type?: string
           id?: string
           lawyer?: string | null
           lien_number?: string
+          order_references?: string[] | null
+          release_date?: string | null
           state?: string | null
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lien_cases_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "lien_cases_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -16790,6 +17345,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "fin_unanchored_accounts_v"
             referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "lien_cases_bank_case_id_fkey"
+            columns: ["bank_case_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -18182,6 +18744,13 @@ export type Database = {
             foreignKeyName: "payment_gateway_settlements_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "payment_gateway_settlements_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -18404,6 +18973,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "fk_pending_settlements_bank_account"
             columns: ["bank_account_id"]
@@ -18918,6 +19494,13 @@ export type Database = {
             foreignKeyName: "purchase_order_payment_splits_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "purchase_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -19115,6 +19698,13 @@ export type Database = {
             foreignKeyName: "purchase_orders_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -19228,6 +19818,13 @@ export type Database = {
           upi_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "purchase_payment_methods_bank_account_name_fkey"
+            columns: ["bank_account_name"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["account_name"]
+          },
           {
             foreignKeyName: "purchase_payment_methods_bank_account_name_fkey"
             columns: ["bank_account_name"]
@@ -20156,6 +20753,13 @@ export type Database = {
             foreignKeyName: "sales_order_payment_splits_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "sales_order_payment_splits_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -20430,6 +21034,13 @@ export type Database = {
           upi_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_payment_methods_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
           {
             foreignKeyName: "sales_payment_methods_bank_account_id_fkey"
             columns: ["bank_account_id"]
@@ -21390,6 +22001,13 @@ export type Database = {
             foreignKeyName: "tds_payment_allocations_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "tds_payment_allocations_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -21512,6 +22130,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tds_records_payment_bank_account_id_fkey"
+            columns: ["payment_bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "tds_records_payment_bank_account_id_fkey"
@@ -24063,6 +24688,21 @@ export type Database = {
       }
     }
     Views: {
+      bank_account_compliance_v: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          account_status: string | null
+          active_liens: number | null
+          amount_at_stake: number | null
+          bank_account_id: string | null
+          bank_name: string | null
+          has_active_lien: boolean | null
+          lien_amount: number | null
+          open_cases: number | null
+        }
+        Relationships: []
+      }
       bank_accounts_with_balance: {
         Row: {
           account_name: string | null
@@ -24658,6 +25298,13 @@ export type Database = {
             foreignKeyName: "fk_pending_settlements_bank_account"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "fk_pending_settlements_bank_account"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -24731,6 +25378,13 @@ export type Database = {
             foreignKeyName: "bank_transactions_bank_account_id_fkey"
             columns: ["bank_account_id"]
             isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
             referencedRelation: "bank_accounts"
             referencedColumns: ["id"]
           },
@@ -24793,6 +25447,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "bank_transactions_bank_account_id_fkey"
@@ -24892,13 +25553,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "fin_entity_master_v"
@@ -24908,8 +25562,8 @@ export type Database = {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["subsidiary_id"]
             isOneToOne: false
-            referencedRelation: "subsidiaries"
-            referencedColumns: ["id"]
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
           },
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
@@ -24917,6 +25571,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "subsidiaries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "bank_transactions_bank_account_id_fkey"
@@ -25025,6 +25693,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_bank_account_id_fkey"
+            columns: ["bank_account_id"]
+            isOneToOne: false
+            referencedRelation: "bank_account_compliance_v"
+            referencedColumns: ["bank_account_id"]
           },
           {
             foreignKeyName: "bank_transactions_bank_account_id_fkey"
@@ -26167,6 +26842,8 @@ export type Database = {
         }
         Returns: Json
       }
+      compliance_command_centre: { Args: never; Returns: Json }
+      compliance_recompute_document_status: { Args: never; Returns: number }
       compute_annual_tax: {
         Args: { p_filing_status_id: string; p_taxable_income: number }
         Returns: number

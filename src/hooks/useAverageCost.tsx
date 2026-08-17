@@ -1,7 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { isStableCoin } from "./useCoinMarketRates";
 
 export interface AverageCostData {
   product_code: string;

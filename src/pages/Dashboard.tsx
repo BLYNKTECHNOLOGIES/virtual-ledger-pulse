@@ -813,7 +813,7 @@ export default function Dashboard() {
         onDragCancel={() => setDraggingId(null)}
       >
         <SortableContext items={visibleWidgetIds} strategy={rectSortingStrategy}>
-          <div data-masonry-grid className="grid grid-cols-12 items-start gap-3 stagger-children md:gap-3.5 [grid-auto-rows:8px]">
+          <div data-masonry-grid className="grid grid-cols-12 items-start gap-3 stagger-children md:gap-3.5 [grid-auto-rows:8px] [grid-auto-flow:row_dense]">
             {visibleWidgetIds.map(id => renderWidget(id))}
           </div>
         </SortableContext>

@@ -113,9 +113,10 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
   const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
   const expiry = new Date(expiresAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
 
-  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px 14px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;border-collapse:separate;"><tr><td>${hrHeaderHtml()}</td></tr><tr><td style="padding:20px 22px;"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${B.blue};background:#f0f9ff;display:inline-block;padding:4px 10px;border-radius:999px;">Action required</div><h1 style="margin:12px 0 8px;font-size:18px;line-height:1.35;color:${B.ink};font-weight:700;">Complete your onboarding details</h1><p style="margin:0 0 14px;font-size:13.5px;color:#475569;line-height:1.6;">Dear ${esc(name || 'Colleague')}, welcome aboard. Please use the secure link below to share your personal, statutory and bank details and upload your documents. No login is required, and your progress is saved as you go.</p><a href="${link}" style="display:inline-block;background:${B.blue};color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:700;">Open onboarding form</a><p style="margin:14px 0 0;font-size:12px;color:#64748b;">This link is personal to you and valid until ${esc(expiry)}.</p>${hrSignatureHtml('Automated notice · Employee onboarding')}</td></tr></table><div style="text-align:center;font-size:10.5px;color:#94a3b8;padding:14px 6px;">Blynk Virtual Technologies Pvt. Ltd. · HRMS automated notification</div></div></body></html>`;
+  const html = `<!doctype html><html><body style="margin:0;padding:0;background:#f4f7fb;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"><div style="max-width:560px;margin:0 auto;padding:24px 14px;"><table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border:1px solid #e6ecf3;border-radius:12px;border-collapse:separate;"><tr><td>${hrHeaderHtml()}</td></tr><tr><td style="padding:20px 22px;"><div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:${B.blue};background:#f0f9ff;display:inline-block;padding:4px 10px;border-radius:999px;">Action required</div><h1 style="margin:12px 0 8px;font-size:18px;line-height:1.35;color:${B.ink};font-weight:700;">Complete your onboarding details</h1><p style="margin:0 0 14px;font-size:13.5px;color:#475569;line-height:1.6;">Dear ${esc(name || 'Colleague')}, please complete your onboarding form. No login required.</p><a href="${link}" style="display:inline-block;background:${B.blue};color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:700;">Open onboarding form</a><p style="margin:14px 0 0;font-size:12px;color:#64748b;">Valid until ${esc(expiry)}.</p>${hrSignatureHtml('Automated notice · Employee onboarding')}</td></tr></table><div style="text-align:center;font-size:10.5px;color:#94a3b8;padding:14px 6px;">Blynk Virtual Technologies Pvt. Ltd. · HRMS automated notification</div></div></body></html>`;
 
-  const text = `Complete your onboarding details\n\nDear ${name || 'Colleague'}, please open the secure link below to share your details and documents. No login required.\n\n${link}\n\nValid until ${expiry}.\n\n${hrSignatureText('Automated notice · Employee onboarding')}`;
+  const text = `Complete your onboarding details\n\nDear ${name || 'Colleague'}, please complete your onboarding form. No login required.\n\n${link}\n\nValid until ${expiry}.\n\n${hrSignatureText('Automated notice · Employee onboarding')}`;
+
 
   const client = new SMTPClient({ connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } } });
   try {
@@ -149,7 +150,26 @@ Deno.serve(async (req) => {
     const token = String(body?.token || '');
 
     // ── HR-authenticated actions ──
+    if (action === 'sample') {
+      const to = String(body?.recipientEmail || '').trim().toLowerCase();
+      // Preview sends are restricted to internal company mailboxes only.
+      if (!/^[a-z0-9._%+-]+@blynkex\.com$/.test(to)) {
+        const auth = await requireHr(req);
+        if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid email is required' }, 400);
+
+      const sentFrom = await mailInvite(
+        to,
+        String(body?.name || 'Colleague'),
+        `${APP_URL}/onboarding/apply/sample-preview-token`,
+        new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString(),
+      );
+      return json({ ok: true, sentTo: to, sentFrom });
+    }
+
     if (action === 'issue' || action === 'send') {
+
       const auth = await requireHr(req);
       if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
 

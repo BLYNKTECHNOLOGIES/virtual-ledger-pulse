@@ -15,7 +15,7 @@ interface MobileNavItem {
 
 const mainNavItems: MobileNavItem[] = [
   { title: "Home", url: "/dashboard", icon: Home, permissions: ["dashboard_view"] },
-  { title: "Stock", url: "/stock", icon: Package, permissions: ["stock_view", "stock_manage"] },
+  { title: "Profile", url: "/profile", icon: User, permissions: [], alwaysVisible: true },
   { title: "Sales", url: "/sales", icon: TrendingUp, permissions: ["sales_view", "sales_manage"] },
   { title: "Purchase", url: "/purchase", icon: ShoppingCart, permissions: ["purchase_view", "purchase_manage"] },
 ];

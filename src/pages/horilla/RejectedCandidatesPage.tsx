@@ -19,7 +19,7 @@ export default function RejectedCandidatesPage() {
       const { data, error } = await (supabase as any)
         .from("hr_rejected_candidates")
         .select("*, hr_candidates!hr_rejected_candidates_candidate_id_fkey(name, email, mobile, is_active, hr_recruitments!hr_candidates_recruitment_id_fkey(title))")
-        .order("rejected_at", { ascending: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },

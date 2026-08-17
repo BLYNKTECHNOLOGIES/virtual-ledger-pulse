@@ -19,6 +19,7 @@ import { DateRangePicker, DateRangePreset, getDateRangeFromPreset } from "@/comp
 import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays, startOfDay, endOfDay, addMonths, addDays } from "date-fns";
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
+import { IncomeCategoryDrillDown } from "./IncomeCategoryDrillDown";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
@@ -477,11 +478,20 @@ export function StatisticsTab() {
         .sort((a, b) => b.amount - a.amount);
 
       // Income breakdown by category
-      const totalIncome = incomes?.reduce((sum, i) => sum + Number(i.amount || 0), 0) || 0;
+      // Core trading / settlement buckets can arrive in mixed case ("SALES"),
+      // which slipped past the server-side exclusion list and inflated income.
+      const coreIncomeBuckets = new Set([
+        'purchase', 'sales', 'stock purchase', 'stock sale', 'trade', 'trading',
+        'opening_balance', 'adjustment', 'manual baseline reset',
+        'settlement', 'payment gateway settlement',
+      ]);
+      const reportableIncomes = (incomes || []).filter(
+        inc => !coreIncomeBuckets.has(String(inc.category || '').trim().toLowerCase())
+      );
+      const totalIncome = reportableIncomes.reduce((sum, i) => sum + Number(i.amount || 0), 0);
       const incomeByCategory = new Map<string, number>();
-      incomes?.forEach(inc => {
+      reportableIncomes.forEach(inc => {
         const cat = inc.category || 'Other';
-        if (excludeExpenseCategories.includes(cat)) return;
         incomeByCategory.set(cat, (incomeByCategory.get(cat) || 0) + Number(inc.amount || 0));
       });
       const incomeBreakdown = Array.from(incomeByCategory.entries())
@@ -603,6 +613,7 @@ export function StatisticsTab() {
 
   // State for expense category drill-down
   const [selectedExpenseCategory, setSelectedExpenseCategory] = useState<string | null>(null);
+  const [selectedIncomeCategory, setSelectedIncomeCategory] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -1316,8 +1327,12 @@ export function StatisticsTab() {
                     </TableHeader>
                     <TableBody>
                       {incomeBreakdown.slice(0, 8).map((income) => (
-                        <TableRow key={income.category}>
-                          <TableCell className="font-medium">{income.category}</TableCell>
+                        <TableRow
+                          key={income.category}
+                          className="cursor-pointer hover:bg-muted/80 transition-colors"
+                          onClick={() => setSelectedIncomeCategory(income.category)}
+                        >
+                          <TableCell className="font-medium text-primary underline-offset-2 hover:underline">{income.category}</TableCell>
                           <TableCell className="text-right">{formatCurrency(income.amount)}</TableCell>
                           <TableCell className="text-right">{income.percentage}%</TableCell>
                         </TableRow>
@@ -1464,6 +1479,15 @@ export function StatisticsTab() {
       <ExpenseCategoryDrillDown
         category={selectedExpenseCategory}
         onClose={() => setSelectedExpenseCategory(null)}
+        startDate={getDateRange().startDate}
+        endDate={getDateRange().endDate}
+        formatCurrency={formatCurrency}
+      />
+
+      {/* Income Category Drill-Down Dialog */}
+      <IncomeCategoryDrillDown
+        category={selectedIncomeCategory}
+        onClose={() => setSelectedIncomeCategory(null)}
         startDate={getDateRange().startDate}
         endDate={getDateRange().endDate}
         formatCurrency={formatCurrency}

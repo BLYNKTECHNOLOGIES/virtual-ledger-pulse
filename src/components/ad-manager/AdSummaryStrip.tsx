@@ -40,7 +40,6 @@ export function AdSummaryStrip({ ads }: AdSummaryStripProps) {
       {chip('Online', String(stats.online), 'text-success')}
       {chip('Private', String(stats.priv), 'text-warning')}
       {chip('Offline', String(stats.offline), 'text-muted-foreground')}
-      {chip('USDT surplus', stats.usdtSurplus.toLocaleString('en-IN', { maximumFractionDigits: 2 }))}
     </div>
   );
 }

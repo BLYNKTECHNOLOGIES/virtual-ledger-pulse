@@ -249,7 +249,7 @@ export function StatisticsTab() {
       const incomes = await fetchAllPaginated<any>(() =>
         supabase
           .from('bank_transactions')
-          .select('id, amount, category, description, transaction_date')
+          .select('id, amount, category, description, transaction_date, reference_number')
           .eq('transaction_type', 'INCOME')
           .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Settlement","Payment Gateway Settlement")')
           .gte('transaction_date', startStr)

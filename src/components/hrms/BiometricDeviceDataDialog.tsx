@@ -592,7 +592,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                           <TableCell>{t.finger_index ?? "—"}</TableCell>
                           <TableCell>{t.size_bytes ?? "—"}</TableCell>
                           <TableCell>{t.valid ? "✓" : "✗"}</TableCell>
-                          <TableCell>{t.duress ? "⚠" : "—"}</TableCell>
+                          <TableCell>{t.duress ? "Duress" : "—"}</TableCell>
                           <TableCell className="text-xs">{t.algorithm_version || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmt(t.captured_at)}</TableCell>
                         </TableRow>

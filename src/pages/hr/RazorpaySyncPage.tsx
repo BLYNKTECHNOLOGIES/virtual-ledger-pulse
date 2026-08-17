@@ -1109,7 +1109,7 @@ export default function RazorpaySyncPage() {
                 </button>
               ) : (
                 <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                  ✅ All done — no action needed
+                  All done — no action needed
                 </div>
               )}
             </CardContent>
@@ -1146,7 +1146,7 @@ export default function RazorpaySyncPage() {
             {setupFullyDone && setupCollapsedManual !== false && (
               <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs flex items-center justify-between gap-2">
                 <div className="text-emerald-700 dark:text-emerald-400">
-                  ✅ One-time setup is complete — steps A–E are hidden by default.
+                  One-time setup is complete — steps A–E are hidden by default.
                 </div>
                 <button
                   type="button"
@@ -1819,7 +1819,7 @@ export default function RazorpaySyncPage() {
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
               {settings?.push_salary_endpoint_verified
-                ? <>API name for salary updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                ? <>API name for salary updates is set up automatically — no action needed. Preview and "Send pilot" are ready.</>
                 : <>API name for salary updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>
@@ -2012,7 +2012,7 @@ export default function RazorpaySyncPage() {
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
               {settings?.push_attendance_endpoint_verified
-                ? <>API name for attendance/LOP updates is set up automatically ✅ — no action needed. Preview and "Send pilot" are ready.</>
+                ? <>API name for attendance/LOP updates is set up automatically — no action needed. Preview and "Send pilot" are ready.</>
                 : <>API name for attendance/LOP updates will be set up automatically once you finish <b>Step A</b> (validate connection). Preview works either way.</>}
             </AlertDescription>
           </Alert>

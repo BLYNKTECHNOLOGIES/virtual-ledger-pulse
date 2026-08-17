@@ -15,23 +15,9 @@ import { useIsStandby } from "@/hooks/useIsStandby";
 
 
 
-/**
- * Collapses the desktop sidebar to the icon rail as soon as the user starts
- * working inside the main content area (click / type / scroll). Presentation
- * only — no logic or data behaviour changes.
- */
 function MainWorkArea({ children }: { children: React.ReactNode }) {
-  const { open, setOpen, isMobile } = useSidebar();
-  const collapse = () => {
-    if (!isMobile && open) setOpen(false);
-  };
   return (
-    <main
-      className="flex-1 overflow-auto bg-background pb-16 md:pb-0"
-      onPointerDown={collapse}
-      onKeyDown={collapse}
-      onWheel={collapse}
-    >
+    <main className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
       {children}
     </main>
   );

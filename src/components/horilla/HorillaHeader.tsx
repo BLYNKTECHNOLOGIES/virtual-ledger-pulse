@@ -55,8 +55,8 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
       const [emps, onb] = await Promise.all([
         (supabase as any)
           .from("hr_employees")
-          .select("id, employee_id, first_name, last_name, email, phone, is_active")
-          .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},employee_id.ilike.${like},phone.ilike.${like}`)
+          .select("id, badge_id, first_name, last_name, email, phone, is_active")
+          .or(`first_name.ilike.${like},last_name.ilike.${like},email.ilike.${like},badge_id.ilike.${like},phone.ilike.${like}`)
           .limit(12),
         (supabase as any)
           .from("hr_employee_onboarding")
@@ -69,8 +69,8 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
         results.push({
           kind: "employee",
           id: e.id,
-          label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.employee_id,
-          sub: [e.employee_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
+          label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.badge_id,
+          sub: [e.badge_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
           link: `/hrms/employee/${e.id}`,
         });
       });

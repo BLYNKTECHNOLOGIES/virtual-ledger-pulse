@@ -69,7 +69,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
   const { data: wallets } = useQuery<{ id: string; wallet_name: string }[]>({
     queryKey: ['wallets-for-edit'],
     queryFn: async (): Promise<{ id: string; wallet_name: string }[]> => {
-      const { data, error } = await (supabase as any).from('wallets').select('id, wallet_name').eq('status', 'ACTIVE');
+      const { data, error } = await (supabase as any).from('wallets').select('id, wallet_name').eq('is_active', true);
       if (error) throw error;
       return data || [];
     },

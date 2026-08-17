@@ -40,10 +40,11 @@ export function TagsAndSkillsTab({ employeeId }: TagsAndSkillsTabProps) {
     queryKey: ["hr_employee_meta", employeeId],
     queryFn: async () => {
       const { data } = await (supabase as any).from("hr_employees")
-        .select("id, tags, skills")
+        .select("id, additional_info")
         .eq("id", employeeId)
-        .single();
-      return data;
+        .maybeSingle();
+      const info = (data?.additional_info as any) || {};
+      return { id: data?.id, tags: info.tags || [], skills: info.skills || [], additional_info: info };
     },
     enabled: !!employeeId,
   });
@@ -53,7 +54,8 @@ export function TagsAndSkillsTab({ employeeId }: TagsAndSkillsTabProps) {
 
   const updateEmployeeMeta = useMutation({
     mutationFn: async (updates: any) => {
-      const { error } = await (supabase as any).from("hr_employees").update(updates).eq("id", employeeId);
+      const nextInfo = { ...((empMeta as any)?.additional_info || {}), ...updates };
+      const { error } = await (supabase as any).from("hr_employees").update({ additional_info: nextInfo }).eq("id", employeeId);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["hr_employee_meta", employeeId] }),

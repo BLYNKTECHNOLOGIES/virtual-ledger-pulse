@@ -35,7 +35,7 @@ export function StatutoryReportsPanel() {
       const { data, error } = await (supabase as any)
         .from("hr_payslips")
         .select("*, hr_employees!hr_payslips_employee_id_fkey(badge_id, first_name, last_name, uan_number, pf_number, esi_number, pan_number)")
-        .like("pay_period_start", `${selectedMonth}%`);
+        .like("period_month", `${selectedMonth}%`);
       if (error) throw error;
       return data || [];
     },

@@ -64,7 +64,10 @@ export default function LeaveRequestsPage() {
   const { data: weeklyOffPatterns = [] } = useQuery({
     queryKey: ["hr_employee_weekly_off_patterns"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_employee_weekly_off").select("employee_id, day_of_week");
+      const { data } = await (supabase as any)
+        .from("hr_employee_weekly_off")
+        .select("employee_id, is_current, effective_from, hr_weekly_off_patterns(weekly_offs)")
+        .eq("is_current", true);
       return data || [];
     },
   });
@@ -77,7 +80,7 @@ export default function LeaveRequestsPage() {
     // Get this employee's weekly off days (0=Sun, 1=Mon, ..., 6=Sat)
     const empOffDays = (weeklyOffPatterns as any[])
       .filter((p: any) => p.employee_id === employeeId)
-      .map((p: any) => Number(p.day_of_week));
+      .flatMap((p: any) => (p.hr_weekly_off_patterns?.weekly_offs || []).map((d: any) => Number(d)));
     
     // Default to Sunday only if no pattern configured
     const offDays = empOffDays.length > 0 ? empOffDays : [0];

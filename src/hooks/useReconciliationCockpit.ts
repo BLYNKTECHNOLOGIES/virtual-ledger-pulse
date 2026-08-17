@@ -79,7 +79,7 @@ export function useReconciliationCockpit() {
           .lt("current_balance", 0),
         supabase
           .from("erp_action_queue")
-          .select("id, status, movement_time, asset_code, amount, entry_type, counterparty_name")
+          .select("id, status, movement_time, asset, amount, movement_type, raw_data")
           .eq("status", "PENDING")
           .lt("movement_time", staleCutoff)
           .order("movement_time", { ascending: true })
@@ -157,8 +157,8 @@ export function useReconciliationCockpit() {
           ref: `stale:${q.id}`,
           lane: "stale_approval" as LaneKey,
           severity: (ageHrs >= 72 ? "critical" : "warning") as ExceptionSeverity,
-          title: `${q.entry_type || "Entry"} · ${q.asset_code || ""}`.trim(),
-          subtitle: `Pending ${ageHrs}h · ${q.counterparty_name || "—"}`,
+          title: `${q.movement_type || "Entry"} · ${q.asset || ""}`.trim(),
+          subtitle: `Pending ${ageHrs}h · ${q.raw_data?.counterparty_name || q.raw_data?.counterparty || "—"}`,
           detail: `Amount ${money(q.amount)} awaiting approval`,
           amountLabel: money(q.amount),
           occurredAt: q.movement_time,

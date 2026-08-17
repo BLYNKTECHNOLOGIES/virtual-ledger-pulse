@@ -19,7 +19,7 @@ export default function MyTaxRegimeCard({ employeeId }: MyTaxRegimeCardProps) {
     queryFn: async () => {
       const { data: emp } = await (supabase as any)
         .from('hr_employees')
-        .select('tax_regime, additional_info')
+        .select('filing_status_id, additional_info')
         .eq('id', employeeId)
         .maybeSingle();
 
@@ -28,10 +28,14 @@ export default function MyTaxRegimeCard({ employeeId }: MyTaxRegimeCardProps) {
         .select('*')
         .eq('is_active', true);
 
-      const regime = emp?.tax_regime || 'new';
-      const matched = (statuses || []).find(
-        (s: any) => (s.regime_type || '').toLowerCase() === regime.toLowerCase()
-      );
+      const byId = (statuses || []).find((s: any) => s.id === emp?.filing_status_id);
+      const declared = ((emp?.additional_info as any)?.tax_regime || '') as string;
+      const matched =
+        byId ||
+        (declared
+          ? (statuses || []).find((s: any) => (s.regime_type || '').toLowerCase() === declared.toLowerCase())
+          : (statuses || []).find((s: any) => s.is_default));
+      const regime = (matched?.regime_type || declared || 'new').toLowerCase();
       return { regime, matched, emp };
     },
     enabled: !!employeeId,

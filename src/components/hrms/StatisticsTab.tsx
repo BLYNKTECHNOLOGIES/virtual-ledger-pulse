@@ -20,6 +20,7 @@ import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays,
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 import { IncomeCategoryDrillDown } from "./IncomeCategoryDrillDown";
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';

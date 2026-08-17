@@ -407,12 +407,12 @@
     /* ── Accent / interactive ── */
     --primary: 199 95% 55%;          /* electric cyan-blue */
     --primary-foreground: 240 20% 8%;/* near-black on electric accent */
-    --secondary: 240 8% 11%;         /* secondary surface */
-    --secondary-foreground: 228 18% 90%;
-    --muted: 240 8% 12%;             /* subtle graphite surface */
-    --muted-foreground: 225 12% 68%; /* high-contrast muted text */
-    --accent: 240 8% 14%;            /* hover / selected surface */
-    --accent-foreground: 228 20% 93%;
+    --secondary: 240 8% 14%;         /* secondary surface */
+    --secondary-foreground: 228 18% 92%;
+    --muted: 240 8% 15%;             /* subtle graphite surface */
+    --muted-foreground: 225 14% 76%; /* high-contrast muted text */
+    --accent: 240 8% 18%;            /* hover / selected surface */
+    --accent-foreground: 228 20% 96%;
 
     /* ── Status / semantic ── */
     --destructive: 0 84% 62%;
@@ -422,9 +422,14 @@
     --info: 199 89% 58%;
 
     /* ── Borders ── */
-    --border: 240 8% 14%;            /* hairline */
-    --input: 240 8% 8%;              /* input bg */
+    --border: 240 8% 20%;            /* hairline (raised for AA control edges) */
+    --input: 240 8% 13%;             /* input / control bg (raised off canvas) */
     --ring: 199 95% 55%;             /* focus ring = electric accent */
+
+    /* ── Extra surfaces (must be terminal-scoped, else ERP light values leak) ── */
+    --surface-subtle: 240 8% 13%;    /* inputs, table headers, inner panels */
+    --surface-canvas: 240 10% 4%;
+    --surface-elevated: 240 8% 10%;
 
     /* ── Trading semantics ── */
     --trade-buy: 142 64% 45%;        /* green (tuned for black bg) */
@@ -495,6 +500,11 @@
     --border: 218 24% 88%;
     --input: 0 0% 100%;
     --ring: 231 78% 55%;
+
+    /* ── Extra surfaces ── */
+    --surface-subtle: 220 40% 98%;
+    --surface-canvas: 218 33% 97%;
+    --surface-elevated: 0 0% 100%;
 
     /* ── Trading semantics (darkened for light bg) ── */
     --trade-buy: 152 64% 31%;
@@ -572,6 +582,69 @@
    Only active inside .terminal wrapper — never bleeds
    into the main enterprise theme.
    ═══════════════════════════════════════════════════════ */
+
+/* Floor faded muted text so secondary copy stays readable on the black canvas */
+.terminal .text-muted-foreground\/40,
+.terminal .text-muted-foreground\/50,
+.terminal .text-muted-foreground\/60 {
+  color: hsl(var(--muted-foreground) / 0.85);
+}
+.terminal .text-muted-foreground\/30 {
+  color: hsl(var(--muted-foreground) / 0.7);
+}
+
+/* ── Control legibility (dark terminal): triggers, inputs, outline/ghost buttons ── */
+.terminal:not(.t-light) button[data-slot="select-trigger"],
+.terminal:not(.t-light) [role="combobox"],
+.terminal:not(.t-light) input:not([type="checkbox"]):not([type="radio"]),
+.terminal:not(.t-light) textarea,
+.terminal:not(.t-light) select {
+  background-color: hsl(var(--input));
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+.terminal:not(.t-light) input::placeholder,
+.terminal:not(.t-light) textarea::placeholder {
+  color: hsl(225 12% 62%);
+  opacity: 1;
+}
+.terminal:not(.t-light) [role="combobox"] [data-placeholder],
+.terminal:not(.t-light) button[data-slot="select-trigger"] [data-placeholder] {
+  color: hsl(225 12% 62%);
+}
+.terminal:not(.t-light) button[data-slot="select-trigger"]:hover,
+.terminal:not(.t-light) [role="combobox"]:hover {
+  background-color: hsl(240 8% 17%);
+  border-color: hsl(240 8% 28%);
+}
+/* Native date/time pickers are invisible on black without inversion */
+.terminal:not(.t-light) input[type="date"]::-webkit-calendar-picker-indicator,
+.terminal:not(.t-light) input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.terminal:not(.t-light) input[type="time"]::-webkit-calendar-picker-indicator,
+.terminal:not(.t-light) input[type="month"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  opacity: 0.85;
+  cursor: pointer;
+}
+.terminal:not(.t-light) input[type="date"],
+.terminal:not(.t-light) input[type="datetime-local"] {
+  color-scheme: dark;
+}
+/* Outline + ghost buttons: visible edge and readable label */
+.terminal:not(.t-light) .border.border-input,
+.terminal:not(.t-light) button.border-input {
+  border-color: hsl(var(--border));
+  background-color: hsl(var(--input));
+  color: hsl(var(--foreground));
+}
+.terminal:not(.t-light) button.border-input:hover:not(:disabled) {
+  background-color: hsl(240 8% 19%);
+  border-color: hsl(240 8% 30%);
+  color: hsl(var(--foreground));
+}
+.terminal:not(.t-light) button:disabled {
+  opacity: 0.55;
+}
 
 /* Scrollbar inside terminal */
 .terminal ::-webkit-scrollbar {

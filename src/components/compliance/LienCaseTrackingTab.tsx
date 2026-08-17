@@ -378,7 +378,7 @@ export function LienCaseTrackingTab() {
                   lienCaseId={lien.id} 
                   onUpdateAdded={() => refetchLiens()} 
                 />
-                <ViewTimelineDialog lienCaseId={lien.id} />
+                <ViewTimelineDialog caseId={lien.id} caseType="lien_case" />
               </div>
             </div>
           ))}

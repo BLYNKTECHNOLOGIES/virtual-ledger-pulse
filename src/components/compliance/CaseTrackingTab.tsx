@@ -331,7 +331,7 @@ export function CaseTrackingTab() {
                     {startInvestigationMutation.isPending ? 'Starting...' : 'Start Investigation'}
                   </Button>
                 )}
-                <ViewTimelineDialog lienCaseId={bankCase.id} />
+                <ViewTimelineDialog caseId={bankCase.id} caseType="bank_case" />
               </div>
             </div>
           ))}

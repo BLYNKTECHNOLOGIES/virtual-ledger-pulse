@@ -369,11 +369,6 @@ async function recipients(admin: any): Promise<string[]> {
     .map((u: any) => String(u.email).trim()))];
 }
 
-async function getMailbox(admin: any) {
-  const { data } = await admin.from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();
-  return data;
-}
-
 function makeClient(_mailbox?: unknown) {
   // Compliance notices go out on the task mailbox (task@blynkex.com), not HR.
   const host = Deno.env.get("TASK_SMTP_HOST") || Deno.env.get("SMTP_HOST");

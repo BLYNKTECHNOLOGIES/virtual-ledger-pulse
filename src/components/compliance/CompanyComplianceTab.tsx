@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AddSubsidiaryDialog } from "./AddSubsidiaryDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { format } from "date-fns";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 
 const firmCompositionLabels: Record<string, string> = {
   SOLE_PROPRIETORSHIP: "Sole Proprietorship",
@@ -19,6 +21,8 @@ const firmCompositionLabels: Record<string, string> = {
 
 export function CompanyComplianceTab() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("compliance_manage");
 
   const { data: subsidiaries, isLoading, refetch } = useQuery({
     queryKey: ["subsidiaries"],
@@ -49,10 +53,12 @@ export function CompanyComplianceTab() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Firm
-            </Button>
+            <ViewOnlyWrapper isViewOnly={!canManage}>
+              <Button onClick={() => setAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Firm
+              </Button>
+            </ViewOnlyWrapper>
           </div>
         </CardHeader>
         <CardContent>

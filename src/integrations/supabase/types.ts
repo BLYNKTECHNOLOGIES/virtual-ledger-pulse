@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           assigned_to: string | null
           bank_account_id: string
+          bank_case_id: string | null
           created_at: string
           id: string
           investigation_type: string
@@ -32,6 +33,7 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           bank_account_id: string
+          bank_case_id?: string | null
           created_at?: string
           id?: string
           investigation_type: string
@@ -46,6 +48,7 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           bank_account_id?: string
+          bank_case_id?: string | null
           created_at?: string
           id?: string
           investigation_type?: string
@@ -85,6 +88,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "fin_unanchored_accounts_v"
             referencedColumns: ["bank_account_id"]
+          },
+          {
+            foreignKeyName: "account_investigations_bank_case_id_fkey"
+            columns: ["bank_case_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -27128,6 +27138,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_permission: {
+        Args: {
+          _permission: Database["public"]["Enums"]["app_permission"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_role: { Args: { _role: string; _user_id: string }; Returns: boolean }
       has_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
       has_terminal_permission:
@@ -28857,6 +28874,7 @@ export type Database = {
         | "ra_dashboard_view"
         | "user_management_hr_manage"
         | "hrms_razorpay_sync"
+        | "compliance_approve"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -29248,6 +29266,7 @@ export const Constants = {
         "ra_dashboard_view",
         "user_management_hr_manage",
         "hrms_razorpay_sync",
+        "compliance_approve",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

@@ -41,7 +41,7 @@ export function AccountStatusTab() {
       const { data, error } = await supabase
         .from('account_investigations')
         .select('bank_account_id, priority, investigation_type, reason, created_at')
-        .eq('status', 'ACTIVE');
+        .in('status', ['OPEN', 'UNDER_INVESTIGATION', 'PENDING_APPROVAL']);
       if (error) throw error;
       return data;
     },
@@ -53,7 +53,7 @@ export function AccountStatusTab() {
       const { data, error } = await supabase
         .from('account_investigations')
         .select('*, bank_accounts(bank_name, account_name)')
-        .eq('status', 'COMPLETED')
+        .eq('status', 'RESOLVED')
         .order('resolved_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -396,7 +396,7 @@ export function AccountStatusTab() {
                     priority: investigationData.priority,
                     notes: investigationData.notes,
                     assigned_to: userId,
-                    status: 'ACTIVE'
+                    status: 'OPEN'
                   });
                   if (error) {
                     toast({ title: "Error", description: error.message || "Failed to start investigation. Please try again.", variant: "destructive" });

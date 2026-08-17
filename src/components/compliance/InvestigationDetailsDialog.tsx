@@ -68,11 +68,12 @@ export function InvestigationDetailsDialog({
         const { data: newInvestigation, error: createError } = await supabase
           .from('account_investigations')
           .insert({
+            bank_case_id: investigation.id,
             bank_account_id: investigation.bank_account_id,
             investigation_type: investigation.case_type?.toLowerCase().replace('_', '_') || 'general',
             reason: investigation.reason || investigation.description || investigation.error_message || 'Investigation',
             priority: investigation.priority || 'MEDIUM',
-            status: 'ACTIVE'
+            status: 'OPEN'
           })
           .select()
           .single();

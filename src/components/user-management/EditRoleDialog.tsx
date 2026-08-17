@@ -114,6 +114,7 @@ const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: str
     permissions: [
       { id: 'compliance_view', name: 'View', description: 'View compliance', tier: 'view' },
       { id: 'compliance_manage', name: 'Manage', description: 'Manage compliance', tier: 'manage' },
+      { id: 'compliance_approve', name: 'Approve', description: 'Approve/reject investigations (cannot approve own submissions)', tier: 'special' },
     ],
   },
   stock: {

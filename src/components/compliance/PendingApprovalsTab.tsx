@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { Clock, FileText, ExternalLink, CheckCircle, X, Eye } from "lucide-react";
 
 export function PendingApprovalsTab() {
@@ -15,9 +16,9 @@ export function PendingApprovalsTab() {
   const [rejectionReason, setRejectionReason] = useState("");
   const [showRejectionDialog, setShowRejectionDialog] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Fetch pending approvals
   const { data: pendingApprovals, isLoading } = useQuery({
     queryKey: ['pending_approvals'],
     queryFn: async () => {
@@ -25,6 +26,15 @@ export function PendingApprovalsTab() {
         .from('investigation_approvals')
         .select(`
           *,
+          account_investigations(
+            id,
+            bank_case_id,
+            bank_account_id,
+            investigation_type,
+            priority,
+            reason,
+            bank_accounts(bank_name, account_name, account_number)
+          ),
           bank_cases(
             id,
             bank_account_id,
@@ -32,11 +42,7 @@ export function PendingApprovalsTab() {
             priority,
             title,
             description,
-            bank_accounts(
-              bank_name,
-              account_name,
-              account_number
-            )
+            bank_accounts(bank_name, account_name, account_number)
           )
         `)
         .eq('approval_status', 'PENDING')
@@ -47,37 +53,49 @@ export function PendingApprovalsTab() {
     },
   });
 
-  // Approve investigation mutation
   const approveMutation = useMutation({
     mutationFn: async (approvalId: string) => {
       const approval = pendingApprovals?.find(a => a.id === approvalId);
       if (!approval) throw new Error('Approval not found');
 
-      // Update approval status
+      const now = new Date().toISOString();
+
       const { error: approvalError } = await supabase
         .from('investigation_approvals')
         .update({
           approval_status: 'APPROVED',
-          approved_by: 'Current Officer',
-          approved_at: new Date().toISOString()
+          approved_by: user?.id || 'unknown',
+          approved_at: now
         })
         .eq('id', approvalId);
 
       if (approvalError) throw approvalError;
 
-      // Update bank case status to RESOLVED and investigation_status to COMPLETED
+      const bankCaseId = approval.account_investigations?.bank_case_id || approval.investigation_id;
       const { error: caseError } = await supabase
         .from('bank_cases')
         .update({
           status: 'RESOLVED',
           investigation_status: 'COMPLETED',
-          resolved_at: new Date().toISOString(),
-          resolved_by: 'Banking Officer',
+          resolved_at: now,
+          resolved_by: user?.id || 'unknown',
           resolution_notes: approval.final_resolution
         })
-        .eq('id', approval.investigation_id);
+        .eq('id', bankCaseId);
 
       if (caseError) throw caseError;
+
+      const { error: investigationError } = await supabase
+        .from('account_investigations')
+        .update({
+          status: 'RESOLVED',
+          resolved_at: now,
+          resolved_by: user?.id || 'unknown',
+          resolution_notes: approval.final_resolution
+        })
+        .eq('id', approval.account_investigations?.id || approval.investigation_id);
+
+      if (investigationError) throw investigationError;
 
       return approvalId;
     },
@@ -86,6 +104,7 @@ export function PendingApprovalsTab() {
       queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
       queryClient.invalidateQueries({ queryKey: ['past_investigations'] });
       queryClient.invalidateQueries({ queryKey: ['bank_cases'] });
+      queryClient.invalidateQueries({ queryKey: ['account_investigations'] });
       toast({
         title: "Investigation Approved",
         description: "Case has been resolved and moved to past cases.",
@@ -93,7 +112,7 @@ export function PendingApprovalsTab() {
       setShowApprovalDialog(false);
       setSelectedApproval(null);
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to approve investigation. Please try again.",
@@ -102,35 +121,44 @@ export function PendingApprovalsTab() {
     },
   });
 
-  // Reject investigation mutation
   const rejectMutation = useMutation({
     mutationFn: async ({ approvalId, reason }: { approvalId: string; reason: string }) => {
       const approval = pendingApprovals?.find(a => a.id === approvalId);
       if (!approval) throw new Error('Approval not found');
 
-      // Update approval status
+      const now = new Date().toISOString();
+
       const { error: approvalError } = await supabase
         .from('investigation_approvals')
         .update({
           approval_status: 'REJECTED',
-          approved_by: 'Current Officer',
-          approved_at: new Date().toISOString(),
+          approved_by: user?.id || 'unknown',
+          approved_at: now,
           rejection_reason: reason
         })
         .eq('id', approvalId);
 
       if (approvalError) throw approvalError;
 
-      // Update bank case status back to UNDER_INVESTIGATION (not PENDING_APPROVAL)
+      const bankCaseId = approval.account_investigations?.bank_case_id || approval.investigation_id;
       const { error: caseError } = await supabase
         .from('bank_cases')
         .update({
-          status: 'UNDER_INVESTIGATION',
+          status: 'OPEN',
           investigation_status: 'UNDER_INVESTIGATION'
         })
-        .eq('id', approval.investigation_id);
+        .eq('id', bankCaseId);
 
       if (caseError) throw caseError;
+
+      const { error: investigationError } = await supabase
+        .from('account_investigations')
+        .update({
+          status: 'UNDER_INVESTIGATION'
+        })
+        .eq('id', approval.account_investigations?.id || approval.investigation_id);
+
+      if (investigationError) throw investigationError;
 
       return approvalId;
     },
@@ -138,6 +166,7 @@ export function PendingApprovalsTab() {
       queryClient.invalidateQueries({ queryKey: ['pending_approvals'] });
       queryClient.invalidateQueries({ queryKey: ['active_investigations'] });
       queryClient.invalidateQueries({ queryKey: ['bank_cases'] });
+      queryClient.invalidateQueries({ queryKey: ['account_investigations'] });
       toast({
         title: "Investigation Rejected",
         description: "Case has been sent back for further investigation.",
@@ -146,7 +175,7 @@ export function PendingApprovalsTab() {
       setSelectedApproval(null);
       setRejectionReason("");
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to reject investigation. Please try again.",
@@ -193,11 +222,35 @@ export function PendingApprovalsTab() {
     const now = new Date();
     const submitted = new Date(submittedAt);
     const diffInHours = Math.floor((now.getTime() - submitted.getTime()) / (1000 * 60 * 60));
-    
     if (diffInHours < 1) return 'Just now';
     if (diffInHours < 24) return `${diffInHours}h ago`;
     const diffInDays = Math.floor(diffInHours / 24);
     return `${diffInDays}d ago`;
+  };
+
+  const renderCaseBlock = (approval: any) => {
+    const bankCase = approval.bank_cases;
+    const investigation = approval.account_investigations;
+    return (
+      <div className="space-y-1">
+        <h4 className="font-medium text-foreground">
+          {bankCase?.bank_accounts?.bank_name || investigation?.bank_accounts?.bank_name || 'Unknown Bank'}
+        </h4>
+        <p className="text-sm text-muted-foreground">
+          Account: {bankCase?.bank_accounts?.account_name || investigation?.bank_accounts?.account_name || 'N/A'}
+        </p>
+        {bankCase?.case_type && (
+          <p className="text-sm text-muted-foreground">
+            Type: {bankCase.case_type.replace(/_/g, ' ')}
+          </p>
+        )}
+        {bankCase?.title && (
+          <p className="text-sm text-muted-foreground">
+            Title: {bankCase.title}
+          </p>
+        )}
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -242,8 +295,8 @@ export function PendingApprovalsTab() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
-                        <Badge variant={getPriorityColor(approval.bank_cases.priority)}>
-                          {approval.bank_cases.priority}
+                        <Badge variant={getPriorityColor(approval.account_investigations?.priority || approval.bank_cases?.priority)}>
+                          {approval.account_investigations?.priority || approval.bank_cases?.priority}
                         </Badge>
                         <Badge variant="outline" className="bg-warning/10 text-warning border-warning/20">
                           PENDING APPROVAL
@@ -252,31 +305,15 @@ export function PendingApprovalsTab() {
                           {getDurationSinceSubmission(approval.submitted_at)}
                         </span>
                       </div>
-                      
-                      <div className="mb-3">
-                        <h4 className="font-medium text-foreground mb-1">
-                          {approval.bank_cases.bank_accounts?.bank_name || 'Unknown Bank'}
-                        </h4>
-                        <p className="text-sm text-muted-foreground mb-1">
-                          Account: {approval.bank_cases.bank_accounts?.account_name || 'N/A'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Title: {approval.bank_cases.title}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Type: {approval.bank_cases.case_type?.replace(/_/g, ' ')}
-                        </p>
-                      </div>
-
-                      <div className="mb-3">
+                      {renderCaseBlock(approval)}
+                      <div className="mb-3 mt-3">
                         <p className="text-sm font-medium text-foreground mb-1">Final Resolution Summary:</p>
                         <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded border">
-                          {approval.final_resolution.length > 200 
-                            ? `${approval.final_resolution.substring(0, 200)}...` 
+                          {approval.final_resolution.length > 200
+                            ? `${approval.final_resolution.substring(0, 200)}...`
                             : approval.final_resolution}
                         </p>
                       </div>
-
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span>Submitted by: {approval.submitted_by}</span>
                         {approval.supporting_documents_urls && approval.supporting_documents_urls.length > 0 && (
@@ -290,7 +327,6 @@ export function PendingApprovalsTab() {
                         )}
                       </div>
                     </div>
-
                     <div className="flex flex-col gap-2 ml-4">
                       <Button
                         variant="outline"
@@ -310,47 +346,42 @@ export function PendingApprovalsTab() {
         </CardContent>
       </Card>
 
-      {/* Approval Details Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Investigation Approval Review</DialogTitle>
           </DialogHeader>
-
           {selectedApproval && (
             <div className="space-y-6 p-4">
-              {/* Case Summary */}
               <div className="bg-muted/50 p-4 rounded-lg">
                 <h3 className="font-medium text-foreground mb-3">Case Summary</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="font-medium text-foreground">Bank:</span>
-                    <p>{selectedApproval.account_investigations.bank_accounts?.bank_name}</p>
+                    <p>{selectedApproval.account_investigations?.bank_accounts?.bank_name}</p>
                   </div>
                   <div>
                     <span className="font-medium text-foreground">Account:</span>
-                    <p>{selectedApproval.account_investigations.bank_accounts?.account_name}</p>
+                    <p>{selectedApproval.account_investigations?.bank_accounts?.account_name}</p>
                   </div>
                   <div>
                     <span className="font-medium text-foreground">Priority:</span>
                     <p>
-                      <Badge variant={getPriorityColor(selectedApproval.account_investigations.priority)}>
-                        {selectedApproval.account_investigations.priority}
+                      <Badge variant={getPriorityColor(selectedApproval.account_investigations?.priority)}>
+                        {selectedApproval.account_investigations?.priority}
                       </Badge>
                     </p>
                   </div>
                   <div>
                     <span className="font-medium text-foreground">Type:</span>
-                    <p>{selectedApproval.account_investigations.investigation_type}</p>
+                    <p>{selectedApproval.account_investigations?.investigation_type}</p>
                   </div>
                   <div className="col-span-2">
                     <span className="font-medium text-foreground">Reason:</span>
-                    <p>{selectedApproval.account_investigations.reason}</p>
+                    <p>{selectedApproval.account_investigations?.reason}</p>
                   </div>
                 </div>
               </div>
-
-              {/* Final Resolution */}
               <div className="bg-info/10 p-4 rounded-lg">
                 <h3 className="font-medium text-foreground mb-3">Final Resolution</h3>
                 <div className="bg-card p-3 rounded border">
@@ -359,8 +390,6 @@ export function PendingApprovalsTab() {
                   </p>
                 </div>
               </div>
-
-              {/* Supporting Documents */}
               {selectedApproval.supporting_documents_urls && selectedApproval.supporting_documents_urls.length > 0 && (
                 <div>
                   <h3 className="font-medium text-foreground mb-3">Supporting Documents</h3>
@@ -386,8 +415,6 @@ export function PendingApprovalsTab() {
                   </div>
                 </div>
               )}
-
-              {/* Submission Details */}
               <div className="bg-muted/50 p-4 rounded-lg">
                 <h3 className="font-medium text-foreground mb-3">Submission Details</h3>
                 <div className="text-sm text-muted-foreground space-y-1">
@@ -396,8 +423,6 @@ export function PendingApprovalsTab() {
                   <p><span className="font-medium">Duration:</span> {getDurationSinceSubmission(selectedApproval.submitted_at)}</p>
                 </div>
               </div>
-
-              {/* Action Buttons */}
               <div className="flex justify-end gap-3 pt-4 border-t">
                 <Button
                   variant="outline"
@@ -427,13 +452,11 @@ export function PendingApprovalsTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Rejection Dialog */}
       <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Reject Investigation</DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4 p-4">
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">
@@ -447,7 +470,6 @@ export function PendingApprovalsTab() {
                 className="w-full"
               />
             </div>
-
             <div className="flex justify-end gap-3">
               <Button
                 variant="outline"

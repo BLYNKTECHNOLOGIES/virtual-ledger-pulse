@@ -1,0 +1,1 @@
+UPDATE public.account_investigations SET status = 'OPEN' WHERE id = '5cf87dae-6383-432f-93cc-234ce79ad08e';

@@ -458,7 +458,78 @@
     --glow-primary: 0 0 0 1px hsl(var(--primary) / 0.25), 0 0 24px -8px hsl(var(--primary) / 0.35);
   }
 
+  /* ═══════════════════════════════════════════════════════
+     TERMINAL — BLYNK LIGHT ("Trading Paper")
+     Blynk indigo identity on a cool paper canvas. Same density,
+     same semantics as the dark terminal — colour only.
+     ═══════════════════════════════════════════════════════ */
+  .terminal.t-light {
+    /* ── Base ── */
+    --background: 218 33% 97%;       /* #F7F9FC cool paper */
+    --foreground: 222 32% 14%;       /* ink */
+
+    /* ── Panels ── */
+    --card: 0 0% 100%;
+    --card-foreground: 222 32% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 32% 14%;
+
+    /* ── Accent (Blynk indigo) ── */
+    --primary: 231 78% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 218 30% 94%;
+    --secondary-foreground: 222 28% 22%;
+    --muted: 218 30% 95%;
+    --muted-foreground: 220 12% 42%;
+    --accent: 231 60% 96%;
+    --accent-foreground: 231 60% 32%;
+
+    /* ── Status / semantic (AA on white) ── */
+    --destructive: 0 72% 46%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 62% 32%;
+    --warning: 32 88% 40%;
+    --info: 213 82% 45%;
+
+    /* ── Borders ── */
+    --border: 218 24% 88%;
+    --input: 0 0% 100%;
+    --ring: 231 78% 55%;
+
+    /* ── Trading semantics (darkened for light bg) ── */
+    --trade-buy: 152 64% 31%;
+    --trade-sell: 0 72% 47%;
+    --trade-pending: 32 88% 40%;
+
+    /* ── Charts ── */
+    --chart-1: 231 78% 55%;
+    --chart-2: 152 60% 34%;
+    --chart-3: 32 86% 45%;
+    --chart-4: 268 62% 55%;
+    --chart-5: 0 70% 52%;
+
+    /* ── Sidebar (a step deeper than canvas) ── */
+    --sidebar-background: 220 30% 94%;
+    --sidebar-foreground: 220 14% 38%;
+    --sidebar-primary: 231 78% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent-foreground: 231 60% 32%;
+    --sidebar-border: 218 24% 87%;
+    --sidebar-ring: 231 78% 55%;
+
+    /* ── Elevation (low, cool-tinted) ── */
+    --shadow-xs: 0 1px 1px 0 hsl(222 40% 30% / 0.05);
+    --shadow-sm: 0 1px 2px 0 hsl(222 40% 30% / 0.07), 0 1px 1px -1px hsl(222 40% 30% / 0.05);
+    --shadow-md: 0 6px 16px -6px hsl(222 40% 30% / 0.12), 0 2px 5px -3px hsl(222 40% 30% / 0.08);
+    --shadow-lg: 0 18px 40px -14px hsl(222 40% 30% / 0.18), 0 6px 14px -8px hsl(222 40% 30% / 0.10);
+
+    /* ── Signature emphasis (tinted wash, no neon) ── */
+    --glow-primary: 0 0 0 1px hsl(var(--primary) / 0.28), 0 4px 14px -6px hsl(var(--primary) / 0.28);
+  }
+
 }
+
 
 /* Prevent right overflow and force full width */
 @layer base {

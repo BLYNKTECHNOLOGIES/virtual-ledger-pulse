@@ -17131,12 +17131,14 @@ export type Database = {
         Row: {
           action_type: string
           actual_cost: number | null
+          bank_case_id: string | null
           case_documents: string[] | null
           case_number: string | null
           court_name: string | null
           created_at: string
           date_filed: string | null
           description: string | null
+          escalation_reason: string | null
           estimated_cost: number | null
           id: string
           next_hearing_date: string | null
@@ -17145,6 +17147,7 @@ export type Database = {
           opposing_party: string | null
           our_lawyer: string | null
           priority: string
+          regulatory_case_id: string | null
           status: string
           title: string
           updated_at: string
@@ -17152,12 +17155,14 @@ export type Database = {
         Insert: {
           action_type: string
           actual_cost?: number | null
+          bank_case_id?: string | null
           case_documents?: string[] | null
           case_number?: string | null
           court_name?: string | null
           created_at?: string
           date_filed?: string | null
           description?: string | null
+          escalation_reason?: string | null
           estimated_cost?: number | null
           id?: string
           next_hearing_date?: string | null
@@ -17166,6 +17171,7 @@ export type Database = {
           opposing_party?: string | null
           our_lawyer?: string | null
           priority?: string
+          regulatory_case_id?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -17173,12 +17179,14 @@ export type Database = {
         Update: {
           action_type?: string
           actual_cost?: number | null
+          bank_case_id?: string | null
           case_documents?: string[] | null
           case_number?: string | null
           court_name?: string | null
           created_at?: string
           date_filed?: string | null
           description?: string | null
+          escalation_reason?: string | null
           estimated_cost?: number | null
           id?: string
           next_hearing_date?: string | null
@@ -17187,11 +17195,27 @@ export type Database = {
           opposing_party?: string | null
           our_lawyer?: string | null
           priority?: string
+          regulatory_case_id?: string | null
           status?: string
           title?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "legal_actions_bank_case_id_fkey"
+            columns: ["bank_case_id"]
+            isOneToOne: false
+            referencedRelation: "bank_cases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_actions_regulatory_case_id_fkey"
+            columns: ["regulatory_case_id"]
+            isOneToOne: false
+            referencedRelation: "compliance_regulatory_cases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       legal_communications: {
         Row: {

@@ -163,7 +163,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {!readOnly && f.key !== "pan" && !f.noValue && true && (
+                  {!readOnly && f.key !== "pan" && !f.noValue && (
                     <Input
                       placeholder={`${f.label} number`}
                       className="max-w-[220px] h-8"

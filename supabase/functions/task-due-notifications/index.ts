@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
       // Standard due soon / overdue notification
       notifications.push({
         user_id: task.assignee_id,
-        title: isOverdue ? '⚠️ Task Overdue' : '⏰ Task Due Soon',
+        title: isOverdue ? 'Task Overdue' : 'Task Due Soon',
         message: `${isOverdue ? 'Overdue' : 'Due soon'}: "${task.title}" [${task.id.substring(0, 8)}]`,
         notification_type: notifType,
       });
@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
           if (!escExisting || escExisting.length === 0) {
             notifications.push({
               user_id: task.escalation_user_id,
-              title: '🚨 Task Escalation',
+              title: 'Task Escalation',
               message: `Task "${task.title}" has been overdue for ${Math.floor(overdueHours)}h and requires attention [${task.id.substring(0, 8)}]`,
               notification_type: 'task_escalated',
             });

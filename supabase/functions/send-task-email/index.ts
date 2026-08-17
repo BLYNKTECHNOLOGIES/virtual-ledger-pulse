@@ -19,12 +19,12 @@ interface EmailRequest {
 
 function getSubject(eventType: string, taskTitle: string): string {
   const subjects: Record<string, string> = {
-    task_assigned: `📋 New Task Assigned: ${taskTitle}`,
-    task_reassigned: `🔄 Task Reassigned: ${taskTitle}`,
-    task_overdue: `⚠️ Task Overdue: ${taskTitle}`,
-    task_due_soon: `⏰ Task Due Soon: ${taskTitle}`,
-    task_mention: `💬 You were mentioned: ${taskTitle}`,
-    task_nudge: `🔔 Task Reminder: ${taskTitle}`,
+    task_assigned: `New Task Assigned: ${taskTitle}`,
+    task_reassigned: `Task Reassigned: ${taskTitle}`,
+    task_overdue: `Task Overdue: ${taskTitle}`,
+    task_due_soon: `Task Due Soon: ${taskTitle}`,
+    task_mention: `You were mentioned: ${taskTitle}`,
+    task_nudge: `Task Reminder: ${taskTitle}`,
   };
   return subjects[eventType] || `Task Update: ${taskTitle}`;
 }
@@ -33,7 +33,7 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
   const { taskTitle, taskDescription, assignedByName, dueDate, status } = data;
   const descSnippet = taskDescription ? taskDescription.substring(0, 200) : "No description";
   const dueLine = dueDate
-    ? `<p style="margin:8px 0;color:#555;">📅 Due: <strong>${new Date(dueDate).toLocaleDateString("en-IN", {
+    ? `<p style="margin:8px 0;color:#555;">Due: <strong>${new Date(dueDate).toLocaleDateString("en-IN", {
         day: "numeric",
         month: "short",
         year: "numeric",
@@ -48,12 +48,12 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
     : "";
 
   const headers: Record<string, string> = {
-    task_assigned: "📋 A new task has been assigned to you",
-    task_reassigned: "🔄 A task has been reassigned to you",
-    task_overdue: "⚠️ This task is overdue and needs attention",
-    task_due_soon: "⏰ This task is approaching its deadline",
-    task_mention: "💬 You were mentioned in a task comment",
-    task_nudge: "🔔 This task needs your immediate attention",
+    task_assigned: "A new task has been assigned to you",
+    task_reassigned: "A task has been reassigned to you",
+    task_overdue: "This task is overdue and needs attention",
+    task_due_soon: "This task is approaching its deadline",
+    task_mention: "You were mentioned in a task comment",
+    task_nudge: "This task needs your immediate attention",
   };
 
   return `
@@ -74,7 +74,7 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
             <p style="margin:0;color:#666;font-size:14px;line-height:1.5;">${descSnippet}</p>
           </div>
           ${dueLine}
-          ${assignedByName ? `<p style="margin:8px 0;color:#555;">👤 ${eventType === "task_reassigned" ? "Reassigned" : "Sent"} by: <strong>${assignedByName}</strong></p>` : ""}
+          ${assignedByName ? `<p style="margin:8px 0;color:#555;">${eventType === "task_reassigned" ? "Reassigned" : "Sent"} by: <strong>${assignedByName}</strong></p>` : ""}
           ${statusBadge ? `<p style="margin:8px 0;color:#555;">Status: ${statusBadge}</p>` : ""}
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0;">
           <p style="margin:0;font-size:12px;color:#999;">This is an automated notification from BLYNK ERP. Please log in to view full details and take action.</p>

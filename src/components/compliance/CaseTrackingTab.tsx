@@ -114,7 +114,36 @@ export function CaseTrackingTab() {
       });
       console.error('Investigation error:', error);
     },
+
+  // Change case type on an in-flight case (audited)
+  const changeCaseTypeMutation = useMutation({
+    mutationFn: async ({ caseId, oldType, newType }: { caseId: string; oldType: string; newType: string }) => {
+      const userId = await getCurrentUserIdAsync();
+      const { error } = await supabase
+        .from('bank_cases')
+        .update({ case_type: newType })
+        .eq('id', caseId);
+      if (error) throw error;
+
+      const { error: logError } = await supabase.from('compliance_case_updates').insert({
+        bank_case_id: caseId,
+        update_type: 'CASE_TYPE_CHANGED',
+        update_text: `Case type changed from ${caseTypeLabels[oldType as keyof typeof caseTypeLabels] || oldType} to ${caseTypeLabels[newType as keyof typeof caseTypeLabels] || newType}`,
+        created_by: userId || null,
+      });
+      if (logError) throw logError;
+    },
+    onSuccess: () => {
+      toast({ title: "Case Type Updated", description: "The change has been recorded in the case timeline." });
+      queryClient.invalidateQueries({ queryKey: ['bank_cases'] });
+      refetchCases();
+    },
+    onError: (error) => {
+      toast({ variant: "destructive", title: "Error", description: "Failed to change case type." });
+      console.error('Case type change error:', error);
+    },
   });
+
 
   const getStatusBadgeVariant = (status: string) => {
     switch (status) {

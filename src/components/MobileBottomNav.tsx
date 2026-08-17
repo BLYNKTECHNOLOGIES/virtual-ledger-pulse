@@ -1,4 +1,4 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -10,11 +10,12 @@ interface MobileNavItem {
   url: string;
   icon: typeof Home;
   permissions: string[];
+  alwaysVisible?: boolean;
 }
 
 const mainNavItems: MobileNavItem[] = [
   { title: "Home", url: "/dashboard", icon: Home, permissions: ["dashboard_view"] },
-  { title: "Stock", url: "/stock", icon: Package, permissions: ["stock_view", "stock_manage"] },
+  { title: "Profile", url: "/profile", icon: User, permissions: [], alwaysVisible: true },
   { title: "Sales", url: "/sales", icon: TrendingUp, permissions: ["sales_view", "sales_manage"] },
   { title: "Purchase", url: "/purchase", icon: ShoppingCart, permissions: ["purchase_view", "purchase_manage"] },
 ];
@@ -48,12 +49,12 @@ export function MobileBottomNav() {
   const isTerminalActive = location.pathname.startsWith("/terminal");
 
   const visibleMainNavItems = useMemo(
-    () => mainNavItems.filter((item) => hasAnyPermission(item.permissions)),
+    () => mainNavItems.filter((item) => item.alwaysVisible || hasAnyPermission(item.permissions)),
     [hasAnyPermission]
   );
 
   const visibleMoreNavItems = useMemo(
-    () => moreNavItems.filter((item) => hasAnyPermission(item.permissions)),
+    () => moreNavItems.filter((item) => item.alwaysVisible || hasAnyPermission(item.permissions)),
     [hasAnyPermission]
   );
 

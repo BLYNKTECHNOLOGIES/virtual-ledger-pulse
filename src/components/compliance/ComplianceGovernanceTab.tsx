@@ -46,9 +46,10 @@ type CredRow = {
   id: string;
   bank_account_id: string | null;
   accessed_by: string | null;
+  accessed_by_name: string | null;
   accessed_at: string;
   field_accessed: string | null;
-  purpose: string | null;
+  action: string;
 };
 
 function AuditPanel() {
@@ -160,7 +161,7 @@ function CredentialAccessPanel() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("banking_credential_access_log")
-        .select("id, bank_account_id, accessed_by, accessed_at, field_accessed, purpose")
+        .select("id, bank_account_id, accessed_by, accessed_by_name, accessed_at, field_accessed, action")
         .order("accessed_at", { ascending: false })
         .limit(300);
       if (error) throw error;
@@ -186,20 +187,22 @@ function CredentialAccessPanel() {
               <TableRow>
                 <TableHead>When</TableHead>
                 <TableHead>Field</TableHead>
-                <TableHead>Purpose</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>By</TableHead>
                 <TableHead>Account</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>}
+              {isLoading && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Loading…</TableCell></TableRow>}
               {!isLoading && rows.length === 0 && (
-                <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">No credential access recorded.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No credential access recorded.</TableCell></TableRow>
               )}
               {rows.map((r) => (
                 <TableRow key={r.id}>
                   <TableCell className="whitespace-nowrap">{ts(r.accessed_at)}</TableCell>
                   <TableCell>{r.field_accessed || "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{r.purpose || "—"}</TableCell>
+                  <TableCell><Badge variant="outline">{r.action}</Badge></TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{r.accessed_by_name || "—"}</TableCell>
                   <TableCell className="font-mono text-[11px] text-muted-foreground">{r.bank_account_id?.slice(0, 8) ?? "—"}</TableCell>
                 </TableRow>
               ))}

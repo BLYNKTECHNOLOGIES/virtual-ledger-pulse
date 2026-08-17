@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { FileText, Mail, Upload, Paperclip, ExternalLink, Loader2, X, CheckCircle2 } from "lucide-react";
+import { FileText, Upload, Paperclip, ExternalLink, Loader2, X, CheckCircle2 } from "lucide-react";
 import { smartUpload } from "@/lib/resumable-upload";
 
 interface Stage3Props {
@@ -36,8 +36,6 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
-  const [mode, setMode] = useState<"email" | "manual">("email");
-  const [emailSending, setEmailSending] = useState(false);
   const [mailReceivedDate, setMailReceivedDate] = useState("");
 
   const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
@@ -110,46 +108,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     persistDocs(next);
   };
 
-  const sendDocRequestEmail = async () => {
-    if (!onboardingData?.email || !onboardingData?.first_name) {
-      toast.error("Employee email and name are required (Stage 1)");
-      return;
-    }
-    setEmailSending(true);
-    try {
-      const { error } = await supabase.functions.invoke("send-hr-email", {
-        body: {
-          recipientEmail: onboardingData.email,
-          subject: `Document Submission Request - ${onboardingData.first_name} ${onboardingData.last_name || ""}`,
-          templateName: "onboarding_document_request",
-          htmlBody: `
-            <h2>Document Submission Request</h2>
-            <p>Dear ${onboardingData.first_name},</p>
-            <p>Welcome! As part of your onboarding process, please submit the following documents at the earliest:</p>
-            <ul>
-              <li>PAN Card (front & back)</li>
-              <li>Aadhaar Card (front & back)</li>
-              <li>Passport-size Photo</li>
-              <li>Bank Details (Cancelled cheque / Passbook first page)</li>
-              <li>Educational Certificate(s) (degree/diploma)</li>
-              <li>Previous Experience / Relieving Letter (if any)</li>
-              <li>UAN Number (if existing)</li>
-              <li>ESIC Number (if applicable)</li>
-            </ul>
-            <p>Please reply to this email with the scanned copies or clear photographs.</p>
-            <p>Thank you,<br/>HR Department</p>
-          `,
-        },
-      });
-      if (error) throw error;
-      toast.success("Document request email sent successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to send email");
-    } finally {
-      setEmailSending(false);
-    }
-  };
-
   const toggleDoc = (key: string) => {
     setDocs(prev => {
       const next = { ...prev, [key]: { ...prev[key], received: !prev[key].received } };
@@ -187,46 +145,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Mode toggle */}
-        {!readOnly && (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant={mode === "email" ? "default" : "outline"}
-              onClick={() => setMode("email")}
-            >
-              <Mail className="h-4 w-4 mr-1" /> Email Request
-            </Button>
-            <Button
-              size="sm"
-              variant={mode === "manual" ? "default" : "outline"}
-              onClick={() => setMode("manual")}
-            >
-              <Upload className="h-4 w-4 mr-1" /> Manual Entry
-            </Button>
-          </div>
-        )}
-
-        {/* Email flow */}
-        {mode === "email" && !readOnly && (
-          <div className="rounded-lg border p-4 bg-muted/30 space-y-3">
-            <p className="text-sm">
-              Send an email to <strong>{onboardingData?.email || "—"}</strong> requesting documents.
-            </p>
-            <Button size="sm" onClick={sendDocRequestEmail} disabled={emailSending}>
-              {emailSending ? "Sending..." : "Send Document Request Email"}
-            </Button>
-            {data?.document_email_sent_at && (
-              <p className="text-xs text-muted-foreground">
-                Last sent: {new Date(data.document_email_sent_at).toLocaleString()}
-              </p>
-            )}
-          </div>
-        )}
-
-
-
-
         {/* Document checklist */}
         <div className="space-y-3">
           <p className="text-sm font-medium">Document Checklist</p>
@@ -245,7 +163,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {!readOnly && f.key !== "pan" && !f.noValue && (mode === "manual" || f.noFile) && (
+                  {!readOnly && f.key !== "pan" && !f.noValue && (
                     <Input
                       placeholder={`${f.label} number`}
                       className="max-w-[220px] h-8"

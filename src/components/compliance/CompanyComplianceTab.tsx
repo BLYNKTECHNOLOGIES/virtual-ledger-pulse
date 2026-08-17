@@ -21,6 +21,8 @@ const firmCompositionLabels: Record<string, string> = {
 
 export function CompanyComplianceTab() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const { hasPermission } = usePermissions();
+  const canManage = hasPermission("compliance_manage");
 
   const { data: subsidiaries, isLoading, refetch } = useQuery({
     queryKey: ["subsidiaries"],

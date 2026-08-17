@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { FileText, Mail, Upload, Paperclip, ExternalLink, Loader2, X } from "lucide-react";
+import { FileText, Mail, Upload, Paperclip, ExternalLink, Loader2, X, CheckCircle2 } from "lucide-react";
 import { smartUpload } from "@/lib/resumable-upload";
 
 interface Stage3Props {

@@ -43,6 +43,7 @@ export function IncomeCategoryDrillDown({ category, onClose, startDate, endDate,
       );
     },
     enabled: !!category,
+    select: (rows: any[]) => rows.filter((t) => !isReversalTransaction(t)),
   });
 
   const total = transactions?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;

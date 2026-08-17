@@ -6,7 +6,6 @@ import { BankingComplianceTab } from "@/components/compliance/BankingComplianceT
 import { LegalComplianceTab } from "@/components/compliance/LegalComplianceTab";
 import { CompanyComplianceTab } from "@/components/compliance/CompanyComplianceTab";
 import { ComplianceCommandCentre } from "@/components/compliance/ComplianceCommandCentre";
-import { RegulatoryComplianceTab } from "@/components/compliance/RegulatoryComplianceTab";
 import { ComplianceGovernanceTab } from "@/components/compliance/ComplianceGovernanceTab";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PermissionGate } from "@/components/PermissionGate";
@@ -97,10 +96,6 @@ export default function Compliance() {
                     <Scale className="h-4 w-4" />
                     Legal
                   </TabsTrigger>
-                  <TabsTrigger value="regulatory" className={complianceTabTriggerCls}>
-                    <Gavel className="h-4 w-4" />
-                    Regulatory
-                  </TabsTrigger>
                   <TabsTrigger value="company" className={complianceTabTriggerCls}>
                     <Building className="h-4 w-4" />
                     Company
@@ -120,9 +115,6 @@ export default function Compliance() {
               </TabsContent>
               <TabsContent value="legal" className="mt-5">
                 <ErrorBoundary><LegalComplianceTab /></ErrorBoundary>
-              </TabsContent>
-              <TabsContent value="regulatory" className="mt-5">
-                <ErrorBoundary><RegulatoryComplianceTab /></ErrorBoundary>
               </TabsContent>
               <TabsContent value="company" className="mt-5">
                 <ErrorBoundary><CompanyComplianceTab /></ErrorBoundary>

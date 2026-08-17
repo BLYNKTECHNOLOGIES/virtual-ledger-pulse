@@ -53,10 +53,12 @@ export function CompanyComplianceTab() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => setAddDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Firm
-            </Button>
+            <ViewOnlyWrapper isViewOnly={!canManage}>
+              <Button onClick={() => setAddDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Firm
+              </Button>
+            </ViewOnlyWrapper>
           </div>
         </CardHeader>
         <CardContent>

@@ -42,19 +42,23 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
     isDragging,
   } = useSortable({ id, disabled: !isDraggable });
 
+  const { ref: measureRef, rowSpan } = useMasonryRowSpan<HTMLDivElement>(true);
+
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
     zIndex: isDragging ? 50 : 'auto' as const,
+    ...(rowSpan ? { gridRowEnd: `span ${rowSpan}` } : {}),
   };
 
   if (!isEditMode) {
     return (
-      <div ref={setNodeRef} style={style} className={cn('relative h-full min-w-0', className)}>
-        <div className="h-full">{children}</div>
+      <div ref={setNodeRef} style={style} className={cn('relative min-w-0', className)}>
+        <div ref={measureRef}>{children}</div>
       </div>
     );
   }
+
 
   return (
     <div ref={setNodeRef} style={style} className={cn('relative h-full min-w-0', className)}>

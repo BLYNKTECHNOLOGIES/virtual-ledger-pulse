@@ -260,7 +260,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
       </CardContent>
       </Card>
 
-      <CandidateInviteCard onboardingId={data?.id} email={form.email} />
     </div>
   );
 }

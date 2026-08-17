@@ -506,15 +506,15 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                 <div className="text-amber-600 dark:text-amber-400">
                   <div className="font-medium">No HRMS employee for these RazorpayX codes:</div>
                   {zipReport.unmapped.map((u) => (
-                    <div key={u.code}>• {u.code} — {u.name} ({u.group})</div>
+                    <div key={u.code} className="pl-3 border-l-2 border-border">{u.code} — {u.name} ({u.group})</div>
                   ))}
                 </div>
               )}
               {zipReport.conflicts.map((c) => (
-                <div key={c.file} className="text-destructive">• {c.file}: {c.reason}</div>
+                <div key={c.file} className="text-destructive pl-3 border-l-2 border-destructive/40">{c.file}: {c.reason}</div>
               ))}
               {zipReport.failures.map((f) => (
-                <div key={f.file} className="text-destructive">• {f.file}: {f.reason}</div>
+                <div key={f.file} className="text-destructive pl-3 border-l-2 border-destructive/40">{f.file}: {f.reason}</div>
               ))}
               {zipReport.missingInZip.length > 0 && (
                 <div className="text-muted-foreground">
@@ -640,7 +640,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                         <span className="text-xs text-muted-foreground">ready</span>
                       ) : (
                         <ul className="text-[11px] text-destructive space-y-0.5">
-                          {r.blockers.map((b) => <li key={b}>• {b}</li>)}
+                          {r.blockers.map((b) => <li key={b} className="pl-3 border-l-2 border-border">{b}</li>)}
                         </ul>
                       )}
                     </td>

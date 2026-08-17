@@ -95,7 +95,7 @@ export function AttendanceDrilldownDialog({
                     <ul className="mt-3 ml-6 space-y-1">
                       {payload.notes.map((n) => (
                         <li key={n} className="text-[11px] text-muted-foreground leading-relaxed">
-                          • {n}
+                          {n}
                         </li>
                       ))}
                     </ul>

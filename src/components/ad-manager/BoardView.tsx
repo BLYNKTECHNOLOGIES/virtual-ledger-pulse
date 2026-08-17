@@ -70,7 +70,7 @@ function AdCard({
   return (
     <Card
       className={cn(
-        'relative flex flex-col gap-2 p-3',
+        'relative flex min-w-0 flex-col gap-2 overflow-hidden p-3',
         selected && 'ring-2 ring-primary',
         isPrivate && 'border-warning/50',
         outOfStock && 'border-destructive/50',
@@ -119,19 +119,20 @@ function AdCard({
       </div>
 
       {/* Meta */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] tabular-nums text-muted-foreground">
+      <div className="flex items-center justify-between gap-2 min-w-0">
+        <span className="text-[11px] tabular-nums text-muted-foreground truncate min-w-0">
           ₹{Number(ad.minSingleTransAmount || 0).toLocaleString('en-IN')}~₹{Number(ad.maxSingleTransAmount || 0).toLocaleString('en-IN')}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0 overflow-hidden">
           {(ad.tradeMethods || []).slice(0, 2).map((m, i) => (
             <PaymentMethodBadge key={i} identifier={m.identifier} payType={m.payType} size="sm" />
           ))}
           {(ad.tradeMethods || []).length > 2 && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0">+{ad.tradeMethods.length - 2}</Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">+{ad.tradeMethods.length - 2}</Badge>
           )}
         </div>
       </div>
+
 
       {/* Footer */}
       <div className="flex items-center justify-between border-t border-border pt-2">
@@ -196,7 +197,6 @@ function Zone({
   onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, compact,
 }: ZoneProps) {
   const sorted = useMemo(() => applyAdSort(ads, sortMode), [ads, sortMode]);
-  const totalSurplus = useMemo(() => ads.reduce((s, a) => s + Number(a.surplusAmount || 0), 0), [ads]);
 
   const toggleOne = (advNo: string) => {
     const next = new Set(selectedAdvNos);
@@ -208,8 +208,8 @@ function Zone({
     <div className="space-y-3">
       <div className={cn('flex items-center justify-between rounded-md border px-3 py-1.5', tintClass)}>
         <span className="text-sm font-semibold">{label} <span className="opacity-70">({ads.length})</span></span>
-        <span className="text-xs tabular-nums opacity-80">{totalSurplus.toLocaleString('en-IN')} surplus</span>
       </div>
+
       {sorted.length === 0 ? (
         <EmptyState icon={Megaphone} title="No ads" className="py-8" />
       ) : (

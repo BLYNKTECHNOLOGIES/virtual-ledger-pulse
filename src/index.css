@@ -422,8 +422,8 @@
     --info: 199 89% 58%;
 
     /* ── Borders ── */
-    --border: 240 8% 14%;            /* hairline */
-    --input: 240 8% 8%;              /* input bg */
+    --border: 240 8% 20%;            /* hairline (raised for AA control edges) */
+    --input: 240 8% 13%;             /* input / control bg (raised off canvas) */
     --ring: 199 95% 55%;             /* focus ring = electric accent */
 
     /* ── Trading semantics ── */

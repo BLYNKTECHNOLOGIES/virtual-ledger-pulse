@@ -35,6 +35,46 @@ export function AccountStatusTab() {
     },
   });
 
+  const { data: exposure } = useQuery({
+    queryKey: ['bank_account_compliance_v'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('bank_account_compliance_v')
+        .select('bank_account_id, open_cases, amount_at_stake, active_liens, lien_amount, has_active_lien, account_status');
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const exposureFor = (accountId: string) =>
+    exposure?.find((e) => e.bank_account_id === accountId);
+
+  const renderExposureBadges = (accountId: string) => {
+    const e = exposureFor(accountId);
+    if (!e) return null;
+    const openCases = Number(e.open_cases || 0);
+    const liens = Number(e.active_liens || 0);
+    const stake = Number(e.amount_at_stake || 0);
+    const lienAmt = Number(e.lien_amount || 0);
+    if (!openCases && !liens) return null;
+    return (
+      <div className="flex flex-wrap gap-1 mb-2">
+        {openCases > 0 && (
+          <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">
+            {openCases} open case{openCases > 1 ? 's' : ''}
+            {stake > 0 ? ` · \u20B9${stake.toLocaleString('en-IN')}` : ''}
+          </Badge>
+        )}
+        {liens > 0 && (
+          <Badge variant="secondary" className="bg-destructive/10 text-destructive border-destructive/20">
+            {liens} lien{liens > 1 ? 's' : ''}
+            {lienAmt > 0 ? ` · \u20B9${lienAmt.toLocaleString('en-IN')}` : ''}
+          </Badge>
+        )}
+      </div>
+    );
+  };
+
   const { data: activeInvestigations } = useQuery({
     queryKey: ['active_investigations'],
     queryFn: async () => {
@@ -250,6 +290,7 @@ export function AccountStatusTab() {
                         <Badge variant="secondary" className="bg-warning/10 text-warning border-warning/20">Under Investigation</Badge>
                       </div>
                     </div>
+                    {renderExposureBadges(account.id)}
                     <p className={`text-sm mb-2 ${textColors.balance}`}>Balance: ₹{Number(account.balance).toLocaleString('en-IN')}</p>
                   </div>
                 );
@@ -274,6 +315,7 @@ export function AccountStatusTab() {
                     </div>
                     <Badge variant="default">{account.status}</Badge>
                   </div>
+                  {renderExposureBadges(account.id)}
                   <p className="text-sm mb-2 text-muted-foreground">Balance: ₹{Number(account.balance).toLocaleString('en-IN')}</p>
                 </div>
               ))}
@@ -297,6 +339,7 @@ export function AccountStatusTab() {
                     </div>
                     <Badge variant="destructive">{account.status}</Badge>
                   </div>
+                  {renderExposureBadges(account.id)}
                   <p className="text-sm mb-2 text-destructive/90">Balance: ₹{Number(account.balance).toLocaleString('en-IN')}</p>
                   <Button size="sm" variant="outline" className="w-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50" onClick={() => handleStartInvestigation(account)}>
                     Start Investigation

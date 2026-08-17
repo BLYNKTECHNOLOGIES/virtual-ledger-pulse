@@ -1,5 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import { HR_BRAND, hrHeaderHtml, hrSignatureHtml, hrSignatureText } from '../_shared/hrSignature.ts';
+
+const APP_URL = 'https://erp.blynkex.com';
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {

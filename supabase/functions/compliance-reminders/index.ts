@@ -249,46 +249,8 @@ async function collectItems(admin: any): Promise<Item[]> {
     });
   }
 
-  // 6. Regulatory response deadlines T-7 / overdue
-  const { data: regs } = await admin
-    .from("compliance_regulatory_cases")
-    .select("id, subject, portal, acknowledgment_number, deadline_date, status")
-    .not("status", "in", "(CLOSED,RESPONDED)")
-    .not("deadline_date", "is", null)
-    .lte("deadline_date", new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
-  for (const r of regs || []) {
-    const n = daysUntil(r.deadline_date);
-    items.push({
-      key: `REGULATORY_DEADLINE:${r.id}:${n < 0 ? "overdue" : n}`,
-      entityType: "compliance_regulatory_cases",
-      entityId: r.id,
-      reminderType: "REGULATORY_DEADLINE",
-      severity: n <= 1 ? "critical" : "warning",
-      title: `${r.portal} · ${r.subject}`,
-      detail: r.acknowledgment_number ? `Ack no. ${r.acknowledgment_number}` : "No acknowledgment number recorded",
-      due: n < 0 ? `Overdue by ${Math.abs(n)} day(s)` : `Response due ${prettyDate(r.deadline_date)}`,
-    });
-  }
 
-  // 7. Statutory obligations due in 7 days / overdue
-  const { data: obligations } = await admin
-    .from("compliance_statutory_obligations")
-    .select("id, obligation_type, period_label, due_date, status, subsidiary_id, subsidiaries(firm_name)")
-    .neq("status", "FILED")
-    .lte("due_date", new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10));
-  for (const o of obligations || []) {
-    const n = daysUntil(o.due_date);
-    items.push({
-      key: `STATUTORY_DUE:${o.id}:${n < 0 ? "overdue" : n}`,
-      entityType: "compliance_statutory_obligations",
-      entityId: o.id,
-      reminderType: "STATUTORY_DUE",
-      severity: n < 0 ? "critical" : n <= 3 ? "critical" : "warning",
-      title: `${o.obligation_type}${o.period_label ? ` · ${o.period_label}` : ""}`,
-      detail: (o as any).subsidiaries?.firm_name || "Entity not linked",
-      due: n < 0 ? `Overdue by ${Math.abs(n)} day(s)` : `Due ${prettyDate(o.due_date)}`,
-    });
-  }
+
 
   return items;
 }

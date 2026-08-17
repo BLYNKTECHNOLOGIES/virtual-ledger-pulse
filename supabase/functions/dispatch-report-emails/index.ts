@@ -74,12 +74,20 @@ serve(async (req) => {
         continue;
       }
 
-      // Route by variant: KYC/RM report uses its own function; profit/operations use daily-report-email.
+      // Route by variant: KYC/RM and compliance digests use their own functions;
+      // profit/operations use daily-report-email.
       const isKycRm = cfg.variant === "kyc_rm";
-      const targetFn = isKycRm ? "kyc-rm-report-email" : "daily-report-email";
+      const isCompliance = cfg.variant === "compliance";
+      const targetFn = isKycRm
+        ? "kyc-rm-report-email"
+        : isCompliance
+          ? "compliance-reminders"
+          : "daily-report-email";
       const invokeBody = isKycRm
         ? { recipients }
-        : { recipients, variant: cfg.variant, mode: cfg.is_monthly ? "monthly" : "daily" };
+        : isCompliance
+          ? { action: "digest", recipients }
+          : { recipients, variant: cfg.variant, mode: cfg.is_monthly ? "monthly" : "daily" };
 
       // Server-to-server dispatch secret — authorises the report functions
       // to accept caller-supplied recipients from this cron dispatcher.

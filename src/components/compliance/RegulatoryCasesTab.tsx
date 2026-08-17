@@ -9,13 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Download, Gavel, Search } from "lucide-react";
+import { Plus, Download, Gavel, Search, Scale } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { useComplianceOptions, labelFor } from "@/hooks/useComplianceOptions";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
 import { toast } from "sonner";
+import { EscalateToLegalDialog, type EscalationSource } from "./EscalateToLegalDialog";
 import { format, parseISO } from "date-fns";
 
 const STATUSES = ["OPEN", "IN_PROGRESS", "RESPONDED", "CLOSED"];
@@ -64,6 +65,7 @@ export function RegulatoryCasesTab() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [escalateSource, setEscalateSource] = useState<EscalationSource | null>(null);
 
   const { options: portals } = useComplianceOptions("regulatory_portal", [
     { value: "NCRP", label: "NCRP (cybercrime.gov.in)", sort_order: 10 },
@@ -264,6 +266,25 @@ export function RegulatoryCasesTab() {
                     <TableCell><Badge variant={c.status === "CLOSED" ? "secondary" : c.status === "RESPONDED" ? "outline" : "default"}>{c.status.replace(/_/g, " ")}</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => openEdit(c)}>{canManage ? "Edit" : "View"}</Button>
+                      {canManage && c.status !== "CLOSED" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEscalateSource({
+                            kind: "regulatory_case",
+                            id: c.id,
+                            reference: c.reference_no || c.acknowledgment_number || "Regulatory case",
+                            title: c.subject,
+                            description: c.details,
+                            status: c.status,
+                            counterparty: c.lea_name,
+                            amount: c.amount_involved,
+                            typeLabel: labelFor(portals, c.portal),
+                          })}
+                        >
+                          <Scale className="h-4 w-4 mr-1" /> Escalate
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -272,6 +293,12 @@ export function RegulatoryCasesTab() {
           </div>
         </CardContent>
       </Card>
+
+      <EscalateToLegalDialog
+        open={!!escalateSource}
+        onOpenChange={(o) => { if (!o) setEscalateSource(null); }}
+        source={escalateSource}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl">

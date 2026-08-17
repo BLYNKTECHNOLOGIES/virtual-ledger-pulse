@@ -1,7 +1,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { isStableCoin } from "./useCoinMarketRates";
 
 export interface AverageCostData {
   product_code: string;
@@ -25,60 +24,22 @@ export function useAverageCost() {
       //    like TRX reported ~₹95/coin (the USDT rate) instead of its true
       //    ~₹29/coin cost basis, because its USDT-equivalent is far smaller
       //    than its coin count.
-      const { data: purchaseOrders, error: poError } = await supabase
-        .from('purchase_orders')
-        .select(`
-          effective_usdt_qty,
-          net_payable_amount,
-          purchase_order_items (
-            quantity,
-            products (
-              code
-            )
-          )
-        `)
-        .eq('status', 'COMPLETED')
-        .not('effective_usdt_qty', 'is', null);
+      // Aggregated in Postgres (get_product_avg_costs) — previously this pulled
+      // every COMPLETED purchase order into the browser, which was both slow and
+      // silently truncated at PostgREST's 1000-row cap.
+      const { data, error } = await (supabase as any).rpc("get_product_avg_costs");
+      if (error) throw error;
 
-      if (poError) {
-        throw poError;
-      }
-
-      const costCalculations = new Map<string, { totalQty: number; totalCost: number }>();
-
-      purchaseOrders?.forEach(po => {
-        const cost = Number(po.net_payable_amount) || 0;
-        if (cost <= 0) return;
-
-        // Each PO maps to one product/asset (first item).
-        const item = (po.purchase_order_items as any)?.[0];
-        const productCode = item?.products?.code;
-        if (!productCode) return;
-
-        // Stablecoins keep the USDT-equivalent basis; other coins use coin qty.
-        const denomQty = isStableCoin(productCode)
-          ? Number(po.effective_usdt_qty) || 0
-          : Number(item?.quantity) || 0;
-        if (denomQty <= 0) return;
-
-        const existing = costCalculations.get(productCode) || { totalQty: 0, totalCost: 0 };
-        costCalculations.set(productCode, {
-          totalQty: existing.totalQty + denomQty,
-          totalCost: existing.totalCost + cost,
-        });
-      });
-
-      const result: AverageCostData[] = Array.from(costCalculations.entries()).map(([productCode, data]) => ({
-        product_code: productCode,
-        total_quantity: data.totalQty,
-        total_cost: data.totalCost,
-        average_cost: data.totalQty > 0 ? data.totalCost / data.totalQty : 0,
+      const result: AverageCostData[] = ((data || []) as any[]).map((r) => ({
+        product_code: String(r.product_code),
+        total_quantity: Number(r.total_quantity || 0),
+        total_cost: Number(r.total_cost || 0),
+        average_cost: Number(r.average_cost || 0),
       }));
 
       return result;
     },
-    refetchInterval: 30000,
-    staleTime: 10000,
+    refetchInterval: 60000,
+    staleTime: 60000,
   });
 }
-

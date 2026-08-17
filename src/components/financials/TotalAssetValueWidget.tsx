@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { fetchActiveWalletsWithLedgerUsdtBalance } from "@/lib/wallet-ledger-balance";
 import { isAdjustmentBank, isAdjustmentWallet } from "@/lib/adjustment-accounts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,14 +20,44 @@ export function useTotalAssetValue() {
   return useQuery({
     queryKey: ["total_asset_value_realtime"],
     queryFn: async () => {
-      // 1. Bank balances (Active + Dormant)
-      const { data: banks } = await supabase
-        .from("bank_accounts")
-        .select("account_name, bank_name, balance, status, dormant_at")
-        .in("status", ["ACTIVE", "DORMANT"])
-        .order("account_name");
+      // All independent reads run in parallel; heavy aggregations (WAC cost basis,
+      // unpaid TDS totals) are computed server-side instead of downloading
+      // thousands of purchase-order rows into the browser.
+      const [
+        banksRes,
+        settlementsRes,
+        wallets,
+        assetBalancesRes,
+        costBasisRes,
+        tdsTotalRes,
+        tdsSampleRes,
+      ] = await Promise.all([
+        supabase
+          .from("bank_accounts")
+          .select("account_name, bank_name, balance, status, dormant_at")
+          .in("status", ["ACTIVE", "DORMANT"])
+          .order("account_name"),
+        supabase
+          .from("pending_settlements")
+          .select("settlement_amount, payment_method_id")
+          .eq("status", "PENDING"),
+        fetchActiveWalletsWithLedgerUsdtBalance("wallet_name, current_balance"),
+        supabase
+          .from("wallet_asset_balances")
+          .select("asset_code, balance")
+          .neq("asset_code", "USDT"),
+        (supabase as any).rpc("get_product_cost_basis"),
+        (supabase as any).rpc("get_unpaid_tds_total"),
+        supabase
+          .from("tds_records")
+          .select("id, tds_amount, pan_number, deduction_date")
+          .or("payment_status.is.null,payment_status.neq.PAID")
+          .order("deduction_date", { ascending: false })
+          .limit(200),
+      ]);
 
-      const bankDetails: BankDetail[] = (banks || [])
+      // 1. Bank balances (Active + Dormant)
+      const bankDetails: BankDetail[] = (banksRes.data || [])
         .filter(b => !isAdjustmentBank(b.account_name))
         .map(b => ({
           account_name: b.account_name, bank_name: b.bank_name,
@@ -37,27 +66,21 @@ export function useTotalAssetValue() {
       const totalBank = bankDetails.reduce((s, a) => s + a.balance, 0);
 
       // 2. POS / Gateway — group by gateway, not individual transactions
-      const { data: pendingSettlements } = await supabase
-        .from("pending_settlements")
-        .select("settlement_amount, payment_method_id")
-        .eq("status", "PENDING");
-
-      // Fetch payment method names for grouping
-      const pmIds = [...new Set((pendingSettlements || []).map(p => p.payment_method_id).filter(Boolean))];
-      let pmNameMap = new Map<string, string>();
+      const pendingSettlements = settlementsRes.data || [];
+      const pmIds = [...new Set(pendingSettlements.map(p => p.payment_method_id).filter(Boolean))];
+      const pmNameMap = new Map<string, string>();
       if (pmIds.length > 0) {
         const { data: pms } = await supabase
           .from("sales_payment_methods")
           .select("id, type, nickname")
-          .in("id", pmIds);
+          .in("id", pmIds as string[]);
         (pms || []).forEach(pm => {
           pmNameMap.set(pm.id, pm.nickname || pm.type || "Unknown");
         });
       }
 
-      // Group settlements by gateway
       const gwMap = new Map<string, { total: number; count: number }>();
-      (pendingSettlements || []).forEach(p => {
+      pendingSettlements.forEach(p => {
         const name = p.payment_method_id ? (pmNameMap.get(p.payment_method_id) || "Unknown Gateway") : "Unassigned";
         const existing = gwMap.get(name) || { total: 0, count: 0 };
         existing.total += Number(p.settlement_amount || 0);
@@ -70,9 +93,6 @@ export function useTotalAssetValue() {
       const totalGateway = gatewayGroups.reduce((s, g) => s + g.total, 0);
 
       // 3. Stock valuation — multi-asset (wallet_asset_balances ledger source of truth)
-      // 3a. USDT balances from ledger-backed wallet utility
-      const wallets = await fetchActiveWalletsWithLedgerUsdtBalance("wallet_name, current_balance");
-
       const walletDetails: WalletDetail[] = (wallets || [])
         .filter((w) => !isAdjustmentWallet(String(w.wallet_name)))
         .map((w) => ({
@@ -81,49 +101,19 @@ export function useTotalAssetValue() {
         }));
       const totalUsdtUnits = walletDetails.reduce((s, w) => s + w.current_balance, 0);
 
-      // 3b. Non-USDT asset balances (paginated)
-      const assetBalances = await fetchAllPaginated<{ asset_code: string; balance: number }>(
-        () => supabase
-          .from("wallet_asset_balances")
-          .select("asset_code, balance")
-          .neq("asset_code", "USDT")
-      );
-
       const nonUsdtMap = new Map<string, number>();
-      (assetBalances || []).forEach(ab => {
-        const bal = Number(ab.balance || 0);
-        nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + bal);
+      ((assetBalancesRes.data || []) as { asset_code: string; balance: number }[]).forEach(ab => {
+        nonUsdtMap.set(ab.asset_code, (nonUsdtMap.get(ab.asset_code) || 0) + Number(ab.balance || 0));
       });
 
-      // 3c. Get avg costs per product from completed POs (paginated to avoid 1000-row truncation)
-      const purchaseOrders = await fetchAllPaginated<any>(
-        () => supabase
-          .from("purchase_orders")
-          .select(`*, purchase_order_items(quantity, total_price, products(code))`)
-          .eq("status", "COMPLETED")
-      );
-
-      const costCalc = new Map<string, { qty: number; cost: number }>();
-      (purchaseOrders || []).forEach(po => {
-        (po.purchase_order_items || []).forEach((item: any) => {
-          const code = item.products?.code;
-          if (!code) return;
-          const e = costCalc.get(code) || { qty: 0, cost: 0 };
-          e.qty += Number(item.quantity || 0);
-          e.cost += Number(item.total_price || 0);
-          costCalc.set(code, e);
-        });
+      // Avg cost per product — aggregated in Postgres (get_product_cost_basis)
+      const costMap = new Map<string, number>();
+      ((costBasisRes?.data || []) as any[]).forEach((r) => {
+        costMap.set(String(r.product_code), Number(r.average_cost || 0));
       });
+      const getAvgCost = (code: string) => costMap.get(code) || 0;
 
-      const getAvgCost = (code: string) => {
-        const c = costCalc.get(code);
-        return c && c.qty > 0 ? c.cost / c.qty : 0;
-      };
-
-      // Build asset stock details
       const assetStocks: AssetStockDetail[] = [];
-
-      // USDT
       const usdtAvg = getAvgCost("USDT");
       if (totalUsdtUnits > 0 || usdtAvg > 0) {
         assetStocks.push({
@@ -131,45 +121,35 @@ export function useTotalAssetValue() {
           avg_cost: usdtAvg, total_value: totalUsdtUnits * usdtAvg,
         });
       }
-
-      // Other assets
       nonUsdtMap.forEach((units, code) => {
         const avg = getAvgCost(code);
         if (units > 0) {
-          assetStocks.push({
-            asset_code: code, total_units: units,
-            avg_cost: avg, total_value: units * avg,
-          });
+          assetStocks.push({ asset_code: code, total_units: units, avg_cost: avg, total_value: units * avg });
         }
       });
-
       assetStocks.sort((a, b) => b.total_value - a.total_value);
       const stockVal = assetStocks.reduce((s, a) => s + a.total_value, 0);
 
-      // 4. TDS Liability (paginated — could exceed 1000 unpaid records over time)
-      const unpaidTds = await fetchAllPaginated<{ id: string; tds_amount: number; pan_number: string; deduction_date: string }>(
-        () => supabase
-          .from("tds_records")
-          .select("id, tds_amount, pan_number, deduction_date")
-          .or("payment_status.is.null,payment_status.neq.PAID")
-          .order("deduction_date", { ascending: false })
-      );
-
-      const tdsDetails: TdsDetail[] = unpaidTds.map(r => ({
+      // 4. TDS liability — total aggregated server-side, sample rows for the drilldown
+      const tdsAgg = ((tdsTotalRes?.data || []) as any[])[0] || { total_amount: 0, record_count: 0 };
+      const totalUnpaidTds = Number(tdsAgg.total_amount || 0);
+      const tdsCount = Number(tdsAgg.record_count || 0);
+      const tdsDetails: TdsDetail[] = ((tdsSampleRes.data || []) as any[]).map(r => ({
         id: r.id, tds_amount: Number(r.tds_amount || 0),
         pan_number: r.pan_number, deduction_date: r.deduction_date,
       }));
-      const totalUnpaidTds = tdsDetails.reduce((s, r) => s + r.tds_amount, 0);
 
       const total = totalBank + totalGateway + stockVal - totalUnpaidTds;
 
       return {
         total, totalBank, totalGateway, stockVal, totalUnpaidTds,
-        bankDetails, gatewayGroups, assetStocks, walletDetails, tdsDetails,
-        pendingCount: (pendingSettlements || []).length,
+        bankDetails, gatewayGroups, assetStocks, walletDetails, tdsDetails, tdsCount,
+        pendingCount: pendingSettlements.length,
       };
     },
     refetchInterval: 60000,
+    staleTime: 30000,
+    placeholderData: (prev: any) => prev,
   });
 }
 
@@ -273,7 +253,7 @@ export function TotalAssetValueWidget() {
             <ExpandableCategory
               label="Unpaid TDS (Liability)"
               total={`- ${fmt(data?.totalUnpaidTds || 0)}`}
-              count={data?.tdsDetails?.length || 0}
+              count={data?.tdsCount ?? (data?.tdsDetails?.length || 0)}
               negative
             >
               {data?.tdsDetails?.length ? data.tdsDetails.map((t, i) => (

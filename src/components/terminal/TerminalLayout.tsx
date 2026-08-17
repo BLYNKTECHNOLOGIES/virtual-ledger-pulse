@@ -40,9 +40,16 @@ function TerminalAccessGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function TerminalThemedShell({ children }: { children: React.ReactNode }) {
+  const { theme } = useTerminalTheme();
+  return <div className={`terminal ${theme === 'light' ? 't-light' : 't-dark'}`}>{children}</div>;
+}
+
 export function TerminalLayout({ children }: TerminalLayoutProps) {
   return (
-    <div className="terminal">
+    <TerminalThemeProvider>
+      <TerminalThemedShell>
+
       <TerminalAuthProvider>
         <TerminalAccessGate>
           <BiometricAuthGate>

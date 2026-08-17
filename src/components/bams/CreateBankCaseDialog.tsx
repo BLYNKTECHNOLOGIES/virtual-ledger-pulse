@@ -51,6 +51,12 @@ interface CaseFormData {
   bank_reason: string;
   supporting_document: File[];
   remarks: string;
+  date_of_discrepancy: string;
+  reported_balance: number;
+  expected_balance: number;
+  difference_amount: number;
+  statement_proof: File[];
+}
 
 interface CreateBankCaseDialogProps {
   open: boolean;

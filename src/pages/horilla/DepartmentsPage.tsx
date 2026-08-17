@@ -158,7 +158,7 @@ export default function DepartmentsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold tracking-wide text-primary">
-                    {d.icon || "📁"}
+                    {(d.code || d.name || "").slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground break-words">{d.name}</p>

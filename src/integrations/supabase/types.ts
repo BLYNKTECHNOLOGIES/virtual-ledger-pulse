@@ -27370,6 +27370,24 @@ export type Database = {
           split_total: number
         }[]
       }
+      get_product_avg_costs: {
+        Args: never
+        Returns: {
+          average_cost: number
+          product_code: string
+          total_cost: number
+          total_quantity: number
+        }[]
+      }
+      get_product_cost_basis: {
+        Args: never
+        Returns: {
+          average_cost: number
+          product_code: string
+          total_cost: number
+          total_quantity: number
+        }[]
+      }
       get_super_admin_ids: {
         Args: never
         Returns: {
@@ -27496,6 +27514,13 @@ export type Database = {
               transaction_type: string
             }[]
           }
+      get_unpaid_tds_total: {
+        Args: never
+        Returns: {
+          record_count: number
+          total_amount: number
+        }[]
+      }
       get_user_min_hierarchy_level: {
         Args: { p_user_id: string }
         Returns: number

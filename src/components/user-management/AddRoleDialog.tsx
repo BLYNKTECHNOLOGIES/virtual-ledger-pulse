@@ -38,6 +38,7 @@ const availablePermissions = [
   { id: "payroll_manage", name: "Payroll Manage", description: "Manage payroll" },
   { id: "compliance_view", name: "Compliance View", description: "View compliance data" },
   { id: "compliance_manage", name: "Compliance Manage", description: "Manage compliance" },
+  { id: "compliance_approve", name: "Compliance Approve", description: "Approve or reject compliance investigations (cannot approve own submissions)" },
   { id: "stock_view", name: "Stock View", description: "View inventory" },
   { id: "stock_manage", name: "Stock Manage", description: "Manage inventory" },
   { id: "accounting_view", name: "Accounting View", description: "View financial data" },

@@ -17,7 +17,7 @@ const ADMIN_PERMISSIONS = [
   'user_management_view', 'user_management_manage', 'user_management_hr_manage',
   'hrms_view', 'hrms_manage', 'hrms_razorpay_sync',
   'payroll_view', 'payroll_manage',
-  'compliance_view', 'compliance_manage',
+  'compliance_view', 'compliance_manage', 'compliance_approve',
   'stock_view', 'stock_manage',
   'accounting_view', 'accounting_manage',
   'statistics_view', 'statistics_manage',

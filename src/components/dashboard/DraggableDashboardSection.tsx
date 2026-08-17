@@ -3,6 +3,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, X } from "lucide-react";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useMasonryRowSpan } from "@/hooks/useMasonryRowSpan";
 
 export type WidgetSize = 3 | 4 | 6 | 8 | 12;
 
@@ -61,10 +62,11 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
 
 
   return (
-    <div ref={setNodeRef} style={style} className={cn('relative h-full min-w-0', className)}>
+    <div ref={setNodeRef} style={style} className={cn('relative min-w-0', className)}>
       <div
+        ref={measureRef}
         className={cn(
-          'group relative flex h-full min-w-0 flex-col gap-1.5 rounded-xl p-1.5 transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none',
+          'group relative flex min-w-0 flex-col gap-1.5 rounded-xl p-1.5 transition-[background-color,box-shadow] duration-200 motion-reduce:transition-none',
           'bg-primary/[0.04] ring-1 ring-dashed ring-primary/40',
           isDragging && 'opacity-50 ring-2 ring-primary'
         )}
@@ -126,7 +128,7 @@ export function DraggableDashboardSection({ id, children, isDraggable, label, cl
           </button>
         )}
       </div>
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0">{children}</div>
       </div>
     </div>
   );

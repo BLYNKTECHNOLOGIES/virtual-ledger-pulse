@@ -222,7 +222,7 @@ export default function OnboardingApplyPage() {
               </Grid>
             </Section>
 
-            <Section title="Bank details (for salary credit)">
+            <Section title="Bank details">
               <Grid>
                 <Field label="Account holder name" required className="sm:col-span-2"><Input value={form.bank_account_name} onChange={(e) => set("bank_account_name", e.target.value)} /></Field>
                 <Field label="Bank name" required><Input value={form.bank_name} onChange={(e) => set("bank_name", e.target.value)} /></Field>
@@ -244,13 +244,8 @@ export default function OnboardingApplyPage() {
             <Section title="Declaration">
               <label className="flex items-start gap-3 text-sm text-foreground">
                 <Checkbox checked={!!form.declaration_accepted} onCheckedChange={(v) => set("declaration_accepted", !!v)} className="mt-0.5" />
-                <span>I confirm that the details and documents provided above are true and correct to the best of my knowledge.</span>
+                <span>I confirm that the details and documents provided above are true and correct.</span>
               </label>
-              <div className="mt-3 max-w-sm">
-                <Field label="Type your full name as signature" required>
-                  <Input value={form.declaration_name} onChange={(e) => set("declaration_name", e.target.value)} />
-                </Field>
-              </div>
             </Section>
 
             <Button className="w-full h-11" onClick={submit} disabled={submitting}>
@@ -322,11 +317,18 @@ function DocRow({ doc, files, onUpload }: { doc: Doc; files: FileRef[]; onUpload
 
   return (
     <div className="rounded-lg border border-border p-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="text-sm text-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="text-sm text-foreground min-w-0">
           {doc.label}{doc.required && <span className="text-destructive"> *</span>}
         </div>
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => inputRef.current?.click()}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+          className="h-9 w-full sm:w-32 sm:shrink-0 justify-center"
+        >
           {busy ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Upload className="h-3.5 w-3.5 mr-1.5" />}
           Upload
         </Button>

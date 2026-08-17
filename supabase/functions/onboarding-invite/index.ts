@@ -67,7 +67,6 @@ function validate(payload: Record<string, any>): string[] {
   req('bank_name', 'Bank name');
   req('bank_account_number', 'Account number');
   req('bank_ifsc', 'IFSC code');
-  req('declaration_name', 'Signature (full name)');
 
   if (payload.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(payload.email))) errs.push('Email looks invalid');
   if (payload.phone && String(payload.phone).replace(/\D/g, '').length < 10) errs.push('Mobile number must have 10 digits');

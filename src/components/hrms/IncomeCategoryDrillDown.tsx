@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,6 +44,7 @@ export function IncomeCategoryDrillDown({ category, onClose, startDate, endDate,
       );
     },
     enabled: !!category,
+    select: (rows: any[]) => rows.filter((t) => !isReversalTransaction(t)),
   });
 
   const total = transactions?.reduce((sum, t) => sum + Number(t.amount || 0), 0) || 0;

@@ -20,6 +20,7 @@ import { format, startOfMonth, endOfMonth, subMonths, subDays, differenceInDays,
 import { ClickableCard, buildTransactionFilters } from "@/components/ui/clickable-card";
 import { ExpenseCategoryDrillDown } from "./ExpenseCategoryDrillDown";
 import { IncomeCategoryDrillDown } from "./IncomeCategoryDrillDown";
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
@@ -248,7 +249,7 @@ export function StatisticsTab() {
       const incomes = await fetchAllPaginated<any>(() =>
         supabase
           .from('bank_transactions')
-          .select('id, amount, category, description, transaction_date')
+          .select('id, amount, category, description, transaction_date, reference_number')
           .eq('transaction_type', 'INCOME')
           .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset","Settlement","Payment Gateway Settlement")')
           .gte('transaction_date', startStr)
@@ -485,8 +486,10 @@ export function StatisticsTab() {
         'opening_balance', 'adjustment', 'manual baseline reset',
         'settlement', 'payment gateway settlement',
       ]);
+      // Reversal / contra entries are ledger corrections, never income.
       const reportableIncomes = (incomes || []).filter(
         inc => !coreIncomeBuckets.has(String(inc.category || '').trim().toLowerCase())
+          && !isReversalTransaction(inc)
       );
       const totalIncome = reportableIncomes.reduce((sum, i) => sum + Number(i.amount || 0), 0);
       const incomeByCategory = new Map<string, number>();

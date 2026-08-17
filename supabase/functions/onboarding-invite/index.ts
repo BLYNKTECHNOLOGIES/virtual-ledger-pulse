@@ -150,7 +150,22 @@ Deno.serve(async (req) => {
     const token = String(body?.token || '');
 
     // ── HR-authenticated actions ──
+    if (action === 'sample') {
+      const auth = await requireHr(req);
+      if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
+      const to = String(body?.recipientEmail || '').trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid email is required' }, 400);
+      const sentFrom = await mailInvite(
+        to,
+        String(body?.name || 'Colleague'),
+        `${APP_URL}/onboarding/apply/sample-preview-token`,
+        new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString(),
+      );
+      return json({ ok: true, sentTo: to, sentFrom });
+    }
+
     if (action === 'issue' || action === 'send') {
+
       const auth = await requireHr(req);
       if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
 

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { FileText, Paperclip, ExternalLink, Loader2, X, CheckCircle2 } from "lucide-react";
+import { FileText, Upload, Paperclip, ExternalLink, Loader2, X, CheckCircle2 } from "lucide-react";
 import { smartUpload } from "@/lib/resumable-upload";
 
 interface Stage3Props {
@@ -163,7 +163,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                     <span className="text-sm">{f.label}</span>
                     {f.required && <Badge variant="outline" className="ml-2 text-xs">Required</Badge>}
                   </div>
-                  {!readOnly && f.key !== "pan" && !f.noValue && (mode === "manual" || f.noFile) && (
+                  {!readOnly && f.key !== "pan" && !f.noValue && true && (
                     <Input
                       placeholder={`${f.label} number`}
                       className="max-w-[220px] h-8"

@@ -64,7 +64,10 @@ export default function LeaveRequestsPage() {
   const { data: weeklyOffPatterns = [] } = useQuery({
     queryKey: ["hr_employee_weekly_off_patterns"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_employee_weekly_off").select("employee_id, day_of_week");
+      const { data } = await (supabase as any)
+        .from("hr_employee_weekly_off")
+        .select("employee_id, is_current, effective_from, hr_weekly_off_patterns(weekly_offs)")
+        .eq("is_current", true);
       return data || [];
     },
   });

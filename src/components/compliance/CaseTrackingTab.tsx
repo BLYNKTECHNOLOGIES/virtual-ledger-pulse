@@ -8,6 +8,8 @@ import { AlertTriangle, Plus, Filter, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ViewTimelineDialog } from "./ViewTimelineDialog";
+import { CreateBankCaseDialog } from "@/components/bams/CreateBankCaseDialog";
+
 import { Search, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";

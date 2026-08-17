@@ -426,6 +426,11 @@
     --input: 240 8% 13%;             /* input / control bg (raised off canvas) */
     --ring: 199 95% 55%;             /* focus ring = electric accent */
 
+    /* ── Extra surfaces (must be terminal-scoped, else ERP light values leak) ── */
+    --surface-subtle: 240 8% 13%;    /* inputs, table headers, inner panels */
+    --surface-canvas: 240 10% 4%;
+    --surface-elevated: 240 8% 10%;
+
     /* ── Trading semantics ── */
     --trade-buy: 142 64% 45%;        /* green (tuned for black bg) */
     --trade-sell: 0 72% 55%;         /* red */

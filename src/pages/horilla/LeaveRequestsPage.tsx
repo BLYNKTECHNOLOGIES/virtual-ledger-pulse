@@ -312,7 +312,7 @@ export default function LeaveRequestsPage() {
               <div className="hrms-mobile-kv">
                 <span>Start</span><span>{r.start_date}</span>
                 <span>End</span><span>{r.end_date}</span>
-                <span>Clashes</span><span>{(r.leave_clashes_count || 0) > 0 ? r.leave_clashes_count : "None"}</span>
+                <span>Clashes</span><span><ClashBadge request={r} /></span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
               <LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />

@@ -501,6 +501,11 @@
     --input: 0 0% 100%;
     --ring: 231 78% 55%;
 
+    /* ── Extra surfaces ── */
+    --surface-subtle: 220 40% 98%;
+    --surface-canvas: 218 33% 97%;
+    --surface-elevated: 0 0% 100%;
+
     /* ── Trading semantics (darkened for light bg) ── */
     --trade-buy: 152 64% 31%;
     --trade-sell: 0 72% 47%;

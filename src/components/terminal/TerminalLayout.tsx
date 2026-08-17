@@ -8,6 +8,7 @@ import { ShieldOff, Loader2 } from 'lucide-react';
 import { TerminalPresenceAndAlerts } from './TerminalPresenceAndAlerts';
 import { ExchangeAccountProvider } from '@/contexts/ExchangeAccountContext';
 import { TerminalShortcutsProvider } from '@/contexts/TerminalShortcutsProvider';
+import { TerminalThemeProvider, useTerminalTheme } from '@/contexts/TerminalThemeContext';
 
 interface TerminalLayoutProps {
   children: React.ReactNode;
@@ -40,9 +41,16 @@ function TerminalAccessGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function TerminalThemedShell({ children }: { children: React.ReactNode }) {
+  const { theme } = useTerminalTheme();
+  return <div className={`terminal ${theme === 'light' ? 't-light' : 't-dark'}`}>{children}</div>;
+}
+
 export function TerminalLayout({ children }: TerminalLayoutProps) {
   return (
-    <div className="terminal">
+    <TerminalThemeProvider>
+      <TerminalThemedShell>
+
       <TerminalAuthProvider>
         <TerminalAccessGate>
           <BiometricAuthGate>
@@ -77,6 +85,8 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
           </BiometricAuthGate>
         </TerminalAccessGate>
       </TerminalAuthProvider>
-    </div>
+      </TerminalThemedShell>
+    </TerminalThemeProvider>
   );
 }
+

@@ -1,5 +1,5 @@
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { Coffee, LogOut, Shield, Layers } from 'lucide-react';
+import { Coffee, LogOut, Shield, Layers, Sun, Moon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TerminalNotificationBell } from './TerminalNotificationBell';
 import { TerminalAlertsSettings } from './TerminalAlertsSettings';
@@ -7,6 +7,7 @@ import { Separator } from '@/components/ui/separator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdRestTimer } from '@/hooks/useAdRestTimer';
+import { useTerminalTheme } from '@/contexts/TerminalThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { ExchangeAccountSwitcher } from '@/components/exchange/ExchangeAccountSwitcher';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,6 +26,7 @@ export function TerminalHeader() {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const { isResting, isBinanceBreakDetected } = useAdRestTimer();
+  const { theme, toggleTheme } = useTerminalTheme();
 
   const displayName = firstName && lastName
     ? `${firstName} ${lastName}`
@@ -72,6 +74,16 @@ export function TerminalHeader() {
           </Button>
         )}
         <ExchangeAccountSwitcher />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent"
+          aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          title={theme === 'dark' ? 'Light theme' : 'Dark theme'}
+        >
+          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
         <TerminalAlertsSettings />
         <TerminalNotificationBell />
 

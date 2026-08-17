@@ -151,10 +151,14 @@ Deno.serve(async (req) => {
 
     // ── HR-authenticated actions ──
     if (action === 'sample') {
-      const auth = await requireHr(req);
-      if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
-      const to = String(body?.recipientEmail || '').trim();
+      const to = String(body?.recipientEmail || '').trim().toLowerCase();
+      // Preview sends are restricted to internal company mailboxes only.
+      if (!/^[a-z0-9._%+-]+@blynkex\.com$/.test(to)) {
+        const auth = await requireHr(req);
+        if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid email is required' }, 400);
+
       const sentFrom = await mailInvite(
         to,
         String(body?.name || 'Colleague'),

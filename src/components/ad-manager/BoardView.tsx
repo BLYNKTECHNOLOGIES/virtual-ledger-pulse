@@ -70,7 +70,7 @@ function AdCard({
   return (
     <Card
       className={cn(
-        'relative flex flex-col gap-2 p-3',
+        'relative flex min-w-0 flex-col gap-2 overflow-hidden p-3',
         selected && 'ring-2 ring-primary',
         isPrivate && 'border-warning/50',
         outOfStock && 'border-destructive/50',
@@ -197,7 +197,6 @@ function Zone({
   onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, compact,
 }: ZoneProps) {
   const sorted = useMemo(() => applyAdSort(ads, sortMode), [ads, sortMode]);
-  const totalSurplus = useMemo(() => ads.reduce((s, a) => s + Number(a.surplusAmount || 0), 0), [ads]);
 
   const toggleOne = (advNo: string) => {
     const next = new Set(selectedAdvNos);

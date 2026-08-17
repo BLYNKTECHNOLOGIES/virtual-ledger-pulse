@@ -69,8 +69,8 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
         results.push({
           kind: "employee",
           id: e.id,
-          label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.employee_id,
-          sub: [e.employee_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
+          label: `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.email || e.badge_id,
+          sub: [e.badge_id, e.email, e.is_active === false ? "Inactive" : null].filter(Boolean).join(" · "),
           link: `/hrms/employee/${e.id}`,
         });
       });

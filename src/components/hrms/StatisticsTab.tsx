@@ -582,7 +582,9 @@ export function StatisticsTab() {
         totalIncome,
         topClients,
         totalExpenses,
-        totalSalary: employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0,
+        // hr_employees.total_salary is ANNUAL CTC (verified against razorpay-sourced
+        // salary structures) — monthly payroll cost is the annual sum / 12.
+        totalSalary: (employees?.filter(e => e.status === 'ACTIVE')?.reduce((sum, e) => sum + Number(e.salary || 0), 0) || 0) / 12,
         usdtFees: {
           total: totalUsdtFees,
           platform: combinedOrderFees, // Platform fees now aggregated with order fees

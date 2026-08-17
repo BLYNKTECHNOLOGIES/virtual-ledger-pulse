@@ -14,7 +14,7 @@ import { History, Plus, Settings2, KeyRound, Download } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { usePermissions } from "@/hooks/usePermissions";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
-import { complianceTabsListCls, complianceTabTriggerCls, complianceTabsWrapperCls } from "./complianceTabStyles";
+import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabsWrapperCls } from "./complianceTabStyles";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 
@@ -329,16 +329,16 @@ export function ComplianceGovernanceTab() {
   const canManage = hasPermission("compliance_manage");
 
   return (
-    <Tabs defaultValue="audit" className="space-y-6">
-      <div className={complianceTabsWrapperCls}>
-        <TabsList className={complianceTabsListCls}>
-          <TabsTrigger value="audit" className={complianceTabTriggerCls}>
+    <Tabs defaultValue="audit" className="space-y-4">
+      <div className={complianceSubTabsWrapperCls}>
+        <TabsList className={complianceSubTabsListCls}>
+          <TabsTrigger value="audit" className={complianceSubTabTriggerCls}>
             <History className="h-4 w-4" /> <span>Audit Trail</span>
           </TabsTrigger>
-          <TabsTrigger value="credentials" className={complianceTabTriggerCls}>
+          <TabsTrigger value="credentials" className={complianceSubTabTriggerCls}>
             <KeyRound className="h-4 w-4" /> <span>Credential Access</span>
           </TabsTrigger>
-          <TabsTrigger value="config" className={complianceTabTriggerCls}>
+          <TabsTrigger value="config" className={complianceSubTabTriggerCls}>
             <Settings2 className="h-4 w-4" /> <span>Configuration</span>
           </TabsTrigger>
         </TabsList>

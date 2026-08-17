@@ -4,15 +4,15 @@ import { DocumentManagementTab } from "./DocumentManagementTab";
 import { LegalActionsTab } from "./LegalActionsTab";
 import { LegalCommunicationsTab } from "./LegalCommunicationsTab";
 
-import { complianceTabsListCls, complianceTabTriggerCls, complianceTabsWrapperCls } from "./complianceTabStyles";
+import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabsWrapperCls } from "./complianceTabStyles";
 
-const triggerCls = complianceTabTriggerCls;
+const triggerCls = complianceSubTabTriggerCls;
 
 export function LegalComplianceTab() {
   return (
-    <Tabs defaultValue="documents" className="space-y-6">
-      <div className={complianceTabsWrapperCls}>
-        <TabsList className={complianceTabsListCls}>
+    <Tabs defaultValue="documents" className="space-y-4">
+      <div className={complianceSubTabsWrapperCls}>
+        <TabsList className={complianceSubTabsListCls}>
           <TabsTrigger value="documents" className={triggerCls}>
             <FileText className="h-4 w-4" />
             <span className="hidden sm:inline">Document Management</span>

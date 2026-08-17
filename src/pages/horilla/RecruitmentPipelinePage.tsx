@@ -118,11 +118,11 @@ function CandidateCard({ candidate, stages, currentStageId, onMove, onHire, onCa
         </button>
         {!candidate.hired && !candidate.canceled && (
           <button onClick={() => onHire(candidate.id)}
-            className="text-[10px] text-success hover:underline px-1">Hire ✓</button>
+            className="text-[10px] text-success hover:underline px-1">Hire</button>
         )}
         {!candidate.canceled && !candidate.hired && (
           <button onClick={() => onCancel(candidate.id)}
-            className="text-[10px] text-destructive hover:underline px-1">Cancel ✗</button>
+            className="text-[10px] text-destructive hover:underline px-1">Cancel</button>
         )}
       </div>
 

@@ -594,7 +594,7 @@ export default function CandidateProfilePage() {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">{iv.feedback}</p>
-                    {iv.strengths && <p className="text-[10px] text-success mt-1">✓ {iv.strengths}</p>}
+                    {iv.strengths && <p className="text-[10px] text-success mt-1 flex items-start gap-1"><CheckCircle2 className="h-3 w-3 shrink-0 mt-0.5" /> {iv.strengths}</p>}
                     {iv.weaknesses && <p className="text-[10px] text-destructive mt-0.5">✗ {iv.weaknesses}</p>}
                   </div>
                 )}

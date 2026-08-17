@@ -920,11 +920,11 @@ export default function UserProfile() {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: "✅ Success!", description: "Password updated successfully" });
+      toast({ title: "Success", description: "Password updated successfully" });
       setSettingsData(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
     },
     onError: (error: any) => {
-      toast({ title: "❌ Error", description: error.message || "Failed to update password", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to update password", variant: "destructive" });
     }
   });
 

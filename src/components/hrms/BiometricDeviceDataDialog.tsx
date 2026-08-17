@@ -591,7 +591,7 @@ export function BiometricDeviceDataDialog({ open, onClose, device }: Props) {
                           <TableCell><Badge variant="outline">{t.template_kind}</Badge></TableCell>
                           <TableCell>{t.finger_index ?? "—"}</TableCell>
                           <TableCell>{t.size_bytes ?? "—"}</TableCell>
-                          <TableCell>{t.valid ? "✓" : "✗"}</TableCell>
+                          <TableCell>{t.valid ? <CheckCircle2 className="h-4 w-4 text-success" aria-label="Valid" /> : <XCircle className="h-4 w-4 text-destructive" aria-label="Invalid" />}</TableCell>
                           <TableCell>{t.duress ? "Duress" : "—"}</TableCell>
                           <TableCell className="text-xs">{t.algorithm_version || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{fmt(t.captured_at)}</TableCell>

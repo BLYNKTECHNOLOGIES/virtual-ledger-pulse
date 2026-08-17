@@ -869,7 +869,7 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
               }`}
             >
               <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] border">
-                {isDone ? "✓" : stage}
+                {isDone ? <Check className="h-3 w-3" /> : stage}
               </span>
               {label}
             </button>

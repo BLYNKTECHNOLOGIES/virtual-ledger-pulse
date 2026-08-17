@@ -181,7 +181,7 @@ export default function PayrollDashboardPage() {
               <a href="/hrms/payroll/inputs">Payroll Inputs</a>
             </Button>
             <Button asChild size="sm" className="h-9 bg-[#E8604C] hover:bg-[#d4553f]">
-              <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">Open RazorpayX ↗</a>
+              <a href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5">Open RazorpayX <ExternalLink className="h-3.5 w-3.5" /></a>
             </Button>
           </div>
         }

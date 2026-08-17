@@ -267,7 +267,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                       <p className="text-[11px] text-destructive">Invalid format. Expected: 5 letters + 4 digits + 1 letter.</p>
                     )}
                     {panValid && (
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400">✓ Valid PAN</p>
+                      <p className="text-[11px] text-success inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3 shrink-0" /> Valid PAN</p>
                     )}
                   </div>
                 )}

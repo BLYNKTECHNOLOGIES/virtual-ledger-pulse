@@ -1,37 +1,31 @@
-# Terminal Light Theme
+# Terminal Light Theme — Blynk Exchange Identity
 
-Give the P2P Trading Terminal a first-class light ("exchange white") theme, switched by its own toggle in the terminal header and remembered separately from the ERP theme. Dark stays the default.
+A light mode for the trading terminal that carries Blynk's brand identity (indigo/blue primary, Inter, restrained enterprise surfaces) rather than copying Binance. It still reads as a professional exchange terminal: dense rows, mono numerics, unambiguous buy/sell colour semantics.
 
-## How it works
+## Visual direction
 
-- A new toggle (sun/moon) sits in the terminal header next to the sound and notification icons.
-- The choice is stored under its own key, so the ERP can be dark while the terminal is light, and vice versa.
-- The terminal wrapper gets a `t-light` class; every terminal token is redefined for that class, so all pages, dialogs, popovers and charts follow automatically.
+- Canvas: soft cool paper (`#F7F9FC`), not pure white — reduces glare on long trading sessions.
+- Panels: pure white cards with hairline cool-grey borders and very low-elevation shadows; sidebar a shade deeper than canvas for structure.
+- Accent: Blynk indigo-blue (matching ERP primary family) instead of the dark theme's electric cyan and instead of Binance amber. Focus rings, active nav, links and selected rows all use it.
+- Trading semantics: buy/sell green and red retuned for light backgrounds (darker, higher contrast, AA on white); pending amber darkened so it stays legible.
+- Data density and typography unchanged — same row heights, same tabular/mono numerics, same uppercase micro-labels. Light mode changes colour only, never layout.
+- Signature glow, grid texture and shimmer effects are re-expressed for light (subtle tinted washes instead of neon glows) so nothing looks like a dark-theme leftover.
 
-## Light palette (Binance-style exchange white)
+## Switching
 
-- Canvas near-white, panels pure white, hairline grey borders, dark slate text with a softer grey for secondary text.
-- Accent stays electric blue (darkened slightly for contrast on white).
-- Trade semantics stay green/red/amber, retuned so they pass contrast on white instead of glowing on black.
-- Charts, sidebar, popovers, inputs, focus rings, and shadows all get light equivalents (soft neutral shadows instead of black ambient ones).
+- Own terminal toggle (sun/moon) in the terminal header, independent of the ERP theme, remembered in `localStorage` under `blynk-terminal-theme`, default dark.
+- Terminal theme applies only inside the terminal wrapper — zero bleed into ERP pages.
 
-## Audit and fixes
+## Technical work
 
-Every terminal page is checked in light mode: Dashboard, Orders (list, detail workspace, chat, past interactions, inbox), Ads Manager, Automation, Assets, Analytics, MPI, Audit Logs, Appeals, Payer, Small Payments, Logs, Users & Roles, Settings, Shortcuts, Operator Detail, Landing, Coming Soon, plus the biometric gate, command palette, alerts, and notification bell.
+1. `src/contexts/TerminalThemeContext.tsx` — provider with `theme`/`setTheme`/`toggle`, localStorage persistence, applies `t-light` / `t-dark` class on the existing `.terminal` wrapper element.
+2. `src/index.css` — add a `.terminal.t-light` token block overriding every variable defined in the current `.terminal` block (backgrounds, card, popover, primary, muted, accent, border, input, ring, success/warning/destructive, trade-buy/sell/pending, chart 1–5, sidebar tokens, shadows, glow). Also add light variants for the scoped rules that currently hardcode dark values: scrollbar track/thumb, `thead`/`tbody` row and hover backgrounds, `.t-panel`, `.t-glow`, `.t-grid-bg`, `.t-shimmer`, flash-up/flash-down and pulse keyframe colours.
+3. `TerminalHeader.tsx` — add the theme toggle button next to notifications, matching existing header icon-button sizing.
+4. Wrap the terminal layout with the provider and bind the theme class where `.terminal` is applied.
+5. Sweep terminal components for hardcoded palette utilities (`text-white`, `bg-black`, `bg-zinc-*`, `text-slate-*`, inline hex) — roughly 9 files plus scoped CSS — and replace with semantic tokens so both themes resolve correctly.
+6. Verify with Playwright across the terminal routes (Dashboard, Orders, Ads, Chat, KYC, Users, Settings, Analytics) in light mode: screenshot each, check header/icon/badge contrast and that no panel, tooltip, dropdown or chart renders as a dark island.
 
-Known items already identified that will break on white and get fixed:
-- Terminal-scoped CSS that hardcodes white/black: table row hover, table cell border, grid-texture background, shimmer skeleton, scrollbar thumb hover.
-- Six components using literal `white/…`, `black/…`, or `bg-black` (chat lightbox, chat bubble, order detail workspace, past interactions, chat inbox, sidebar) move to tokens or get light-aware values.
-- Nine stray palette utilities (pink/teal 400-500 badges in three files) move to semantic tokens.
-- Icons, uppercase micro-labels, panel headers, and status badges are verified to use `text-muted-foreground` / semantic tokens so they invert cleanly.
+## Out of scope
 
-## Verification
-
-Each terminal route is rendered in light mode in a headless browser and screenshotted; anything with poor contrast or a leftover dark block is corrected before the work is reported done. Dark mode is re-checked afterwards to confirm nothing regressed.
-
-## Technical notes
-
-- `src/index.css`: add a `.terminal.t-light` token block mirroring the existing `.terminal` block; convert the hardcoded overlay values in the terminal component overrides to token-based / theme-aware values.
-- New `TerminalThemeContext` (localStorage key `blynk-terminal-theme`, default `dark`) provider added inside `TerminalLayout`, applying the `t-light` class to the terminal wrapper.
-- New `TerminalThemeToggle` button rendered in `TerminalHeader`, styled like the existing header icon buttons.
-- Presentation-only change: no data, permission, or business-logic edits.
+- No layout, data, or Binance API behaviour changes.
+- ERP theme tokens untouched.

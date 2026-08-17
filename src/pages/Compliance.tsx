@@ -9,6 +9,11 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import {
+  complianceTabsListCls,
+  complianceTabTriggerCls,
+  complianceTabsWrapperCls,
+} from "@/components/compliance/complianceTabStyles";
 
 export default function Compliance() {
   const navigate = useNavigate();
@@ -75,29 +80,22 @@ export default function Compliance() {
         <div className="px-6 md:px-10 py-8 max-w-[1600px] mx-auto">
           <ErrorBoundary>
             <Tabs defaultValue="banking" className="space-y-6">
-              <TabsList className="h-auto w-full justify-start gap-1 bg-transparent border-b border-border rounded-none p-0 overflow-x-auto">
-                <TabsTrigger
-                  value="banking"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
-                >
-                  <Building2 className="h-4 w-4" />
-                  Banking
-                </TabsTrigger>
-                <TabsTrigger
-                  value="legal"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
-                >
-                  <Scale className="h-4 w-4" />
-                  Legal
-                </TabsTrigger>
-                <TabsTrigger
-                  value="company"
-                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none text-muted-foreground hover:text-foreground px-4 py-3 text-sm font-medium gap-2"
-                >
-                  <Building className="h-4 w-4" />
-                  Company
-                </TabsTrigger>
-              </TabsList>
+              <div className={complianceTabsWrapperCls}>
+                <TabsList className={complianceTabsListCls}>
+                  <TabsTrigger value="banking" className={complianceTabTriggerCls}>
+                    <Building2 className="h-4 w-4" />
+                    Banking
+                  </TabsTrigger>
+                  <TabsTrigger value="legal" className={complianceTabTriggerCls}>
+                    <Scale className="h-4 w-4" />
+                    Legal
+                  </TabsTrigger>
+                  <TabsTrigger value="company" className={complianceTabTriggerCls}>
+                    <Building className="h-4 w-4" />
+                    Company
+                  </TabsTrigger>
+                </TabsList>
+              </div>
 
               <TabsContent value="banking" className="mt-6">
                 <ErrorBoundary><BankingComplianceTab /></ErrorBoundary>

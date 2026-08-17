@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, Star, UserCheck, UserX, Edit, Save, X, Plus,
   Calendar, FileText, MessageSquare, Clock, Video, MapPin,
-  Briefcase, Mail, Phone, Globe, User, ClipboardList, CheckSquare, Square
+  Briefcase, Mail, Phone, Globe, User, ClipboardList, CheckSquare, Square, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 import { InterviewDialog } from "@/components/horilla/recruitment/InterviewDialog";

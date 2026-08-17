@@ -10,7 +10,7 @@ import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, us
 import { arrayMove, SortableContext, rectSortingStrategy, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { DraggableDashboardSection } from "@/components/dashboard/DraggableDashboardSection";
 import type { WidgetSize } from "@/components/dashboard/DraggableDashboardSection";
-import { AddWidgetDialog, builtInWidgets, widgetRegistry } from "@/components/dashboard/AddWidgetDialog";
+import { AddWidgetDialog, builtInWidgets, widgetRegistry, canUseWidget } from "@/components/dashboard/AddWidgetDialog";
 import type { WidgetType } from "@/components/dashboard/AddWidgetDialog";
 import DashboardWidget from "@/components/dashboard/DashboardWidget";
 import { WidgetShell, WidgetHeader, WidgetBody, WidgetEmpty } from "@/components/dashboard/primitives/WidgetShell";
@@ -152,7 +152,7 @@ export default function Dashboard() {
     if (!user) return "User";
     return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || user.email || "User";
   }, [user]);
-  const { hasAnyPermission } = usePermissions();
+  const { hasAnyPermission, hasPermission } = usePermissions();
   const [datePreset, setDatePreset] = useState<DateRangePreset>("last7days");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(getDateRangeFromPreset("last7days"));
   const [isEditMode, setIsEditMode] = useState(false);
@@ -301,10 +301,9 @@ export default function Dashboard() {
     return activeWidgetIds.filter(id => {
       const def = widgetRegistry.get(id);
       if (!def) return false; // widget no longer exists in registry, remove it
-      if (!def.requiredPermissions || def.requiredPermissions.length === 0) return true;
-      return hasAnyPermission(def.requiredPermissions);
+      return canUseWidget(def, hasAnyPermission, hasPermission);
     });
-  }, [activeWidgetIds, hasAnyPermission]);
+  }, [activeWidgetIds, hasAnyPermission, hasPermission]);
 
   // ── Date range ──
   const getDateRangeValues = () => {
@@ -538,6 +537,14 @@ export default function Dashboard() {
 
   const canDrag = isEditMode || isRearrangeMode;
 
+  // Recent activity rows are filtered per-module so a sales-only user never sees purchases (and vice versa)
+  const canSeeSales = hasPermission('sales_view');
+  const canSeePurchase = hasPermission('purchase_view');
+  const permittedRecentActivity = useMemo(
+    () => (recentActivity || []).filter((a: any) => (a.type === 'sale' ? canSeeSales : canSeePurchase)),
+    [recentActivity, canSeeSales, canSeePurchase]
+  );
+
   // ── Render a built-in section by ID ──
   const renderBuiltInWidget = (widgetId: string) => {
     switch (widgetId) {
@@ -607,9 +614,9 @@ export default function Dashboard() {
               icon={Activity}
             />
             <WidgetBody padded={false} className="max-h-[500px] p-2">
-              {recentActivity && recentActivity.length > 0 ? (
+              {permittedRecentActivity && permittedRecentActivity.length > 0 ? (
                 <WidgetList>
-                  {recentActivity.slice(0, 8).map((activity) => (
+                  {permittedRecentActivity.slice(0, 8).map((activity) => (
                     <WidgetListRow
                       key={activity.id}
                       icon={activity.type === 'sale' ? ArrowUpIcon : ArrowDownIcon}

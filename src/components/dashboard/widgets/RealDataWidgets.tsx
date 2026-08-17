@@ -133,34 +133,49 @@ export function RecentOrdersWidget() {
 
 // ── Daily Activity Widget ──
 export function DailyActivityWidget() {
+  const { permissions } = usePermissions();
+  const canSales = permissions.includes('sales_view');
+  const canPurchase = permissions.includes('purchase_view');
+  const canClients = permissions.includes('clients_view');
+
   const { data, isLoading } = useQuery({
-    queryKey: ['widget_daily_activity'],
+    queryKey: ['widget_daily_activity', canSales, canPurchase, canClients],
     queryFn: async () => {
       const today = new Date();
       const start = startOfDay(today).toISOString();
       const end = endOfDay(today).toISOString();
-      const [{ count: salesCount }, { count: purchaseCount }, { count: newClients }] = await Promise.all([
-        supabase.from('sales_orders').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', end),
-        supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', end),
-        supabase.from('clients').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', end),
+      const [salesRes, purchaseRes, clientsRes] = await Promise.all([
+        canSales
+          ? supabase.from('sales_orders').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', end)
+          : Promise.resolve({ count: null } as any),
+        canPurchase
+          ? supabase.from('purchase_orders').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', end)
+          : Promise.resolve({ count: null } as any),
+        canClients
+          ? supabase.from('clients').select('id', { count: 'exact', head: true }).gte('created_at', start).lte('created_at', end)
+          : Promise.resolve({ count: null } as any),
       ]);
-      return { sales: salesCount || 0, purchases: purchaseCount || 0, newClients: newClients || 0 };
+      return { sales: salesRes.count || 0, purchases: purchaseRes.count || 0, newClients: clientsRes.count || 0 };
     },
     refetchInterval: 30000,
+    enabled: canSales || canPurchase || canClients,
   });
 
   if (isLoading) return <WidgetSkeleton variant="stats" />;
 
+  const items = [
+    ...(canSales ? [{ label: 'Sales today', value: data?.sales || 0, tone: 'success' as const }] : []),
+    ...(canPurchase ? [{ label: 'Purchases', value: data?.purchases || 0, tone: 'primary' as const }] : []),
+    ...(canClients ? [{ label: 'New clients', value: data?.newClients || 0, tone: 'warning' as const }] : []),
+  ];
+
+  if (items.length === 0) {
+    return <WidgetEmpty icon={Activity} title="No activity visible for your role" />;
+  }
+
   return (
     <div className="p-3">
-      <WidgetStatGrid
-        columns={3}
-        items={[
-          { label: 'Sales today', value: data?.sales || 0, tone: 'success' },
-          { label: 'Purchases', value: data?.purchases || 0, tone: 'primary' },
-          { label: 'New clients', value: data?.newClients || 0, tone: 'warning' },
-        ]}
-      />
+      <WidgetStatGrid columns={items.length as 1 | 2 | 3} items={items} />
     </div>
   );
 }

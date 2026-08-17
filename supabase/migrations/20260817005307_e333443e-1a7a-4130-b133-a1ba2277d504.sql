@@ -1,0 +1,2 @@
+UPDATE public.account_investigations SET status = 'RESOLVED' WHERE id = '5cf87dae-6383-432f-93cc-234ce79ad08e';
+SELECT id, status, investigation_status, resolved_at, resolved_by FROM public.bank_cases WHERE id = '14afcde2-0c18-45c6-b7c1-0b5e3379bfcf';

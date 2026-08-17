@@ -226,17 +226,6 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
             {submit.isPending ? 'Submitting…' : 'Submit request'}
           </Button>
         </DialogFooter>
-
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
-          <Button
-            disabled={submit.isPending || !form.start_date || !form.reason.trim() || workingDays <= 0}
-            onClick={() => submit.mutate()}
-          >
-            {submit.isPending ? 'Submitting…' : 'Submit request'}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

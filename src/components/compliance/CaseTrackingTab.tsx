@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ViewTimelineDialog } from "./ViewTimelineDialog";
 import { CreateBankCaseDialog } from "@/components/bams/CreateBankCaseDialog";
 import { ChangeCaseTypeDialog } from "./ChangeCaseTypeDialog";
+import { EscalateToLegalDialog, type EscalationSource } from "./EscalateToLegalDialog";
 
-import { Search, Clock } from "lucide-react";
+import { Search, Clock, Scale } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
@@ -29,6 +30,7 @@ const caseTypeLabels = {
 export function CaseTrackingTab() {
   const [showNewCaseDialog, setShowNewCaseDialog] = useState(false);
   const [typeChange, setTypeChange] = useState<{ bankCase: any; newType: string } | null>(null);
+  const [escalateSource, setEscalateSource] = useState<EscalationSource | null>(null);
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("all");
   const [selectedCaseTypeFilter, setSelectedCaseTypeFilter] = useState<string>("all");
@@ -49,6 +51,24 @@ export function CaseTrackingTab() {
       return data || [];
     },
   });
+
+  // Legal actions linked to bank cases (for the "Legal action" chip)
+  const { data: linkedLegalActions } = useQuery({
+    queryKey: ['legal_actions_by_case'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('legal_actions')
+        .select('id, title, status, action_type, bank_case_id')
+        .not('bank_case_id', 'is', null);
+      if (error) throw error;
+      return (data || []) as any[];
+    },
+  });
+
+  const legalByCase = (linkedLegalActions || []).reduce((acc: Record<string, any[]>, a: any) => {
+    (acc[a.bank_case_id] ||= []).push(a);
+    return acc;
+  }, {} as Record<string, any[]>);
 
   // Fetch all bank cases
   const { data: bankCases, refetch: refetchCases } = useQuery({
@@ -271,9 +291,19 @@ export function CaseTrackingTab() {
                     {bankCase.case_type}
                   </p>
                 </div>
-                <Badge variant={getStatusBadgeVariant(bankCase.status)}>
-                  {bankCase.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  {(legalByCase[bankCase.id]?.length || 0) > 0 && (
+                    <Badge variant="outline" className="gap-1">
+                      <Scale className="h-3 w-3" />
+                      {legalByCase[bankCase.id].length === 1
+                        ? 'Legal action'
+                        : `${legalByCase[bankCase.id].length} legal actions`}
+                    </Badge>
+                  )}
+                  <Badge variant={getStatusBadgeVariant(bankCase.status)}>
+                    {bankCase.status}
+                  </Badge>
+                </div>
               </div>
               
               <div className="mb-3">
@@ -337,6 +367,26 @@ export function CaseTrackingTab() {
                   </Button>
                 )}
                 <ViewTimelineDialog caseId={bankCase.id} caseType="bank_case" />
+                {canManage && bankCase.status !== 'CLOSED' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEscalateSource({
+                      kind: 'bank_case',
+                      id: bankCase.id,
+                      reference: bankCase.case_number,
+                      title: bankCase.title || bankCase.case_number,
+                      description: bankCase.description,
+                      status: bankCase.status,
+                      counterparty: bankCase.bank_accounts?.bank_name || null,
+                      amount: bankCase.amount_involved,
+                      typeLabel: caseTypeLabels[bankCase.case_type as keyof typeof caseTypeLabels] || bankCase.case_type,
+                    })}
+                  >
+                    <Scale className="h-4 w-4 mr-2" />
+                    Escalate to legal
+                  </Button>
+                )}
                 {canManage && bankCase.status !== 'RESOLVED' && bankCase.status !== 'CLOSED' && (
                   <div className="flex items-center gap-2 ml-auto">
                     <span className="text-xs text-muted-foreground whitespace-nowrap">Change type</span>
@@ -373,6 +423,12 @@ export function CaseTrackingTab() {
 
       {/* New Case Dialog */}
       <CreateBankCaseDialog open={showNewCaseDialog} onOpenChange={setShowNewCaseDialog} />
+
+      <EscalateToLegalDialog
+        open={!!escalateSource}
+        onOpenChange={(o) => { if (!o) setEscalateSource(null); }}
+        source={escalateSource}
+      />
 
       <ChangeCaseTypeDialog
         open={!!typeChange}

@@ -52,7 +52,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         email: data.email || "",
         phone: data.phone || "",
         gender: data.gender || "",
-        marital_status: data.marital_status || "",
+        marital_status: data.marital_status ? (String(data.marital_status).charAt(0).toUpperCase() + String(data.marital_status).slice(1).toLowerCase()) : "",
         date_of_birth: data.date_of_birth || "",
         department_id: data.department_id || "",
         position_id: data.position_id || "",
@@ -187,6 +187,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
                 <SelectItem value="Married">Married</SelectItem>
                 <SelectItem value="Divorced">Divorced</SelectItem>
                 <SelectItem value="Widowed">Widowed</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -141,7 +141,119 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
   return mailbox.from_address || user;
 }
 
+// ── Candidate submission → HR onboarding draft ──────────────────────────────
+// Candidate document keys map onto the Stage 3 checklist keys so uploads show
+// up where HR already reviews them.
+const DOC_KEY_MAP: Record<string, string> = {
+  pan_card: 'pan',
+  aadhaar: 'aadhaar',
+  photo: 'passport_photo',
+  cancelled_cheque: 'bank_details',
+  education: 'educational_certificate',
+  experience: 'experience_letter',
+};
+
+function publicUrl(path: string): string {
+  return `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/employee-documents/${path}`;
+}
+
+async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>): Promise<{ ok: boolean; error?: string }> {
+  const { data: onb } = await admin
+    .from('hr_employee_onboarding')
+    .select('id, documents')
+    .eq('id', onboardingId)
+    .maybeSingle();
+  if (!onb) return { ok: false, error: 'Onboarding record not found' };
+
+  const docs: Record<string, any> = (onb.documents && typeof onb.documents === 'object') ? { ...onb.documents } : {};
+  const files: Record<string, Array<{ path: string; name: string }>> = p.documents || {};
+
+  const setDoc = (key: string, patch: Record<string, any>) => {
+    docs[key] = { received: false, value: '', ...(docs[key] || {}), ...patch };
+  };
+
+  for (const [srcKey, list] of Object.entries(files)) {
+    const target = DOC_KEY_MAP[srcKey];
+    if (!target || !Array.isArray(list) || list.length === 0) continue;
+    setDoc(target, {
+      received: true,
+      file_url: publicUrl(list[0].path),
+      file_name: list[0].name,
+      extra_files: list.slice(1).map((f) => ({ url: publicUrl(f.path), name: f.name })),
+      source: 'candidate_form',
+    });
+  }
+  if (p.pan_number) setDoc('pan', { value: String(p.pan_number).toUpperCase(), source: 'candidate_form' });
+  if (p.aadhaar_number) setDoc('aadhaar', { value: String(p.aadhaar_number), source: 'candidate_form' });
+  if (p.uan_number) setDoc('uan', { value: String(p.uan_number), received: true, source: 'candidate_form' });
+  if (p.esic_number) setDoc('esic', { value: String(p.esic_number), received: true, source: 'candidate_form' });
+  if (p.pf_number) setDoc('pf_account_number', { value: String(p.pf_number), received: true, source: 'candidate_form' });
+
+  const update: Record<string, any> = {
+    first_name: p.first_name || undefined,
+    last_name: p.last_name || undefined,
+    email: p.email || undefined,
+    phone: p.phone || undefined,
+    gender: p.gender || undefined,
+    marital_status: p.marital_status || undefined,
+    date_of_birth: p.date_of_birth || undefined,
+    documents: docs,
+    bank_details: {
+      account_number: String(p.bank_account_number || '').trim(),
+      ifsc_code: String(p.bank_ifsc || '').trim().toUpperCase(),
+      bank_name: String(p.bank_name || '').trim() || null,
+      branch: String(p.bank_branch || '').trim() || null,
+      account_holder: String(p.bank_account_name || '').trim() || null,
+      address: [p.address, p.city, p.state, p.zip, p.country].filter(Boolean).join(', ') || null,
+      source: 'candidate_form',
+    },
+    updated_at: new Date().toISOString(),
+  };
+  for (const k of Object.keys(update)) if (update[k] === undefined) delete update[k];
+
+  const { error } = await admin.from('hr_employee_onboarding').update(update).eq('id', onboardingId);
+  if (error) return { ok: false, error: error.message };
+
+  await admin.from('hr_onboarding_audit_log').insert({
+    onboarding_id: onboardingId,
+    action: 'candidate_form_submitted',
+    details: { fields: Object.keys(update), documents: Object.keys(files) },
+  }).then(() => {}, () => {});
+
+  return { ok: true };
+}
+
+async function notifyHr(onboardingId: string, p: Record<string, any>) {
+  try {
+    const name = `${p.first_name || ''} ${p.last_name || ''}`.trim() || 'A candidate';
+    const { data: staff } = await admin
+      .from('user_roles')
+      .select('user_id, roles!inner(name)');
+    const targets = (staff || [])
+      .filter((r: any) => {
+        const n = String(r.roles?.name || '').toLowerCase();
+        return n === 'super admin' || n === 'admin' || n === 'hr' || n.startsWith('hr ') || n.endsWith(' hr');
+      })
+      .map((r: any) => r.user_id);
+    const unique = [...new Set(targets)];
+    if (!unique.length) return;
+    await admin.from('hr_notifications').insert(
+      unique.map((uid) => ({
+        user_id: uid,
+        type: 'onboarding_form_submitted',
+        title: 'Onboarding form submitted',
+        message: `${name} completed the candidate self-service onboarding form.`,
+        link: `/hrms/onboarding-pipeline?id=${onboardingId}`,
+        is_read: false,
+      })),
+    );
+  } catch (e) {
+    console.error('notifyHr failed', e);
+  }
+}
+
 Deno.serve(async (req) => {
+
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {

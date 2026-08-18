@@ -33,6 +33,7 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
   { key: "uan", label: "UAN (optional)", required: false },
   { key: "esic", label: "ESIC (optional)", required: false },
   { key: "pf_account_number", label: "PF Account Number (optional)", required: false, noFile: true },
+  { key: "previous_employer", label: "Previous Employer (optional)", required: false, noFile: true },
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {

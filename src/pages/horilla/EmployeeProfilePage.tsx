@@ -1524,8 +1524,16 @@ export default function EmployeeProfilePage() {
 
         {/* ── ATTENDANCE TAB ── */}
         {activeTab === "Attendance" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {emp && (
+              <EmployeeAttendanceCalendar
+                employeeId={emp.id}
+                employeeName={`${emp.first_name || ""} ${emp.last_name || ""}`.trim()}
+                badgeId={emp.badge_id}
+              />
+            )}
             <h3 className="text-base font-semibold text-foreground">Attendance (Last 30 Records)</h3>
+
             {(attendance || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No attendance records found</p>
             ) : (

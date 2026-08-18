@@ -206,26 +206,24 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             <Input type="date" value={form.date_of_birth} onChange={e => update("date_of_birth", e.target.value)} disabled={readOnly} />
           </div>
 
+          {/* Single free-text address capture. We still persist city / state /
+              PIN / country separately behind the scenes for payroll + statutory. */}
           <div className="sm:col-span-2">
             <Label>Address</Label>
-            <Input value={form.address} onChange={e => update("address", e.target.value)} disabled={readOnly} placeholder="House / street / locality" />
+            <Textarea
+              rows={2}
+              value={fullAddress}
+              onChange={e => updateAddress(e.target.value)}
+              disabled={readOnly}
+              placeholder="House / street / locality, City, State, PIN, Country"
+            />
+            {(form.city || form.state || form.zip || form.country) && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Saved as — City: {form.city || "—"} · State: {form.state || "—"} · PIN: {form.zip || "—"} · Country: {form.country || "—"}
+              </p>
+            )}
           </div>
-          <div>
-            <Label>City</Label>
-            <Input value={form.city} onChange={e => update("city", e.target.value)} disabled={readOnly} />
-          </div>
-          <div>
-            <Label>State</Label>
-            <Input value={form.state} onChange={e => update("state", e.target.value)} disabled={readOnly} />
-          </div>
-          <div>
-            <Label>PIN Code</Label>
-            <Input value={form.zip} onChange={e => update("zip", e.target.value)} disabled={readOnly} />
-          </div>
-          <div>
-            <Label>Country</Label>
-            <Input value={form.country} onChange={e => update("country", e.target.value)} disabled={readOnly} />
-          </div>
+
 
           <div>
             <Label>Department *</Label>

@@ -217,7 +217,8 @@ async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>)
   await admin.from('hr_onboarding_audit_log').insert({
     onboarding_id: onboardingId,
     action: 'candidate_form_submitted',
-    details: { fields: Object.keys(update), documents: Object.keys(files) },
+    stage: 1,
+    changed_fields: { fields: Object.keys(update), documents: Object.keys(files) },
   }).then(() => {}, () => {});
 
   return { ok: true };

@@ -139,13 +139,19 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
     hasRegister ? <ComplianceCell value={value} messages={messages} /> : <NotImported />;
 
   const flagsForRow = (r: any) => {
-    const p = r?.source_payload || {};
+    // Opfin stores the raw API envelope: { request, endpoint, response }.
+    // The payslip fields live under `response`; read both shapes.
+    const raw = r?.source_payload || {};
+    const p = raw.response ?? raw;
     const dnp = r?.do_not_pay ?? p["do-not-pay"] ?? p.do_not_pay ?? false;
     const paidOn = p["paid-on"] ?? p.paid_on ?? null;
     const paymentStatus = p["payment-status"] ?? p.payment_status ?? null;
     const isPaid = paymentStatus === "paid" || !!paidOn;
-    return { dnp: Boolean(dnp), paidOn, paymentStatus, isPaid };
+    // view-payroll never returns a payment state — absence is not "unpaid".
+    const statusKnown = paymentStatus != null || !!paidOn;
+    return { dnp: Boolean(dnp), paidOn, paymentStatus, isPaid, statusKnown };
   };
+
 
 
 
@@ -278,7 +284,12 @@ export function RazorpayPayslipsSection({ hrEmployeeId, razorpayEmployeeId }: Pr
                         <div className="flex gap-1 flex-wrap">
                           {f.dnp && <Badge variant="destructive" className="text-[10px]">Paused</Badge>}
                           {f.isPaid && <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40 text-[10px]">Paid{f.paidOn ? ` · ${f.paidOn}` : ""}</Badge>}
-                          {!f.isPaid && !f.dnp && <span className="text-[10px] text-muted-foreground">Unpaid</span>}
+                          {!f.isPaid && !f.dnp && (
+                            <span className="text-[10px] text-muted-foreground" title="RazorpayX's view-payroll API does not return a payment state for a payslip, so paid/unpaid can't be confirmed here.">
+                              {f.statusKnown ? "Unpaid" : "Not reported"}
+                            </span>
+                          )}
+
                         </div>
                       </td>
                       <td className="py-2.5 px-3 text-right text-foreground cursor-pointer" onClick={() => setOpenRow(r)}>{INR(d.gross)}</td>

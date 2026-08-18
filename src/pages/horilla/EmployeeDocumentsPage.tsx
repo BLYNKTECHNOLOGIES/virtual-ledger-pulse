@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileText, Plus, Search, CheckCircle, ExternalLink } from "lucide-react";
+import { FileText, Plus, Search, CheckCircle, ExternalLink, UploadCloud, Loader2, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -30,6 +30,40 @@ export default function EmployeeDocumentsPage() {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ employee_id: "", document_type: "", document_name: "", file_url: "", notes: "" });
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadedName, setUploadedName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (file: File) => {
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File is larger than 20 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `hr-uploads/${form.employee_id || "unassigned"}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage
+        .from("employee-documents")
+        .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type || undefined });
+      if (error) throw error;
+      const { data } = supabase.storage.from("employee-documents").getPublicUrl(path);
+      setForm((f) => ({
+        ...f,
+        file_url: data.publicUrl,
+        document_name: f.document_name || file.name.replace(/\.[^.]+$/, ""),
+      }));
+      setUploadedName(file.name);
+      toast.success("File uploaded");
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["hr_employee_documents"],
@@ -60,6 +94,8 @@ export default function EmployeeDocumentsPage() {
       qc.invalidateQueries({ queryKey: ["hr_employee_documents"] });
       setShowAdd(false);
       setForm({ employee_id: "", document_type: "", document_name: "", file_url: "", notes: "" });
+      setUploadedName("");
+
       toast.success("Document added");
     },
     onError: (e: any) => toast.error(e.message),
@@ -179,7 +215,62 @@ export default function EmployeeDocumentsPage() {
               </Select>
             </div>
             <div><Label>Document Name</Label><Input className="h-9 mt-1" value={form.document_name} onChange={(e) => setForm({ ...form, document_name: e.target.value })} placeholder="e.g. Aadhaar Card - Front" /></div>
-            <div><Label>File URL</Label><Input className="h-9 mt-1" value={form.file_url} onChange={(e) => setForm({ ...form, file_url: e.target.value })} placeholder="https://..." /></div>
+            <div>
+              <Label>Document File</Label>
+              {form.file_url ? (
+                <div className="mt-1 flex items-center gap-2 rounded-lg border border-border bg-muted/40 p-2.5">
+                  <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm text-foreground truncate flex-1">{uploadedName || "Attached file"}</span>
+                  <a href={form.file_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground p-1">
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => { setForm((f) => ({ ...f, file_url: "" })); setUploadedName(""); }}
+                    className="p-1 rounded-md text-muted-foreground hover:text-destructive"
+                    aria-label="Remove file"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOver(false);
+                    const f = e.dataTransfer.files?.[0];
+                    if (f) handleUpload(f);
+                  }}
+                  onClick={() => !uploading && fileInputRef.current?.click()}
+                  className={`mt-1 flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed p-5 text-center cursor-pointer transition-colors ${
+                    dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/40"
+                  }`}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
+                      <p className="text-xs text-muted-foreground">Uploading…</p>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="h-5 w-5 text-muted-foreground" />
+                      <p className="text-sm text-foreground">Drag & drop a file here, or click to browse</p>
+                      <p className="text-[11px] text-muted-foreground">PDF, JPG, PNG, DOC — up to 20 MB</p>
+                    </>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); e.target.value = ""; }}
+                  />
+                </div>
+              )}
+            </div>
+
             <div><Label>Notes</Label><Input className="h-9 mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
           </div>
           <DialogFooter>

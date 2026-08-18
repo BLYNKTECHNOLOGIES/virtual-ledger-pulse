@@ -128,7 +128,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
 
   const getPayload = () => ({
     documents: docs,
-    document_mail_received_at: mailReceivedDate || null,
     document_collection_status: allRequiredReceived ? "completed" : "pending",
   });
 
@@ -247,21 +246,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
               </div>
             );
           })}
-        </div>
-
-        {/* Mail received date */}
-        <div className="max-w-xs">
-          <Label>Mail Received Date (Optional)</Label>
-          <Input
-            type="date"
-            value={mailReceivedDate}
-            onChange={e => {
-              const nextDate = e.target.value;
-              setMailReceivedDate(nextDate);
-              persistDocs(docs, nextDate);
-            }}
-            disabled={readOnly}
-          />
         </div>
 
         <div className="flex items-center gap-2">

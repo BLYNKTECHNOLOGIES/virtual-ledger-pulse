@@ -70,27 +70,29 @@ export default function CompOffPage() {
         title="Comp-Off Management"
         description="Auto-credited for weekly-off/holiday work. Comp-off never carries forward: each month it is taken as leave, offset against that month's LOP, and any remainder is encashed in that month's payroll."
         actions={
-          <div className="flex items-center gap-3">
-            <EmployeePicker
-              employees={employees}
-              value={employeeFilter}
-              onChange={setEmployeeFilter}
-              placeholder="Filter by employee"
-              allOption={{ value: "", label: "All employees" }}
-              className="w-52 md:w-64"
-            />
-            {employeeFilter && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 shrink-0"
-                onClick={() => setEmployeeFilter("")}
-                aria-label="Clear employee filter"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-            <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24 h-9" min="2020" max="2030" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <EmployeePicker
+                employees={employees}
+                value={employeeFilter}
+                onChange={setEmployeeFilter}
+                placeholder="Filter by employee"
+                allOption={{ value: "", label: "All employees" }}
+                className="w-full sm:w-52 md:w-64"
+              />
+              {employeeFilter && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => setEmployeeFilter("")}
+                  aria-label="Clear employee filter"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-full sm:w-24 h-9" min="2020" max="2030" />
           </div>
         }
 

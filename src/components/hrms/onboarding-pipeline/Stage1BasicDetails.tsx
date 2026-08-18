@@ -74,6 +74,13 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         employee_type: normalizedType,
         probation_end_date: data.probation_end_date || "",
       });
+      setFullAddress(composeAddress({
+        address: data.address || "",
+        city: data.city || "",
+        state: data.state || "",
+        zip: data.zip || "",
+        country: data.country || "",
+      }));
       // If we rewrote the legacy value, mark dirty so the autosave persists
       // the normalized value back to the draft on the next tick.
       if (rawType && rawType !== normalizedType) {

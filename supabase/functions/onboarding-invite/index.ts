@@ -292,8 +292,13 @@ Deno.serve(async (req) => {
         .update({ payload: normalized, status: 'submitted', submitted_at: new Date().toISOString() })
         .eq('id', invite.id);
       if (upErr) return json({ error: upErr.message }, 500);
-      return json({ ok: true });
+
+      // Push the candidate's answers into the HR onboarding draft and alert HR.
+      const merge = await mergeIntoOnboarding(invite.onboarding_id, normalized);
+      await notifyHr(invite.onboarding_id, normalized);
+      return json({ ok: true, merged: merge.ok, mergeError: merge.error });
     }
+
 
     return json({ error: 'Unknown action' }, 400);
   } catch (e) {

@@ -37,8 +37,6 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
-  const [mailReceivedDate, setMailReceivedDate] = useState("");
-
   const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 

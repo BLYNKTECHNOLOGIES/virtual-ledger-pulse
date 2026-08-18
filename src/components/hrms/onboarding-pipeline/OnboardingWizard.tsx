@@ -88,7 +88,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
     "date_of_birth",
     "probation_end_date",
     "date_of_joining",
-    "document_mail_received_at",
     "document_email_sent_at",
     "razorpay_verified_at",
   ]);
@@ -145,7 +144,6 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
       "reporting_manager_id",
       "erp_role_id",
       "documents",
-      "document_mail_received_at",
       "offer_policy_documents",
       "bank_details",
       "razorpay_employee_id",

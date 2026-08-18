@@ -982,19 +982,9 @@ export default function EmployeeProfilePage() {
                     <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
                     <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
                     <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }]} />
-                    <InfoRow label="Qualification" value={emp.qualification} editKey="qualification" />
-                    <InfoRow label="Experience" value={emp.experience} editKey="experience" />
                   </div>
                 </div>
 
-                <div className="border border-border rounded-lg p-3 md:p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Emergency Contact</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-                    <InfoRow label="Name" value={emp.emergency_contact_name} editKey="emergency_contact_name" />
-                    <InfoRow label="Number" value={emp.emergency_contact} editKey="emergency_contact" />
-                    <InfoRow label="Relation" value={emp.emergency_contact_relation} editKey="emergency_contact_relation" />
-                  </div>
-                </div>
 
                 <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Statutory</p>

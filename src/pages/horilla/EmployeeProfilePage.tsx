@@ -1242,7 +1242,7 @@ export default function EmployeeProfilePage() {
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Work Phone</label>
-                    <input type="text" value={workInfoForm.work_phone || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_phone: e.target.value })} className={inputCls} />
+                    <input type="text" value={workInfoForm.work_phone || ""} placeholder={emp?.phone ? `${emp.phone} (personal)` : ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_phone: e.target.value })} className={inputCls} />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Basic Salary</label>

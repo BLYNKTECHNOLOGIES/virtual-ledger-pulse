@@ -5,10 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User } from "lucide-react";
 import { CandidateInviteCard } from "./CandidateInviteCard";
+import { composeAddress, parseAddress } from "@/lib/addressParse";
 
 interface Stage1Props {
   data: any;
@@ -39,6 +41,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     employee_type: "",
     probation_end_date: "",
   });
+  const [fullAddress, setFullAddress] = useState("");
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,6 +74,13 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         employee_type: normalizedType,
         probation_end_date: data.probation_end_date || "",
       });
+      setFullAddress(composeAddress({
+        address: data.address || "",
+        city: data.city || "",
+        state: data.state || "",
+        zip: data.zip || "",
+        country: data.country || "",
+      }));
       // If we rewrote the legacy value, mark dirty so the autosave persists
       // the normalized value back to the draft on the next tick.
       if (rawType && rawType !== normalizedType) {
@@ -126,6 +136,16 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     dirtyRef.current = true;
     setForm(prev => ({ ...prev, [field]: value }));
   };
+
+  // One input, structured storage: parse the typed line into
+  // address / city / state / zip / country on every keystroke.
+  const updateAddress = (value: string) => {
+    dirtyRef.current = true;
+    setFullAddress(value);
+    const parsed = parseAddress(value);
+    setForm(prev => ({ ...prev, ...parsed }));
+  };
+
 
   const validate = () => {
     if (!form.first_name.trim()) { toast.error("First name is required"); return false; }
@@ -206,26 +226,24 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
             <Input type="date" value={form.date_of_birth} onChange={e => update("date_of_birth", e.target.value)} disabled={readOnly} />
           </div>
 
+          {/* Single free-text address capture. We still persist city / state /
+              PIN / country separately behind the scenes for payroll + statutory. */}
           <div className="sm:col-span-2">
             <Label>Address</Label>
-            <Input value={form.address} onChange={e => update("address", e.target.value)} disabled={readOnly} placeholder="House / street / locality" />
+            <Textarea
+              rows={2}
+              value={fullAddress}
+              onChange={e => updateAddress(e.target.value)}
+              disabled={readOnly}
+              placeholder="House / street / locality, City, State, PIN, Country"
+            />
+            {(form.city || form.state || form.zip || form.country) && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Saved as — City: {form.city || "—"} · State: {form.state || "—"} · PIN: {form.zip || "—"} · Country: {form.country || "—"}
+              </p>
+            )}
           </div>
-          <div>
-            <Label>City</Label>
-            <Input value={form.city} onChange={e => update("city", e.target.value)} disabled={readOnly} />
-          </div>
-          <div>
-            <Label>State</Label>
-            <Input value={form.state} onChange={e => update("state", e.target.value)} disabled={readOnly} />
-          </div>
-          <div>
-            <Label>PIN Code</Label>
-            <Input value={form.zip} onChange={e => update("zip", e.target.value)} disabled={readOnly} />
-          </div>
-          <div>
-            <Label>Country</Label>
-            <Input value={form.country} onChange={e => update("country", e.target.value)} disabled={readOnly} />
-          </div>
+
 
           <div>
             <Label>Department *</Label>

@@ -281,6 +281,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, sentTo: to, sentFrom });
     }
 
+    // HR can re-pull an already-submitted candidate form into the draft.
+    if (action === 'reimport') {
+      const auth = await requireHr(req);
+      if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
+      const onboardingId = String(body?.onboardingId || '');
+      if (!onboardingId) return json({ error: 'onboardingId is required' }, 400);
+      const { data: inv } = await admin
+        .from('hr_onboarding_invites')
+        .select('payload, status')
+        .eq('onboarding_id', onboardingId)
+        .eq('status', 'submitted')
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!inv?.payload) return json({ error: 'No submitted candidate form found' }, 404);
+      const r = await mergeIntoOnboarding(onboardingId, inv.payload as Record<string, any>);
+      if (!r.ok) return json({ error: r.error || 'Merge failed' }, 500);
+      return json({ ok: true });
+    }
+
     if (action === 'issue' || action === 'send') {
 
       const auth = await requireHr(req);

@@ -27,11 +27,13 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
   { key: "passport_photo", label: "Passport Photo", required: true },
   { key: "bank_details", label: "Bank Details (Cheque/Passbook)", required: true },
   { key: "educational_certificate", label: "Educational Certificate", required: true },
-  { key: "experience_letter", label: "Previous Experience Letter", required: false },
+  // The experience letter row doubles as the previous-employer capture: its
+  // text field holds the employer name coming from the candidate email form.
+  { key: "experience_letter", label: "Previous Experience Letter", required: false, valuePlaceholder: "Previous employer name" },
   { key: "uan", label: "UAN (optional)", required: false },
   { key: "esic", label: "ESIC (optional)", required: false },
   { key: "pf_account_number", label: "PF Account Number (optional)", required: false, noFile: true },
-  { key: "previous_employer", label: "Previous Employer (optional)", required: false, noFile: true },
+
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {

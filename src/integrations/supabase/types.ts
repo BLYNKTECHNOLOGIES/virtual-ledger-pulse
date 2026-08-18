@@ -28466,6 +28466,7 @@ export type Database = {
           closed: number
           opened: number
           refreshed: number
+          still_open: number
         }[]
       }
       indian_financial_year: { Args: { d: string }; Returns: string }

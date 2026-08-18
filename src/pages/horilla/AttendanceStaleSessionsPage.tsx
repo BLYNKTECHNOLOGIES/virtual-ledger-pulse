@@ -59,7 +59,12 @@ export default function AttendanceStaleSessionsPage() {
       return data;
     },
     onSuccess: (d: any) => {
-      toast.success(`Watchdog: +${d?.opened || 0} new, ${d?.refreshed || 0} refreshed, ${d?.closed || 0} closed`);
+      const stillOpen = d?.still_open ?? 0;
+      toast.success(
+        stillOpen > 0
+          ? `Watchdog: ${stillOpen} session${stillOpen === 1 ? "" : "s"} still open`
+          : `Watchdog: nothing open (${(d?.auto_resolved || 0) + (d?.closed || 0)} auto-resolved)`
+      );
       qc.invalidateQueries({ queryKey: ["hr_stale_sessions"] });
     },
     onError: (e: any) => toast.error(e?.message || "Watchdog failed"),

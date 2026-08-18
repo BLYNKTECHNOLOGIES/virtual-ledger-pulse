@@ -1074,31 +1074,13 @@ export default function EmployeeListPage() {
         </div>
       )}
 
-      {/* ─── Pagination (Horilla style) ─── */}
-      {sorted.length > pageSize && (
-        <div className="flex items-center justify-between mt-4 px-1">
-          <p className="text-xs text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{currentPage} / {totalPages}</span>
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+      {/* Pagination removed — the full roster renders on one page */}
+      {sorted.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-3 px-1">
+          Showing all {sorted.length} employee{sorted.length === 1 ? "" : "s"}
+        </p>
       )}
+
 
       {/* ─── Dialogs ─── */}
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} departments={departments || []} positions={positions || []} />

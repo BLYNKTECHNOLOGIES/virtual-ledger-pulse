@@ -21,7 +21,7 @@ interface Stage3Props {
 
 // `noValue: true` means the doc has NO textual/numeric field — file upload only.
 // `noFile: true` means the doc is a number/text input only — no file upload.
-const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean; noFile?: boolean }> = [
+const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean; noFile?: boolean; valuePlaceholder?: string }> = [
   { key: "pan", label: "PAN Card", required: true },
   { key: "aadhaar", label: "Aadhaar Card", required: true },
   { key: "passport_photo", label: "Passport Photo", required: true },

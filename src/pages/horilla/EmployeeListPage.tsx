@@ -5,11 +5,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search, Plus, Filter, LayoutGrid, List, MoreVertical,
   Mail, Phone, Building2, ChevronDown, ChevronUp, Download, Upload,
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3,
-  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock
+  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock,
+  Briefcase, MapPin, BadgeCheck, Loader2
 } from "lucide-react";
+
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
@@ -455,66 +461,72 @@ export default function EmployeeListPage() {
   };
 
   // ─── Bulk status change ───
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+
   const handleBulkStatusChange = async (active: boolean) => {
-    if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
-    try {
-      for (const id of selectedIds) {
-        await supabase.from("hr_employees").update({ is_active: active }).eq("id", id);
-      }
-      toast.success(`${selectedIds.size} employee(s) ${active ? "activated" : "deactivated"}`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
-      setSelectedIds(new Set());
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to update status");
+    if (selectedIds.size === 0) { toast.error("Select at least one employee first"); return; }
+    setBusyAction(active ? "activate" : "deactivate");
+    let ok = 0; const failures: string[] = [];
+    for (const id of selectedIds) {
+      const { error } = await supabase.from("hr_employees").update({ is_active: active }).eq("id", id);
+      if (error) failures.push(error.message); else ok++;
     }
+    setBusyAction(null);
+    queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+    if (ok) toast.success(`${ok} employee(s) ${active ? "activated" : "deactivated"}`);
+    if (failures.length) toast.error(`${failures.length} failed — ${failures[0]}`);
+    if (ok) setSelectedIds(new Set());
+    setActionsOpen(false);
   };
 
-  // ─── Bulk department transfer ───
-  const [bulkDeptOpen, setBulkDeptOpen] = useState(false);
-  const [bulkDeptId, setBulkDeptId] = useState("");
-  const handleBulkDeptTransfer = async () => {
-    if (!bulkDeptId || selectedIds.size === 0) return;
-    try {
-      for (const id of selectedIds) {
-        const wi = getWorkInfo(id);
-        if (wi) {
-          await supabase.from("hr_employee_work_info").update({ department_id: bulkDeptId }).eq("id", wi.id);
-        }
-      }
-      toast.success(`${selectedIds.size} employee(s) transferred`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
-      setSelectedIds(new Set());
-      setBulkDeptOpen(false);
-      setBulkDeptId("");
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to transfer");
-    }
+  // ─── Generic bulk work-info assignment ─────────────────────────────────────
+  // Every "assign X to many employees" action funnels through here so behaviour
+  // is identical: creates the work-info row when an employee has none, checks
+  // the error on every write, and reports exact success/failure counts.
+  type BulkFieldKey = "department_id" | "job_position_id" | "shift_id" | "work_type" | "employee_type";
+  const [bulkField, setBulkField] = useState<BulkFieldKey | null>(null);
+  const [bulkValue, setBulkValue] = useState("");
+
+  const BULK_FIELDS: Record<BulkFieldKey, { title: string; label: string; options: () => { value: string; label: string }[] }> = {
+    department_id: { title: "Transfer department", label: "Department", options: () => (departments || []).map((d: any) => ({ value: d.id, label: d.name })) },
+    job_position_id: { title: "Assign job position", label: "Job position", options: () => (positions || []).map((p: any) => ({ value: p.id, label: p.title })) },
+    shift_id: { title: "Assign shift", label: "Shift", options: () => (shifts || []).map((s: any) => ({ value: s.id, label: s.name })) },
+    work_type: { title: "Set work type", label: "Work type", options: () => [
+      { value: "office", label: "Office" }, { value: "on-site", label: "On-site" },
+      { value: "remote", label: "Remote" }, { value: "hybrid", label: "Hybrid" },
+    ] },
+    employee_type: { title: "Set employment type", label: "Employment type", options: () => EMPLOYEE_TYPES.map((t: any) => (
+      typeof t === "string" ? { value: t, label: employeeTypeLabel(t) } : { value: t.value, label: t.label }
+    )) },
   };
 
-  // ─── Bulk shift assign ───
-  const [bulkShiftOpen, setBulkShiftOpen] = useState(false);
-  const [bulkShiftId, setBulkShiftId] = useState("");
-  const handleBulkShiftAssign = async () => {
-    if (!bulkShiftId || selectedIds.size === 0) return;
-    try {
-      for (const id of selectedIds) {
-        const wi = getWorkInfo(id);
-        if (wi) {
-          await supabase.from("hr_employee_work_info").update({ shift_id: bulkShiftId }).eq("id", wi.id);
-        }
-      }
-      toast.success(`${selectedIds.size} employee(s) shift updated`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
-      setSelectedIds(new Set());
-      setBulkShiftOpen(false);
-      setBulkShiftId("");
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to assign shift");
+  const runBulkWorkInfo = async () => {
+    if (!bulkField || !bulkValue || selectedIds.size === 0) return;
+    setBusyAction("workinfo");
+    let ok = 0; const failures: string[] = [];
+    for (const id of selectedIds) {
+      const wi = getWorkInfo(id);
+      const { error } = wi
+        ? await supabase.from("hr_employee_work_info").update({ [bulkField]: bulkValue } as any).eq("id", wi.id)
+        : await supabase.from("hr_employee_work_info").insert({ employee_id: id, [bulkField]: bulkValue } as any);
+      if (error) failures.push(error.message); else ok++;
     }
+    setBusyAction(null);
+    queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+    if (ok) toast.success(`${BULK_FIELDS[bulkField].title} — updated ${ok} employee(s)`);
+    if (failures.length) toast.error(`${failures.length} failed — ${failures[0]}`);
+    if (!failures.length) setSelectedIds(new Set());
+    setBulkField(null);
+    setBulkValue("");
   };
+
+  const hasSelection = selectedIds.size > 0;
+  const openBulkField = (key: BulkFieldKey) => {
+    if (!hasSelection) { toast.error("Select at least one employee first"); return; }
+    setBulkValue("");
+    setBulkField(key);
+  };
+
 
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();
@@ -607,58 +619,67 @@ export default function EmployeeListPage() {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="relative">
-            <button
-              onClick={() => setActionsOpen(!actionsOpen)}
+          {/* Actions — bulk operations on the checked rows */}
+          <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground hover:bg-muted transition-colors">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Actions
+                {selectedIds.size > 0 && (
+                  <span className="ml-1 rounded-full bg-primary/10 text-primary text-[11px] px-1.5">{selectedIds.size}</span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                {hasSelection
+                  ? `${selectedIds.size} employee(s) selected`
+                  : "Tick rows to enable bulk actions"}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleExport()}>
+                <Download className="h-3.5 w-3.5" /> Export {hasSelection ? "selected" : "all"} (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExportCsv()}>
+                <Download className="h-3.5 w-3.5" /> Export {hasSelection ? "selected" : "all"} (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("department_id")}>
+                <Building2 className="h-3.5 w-3.5" /> Transfer department
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("job_position_id")}>
+                <Briefcase className="h-3.5 w-3.5" /> Assign job position
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("shift_id")}>
+                <Clock className="h-3.5 w-3.5" /> Assign shift
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("work_type")}>
+                <MapPin className="h-3.5 w-3.5" /> Set work type
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("employee_type")}>
+                <BadgeCheck className="h-3.5 w-3.5" /> Set employment type
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!hasSelection || !!busyAction} onSelect={() => handleBulkStatusChange(true)}>
+                <UserCheck className="h-3.5 w-3.5" /> Activate
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection || !!busyAction} onSelect={() => handleBulkStatusChange(false)}>
+                <UserX className="h-3.5 w-3.5" /> Deactivate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => setSelectedIds(new Set())}>
+                <X className="h-3.5 w-3.5" /> Clear selection
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!hasSelection}
+                className="text-destructive focus:text-destructive"
+                onSelect={() => handleBulkDelete()}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete selected
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-              className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground hover:bg-muted transition-colors"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Actions
-            </button>
-            {actionsOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
-                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-md py-1 min-w-[160px] z-50">
-                  <button
-                    onClick={() => { handleExport(); setActionsOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Export
-                  </button>
-                  <hr className="my-1 border-border" />
-                  <button onClick={() => { setBulkDeptOpen(true); setActionsOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <Building2 className="h-3.5 w-3.5" /> Bulk Dept Transfer
-                  </button>
-                  <button onClick={() => { setBulkShiftOpen(true); setActionsOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <Clock className="h-3.5 w-3.5" /> Bulk Shift Assign
-                  </button>
-                  <button onClick={() => handleBulkStatusChange(true)}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <UserCheck className="h-3.5 w-3.5" /> Bulk Activate
-                  </button>
-                  <button onClick={() => handleBulkStatusChange(false)}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <UserX className="h-3.5 w-3.5" /> Bulk Deactivate
-                  </button>
-                  <hr className="my-1 border-border" />
-                  <button
-                    onClick={handleBulkDelete}
-                    className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Bulk Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
 
           {/* Create — employees can only be onboarded via the pipeline (or synced from RazorpayX). Route to the onboarding page instead of opening an ad-hoc dialog. */}
           <button
@@ -1090,47 +1111,34 @@ export default function EmployeeListPage() {
         positions={positions || []}
       />
 
-      {/* Bulk Department Transfer Dialog */}
-      {bulkDeptOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      {/* Generic bulk work-info assignment dialog (department / position / shift / work type / employment type) */}
+      {bulkField && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-popover rounded-xl border border-border w-full max-w-sm shadow-2xl p-5 space-y-4">
-            <h3 className="text-base font-semibold text-foreground">Bulk Department Transfer</h3>
+            <h3 className="text-base font-semibold text-foreground">{BULK_FIELDS[bulkField].title}</h3>
             <p className="text-sm text-muted-foreground">{selectedIds.size} employee(s) selected</p>
-            <select value={bulkDeptId} onChange={e => setBulkDeptId(e.target.value)}
-              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground">
-              <option value="">Select department...</option>
-              {(departments || []).map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            <select
+              value={bulkValue}
+              onChange={e => setBulkValue(e.target.value)}
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground"
+            >
+              <option value="">Select {BULK_FIELDS[bulkField].label.toLowerCase()}...</option>
+              {BULK_FIELDS[bulkField].options().map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
             </select>
             <div className="flex justify-end gap-2">
-              <button onClick={() => { setBulkDeptOpen(false); setBulkDeptId(""); }}
+              <button onClick={() => { setBulkField(null); setBulkValue(""); }}
                 className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={handleBulkDeptTransfer} disabled={!bulkDeptId}
-                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40">Transfer</button>
+              <button onClick={runBulkWorkInfo} disabled={!bulkValue || busyAction === "workinfo"}
+                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40 flex items-center gap-2">
+                {busyAction === "workinfo" && <Loader2 className="h-3.5 w-3.5 animate-spin" />} Apply
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Bulk Shift Assign Dialog */}
-      {bulkShiftOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-popover rounded-xl border border-border w-full max-w-sm shadow-2xl p-5 space-y-4">
-            <h3 className="text-base font-semibold text-foreground">Bulk Shift Assignment</h3>
-            <p className="text-sm text-muted-foreground">{selectedIds.size} employee(s) selected</p>
-            <select value={bulkShiftId} onChange={e => setBulkShiftId(e.target.value)}
-              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background text-foreground">
-              <option value="">Select shift...</option>
-              {(shifts || []).map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <div className="flex justify-end gap-2">
-              <button onClick={() => { setBulkShiftOpen(false); setBulkShiftId(""); }}
-                className="px-4 py-2 text-sm text-muted-foreground hover:bg-muted rounded-lg">Cancel</button>
-              <button onClick={handleBulkShiftAssign} disabled={!bulkShiftId}
-                className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-40">Assign</button>
-            </div>
-          </div>
-        </div>
-      )}
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

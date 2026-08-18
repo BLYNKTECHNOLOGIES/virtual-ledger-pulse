@@ -30,6 +30,40 @@ export default function EmployeeDocumentsPage() {
   const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ employee_id: "", document_type: "", document_name: "", file_url: "", notes: "" });
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadedName, setUploadedName] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = async (file: File) => {
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File is larger than 20 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `hr-uploads/${form.employee_id || "unassigned"}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage
+        .from("employee-documents")
+        .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type || undefined });
+      if (error) throw error;
+      const { data } = supabase.storage.from("employee-documents").getPublicUrl(path);
+      setForm((f) => ({
+        ...f,
+        file_url: data.publicUrl,
+        document_name: f.document_name || file.name.replace(/\.[^.]+$/, ""),
+      }));
+      setUploadedName(file.name);
+      toast.success("File uploaded");
+    } catch (e: any) {
+      toast.error(e?.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["hr_employee_documents"],

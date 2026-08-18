@@ -129,6 +129,16 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  // One input, structured storage: parse the typed line into
+  // address / city / state / zip / country on every keystroke.
+  const updateAddress = (value: string) => {
+    dirtyRef.current = true;
+    setFullAddress(value);
+    const parsed = parseAddress(value);
+    setForm(prev => ({ ...prev, ...parsed }));
+  };
+
+
   const validate = () => {
     if (!form.first_name.trim()) { toast.error("First name is required"); return false; }
     if (!form.email.trim()) { toast.error("Email is required"); return false; }

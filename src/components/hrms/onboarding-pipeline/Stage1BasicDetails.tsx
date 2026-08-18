@@ -187,6 +187,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
                 <SelectItem value="Married">Married</SelectItem>
                 <SelectItem value="Divorced">Divorced</SelectItem>
                 <SelectItem value="Widowed">Widowed</SelectItem>
+                <SelectItem value="Other">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>

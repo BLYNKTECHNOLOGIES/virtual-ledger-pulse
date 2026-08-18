@@ -153,18 +153,21 @@ export default function DepartmentsPage() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filteredDepts.map((d) => (
+          {filteredDepts.map((d) => {
+            const { Icon: DeptIcon, tone } = getDepartmentVisual(d.name, d.code);
+            return (
             <div key={d.id} className="bg-card rounded-xl border border-border p-4 sm:p-5 hover:shadow-md transition-shadow min-w-0">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold tracking-wide text-primary">
-                    {(d.code || d.name || "").slice(0, 2).toUpperCase()}
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${tone}`} title={d.name}>
+                    <DeptIcon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
                     <p className="font-semibold text-foreground break-words">{d.name}</p>
                     <p className="text-xs text-muted-foreground break-words">{d.code}</p>
                   </div>
                 </div>
+
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => toggleActiveMutation.mutate({ id: d.id, isActive: d.is_active })}

@@ -86,14 +86,26 @@ function DepositCard({ deposit }: { deposit: any }) {
   const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund", refund: "Refund" };
   const txTypeColor: Record<string, string> = { collection: "text-success", penalty_deduction: "text-destructive", replenishment: "text-info", ff_refund: "text-primary", refund: "text-primary" };
 
+  const refunded = deposit.refund_status === "refunded" || deposit.is_recovered || deposit.is_settled;
+
   return (
     <div className="border border-border rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">{DEPOSIT_TYPE_LABEL[deposit.deposit_type || "security"]}</p>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${deposit.is_fully_collected ? "bg-success/10 text-success" : deposit.is_paused ? "bg-muted text-muted-foreground" : "bg-warning/10 text-warning"}`}>
-          {deposit.is_fully_collected ? "Fully Collected" : deposit.is_paused ? "Paused" : "Collecting"}
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${refunded ? "bg-primary/10 text-primary" : deposit.is_fully_collected ? "bg-success/10 text-success" : deposit.is_paused ? "bg-muted text-muted-foreground" : "bg-warning/10 text-warning"}`}>
+          {refunded ? "Paid back" : deposit.is_fully_collected ? "Fully Collected" : deposit.is_paused ? "Paused" : "Collecting"}
         </span>
       </div>
+
+      {refunded && (
+        <div className="text-xs text-muted-foreground space-y-0.5 rounded-md bg-muted/40 p-2">
+          <p>Paid back: <span className="text-foreground font-medium">₹{Number(deposit.refund_amount || 0).toLocaleString("en-IN")}</span>{deposit.refund_period_month ? ` (payroll ${String(deposit.refund_period_month).slice(0, 7)})` : ""}</p>
+          {Number(deposit.withheld_amount) > 0 && (
+            <p>Withheld: <span className="text-foreground font-medium">₹{Number(deposit.withheld_amount).toLocaleString("en-IN")}</span> — {deposit.withheld_reason || "—"}</p>
+          )}
+        </div>
+      )}
+
 
       {deposit.deposit_type === "error_recovery" && (deposit.incident_reference || deposit.incident_date || deposit.recovery_reason) && (
         <div className="text-xs text-muted-foreground space-y-0.5">

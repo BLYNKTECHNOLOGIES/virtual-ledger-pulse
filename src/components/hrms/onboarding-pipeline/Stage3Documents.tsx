@@ -3,9 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -37,8 +35,6 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
-  const [mailReceivedDate, setMailReceivedDate] = useState("");
-
   const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
@@ -54,13 +50,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
       };
     });
     setDocs(init);
-    setMailReceivedDate(data?.document_mail_received_at || "");
   }, [data]);
 
 
   const persistDocs = async (
     nextDocs: typeof docs,
-    nextMailDate: string = mailReceivedDate,
   ) => {
     if (!onboardingData?.id) return;
     const allReq = DOC_FIELDS.filter(f => f.required).every(f => nextDocs[f.key]?.received);
@@ -69,7 +63,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         .from("hr_employee_onboarding")
         .update({
           documents: nextDocs,
-          document_mail_received_at: nextMailDate || null,
           document_collection_status: allReq ? "completed" : "pending",
           updated_at: new Date().toISOString(),
         } as any)
@@ -133,7 +126,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
 
   const getPayload = () => ({
     documents: docs,
-    document_mail_received_at: mailReceivedDate || null,
     document_collection_status: allRequiredReceived ? "completed" : "pending",
   });
 
@@ -252,21 +244,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
               </div>
             );
           })}
-        </div>
-
-        {/* Mail received date */}
-        <div className="max-w-xs">
-          <Label>Mail Received Date (Optional)</Label>
-          <Input
-            type="date"
-            value={mailReceivedDate}
-            onChange={e => {
-              const nextDate = e.target.value;
-              setMailReceivedDate(nextDate);
-              persistDocs(docs, nextDate);
-            }}
-            disabled={readOnly}
-          />
         </div>
 
         <div className="flex items-center gap-2">

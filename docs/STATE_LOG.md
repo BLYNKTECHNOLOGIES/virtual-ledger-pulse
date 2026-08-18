@@ -1,3 +1,4 @@
+- 2026-08-18: Onboarding Stage 3 "Mail Received Date" field and its input removed from UI and the unused `document_mail_received_at` column dropped from `hr_employee_onboarding`.
 - 2026-08-17: Compliance Management Phase 1 shipped — Pending Approvals, Lien Cases, and Account Status mounted; status vocabulary unified (OPEN/UNDER_INVESTIGATION/PENDING_APPROVAL/RESOLVED/CLOSED); bank_case↔account_investigation sync trigger added; RLS tightened to permission-checked policies; compliance_approve permission added.
 - 2026-08-14: Data Health now excludes anonymized ERP deletion tombstones at the database-view source; deleted users remain only for immutable audit attribution and no longer appear as actionable account issues.
 - 2026-08-14: ERP deletion v5 preserves immutable bank-ledger creator references through inactive audit tombstones while removing roles, personal login data, and Auth access; append-only history remains hash-valid.

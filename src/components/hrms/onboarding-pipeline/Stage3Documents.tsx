@@ -52,13 +52,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
       };
     });
     setDocs(init);
-    setMailReceivedDate(data?.document_mail_received_at || "");
   }, [data]);
 
 
   const persistDocs = async (
     nextDocs: typeof docs,
-    nextMailDate: string = mailReceivedDate,
   ) => {
     if (!onboardingData?.id) return;
     const allReq = DOC_FIELDS.filter(f => f.required).every(f => nextDocs[f.key]?.received);
@@ -67,7 +65,6 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         .from("hr_employee_onboarding")
         .update({
           documents: nextDocs,
-          document_mail_received_at: nextMailDate || null,
           document_collection_status: allReq ? "completed" : "pending",
           updated_at: new Date().toISOString(),
         } as any)

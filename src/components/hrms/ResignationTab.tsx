@@ -212,9 +212,11 @@ export function ResignationTab() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  // Toggle checklist item
+  // Toggle checklist item.
+  // Ticking "ID card / access badge returned" also removes the employee from
+  // every registered eSSL biometric device (queued DELETE USERINFO command).
   const toggleChecklist = useMutation({
-    mutationFn: async ({ id, is_completed }: { id: string; is_completed: boolean }) => {
+    mutationFn: async ({ id, is_completed, item_title }: { id: string; is_completed: boolean; item_title?: string }) => {
       const { error } = await supabase
         .from("hr_resignation_checklist")
         .update({
@@ -223,9 +225,37 @@ export function ResignationTab() {
         })
         .eq("id", id);
       if (error) throw error;
+
+      const t = (item_title || "").toLowerCase();
+      const isBadgeItem = t.includes("id card") || t.includes("access badge") || t.includes("badge returned");
+      if (is_completed && isBadgeItem && selectedEmployee?.id) {
+        const res = await deleteFromEssl(selectedEmployee.id, {
+          triggeredFrom: "exit_checklist",
+          silent: true,
+        });
+        return { essl: res };
+      }
+      return {};
     },
-    onSuccess: () => refetchChecklist(),
+    onSuccess: (res: any) => {
+      refetchChecklist();
+      const essl = res?.essl;
+      if (!essl) return;
+      if (essl.ok) {
+        toast.success(`Biometric access removed — delete queued on ${essl.queued_count} device(s), applies on next poll`);
+      } else if (essl.skipped) {
+        toast.info(
+          essl.reason === "no_badge_id"
+            ? "No biometric PIN linked to this employee — nothing to delete"
+            : "No biometric devices registered — nothing to delete",
+        );
+      } else {
+        toast.warning(`Biometric removal failed: ${essl.error || "unknown error"} — remove the user on the device manually`);
+      }
+    },
+    onError: (err: any) => toast.error(err.message),
   });
+
 
   // Complete resignation — deactivate employee, auto-create F&F with calculated values, show acknowledgement
   const completeResignation = useMutation({

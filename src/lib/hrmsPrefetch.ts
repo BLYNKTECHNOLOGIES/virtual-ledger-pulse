@@ -60,7 +60,6 @@ const ROUTE_MODULE: Record<string, string> = {
   "/hrms/leave/holidays": "HolidaysPage",
   "/hrms/leave/comp-off": "CompOffPage",
   "/hrms/leave/accrual-plans": "LeaveAccrualPlansPage",
-  "/hrms/leave/year-end-reset": "LeaveYearEndResetPage",
   "/hrms/leave/weekly-off": "WeeklyOffPage",
 
   "/hrms/payroll": "PayrollDashboardPage",

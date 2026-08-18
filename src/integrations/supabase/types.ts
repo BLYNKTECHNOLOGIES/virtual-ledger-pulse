@@ -27083,17 +27083,7 @@ export type Database = {
         }
         Returns: Json
       }
-      execute_leave_reset: {
-        Args: { p_year?: number }
-        Returns: {
-          action: string
-          carried_forward: number
-          employee_id: string
-          leave_type: string
-          new_balance: number
-          old_balance: number
-        }[]
-      }
+      execute_leave_reset: { Args: { _year: number }; Returns: undefined }
       extend_terminal_biometric_session: {
         Args: { p_token: string; p_user_id: string }
         Returns: boolean

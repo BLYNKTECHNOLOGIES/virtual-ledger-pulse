@@ -1,0 +1,1 @@
+select cron.unschedule('hr-year-end-leave-reset');

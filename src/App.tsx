@@ -99,7 +99,6 @@ const PenaltyManagementPage = lazy(() => import('./pages/horilla/PenaltyManageme
 const CompOffPage = lazy(() => import('./pages/horilla/CompOffPage'));
 const DepositManagementPage = lazy(() => import('./pages/horilla/DepositManagementPage'));
 const LoansPage = lazy(() => import('./pages/horilla/LoansPage'));
-const LeaveYearEndResetPage = lazy(() => import('./pages/horilla/LeaveYearEndResetPage'));
 const FnFSettlementPage = lazy(() => import('./pages/horilla/FnFSettlementPage'));
 const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumentsPage'));
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
@@ -748,7 +747,6 @@ const router = createBrowserRouter([
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
         { path: "leave/comp-off", element: <CompOffPage /> },
-        { path: "leave/year-end-reset", element: <LeaveYearEndResetPage /> },
         { path: "leave/accrual-plans", element: <LeaveAccrualPlansPage /> },
         { path: "leave/allocation-requests", element: <LeaveAllocationRequestsPage /> },
         { path: "leave/weekly-off", element: <WeeklyOffPage /> },

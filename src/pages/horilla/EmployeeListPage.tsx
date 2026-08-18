@@ -12,7 +12,7 @@ import {
   Search, Plus, Filter, LayoutGrid, List, MoreVertical,
   Mail, Phone, Building2, ChevronDown, ChevronUp, Download, Upload,
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3,
-  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock,
+  ArrowUpDown, Save, SlidersHorizontal, Clock,
   Briefcase, MapPin, BadgeCheck, Loader2
 } from "lucide-react";
 
@@ -122,13 +122,11 @@ export default function EmployeeListPage() {
   const [pendingFilterField, setPendingFilterField] = useState("");
   const [pendingFilterValue, setPendingFilterValue] = useState("");
   const [sort, setSort] = useState<SortState>({ column: null, direction: null });
-  const [currentPage, setCurrentPage] = useState(1);
   const [colPickerOpen, setColPickerOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(ALL_TABLE_COLS.map(c => c.key));
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
-  const pageSize = viewMode === "grid" ? 12 : 20;
 
   // ─── Queries ───
   const { data: employees, isLoading } = useQuery({

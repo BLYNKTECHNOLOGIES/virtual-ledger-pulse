@@ -165,7 +165,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                   </div>
                   {!readOnly && f.key !== "pan" && !f.noValue && (
                     <Input
-                      placeholder={`${f.label} number`}
+                      placeholder={f.valuePlaceholder || `${f.label} number`}
                       className="max-w-[220px] h-8"
                       value={d?.value || ""}
                       onChange={e => updateDocValue(f.key, e.target.value)}

@@ -122,6 +122,7 @@ export default function EmployeeListPage() {
   const [pendingFilterField, setPendingFilterField] = useState("");
   const [pendingFilterValue, setPendingFilterValue] = useState("");
   const [sort, setSort] = useState<SortState>({ column: null, direction: null });
+  const setCurrentPage = (_: number | ((p: number) => number)) => {}; // pagination removed
   const [colPickerOpen, setColPickerOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(ALL_TABLE_COLS.map(c => c.key));
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);

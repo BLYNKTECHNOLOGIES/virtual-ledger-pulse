@@ -116,11 +116,34 @@ export function CandidateInviteCard({ onboardingId, email }: { onboardingId?: st
         </div>
 
         {invite?.submitted_at && (
-          <div className="flex items-center gap-2 text-sm text-emerald-700">
-            <CheckCircle2 className="h-4 w-4" />
-            Candidate submitted on {new Date(invite.submitted_at).toLocaleString("en-IN")}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-emerald-700">
+            <span className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4" />
+              Candidate submitted on {new Date(invite.submitted_at).toLocaleString("en-IN")}
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={busy !== null}
+              onClick={async () => {
+                setBusy("reimport");
+                const { data, error } = await supabase.functions.invoke("onboarding-invite", {
+                  body: { action: "reimport", onboardingId },
+                });
+                setBusy(null);
+                const res = data as any;
+                if (error || res?.error) { toast.error(res?.error || "Could not import the submission"); return; }
+                qc.invalidateQueries({ queryKey: ["onboarding_record", onboardingId] });
+                qc.invalidateQueries();
+                toast.success("Candidate details imported into this onboarding");
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              {busy === "reimport" ? "Importing…" : "Import into onboarding"}
+            </Button>
           </div>
         )}
+
       </CardContent>
     </Card>
   );

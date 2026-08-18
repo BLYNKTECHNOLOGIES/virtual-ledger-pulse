@@ -189,11 +189,12 @@ export default function DepartmentsPage() {
               </div>
               {d.description && <p className="text-sm text-muted-foreground mt-3 break-words">{d.description}</p>}
               <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
-                <Building2 className="h-3.5 w-3.5" />
+                <Users className="h-3.5 w-3.5" />
                 {empCounts?.[d.id] || 0} employees
               </div>
             </div>
-          ))}
+          );})}
+
         </div>
       )}
 

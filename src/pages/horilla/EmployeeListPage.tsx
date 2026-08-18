@@ -5,11 +5,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Search, Plus, Filter, LayoutGrid, List, MoreVertical,
   Mail, Phone, Building2, ChevronDown, ChevronUp, Download, Upload,
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3,
-  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock
+  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock,
+  Briefcase, MapPin, BadgeCheck, Loader2
 } from "lucide-react";
+
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
 import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";

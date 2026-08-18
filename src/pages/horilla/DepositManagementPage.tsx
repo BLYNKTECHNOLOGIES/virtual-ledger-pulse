@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Wallet, Eye, Edit2, CheckCircle, Clock, ArrowUpDown, BadgeIndianRupee, Shield, Pause, Play } from "lucide-react";
+import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -21,20 +21,58 @@ import { SeedDepositsDialog } from "@/components/hr/payroll/SeedDepositsDialog";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 type DepositType = "security" | "error_recovery";
+type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid";
+type SubTab = Lifecycle | "all";
 
 const TYPE_LABEL: Record<DepositType, string> = {
   security: "Security Deposit",
   error_recovery: "Error Recovery",
 };
 
+const SUB_TABS: { key: SubTab; label: string }[] = [
+  { key: "active", label: "Active" },
+  { key: "collected", label: "Collected" },
+  { key: "refunded", label: "Paid back" },
+  { key: "exited_unpaid", label: "Exited — unpaid" },
+  { key: "all", label: "All" },
+];
+
+const LIFECYCLE_BADGE: Record<Lifecycle, { label: string; cls: string }> = {
+  active: { label: "Collecting", cls: "bg-warning/10 text-warning" },
+  collected: { label: "Collected — held", cls: "bg-success/10 text-success" },
+  refunded: { label: "Paid back", cls: "bg-primary/10 text-primary" },
+  exited_unpaid: { label: "Exited — unpaid", cls: "bg-destructive/10 text-destructive" },
+};
+
+/** Single source of truth for which bucket a deposit belongs to. */
+function lifecycleOf(d: any): Lifecycle {
+  if (d.refund_status === "refunded" || d.is_recovered || d.is_settled) return "refunded";
+  const employeeActive = d.hr_employees?.is_active !== false;
+  const held = Number(d.collected_amount || 0) > 0;
+  if (!employeeActive && held) return "exited_unpaid";
+  if (d.is_fully_collected) return "collected";
+  return "active";
+}
+
+const inr = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+
 export default function DepositManagementPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<DepositType>("security");
+  const [subTab, setSubTab] = useState<SubTab>("active");
   const [showAdd, setShowAdd] = useState(false);
   const [showSeed, setShowSeed] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showTransactions, setShowTransactions] = useState<string | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<any>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Refund ("pay back to employee") dialog
+  const [refundTarget, setRefundTarget] = useState<any>(null);
+  const [refundAmount, setRefundAmount] = useState("");
+  const [refundMonth, setRefundMonth] = useState(format(new Date(), "yyyy-MM"));
+  const [withheldReason, setWithheldReason] = useState("");
+
   const emptyForm = {
     employee_id: "",
     deposit_type: "security" as DepositType,
@@ -48,23 +86,52 @@ export default function DepositManagementPage() {
   };
   const [form, setForm] = useState(emptyForm);
 
-  // Fetch deposits with employee info
   const { data: allDeposits = [], isLoading } = useQuery({
     queryKey: ["hr_employee_deposits"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_employee_deposits")
-        .select("*, hr_employees!hr_employee_deposits_employee_id_fkey(id, badge_id, first_name, last_name)")
+        .select("*, hr_employees!hr_employee_deposits_employee_id_fkey(id, badge_id, first_name, last_name, is_active)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data || [];
     },
   });
 
-  const deposits = allDeposits.filter((d: any) => (d.deposit_type || "security") === tab);
+  const typeDeposits = useMemo(
+    () => allDeposits.filter((d: any) => (d.deposit_type || "security") === tab),
+    [allDeposits, tab],
+  );
 
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { active: 0, collected: 0, refunded: 0, exited_unpaid: 0, all: typeDeposits.length };
+    typeDeposits.forEach((d: any) => { c[lifecycleOf(d)] += 1; });
+    return c;
+  }, [typeDeposits]);
 
-  // Fetch employees
+  const deposits = useMemo(
+    () => (subTab === "all" ? typeDeposits : typeDeposits.filter((d: any) => lifecycleOf(d) === subTab)),
+    [typeDeposits, subTab],
+  );
+
+  // One row per employee, entries nested underneath
+  const groups = useMemo(() => {
+    const map = new Map<string, { employee: any; rows: any[] }>();
+    deposits.forEach((d: any) => {
+      const key = d.employee_id;
+      if (!map.has(key)) map.set(key, { employee: d.hr_employees, rows: [] });
+      map.get(key)!.rows.push(d);
+    });
+    return Array.from(map.entries()).map(([employee_id, g]) => {
+      const total = g.rows.reduce((s, r) => s + Number(r.total_deposit_amount || 0), 0);
+      const collected = g.rows.reduce((s, r) => s + Number(r.collected_amount || 0), 0);
+      const balance = g.rows.reduce((s, r) => s + Number(r.current_balance || 0), 0);
+      const refunded = g.rows.reduce((s, r) => s + Number(r.refund_amount || 0), 0);
+      const withheld = g.rows.reduce((s, r) => s + Number(r.withheld_amount || 0), 0);
+      return { employee_id, employee: g.employee, rows: g.rows, total, collected, balance, refunded, withheld };
+    }).sort((a, b) => (a.employee?.first_name || "").localeCompare(b.employee?.first_name || ""));
+  }, [deposits]);
+
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active_deposit"],
     queryFn: async () => {
@@ -73,7 +140,6 @@ export default function DepositManagementPage() {
     },
   });
 
-  // Fetch transactions for selected deposit
   const { data: transactions = [] } = useQuery({
     queryKey: ["hr_deposit_transactions", showTransactions],
     queryFn: async () => {
@@ -110,7 +176,6 @@ export default function DepositManagementPage() {
       }).select("id").single();
       if (error) throw error;
 
-      // Gap 2: Create "initiated" ledger entry
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: form.employee_id,
         deposit_id: inserted.id,
@@ -118,11 +183,10 @@ export default function DepositManagementPage() {
         transaction_type: "initiated",
         amount: isAlreadyDeducted ? totalAmt : 0,
         balance_after: isAlreadyDeducted ? totalAmt : 0,
-        description: `${TYPE_LABEL[form.deposit_type]} initiated — Target: ₹${totalAmt.toLocaleString('en-IN')}${isAlreadyDeducted ? ' (pre-collected)' : ''}`,
+        description: `${TYPE_LABEL[form.deposit_type]} initiated — Target: ${inr(totalAmt)}${isAlreadyDeducted ? " (pre-collected)" : ""}`,
         transaction_date: new Date().toISOString().slice(0, 10),
       });
 
-      // Build the month-by-month payroll installment plan
       const { error: schedErr } = await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: inserted.id });
       if (schedErr) throw new Error(`Deposit saved but schedule failed: ${schedErr.message}`);
     },
@@ -134,7 +198,6 @@ export default function DepositManagementPage() {
     },
     onError: (e: any) => toast.error(e.message),
   });
-
 
   const editMutation = useMutation({
     mutationFn: async () => {
@@ -158,9 +221,8 @@ export default function DepositManagementPage() {
       }).eq("id", editingDeposit.id);
       if (error) throw error;
 
-      // Gap 5: Create "modified" audit ledger entry
       const changes: string[] = [];
-      if (oldAmount !== newAmount) changes.push(`Amount: ₹${oldAmount.toLocaleString('en-IN')} → ₹${newAmount.toLocaleString('en-IN')}`);
+      if (oldAmount !== newAmount) changes.push(`Amount: ${inr(oldAmount)} → ${inr(newAmount)}`);
       if (oldMode !== newMode) changes.push(`Mode: ${oldMode} → ${newMode}`);
       if (oldValue !== newValue) changes.push(`Value: ${oldValue} → ${newValue}`);
       if (changes.length > 0) {
@@ -171,7 +233,7 @@ export default function DepositManagementPage() {
           transaction_type: "modified",
           amount: 0,
           balance_after: Number(editingDeposit.current_balance),
-          description: `Modified: ${changes.join('; ')}`,
+          description: `Modified: ${changes.join("; ")}`,
           transaction_date: new Date().toISOString().slice(0, 10),
         });
       }
@@ -186,43 +248,12 @@ export default function DepositManagementPage() {
       setEditingDeposit(null);
       toast.success("Deposit updated and schedule rebuilt");
     },
-
     onError: (e: any) => toast.error(e.message),
   });
 
-  const settleMutation = useMutation({
-    mutationFn: async (deposit: any) => {
-      // Insert ff_refund transaction
-      await (supabase as any).from("hr_deposit_transactions").insert({
-        employee_id: deposit.employee_id,
-        deposit_id: deposit.id,
-        transaction_type: "ff_refund",
-        amount: -Number(deposit.current_balance),
-        balance_after: 0,
-        description: "F&F Settlement - Deposit Refunded",
-        transaction_date: new Date().toISOString().slice(0, 10),
-      });
-      // Mark deposit as settled
-      const { error } = await (supabase as any).from("hr_employee_deposits").update({
-        is_settled: true,
-        settled_at: new Date().toISOString(),
-        current_balance: 0,
-        settlement_notes: "Full & Final settlement",
-        updated_at: new Date().toISOString(),
-      }).eq("id", deposit.id);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
-      toast.success("Deposit settled (F&F)");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  // Gap 4: Pause/Resume mutation
   const pauseResumeMutation = useMutation({
-    mutationFn: async ({ deposit, action }: { deposit: any; action: 'pause' | 'resume' }) => {
-      const isPausing = action === 'pause';
+    mutationFn: async ({ deposit, action }: { deposit: any; action: "pause" | "resume" }) => {
+      const isPausing = action === "pause";
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
         is_paused: isPausing,
         paused_at: isPausing ? new Date().toISOString() : null,
@@ -231,7 +262,6 @@ export default function DepositManagementPage() {
       }).eq("id", deposit.id);
       if (error) throw error;
 
-      // Log to ledger
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: deposit.employee_id,
         deposit_id: deposit.id,
@@ -243,67 +273,89 @@ export default function DepositManagementPage() {
         transaction_date: new Date().toISOString().slice(0, 10),
       });
 
-      // Pausing wipes pending installments; resuming rebuilds them
       await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: deposit.id });
     },
     onSuccess: (_, { action }) => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
-      toast.success(action === 'pause' ? "Deposit paused" : "Deposit resumed");
+      toast.success(action === "pause" ? "Deposit paused" : "Deposit resumed");
     },
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Error recovery: money recovered externally → refund the employee via payroll
+  /** Pay back to employee — stages a payroll addition and closes the record. */
   const refundMutation = useMutation({
-    mutationFn: async (deposit: any) => {
-      const amount = Number(deposit.collected_amount || 0);
-      if (amount <= 0) throw new Error("Nothing collected yet — nothing to refund");
+    mutationFn: async () => {
+      const d = refundTarget;
+      const held = Number(d.collected_amount || 0);
+      const amount = Number(refundAmount);
+      if (!(amount > 0)) throw new Error("Enter a refund amount greater than zero");
+      if (amount > held) throw new Error(`Refund cannot exceed the amount held (${inr(held)})`);
+      const withheld = Math.round((held - amount) * 100) / 100;
+      if (withheld > 0 && !withheldReason.trim()) throw new Error("A reason is required when part of the amount is withheld");
 
-      const period = format(new Date(), "yyyy-MM-01");
+      const period = `${refundMonth}-01`;
+      const isRecovery = (d.deposit_type || "security") === "error_recovery";
+      const label = isRecovery
+        ? `Error recovery refund${d.incident_reference ? ` (${d.incident_reference})` : ""}`
+        : "Security deposit refund";
+
       const { error: addErr } = await (supabase as any).from("hr_payroll_input_additions").insert({
-        hr_employee_id: deposit.employee_id,
+        hr_employee_id: d.employee_id,
         period_month: period,
         amount,
-        label: `Error recovery refund${deposit.incident_reference ? ` (${deposit.incident_reference})` : ""}`,
+        label,
         addition_type: 0,
         taxable: false,
       });
-
       if (addErr) throw addErr;
 
       await (supabase as any).from("hr_deposit_transactions").insert({
-        employee_id: deposit.employee_id,
-        deposit_id: deposit.id,
-        deposit_type: "error_recovery",
-        transaction_type: "ff_refund",
+        employee_id: d.employee_id,
+        deposit_id: d.id,
+        deposit_type: d.deposit_type || "security",
+        transaction_type: "refund",
         amount: -amount,
-        balance_after: 0,
-        description: `Recovered externally — ₹${amount.toLocaleString('en-IN')} refunded to employee via payroll addition (${period})`,
+        balance_after: withheld,
+        description: `${inr(amount)} paid back via payroll addition (${refundMonth})${withheld > 0 ? ` · ${inr(withheld)} withheld — ${withheldReason.trim()}` : ""}`,
         transaction_date: new Date().toISOString().slice(0, 10),
         period_month: period,
       });
 
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
-        is_recovered: true,
-        recovered_at: new Date().toISOString(),
+        refund_status: "refunded",
+        refund_amount: amount,
+        withheld_amount: withheld,
+        withheld_reason: withheld > 0 ? withheldReason.trim() : null,
+        refunded_at: new Date().toISOString(),
+        refund_period_month: period,
+        is_recovered: isRecovery ? true : undefined,
+        recovered_at: isRecovery ? new Date().toISOString() : undefined,
         is_settled: true,
         settled_at: new Date().toISOString(),
-        current_balance: 0,
-        settlement_notes: "Error recovery refunded to employee",
+        current_balance: withheld,
+        settlement_notes: withheld > 0 ? `Partially paid back — ${withheldReason.trim()}` : "Paid back in full",
         updated_at: new Date().toISOString(),
-      }).eq("id", deposit.id);
+      }).eq("id", d.id);
       if (error) throw error;
 
-      await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: deposit.id });
+      await (supabase as any).rpc("hr_rebuild_deposit_schedule", { p_deposit_id: d.id });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
-      toast.success("Refund staged as a payroll addition and record closed");
+      setRefundTarget(null);
+      toast.success("Refund staged as a payroll addition — record moved to Paid back");
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  const openRefund = (d: any) => {
+    setRefundTarget(d);
+    setRefundAmount(String(Number(d.collected_amount || 0)));
+    setRefundMonth(format(new Date(), "yyyy-MM"));
+    setWithheldReason("");
+  };
 
   const openEdit = (d: any) => {
     setEditingDeposit(d);
@@ -318,14 +370,27 @@ export default function DepositManagementPage() {
       incident_reference: d.incident_reference || "",
       recovery_reason: d.recovery_reason || "",
     });
-
     setShowEdit(true);
   };
 
   const totalDeposits = deposits.reduce((s: number, d: any) => s + Number(d.total_deposit_amount || 0), 0);
   const totalCollected = deposits.reduce((s: number, d: any) => s + Number(d.collected_amount || 0), 0);
-  const totalBalance = deposits.reduce((s: number, d: any) => s + Number(d.current_balance || 0), 0);
-  const fullyCollected = deposits.filter((d: any) => d.is_fully_collected).length;
+  const totalRefunded = deposits.reduce((s: number, d: any) => s + Number(d.refund_amount || 0), 0);
+  const totalWithheld = deposits.reduce((s: number, d: any) => s + Number(d.withheld_amount || 0), 0);
+
+  const summaryTiles = subTab === "refunded"
+    ? [
+        { label: "Records", value: String(deposits.length), icon: Wallet, color: "text-info", bg: "bg-info/10" },
+        { label: "Collected", value: inr(totalCollected), icon: BadgeIndianRupee, color: "text-success", bg: "bg-success/10" },
+        { label: "Paid back", value: inr(totalRefunded), icon: Undo2, color: "text-primary", bg: "bg-primary/10" },
+        { label: "Withheld", value: inr(totalWithheld), icon: Shield, color: "text-warning", bg: "bg-warning/10" },
+      ]
+    : [
+        { label: `Total ${TYPE_LABEL[tab]}`, value: inr(totalDeposits), icon: Wallet, color: "text-info", bg: "bg-info/10" },
+        { label: "Collected", value: inr(totalCollected), icon: BadgeIndianRupee, color: "text-success", bg: "bg-success/10" },
+        { label: subTab === "exited_unpaid" || subTab === "collected" ? "Held by company" : "Outstanding", value: subTab === "exited_unpaid" || subTab === "collected" ? inr(totalCollected) : inr(Math.max(totalDeposits - totalCollected, 0)), icon: Shield, color: "text-primary", bg: "bg-primary/10" },
+        { label: "Employees", value: String(groups.length), icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
+      ];
 
   const modeLabel = (mode: string) => {
     switch (mode) {
@@ -343,6 +408,7 @@ export default function DepositManagementPage() {
       case "collection": return "bg-success/10 text-success";
       case "penalty_deduction": return "bg-destructive/10 text-destructive";
       case "replenishment": return "bg-info/10 text-info";
+      case "refund": return "bg-primary/10 text-primary";
       case "ff_refund": return "bg-primary/10 text-primary";
       case "initiated": return "bg-info/10 text-info";
       case "modified": return "bg-warning/10 text-warning";
@@ -358,6 +424,7 @@ export default function DepositManagementPage() {
       case "collection": return "Collection";
       case "penalty_deduction": return "Penalty Deduction";
       case "replenishment": return "Replenishment";
+      case "refund": return "Paid back";
       case "ff_refund": return "F&F Refund";
       case "initiated": return "Initiated";
       case "modified": return "Modified";
@@ -370,14 +437,12 @@ export default function DepositManagementPage() {
 
   const isPct = (m: string) => m === "percentage" || m === "percentage_ctc";
 
-  // total_salary is stored as annual CTC → monthly CTC = /12
   const monthlyCtcFor = (employeeId?: string) => {
     if (!employeeId) return 0;
     const emp = employees.find((e: any) => e.id === employeeId);
     const annual = Number(emp?.total_salary || 0);
     return annual > 0 ? annual / 12 : 0;
   };
-
 
   const renderDepositForm = (isEdit: boolean) => (
     <div className="space-y-4">
@@ -396,8 +461,7 @@ export default function DepositManagementPage() {
             onValueChange={(v) => {
               const monthly = monthlyCtcFor(isEdit ? editingDeposit?.employee_id : form.employee_id);
               if (!monthly) { toast.error("No CTC on record for this employee"); return; }
-              const mult = Number(v);
-              setForm({ ...form, total_deposit_amount: String(Math.round(monthly * mult)) });
+              setForm({ ...form, total_deposit_amount: String(Math.round(monthly * Number(v))) });
             }}
           >
             <SelectTrigger className="w-[150px]"><SelectValue placeholder="Use CTC" /></SelectTrigger>
@@ -411,7 +475,7 @@ export default function DepositManagementPage() {
         </div>
         {(() => {
           const monthly = monthlyCtcFor(isEdit ? editingDeposit?.employee_id : form.employee_id);
-          return monthly ? <p className="text-xs text-muted-foreground mt-1">Monthly CTC: ₹{Math.round(monthly).toLocaleString("en-IN")}</p> : null;
+          return monthly ? <p className="text-xs text-muted-foreground mt-1">Monthly CTC: {inr(Math.round(monthly))}</p> : null;
         })()}
       </div>
 
@@ -427,27 +491,22 @@ export default function DepositManagementPage() {
             <SelectItem value="already_deducted">Already Deducted (Pre-collected)</SelectItem>
           </SelectContent>
         </Select>
-        {form.deduction_mode === "already_deducted" && <p className="text-xs text-muted-foreground mt-1">Deposit will be marked as fully collected immediately — no payroll deduction will occur</p>}
+        {form.deduction_mode === "already_deducted" && <p className="text-xs text-muted-foreground mt-1">Marked fully collected immediately — no payroll deduction</p>}
       </div>
       {form.deduction_mode !== "already_deducted" && (
         <>
           <div>
             <Label>{isPct(form.deduction_mode) ? "Percentage (%)" : "Amount (₹)"}</Label>
             <Input type="number" min="0" step={isPct(form.deduction_mode) ? "1" : "100"} value={form.deduction_value} onChange={(e) => setForm({ ...form, deduction_value: e.target.value })} placeholder={isPct(form.deduction_mode) ? "e.g. 10" : "e.g. 5000"} />
-            {form.deduction_mode === "percentage_ctc" && <p className="text-xs text-muted-foreground mt-1">% of the employee's monthly CTC deducted each month</p>}
-            {form.deduction_mode === "percentage" && <p className="text-xs text-muted-foreground mt-1">% of gross salary deducted each month</p>}
-            {form.deduction_mode === "one_time" && <p className="text-xs text-muted-foreground mt-1">Full amount deducted in the first payroll</p>}
           </div>
           <div>
             <Label>Deduction Start Month</Label>
             <Input type="month" value={form.deduction_start_month} onChange={(e) => setForm({ ...form, deduction_start_month: e.target.value })} />
           </div>
-
         </>
       )}
       {form.deposit_type === "error_recovery" && (
         <div className="space-y-4 rounded-md border border-border p-3">
-          <p className="text-xs text-muted-foreground">Error recovery context — refundable to the employee once the funds are recovered from the counterparty.</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Incident Date</Label>
@@ -467,11 +526,92 @@ export default function DepositManagementPage() {
     </div>
   );
 
+  const colCount = tab === "error_recovery" ? 10 : 9;
+
+  const renderEntryRow = (d: any) => {
+    const state = lifecycleOf(d);
+    const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
+    const canRefund = state !== "refunded" && Number(d.collected_amount || 0) > 0;
+    return (
+      <TableRow key={d.id} className="bg-muted/20">
+        <TableCell className="pl-10 text-sm text-muted-foreground">
+          {d.deduction_start_month || (d.created_at ? String(d.created_at).slice(0, 10) : "—")}
+        </TableCell>
+        <TableCell className="text-right tabular-nums">{inr(d.total_deposit_amount)}</TableCell>
+        <TableCell className="text-right tabular-nums text-success">{inr(d.collected_amount)}</TableCell>
+        <TableCell className="text-right tabular-nums text-primary">{inr(d.current_balance)}</TableCell>
+        <TableCell>
+          <div className="flex items-center gap-2">
+            <Progress value={progress} className="h-2 w-16" />
+            <span className="text-xs text-muted-foreground">{progress}%</span>
+          </div>
+        </TableCell>
+        <TableCell className="text-xs">
+          {modeLabel(d.deduction_mode)}
+          <div className="text-muted-foreground">{isPct(d.deduction_mode) ? `${d.deduction_value}%` : inr(d.deduction_value)}</div>
+        </TableCell>
+        {tab === "error_recovery" && (
+          <TableCell className="text-xs text-muted-foreground max-w-[180px]">
+            <div className="truncate">{d.incident_reference || "—"}</div>
+            <div>{d.incident_date || ""}</div>
+          </TableCell>
+        )}
+        <TableCell>
+          <span className={`px-2 py-0.5 rounded-full text-xs ${LIFECYCLE_BADGE[state].cls}`}>{LIFECYCLE_BADGE[state].label}</span>
+          {d.is_paused && state === "active" && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Paused</span>}
+        </TableCell>
+        <TableCell className="text-xs">
+          {state === "refunded" ? (
+            <div>
+              <div className="text-primary">{inr(d.refund_amount)} paid back</div>
+              {Number(d.withheld_amount) > 0 && (
+                <div className="text-muted-foreground">{inr(d.withheld_amount)} withheld — {d.withheld_reason || "—"}</div>
+              )}
+              {d.refund_period_month && <div className="text-muted-foreground">{String(d.refund_period_month).slice(0, 7)}</div>}
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="flex gap-1">
+            <Button size="sm" variant="ghost" className="h-7" onClick={() => setShowTransactions(d.id)} title="View ledger">
+              <Eye className="h-3 w-3" />
+            </Button>
+            {state !== "refunded" && (
+              <>
+                <Button size="sm" variant="ghost" className="h-7" onClick={() => openEdit(d)} title="Edit">
+                  <Edit2 className="h-3 w-3" />
+                </Button>
+                {!d.is_fully_collected && (
+                  d.is_paused ? (
+                    <Button size="sm" variant="ghost" className="h-7 text-info" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: "resume" })} title="Resume deductions">
+                      <Play className="h-3 w-3" />
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" className="h-7 text-warning" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: "pause" })} title="Pause deductions">
+                      <Pause className="h-3 w-3" />
+                    </Button>
+                  )
+                )}
+                {canRefund && (
+                  <Button size="sm" variant="ghost" className="h-7 text-primary px-2 text-xs" onClick={() => openRefund(d)} title="Pay back to employee">
+                    <Undo2 className="h-3 w-3 mr-1" /> Pay back
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  };
+
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Deposit Management"
-        description="Security deposits and error recoveries — both auto-deducted from monthly payroll"
+        description="Security deposits and error recoveries — deduction, holding and pay-back in one place"
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setShowSeed(true)} className="h-9">
@@ -498,16 +638,22 @@ export default function DepositManagementPage() {
         ))}
       </div>
 
+      {/* Lifecycle sub-tabs */}
+      <div className="flex flex-wrap gap-2">
+        {SUB_TABS.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setSubTab(s.key)}
+            className={`px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+          >
+            {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
+          </button>
+        ))}
+      </div>
 
-      {/* Summary Cards */}
+      {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: `Total ${TYPE_LABEL[tab]}`, value: `₹${totalDeposits.toLocaleString('en-IN')}`, icon: Wallet, color: "text-info", bg: "bg-info/10" },
-          { label: "Collected", value: `₹${totalCollected.toLocaleString('en-IN')}`, icon: BadgeIndianRupee, color: "text-success", bg: "bg-success/10" },
-          { label: "Outstanding", value: `₹${Math.max(totalDeposits - totalCollected, 0).toLocaleString('en-IN')}`, icon: Shield, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Fully Collected", value: `${fullyCollected}/${deposits.length}`, icon: CheckCircle, color: "text-success", bg: "bg-success/10" },
-
-        ].map((s) => (
+        {summaryTiles.map((s) => (
           <Card key={s.label}>
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
@@ -517,107 +663,74 @@ export default function DepositManagementPage() {
         ))}
       </div>
 
-      {/* Deposits Table */}
+      {/* Grouped table */}
       <Card>
-        <CardHeader><CardTitle className="text-sm">{TYPE_LABEL[tab]} — Employees</CardTitle></CardHeader>
-        <CardContent className="p-0">
+        <CardHeader><CardTitle className="text-sm">{TYPE_LABEL[tab]} — {SUB_TABS.find((s) => s.key === subTab)?.label}</CardTitle></CardHeader>
+        <CardContent className="p-0 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Employee</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Collected</TableHead>
-                <TableHead>Balance</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Collected</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
                 <TableHead>Progress</TableHead>
                 <TableHead>Mode</TableHead>
-                <TableHead>Value</TableHead>
                 {tab === "error_recovery" && <TableHead>Incident</TableHead>}
                 <TableHead>Status</TableHead>
+                <TableHead>Pay back</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={10} className="p-0"><TableSkeleton rows={4} columns={10} /></TableCell></TableRow>
-              ) : deposits.length === 0 ? (
-                <TableRow><TableCell colSpan={10}><EmptyState icon={Wallet} title={`No ${TYPE_LABEL[tab].toLowerCase()} records`} description={tab === "security" ? "Add a security deposit for an employee." : "Add a recovery for a wrong payment made by an employee."} /></TableCell></TableRow>
+                <TableRow><TableCell colSpan={colCount} className="p-0"><TableSkeleton rows={4} columns={colCount} /></TableCell></TableRow>
+              ) : groups.length === 0 ? (
+                <TableRow><TableCell colSpan={colCount}><EmptyState icon={Wallet} title="Nothing here" description={`No ${TYPE_LABEL[tab].toLowerCase()} records in this state.`} /></TableCell></TableRow>
               ) : (
-
-                deposits.map((d: any) => {
-                  const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
+                groups.map((g) => {
+                  const open = !!expanded[g.employee_id];
+                  const progress = g.total > 0 ? Math.round((g.collected / g.total) * 100) : 0;
                   return (
-                    <TableRow key={d.id}>
-                      <TableCell className="font-medium">
-                        {d.hr_employees?.first_name} {d.hr_employees?.last_name}
-                        <span className="text-xs text-muted-foreground ml-1">({d.hr_employees?.badge_id})</span>
-                      </TableCell>
-                      <TableCell className="font-medium text-right tabular-nums">₹{Number(d.total_deposit_amount).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-success text-right tabular-nums">₹{Number(d.collected_amount).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-primary font-medium text-right tabular-nums">₹{Number(d.current_balance).toLocaleString('en-IN')}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Progress value={progress} className="h-2 w-20" />
-                          <span className="text-xs text-muted-foreground">{progress}%</span>
-                        </div>
-                      </TableCell>
-                      <TableCell><span className="text-xs">{modeLabel(d.deduction_mode)}</span></TableCell>
-                      <TableCell className="text-sm">
-                        {(d.deduction_mode === "percentage" || d.deduction_mode === "percentage_ctc") ? `${d.deduction_value}%` : `₹${Number(d.deduction_value).toLocaleString('en-IN')}`}
-                      </TableCell>
-                      {tab === "error_recovery" && (
-                        <TableCell className="text-xs text-muted-foreground max-w-[180px]">
-                          <div className="truncate">{d.incident_reference || "—"}</div>
-                          <div>{d.incident_date || ""}</div>
+                    <>
+                      <TableRow key={g.employee_id} className="cursor-pointer" onClick={() => setExpanded((e) => ({ ...e, [g.employee_id]: !open }))}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-1">
+                            {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                            {g.employee?.first_name} {g.employee?.last_name}
+                            <span className="text-xs text-muted-foreground ml-1">({g.employee?.badge_id})</span>
+                            {g.rows.length > 1 && <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{g.rows.length} entries</span>}
+                            {g.employee?.is_active === false && <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Exited</span>}
+                          </div>
                         </TableCell>
-                      )}
-                      <TableCell>
-                        {d.is_settled ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">{d.is_recovered ? "Refunded" : "Settled"}</span>
-                        ) : d.is_fully_collected ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-success/10 text-success">Fully Collected</span>
-                        ) : d.is_paused ? (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Paused</span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Collecting</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="sm" variant="ghost" className="h-7" onClick={() => setShowTransactions(d.id)} title="View Transactions">
-                            <Eye className="h-3 w-3" />
-                          </Button>
-                          {!d.is_settled && (
-                            <>
-                              <Button size="sm" variant="ghost" className="h-7" onClick={() => openEdit(d)} title="Edit">
-                                <Edit2 className="h-3 w-3" />
-                              </Button>
-                              {!d.is_fully_collected && (
-                                d.is_paused ? (
-                                  <Button size="sm" variant="ghost" className="h-7 text-info" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'resume' })} title="Resume Deductions">
-                                    <Play className="h-3 w-3" />
-                                  </Button>
-                                ) : (
-                                  <Button size="sm" variant="ghost" className="h-7 text-warning" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: 'pause' })} title="Pause Deductions">
-                                    <Pause className="h-3 w-3" />
-                                  </Button>
-                                )
-                              )}
-                              {tab === "error_recovery" && Number(d.collected_amount) > 0 && (
-                                <Button size="sm" variant="ghost" className="h-7 text-primary px-2 text-xs" onClick={() => refundMutation.mutate(d)} title="Funds recovered externally — refund the employee via payroll">
-                                  Refund
-                                </Button>
-                              )}
-                              {tab === "security" && d.is_fully_collected && d.current_balance > 0 && (
-                                <Button size="sm" variant="ghost" className="h-7 text-primary" onClick={() => settleMutation.mutate(d)} title="F&F Settle">
-                                  <CheckCircle className="h-3 w-3" />
-                                </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-
-                    </TableRow>
+                        <TableCell className="text-right tabular-nums font-medium">{inr(g.total)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-success">{inr(g.collected)}</TableCell>
+                        <TableCell className="text-right tabular-nums text-primary">{inr(g.balance)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Progress value={progress} className="h-2 w-20" />
+                            <span className="text-xs text-muted-foreground">{progress}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{g.rows.length === 1 ? modeLabel(g.rows[0].deduction_mode) : "Mixed"}</TableCell>
+                        {tab === "error_recovery" && <TableCell className="text-xs text-muted-foreground">{g.rows.length === 1 ? (g.rows[0].incident_reference || "—") : `${g.rows.length} incidents`}</TableCell>}
+                        <TableCell>
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${LIFECYCLE_BADGE[lifecycleOf(g.rows[0])].cls}`}>
+                            {LIFECYCLE_BADGE[lifecycleOf(g.rows[0])].label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {g.refunded > 0 ? (
+                            <div>
+                              <div className="text-primary">{inr(g.refunded)}</div>
+                              {g.withheld > 0 && <div className="text-muted-foreground">{inr(g.withheld)} withheld</div>}
+                            </div>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{open ? "Hide" : "View"}</TableCell>
+                      </TableRow>
+                      {open && g.rows.map(renderEntryRow)}
+                    </>
                   );
                 })
               )}
@@ -639,7 +752,7 @@ export default function DepositManagementPage() {
         <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Add {TYPE_LABEL[form.deposit_type]}</DialogTitle>
-            <DialogDescription>Configure the amount and monthly payroll deduction plan for an employee</DialogDescription>
+            <DialogDescription>Amount and monthly payroll deduction plan</DialogDescription>
           </DialogHeader>
           {renderDepositForm(false)}
           <DialogFooter>
@@ -647,14 +760,13 @@ export default function DepositManagementPage() {
             <Button onClick={() => addMutation.mutate()} disabled={addMutation.isPending || !form.employee_id || !form.total_deposit_amount || (form.deduction_mode !== "already_deducted" && !form.deduction_value)} className="bg-[#E8604C] hover:bg-[#d4553f]">
               {addMutation.isPending ? "Saving…" : `Add ${TYPE_LABEL[form.deposit_type]}`}
             </Button>
-
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={showEdit} onOpenChange={setShowEdit}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Deposit Configuration</DialogTitle>
             <DialogDescription>Update deposit amount or deduction schedule</DialogDescription>
@@ -669,12 +781,58 @@ export default function DepositManagementPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Transactions Dialog */}
+      {/* Pay back dialog */}
+      <Dialog open={!!refundTarget} onOpenChange={(o) => !o && setRefundTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {(refundTarget?.deposit_type || "security") === "error_recovery" ? "Error recovered — pay back to employee" : "Pay back security deposit"}
+            </DialogTitle>
+            <DialogDescription>
+              {refundTarget && `${refundTarget.hr_employees?.first_name} ${refundTarget.hr_employees?.last_name || ""} · held ${inr(refundTarget.collected_amount)}`}
+            </DialogDescription>
+          </DialogHeader>
+          {refundTarget && (() => {
+            const held = Number(refundTarget.collected_amount || 0);
+            const amt = Number(refundAmount || 0);
+            const withheld = Math.max(Math.round((held - amt) * 100) / 100, 0);
+            return (
+              <div className="space-y-4">
+                <div>
+                  <Label>Refund amount (₹)</Label>
+                  <Input type="number" min="0" max={held} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {withheld > 0 ? `${inr(withheld)} will be withheld` : "Full amount paid back"}
+                  </p>
+                </div>
+                <div>
+                  <Label>Payroll month</Label>
+                  <Input type="month" value={refundMonth} onChange={(e) => setRefundMonth(e.target.value)} />
+                </div>
+                {withheld > 0 && (
+                  <div>
+                    <Label>Reason for withholding</Label>
+                    <Textarea rows={2} value={withheldReason} onChange={(e) => setWithheldReason(e.target.value)} placeholder="e.g. adjusted against loss / notice shortfall" />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRefundTarget(null)}>Cancel</Button>
+            <Button onClick={() => refundMutation.mutate()} disabled={refundMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f]">
+              {refundMutation.isPending ? "Saving…" : "Confirm pay back"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ledger Dialog */}
       <Dialog open={!!showTransactions} onOpenChange={(open) => !open && setShowTransactions(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Deposit Transactions</DialogTitle>
-            <DialogDescription>All movements for this deposit</DialogDescription>
+            <DialogTitle>Deposit Ledger</DialogTitle>
+            <DialogDescription>All movements for this entry</DialogDescription>
           </DialogHeader>
           <div className="max-h-[400px] overflow-y-auto">
             <Table>
@@ -700,10 +858,10 @@ export default function DepositManagementPage() {
                         </span>
                       </TableCell>
                       <TableCell className={`font-medium ${Number(t.amount) >= 0 ? "text-success" : "text-destructive"}`}>
-                        {Number(t.amount) >= 0 ? "+" : ""}₹{Math.abs(Number(t.amount)).toLocaleString('en-IN')}
+                        {Number(t.amount) >= 0 ? "+" : ""}{inr(Math.abs(Number(t.amount)))}
                       </TableCell>
-                      <TableCell className="text-sm">₹{Number(t.balance_after).toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{t.description || "—"}</TableCell>
+                      <TableCell className="text-sm">{inr(t.balance_after)}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground max-w-[220px] truncate">{t.description || "—"}</TableCell>
                     </TableRow>
                   ))
                 )}

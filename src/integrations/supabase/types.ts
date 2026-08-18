@@ -8313,7 +8313,6 @@ export type Database = {
           deposit_config: Json | null
           document_collection_status: string | null
           document_email_sent_at: string | null
-          document_mail_received_at: string | null
           documents: Json | null
           email: string | null
           employee_id: string | null
@@ -8363,7 +8362,6 @@ export type Database = {
           deposit_config?: Json | null
           document_collection_status?: string | null
           document_email_sent_at?: string | null
-          document_mail_received_at?: string | null
           documents?: Json | null
           email?: string | null
           employee_id?: string | null
@@ -8413,7 +8411,6 @@ export type Database = {
           deposit_config?: Json | null
           document_collection_status?: string | null
           document_email_sent_at?: string | null
-          document_mail_received_at?: string | null
           documents?: Json | null
           email?: string | null
           employee_id?: string | null

@@ -1,0 +1,1 @@
+ALTER TABLE public.hr_employee_onboarding DROP COLUMN IF EXISTS document_mail_received_at;

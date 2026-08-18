@@ -347,9 +347,9 @@ export default function EmployeeListPage() {
     });
   }, [filtered, sort, getWorkInfo, getDeptName, getPositionTitle, getShiftName]);
 
-  // ─── Pagination ───
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const paginated = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // ─── No pagination: render the entire filtered roster ───
+  const paginated = sorted;
+
 
   // ─── Selection ───
   const allSelected = paginated.length > 0 && paginated.every(e => selectedIds.has(e.id));

@@ -1292,7 +1292,16 @@ export default function EmployeeProfilePage() {
                   <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Work Phone</p>
+                      <p className="text-sm text-foreground">
+                        {workInfo?.work_phone || emp?.phone || "None"}
+                        {!workInfo?.work_phone && emp?.phone && (
+                          <span className="ml-1.5 text-[10px] text-muted-foreground">(personal)</span>
+                        )}
+                      </p>
+                    </div>
+
                     <div>
                       <p className="text-xs text-muted-foreground">Monthly Salary (CTC / 12)</p>
                       <div className="flex items-center gap-2 flex-wrap">

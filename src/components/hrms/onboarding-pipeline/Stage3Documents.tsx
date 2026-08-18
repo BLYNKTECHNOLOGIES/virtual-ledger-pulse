@@ -51,6 +51,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         file_name: existing[f.key]?.file_name || "",
       };
     });
+    // Legacy/candidate-form data stored the employer name under its own key;
+    // surface it inside the experience-letter row instead.
+    if (!init.experience_letter.value && existing.previous_employer?.value) {
+      init.experience_letter.value = existing.previous_employer.value;
+    }
     setDocs(init);
   }, [data]);
 

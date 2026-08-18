@@ -1,20 +1,19 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { Gift, Calendar, CheckCircle, Clock, ArrowRight } from "lucide-react";
+import { Gift, Calendar, CheckCircle, Clock, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 export default function CompOffPage() {
-  const qc = useQueryClient();
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
+  const [employeeFilter, setEmployeeFilter] = useState<string>("");
 
   const { data: credits = [], isLoading } = useQuery({
     queryKey: ["hr_compoff_credits", yearFilter],
@@ -23,10 +22,22 @@ export default function CompOffPage() {
       const endDate = `${yearFilter}-12-31`;
       const { data, error } = await (supabase as any)
         .from("hr_compoff_credits")
-        .select("*, hr_employees!hr_compoff_credits_employee_id_fkey(badge_id, first_name, last_name)")
+        .select("*, hr_employees!hr_compoff_credits_employee_id_fkey(id, badge_id, first_name, last_name)")
         .gte("credit_date", startDate)
         .lte("credit_date", endDate)
         .order("credit_date", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["hr_employees", "compoff-filter"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_employees")
+        .select("id, first_name, last_name, badge_id")
+        .order("first_name", { ascending: true });
       if (error) throw error;
       return data || [];
     },
@@ -38,14 +49,20 @@ export default function CompOffPage() {
   // inflating balances (e.g. 3 credits → 47 days). It has been removed on purpose —
   // this page is read-only reporting over the comp-off ledger.
 
+  const filteredCredits = useMemo(() => {
+    if (!employeeFilter) return credits;
+    return credits.filter((c: any) => c.hr_employees?.id === employeeFilter);
+  }, [credits, employeeFilter]);
 
-  const totalCredits = credits.reduce((s: number, c: any) => s + Number(c.credit_days), 0);
+  const totalCredits = filteredCredits.reduce((s: number, c: any) => s + Number(c.credit_days), 0);
   
-  const openDays = credits
+  const openDays = filteredCredits
     .filter((c: any) => !c.settled_period_month)
     .reduce((s: number, c: any) => s + Number(c.credit_days), 0);
-  const sundayCount = credits.filter((c: any) => c.credit_type === "sunday").length;
-  const holidayCount = credits.filter((c: any) => c.credit_type === "holiday").length;
+  const sundayCount = filteredCredits.filter((c: any) => c.credit_type === "sunday").length;
+  const holidayCount = filteredCredits.filter((c: any) => c.credit_type === "holiday").length;
+
+  const selectedEmployee = employees.find((e: any) => e.id === employeeFilter);
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -53,8 +70,29 @@ export default function CompOffPage() {
         title="Comp-Off Management"
         description="Auto-credited for weekly-off/holiday work. Comp-off never carries forward: each month it is taken as leave, offset against that month's LOP, and any remainder is encashed in that month's payroll."
         actions={
-          <div className="flex items-center gap-3">
-            <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-24 h-9" min="2020" max="2030" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <EmployeePicker
+                employees={employees}
+                value={employeeFilter}
+                onChange={setEmployeeFilter}
+                placeholder="Filter by employee"
+                allOption={{ value: "", label: "All employees" }}
+                className="w-full sm:w-52 md:w-64"
+              />
+              {employeeFilter && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => setEmployeeFilter("")}
+                  aria-label="Clear employee filter"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-full sm:w-24 h-9" min="2020" max="2030" />
           </div>
         }
 
@@ -79,13 +117,21 @@ export default function CompOffPage() {
 
       {isLoading ? (
         <TableSkeleton rows={5} columns={7} />
-      ) : credits.length === 0 ? (
+      ) : filteredCredits.length === 0 ? (
         <Card>
           <CardContent className="p-0">
             <EmptyState
               icon={Gift}
-              title={`No comp-off credits for ${yearFilter}`}
-              description="Credits are auto-generated when employees clock in on Sundays or holidays."
+              title={
+                employeeFilter
+                  ? `No comp-off credits for ${selectedEmployee?.first_name || ""} ${selectedEmployee?.last_name || ""} in ${yearFilter}`
+                  : `No comp-off credits for ${yearFilter}`
+              }
+              description={
+                employeeFilter
+                  ? "This employee has no comp-off credits in the selected year."
+                  : "Credits are auto-generated when employees clock in on Sundays or holidays."
+              }
             />
           </CardContent>
         </Card>
@@ -105,7 +151,7 @@ export default function CompOffPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {credits.map((c: any) => (
+                {filteredCredits.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">
                       {c.hr_employees?.first_name} {c.hr_employees?.last_name}

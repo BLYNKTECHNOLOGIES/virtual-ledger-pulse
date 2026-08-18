@@ -708,11 +708,13 @@ export function ResignationTab() {
               const t = item.item_title.toLowerCase();
               const isFnf = t.includes("full & final") || t.includes("full and final");
               const isAccess = t.includes("access revoked") || t.includes("erp");
+              const isBadge = t.includes("id card") || t.includes("access badge") || t.includes("badge returned");
               return (
               <div key={item.id} className="flex items-start gap-3 p-2 rounded border">
                 <Checkbox
                   checked={item.is_completed}
-                  onCheckedChange={(checked) => toggleChecklist.mutate({ id: item.id, is_completed: !!checked })}
+                  onCheckedChange={(checked) => toggleChecklist.mutate({ id: item.id, is_completed: !!checked, item_title: item.item_title })}
+
                   className="mt-0.5"
                 />
                 <div className="flex-1 min-w-0">

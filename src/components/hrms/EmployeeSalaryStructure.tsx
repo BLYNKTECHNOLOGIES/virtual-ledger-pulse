@@ -144,28 +144,6 @@ export function EmployeeSalaryStructure({ employeeId }: EmployeeSalaryStructureP
         </Button>
       </div>
 
-      {(() => {
-        if (!rzpCtc) return null;
-        const annualSum = structures.filter(isRupees).reduce((s: number, r: any) => s + toAnnual(Number(r.amount) || 0), 0);
-        const drift = Math.round(annualSum - rzpCtc);
-        if (Math.abs(drift) <= 1) {
-          return (
-            <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-              Anchored to RazorpayX annual CTC <b>₹{rzpCtc.toLocaleString('en-IN')}</b> — components tie out exactly.
-            </div>
-          );
-        }
-        return (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
-            Component total ₹{annualSum.toLocaleString('en-IN')}/yr does not match the RazorpayX CTC ₹{rzpCtc.toLocaleString('en-IN')}/yr
-            (drift {drift > 0 ? '+' : ''}₹{drift.toLocaleString('en-IN')}). Run a RazorpayX pull to re-anchor.
-          </div>
-        );
-      })()}
-
-      <div className="rounded-md border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
-        RazorpayX exposes only the total CTC through its payroll API — never the component split. The breakdown below is derived locally and rescaled to tie out exactly to that CTC. Stored amounts are auto-detected as <b>{unit}</b>; monthly and annual columns are derived. Edits happen on RazorpayX and re-sync on the next pull.
-      </div>
 
 
       {structures.length === 0 ? (

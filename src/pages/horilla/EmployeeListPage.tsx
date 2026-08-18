@@ -12,7 +12,7 @@ import {
   Search, Plus, Filter, LayoutGrid, List, MoreVertical,
   Mail, Phone, Building2, ChevronDown, ChevronUp, Download, Upload,
   Archive, Trash2, Edit, Eye, UserCheck, UserX, X, Columns3,
-  ArrowUpDown, Save, ChevronLeft, ChevronRight, SlidersHorizontal, Clock,
+  ArrowUpDown, Save, SlidersHorizontal, Clock,
   Briefcase, MapPin, BadgeCheck, Loader2
 } from "lucide-react";
 
@@ -122,13 +122,12 @@ export default function EmployeeListPage() {
   const [pendingFilterField, setPendingFilterField] = useState("");
   const [pendingFilterValue, setPendingFilterValue] = useState("");
   const [sort, setSort] = useState<SortState>({ column: null, direction: null });
-  const [currentPage, setCurrentPage] = useState(1);
+  const setCurrentPage = (_: number | ((p: number) => number)) => {}; // pagination removed
   const [colPickerOpen, setColPickerOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<string[]>(ALL_TABLE_COLS.map(c => c.key));
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 
-  const pageSize = viewMode === "grid" ? 12 : 20;
 
   // ─── Queries ───
   const { data: employees, isLoading } = useQuery({
@@ -347,9 +346,9 @@ export default function EmployeeListPage() {
     });
   }, [filtered, sort, getWorkInfo, getDeptName, getPositionTitle, getShiftName]);
 
-  // ─── Pagination ───
-  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-  const paginated = sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  // ─── No pagination: render the entire filtered roster ───
+  const paginated = sorted;
+
 
   // ─── Selection ───
   const allSelected = paginated.length > 0 && paginated.every(e => selectedIds.has(e.id));
@@ -1074,31 +1073,13 @@ export default function EmployeeListPage() {
         </div>
       )}
 
-      {/* ─── Pagination (Horilla style) ─── */}
-      {sorted.length > pageSize && (
-        <div className="flex items-center justify-between mt-4 px-1">
-          <p className="text-xs text-muted-foreground">
-            Page {currentPage} of {totalPages}
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{currentPage} / {totalPages}</span>
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
+      {/* Pagination removed — the full roster renders on one page */}
+      {sorted.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-3 px-1">
+          Showing all {sorted.length} employee{sorted.length === 1 ? "" : "s"}
+        </p>
       )}
+
 
       {/* ─── Dialogs ─── */}
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} departments={departments || []} positions={positions || []} />

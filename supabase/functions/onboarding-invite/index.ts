@@ -195,7 +195,7 @@ async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>)
     email: p.email || undefined,
     phone: p.phone || undefined,
     gender: p.gender || undefined,
-    marital_status: p.marital_status || undefined,
+    marital_status: p.marital_status ? (String(p.marital_status).charAt(0).toUpperCase() + String(p.marital_status).slice(1).toLowerCase()) : undefined,
     date_of_birth: p.date_of_birth || undefined,
     documents: docs,
     bank_details: {

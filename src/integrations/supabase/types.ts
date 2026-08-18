@@ -7904,10 +7904,16 @@ export type Database = {
           paused_reason: string | null
           recovered_at: string | null
           recovery_reason: string | null
+          refund_amount: number
+          refund_period_month: string | null
+          refund_status: string
+          refunded_at: string | null
           settled_at: string | null
           settlement_notes: string | null
           total_deposit_amount: number
           updated_at: string
+          withheld_amount: number
+          withheld_reason: string | null
         }
         Insert: {
           collected_amount?: number
@@ -7929,10 +7935,16 @@ export type Database = {
           paused_reason?: string | null
           recovered_at?: string | null
           recovery_reason?: string | null
+          refund_amount?: number
+          refund_period_month?: string | null
+          refund_status?: string
+          refunded_at?: string | null
           settled_at?: string | null
           settlement_notes?: string | null
           total_deposit_amount?: number
           updated_at?: string
+          withheld_amount?: number
+          withheld_reason?: string | null
         }
         Update: {
           collected_amount?: number
@@ -7954,10 +7966,16 @@ export type Database = {
           paused_reason?: string | null
           recovered_at?: string | null
           recovery_reason?: string | null
+          refund_amount?: number
+          refund_period_month?: string | null
+          refund_status?: string
+          refunded_at?: string | null
           settled_at?: string | null
           settlement_notes?: string | null
           total_deposit_amount?: number
           updated_at?: string
+          withheld_amount?: number
+          withheld_reason?: string | null
         }
         Relationships: [
           {

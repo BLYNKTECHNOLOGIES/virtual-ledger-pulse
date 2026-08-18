@@ -520,6 +520,13 @@ export default function EmployeeListPage() {
     setBulkValue("");
   };
 
+  const hasSelection = selectedIds.size > 0;
+  const openBulkField = (key: BulkFieldKey) => {
+    if (!hasSelection) { toast.error("Select at least one employee first"); return; }
+    setBulkValue("");
+    setBulkField(key);
+  };
+
 
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();

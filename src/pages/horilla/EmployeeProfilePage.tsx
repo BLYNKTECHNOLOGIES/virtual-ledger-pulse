@@ -992,8 +992,7 @@ export default function EmployeeProfilePage() {
                 <InfoRow label="Separation Reason" value={(emp as any).separation_reason} editKey="separation_reason" />
               </div>
 
-              {/* Deposit Information */}
-              <DepositInfoSection employeeId={id!} />
+              {/* Deposit Information moved to Payroll tab */}
             </div>
 
             {/* Right: Work Information table */}

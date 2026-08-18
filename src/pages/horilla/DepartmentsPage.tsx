@@ -2,7 +2,9 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Building2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Search, Users } from "lucide-react";
+import { getDepartmentVisual } from "@/lib/departmentIcon";
+
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";

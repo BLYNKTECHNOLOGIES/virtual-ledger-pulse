@@ -22,6 +22,8 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 import { DriftBadge } from "@/components/hrms/DriftBadge";
 import NewJoinerReadinessCard from "@/components/hrms/NewJoinerReadinessCard";
 import { EmployeeDocumentsPanel } from "@/components/hrms/EmployeeDocumentsPanel";
+import { EmployeeAttendanceCalendar } from "@/components/hrms/attendance/EmployeeAttendanceCalendar";
+
 
 // ─── Tabs matching Horilla ───
 const TABS = [
@@ -959,37 +961,64 @@ export default function EmployeeProfilePage() {
                   <button onClick={startEdit} className="text-xs text-[#00bcd4] hover:underline font-medium">Edit</button>
                 )}
               </div>
-              <div className="border border-border rounded-lg p-3 md:p-4 space-y-0">
-                <InfoRow label="Email" value={emp.email} editKey="email" inputType="email" />
-                <InfoRow label="Phone" value={emp.phone} editKey="phone" inputType="tel" />
-                <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
+              <div className="space-y-3">
+                <div className="border border-border rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Contact</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                    <InfoRow label="Email" value={emp.email} editKey="email" inputType="email" />
+                    <InfoRow label="Phone" value={emp.phone} editKey="phone" inputType="tel" />
+                    <div className="sm:col-span-2">
+                      <InfoRow label="Address" value={emp.address} editKey="address" />
+                    </div>
+                    <InfoRow label="City" value={emp.city} editKey="city" />
+                    <InfoRow label="State" value={emp.state} editKey="state" />
+                    <InfoRow label="Country" value={emp.country} editKey="country" />
+                  </div>
+                </div>
 
-                <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
-                <InfoRow label="Address" value={emp.address} editKey="address" />
-                <InfoRow label="Country" value={emp.country} editKey="country" />
-                <InfoRow label="State" value={emp.state} editKey="state" />
-                <InfoRow label="City" value={emp.city} editKey="city" />
-                <InfoRow label="Qualification" value={emp.qualification} editKey="qualification" />
-                <InfoRow label="Experience" value={emp.experience} editKey="experience" />
-                <InfoRow label="Emergency Contact" value={emp.emergency_contact} editKey="emergency_contact" />
-                <InfoRow label="Emergency Contact Name" value={emp.emergency_contact_name} editKey="emergency_contact_name" />
-                <InfoRow label="Emergency Contact Relation" value={emp.emergency_contact_relation} editKey="emergency_contact_relation" />
-                <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }]} />
-                <div className="border-t border-border mt-3 pt-3">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Statutory Information</p>
+                <div className="border border-border rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Personal</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                    <InfoRow label="Date of birth" value={emp.dob} editKey="dob" inputType="date" />
+                    <InfoRow label="Gender" value={emp.gender ? emp.gender.charAt(0).toUpperCase() + emp.gender.slice(1) : null} editKey="gender" selectOptions={[{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }]} />
+                    <InfoRow label="Marital Status" value={emp.marital_status} editKey="marital_status" selectOptions={[{ value: "Single", label: "Single" }, { value: "Married", label: "Married" }, { value: "Divorced", label: "Divorced" }]} />
+                    <InfoRow label="Qualification" value={emp.qualification} editKey="qualification" />
+                    <InfoRow label="Experience" value={emp.experience} editKey="experience" />
+                  </div>
                 </div>
-                <InfoRow label="PAN Number" value={(emp as any).pan_number} editKey="pan_number" />
-                <InfoRow label="PF Number" value={(emp as any).pf_number} editKey="pf_number" />
-                <InfoRow label="UAN Number" value={(emp as any).uan_number} editKey="uan_number" />
-                <InfoRow label="ESI Number" value={(emp as any).esi_number} editKey="esi_number" />
-                <div className="border-t border-border mt-3 pt-3">
-                  <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wider">Separation Details</p>
+
+                <div className="border border-border rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Emergency Contact</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                    <InfoRow label="Name" value={emp.emergency_contact_name} editKey="emergency_contact_name" />
+                    <InfoRow label="Number" value={emp.emergency_contact} editKey="emergency_contact" />
+                    <InfoRow label="Relation" value={emp.emergency_contact_relation} editKey="emergency_contact_relation" />
+                  </div>
                 </div>
-                <InfoRow label="Resignation Date" value={(emp as any).resignation_date} editKey="resignation_date" inputType="date" />
-                <InfoRow label="Termination Date" value={(emp as any).termination_date} editKey="termination_date" inputType="date" />
-                <InfoRow label="Last Working Day" value={(emp as any).last_working_day} editKey="last_working_day" inputType="date" />
-                <InfoRow label="Separation Reason" value={(emp as any).separation_reason} editKey="separation_reason" />
+
+                <div className="border border-border rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Statutory</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                    <InfoRow label="PAN Number" value={(emp as any).pan_number} editKey="pan_number" />
+                    <InfoRow label="PF Number" value={(emp as any).pf_number} editKey="pf_number" />
+                    <InfoRow label="UAN Number" value={(emp as any).uan_number} editKey="uan_number" />
+                    <InfoRow label="ESI Number" value={(emp as any).esi_number} editKey="esi_number" />
+                  </div>
+                </div>
+
+                {(editing || (emp as any).resignation_date || (emp as any).termination_date || (emp as any).last_working_day || (emp as any).separation_reason) && (
+                  <div className="border border-border rounded-lg p-3 md:p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Separation</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                      <InfoRow label="Resignation Date" value={(emp as any).resignation_date} editKey="resignation_date" inputType="date" />
+                      <InfoRow label="Termination Date" value={(emp as any).termination_date} editKey="termination_date" inputType="date" />
+                      <InfoRow label="Last Working Day" value={(emp as any).last_working_day} editKey="last_working_day" inputType="date" />
+                      <InfoRow label="Separation Reason" value={(emp as any).separation_reason} editKey="separation_reason" />
+                    </div>
+                  </div>
+                )}
               </div>
+
 
               {/* Deposit Information moved to Payroll tab */}
             </div>
@@ -1213,7 +1242,7 @@ export default function EmployeeProfilePage() {
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Work Phone</label>
-                    <input type="text" value={workInfoForm.work_phone || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_phone: e.target.value })} className={inputCls} />
+                    <input type="text" value={workInfoForm.work_phone || ""} placeholder={emp?.phone ? `${emp.phone} (personal)` : ""} onChange={e => setWorkInfoForm({ ...workInfoForm, work_phone: e.target.value })} className={inputCls} />
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Basic Salary</label>
@@ -1263,7 +1292,16 @@ export default function EmployeeProfilePage() {
                   <h4 className="text-sm font-semibold text-foreground mb-3">Work Details</h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                     <div><p className="text-xs text-muted-foreground">Work Email</p><p className="text-sm text-foreground">{workInfo?.work_email || "None"}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Work Phone</p><p className="text-sm text-foreground">{workInfo?.work_phone || "None"}</p></div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Work Phone</p>
+                      <p className="text-sm text-foreground">
+                        {workInfo?.work_phone || emp?.phone || "None"}
+                        {!workInfo?.work_phone && emp?.phone && (
+                          <span className="ml-1.5 text-[10px] text-muted-foreground">(personal)</span>
+                        )}
+                      </p>
+                    </div>
+
                     <div>
                       <p className="text-xs text-muted-foreground">Monthly Salary (CTC / 12)</p>
                       <div className="flex items-center gap-2 flex-wrap">
@@ -1524,8 +1562,16 @@ export default function EmployeeProfilePage() {
 
         {/* ── ATTENDANCE TAB ── */}
         {activeTab === "Attendance" && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {emp && (
+              <EmployeeAttendanceCalendar
+                employeeId={emp.id}
+                employeeName={`${emp.first_name || ""} ${emp.last_name || ""}`.trim()}
+                badgeId={emp.badge_id}
+              />
+            )}
             <h3 className="text-base font-semibold text-foreground">Attendance (Last 30 Records)</h3>
+
             {(attendance || []).length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No attendance records found</p>
             ) : (
@@ -1598,20 +1644,15 @@ export default function EmployeeProfilePage() {
             {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
 
             <div>
-              <h3 className="text-base font-semibold text-foreground mb-2">Deposits & Recoveries</h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Security deposits and error recoveries with collection status, paid-back amounts and any withheld balances.
-              </p>
+              <h3 className="text-base font-semibold text-foreground mb-3">Deposits & Recoveries</h3>
               {emp && <DepositInfoSection employeeId={emp.id} />}
             </div>
 
             <div>
-              <h3 className="text-base font-semibold text-foreground mb-2">Compensation History</h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Complete audit of every CTC revision, bonus, performance incentive, retention bonus and ad-hoc payout.
-              </p>
+              <h3 className="text-base font-semibold text-foreground mb-3">Compensation History</h3>
               {emp && <CompensationHistory employeeId={emp.id} />}
             </div>
+
           </div>
         )}
 

@@ -596,11 +596,8 @@ export default function EmployeeProfilePage() {
           city: editForm.city || null,
           state: editForm.state || null,
           country: editForm.country || null,
-          qualification: editForm.qualification || null,
-          experience: editForm.experience || null,
-          emergency_contact_name: editForm.emergency_contact_name || null,
-          emergency_contact: editForm.emergency_contact || null,
-          emergency_contact_relation: editForm.emergency_contact_relation || null,
+          // qualification / experience / emergency contact are no longer collected — left untouched
+
           pan_number: editForm.pan_number || null,
           pf_number: editForm.pf_number || null,
           uan_number: editForm.uan_number || null,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -692,8 +692,8 @@ export default function DepositManagementPage() {
                   const open = !!expanded[g.employee_id];
                   const progress = g.total > 0 ? Math.round((g.collected / g.total) * 100) : 0;
                   return (
-                    <>
-                      <TableRow key={g.employee_id} className="cursor-pointer" onClick={() => setExpanded((e) => ({ ...e, [g.employee_id]: !open }))}>
+                    <Fragment key={g.employee_id}>
+                      <TableRow className="cursor-pointer" onClick={() => setExpanded((e) => ({ ...e, [g.employee_id]: !open }))}>
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-1">
                             {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
@@ -730,7 +730,7 @@ export default function DepositManagementPage() {
                         <TableCell className="text-xs text-muted-foreground">{open ? "Hide" : "View"}</TableCell>
                       </TableRow>
                       {open && g.rows.map(renderEntryRow)}
-                    </>
+                    </Fragment>
                   );
                 })
               )}

@@ -120,7 +120,6 @@ const navGroups: NavGroup[] = [
           { label: "Allocation Requests", path: "/hrms/leave/allocation-requests" },
           { label: "Accrual Plans", path: "/hrms/leave/accrual-plans" },
           { label: "Weekly Off", path: "/hrms/leave/weekly-off" },
-          { label: "Year-End Reset", path: "/hrms/leave/year-end-reset" },
         ],
       },
     ],

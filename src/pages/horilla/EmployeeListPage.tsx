@@ -455,66 +455,65 @@ export default function EmployeeListPage() {
   };
 
   // ─── Bulk status change ───
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+
   const handleBulkStatusChange = async (active: boolean) => {
-    if (selectedIds.size === 0) { toast.error("No employees selected"); return; }
-    try {
-      for (const id of selectedIds) {
-        await supabase.from("hr_employees").update({ is_active: active }).eq("id", id);
-      }
-      toast.success(`${selectedIds.size} employee(s) ${active ? "activated" : "deactivated"}`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
-      setSelectedIds(new Set());
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to update status");
+    if (selectedIds.size === 0) { toast.error("Select at least one employee first"); return; }
+    setBusyAction(active ? "activate" : "deactivate");
+    let ok = 0; const failures: string[] = [];
+    for (const id of selectedIds) {
+      const { error } = await supabase.from("hr_employees").update({ is_active: active }).eq("id", id);
+      if (error) failures.push(error.message); else ok++;
     }
+    setBusyAction(null);
+    queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+    if (ok) toast.success(`${ok} employee(s) ${active ? "activated" : "deactivated"}`);
+    if (failures.length) toast.error(`${failures.length} failed — ${failures[0]}`);
+    if (ok) setSelectedIds(new Set());
+    setActionsOpen(false);
   };
 
-  // ─── Bulk department transfer ───
-  const [bulkDeptOpen, setBulkDeptOpen] = useState(false);
-  const [bulkDeptId, setBulkDeptId] = useState("");
-  const handleBulkDeptTransfer = async () => {
-    if (!bulkDeptId || selectedIds.size === 0) return;
-    try {
-      for (const id of selectedIds) {
-        const wi = getWorkInfo(id);
-        if (wi) {
-          await supabase.from("hr_employee_work_info").update({ department_id: bulkDeptId }).eq("id", wi.id);
-        }
-      }
-      toast.success(`${selectedIds.size} employee(s) transferred`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
-      setSelectedIds(new Set());
-      setBulkDeptOpen(false);
-      setBulkDeptId("");
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to transfer");
-    }
+  // ─── Generic bulk work-info assignment ─────────────────────────────────────
+  // Every "assign X to many employees" action funnels through here so behaviour
+  // is identical: creates the work-info row when an employee has none, checks
+  // the error on every write, and reports exact success/failure counts.
+  type BulkFieldKey = "department_id" | "job_position_id" | "shift_id" | "work_type" | "employee_type";
+  const [bulkField, setBulkField] = useState<BulkFieldKey | null>(null);
+  const [bulkValue, setBulkValue] = useState("");
+
+  const BULK_FIELDS: Record<BulkFieldKey, { title: string; label: string; options: () => { value: string; label: string }[] }> = {
+    department_id: { title: "Transfer department", label: "Department", options: () => (departments || []).map((d: any) => ({ value: d.id, label: d.name })) },
+    job_position_id: { title: "Assign job position", label: "Job position", options: () => (positions || []).map((p: any) => ({ value: p.id, label: p.title })) },
+    shift_id: { title: "Assign shift", label: "Shift", options: () => (shifts || []).map((s: any) => ({ value: s.id, label: s.name })) },
+    work_type: { title: "Set work type", label: "Work type", options: () => [
+      { value: "office", label: "Office" }, { value: "on-site", label: "On-site" },
+      { value: "remote", label: "Remote" }, { value: "hybrid", label: "Hybrid" },
+    ] },
+    employee_type: { title: "Set employment type", label: "Employment type", options: () => EMPLOYEE_TYPES.map((t: any) => (
+      typeof t === "string" ? { value: t, label: employeeTypeLabel(t) } : { value: t.value, label: t.label }
+    )) },
   };
 
-  // ─── Bulk shift assign ───
-  const [bulkShiftOpen, setBulkShiftOpen] = useState(false);
-  const [bulkShiftId, setBulkShiftId] = useState("");
-  const handleBulkShiftAssign = async () => {
-    if (!bulkShiftId || selectedIds.size === 0) return;
-    try {
-      for (const id of selectedIds) {
-        const wi = getWorkInfo(id);
-        if (wi) {
-          await supabase.from("hr_employee_work_info").update({ shift_id: bulkShiftId }).eq("id", wi.id);
-        }
-      }
-      toast.success(`${selectedIds.size} employee(s) shift updated`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
-      setSelectedIds(new Set());
-      setBulkShiftOpen(false);
-      setBulkShiftId("");
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to assign shift");
+  const runBulkWorkInfo = async () => {
+    if (!bulkField || !bulkValue || selectedIds.size === 0) return;
+    setBusyAction("workinfo");
+    let ok = 0; const failures: string[] = [];
+    for (const id of selectedIds) {
+      const wi = getWorkInfo(id);
+      const { error } = wi
+        ? await supabase.from("hr_employee_work_info").update({ [bulkField]: bulkValue } as any).eq("id", wi.id)
+        : await supabase.from("hr_employee_work_info").insert({ employee_id: id, [bulkField]: bulkValue } as any);
+      if (error) failures.push(error.message); else ok++;
     }
+    setBusyAction(null);
+    queryClient.invalidateQueries({ queryKey: ["hr_employee_work_infos"] });
+    if (ok) toast.success(`${BULK_FIELDS[bulkField].title} — updated ${ok} employee(s)`);
+    if (failures.length) toast.error(`${failures.length} failed — ${failures[0]}`);
+    if (!failures.length) setSelectedIds(new Set());
+    setBulkField(null);
+    setBulkValue("");
   };
+
 
   // ─── Helpers ───
   const initials = (f: string, l: string) => `${f.charAt(0)}${l.charAt(0)}`.toUpperCase();

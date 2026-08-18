@@ -89,10 +89,10 @@ function DepositCard({ deposit }: { deposit: any }) {
   const refunded = deposit.refund_status === "refunded" || deposit.is_recovered || deposit.is_settled;
 
   return (
-    <div className="border border-border rounded-lg p-4 space-y-3">
+    <div className="border border-border rounded-lg p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">{DEPOSIT_TYPE_LABEL[deposit.deposit_type || "security"]}</p>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${refunded ? "bg-primary/10 text-primary" : deposit.is_fully_collected ? "bg-success/10 text-success" : deposit.is_paused ? "bg-muted text-muted-foreground" : "bg-warning/10 text-warning"}`}>
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${refunded ? "bg-primary/10 text-primary" : deposit.is_fully_collected ? "bg-success/10 text-success" : deposit.is_paused ? "bg-muted text-muted-foreground" : "bg-warning/10 text-warning"}`}>
           {refunded ? "Paid back" : deposit.is_fully_collected ? "Fully Collected" : deposit.is_paused ? "Paused" : "Collecting"}
         </span>
       </div>
@@ -106,7 +106,6 @@ function DepositCard({ deposit }: { deposit: any }) {
         </div>
       )}
 
-
       {deposit.deposit_type === "error_recovery" && (deposit.incident_reference || deposit.incident_date || deposit.recovery_reason) && (
         <div className="text-xs text-muted-foreground space-y-0.5">
           {deposit.incident_date && <p>Incident date: <span className="text-foreground">{deposit.incident_date}</span></p>}
@@ -115,39 +114,39 @@ function DepositCard({ deposit }: { deposit: any }) {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
-          <p className="text-xs text-muted-foreground">Total</p>
+          <p className="text-[11px] text-muted-foreground">Total</p>
           <p className="text-sm font-semibold">₹{Number(deposit.total_deposit_amount).toLocaleString('en-IN')}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Collected</p>
+          <p className="text-[11px] text-muted-foreground">Collected</p>
           <p className="text-sm font-semibold text-success">₹{Number(deposit.collected_amount).toLocaleString('en-IN')}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Current Balance</p>
+          <p className="text-[11px] text-muted-foreground">Balance</p>
           <p className="text-sm font-semibold text-primary">₹{Number(deposit.current_balance).toLocaleString('en-IN')}</p>
         </div>
         <div>
-          <p className="text-xs text-muted-foreground">Deduction Mode</p>
-          <p className="text-sm font-medium">{modeLabel}</p>
+          <p className="text-[11px] text-muted-foreground">Mode</p>
+          <p className="text-sm font-medium truncate">{modeLabel}</p>
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs text-muted-foreground">Collection Progress</p>
-          <p className="text-xs font-medium">{progress}%</p>
+          <p className="text-[11px] text-muted-foreground">Collection Progress</p>
+          <p className="text-[11px] font-medium">{progress}%</p>
         </div>
-        <Progress value={progress} className="h-2" />
+        <Progress value={progress} className="h-1.5" />
       </div>
 
       {recentTxns.length > 0 && (
-        <div className="mt-2">
-          <p className="text-xs font-semibold text-muted-foreground mb-1">Recent Transactions</p>
-          <div className="space-y-1">
+        <div className="mt-1">
+          <p className="text-[11px] font-semibold text-muted-foreground mb-1">Recent Transactions</p>
+          <div className="space-y-0.5">
             {recentTxns.map((t: any) => (
-              <div key={t.id} className="flex items-center justify-between text-xs border-b border-border/50 py-1">
+              <div key={t.id} className="flex items-center justify-between text-[11px] border-b border-border/50 py-1">
                 <div className="flex items-center gap-2">
                   <span className={`font-medium ${txTypeColor[t.transaction_type] || "text-foreground"}`}>
                     {txTypeLabel[t.transaction_type] || t.transaction_type}

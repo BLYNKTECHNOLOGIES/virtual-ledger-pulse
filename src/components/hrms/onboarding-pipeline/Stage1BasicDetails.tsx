@@ -41,6 +41,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     employee_type: "",
     probation_end_date: "",
   });
+  const [fullAddress, setFullAddress] = useState("");
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 

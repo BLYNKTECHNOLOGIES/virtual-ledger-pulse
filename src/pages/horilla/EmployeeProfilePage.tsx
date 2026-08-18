@@ -992,8 +992,7 @@ export default function EmployeeProfilePage() {
                 <InfoRow label="Separation Reason" value={(emp as any).separation_reason} editKey="separation_reason" />
               </div>
 
-              {/* Deposit Information */}
-              <DepositInfoSection employeeId={id!} />
+              {/* Deposit Information moved to Payroll tab */}
             </div>
 
             {/* Right: Work Information table */}
@@ -1598,6 +1597,14 @@ export default function EmployeeProfilePage() {
             />
 
             {emp && <EmployeeSalaryStructure employeeId={emp.id} />}
+
+            <div>
+              <h3 className="text-base font-semibold text-foreground mb-2">Deposits & Recoveries</h3>
+              <p className="text-xs text-muted-foreground mb-3">
+                Security deposits and error recoveries with collection status, paid-back amounts and any withheld balances.
+              </p>
+              {emp && <DepositInfoSection employeeId={emp.id} />}
+            </div>
 
             <div>
               <h3 className="text-base font-semibold text-foreground mb-2">Compensation History</h3>

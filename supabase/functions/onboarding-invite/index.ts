@@ -185,8 +185,8 @@ async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>)
   }
   if (p.pan_number) setDoc('pan', { value: String(p.pan_number).toUpperCase(), received: true, source: 'candidate_form' });
   if (p.aadhaar_number) setDoc('aadhaar', { value: String(p.aadhaar_number), received: true, source: 'candidate_form' });
-  // Candidate-declared previous employer surfaces in Stage 3 as a text-only field.
-  if (p.previous_employer) setDoc('previous_employer', { value: String(p.previous_employer).trim(), received: true, source: 'candidate_form' });
+  // Candidate-declared previous employer is shown inside the experience-letter row.
+  if (p.previous_employer) setDoc('experience_letter', { value: String(p.previous_employer).trim(), source: 'candidate_form' });
   if (p.uan_number) setDoc('uan', { value: String(p.uan_number), received: true, source: 'candidate_form' });
   if (p.esic_number) setDoc('esic', { value: String(p.esic_number), received: true, source: 'candidate_form' });
   if (p.pf_number) setDoc('pf_account_number', { value: String(p.pf_number), received: true, source: 'candidate_form' });

@@ -21,17 +21,19 @@ interface Stage3Props {
 
 // `noValue: true` means the doc has NO textual/numeric field — file upload only.
 // `noFile: true` means the doc is a number/text input only — no file upload.
-const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean; noFile?: boolean }> = [
+const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue?: boolean; noFile?: boolean; valuePlaceholder?: string }> = [
   { key: "pan", label: "PAN Card", required: true },
   { key: "aadhaar", label: "Aadhaar Card", required: true },
   { key: "passport_photo", label: "Passport Photo", required: true },
   { key: "bank_details", label: "Bank Details (Cheque/Passbook)", required: true },
   { key: "educational_certificate", label: "Educational Certificate", required: true },
-  { key: "experience_letter", label: "Previous Experience Letter", required: false },
+  // The experience letter row doubles as the previous-employer capture: its
+  // text field holds the employer name coming from the candidate email form.
+  { key: "experience_letter", label: "Previous Experience Letter", required: false, valuePlaceholder: "Previous employer name" },
   { key: "uan", label: "UAN (optional)", required: false },
   { key: "esic", label: "ESIC (optional)", required: false },
   { key: "pf_account_number", label: "PF Account Number (optional)", required: false, noFile: true },
-  { key: "previous_employer", label: "Previous Employer (optional)", required: false, noFile: true },
+
 ];
 
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
@@ -49,6 +51,11 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
         file_name: existing[f.key]?.file_name || "",
       };
     });
+    // Legacy/candidate-form data stored the employer name under its own key;
+    // surface it inside the experience-letter row instead.
+    if (!init.experience_letter.value && existing.previous_employer?.value) {
+      init.experience_letter.value = existing.previous_employer.value;
+    }
     setDocs(init);
   }, [data]);
 
@@ -158,7 +165,7 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
                   </div>
                   {!readOnly && f.key !== "pan" && !f.noValue && (
                     <Input
-                      placeholder={`${f.label} number`}
+                      placeholder={f.valuePlaceholder || `${f.label} number`}
                       className="max-w-[220px] h-8"
                       value={d?.value || ""}
                       onChange={e => updateDocValue(f.key, e.target.value)}

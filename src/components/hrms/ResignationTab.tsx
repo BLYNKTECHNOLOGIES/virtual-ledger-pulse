@@ -724,6 +724,14 @@ export function ResignationTab() {
                   {item.completed_at && (
                     <p className="text-xs text-muted-foreground">Done: {new Date(item.completed_at).toLocaleDateString()}</p>
                   )}
+                  {isBadge && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {item.is_completed
+                        ? "Biometric removal queued on all eSSL devices."
+                        : "Ticking this removes the employee from all eSSL biometric devices."}
+                    </p>
+                  )}
+
                   {isFnf && (
                     <div className="mt-1.5">
                       {fnfForEmployee ? (

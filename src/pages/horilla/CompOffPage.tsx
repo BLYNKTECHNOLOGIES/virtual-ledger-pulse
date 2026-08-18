@@ -118,13 +118,21 @@ export default function CompOffPage() {
 
       {isLoading ? (
         <TableSkeleton rows={5} columns={7} />
-      ) : credits.length === 0 ? (
+      ) : filteredCredits.length === 0 ? (
         <Card>
           <CardContent className="p-0">
             <EmptyState
               icon={Gift}
-              title={`No comp-off credits for ${yearFilter}`}
-              description="Credits are auto-generated when employees clock in on Sundays or holidays."
+              title={
+                employeeFilter
+                  ? `No comp-off credits for ${selectedEmployee?.first_name || ""} ${selectedEmployee?.last_name || ""} in ${yearFilter}`
+                  : `No comp-off credits for ${yearFilter}`
+              }
+              description={
+                employeeFilter
+                  ? "This employee has no comp-off credits in the selected year."
+                  : "Credits are auto-generated when employees clock in on Sundays or holidays."
+              }
             />
           </CardContent>
         </Card>
@@ -144,7 +152,7 @@ export default function CompOffPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {credits.map((c: any) => (
+                {filteredCredits.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium">
                       {c.hr_employees?.first_name} {c.hr_employees?.last_name}

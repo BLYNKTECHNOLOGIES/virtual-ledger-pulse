@@ -12,7 +12,6 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 
 export default function CompOffPage() {
-  const qc = useQueryClient();
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [employeeFilter, setEmployeeFilter] = useState<string>("");
 

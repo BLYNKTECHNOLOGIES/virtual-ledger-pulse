@@ -606,58 +606,67 @@ export default function EmployeeListPage() {
             )}
           </div>
 
-          {/* Actions */}
-          <div className="relative">
-            <button
-              onClick={() => setActionsOpen(!actionsOpen)}
+          {/* Actions — bulk operations on the checked rows */}
+          <DropdownMenu open={actionsOpen} onOpenChange={setActionsOpen}>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground hover:bg-muted transition-colors">
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Actions
+                {selectedIds.size > 0 && (
+                  <span className="ml-1 rounded-full bg-primary/10 text-primary text-[11px] px-1.5">{selectedIds.size}</span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                {hasSelection
+                  ? `${selectedIds.size} employee(s) selected`
+                  : "Tick rows to enable bulk actions"}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => handleExport()}>
+                <Download className="h-3.5 w-3.5" /> Export {hasSelection ? "selected" : "all"} (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => handleExportCsv()}>
+                <Download className="h-3.5 w-3.5" /> Export {hasSelection ? "selected" : "all"} (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("department_id")}>
+                <Building2 className="h-3.5 w-3.5" /> Transfer department
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("job_position_id")}>
+                <Briefcase className="h-3.5 w-3.5" /> Assign job position
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("shift_id")}>
+                <Clock className="h-3.5 w-3.5" /> Assign shift
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("work_type")}>
+                <MapPin className="h-3.5 w-3.5" /> Set work type
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => openBulkField("employee_type")}>
+                <BadgeCheck className="h-3.5 w-3.5" /> Set employment type
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!hasSelection || !!busyAction} onSelect={() => handleBulkStatusChange(true)}>
+                <UserCheck className="h-3.5 w-3.5" /> Activate
+              </DropdownMenuItem>
+              <DropdownMenuItem disabled={!hasSelection || !!busyAction} onSelect={() => handleBulkStatusChange(false)}>
+                <UserX className="h-3.5 w-3.5" /> Deactivate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={!hasSelection} onSelect={() => setSelectedIds(new Set())}>
+                <X className="h-3.5 w-3.5" /> Clear selection
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!hasSelection}
+                className="text-destructive focus:text-destructive"
+                onSelect={() => handleBulkDelete()}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete selected
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-              className="flex items-center gap-1.5 text-sm border border-border rounded-lg px-3 py-1.5 text-foreground hover:bg-muted transition-colors"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Actions
-            </button>
-            {actionsOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setActionsOpen(false)} />
-                <div className="absolute top-full right-0 mt-1 bg-popover border border-border rounded-lg shadow-md py-1 min-w-[160px] z-50">
-                  <button
-                    onClick={() => { handleExport(); setActionsOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                  >
-                    <Download className="h-3.5 w-3.5" /> Export
-                  </button>
-                  <hr className="my-1 border-border" />
-                  <button onClick={() => { setBulkDeptOpen(true); setActionsOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <Building2 className="h-3.5 w-3.5" /> Bulk Dept Transfer
-                  </button>
-                  <button onClick={() => { setBulkShiftOpen(true); setActionsOpen(false); }}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <Clock className="h-3.5 w-3.5" /> Bulk Shift Assign
-                  </button>
-                  <button onClick={() => handleBulkStatusChange(true)}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <UserCheck className="h-3.5 w-3.5" /> Bulk Activate
-                  </button>
-                  <button onClick={() => handleBulkStatusChange(false)}
-                    className="w-full text-left px-3 py-2 text-sm text-foreground hover:bg-muted flex items-center gap-2"
-                    disabled={selectedIds.size === 0}>
-                    <UserX className="h-3.5 w-3.5" /> Bulk Deactivate
-                  </button>
-                  <hr className="my-1 border-border" />
-                  <button
-                    onClick={handleBulkDelete}
-                    className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" /> Bulk Delete
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
 
           {/* Create — employees can only be onboarded via the pipeline (or synced from RazorpayX). Route to the onboarding page instead of opening an ad-hoc dialog. */}
           <button

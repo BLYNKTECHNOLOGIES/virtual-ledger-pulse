@@ -174,9 +174,9 @@ function DepositInfoSection({ employeeId }: { employeeId: string }) {
         .from("hr_employee_deposits")
         .select("*")
         .eq("employee_id", employeeId)
-        .eq("is_settled", false)
         .order("created_at", { ascending: true });
       return data || [];
+
     },
     enabled: !!employeeId,
   });

@@ -94,6 +94,8 @@ export default function EmployeeDocumentsPage() {
       qc.invalidateQueries({ queryKey: ["hr_employee_documents"] });
       setShowAdd(false);
       setForm({ employee_id: "", document_type: "", document_name: "", file_url: "", notes: "" });
+      setUploadedName("");
+
       toast.success("Document added");
     },
     onError: (e: any) => toast.error(e.message),

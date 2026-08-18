@@ -8297,8 +8297,11 @@ export type Database = {
       }
       hr_employee_onboarding: {
         Row: {
+          address: string | null
           bank_details: Json | null
           candidate_id: string | null
+          city: string | null
+          country: string | null
           create_erp_account: boolean | null
           created_at: string
           created_by: string | null
@@ -8336,14 +8339,19 @@ export type Database = {
           salary_template_id: string | null
           shift_id: string | null
           stage_completions: Json | null
+          state: string | null
           status: string
           tax_regime: string | null
           training_completion_date: string | null
           updated_at: string
+          zip: string | null
         }
         Insert: {
+          address?: string | null
           bank_details?: Json | null
           candidate_id?: string | null
+          city?: string | null
+          country?: string | null
           create_erp_account?: boolean | null
           created_at?: string
           created_by?: string | null
@@ -8381,14 +8389,19 @@ export type Database = {
           salary_template_id?: string | null
           shift_id?: string | null
           stage_completions?: Json | null
+          state?: string | null
           status?: string
           tax_regime?: string | null
           training_completion_date?: string | null
           updated_at?: string
+          zip?: string | null
         }
         Update: {
+          address?: string | null
           bank_details?: Json | null
           candidate_id?: string | null
+          city?: string | null
+          country?: string | null
           create_erp_account?: boolean | null
           created_at?: string
           created_by?: string | null
@@ -8426,10 +8439,12 @@ export type Database = {
           salary_template_id?: string | null
           shift_id?: string | null
           stage_completions?: Json | null
+          state?: string | null
           status?: string
           tax_regime?: string | null
           training_completion_date?: string | null
           updated_at?: string
+          zip?: string | null
         }
         Relationships: [
           {

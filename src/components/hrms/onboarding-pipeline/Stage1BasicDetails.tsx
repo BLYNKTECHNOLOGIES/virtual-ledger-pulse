@@ -27,6 +27,11 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     gender: "",
     marital_status: "",
     date_of_birth: "",
+    address: "",
+    city: "",
+    state: "",
+    zip: "",
+    country: "",
     department_id: "",
     position_id: "",
     job_role: "",
@@ -54,6 +59,11 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         gender: data.gender || "",
         marital_status: data.marital_status ? (String(data.marital_status).charAt(0).toUpperCase() + String(data.marital_status).slice(1).toLowerCase()) : "",
         date_of_birth: data.date_of_birth || "",
+        address: data.address || "",
+        city: data.city || "",
+        state: data.state || "",
+        zip: data.zip || "",
+        country: data.country || "",
         department_id: data.department_id || "",
         position_id: data.position_id || "",
         job_role: data.job_role || "",
@@ -194,6 +204,27 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
           <div>
             <Label>Date of Birth</Label>
             <Input type="date" value={form.date_of_birth} onChange={e => update("date_of_birth", e.target.value)} disabled={readOnly} />
+          </div>
+
+          <div className="sm:col-span-2">
+            <Label>Address</Label>
+            <Input value={form.address} onChange={e => update("address", e.target.value)} disabled={readOnly} placeholder="House / street / locality" />
+          </div>
+          <div>
+            <Label>City</Label>
+            <Input value={form.city} onChange={e => update("city", e.target.value)} disabled={readOnly} />
+          </div>
+          <div>
+            <Label>State</Label>
+            <Input value={form.state} onChange={e => update("state", e.target.value)} disabled={readOnly} />
+          </div>
+          <div>
+            <Label>PIN Code</Label>
+            <Input value={form.zip} onChange={e => update("zip", e.target.value)} disabled={readOnly} />
+          </div>
+          <div>
+            <Label>Country</Label>
+            <Input value={form.country} onChange={e => update("country", e.target.value)} disabled={readOnly} />
           </div>
 
           <div>

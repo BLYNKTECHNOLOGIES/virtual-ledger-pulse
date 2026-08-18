@@ -197,6 +197,13 @@ async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>)
     gender: p.gender || undefined,
     marital_status: p.marital_status ? (String(p.marital_status).charAt(0).toUpperCase() + String(p.marital_status).slice(1).toLowerCase()) : undefined,
     date_of_birth: p.date_of_birth || undefined,
+    // Candidate-supplied residential address — persisted on the draft so it
+    // survives into the finalized hr_employees row (not only bank_details).
+    address: p.address || undefined,
+    city: p.city || undefined,
+    state: p.state || undefined,
+    zip: p.zip || undefined,
+    country: p.country || undefined,
     documents: docs,
     bank_details: {
       account_number: String(p.bank_account_number || '').trim(),

@@ -9,13 +9,20 @@ import { privateDocRef } from "@/lib/storedDoc";
  * PDF on demand from the frozen artefact, files it and links it to the
  * employee's document record so the ERP copy is always a PDF.
  */
-async function pdfExists(path: string): Promise<boolean> {
+/**
+ * Confirms the archived PDF object is still there. Only a positive "the folder
+ * lists fine and the file is not in it" counts as missing — a listing error
+ * (permissions, network) must never trigger a paid re-conversion.
+ */
+async function pdfMissing(path: string): Promise<boolean> {
   const slash = path.lastIndexOf("/");
   const dir = slash > 0 ? path.slice(0, slash) : "";
   const name = slash > 0 ? path.slice(slash + 1) : path;
-  const { data } = await supabase.storage.from("hr-doc-issued").list(dir, { search: name, limit: 100 });
-  return !!data?.some((f: any) => f.name === name);
+  const { data, error } = await supabase.storage.from("hr-doc-issued").list(dir, { search: name, limit: 100 });
+  if (error || !data) return false;
+  return !data.some((f: any) => f.name === name);
 }
+
 
 export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: Blob | null }> {
   const isDocx = String(doc.file_mime || "").includes("wordprocessingml") || /\.docx$/i.test(doc.file_path || "");

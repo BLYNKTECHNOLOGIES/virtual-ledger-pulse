@@ -14,8 +14,7 @@ import RichTextEditor from "./RichTextEditor";
 import { parsePlaceholders, mergeMappings, type PlaceholderMapping } from "@/lib/docTemplate";
 
 const CATEGORIES = [
-  { value: "relieving", label: "Relieving Letter" },
-  { value: "experience", label: "Experience Letter" },
+  { value: "relieving", label: "Relieving cum Experience Letter" },
   { value: "appointment", label: "Appointment Letter" },
   { value: "appraisal", label: "Appraisal Letter" },
   { value: "warning", label: "Warning / Disciplinary" },

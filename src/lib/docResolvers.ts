@@ -77,6 +77,7 @@ export function formatValue(raw: unknown, dataType: string, formatter: string | 
 
 function tenureText(doj: unknown, lwd: unknown): string {
   const a = toValidDate(doj);
+  // For a serving employee (no last working day) tenure runs up to today.
   const b = toValidDate(lwd) || new Date();
   if (!a) return "";
   let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
@@ -89,6 +90,14 @@ function tenureText(doj: unknown, lwd: unknown): string {
   if (m) bits.push(`${m} month${m > 1 ? "s" : ""}`);
   return bits.join(" ") || "less than a month";
 }
+
+/** Today in Asia/Kolkata — a UTC date would print yesterday before 05:30 IST. */
+export function istToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
 
 export async function fetchCatalog(): Promise<CatalogField[]> {
   const { data, error } = await (supabase as any)

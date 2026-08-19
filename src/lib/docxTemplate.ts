@@ -174,6 +174,72 @@ export function renderDocx(
   });
 }
 
+/**
+ * Flatten every semi-transparent image inside a .docx onto pure white.
+ *
+ * Why: the letterhead watermark ships as a PNG with a uniform ~7% alpha. When
+ * the file is converted to PDF the alpha is baked into an OPAQUE light-grey
+ * rectangle covering the picture frame. Desktop readers hide it against the
+ * white page, but mobile readers (iOS Files, Google Drive) apply their own
+ * background/colour handling and the rectangle shows up as a grey box behind
+ * the letter body. Compositing on white here keeps the exact printed look while
+ * removing the alpha channel that triggers the artefact.
+ */
+export async function flattenDocxMedia(input: Blob): Promise<Blob> {
+  if (typeof document === "undefined") return input;
+  const buf = new Uint8Array(await input.arrayBuffer());
+  let files: Record<string, Uint8Array>;
+  try {
+    files = unzipSync(buf);
+  } catch {
+    return input;
+  }
+
+  let changed = false;
+  for (const [name, bytes] of Object.entries(files)) {
+    if (!/^word\/media\/.+\.png$/i.test(name)) continue;
+    try {
+      const flat = await flattenPngOnWhite(bytes);
+      if (flat) {
+        files[name] = flat;
+        changed = true;
+      }
+    } catch {
+      /* keep the original image if the browser cannot decode it */
+    }
+  }
+  if (!changed) return input;
+  return new Blob([zipSync(files, { level: 6 })], { type: DOCX_MIME });
+}
+
+async function flattenPngOnWhite(bytes: Uint8Array): Promise<Uint8Array | null> {
+  const blob = new Blob([bytes], { type: "image/png" });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("decode failed"));
+      el.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0);
+    const out: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/png")
+    );
+    if (!out) return null;
+    return new Uint8Array(await out.arrayBuffer());
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 export interface DocxValidation {
   errors: string[];
   warnings: string[];

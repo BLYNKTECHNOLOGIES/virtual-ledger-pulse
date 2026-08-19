@@ -278,7 +278,17 @@ export function GenerateTab() {
   }, [mappings, catalog, promptFields]);
 
 
-  const preview = () => {
+  const preview = async () => {
+    if (isDocx) {
+      try {
+        const blob = await buildDocx("BLY-DRAFT");
+        saveBlob(blob, `DRAFT-${(template?.name || "letter").replace(/[^\w.-]+/g, "_")}.docx`);
+        toast.success("Draft Word file downloaded — open it to check, then Issue");
+      } catch (e: any) {
+        toast.error(e?.message || "Could not build the draft Word file");
+      }
+      return;
+    }
     if (!rendered) return toast.error("Pick a template with a saved version first");
     try {
       printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued", letterhead));
@@ -286,6 +296,7 @@ export function GenerateTab() {
       toast.error(e?.message || "Could not open the print window");
     }
   };
+
 
 
   const issue = async () => {

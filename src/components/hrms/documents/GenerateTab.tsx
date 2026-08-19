@@ -276,7 +276,7 @@ export function GenerateTab() {
       .from("hr-doc-templates")
       .download(version.source_file_path);
     if (error || !blob) throw error || new Error("The Word template file is missing");
-    const { renderDocx } = await import("@/lib/docxTemplate");
+    const { renderDocx, flattenDocxMedia } = await import("@/lib/docxTemplate");
     const docImages: Record<string, string> = {};
     for (const m of mappings) if (imageTokens.has(m.token) && images[m.token]) docImages[m.token] = images[m.token];
 
@@ -294,7 +294,9 @@ export function GenerateTab() {
         systemValues[m.token] = docxValues.generated_by || me?.email || "";
     }
 
-    return renderDocx(await blob.arrayBuffer(), { ...docxValues, ...systemValues }, docImages);
+    // Flatten transparent media onto white so PDF conversion can never bake the
+    // watermark's alpha into a grey rectangle (visible in mobile PDF readers).
+    return flattenDocxMedia(renderDocx(await blob.arrayBuffer(), { ...docxValues, ...systemValues }, docImages));
   };
 
 

@@ -193,15 +193,18 @@ export async function resolveEmployeeValues(
     "employment.designation": designation,
     "employment.department": department,
     "employment.date_of_joining": work?.joining_date || "",
-    "employment.last_working_day": emp.last_working_day || emp.resignation_date || "",
+    // Last working day is a distinct fact from the resignation date — never
+    // substitute one for the other; an empty value prompts the operator instead.
+    "employment.last_working_day": emp.last_working_day || "",
     "employment.employment_type": work?.employee_type || work?.work_type || "",
     "employment.reporting_manager": manager,
     "employment.work_location": work?.location || work?.company_name || "",
-    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day || emp.resignation_date),
+    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day),
     "salary.annual_ctc": annualCtc || "",
     "derived.annual_ctc_words": annualCtc || "",
-    "salary.monthly_gross": annualCtc ? Math.round(annualCtc / 12) : "",
-    "system.today": new Date().toISOString(),
+    "salary.monthly_ctc": annualCtc ? Math.round(annualCtc / 12) : "",
+    "system.today": istToday(),
+
     "system.actor_name": actorName || "",
     // Allocated only at issue time; the generator substitutes it before printing.
     "system.reference_no": "",

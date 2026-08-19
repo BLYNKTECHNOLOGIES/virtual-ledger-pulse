@@ -33,23 +33,37 @@ export function IssuedTab() {
   });
 
   /** Open the archived PDF, building it on demand if the letter has none yet. */
-  const openPdf = async (doc: any) => {
+  const openPdf = (doc: any) => {
+    const preview = window.open("", "_blank");
     const id = toast.loading(doc.pdf_path ? "Opening PDF…" : "Preparing PDF…");
-    try {
-      const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
-      const { path } = await ensureIssuedPdf(doc);
-      const { data, error } = await supabase.storage
-        .from("hr-doc-issued").createSignedUrl(path, 300);
-      if (error || !data?.signedUrl) throw error || new Error("Could not open the PDF");
-      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-      if (!doc.pdf_path) {
-        qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
-        qc.invalidateQueries({ queryKey: ["hr_employee_documents", doc.employee_id] });
+    void (async () => {
+      try {
+        const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
+        const { path, blob: generatedBlob } = await ensureIssuedPdf(doc);
+        const blob = generatedBlob || (await supabase.storage.from("hr-doc-issued").download(path)).data;
+        if (!blob) throw new Error("Could not read the archived PDF");
+
+        const pdfBlob = blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
+        const objectUrl = URL.createObjectURL(pdfBlob);
+        if (preview && !preview.closed) {
+          preview.location.replace(objectUrl);
+        } else {
+          const link = document.createElement("a");
+          link.href = objectUrl;
+          link.download = `${doc.reference_no || "issued-letter"}.pdf`;
+          link.click();
+        }
+        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        if (!doc.pdf_path) {
+          qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+          qc.invalidateQueries({ queryKey: ["hr_employee_documents", doc.employee_id] });
+        }
+        toast.success("PDF ready", { id });
+      } catch (e: any) {
+        if (preview && !preview.closed) preview.close();
+        toast.error(e?.message || "Could not open the PDF", { id });
       }
-      toast.success("PDF ready", { id });
-    } catch (e: any) {
-      toast.error(e?.message || "Could not open the PDF", { id });
-    }
+    })();
   };
 
   /** Re-open the frozen artefact exactly as issued — never re-resolved. */
@@ -62,12 +76,7 @@ export function IssuedTab() {
 
       // Word artefacts (locked native templates) are rendered to PDF for printing.
       if (String(doc.file_mime || "").includes("wordprocessingml")) {
-        const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
-        const { path } = await ensureIssuedPdf(doc);
-        const { data: pdf, error: pdfError } = await supabase.storage
-          .from("hr-doc-issued").createSignedUrl(path, 300);
-        if (pdfError || !pdf?.signedUrl) throw pdfError || new Error("Could not open the PDF");
-        window.open(pdf.signedUrl, "_blank", "noopener,noreferrer");
+        openPdf(doc);
         return;
       }
       printDocument(await res.text());

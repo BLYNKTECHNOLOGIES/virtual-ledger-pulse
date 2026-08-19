@@ -8,6 +8,7 @@ import { Building2, ChevronDown, ChevronUp, Save, Trash2, Plus, Loader2 } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { fetchCompanyIdentity } from "@/lib/companyIdentity";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -179,7 +180,34 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
     onError: (e: Error) => toast.error(e.message || "Could not delete profile"),
   });
 
+  /** The shared legal identity — the same row HR letters print from. */
+  const { data: identity } = useQuery({
+    queryKey: ["hr_company_identity"],
+    queryFn: fetchCompanyIdentity,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const applyIdentity = () => {
+    if (!identity) return toast.error("Company identity is not set up yet");
+    onChange({
+      ...company,
+      name: identity.legal_name || identity.trade_name || company.name,
+      address: (identity.corporate_address || identity.registered_address || "")
+        .split(",").map((s) => s.trim()).filter(Boolean),
+      email: identity.email || company.email,
+      phone: identity.phone || company.phone,
+      gstin: identity.gstin || company.gstin,
+    });
+    toast.success("Loaded from company identity");
+  };
+
   const handleProfileSelect = (profileId: string) => {
+    if (profileId === "__identity__") {
+      setSelectedProfileId("__identity__");
+      persistSelected("__identity__");
+      applyIdentity();
+      return;
+    }
     setSelectedProfileId(profileId);
     persistSelected(profileId);
     if (profileId === "__custom__") return;
@@ -225,6 +253,7 @@ export default function CompanyForm({ company, onChange }: CompanyFormProps) {
                   <SelectValue placeholder={isLoading ? "Loading profiles…" : "Select a saved profile or enter manually"} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__identity__">Company identity (shared)</SelectItem>
                   <SelectItem value="__custom__">— Enter Manually —</SelectItem>
                   {profiles.map(p => (
                     <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>

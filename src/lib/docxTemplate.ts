@@ -213,7 +213,7 @@ export async function flattenDocxMedia(input: Blob): Promise<Blob> {
 }
 
 async function flattenPngOnWhite(bytes: Uint8Array): Promise<Uint8Array | null> {
-  const blob = new Blob([bytes], { type: "image/png" });
+  const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "image/png" });
   const url = URL.createObjectURL(blob);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {

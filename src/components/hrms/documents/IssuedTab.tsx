@@ -12,8 +12,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
-import { Archive, Search, Printer, Ban, ShieldAlert, FileDown, Trash2 } from "lucide-react";
-import { printDocument } from "@/lib/docRender";
+import { Archive, Search, FileText, Ban, ShieldAlert, FileDown, Trash2 } from "lucide-react";
+
 
 export function IssuedTab() {
   const qc = useQueryClient();

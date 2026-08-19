@@ -75,9 +75,6 @@ export function renderDocx(
     nullGetter: () => "",
   });
 
-  const tags = Object.keys(doc.getFullText ? {} : {});
-  void tags;
-
   // Build a proxy-like data object covering every spelling variant.
   const data_: Record<string, string> = {};
   for (const [token, value] of Object.entries(values)) data_[token] = value ?? "";

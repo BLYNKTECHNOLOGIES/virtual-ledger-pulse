@@ -28942,6 +28942,10 @@ export type Database = {
           vpf_value: number
         }[]
       }
+      hr_sync_compoff_allocation: {
+        Args: { p_employee_id: string }
+        Returns: string
+      }
       hr_sync_pay_head_lines: {
         Args: { p_period?: string }
         Returns: {

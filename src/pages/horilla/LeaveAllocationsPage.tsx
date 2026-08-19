@@ -47,7 +47,7 @@ export default function LeaveAllocationsPage() {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_leave_allocations")
-        .select("*, hr_employees!hr_leave_allocations_employee_id_fkey(id, badge_id, first_name, last_name, is_active), hr_leave_types!hr_leave_allocations_leave_type_id_fkey(id, name, color, max_days_per_year)")
+        .select("*, hr_employees!hr_leave_allocations_employee_id_fkey(id, badge_id, first_name, last_name, is_active), hr_leave_types!hr_leave_allocations_leave_type_id_fkey(id, name, code, color, max_days_per_year)")
         .order("year", { ascending: true });
       if (error) throw error;
       return (data as any[]) || [];
@@ -73,10 +73,12 @@ export default function LeaveAllocationsPage() {
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ["hr_leave_types_active"],
     queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_leave_types").select("id, name, color, max_days_per_year").eq("is_active", true);
+      const { data } = await (supabase as any).from("hr_leave_types").select("id, name, code, color, max_days_per_year").eq("is_active", true);
       return data || [];
     },
   });
+
+  const allocatableLeaveTypes = leaveTypes.filter((lt: any) => lt.code !== "CO");
 
   const selectedIsProbationer = isOnProbation(form.employee_id);
   const selectedType = leaveTypes.find((t: any) => t.id === form.leave_type_id);
@@ -85,6 +87,7 @@ export default function LeaveAllocationsPage() {
   const addMutation = useMutation({
     mutationFn: async () => {
       if (blockedByProbation) throw new Error("Sick/Medical leave cannot be allocated to an employee on probation");
+      if (selectedType?.code === "CO") throw new Error("Compensatory Off is generated only from verified weekly-off or holiday attendance");
       const { error } = await (supabase as any).from("hr_leave_allocations").insert({
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,
@@ -107,13 +110,13 @@ export default function LeaveAllocationsPage() {
   const bulkAllocateMutation = useMutation({
     mutationFn: async () => {
       const rows = employees.flatMap((emp: any) =>
-        leaveTypes.filter((lt: any) => !(isSickLeaveType(lt) && isOnProbation(emp.id))).map((lt: any) => ({
+        allocatableLeaveTypes.filter((lt: any) => !(isSickLeaveType(lt) && isOnProbation(emp.id))).map((lt: any) => ({
           employee_id: emp.id,
           leave_type_id: lt.id,
           year,
           quarter,
-          allocated_days: lt.max_days_per_year || 12,
-          available_days: lt.max_days_per_year || 12,
+          allocated_days: lt.max_days_per_year ?? 12,
+          available_days: lt.max_days_per_year ?? 12,
           used_days: 0,
           carry_forward_days: 0,
         }))
@@ -138,8 +141,16 @@ export default function LeaveAllocationsPage() {
       if (!empMap[empId]) empMap[empId] = { employee: a.hr_employees, balances: {} };
       const ltId = a.leave_type_id;
       if (!empMap[empId].balances[ltId]) empMap[empId].balances[ltId] = { totalAllocated: 0, totalUsed: 0, leaveType: a.hr_leave_types };
-      empMap[empId].balances[ltId].totalAllocated += Number(a.allocated_days || 0);
-      empMap[empId].balances[ltId].totalUsed += Number(a.used_days || 0);
+      if (a.hr_leave_types?.code === "CO") {
+        const isSelectedPeriod = a.year === year && (a.quarter === quarter || !a.quarter);
+        if (isSelectedPeriod) {
+          empMap[empId].balances[ltId].totalAllocated = Number(a.available_days || 0);
+          empMap[empId].balances[ltId].totalUsed = 0;
+        }
+      } else {
+        empMap[empId].balances[ltId].totalAllocated += Number(a.allocated_days || 0);
+        empMap[empId].balances[ltId].totalUsed += Number(a.used_days || 0);
+      }
     }
     return Object.values(empMap);
   };
@@ -202,7 +213,7 @@ export default function LeaveAllocationsPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Leave Allocations"
-        description="Quarterly leave allocation — all leaves carry forward infinitely"
+        description="Quarterly leave allocation — Compensatory Off is earned from verified off-day work and settles monthly"
         actions={
           <>
             <ViewToggle value={viewMode} onChange={setViewMode} />
@@ -302,7 +313,9 @@ export default function LeaveAllocationsPage() {
                     const cumBal = empCumulative?.balances[lt.id];
                     const qtr = Number(alloc?.allocated_days || 0);
                     const used = Number(cumBal?.totalUsed ?? alloc?.used_days ?? 0);
-                    const bal = cumBal ? cumBal.totalAllocated - cumBal.totalUsed : qtr - used;
+                    const bal = lt.code === "CO"
+                      ? Number(alloc?.available_days || 0)
+                      : cumBal ? cumBal.totalAllocated - cumBal.totalUsed : qtr - used;
                     totalBal += bal;
                     const blocked = !alloc && isSickLeaveType(lt) && probation;
                     return { lt, qtr, used, bal, blocked, has: !!alloc };
@@ -364,7 +377,9 @@ export default function LeaveAllocationsPage() {
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     {g.allocations.map((a: any) => {
                       const cumBal = empCumulative?.balances[a.leave_type_id];
-                      const cumulativeAvailable = cumBal ? cumBal.totalAllocated - cumBal.totalUsed : a.allocated_days - a.used_days;
+                      const cumulativeAvailable = a.hr_leave_types?.code === "CO"
+                        ? Number(a.available_days || 0)
+                        : cumBal ? cumBal.totalAllocated - cumBal.totalUsed : a.allocated_days - a.used_days;
                       const percent = cumBal && cumBal.totalAllocated > 0 ? (cumBal.totalUsed / cumBal.totalAllocated) * 100 : 0;
                       return (
                         <div key={a.id} className="bg-muted/50 rounded-lg p-3 border border-border">
@@ -436,10 +451,10 @@ export default function LeaveAllocationsPage() {
               <Label>Leave Type</Label>
               <Select value={form.leave_type_id} onValueChange={(v) => {
                 const lt = leaveTypes.find((t: any) => t.id === v);
-                setForm({ ...form, leave_type_id: v, allocated_days: lt?.max_days_per_year || 12 });
+                  setForm({ ...form, leave_type_id: v, allocated_days: lt?.max_days_per_year ?? 12 });
               }}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="Select type" /></SelectTrigger>
-                <SelectContent>{leaveTypes.map((lt: any) => {
+                <SelectContent>{allocatableLeaveTypes.map((lt: any) => {
                   const blocked = selectedIsProbationer && isSickLeaveType(lt);
                   return <SelectItem key={lt.id} value={lt.id} disabled={blocked}>{lt.name}{blocked ? " — blocked (on probation)" : ""}</SelectItem>;
                 })}</SelectContent>
@@ -452,7 +467,7 @@ export default function LeaveAllocationsPage() {
             {selectedIsProbationer && (
               <p className="text-xs text-warning">This employee is on probation{probationEndDate(form.employee_id) ? ` until ${probationEndDate(form.employee_id)}` : ""}. Sick / Medical leave cannot be allocated as per company policy.</p>
             )}
-            <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • All unused days carry forward automatically</p>
+            <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • Compensatory Off is generated automatically and cannot be allocated here.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
@@ -473,7 +488,7 @@ export default function LeaveAllocationsPage() {
               This will allocate default leave days (from leave type settings) to <strong>all {employees.length} active employees</strong> for <strong>{getQuarterLabel(quarter)} {year}</strong>.
             </p>
             <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
-              {leaveTypes.map((lt: any) => (
+              {allocatableLeaveTypes.map((lt: any) => (
                 <div key={lt.id} className="flex justify-between">
                   <span className="text-muted-foreground">{lt.name}</span>
                   <span className="font-medium tabular-nums">{lt.max_days_per_year} days/quarter</span>
@@ -481,12 +496,12 @@ export default function LeaveAllocationsPage() {
               ))}
             </div>
             <p className="text-xs text-warning">Note: Sick / Medical leave is automatically skipped for employees currently on probation.</p>
-            <p className="text-xs text-muted-foreground">Unused days from previous quarters automatically carry forward.</p>
-            {leaveTypes.length === 0 && <p className="text-xs text-warning">Create leave types first before bulk allocating.</p>}
+            <p className="text-xs text-muted-foreground">Compensatory Off is excluded because it is generated only by verified weekly-off or holiday attendance and settles monthly.</p>
+            {allocatableLeaveTypes.length === 0 && <p className="text-xs text-warning">Create an allocatable leave type first.</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowBulk(false)} className="h-9">Cancel</Button>
-            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={leaveTypes.length === 0 || employees.length === 0 || bulkAllocateMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Button onClick={() => bulkAllocateMutation.mutate()} disabled={allocatableLeaveTypes.length === 0 || employees.length === 0 || bulkAllocateMutation.isPending} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
               {bulkAllocateMutation.isPending ? "Allocating..." : `Allocate for ${employees.length} Employees`}
             </Button>
           </DialogFooter>

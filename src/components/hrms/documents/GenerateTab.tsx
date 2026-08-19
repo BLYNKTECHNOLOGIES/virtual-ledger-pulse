@@ -317,14 +317,29 @@ export function GenerateTab() {
           </Card>
         )}
 
+
+        {missingSignatures.length > 0 && (
+          <Card className="border-destructive/40">
+            <CardContent className="p-4">
+              <p className="text-xs font-medium flex items-center gap-1.5 text-destructive">
+                <ShieldAlert className="h-3.5 w-3.5" /> No signature image for {missingSignatures.join(", ")}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Map the placeholder to a signatory and upload their signature in the Signatories tab.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="flex gap-2">
           <Button variant="outline" className="h-9 flex-1" onClick={preview} disabled={!rendered}>
             <Printer className="h-4 w-4 mr-1.5" /> Preview
           </Button>
-          <Button className="h-9 flex-1" onClick={issue} disabled={!rendered || !employeeId || issuing || promptFields.length > 0}>
+          <Button className="h-9 flex-1" onClick={issue} disabled={!rendered || !employeeId || issuing || promptFields.length > 0 || missingSignatures.length > 0}>
             <FileCheck2 className="h-4 w-4 mr-1.5" /> {issuing ? "Issuing…" : "Issue letter"}
           </Button>
         </div>
+
         <p className="text-[11px] text-muted-foreground">
           Issuing allocates a reference number, freezes the merged letter and its values, then opens the browser print dialog — choose “Save as PDF”.
         </p>

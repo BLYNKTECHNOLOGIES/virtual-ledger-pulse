@@ -276,7 +276,7 @@ export function GenerateTab() {
       .from("hr-doc-templates")
       .download(version.source_file_path);
     if (error || !blob) throw error || new Error("The Word template file is missing");
-    const { renderDocx } = await import("@/lib/docxTemplate");
+    const { renderDocx, flattenDocxMedia } = await import("@/lib/docxTemplate");
     const docImages: Record<string, string> = {};
     for (const m of mappings) if (imageTokens.has(m.token) && images[m.token]) docImages[m.token] = images[m.token];
 

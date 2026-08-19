@@ -69,11 +69,52 @@ function buildImageModule(images: Record<string, string>) {
   });
 }
 
+/**
+ * Rewrite plain {{TOKEN}} placeholders to image tags {{%TOKEN}} for every token
+ * that has an image supplied. Handles placeholders split across Word runs by
+ * rebuilding the tag inside the first text node and blanking the rest.
+ */
+function upgradeImageTags(data: ArrayBuffer, images: Record<string, string>): ArrayBuffer {
+  const tokens = Object.keys(images).filter((k) => images[k]);
+  if (!tokens.length) return data;
+
+  const files = unzipSync(new Uint8Array(data));
+  let changed = false;
+
+  for (const name of Object.keys(files)) {
+    if (!/^word\/(document|header\d*|footer\d*)\.xml$/.test(name)) continue;
+    const xml = strFromU8(files[name]);
+    const next = xml.replace(/\{\{((?:[^<>{}]|<[^>]*>)*?)\}\}/g, (match, inner: string) => {
+      const raw = String(inner).replace(/<[^>]*>/g, "").trim();
+      if (!raw || raw.startsWith("%")) return match;
+      const token = normaliseToken(raw);
+      if (!images[token]) return match;
+      changed = true;
+      // Keep every XML tag in place; move the whole tag text into the first
+      // text segment so the run structure stays valid.
+      let placed = false;
+      const rebuilt = String(inner).replace(/[^<>]+|<[^>]*>/g, (seg) => {
+        if (seg.startsWith("<")) return seg;
+        if (placed) return "";
+        placed = true;
+        return `%${raw}`;
+      });
+      return `{{${placed ? rebuilt : `%${raw}`}}}`;
+    });
+    if (next !== xml) files[name] = strToU8(next);
+  }
+
+  if (!changed) return data;
+  const out = zipSync(files);
+  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
+}
+
 function buildData(
   data: ArrayBuffer,
   values: Record<string, string>,
   images: Record<string, string>
 ) {
+
   const merged: Record<string, string> = {};
   for (const [token, value] of Object.entries(values)) merged[token] = value ?? "";
   const placeholders = parseDocxPlaceholders(extractDocxText(data));

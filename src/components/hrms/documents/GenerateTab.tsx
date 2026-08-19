@@ -231,7 +231,15 @@ export function GenerateTab() {
   const unresolvedTokens = useMemo(() => {
     if (isDocx) {
       return mappings
-        .filter((m) => m.token !== "reference_no" && !imageTokens.has(m.token) && !docxValues[m.token])
+        .filter(
+          (m) =>
+            // System-filled values (reference number, generated_by) are injected at issue time,
+            // whatever token name the Word file uses for them.
+            !SYSTEM_FILLED_KEYS.has(m.field_key || m.token) &&
+            !SYSTEM_FILLED_KEYS.has(m.token) &&
+            !imageTokens.has(m.token) &&
+            !docxValues[m.token],
+        )
         .map((m) => m.token);
     }
     return rendered?.unresolved || [];

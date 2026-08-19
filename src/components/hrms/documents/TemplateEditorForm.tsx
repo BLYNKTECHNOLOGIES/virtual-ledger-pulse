@@ -9,9 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, Braces, Check, ShieldAlert, Upload } from "lucide-react";
+import { AlertTriangle, Braces, Check, FileLock2, ShieldAlert, Upload } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
-import { parsePlaceholders, mergeMappings, type PlaceholderMapping } from "@/lib/docTemplate";
+import { parsePlaceholders, mergeMappings, normaliseToken, type PlaceholderMapping } from "@/lib/docTemplate";
+
 
 const CATEGORIES = [
   { value: "relieving", label: "Relieving cum Experience Letter" },

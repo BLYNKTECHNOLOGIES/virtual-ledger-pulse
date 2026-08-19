@@ -172,6 +172,19 @@ export function GenerateTab() {
     [resolved, overrides]
   );
 
+  /** Locked Word lane: the .docx is merged as-is, never converted to HTML. */
+  const isDocx = version?.lane === "docx" && !!version?.source_file_path;
+
+  /** Token -> merged value, used by the locked Word lane. */
+  const docxValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const m of mappings) {
+      const v = tokenValues[m.token] ?? (m.field_key ? values[m.field_key] : undefined);
+      out[m.token] = v ?? "";
+    }
+    return out;
+  }, [mappings, tokenValues, values]);
+
   /** Reference is allocated at issue time; the preview shows a dummy so it never blocks. */
   const renderWith = (referenceNo: string) => {
     if (!version?.content_html) return null;
@@ -189,11 +202,46 @@ export function GenerateTab() {
     [version, values, images, mappings, tokenValues, me?.email]
   );
 
+  /** Unresolved tokens, whichever lane the template uses. */
+  const unresolvedTokens = useMemo(() => {
+    if (isDocx) {
+      return mappings
+        .filter((m) => m.token !== "reference_no" && !docxValues[m.token])
+        .map((m) => m.token);
+    }
+    return rendered?.unresolved || [];
+  }, [isDocx, mappings, docxValues, rendered]);
+
   /** Signature/seal placeholders whose signatory has no uploaded image. */
   const missingSignatures = useMemo(
-    () => (rendered?.unresolved || []).filter((t) => imageTokens.has(t)),
-    [rendered, imageTokens]
+    () => (isDocx ? [] : unresolvedTokens.filter((t) => imageTokens.has(t))),
+    [isDocx, unresolvedTokens, imageTokens]
   );
+
+  /** Download a generated Word file. */
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
+
+  /** Merge values into the stored .docx and return the finished Word bytes. */
+  const buildDocx = async (referenceNo: string) => {
+    const { data: blob, error } = await supabase.storage
+      .from("hr-doc-templates")
+      .download(version.source_file_path);
+    if (error || !blob) throw error || new Error("The Word template file is missing");
+    const { renderDocx } = await import("@/lib/docxTemplate");
+    return renderDocx(await blob.arrayBuffer(), {
+      ...docxValues,
+      reference_no: referenceNo,
+      generated_by: docxValues.generated_by || me?.email || "",
+    });
+  };
+
 
   /** Fields the letter actually needs but which came back empty. */
   const promptFields = useMemo(() => {

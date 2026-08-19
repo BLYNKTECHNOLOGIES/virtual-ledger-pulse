@@ -7555,6 +7555,449 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_doc_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          created_at: string
+          details: Json
+          entity_id: string | null
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          created_at?: string
+          details?: Json
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
+      hr_doc_field_catalog: {
+        Row: {
+          allows_instances: boolean
+          created_at: string
+          data_type: string
+          default_value: string | null
+          description: string | null
+          field_group: string
+          field_key: string
+          formatter: string | null
+          id: string
+          is_active: boolean
+          is_required: boolean
+          is_sensitive: boolean
+          label: string
+          resolver_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          allows_instances?: boolean
+          created_at?: string
+          data_type?: string
+          default_value?: string | null
+          description?: string | null
+          field_group: string
+          field_key: string
+          formatter?: string | null
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          is_sensitive?: boolean
+          label: string
+          resolver_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          allows_instances?: boolean
+          created_at?: string
+          data_type?: string
+          default_value?: string | null
+          description?: string | null
+          field_group?: string
+          field_key?: string
+          formatter?: string | null
+          id?: string
+          is_active?: boolean
+          is_required?: boolean
+          is_sensitive?: boolean
+          label?: string
+          resolver_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_doc_reference_sequences: {
+        Row: {
+          created_at: string
+          id: string
+          last_value: number
+          pattern: string
+          scope_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_value?: number
+          pattern?: string
+          scope_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_value?: number
+          pattern?: string
+          scope_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_doc_signatories: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          designation: string | null
+          display_name: string
+          employee_id: string | null
+          id: string
+          is_active: boolean
+          notes: string | null
+          seal_path: string | null
+          signature_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          designation?: string | null
+          display_name: string
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          seal_path?: string | null
+          signature_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          designation?: string | null
+          display_name?: string
+          employee_id?: string | null
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          seal_path?: string | null
+          signature_path?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_doc_signatory_permissions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          role_name: string | null
+          signatory_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role_name?: string | null
+          signatory_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role_name?: string | null
+          signatory_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_doc_signatory_permissions_signatory_id_fkey"
+            columns: ["signatory_id"]
+            isOneToOne: false
+            referencedRelation: "hr_doc_signatories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_doc_template_versions: {
+        Row: {
+          change_note: string | null
+          checksum: string | null
+          content_html: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          lane: string
+          page_setup: Json
+          placeholder_map: Json
+          source_file_name: string | null
+          source_file_path: string | null
+          template_id: string
+          unparsed_tokens: Json
+          version_no: number
+        }
+        Insert: {
+          change_note?: string | null
+          checksum?: string | null
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          lane?: string
+          page_setup?: Json
+          placeholder_map?: Json
+          source_file_name?: string | null
+          source_file_path?: string | null
+          template_id: string
+          unparsed_tokens?: Json
+          version_no: number
+        }
+        Update: {
+          change_note?: string | null
+          checksum?: string | null
+          content_html?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          lane?: string
+          page_setup?: Json
+          placeholder_map?: Json
+          source_file_name?: string | null
+          source_file_path?: string | null
+          template_id?: string
+          unparsed_tokens?: Json
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_doc_template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_doc_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_doc_templates: {
+        Row: {
+          category: string
+          contains_sensitive: boolean
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          current_version_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          lane: string
+          name: string
+          reference_pattern: string | null
+          requires_approval: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          contains_sensitive?: boolean
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          current_version_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          lane?: string
+          name: string
+          reference_pattern?: string | null
+          requires_approval?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          contains_sensitive?: boolean
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          current_version_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          lane?: string
+          name?: string
+          reference_pattern?: string | null
+          requires_approval?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_doc_templates_current_version_fk"
+            columns: ["current_version_id"]
+            isOneToOne: false
+            referencedRelation: "hr_doc_template_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_documents_issued: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          category: string | null
+          contains_sensitive: boolean
+          created_at: string
+          created_by: string | null
+          delivered_at: string | null
+          delivered_to: string | null
+          employee_id: string | null
+          employee_name: string | null
+          file_mime: string | null
+          file_path: string | null
+          id: string
+          issued_at: string | null
+          issued_by: string | null
+          issued_by_name: string | null
+          reference_no: string | null
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          signatory_ids: string[]
+          status: string
+          superseded_by_id: string | null
+          supersedes_id: string | null
+          template_id: string | null
+          template_name: string | null
+          template_version_id: string | null
+          updated_at: string
+          values_snapshot: Json
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string | null
+          contains_sensitive?: boolean
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivered_to?: string | null
+          employee_id?: string | null
+          employee_name?: string | null
+          file_mime?: string | null
+          file_path?: string | null
+          id?: string
+          issued_at?: string | null
+          issued_by?: string | null
+          issued_by_name?: string | null
+          reference_no?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          signatory_ids?: string[]
+          status?: string
+          superseded_by_id?: string | null
+          supersedes_id?: string | null
+          template_id?: string | null
+          template_name?: string | null
+          template_version_id?: string | null
+          updated_at?: string
+          values_snapshot?: Json
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string | null
+          contains_sensitive?: boolean
+          created_at?: string
+          created_by?: string | null
+          delivered_at?: string | null
+          delivered_to?: string | null
+          employee_id?: string | null
+          employee_name?: string | null
+          file_mime?: string | null
+          file_path?: string | null
+          id?: string
+          issued_at?: string | null
+          issued_by?: string | null
+          issued_by_name?: string | null
+          reference_no?: string | null
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          signatory_ids?: string[]
+          status?: string
+          superseded_by_id?: string | null
+          supersedes_id?: string | null
+          template_id?: string | null
+          template_name?: string | null
+          template_version_id?: string | null
+          updated_at?: string
+          values_snapshot?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_documents_issued_superseded_by_id_fkey"
+            columns: ["superseded_by_id"]
+            isOneToOne: false
+            referencedRelation: "hr_documents_issued"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_issued_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "hr_documents_issued"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_issued_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "hr_doc_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_documents_issued_template_version_id_fkey"
+            columns: ["template_version_id"]
+            isOneToOne: false
+            referencedRelation: "hr_doc_template_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_drift_alerts: {
         Row: {
           auto_classified_at: string | null
@@ -27937,6 +28380,14 @@ export type Database = {
       hr_derive_statutory_enrollment_from_history: {
         Args: { p_employee_id: string }
         Returns: Json
+      }
+      hr_doc_allocate_reference: {
+        Args: { _pattern?: string; _scope_key: string; _type_code?: string }
+        Returns: string
+      }
+      hr_doc_can_view_sensitive: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
       hr_drift_alerts_auto_close: {
         Args: { p_dedup_key: string; p_reason?: string }

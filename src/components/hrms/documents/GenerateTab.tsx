@@ -245,10 +245,10 @@ export function GenerateTab() {
 
   /** Fields the letter actually needs but which came back empty. */
   const promptFields = useMemo(() => {
-    if (!rendered) return [] as CatalogField[];
+    if (!rendered && !isDocx) return [] as CatalogField[];
     const byToken = new Map(mappings.map((m) => [m.token, m]));
     const keys = new Set<string>();
-    for (const token of rendered.unresolved) {
+    for (const token of unresolvedTokens) {
       if (imageTokens.has(token)) continue;
       const key = byToken.get(token)?.field_key || token;
       if (SYSTEM_FILLED_KEYS.has(key)) continue;
@@ -259,7 +259,8 @@ export function GenerateTab() {
         (catalog as CatalogField[]).find((c) => c.field_key === key) ||
         ({ field_key: key, label: key.replace(/_/g, " "), field_group: "custom", data_type: "text", formatter: null, resolver_id: null, is_sensitive: false, default_value: null } as CatalogField)
     );
-  }, [rendered, mappings, catalog, imageTokens]);
+  }, [rendered, isDocx, unresolvedTokens, mappings, catalog, imageTokens]);
+
 
   /**
    * Resolved-but-adjustable fields used by this template (letter date, last

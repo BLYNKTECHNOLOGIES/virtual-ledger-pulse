@@ -61,12 +61,10 @@ Deno.serve(async (req) => {
   });
 
   try {
-    const previewKey = Deno.env.get("HR_DOC_EMAIL_PREVIEW_KEY");
-    const hasPreviewKey = !!previewKey && req.headers.get("x-preview-key") === previewKey;
     const authHeader = req.headers.get("authorization") || "";
-    if (!hasPreviewKey && !authHeader.toLowerCase().startsWith("bearer ")) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader.toLowerCase().startsWith("bearer ")) return json({ error: "Unauthorized" }, 401);
     const token = authHeader.replace(/^Bearer /i, "").trim();
-    const isServiceRole = hasPreviewKey || token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isServiceRole = token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     let caller: { id: string; email: string | null } = { id: "00000000-0000-0000-0000-000000000000", email: "service-role" };
     if (!isServiceRole) {
       const { data: { user } } = await admin.auth.getUser(token);

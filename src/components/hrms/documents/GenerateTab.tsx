@@ -482,22 +482,32 @@ export function GenerateTab() {
         )}
 
         <div className="flex gap-2">
-          <Button variant="outline" className="h-9 flex-1" onClick={preview} disabled={!rendered}>
-            <Printer className="h-4 w-4 mr-1.5" /> Preview
+          <Button variant="outline" className="h-9 flex-1" onClick={preview} disabled={!rendered && !isDocx}>
+            <Printer className="h-4 w-4 mr-1.5" /> {isDocx ? "Draft .docx" : "Preview"}
           </Button>
-          <Button className="h-9 flex-1" onClick={issue} disabled={!rendered || !employeeId || issuing || promptFields.length > 0 || missingSignatures.length > 0}>
+          <Button className="h-9 flex-1" onClick={issue} disabled={(!rendered && !isDocx) || !employeeId || issuing || promptFields.length > 0 || missingSignatures.length > 0}>
             <FileCheck2 className="h-4 w-4 mr-1.5" /> {issuing ? "Issuing…" : "Issue letter"}
           </Button>
         </div>
 
         <p className="text-[11px] text-muted-foreground">
-          Issuing allocates a reference number, freezes the merged letter and its values, then opens the browser print dialog — choose “Save as PDF”.
+          {isDocx
+            ? "Issuing allocates a reference number, merges the values into the original Word file and downloads it — open it in Word and print to PDF."
+            : "Issuing allocates a reference number, freezes the merged letter and its values, then opens the browser print dialog — choose “Save as PDF”."}
         </p>
       </div>
 
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          {!rendered ? (
+          {isDocx ? (
+            <div className="p-10">
+              <EmptyState
+                icon={FileCheck2}
+                title="Locked Word template"
+                description={`${version?.source_file_name || "This template"} is merged inside the original Word file, so there is no on-screen preview. Use “Draft .docx” to check it before issuing.`}
+              />
+            </div>
+          ) : !rendered ? (
             <div className="p-10">
               <EmptyState icon={FilePlus2} title="Nothing to preview yet" description="Select a template and an employee." />
             </div>
@@ -510,6 +520,7 @@ export function GenerateTab() {
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }

@@ -166,43 +166,16 @@ Deno.serve(async (req) => {
       lastWorkingDate: lastWorking,
       designation,
     });
-    // Keep the subject strictly ASCII and short: denomailer 1.6.0 does not fold
-    // long RFC2047 encoded-words, which leaks header text into the message body.
-    const safeSubject = tpl.subject
-      .replace(/[\u2010-\u2015]/g, "-")
-      .replace(/[^\x20-\x7E]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 72);
+    const safeSubject = sanitizeSubject(tpl.subject);
     const html = wrapHrEmail(tpl.html, {
       title: tpl.subject.split(" - ")[0],
       preheader: `${doc.template_name} · ${doc.reference_no}`,
       refNote: `Automated notice · Ref ${doc.reference_no || "—"}`,
     });
 
-    const { data: mailbox } = await admin
-      .from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();
-    if (!mailbox) return json({ error: "No active HR mailbox configured" }, 400);
-    const host = Deno.env.get(mailbox.smtp_host_secret) || Deno.env.get("HR_SMTP_HOST");
-    const user = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get("HR_SMTP_USER") || "").trim();
-    const pass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
-    if (!host || !user || !pass) return json({ error: "SMTP credentials are not configured" }, 500);
-
-    const client = new SMTPClient({
-      connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } },
-    });
-    try {
-      await client.send({
-        from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`,
-        to,
-        subject: safeSubject,
-        content: hrSignatureText(),
-        html,
-        attachments: attachment ? ([attachment] as any) : undefined,
-      });
-    } finally {
-      try { await client.close(); } catch { /* ignore */ }
-    }
+    const mb = await getMailbox(admin);
+    if ("error" in mb) return json({ error: mb.error }, 400);
+    await sendMail(mb, to, safeSubject, html, attachment);
 
     await admin.from("hr_email_send_log").insert({
       message_id: crypto.randomUUID(),

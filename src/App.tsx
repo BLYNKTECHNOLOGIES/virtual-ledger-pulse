@@ -790,6 +790,8 @@ const router = createBrowserRouter([
         { path: "helpdesk/policies", element: <HRPoliciesPage /> },
         { path: "organization", element: <OrganizationPage /> },
         { path: "documents", element: <DocumentsPage /> },
+        { path: "documents/templates/new", element: <DocumentTemplateEditorPage /> },
+        { path: "documents/templates/:id", element: <DocumentTemplateEditorPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
         { path: "registers", element: <RegistersPage /> },

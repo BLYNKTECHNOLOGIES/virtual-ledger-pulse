@@ -373,13 +373,9 @@ export function GenerateTab() {
       try {
         const { htmlToPdfBlob, docxToPdfBlob } = await import("@/lib/docPdf");
         pdfBlob = isDocx && docxBlob
-          ? await docxToPdfBlob(
-              await docxBlob.arrayBuffer(),
-              template.name,
-              letterhead || (await resolveLetterhead(await fetchCompanyIdentity()))
-            )
-          : await htmlToPdfBlob(fullHtml, letterhead || (await resolveLetterhead(await fetchCompanyIdentity())));
-        pdfPath = `${employeeId}/${safeRef}${isDocx ? ".letterhead" : ""}.pdf`;
+          ? await docxToPdfBlob(await docxBlob.arrayBuffer(), template.name)
+          : await htmlToPdfBlob(fullHtml);
+        pdfPath = `${employeeId}/${safeRef}${isDocx ? ".word" : ""}.pdf`;
         const { error: pdfErr } = await supabase.storage
           .from("hr-doc-issued")
           .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });

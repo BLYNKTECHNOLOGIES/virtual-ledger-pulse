@@ -1,7 +1,10 @@
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import ImageModule from "docxtemplater-image-module-free";
+import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
+import { normaliseToken } from "@/lib/docTemplate";
 import { extractDocxText, parseDocxPlaceholders } from "@/lib/docxPlaceholders";
+
 
 export { extractDocxText, parseDocxPlaceholders, parseDocxToResult } from "@/lib/docxPlaceholders";
 export type { DocxPlaceholder } from "@/lib/docxPlaceholders";
@@ -69,11 +72,52 @@ function buildImageModule(images: Record<string, string>) {
   });
 }
 
+/**
+ * Rewrite plain {{TOKEN}} placeholders to image tags {{%TOKEN}} for every token
+ * that has an image supplied. Handles placeholders split across Word runs by
+ * rebuilding the tag inside the first text node and blanking the rest.
+ */
+function upgradeImageTags(data: ArrayBuffer, images: Record<string, string>): ArrayBuffer {
+  const tokens = Object.keys(images).filter((k) => images[k]);
+  if (!tokens.length) return data;
+
+  const files = unzipSync(new Uint8Array(data));
+  let changed = false;
+
+  for (const name of Object.keys(files)) {
+    if (!/^word\/(document|header\d*|footer\d*)\.xml$/.test(name)) continue;
+    const xml = strFromU8(files[name]);
+    const next = xml.replace(/\{\{((?:[^<>{}]|<[^>]*>)*?)\}\}/g, (match, inner: string) => {
+      const raw = String(inner).replace(/<[^>]*>/g, "").trim();
+      if (!raw || raw.startsWith("%")) return match;
+      const token = normaliseToken(raw);
+      if (!images[token]) return match;
+      changed = true;
+      // Keep every XML tag in place; move the whole tag text into the first
+      // text segment so the run structure stays valid.
+      let placed = false;
+      const rebuilt = String(inner).replace(/[^<>]+|<[^>]*>/g, (seg) => {
+        if (seg.startsWith("<")) return seg;
+        if (placed) return "";
+        placed = true;
+        return `%${raw}`;
+      });
+      return `{{${placed ? rebuilt : `%${raw}`}}}`;
+    });
+    if (next !== xml) files[name] = strToU8(next);
+  }
+
+  if (!changed) return data;
+  const out = zipSync(files);
+  return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength) as ArrayBuffer;
+}
+
 function buildData(
   data: ArrayBuffer,
   values: Record<string, string>,
   images: Record<string, string>
 ) {
+
   const merged: Record<string, string> = {};
   for (const [token, value] of Object.entries(values)) merged[token] = value ?? "";
   const placeholders = parseDocxPlaceholders(extractDocxText(data));
@@ -96,16 +140,13 @@ export function renderDocx(
   values: Record<string, string>,
   images: Record<string, string> = {}
 ): Blob {
-  const { merged, placeholders } = buildData(data, values, images);
+  // Word files routinely carry plain {{SIGN}} tags. Rather than refusing to
+  // issue, rewrite those tags to docxtemplater's image syntax {{%SIGN}} in the
+  // XML itself whenever an image is actually supplied for the token.
+  const prepared = upgradeImageTags(data, images);
 
-  const plainImageTokens = placeholders
-    .filter((p) => images[p.token] && !isImageTag(p.raw))
-    .map((p) => p.token);
-  if (plainImageTokens.length) {
-    throw new Error(
-      `Signature/seal placeholders must be written as {{%${plainImageTokens[0].toUpperCase()}}} in Word (with the % sign). Fix the Word file and re-upload it: ${plainImageTokens.join(", ")}`
-    );
-  }
+  const { merged, placeholders } = buildData(prepared, values, images);
+
   const unsuppliedImages = placeholders
     .filter((p) => isImageTag(p.raw) && !images[p.token])
     .map((p) => p.token);
@@ -115,7 +156,7 @@ export function renderDocx(
     );
   }
 
-  const zip = new PizZip(data);
+  const zip = new PizZip(prepared);
   const doc = new Docxtemplater(zip, {
     delimiters: DOCX_DELIMITERS,
     paragraphLoop: true,
@@ -123,6 +164,7 @@ export function renderDocx(
     nullGetter: () => "",
     modules: [buildImageModule(images)],
   });
+
 
   doc.render(merged);
   return doc.getZip().generate({

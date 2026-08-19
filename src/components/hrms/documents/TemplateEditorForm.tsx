@@ -245,13 +245,22 @@ export function TemplateEditorForm({
                   if (!file) return;
                   try {
                     setImporting(true);
-                    const mammoth = await import("mammoth/mammoth.browser");
+                    const { convertDocxToHtml } = await import("@/lib/docxImport");
                     const buffer = await file.arrayBuffer();
-                    const result = await (mammoth as any).convertToHtml({ arrayBuffer: buffer });
-                    const body = (result?.value || "").trim();
+                    let body = "";
+                    try {
+                      body = convertDocxToHtml(buffer).trim();
+                    } catch (primaryErr) {
+                      // Fall back to mammoth for unusual packages (text-only, no formatting).
+                      const mammoth = await import("mammoth/mammoth.browser");
+                      const result = await (mammoth as any).convertToHtml({ arrayBuffer: buffer });
+                      body = (result?.value || "").trim();
+                      if (!body) throw primaryErr;
+                    }
                     if (!body) throw new Error("That document had no readable text.");
                     setHtml(body);
                     toast.success("Imported — review the formatting before saving");
+
                   } catch (err: any) {
                     toast.error(err?.message || "Could not read that .docx file");
                   } finally {

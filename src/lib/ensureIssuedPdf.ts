@@ -30,7 +30,7 @@ export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: B
   // A PDF archived against this letter is reused forever — never re-converted,
   // never re-rendered, whichever surface asks for it (HRMS, employee profile,
   // automated email). The Adobe API is only ever called when no PDF exists yet.
-  if (doc.pdf_path && (await pdfExists(doc.pdf_path))) return { path: doc.pdf_path, blob: null };
+  if (doc.pdf_path && !(await pdfMissing(doc.pdf_path))) return { path: doc.pdf_path, blob: null };
 
   if (isDocx) {
     const { data, error } = await supabase.functions.invoke("hr-doc-convert-pdf", {

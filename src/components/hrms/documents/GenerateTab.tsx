@@ -11,7 +11,7 @@ import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { FilePlus2, Printer, AlertTriangle, ShieldAlert, FileCheck2 } from "lucide-react";
-import { fetchCatalog, resolveEmployeeValues, type CatalogField } from "@/lib/docResolvers";
+import { fetchCatalog, resolveEmployeeValues, SYSTEM_FILLED_KEYS, type CatalogField } from "@/lib/docResolvers";
 import { renderTemplateHtml, buildPrintDocument, printDocument } from "@/lib/docRender";
 import type { PlaceholderMapping } from "@/lib/docTemplate";
 

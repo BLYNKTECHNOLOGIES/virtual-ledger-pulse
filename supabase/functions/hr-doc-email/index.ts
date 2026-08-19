@@ -38,13 +38,21 @@ async function getMailbox(admin: any): Promise<Mailbox | { error: string }> {
   return { from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`, host, user, pass };
 }
 
+// denomailer's quoted-printable encoder turns any space that sits at the end of a
+// line into a literal "=20", which mail clients then show as text. Strip trailing
+// whitespace (and blank lines) from every line before handing content to the mailer.
+const tidyBody = (s: string) =>
+  s.replace(/\r\n/g, "\n").replace(/[ \t]+(?=\n)/g, "").replace(/\n{2,}/g, "\n").trim();
+
 async function sendMail(mb: Mailbox, to: string, subject: string, html: string, attachment: any) {
   const client = new SMTPClient({
     connection: { hostname: mb.host, port: 465, tls: true, auth: { username: mb.user, password: mb.pass } },
   });
   try {
     await client.send({
-      from: mb.from, to, subject, content: hrSignatureText(), html,
+      from: mb.from, to, subject,
+      content: tidyBody(hrSignatureText()),
+      html: tidyBody(html),
       attachments: attachment ? ([attachment] as any) : undefined,
     });
   } finally {
@@ -84,6 +92,33 @@ Deno.serve(async (req) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(overrideTo)) return json({ error: "A valid 'to' is required" }, 400);
       const mb = await getMailbox(admin);
       if ("error" in mb) return json({ error: mb.error }, 400);
+
+      // Attach a real archived PDF (latest issued letter) so the sample shows the
+      // finished letterhead PDF exactly as employees receive it.
+      let sampleAttachment: any = null;
+      let sampleRef = "";
+      const { data: latest } = await admin
+        .from("hr_documents_issued")
+        .select("reference_no,pdf_path,issued_at")
+        .not("pdf_path", "is", null)
+        .order("issued_at", { ascending: false })
+        .limit(1).maybeSingle();
+      if (latest?.pdf_path) {
+        const { data: file } = await admin.storage.from("hr-doc-issued").download(latest.pdf_path);
+        if (file) {
+          const buf = new Uint8Array(await file.arrayBuffer());
+          let bin = "";
+          for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+          sampleRef = latest.reference_no || "";
+          sampleAttachment = {
+            filename: `${(latest.reference_no || "sample-letter").replace(/[\\/]/g, "-")}.pdf`,
+            content: btoa(bin),
+            encoding: "base64",
+            contentType: "application/pdf",
+          };
+        }
+      }
+
       const sent: string[] = [];
       for (const cat of cats) {
         const names: Record<string, string> = {
@@ -95,7 +130,7 @@ Deno.serve(async (req) => {
         };
         const t = buildDocEmail({
           employeeName: "Shubham Singh",
-          referenceNo: `BLYNK/SAMPLE/2026-27/000${cats.indexOf(cat) + 1}`,
+          referenceNo: sampleRef || `BLYNK/SAMPLE/2026-27/000${cats.indexOf(cat) + 1}`,
           documentName: names[cat] || "Document",
           category: cat,
           issuedDate: fmt(new Date().toISOString())!,
@@ -106,8 +141,10 @@ Deno.serve(async (req) => {
         await sendMail(mb, overrideTo, subj, wrapHrEmail(t.html, {
           title: t.subject.split(" - ")[0],
           preheader: `Sample template preview - ${names[cat] || cat}`,
-          refNote: `Sample preview - no document attached`,
-        }), null);
+          refNote: sampleAttachment
+            ? `Sample preview - PDF attached (Ref ${sampleRef || "n/a"})`
+            : `Sample preview - no document attached`,
+        }), sampleAttachment);
         sent.push(subj);
       }
       return json({ success: true, to: overrideTo, sent });

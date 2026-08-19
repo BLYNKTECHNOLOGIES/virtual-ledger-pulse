@@ -97,8 +97,16 @@ Deno.serve(async (req) => {
       lastWorkingDate: lastWorking,
       designation,
     });
+    // Keep the subject strictly ASCII and short: denomailer 1.6.0 does not fold
+    // long RFC2047 encoded-words, which leaks header text into the message body.
+    const safeSubject = tpl.subject
+      .replace(/[\u2010-\u2015]/g, "-")
+      .replace(/[^\x20-\x7E]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 72);
     const html = wrapHrEmail(tpl.html, {
-      title: tpl.subject.split(" — ")[0],
+      title: tpl.subject.split(" - ")[0],
       preheader: `${doc.template_name} · ${doc.reference_no}`,
       refNote: `Automated notice · Ref ${doc.reference_no || "—"}`,
     });
@@ -118,7 +126,7 @@ Deno.serve(async (req) => {
       await client.send({
         from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`,
         to,
-        subject: tpl.subject,
+        subject: safeSubject,
         content: hrSignatureText(),
         html,
         attachments: attachment ? ([attachment] as any) : undefined,
@@ -131,7 +139,7 @@ Deno.serve(async (req) => {
       message_id: crypto.randomUUID(),
       template_name: "hr-doc-issued",
       recipient_email: to,
-      subject: tpl.subject,
+      subject: safeSubject,
       status: "sent",
     });
     await admin.from("hr_documents_issued")
@@ -143,7 +151,7 @@ Deno.serve(async (req) => {
       details: { to, reference_no: doc.reference_no, attached: !!attachment },
     });
 
-    return json({ success: true, to, attached: !!attachment, subject: tpl.subject });
+    return json({ success: true, to, attached: !!attachment, subject: safeSubject });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }

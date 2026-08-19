@@ -18,7 +18,7 @@ const p = (s: string) => `<p style="margin:0 0 12px;">${s}</p>`;
 
 /** Relieving cum Experience Letter */
 function relievingCumExperience(c: DocEmailCtx): DocEmailTemplate {
-  const subject = `Relieving cum Experience Letter — ${c.employeeName} (${c.referenceNo})`;
+  const subject = `Relieving cum Experience Letter - ${c.employeeName}`;
   const html = `
 ${p(`Dear ${c.employeeName},`)}
 ${p(
@@ -49,7 +49,7 @@ ${p(`Warm regards,`)}`;
 /** Generic fallback for any other letter type. */
 function generic(c: DocEmailCtx): DocEmailTemplate {
   return {
-    subject: `${c.documentName} — ${c.employeeName} (${c.referenceNo})`,
+    subject: `${c.documentName} - ${c.employeeName}`,
     html: `
 ${p(`Dear ${c.employeeName},`)}
 ${p(`Please find attached your <strong>${c.documentName}</strong> issued by Blynk Virtual Technologies Pvt. Ltd.`)}

@@ -190,6 +190,7 @@ export function GenerateTab() {
     if (!rendered || !template || !version) return toast.error("Select a template");
     if (!employeeId) return toast.error("Select an employee");
     if (promptFields.length > 0) return toast.error("Fill the remaining fields before issuing");
+    if (missingSignatures.length > 0) return toast.error("Upload the signature image for this template's signatory first");
     setIssuing(true);
     try {
       const { data: refNo, error: refErr } = await (supabase as any).rpc("hr_doc_allocate_reference", {
@@ -199,7 +200,11 @@ export function GenerateTab() {
       });
       if (refErr) throw refErr;
 
-      const fullHtml = buildPrintDocument(rendered.html, template.name, refNo);
+      // Re-render with the real reference so {reference_no} prints correctly.
+      const finalRender = renderWith(refNo);
+      if (!finalRender) throw new Error("Template has no saved content");
+
+      const fullHtml = buildPrintDocument(finalRender.html, template.name, refNo);
       const path = `${employeeId}/${refNo.replace(/[^\w.-]+/g, "_")}.html`;
       const { error: upErr } = await supabase.storage
         .from("hr-doc-issued")
@@ -207,7 +212,7 @@ export function GenerateTab() {
       if (upErr) throw upErr;
 
       const { data: auth } = await supabase.auth.getUser();
-      const { error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
+      const { data: inserted, error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
         template_id: template.id,
         template_version_id: version.id,
         template_name: template.name,
@@ -219,17 +224,17 @@ export function GenerateTab() {
         contains_sensitive: !!template.contains_sensitive,
         file_path: path,
         file_mime: "text/html",
-        values_snapshot: values,
+        values_snapshot: { ...values, reference_no: refNo },
         signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
         issued_by: auth?.user?.id || null,
         issued_by_name: auth?.user?.email || null,
         issued_at: new Date().toISOString(),
-      });
+      }).select("id").maybeSingle();
       if (insErr) throw insErr;
 
       await (supabase as any).from("hr_doc_audit_log").insert({
         entity_type: "issued_document",
-        entity_id: null,
+        entity_id: inserted?.id || null,
         action: "issued",
         actor_id: auth?.user?.id || null,
         actor_name: auth?.user?.email || null,
@@ -238,13 +243,18 @@ export function GenerateTab() {
 
       qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
       toast.success(`Issued ${refNo}`);
-      printDocument(fullHtml);
+      try {
+        printDocument(fullHtml);
+      } catch {
+        toast.warning("Letter saved. Pop-up blocked — re-print it from the Issued tab.");
+      }
     } catch (e: any) {
       toast.error(e?.message || "Could not issue the letter");
     } finally {
       setIssuing(false);
     }
   };
+
 
   const employeeOptions = employees.map((e: any) => ({
     value: e.id,

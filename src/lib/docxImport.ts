@@ -193,7 +193,9 @@ function renderParagraph(p: Element, ctx: Ctx, numberedFallback = false): string
     const pad = 18 + listLevel * 18;
     return `<li style="${css};margin-left:${pad}pt" data-level="${listLevel}">${content}</li>`;
   }
-  return `<${tag} style="${css}">${content}</${tag}>`;
+  // A tab layout emits a table, which is not valid inside <p> — use a block div.
+  const outerTag = hasTab && tag === "p" ? "div" : tag;
+  return `<${outerTag} style="${css}">${content}</${outerTag}>`;
 }
 
 function renderTable(tbl: Element, ctx: Ctx): string {

@@ -231,7 +231,15 @@ export function GenerateTab() {
   const unresolvedTokens = useMemo(() => {
     if (isDocx) {
       return mappings
-        .filter((m) => m.token !== "reference_no" && !imageTokens.has(m.token) && !docxValues[m.token])
+        .filter(
+          (m) =>
+            // System-filled values (reference number, generated_by) are injected at issue time,
+            // whatever token name the Word file uses for them.
+            !SYSTEM_FILLED_KEYS.has(m.field_key || m.token) &&
+            !SYSTEM_FILLED_KEYS.has(m.token) &&
+            !imageTokens.has(m.token) &&
+            !docxValues[m.token],
+        )
         .map((m) => m.token);
     }
     return rendered?.unresolved || [];
@@ -271,15 +279,22 @@ export function GenerateTab() {
     const { renderDocx } = await import("@/lib/docxTemplate");
     const docImages: Record<string, string> = {};
     for (const m of mappings) if (imageTokens.has(m.token) && images[m.token]) docImages[m.token] = images[m.token];
-    return renderDocx(
-      await blob.arrayBuffer(),
-      {
-        ...docxValues,
-        reference_no: draft ? `${referenceNo} — DRAFT, NOT ISSUED` : referenceNo,
-        generated_by: docxValues.generated_by || me?.email || "",
-      },
-      docImages
-    );
+
+    // The Word file may name the reference token anything (ref_no, reference_no, ref…);
+    // inject the issued reference into every token mapped to the system reference field.
+    const refText = draft ? `${referenceNo} — DRAFT, NOT ISSUED` : referenceNo;
+    const systemValues: Record<string, string> = {
+      reference_no: refText,
+      generated_by: docxValues.generated_by || me?.email || "",
+    };
+    for (const m of mappings) {
+      const key = m.field_key || m.token;
+      if (key === "reference_no" || m.token === "reference_no") systemValues[m.token] = refText;
+      if (key === "generated_by" || m.token === "generated_by")
+        systemValues[m.token] = docxValues.generated_by || me?.email || "";
+    }
+
+    return renderDocx(await blob.arrayBuffer(), { ...docxValues, ...systemValues }, docImages);
   };
 
 
@@ -446,7 +461,15 @@ export function GenerateTab() {
         file_mime: mime,
         pdf_path: pdfPath,
         employee_document_id: employeeDocumentId,
-        values_snapshot: { ...(isDocx ? docxValues : values), reference_no: refNo },
+        values_snapshot: {
+          ...(isDocx ? docxValues : values),
+          ...Object.fromEntries(
+            mappings
+              .filter((m) => (m.field_key || m.token) === "reference_no" || m.token === "reference_no")
+              .map((m) => [m.token, refNo]),
+          ),
+          reference_no: refNo,
+        },
         signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
         issued_by: auth?.user?.id || null,
         issued_by_name: auth?.user?.email || null,

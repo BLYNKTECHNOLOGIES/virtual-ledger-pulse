@@ -171,9 +171,18 @@ export function TemplateEditorForm({
     try {
       setImporting(true);
       const buffer = await file.arrayBuffer();
-      const { extractDocxText, parseDocxPlaceholders } = await import("@/lib/docxTemplate");
+      const { extractDocxText, parseDocxPlaceholders, validateDocxTemplate } = await import("@/lib/docxTemplate");
       const text = extractDocxText(buffer);
       const found = parseDocxPlaceholders(text);
+
+      // Validate with the real merge engine now — not at issue time.
+      const check = validateDocxTemplate(buffer);
+      if (check.errors.length) {
+        toast.error(`This Word file cannot be merged: ${check.errors[0]}`);
+        return;
+      }
+      for (const w of check.warnings.slice(0, 3)) toast.warning(w);
+
       const path = `sources/${crypto.randomUUID()}.docx`;
       const { error } = await supabase.storage.from("hr-doc-templates").upload(path, file, {
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -187,7 +196,8 @@ export function TemplateEditorForm({
       setHtml("");
       toast.success(
         found.length
-          ? `Stored as-is — ${found.length} variable${found.length === 1 ? "" : "s"} detected`
+          ? `Stored as-is — ${found.length} variable${found.length === 1 ? "" : "s"} detected` +
+              (check.imageTokens.length ? ` (${check.imageTokens.length} signature slot${check.imageTokens.length === 1 ? "" : "s"})` : "")
           : "Stored as-is — no {{VARIABLES}} found in this document"
       );
     } catch (err: any) {

@@ -32,10 +32,20 @@ export function IssuedTab() {
     },
   });
 
-  /** Open the archived PDF, building it on demand if the letter has none yet. */
-  const openPdf = (doc: any) => {
-    const preview = window.open("", "_blank");
-    const id = toast.loading(doc.pdf_path ? "Opening PDF…" : "Preparing PDF…");
+  const saveBlob = (blob: Blob, filename: string) => {
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  };
+
+  /** Download the archived PDF, building it on demand if the letter has none yet. */
+  const downloadPdf = (doc: any) => {
+    const id = toast.loading(doc.pdf_path ? "Preparing download…" : "Preparing PDF…");
     void (async () => {
       try {
         const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
@@ -44,46 +54,33 @@ export function IssuedTab() {
         if (!blob) throw new Error("Could not read the archived PDF");
 
         const pdfBlob = blob.type === "application/pdf" ? blob : new Blob([blob], { type: "application/pdf" });
-        const objectUrl = URL.createObjectURL(pdfBlob);
-        if (preview && !preview.closed) {
-          preview.location.replace(objectUrl);
-        } else {
-          const link = document.createElement("a");
-          link.href = objectUrl;
-          link.download = `${doc.reference_no || "issued-letter"}.pdf`;
-          link.click();
-        }
-        window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+        saveBlob(pdfBlob, `${doc.reference_no || "issued-letter"}.pdf`);
         if (!doc.pdf_path) {
           qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
           qc.invalidateQueries({ queryKey: ["hr_employee_documents", doc.employee_id] });
         }
-        toast.success("PDF ready", { id });
+        toast.success("PDF downloaded", { id });
       } catch (e: any) {
-        if (preview && !preview.closed) preview.close();
-        toast.error(e?.message || "Could not open the PDF", { id });
+        toast.error(e?.message || "Could not download the PDF", { id });
       }
     })();
   };
 
-  /** Re-open the frozen artefact exactly as issued — never re-resolved. */
-  const reprint = async (doc: any) => {
+  /** Download the frozen source artefact exactly as issued (Word, or HTML for native letters). */
+  const downloadSource = async (doc: any) => {
+    const id = toast.loading("Preparing download…");
     try {
-      const { data, error } = await supabase.storage
-        .from("hr-doc-issued").createSignedUrl(doc.file_path, 120);
-      if (error || !data?.signedUrl) throw error || new Error("Could not open the stored letter");
-      const res = await fetch(data.signedUrl);
-
-      // Word artefacts (locked native templates) are rendered to PDF for printing.
-      if (String(doc.file_mime || "").includes("wordprocessingml")) {
-        openPdf(doc);
-        return;
-      }
-      printDocument(await res.text());
+      if (!doc.file_path) throw new Error("This letter has no stored file");
+      const { data, error } = await supabase.storage.from("hr-doc-issued").download(doc.file_path);
+      if (error || !data) throw error || new Error("Could not read the stored letter");
+      const ext = (doc.file_path.split(".").pop() || "docx").toLowerCase();
+      saveBlob(data, `${doc.reference_no || "issued-letter"}.${ext}`);
+      toast.success("Document downloaded", { id });
     } catch (e: any) {
-      toast.error(e?.message || "Could not open the letter");
+      toast.error(e?.message || "Could not download the letter", { id });
     }
   };
+
 
 
   /** Permanent removal — HR staff only (enforced by RLS as well). */

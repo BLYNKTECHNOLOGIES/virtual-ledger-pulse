@@ -154,32 +154,48 @@ export function GenerateTab() {
     }));
   };
 
+  /** The signatory this template signs with — every signatory token follows it. */
+  const signingSignatory = useMemo(() => {
+    const id =
+      mappings.find((m) => m.signatory_id)?.signatory_id ||
+      (signatories.length === 1 ? (signatories[0] as any).id : null);
+    return signatories.find((x: any) => x.id === id) || null;
+  }, [mappings, signatories]);
+
   /** Per-token signatory text (name / designation) so two signatories never collide. */
   const tokenValues = useMemo(() => {
     const out: Record<string, string> = {};
     // A signatory token without an explicit signatory falls back to the one this
     // template already signs with (or the only active signatory), so the name
     // never has to be re-typed when the letter already names the signer.
-    const defaultId =
-      mappings.find((m) => m.signatory_id)?.signatory_id ||
-      (signatories.length === 1 ? (signatories[0] as any).id : null);
     for (const m of mappings) {
       const isName = m.field_key === "signatory_name" || /^signatory_name|^hr_name|_signatory_name/.test(m.token);
       const isDesig = m.field_key === "signatory_designation" || /^signatory_designation|^hr_designation/.test(m.token);
       if (!isName && !isDesig && !m.signatory_id) continue;
-      const s = signatories.find((x: any) => x.id === (m.signatory_id || defaultId));
+      const s = m.signatory_id ? signatories.find((x: any) => x.id === m.signatory_id) : signingSignatory;
       if (!s) continue;
       if (isName) out[m.token] = s.display_name || "";
       if (isDesig) out[m.token] = s.designation || "";
     }
     return out;
-  }, [mappings, signatories]);
+  }, [mappings, signatories, signingSignatory]);
 
 
-  const values = useMemo(
-    () => ({ ...(resolved?.values || {}), ...overrides }),
-    [resolved, overrides]
+  const values = useMemo<Record<string, any>>(
+    () => ({
+      ...(resolved?.values || {}),
+      // Signatory identity always comes from the signature block, never re-typed.
+      ...(signingSignatory
+        ? {
+            signatory_name: (signingSignatory as any).display_name || "",
+            signatory_designation: (signingSignatory as any).designation || "",
+          }
+        : {}),
+      ...overrides,
+    }),
+    [resolved, overrides, signingSignatory]
   );
+
 
   /** Locked Word lane: the .docx is merged as-is, never converted to HTML. */
   const isDocx = version?.lane === "docx" && !!version?.source_file_path;

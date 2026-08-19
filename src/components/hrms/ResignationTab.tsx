@@ -669,7 +669,7 @@ export function ResignationTab() {
               />
             </div>
             <div>
-              <Label>Resignation Date</Label>
+              <Label>Resignation Date <span className="text-destructive">*</span></Label>
               <Input type="date" value={formData.resignation_date} onChange={e => setFormData(p => ({ ...p, resignation_date: e.target.value }))} />
             </div>
             <div>

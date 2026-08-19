@@ -10,12 +10,7 @@ import { privateDocRef } from "@/lib/storedDoc";
  * employee's document record so the ERP copy is always a PDF.
  */
 export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: Blob | null }> {
-  const isDocx = String(doc.file_mime || "").includes("wordprocessingml") || /\.docx$/i.test(doc.file_path || "");
-  // Older locked-Word PDFs were archived before the universal letterhead was
-  // applied. Rebuild them once under a versioned path; future opens reuse it.
-  if (doc.pdf_path && (!isDocx || /\.letterhead\.pdf$/i.test(doc.pdf_path))) {
-    return { path: doc.pdf_path, blob: null };
-  }
+  if (doc.pdf_path) return { path: doc.pdf_path, blob: null };
   if (!doc.file_path) throw new Error("This letter has no stored file");
 
   const { data: signed, error: sErr } = await supabase.storage
@@ -24,12 +19,18 @@ export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: B
   const res = await fetch(signed.signedUrl);
   if (!res.ok) throw new Error("Could not read the stored letter");
 
+  const isDocx = String(doc.file_mime || "").includes("wordprocessingml") || /\.docx$/i.test(doc.file_path);
   const { htmlToPdfBlob, docxToPdfBlob } = await import("@/lib/docPdf");
-  const blob = isDocx
-    ? await docxToPdfBlob(await res.arrayBuffer(), doc.template_name || "Letter")
-    : await htmlToPdfBlob(await res.text());
+  const { fetchCompanyIdentity, resolveLetterhead } = await import("@/lib/companyIdentity");
+  
+  // Resolve the universal letterhead so the PDF includes company branding
+  const letterhead = await resolveLetterhead(await fetchCompanyIdentity());
 
-  const pdfPath = doc.file_path.replace(/\.[^.]+$/, "") + (isDocx ? ".letterhead.pdf" : ".pdf");
+  const blob = isDocx
+    ? await docxToPdfBlob(await res.arrayBuffer(), doc.template_name || "Letter", letterhead)
+    : await htmlToPdfBlob(await res.text(), letterhead);
+
+  const pdfPath = doc.file_path.replace(/\.[^.]+$/, "") + ".pdf";
   const { error: upErr } = await supabase.storage
     .from("hr-doc-issued").upload(pdfPath, blob, { contentType: "application/pdf", upsert: true });
   if (upErr) throw upErr;

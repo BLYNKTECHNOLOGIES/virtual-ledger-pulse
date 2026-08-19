@@ -19,12 +19,22 @@ interface Props {
 export function RichTextEditor({ value, onChange, onInsertVariable }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
+  const lastEmitted = useRef<string | null>(null);
+
+  // Sync external value changes (e.g. .docx import) into the canvas, while
+  // never clobbering what the user is actively typing.
   useEffect(() => {
-    if (ref.current && ref.current.innerHTML !== value) {
-      ref.current.innerHTML = value || "<p></p>";
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!ref.current) return;
+    if (value === lastEmitted.current) return;
+    if (ref.current.innerHTML === value) return;
+    ref.current.innerHTML = value || "<p></p>";
+  }, [value]);
+
+  const emit = () => {
+    const html = ref.current?.innerHTML || "";
+    lastEmitted.current = html;
+    onChange(html);
+  };
 
   const exec = (command: string, arg?: string) => {
     ref.current?.focus();

@@ -11,7 +11,7 @@ import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { FilePlus2, Printer, AlertTriangle, ShieldAlert, FileCheck2 } from "lucide-react";
-import { fetchCatalog, resolveEmployeeValues, SYSTEM_FILLED_KEYS, type CatalogField } from "@/lib/docResolvers";
+import { fetchCatalog, resolveEmployeeValues, formatValue, SYSTEM_FILLED_KEYS, ALWAYS_EDITABLE_KEYS, type CatalogField } from "@/lib/docResolvers";
 import { renderTemplateHtml, buildPrintDocument, printDocument } from "@/lib/docRender";
 import type { PlaceholderMapping } from "@/lib/docTemplate";
 
@@ -228,7 +228,7 @@ export function GenerateTab() {
     setIssuing(true);
     try {
       const { data: refNo, error: refErr } = await (supabase as any).rpc("hr_doc_allocate_reference", {
-        _scope_key: "global",
+        _scope_key: `${template.category || "doc"}`,
         _pattern: template.reference_pattern || null,
         _type_code: (template.category || "doc").slice(0, 6),
       });

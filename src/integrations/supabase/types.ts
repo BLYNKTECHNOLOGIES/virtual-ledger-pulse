@@ -27783,7 +27783,6 @@ export type Database = {
         Args: { p_date: string; p_employee_id: string }
         Returns: number[]
       }
-      fn_expire_compoff_allocations: { Args: never; Returns: undefined }
       fn_generate_payroll:
         | { Args: { p_payroll_run_id: string }; Returns: Json }
         | {

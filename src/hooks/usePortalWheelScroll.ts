@@ -39,7 +39,10 @@ export function usePortalWheelScroll<T extends HTMLElement>(
     const el = localRef.current;
     if (!el) return;
 
+    el.setAttribute("data-wheel-fix", "1");
     const onWheel = (e: WheelEvent) => {
+      // eslint-disable-next-line no-console
+      if ((window as any).__wheelDebug) console.log("wheel", e.deltaY);
       if (e.ctrlKey) return;
       const target = e.target as Element | null;
       const scroller = findScrollable(target, el);

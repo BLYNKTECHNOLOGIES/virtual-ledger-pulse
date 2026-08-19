@@ -438,6 +438,20 @@ export function GenerateTab() {
       }).select("id").maybeSingle();
       if (insErr) throw insErr;
 
+      // Word lane: convert the exact merged DOCX to PDF server-side (Adobe).
+      if (isDocx && inserted?.id) {
+        supabase.functions
+          .invoke("hr-doc-convert-pdf", { body: { issuedId: inserted.id } })
+          .then(({ data, error }: any) => {
+            if (error || !data?.pdfPath) {
+              console.warn("Adobe PDF conversion failed (non-fatal):", data?.error || error?.message);
+              return;
+            }
+            qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+            qc.invalidateQueries({ queryKey: ["hr_employee_documents", employeeId] });
+          });
+      }
+
       await (supabase as any).from("hr_doc_audit_log").insert({
         entity_type: "issued_document",
         entity_id: inserted?.id || null,

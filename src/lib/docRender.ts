@@ -117,10 +117,17 @@ export function buildPrintDocument(
   @page { size: A4; margin: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; }
   html, body { margin: 0; padding: 0; background: #f2f2f2; }
   body { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.6; color: #111; }
-  /* Offset by the page margins: printed fixed elements are placed inside the
-     @page content box, so the artwork must be pulled back out to full A4. */
-  .letterhead { position: fixed; top: -${mt}mm; left: -${ml}mm; width: 210mm; height: 297mm; z-index: 0; }
-  .letterhead img { width: 210mm; height: 297mm; object-fit: fill; display: block; }
+  /* Full-page artwork layer. In print the fixed box is the page content area
+     (inside the @page margins), so the artwork is nudged back out by the
+     margins to land as a true full-bleed A4 page. */
+  .letterhead {
+    position: fixed; inset: 0; z-index: 0;
+    background-image: url("${art}");
+    background-repeat: no-repeat;
+    background-size: 210mm 297mm;
+    background-position: -${ml}mm -${mt}mm;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
   .sheet { width: 210mm; min-height: 297mm; padding: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; z-index: 1; }
   .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 8mm; }
   img { max-width: 100%; }
@@ -133,12 +140,12 @@ export function buildPrintDocument(
   }
   @media screen {
     /* On screen the artwork sits behind the single preview sheet. */
-    .letterhead { position: absolute; top: 12px; left: 50%; margin-left: -105mm; }
-    .sheet { background: transparent; position: relative; z-index: 0; }
+    .letterhead { position: absolute; inset: auto; top: 12px; left: 50%; margin-left: -105mm; width: 210mm; height: 297mm; background-position: 0 0; }
+    .sheet { background: transparent; }
   }
 </style></head>
 <body>
-${art ? `<div class="letterhead"><img src="${art}" alt="" /></div>` : ""}
+${art ? `<div class="letterhead"></div>` : ""}
 <div class="sheet">
 ${referenceNo ? `<div class="ref">Ref: ${escapeHtml(referenceNo)}</div>` : ""}
 ${bodyHtml}

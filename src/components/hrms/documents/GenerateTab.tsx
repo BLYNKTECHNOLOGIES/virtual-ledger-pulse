@@ -20,6 +20,8 @@ export function GenerateTab() {
   const [templateId, setTemplateId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  /** Raw (unformatted) operator input, kept so date pickers stay controlled. */
+  const [rawOverrides, setRawOverrides] = useState<Record<string, string>>({});
   const [issuing, setIssuing] = useState(false);
 
   const { data: templates = [] } = useQuery({
@@ -133,7 +135,16 @@ export function GenerateTab() {
   });
 
 
-  useEffect(() => { setOverrides({}); }, [employeeId, templateId]);
+  useEffect(() => { setOverrides({}); setRawOverrides({}); }, [employeeId, templateId]);
+
+  /** Store both the raw input and its printable, formatted counterpart. */
+  const setFieldValue = (field: CatalogField, raw: string) => {
+    setRawOverrides((o) => ({ ...o, [field.field_key]: raw }));
+    setOverrides((o) => ({
+      ...o,
+      [field.field_key]: raw ? formatValue(raw, field.data_type, field.formatter) : "",
+    }));
+  };
 
   /** Per-token signatory text (name / designation) so two signatories never collide. */
   const tokenValues = useMemo(() => {
@@ -407,6 +418,31 @@ export function GenerateTab() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function FieldInput({
+  field, raw, placeholderText, setValue,
+}: {
+  field: CatalogField;
+  raw: string;
+  placeholderText?: string;
+  setValue: (f: CatalogField, raw: string) => void;
+}) {
+  return (
+    <div>
+      <Label className="text-xs capitalize">{field.label}</Label>
+      <Input
+        type={field.data_type === "date" ? "date" : "text"}
+        className="h-9 mt-1 text-foreground"
+        value={raw}
+        placeholder={placeholderText || `Enter ${field.label.toLowerCase()}`}
+        onChange={(e) => setValue(field, e.target.value)}
+      />
+      {placeholderText && !raw && (
+        <p className="text-[10px] text-muted-foreground mt-1">Currently: {placeholderText}</p>
+      )}
     </div>
   );
 }

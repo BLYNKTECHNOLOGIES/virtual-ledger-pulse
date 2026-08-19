@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, Braces, Check, ShieldAlert } from "lucide-react";
+import { AlertTriangle, Braces, Check, ShieldAlert, Upload } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
 import { parsePlaceholders, mergeMappings, type PlaceholderMapping } from "@/lib/docTemplate";
 

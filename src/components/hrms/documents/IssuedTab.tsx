@@ -256,7 +256,7 @@ export function IssuedTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke {revokeTarget?.reference_no}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The letter stays on record for audit, is marked revoked and disappears from the employee\u2019s documents in the ERP profile and HRMS. You can restore it later.
+              The letter stays on record for audit, is marked revoked and disappears from the employee’s documents in the ERP profile and HRMS. You can restore it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" />

@@ -31,10 +31,16 @@ Deno.serve(async (req) => {
   try {
     const authHeader = req.headers.get("authorization") || "";
     if (!authHeader.toLowerCase().startsWith("bearer ")) return json({ error: "Unauthorized" }, 401);
-    const { data: { user: caller } } = await admin.auth.getUser(authHeader.replace(/^Bearer /i, "").trim());
-    if (!caller?.id) return json({ error: "Unauthorized" }, 401);
-    const { data: isHr } = await admin.rpc("hr_is_hr_staff", { _user_id: caller.id });
-    if (!isHr) return json({ error: "Insufficient permissions" }, 403);
+    const token = authHeader.replace(/^Bearer /i, "").trim();
+    const isServiceRole = token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    let caller: { id: string; email: string | null } = { id: "00000000-0000-0000-0000-000000000000", email: "service-role" };
+    if (!isServiceRole) {
+      const { data: { user } } = await admin.auth.getUser(token);
+      if (!user?.id) return json({ error: "Unauthorized" }, 401);
+      const { data: isHr } = await admin.rpc("hr_is_hr_staff", { _user_id: user.id });
+      if (!isHr) return json({ error: "Insufficient permissions" }, 403);
+      caller = { id: user.id, email: user.email ?? null };
+    }
 
     const body = await req.json().catch(() => ({}));
     const issuedId = String(body.issuedId || "").trim();
@@ -134,7 +140,7 @@ Deno.serve(async (req) => {
       .eq("id", doc.id);
     await admin.from("hr_doc_audit_log").insert({
       entity_type: "issued_document", entity_id: doc.id, action: "emailed",
-      actor_id: caller.id, actor_name: caller.email,
+      actor_id: isServiceRole ? null : caller.id, actor_name: caller.email,
       details: { to, reference_no: doc.reference_no, attached: !!attachment },
     });
 

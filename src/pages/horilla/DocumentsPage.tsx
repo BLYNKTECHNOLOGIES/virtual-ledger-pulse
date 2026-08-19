@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { FileSignature, FilePlus2, Archive, PenLine, Library, Users } from "lucide-react";
+import { FileSignature, FilePlus2, Archive, PenLine, Library, Users, Building2 } from "lucide-react";
 import TemplatesTab from "@/components/hrms/documents/TemplatesTab";
 import SignatoriesTab from "@/components/hrms/documents/SignatoriesTab";
 import CompanyLibraryTab from "@/components/hrms/documents/CompanyLibraryTab";
 import EmployeeFilesTab from "@/components/hrms/documents/EmployeeFilesTab";
 import GenerateTab from "@/components/hrms/documents/GenerateTab";
 import IssuedTab from "@/components/hrms/documents/IssuedTab";
+import CompanyIdentityTab from "@/components/hrms/documents/CompanyIdentityTab";
 
 export default function DocumentsPage() {
   const [tab, setTab] = useState("templates");
@@ -26,6 +27,7 @@ export default function DocumentsPage() {
           <TabsTrigger value="issued" className="gap-1.5"><Archive className="h-4 w-4" />Issued</TabsTrigger>
           <TabsTrigger value="signatories" className="gap-1.5"><PenLine className="h-4 w-4" />Signatories</TabsTrigger>
           <TabsTrigger value="library" className="gap-1.5"><Library className="h-4 w-4" />Company library</TabsTrigger>
+          <TabsTrigger value="identity" className="gap-1.5"><Building2 className="h-4 w-4" />Company identity</TabsTrigger>
           <TabsTrigger value="employee-files" className="gap-1.5"><Users className="h-4 w-4" />Employee files</TabsTrigger>
         </TabsList>
 
@@ -36,6 +38,7 @@ export default function DocumentsPage() {
 
         <TabsContent value="signatories"><SignatoriesTab /></TabsContent>
         <TabsContent value="library"><CompanyLibraryTab /></TabsContent>
+        <TabsContent value="identity"><CompanyIdentityTab /></TabsContent>
         <TabsContent value="employee-files"><EmployeeFilesTab /></TabsContent>
       </Tabs>
     </div>

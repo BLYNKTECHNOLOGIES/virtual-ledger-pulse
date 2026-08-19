@@ -55,6 +55,13 @@ export function TemplateEditorForm({
   const [html, setHtml] = useState("<p></p>");
   const [mappings, setMappings] = useState<PlaceholderMapping[]>([]);
   const [changeNote, setChangeNote] = useState("");
+  /** "native" = editable HTML canvas, "docx" = locked Word file kept as-is. */
+  const [lane, setLane] = useState<"native" | "docx">("native");
+  const [sourcePath, setSourcePath] = useState<string | null>(null);
+  const [sourceName, setSourceName] = useState<string | null>(null);
+  /** Plain text of the locked .docx — used only to discover its placeholders. */
+  const [docxText, setDocxText] = useState("");
+
 
   const { data: fields = [] } = useQuery({
     queryKey: ["hr_doc_field_catalog"],

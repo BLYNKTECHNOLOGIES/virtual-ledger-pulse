@@ -27,6 +27,30 @@ export async function resolveDocUrl(url: string): Promise<string> {
 
 /** Open a stored document in a new tab, signing private references first. */
 export async function openStoredDocument(url: string) {
-  const resolved = await resolveDocUrl(url);
-  window.open(resolved, "_blank", "noopener,noreferrer");
+  const preview = window.open("", "_blank");
+  try {
+    const match = isPrivateDocRef(url) ? PRIVATE_PREFIX.exec(url) : null;
+    if (!match) {
+      if (preview && !preview.closed) preview.location.replace(url);
+      else window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const [, bucket, path] = match;
+    const { data, error } = await supabase.storage.from(bucket).download(path);
+    if (error || !data) throw error || new Error("Could not open this document");
+    const objectUrl = URL.createObjectURL(data);
+    if (preview && !preview.closed) {
+      preview.location.replace(objectUrl);
+    } else {
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = path.split("/").pop() || "document";
+      link.click();
+    }
+    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+  } catch (error) {
+    if (preview && !preview.closed) preview.close();
+    throw error;
+  }
 }

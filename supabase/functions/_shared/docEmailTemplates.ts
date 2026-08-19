@@ -45,11 +45,11 @@ function factTable(c: DocEmailCtx, extra: Array<[string, string | null | undefin
   const body = rows
     .map(
       ([k, v], i) =>
-        `<tr>` +
-        `<td valign="top" style="padding:${i === 0 ? "0" : "6px"} 12px 0 0;font-size:12.5px;line-height:1.5;` +
+        `<tr class="fact-row">` +
+        `<td valign="top" width="1%" class="fact-k" style="padding:${i === 0 ? "0" : "6px"} 12px 0 0;font-size:12.5px;line-height:1.5;` +
         `font-weight:700;color:#0B1524;white-space:nowrap;">${k}</td>` +
-        `<td valign="top" style="padding:${i === 0 ? "0" : "6px"} 0 0 0;font-size:12.5px;line-height:1.5;` +
-        `color:#334155;">${v}</td>` +
+        `<td valign="top" class="fact-v" style="padding:${i === 0 ? "0" : "6px"} 0 0 0;font-size:12.5px;line-height:1.5;` +
+        `color:#334155;word-break:break-word;">${v}</td>` +
         `</tr>`,
     )
     .join("");
@@ -58,8 +58,9 @@ function factTable(c: DocEmailCtx, extra: Array<[string, string | null | undefin
     `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" ` +
     `style="width:100%;margin:0 0 16px;border-collapse:separate;background:#f8fafc;` +
     `border:1px solid #e6ebf2;border-radius:8px;">` +
-    `<tr><td style="padding:14px 16px;">` +
-    `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;">${body}</table>` +
+    `<tr><td class="gutter" style="padding:14px 16px;">` +
+    `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" class="fact-tbl" ` +
+    `style="width:100%;border-collapse:collapse;">${body}</table>` +
     `</td></tr></table>`
   );
 }

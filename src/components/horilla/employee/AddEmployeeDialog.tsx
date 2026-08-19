@@ -18,7 +18,7 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
   const [form, setForm] = useState({
     badge_id: "", first_name: "", last_name: "", email: "", phone: "",
     gender: "", dob: "", department_id: "", job_position_id: "",
-    job_role: "", joining_date: "", employee_type: "permanent",
+    joining_date: "", employee_type: "permanent",
   });
   const [pushToRazorpay, setPushToRazorpay] = useState(true);
 
@@ -40,12 +40,14 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
         .single();
       if (empErr) throw empErr;
 
-      if (form.department_id || form.job_role || form.joining_date) {
+      if (form.department_id || form.job_position_id || form.joining_date) {
         const { error: wiErr } = await supabase.from("hr_employee_work_info").insert({
           employee_id: emp.id,
           department_id: form.department_id || null,
           job_position_id: form.job_position_id || null,
-          job_role: form.job_role || null,
+          // Job Role retired — mirror the selected Position title into the
+          // legacy column so downstream consumers keep resolving a designation.
+          job_role: positions.find(p => p.id === form.job_position_id)?.title || null,
           joining_date: form.joining_date || null,
           employee_type: form.employee_type,
         });
@@ -67,7 +69,7 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
       setForm({
         badge_id: "", first_name: "", last_name: "", email: "", phone: "",
         gender: "", dob: "", department_id: "", job_position_id: "",
-        job_role: "", joining_date: "", employee_type: "permanent",
+        joining_date: "", employee_type: "permanent",
       });
     },
     onError: () => toast.error("Failed to create employee"),
@@ -155,15 +157,9 @@ export function AddEmployeeDialog({ open, onOpenChange, departments, positions }
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Job Role</label>
-              <input value={form.job_role} onChange={(e) => setForm({ ...form, job_role: e.target.value })} className={inputCls} placeholder="e.g. Frontend Developer" />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground mb-1 block">Joining Date</label>
-              <input type="date" value={form.joining_date} onChange={(e) => setForm({ ...form, joining_date: e.target.value })} className={inputCls} />
-            </div>
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1 block">Joining Date</label>
+            <input type="date" value={form.joining_date} onChange={(e) => setForm({ ...form, joining_date: e.target.value })} className={inputCls} />
           </div>
 
           <div>

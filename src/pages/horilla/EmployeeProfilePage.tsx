@@ -1066,7 +1066,7 @@ export default function EmployeeProfilePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Job Position</label>
+                      <label className="text-xs text-muted-foreground block mb-1">Position</label>
                       <select value={workInfoForm.job_position_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_position_id: e.target.value })} className={inputCls}>
                         <option value="">Select Position</option>
                         {(allPositions || []).filter((p: any) => !workInfoForm.department_id || p.department_id === workInfoForm.department_id).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}

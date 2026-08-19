@@ -82,29 +82,88 @@ function escapeHtml(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
-/** Wrap merged body HTML in a standalone, print-ready A4 document. */
-export function buildPrintDocument(bodyHtml: string, title: string, referenceNo?: string): string {
+export interface PrintLetterhead {
+  /** Full-page A4 artwork (header, footer, watermark) as a data URI. */
+  imageDataUri: string | null;
+  marginTopMm: number;
+  marginBottomMm: number;
+  marginLeftMm: number;
+  marginRightMm: number;
+}
+
+/**
+ * Wrap merged body HTML in a standalone, print-ready A4 document.
+ *
+ * When a letterhead is supplied it is painted as a fixed, full-page layer that
+ * Chrome repeats on every printed page, and the page margins are set to the
+ * letterhead's safe area — so the printed header and footer can never be
+ * overwritten by letter content, however long the letter runs.
+ */
+export function buildPrintDocument(
+  bodyHtml: string,
+  title: string,
+  referenceNo?: string,
+  letterhead?: PrintLetterhead | null
+): string {
+  const mt = letterhead?.marginTopMm ?? 20;
+  const mb = letterhead?.marginBottomMm ?? 20;
+  const ml = letterhead?.marginLeftMm ?? 18;
+  const mr = letterhead?.marginRightMm ?? 18;
+  const art = letterhead?.imageDataUri || "";
+
   return `<!doctype html><html><head><meta charset="utf-8" />
 <title>${escapeHtml(title)}</title>
 <style>
-  @page { size: A4; margin: 20mm 18mm; }
+  /* Zero page margins: the letterhead artwork is full-bleed A4 and the safe
+     area is reserved per page by the repeating table head/foot spacers below
+     (the only technique Chrome honours on every page of a flowing document). */
+  @page { size: A4; margin: 0; }
   html, body { margin: 0; padding: 0; background: #f2f2f2; }
   body { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.6; color: #111; }
-  .sheet { width: 210mm; min-height: 297mm; padding: 20mm 18mm; margin: 12px auto; background: #fff; box-sizing: border-box; }
-  .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 10mm; }
+  .letterhead {
+    position: fixed; inset: 0; z-index: 0;
+    background-image: url("${art}");
+    background-repeat: no-repeat;
+    background-size: 210mm 297mm;
+    background-position: 0 0;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .sheet { width: 210mm; min-height: 297mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; z-index: 1; }
+  /* Safe-area frame — thead/tfoot repeat on every printed page. */
+  table.page-frame { width: 100%; border-collapse: collapse; border: 0; }
+  table.page-frame > thead > tr > td,
+  table.page-frame > tfoot > tr > td,
+  table.page-frame > tbody > tr > td { border: 0; padding: 0; }
+  .band-top { height: ${mt}mm; }
+  .band-bottom { height: ${mb}mm; }
+  .page-body { padding: 0 ${mr}mm 0 ${ml}mm; }
+  .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 8mm; }
   img { max-width: 100%; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border: 1px solid #999; padding: 6px 8px; }
+  .page-body table { border-collapse: collapse; width: 100%; }
+  .page-body td, .page-body th { border: 1px solid #999; padding: 6px 8px; }
   @media print {
     html, body { background: #fff; }
-    .sheet { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; }
+    .sheet { width: auto; min-height: 0; margin: 0; box-shadow: none; background: transparent; }
+  }
+  @media screen {
+    .letterhead { position: absolute; inset: auto; top: 12px; left: 50%; margin-left: -105mm; width: 210mm; height: 297mm; }
+    .sheet { background: transparent; }
   }
 </style></head>
-<body><div class="sheet">
+<body>
+${art ? `<div class="letterhead"></div>` : ""}
+<div class="sheet">
+<table class="page-frame">
+<thead><tr><td><div class="band-top"></div></td></tr></thead>
+<tfoot><tr><td><div class="band-bottom"></div></td></tr></tfoot>
+<tbody><tr><td><div class="page-body">
 ${referenceNo ? `<div class="ref">Ref: ${escapeHtml(referenceNo)}</div>` : ""}
 ${bodyHtml}
+</div></td></tr></tbody>
+</table>
 </div></body></html>`;
 }
+
 
 /** Open the merged document in a new window and trigger the browser print dialog. */
 export function printDocument(fullHtml: string) {

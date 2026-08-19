@@ -109,24 +109,28 @@ export async function fetchCatalog(): Promise<CatalogField[]> {
   return (data || []) as CatalogField[];
 }
 
-/** Company letterhead facts, read from the shared invoice company profile. */
+/** Company letterhead facts — one row, one truth (`hr_company_identity`). */
 async function fetchCompany(): Promise<Record<string, string>> {
   const { data } = await (supabase as any)
-    .from("invoice_company_profiles")
-    .select("label,company")
-    .order("created_at")
+    .from("hr_company_identity")
+    .select("legal_name,trade_name,cin,gstin,pan,registered_address,corporate_address,phone,email,website")
     .limit(1)
     .maybeSingle();
-  const c = (data?.company || {}) as any;
-  const address = Array.isArray(c.address) ? c.address.filter(Boolean).join(", ") : String(c.address || "");
+  const c = (data || {}) as any;
   return {
-    "company.name": (c.name || data?.label || "").trim(),
-    "company.legal_name": (data?.label || c.name || "").trim(),
-    "company.address": address.trim(),
+    "company.name": (c.trade_name || c.legal_name || "").trim(),
+    "company.legal_name": (c.legal_name || "").trim(),
+    "company.address": (c.corporate_address || c.registered_address || "").trim(),
+    "company.registered_address": (c.registered_address || "").trim(),
     "company.gstin": (c.gstin || "").trim(),
     "company.cin": (c.cin || "").trim(),
+    "company.pan": (c.pan || "").trim(),
+    "company.phone": (c.phone || "").trim(),
+    "company.email": (c.email || "").trim(),
+    "company.website": (c.website || "").trim(),
   };
 }
+
 
 /** Resolve every catalog field for one employee. */
 export async function resolveEmployeeValues(

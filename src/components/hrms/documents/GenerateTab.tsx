@@ -1,0 +1,284 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { toast } from "sonner";
+import { FilePlus2, Printer, AlertTriangle, ShieldAlert, FileCheck2 } from "lucide-react";
+import { fetchCatalog, resolveEmployeeValues, type CatalogField } from "@/lib/docResolvers";
+import { renderTemplateHtml, buildPrintDocument, printDocument } from "@/lib/docRender";
+import type { PlaceholderMapping } from "@/lib/docTemplate";
+
+export function GenerateTab() {
+  const qc = useQueryClient();
+  const [templateId, setTemplateId] = useState("");
+  const [employeeId, setEmployeeId] = useState("");
+  const [overrides, setOverrides] = useState<Record<string, string>>({});
+  const [issuing, setIssuing] = useState(false);
+
+  const { data: templates = [] } = useQuery({
+    queryKey: ["hr_doc_templates", "active"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_doc_templates").select("*").eq("status", "active").order("name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: employees = [] } = useQuery({
+    queryKey: ["hr_doc_generate_employees"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_employees").select("id,first_name,last_name,badge_id,is_active").order("first_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: catalog = [] } = useQuery({ queryKey: ["hr_doc_field_catalog"], queryFn: fetchCatalog });
+
+  const template = templates.find((t: any) => t.id === templateId);
+
+  const { data: version } = useQuery({
+    queryKey: ["hr_doc_template_version", template?.current_version_id],
+    enabled: !!template?.current_version_id,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_doc_template_versions").select("*").eq("id", template.current_version_id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: signatories = [] } = useQuery({
+    queryKey: ["hr_doc_signatories", "active"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_doc_signatories").select("*").eq("is_active", true).order("display_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: resolved } = useQuery({
+    queryKey: ["hr_doc_resolved", employeeId, catalog.length],
+    enabled: !!employeeId && catalog.length > 0,
+    queryFn: () => resolveEmployeeValues(employeeId, catalog as CatalogField[]),
+  });
+
+  // Signed URLs for every signatory image used by this template's mappings.
+  const mappings: PlaceholderMapping[] = useMemo(
+    () => (version?.placeholder_map as PlaceholderMapping[]) || [],
+    [version]
+  );
+
+  const { data: images = {} } = useQuery({
+    queryKey: ["hr_doc_signature_urls", version?.id, signatories.length],
+    enabled: mappings.some((m) => m.signatory_id),
+    queryFn: async () => {
+      const out: Record<string, string> = {};
+      for (const m of mappings) {
+        if (!m.signatory_id) continue;
+        const s = signatories.find((x: any) => x.id === m.signatory_id);
+        const path = m.token.startsWith("seal") ? s?.seal_path : s?.signature_path;
+        if (!path) continue;
+        const { data } = await supabase.storage.from("hr-doc-signatures").createSignedUrl(path, 3600);
+        if (data?.signedUrl) out[m.token] = data.signedUrl;
+      }
+      return out;
+    },
+  });
+
+  useEffect(() => { setOverrides({}); }, [employeeId, templateId]);
+
+  const values = useMemo(
+    () => ({ ...(resolved?.values || {}), ...overrides }),
+    [resolved, overrides]
+  );
+
+  const rendered = useMemo(() => {
+    if (!version?.content_html) return null;
+    return renderTemplateHtml(version.content_html, { values, images, mappings });
+  }, [version, values, images, mappings]);
+
+  /** Fields the letter actually needs but which came back empty. */
+  const promptFields = useMemo(() => {
+    if (!rendered) return [] as CatalogField[];
+    const byToken = new Map(mappings.map((m) => [m.token, m]));
+    const keys = new Set<string>();
+    for (const token of rendered.unresolved) {
+      keys.add(byToken.get(token)?.field_key || token);
+    }
+    return [...keys].map(
+      (key) =>
+        (catalog as CatalogField[]).find((c) => c.field_key === key) ||
+        ({ field_key: key, label: key.replace(/_/g, " "), field_group: "custom", data_type: "text", formatter: null, resolver_id: null, is_sensitive: false, default_value: null } as CatalogField)
+    );
+  }, [rendered, mappings, catalog]);
+
+  const preview = () => {
+    if (!rendered) return toast.error("Pick a template with a saved version first");
+    printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued"));
+  };
+
+  const issue = async () => {
+    if (!rendered || !template || !version) return toast.error("Select a template");
+    if (!employeeId) return toast.error("Select an employee");
+    if (promptFields.length > 0) return toast.error("Fill the remaining fields before issuing");
+    setIssuing(true);
+    try {
+      const { data: refNo, error: refErr } = await (supabase as any).rpc("hr_doc_allocate_reference", {
+        _scope_key: "global",
+        _pattern: template.reference_pattern || null,
+        _type_code: (template.category || "doc").slice(0, 6),
+      });
+      if (refErr) throw refErr;
+
+      const fullHtml = buildPrintDocument(rendered.html, template.name, refNo);
+      const path = `${employeeId}/${refNo.replace(/[^\w.-]+/g, "_")}.html`;
+      const { error: upErr } = await supabase.storage
+        .from("hr-doc-issued")
+        .upload(path, new Blob([fullHtml], { type: "text/html" }), { contentType: "text/html", upsert: false });
+      if (upErr) throw upErr;
+
+      const { data: auth } = await supabase.auth.getUser();
+      const { error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
+        template_id: template.id,
+        template_version_id: version.id,
+        template_name: template.name,
+        category: template.category,
+        employee_id: employeeId,
+        employee_name: resolved?.employeeName || "",
+        reference_no: refNo,
+        status: "issued",
+        contains_sensitive: !!template.contains_sensitive,
+        file_path: path,
+        file_mime: "text/html",
+        values_snapshot: values,
+        signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
+        issued_by: auth?.user?.id || null,
+        issued_by_name: auth?.user?.email || null,
+        issued_at: new Date().toISOString(),
+      });
+      if (insErr) throw insErr;
+
+      await (supabase as any).from("hr_doc_audit_log").insert({
+        entity_type: "issued_document",
+        entity_id: null,
+        action: "issued",
+        actor_id: auth?.user?.id || null,
+        actor_name: auth?.user?.email || null,
+        details: { reference_no: refNo, template: template.name, employee_id: employeeId },
+      });
+
+      qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+      toast.success(`Issued ${refNo}`);
+      printDocument(fullHtml);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not issue the letter");
+    } finally {
+      setIssuing(false);
+    }
+  };
+
+  const employeeOptions = employees.map((e: any) => ({
+    value: e.id,
+    label: [e.first_name, e.last_name].filter(Boolean).join(" ") + (e.is_active ? "" : " (inactive)"),
+    keywords: e.badge_id || "",
+  }));
+
+  if (templates.length === 0) {
+    return <EmptyState icon={FilePlus2} title="No active templates" description="Create a template first, then come back here to generate letters." />;
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[380px_1fr]">
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <Label className="text-xs">Template</Label>
+              <Select value={templateId} onValueChange={setTemplateId}>
+                <SelectTrigger className="h-9 mt-1 text-foreground"><SelectValue placeholder="Select template" /></SelectTrigger>
+                <SelectContent>
+                  {templates.map((t: any) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {template?.contains_sensitive && (
+                <p className="text-[11px] text-amber-600 mt-1.5 flex items-center gap-1">
+                  <ShieldAlert className="h-3 w-3" /> Contains salary figures
+                </p>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs">Employee</Label>
+              <div className="mt-1">
+                <EmployeeCombobox options={employeeOptions} value={employeeId} onChange={setEmployeeId} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {promptFields.length > 0 && (
+          <Card className="border-amber-500/40">
+            <CardContent className="p-4 space-y-3">
+              <p className="text-xs font-medium flex items-center gap-1.5 text-amber-600">
+                <AlertTriangle className="h-3.5 w-3.5" /> {promptFields.length} field{promptFields.length > 1 ? "s" : ""} need your input
+              </p>
+              {promptFields.map((f) => (
+                <div key={f.field_key}>
+                  <Label className="text-xs capitalize">{f.label}</Label>
+                  <Input
+                    className="h-9 mt-1 text-foreground"
+                    value={overrides[f.field_key] || ""}
+                    placeholder={`Enter ${f.label.toLowerCase()}`}
+                    onChange={(e) => setOverrides((o) => ({ ...o, [f.field_key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        <div className="flex gap-2">
+          <Button variant="outline" className="h-9 flex-1" onClick={preview} disabled={!rendered}>
+            <Printer className="h-4 w-4 mr-1.5" /> Preview
+          </Button>
+          <Button className="h-9 flex-1" onClick={issue} disabled={!rendered || !employeeId || issuing || promptFields.length > 0}>
+            <FileCheck2 className="h-4 w-4 mr-1.5" /> {issuing ? "Issuing…" : "Issue letter"}
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Issuing allocates a reference number, freezes the merged letter and its values, then opens the browser print dialog — choose “Save as PDF”.
+        </p>
+      </div>
+
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          {!rendered ? (
+            <div className="p-10">
+              <EmptyState icon={FilePlus2} title="Nothing to preview yet" description="Select a template and an employee." />
+            </div>
+          ) : (
+            <div className="bg-muted/40 p-4 overflow-auto max-h-[70vh]">
+              <div className="mx-auto bg-white text-black shadow-sm" style={{ width: "210mm", minHeight: "297mm", padding: "20mm 18mm", boxSizing: "border-box", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "12pt", lineHeight: 1.6 }}>
+                <div dangerouslySetInnerHTML={{ __html: rendered.html }} />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+export default GenerateTab;

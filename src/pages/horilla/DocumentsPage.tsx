@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { FileSignature, FilePlus2, Archive, PenLine, Library, Users, Clock } from "lucide-react";
+import { FileSignature, FilePlus2, Archive, PenLine, Library, Users } from "lucide-react";
 import TemplatesTab from "@/components/hrms/documents/TemplatesTab";
 import SignatoriesTab from "@/components/hrms/documents/SignatoriesTab";
 import CompanyLibraryTab from "@/components/hrms/documents/CompanyLibraryTab";
 import EmployeeFilesTab from "@/components/hrms/documents/EmployeeFilesTab";
+import GenerateTab from "@/components/hrms/documents/GenerateTab";
+import IssuedTab from "@/components/hrms/documents/IssuedTab";
 
 export default function DocumentsPage() {
   const [tab, setTab] = useState("templates");
@@ -30,21 +31,8 @@ export default function DocumentsPage() {
 
         <TabsContent value="templates"><TemplatesTab /></TabsContent>
 
-        <TabsContent value="generate">
-          <EmptyState
-            icon={Clock}
-            title="Generation arrives in the next phase"
-            description="Templates, variable mapping and the signatory registry are live. Letter rendering waits on the PDF-engine decision."
-          />
-        </TabsContent>
-
-        <TabsContent value="issued">
-          <EmptyState
-            icon={Clock}
-            title="No letters issued yet"
-            description="Once generation is switched on, every issued letter appears here with its reference number, frozen values and audit trail."
-          />
-        </TabsContent>
+        <TabsContent value="generate"><GenerateTab /></TabsContent>
+        <TabsContent value="issued"><IssuedTab /></TabsContent>
 
         <TabsContent value="signatories"><SignatoriesTab /></TabsContent>
         <TabsContent value="library"><CompanyLibraryTab /></TabsContent>

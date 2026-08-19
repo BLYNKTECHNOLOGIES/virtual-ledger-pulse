@@ -200,6 +200,7 @@ export async function resolveEmployeeValues(
     // Last working day is a distinct fact from the resignation date — never
     // substitute one for the other; an empty value prompts the operator instead.
     "employment.last_working_day": emp.last_working_day || "",
+    "employment.resignation_date": emp.resignation_date || "",
     "employment.employment_type": work?.employee_type || work?.work_type || "",
     "employment.reporting_manager": manager,
     "employment.work_location": work?.location || work?.company_name || "",
@@ -235,6 +236,6 @@ export const SYSTEM_FILLED_KEYS = new Set(["reference_no", "generated_by"]);
  * Fields the operator must always be able to override even when they resolved —
  * letters are routinely back-dated to the last working day or an agreed date.
  */
-export const ALWAYS_EDITABLE_KEYS = new Set(["letter_date", "last_working_day", "conduct"]);
+export const ALWAYS_EDITABLE_KEYS = new Set(["letter_date", "last_working_day", "resignation_date", "conduct"]);
 
 

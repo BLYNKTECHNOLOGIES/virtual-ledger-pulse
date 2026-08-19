@@ -461,7 +461,15 @@ export function GenerateTab() {
         file_mime: mime,
         pdf_path: pdfPath,
         employee_document_id: employeeDocumentId,
-        values_snapshot: { ...(isDocx ? docxValues : values), reference_no: refNo },
+        values_snapshot: {
+          ...(isDocx ? docxValues : values),
+          ...Object.fromEntries(
+            mappings
+              .filter((m) => (m.field_key || m.token) === "reference_no" || m.token === "reference_no")
+              .map((m) => [m.token, refNo]),
+          ),
+          reference_no: refNo,
+        },
         signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
         issued_by: auth?.user?.id || null,
         issued_by_name: auth?.user?.email || null,

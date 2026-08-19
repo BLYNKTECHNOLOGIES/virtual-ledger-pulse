@@ -301,7 +301,7 @@ Deno.serve(async (req) => {
     const ccList = HR_CC_RECIPIENTS.filter(addr => addr.toLowerCase() !== primaryLower)
 
     await client.send({
-      from: `HR - Blynk Virtual Technologies <${smtpUser}>`,
+      from: `${fromName} <${fromAddress}>`,
       to: recipientEmail,
       cc: ccList.length ? ccList : undefined,
       replyTo: replyTo,

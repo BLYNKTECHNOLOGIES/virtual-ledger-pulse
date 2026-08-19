@@ -84,10 +84,27 @@ export function GenerateTab() {
     [version]
   );
 
+  /**
+   * Placeholder kind comes from the mapping (explicit `kind`, else the mapped
+   * catalog field's data_type) — never from how the token happens to be spelled,
+   * so {gm_signature} or {authorised_signatory} behave correctly.
+   */
+  const kindOf = useMemo(() => {
+    const byKey = new Map((catalog as CatalogField[]).map((c) => [c.field_key, c]));
+    return (m: PlaceholderMapping): "text" | "signature" | "seal" => {
+      if (m.kind) return m.kind;
+      const dt = m.field_key ? byKey.get(m.field_key)?.data_type : undefined;
+      if (dt === "signature") return "signature";
+      if (dt === "image") return "seal";
+      return "text";
+    };
+  }, [catalog]);
+
   const imageTokens = useMemo(
-    () => new Set(mappings.filter((m) => m.signatory_id && /^(sign|seal)/.test(m.token)).map((m) => m.token)),
-    [mappings]
+    () => new Set(mappings.filter((m) => kindOf(m) !== "text").map((m) => m.token)),
+    [mappings, kindOf]
   );
+
 
   const { data: images = {} } = useQuery({
     queryKey: ["hr_doc_signature_urls", version?.id, signatories.length],

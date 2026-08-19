@@ -337,19 +337,32 @@ export function GenerateTab() {
                 <AlertTriangle className="h-3.5 w-3.5" /> {promptFields.length} field{promptFields.length > 1 ? "s" : ""} need your input
               </p>
               {promptFields.map((f) => (
-                <div key={f.field_key}>
-                  <Label className="text-xs capitalize">{f.label}</Label>
-                  <Input
-                    className="h-9 mt-1 text-foreground"
-                    value={overrides[f.field_key] || ""}
-                    placeholder={`Enter ${f.label.toLowerCase()}`}
-                    onChange={(e) => setOverrides((o) => ({ ...o, [f.field_key]: e.target.value }))}
-                  />
-                </div>
+                <FieldInput key={f.field_key} field={f} raw={rawOverrides[f.field_key] || ""} setValue={setFieldValue} />
               ))}
             </CardContent>
           </Card>
         )}
+
+        {editableFields.length > 0 && (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <p className="text-xs font-medium text-foreground">Adjust before issuing</p>
+              <p className="text-[11px] text-muted-foreground -mt-1.5">
+                Resolved automatically — change them if this letter should carry a different date or wording.
+              </p>
+              {editableFields.map((f) => (
+                <FieldInput
+                  key={f.field_key}
+                  field={f}
+                  raw={rawOverrides[f.field_key] || ""}
+                  placeholderText={values[f.field_key]}
+                  setValue={setFieldValue}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
 
 
         {missingSignatures.length > 0 && (

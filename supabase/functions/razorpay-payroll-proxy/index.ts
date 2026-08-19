@@ -2520,8 +2520,10 @@ Deno.serve(async (req) => {
     //
     // Fields whitelisted for push (identity/metadata only — bank/PAN handled in
     // Phase 4 with an isolated flow):
-    //   name, phone_number, email, gender, date-of-birth,
+    //   name, phone_number, email, date-of-birth,
     //   department, title, date-of-joining, employee_type
+    // NOT pushable (absent from the Opfin people contract, dashboard-only):
+    //   gender, personal phone number, personal email address, WhatsApp flag
     if (
       action === "push_person_dry_run" ||
       action === "push_person_apply_one" ||

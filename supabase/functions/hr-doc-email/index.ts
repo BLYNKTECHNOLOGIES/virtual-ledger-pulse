@@ -123,20 +123,13 @@ Deno.serve(async (req) => {
         .order("issued_at", { ascending: false })
         .limit(1).maybeSingle();
       if (latest?.pdf_path) {
-        const { data: file } = await admin.storage.from("hr-doc-issued").download(latest.pdf_path);
-        if (file) {
-          const buf = new Uint8Array(await file.arrayBuffer());
-          let bin = "";
-          for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-          sampleRef = latest.reference_no || "";
-          sampleAttachment = {
-            filename: `${(latest.reference_no || "sample-letter").replace(/[\\/]/g, "-")}.pdf`,
-            content: btoa(bin),
-            encoding: "base64",
-            contentType: "application/pdf",
-          };
-        }
+        sampleRef = latest.reference_no || "";
+        sampleAttachment = await downloadBest(
+          latest.pdf_path,
+          `${(latest.reference_no || "sample-letter").replace(/[\\/]/g, "-")}.pdf`,
+        );
       }
+
 
       const sent: string[] = [];
       for (const cat of cats) {

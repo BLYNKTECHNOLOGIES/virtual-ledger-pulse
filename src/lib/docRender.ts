@@ -114,41 +114,53 @@ export function buildPrintDocument(
   return `<!doctype html><html><head><meta charset="utf-8" />
 <title>${escapeHtml(title)}</title>
 <style>
-  @page { size: A4; margin: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; }
+  /* Zero page margins: the letterhead artwork is full-bleed A4 and the safe
+     area is reserved per page by the repeating table head/foot spacers below
+     (the only technique Chrome honours on every page of a flowing document). */
+  @page { size: A4; margin: 0; }
   html, body { margin: 0; padding: 0; background: #f2f2f2; }
   body { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.6; color: #111; }
-  /* Full-page artwork layer. In print the fixed box is the page content area
-     (inside the @page margins), so the artwork is nudged back out by the
-     margins to land as a true full-bleed A4 page. */
   .letterhead {
     position: fixed; inset: 0; z-index: 0;
     background-image: url("${art}");
     background-repeat: no-repeat;
     background-size: 210mm 297mm;
-    background-position: -${ml}mm -${mt}mm;
+    background-position: 0 0;
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
-  .sheet { width: 210mm; min-height: 297mm; padding: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; z-index: 1; }
+  .sheet { width: 210mm; min-height: 297mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; z-index: 1; }
+  /* Safe-area frame — thead/tfoot repeat on every printed page. */
+  table.page-frame { width: 100%; border-collapse: collapse; border: 0; }
+  table.page-frame > thead > tr > td,
+  table.page-frame > tfoot > tr > td,
+  table.page-frame > tbody > tr > td { border: 0; padding: 0; }
+  .band-top { height: ${mt}mm; }
+  .band-bottom { height: ${mb}mm; }
+  .page-body { padding: 0 ${mr}mm 0 ${ml}mm; }
   .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 8mm; }
   img { max-width: 100%; }
-  table { border-collapse: collapse; width: 100%; }
-  td, th { border: 1px solid #999; padding: 6px 8px; }
+  .page-body table { border-collapse: collapse; width: 100%; }
+  .page-body td, .page-body th { border: 1px solid #999; padding: 6px 8px; }
   @media print {
     html, body { background: #fff; }
-    /* Transparent, otherwise the sheet paints over the letterhead layer. */
-    .sheet { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; background: transparent; }
+    .sheet { width: auto; min-height: 0; margin: 0; box-shadow: none; background: transparent; }
   }
   @media screen {
-    /* On screen the artwork sits behind the single preview sheet. */
-    .letterhead { position: absolute; inset: auto; top: 12px; left: 50%; margin-left: -105mm; width: 210mm; height: 297mm; background-position: 0 0; }
+    .letterhead { position: absolute; inset: auto; top: 12px; left: 50%; margin-left: -105mm; width: 210mm; height: 297mm; }
     .sheet { background: transparent; }
   }
 </style></head>
 <body>
 ${art ? `<div class="letterhead"></div>` : ""}
 <div class="sheet">
+<table class="page-frame">
+<thead><tr><td><div class="band-top"></div></td></tr></thead>
+<tfoot><tr><td><div class="band-bottom"></div></td></tr></tfoot>
+<tbody><tr><td><div class="page-body">
 ${referenceNo ? `<div class="ref">Ref: ${escapeHtml(referenceNo)}</div>` : ""}
 ${bodyHtml}
+</div></td></tr></tbody>
+</table>
 </div></body></html>`;
 }
 

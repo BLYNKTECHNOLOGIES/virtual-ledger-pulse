@@ -101,10 +101,17 @@ Deno.serve(async (req) => {
     const isDocx = String(doc.file_mime || "").includes("wordprocessingml") || /\.docx$/i.test(doc.file_path);
     if (!isDocx) return json({ error: "Only Word letters are converted through Adobe" }, 400);
 
-    // Already converted natively — reuse it.
-    if (!force && doc.pdf_path && /\.adobe\.pdf$/i.test(doc.pdf_path)) {
-      return json({ pdfPath: doc.pdf_path, cached: true });
+    // Already converted — reuse the archived PDF, never call Adobe again.
+    if (!force && doc.pdf_path) {
+      const slash = String(doc.pdf_path).lastIndexOf("/");
+      const dir = slash > 0 ? doc.pdf_path.slice(0, slash) : "";
+      const name = slash > 0 ? doc.pdf_path.slice(slash + 1) : doc.pdf_path;
+      const { data: listed } = await admin.storage.from("hr-doc-issued").list(dir, { search: name, limit: 100 });
+      if (listed?.some((f: any) => f.name === name)) {
+        return json({ pdfPath: doc.pdf_path, cached: true });
+      }
     }
+
 
     const { data: file, error: dlErr } = await admin.storage.from("hr-doc-issued").download(doc.file_path);
     if (dlErr || !file) throw dlErr || new Error("Could not read the stored letter");

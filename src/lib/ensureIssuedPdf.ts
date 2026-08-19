@@ -9,14 +9,23 @@ import { privateDocRef } from "@/lib/storedDoc";
  * PDF on demand from the frozen artefact, files it and links it to the
  * employee's document record so the ERP copy is always a PDF.
  */
+async function pdfExists(path: string): Promise<boolean> {
+  const slash = path.lastIndexOf("/");
+  const dir = slash > 0 ? path.slice(0, slash) : "";
+  const name = slash > 0 ? path.slice(slash + 1) : path;
+  const { data } = await supabase.storage.from("hr-doc-issued").list(dir, { search: name, limit: 100 });
+  return !!data?.some((f: any) => f.name === name);
+}
+
 export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: Blob | null }> {
   const isDocx = String(doc.file_mime || "").includes("wordprocessingml") || /\.docx$/i.test(doc.file_path || "");
 
-  // Word letters are converted by Adobe PDF Services server-side, so the PDF is
-  // byte-faithful to the Word file (letterhead, fonts, geometry). Converted once,
-  // then reused forever.
+  // A PDF archived against this letter is reused forever — never re-converted,
+  // never re-rendered, whichever surface asks for it (HRMS, employee profile,
+  // automated email). The Adobe API is only ever called when no PDF exists yet.
+  if (doc.pdf_path && (await pdfExists(doc.pdf_path))) return { path: doc.pdf_path, blob: null };
+
   if (isDocx) {
-    if (doc.pdf_path && /\.adobe\.pdf$/i.test(doc.pdf_path)) return { path: doc.pdf_path, blob: null };
     const { data, error } = await supabase.functions.invoke("hr-doc-convert-pdf", {
       body: { issuedId: doc.id },
     });
@@ -27,7 +36,7 @@ export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: B
     return { path: pdfPath, blob: null };
   }
 
-  if (doc.pdf_path) return { path: doc.pdf_path, blob: null };
+
   if (!doc.file_path) throw new Error("This letter has no stored file");
 
   const { data: signed, error: sErr } = await supabase.storage

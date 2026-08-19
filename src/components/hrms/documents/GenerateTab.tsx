@@ -366,25 +366,27 @@ export function GenerateTab() {
         if (upErr) throw upErr;
       }
 
-      // Archive a PDF of exactly what was issued — readable without Word and
-      // filed against the employee. Non-fatal: the letter is already stored.
+      // Archive a PDF of exactly what was issued. Word letters are converted
+      // server-side by Adobe PDF Services after the row exists (see below), so
+      // the archived PDF is byte-faithful to the Word file.
       let pdfPath: string | null = null;
       let pdfBlob: Blob | null = null;
-      try {
-        const { htmlToPdfBlob, docxToPdfBlob } = await import("@/lib/docPdf");
-        pdfBlob = isDocx && docxBlob
-          ? await docxToPdfBlob(await docxBlob.arrayBuffer(), template.name)
-          : await htmlToPdfBlob(fullHtml);
-        pdfPath = `${employeeId}/${safeRef}${isDocx ? ".word" : ""}.pdf`;
-        const { error: pdfErr } = await supabase.storage
-          .from("hr-doc-issued")
-          .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });
-        if (pdfErr) throw pdfErr;
-      } catch (e) {
-        console.warn("PDF archive failed (non-fatal):", e);
-        pdfPath = null;
-        pdfBlob = null;
+      if (!isDocx) {
+        try {
+          const { htmlToPdfBlob } = await import("@/lib/docPdf");
+          pdfBlob = await htmlToPdfBlob(fullHtml);
+          pdfPath = `${employeeId}/${safeRef}.pdf`;
+          const { error: pdfErr } = await supabase.storage
+            .from("hr-doc-issued")
+            .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });
+          if (pdfErr) throw pdfErr;
+        } catch (e) {
+          console.warn("PDF archive failed (non-fatal):", e);
+          pdfPath = null;
+          pdfBlob = null;
+        }
       }
+
 
       const { data: auth } = await supabase.auth.getUser();
 
@@ -435,6 +437,20 @@ export function GenerateTab() {
         issued_at: new Date().toISOString(),
       }).select("id").maybeSingle();
       if (insErr) throw insErr;
+
+      // Word lane: convert the exact merged DOCX to PDF server-side (Adobe).
+      if (isDocx && inserted?.id) {
+        supabase.functions
+          .invoke("hr-doc-convert-pdf", { body: { issuedId: inserted.id } })
+          .then(({ data, error }: any) => {
+            if (error || !data?.pdfPath) {
+              console.warn("Adobe PDF conversion failed (non-fatal):", data?.error || error?.message);
+              return;
+            }
+            qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+            qc.invalidateQueries({ queryKey: ["hr_employee_documents", employeeId] });
+          });
+      }
 
       await (supabase as any).from("hr_doc_audit_log").insert({
         entity_type: "issued_document",

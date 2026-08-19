@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { FileSignature, FilePlus2, Archive, PenLine, Library, Users, Clock } from "lucide-react";
+import { FileSignature, FilePlus2, Archive, PenLine, Library, Users } from "lucide-react";
 import TemplatesTab from "@/components/hrms/documents/TemplatesTab";
 import SignatoriesTab from "@/components/hrms/documents/SignatoriesTab";
 import CompanyLibraryTab from "@/components/hrms/documents/CompanyLibraryTab";
 import EmployeeFilesTab from "@/components/hrms/documents/EmployeeFilesTab";
+import GenerateTab from "@/components/hrms/documents/GenerateTab";
+import IssuedTab from "@/components/hrms/documents/IssuedTab";
 
 export default function DocumentsPage() {
   const [tab, setTab] = useState("templates");

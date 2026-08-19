@@ -46,7 +46,7 @@ function factTable(c: DocEmailCtx, extra: Array<[string, string | null | undefin
     .map(
       ([k, v], i) =>
         `<tr class="fact-row">` +
-        `<td valign="top" class="fact-k" style="padding:${i === 0 ? "0" : "6px"} 12px 0 0;font-size:12.5px;line-height:1.5;` +
+        `<td valign="top" width="1%" class="fact-k" style="padding:${i === 0 ? "0" : "6px"} 12px 0 0;font-size:12.5px;line-height:1.5;` +
         `font-weight:700;color:#0B1524;white-space:nowrap;">${k}</td>` +
         `<td valign="top" class="fact-v" style="padding:${i === 0 ? "0" : "6px"} 0 0 0;font-size:12.5px;line-height:1.5;` +
         `color:#334155;word-break:break-word;">${v}</td>` +

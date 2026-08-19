@@ -17,10 +17,30 @@ export interface RenderContext {
   mappings: PlaceholderMapping[];
 }
 
+const PROTECTED_REGION = /<style[\s\S]*?<\/style>|<script[\s\S]*?<\/script>|<!--[\s\S]*?-->/gi;
+
+/**
+ * Apply `fn` to the HTML while leaving <style>/<script>/comment blocks untouched —
+ * a CSS rule such as `body { margin: 0 }` must never be treated as a placeholder.
+ */
+function mapContentRegions(html: string, fn: (chunk: string) => string): string {
+  let out = "";
+  let last = 0;
+  PROTECTED_REGION.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = PROTECTED_REGION.exec(html)) !== null) {
+    out += fn(html.slice(last, m.index)) + m[0];
+    last = m.index + m[0].length;
+  }
+  return out + fn(html.slice(last));
+}
+
 /** Collapse tags that sit *inside* a {placeholder} so the token survives split runs. */
 export function healSplitPlaceholders(html: string): string {
-  return html.replace(/\{[^{}]*\}/g, (chunk) =>
-    chunk.includes("<") ? "{" + normaliseToken(htmlToText(chunk).replace(/[{}]/g, "")) + "}" : chunk
+  return mapContentRegions(html, (chunk) =>
+    chunk.replace(/\{[^{}]*\}/g, (m) =>
+      m.includes("<") ? "{" + normaliseToken(htmlToText(m).replace(/[{}]/g, "")) + "}" : m
+    )
   );
 }
 
@@ -29,27 +49,30 @@ export function renderTemplateHtml(html: string, ctx: RenderContext): { html: st
   const byToken = new Map(ctx.mappings.map((m) => [m.token, m]));
   const unresolved: string[] = [];
 
-  const out = healed.replace(/\{([^{}]*)\}/g, (whole, rawToken: string) => {
-    const token = normaliseToken(rawToken);
-    if (!token) return whole;
-    const mapping = byToken.get(token);
+  const out = mapContentRegions(healed, (chunk) =>
+    chunk.replace(/\{([^{}]*)\}/g, (whole, rawToken: string) => {
+      const token = normaliseToken(rawToken);
+      if (!token) return whole;
+      const mapping = byToken.get(token);
 
-    const image = ctx.images?.[token];
-    if (image) {
-      return `<img src="${image}" alt="signature" style="height:60px;object-fit:contain;display:inline-block;vertical-align:middle" />`;
-    }
+      const image = ctx.images?.[token];
+      if (image) {
+        return `<img src="${image}" alt="signature" style="height:60px;object-fit:contain;display:inline-block;vertical-align:middle" />`;
+      }
 
-    const key = mapping?.field_key || token;
-    const value = ctx.tokenValues?.[token] ?? ctx.values[key] ?? ctx.values[token];
-    if (value === undefined || value === "") {
-      unresolved.push(token);
-      return `<span style="background:#fff3cd;color:#7a5b00;padding:0 2px">{${token}}</span>`;
-    }
-    return escapeHtml(value);
-  });
+      const key = mapping?.field_key || token;
+      const value = ctx.tokenValues?.[token] ?? ctx.values[key] ?? ctx.values[token];
+      if (value === undefined || value === "") {
+        unresolved.push(token);
+        return `<span style="background:#fff3cd;color:#7a5b00;padding:0 2px">{${token}}</span>`;
+      }
+      return escapeHtml(value);
+    })
+  );
 
   return { html: unescapeBraces(out), unresolved: [...new Set(unresolved)] };
 }
+
 
 
 function escapeHtml(s: string): string {

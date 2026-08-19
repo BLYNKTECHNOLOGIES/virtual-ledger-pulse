@@ -107,7 +107,7 @@ export function GenerateTab() {
 
 
   const { data: images = {} } = useQuery({
-    queryKey: ["hr_doc_signature_urls", version?.id, signatories.length],
+    queryKey: ["hr_doc_signature_urls", version?.id, signatories.length, catalog.length],
     enabled: mappings.some((m) => m.signatory_id),
     queryFn: async () => {
       const out: Record<string, string> = {};

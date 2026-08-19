@@ -196,9 +196,10 @@ export function TemplateEditorForm({
   };
 
   const parsed = useMemo(
-    () => (lane === "docx" ? parsePlaceholders(docxText, false) : parsePlaceholders(html, true)),
+    () => (lane === "docx" ? parseDocxToResult(docxText) : parsePlaceholders(html, true)),
     [lane, docxText, html]
   );
+
 
   useEffect(() => {
     setMappings((prev) => mergeMappings(parsed.placeholders, prev));

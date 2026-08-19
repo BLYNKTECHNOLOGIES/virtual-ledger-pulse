@@ -14,6 +14,7 @@ import { FilePlus2, Printer, AlertTriangle, ShieldAlert, FileCheck2 } from "luci
 import { fetchCatalog, resolveEmployeeValues, formatValue, SYSTEM_FILLED_KEYS, ALWAYS_EDITABLE_KEYS, type CatalogField } from "@/lib/docResolvers";
 import { renderTemplateHtml, buildPrintDocument, printDocument } from "@/lib/docRender";
 import type { PlaceholderMapping } from "@/lib/docTemplate";
+import { fetchCompanyIdentity, resolveLetterhead } from "@/lib/companyIdentity";
 
 export function GenerateTab() {
   const qc = useQueryClient();
@@ -45,6 +46,13 @@ export function GenerateTab() {
   });
 
   const { data: catalog = [] } = useQuery({ queryKey: ["hr_doc_field_catalog"], queryFn: fetchCatalog });
+
+  /** Universal letterhead every letter is printed on — header/footer are never overwritten. */
+  const { data: letterhead } = useQuery({
+    queryKey: ["hr_company_letterhead"],
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => resolveLetterhead(await fetchCompanyIdentity()),
+  });
 
   const template = templates.find((t: any) => t.id === templateId);
 
@@ -224,7 +232,7 @@ export function GenerateTab() {
   const preview = () => {
     if (!rendered) return toast.error("Pick a template with a saved version first");
     try {
-      printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued"));
+      printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued", letterhead));
     } catch (e: any) {
       toast.error(e?.message || "Could not open the print window");
     }
@@ -249,7 +257,9 @@ export function GenerateTab() {
       const finalRender = renderWith(refNo);
       if (!finalRender) throw new Error("Template has no saved content");
 
-      const fullHtml = buildPrintDocument(finalRender.html, template.name, refNo);
+      // Inline the letterhead into the frozen artefact so a re-print is byte-identical.
+      const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
+      const fullHtml = buildPrintDocument(finalRender.html, template.name, refNo, sheet);
       const path = `${employeeId}/${refNo.replace(/[^\w.-]+/g, "_")}.html`;
       const { error: upErr } = await supabase.storage
         .from("hr-doc-issued")

@@ -2592,7 +2592,12 @@ Deno.serve(async (req) => {
           name: full || null,
           phone_number: normPhone(e.phone),
           email: e.email ? String(e.email).trim().toLowerCase() : null,
-          gender: e.gender ? String(e.gender).toLowerCase() : null,
+          // GENDER IS OUT OF OPFIN API SCOPE.
+          // people:view never returns a `gender` key (0/45 snapshots carry it)
+          // and people:edit accepts it with HTTP 200 while silently no-oping.
+          // Sending it made every employee diff as "changed: gender" on every
+          // run forever and produced false "pushed" rows. It is dashboard-only
+          // — set it manually in RazorpayX. Do not reintroduce it here.
           "date-of-birth": dobRp,
           department: deptById.get(w.department_id) || null,
           // The linked position is the designation shown throughout HRMS and

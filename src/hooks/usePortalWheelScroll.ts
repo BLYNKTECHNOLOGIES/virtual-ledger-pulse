@@ -20,10 +20,12 @@ function findScrollable(start: Element | null, root: HTMLElement): HTMLElement |
   while (node && node !== root.parentElement) {
     if (node instanceof HTMLElement) {
       const style = getComputedStyle(node);
-      const scrollableY =
+      if (
         /(auto|scroll|overlay)/.test(style.overflowY) &&
-        node.scrollHeight > node.clientHeight + 1;
-      if (scrollableY) return node;
+        node.scrollHeight > node.clientHeight + 1
+      ) {
+        return node;
+      }
     }
     node = node.parentElement;
   }
@@ -33,39 +35,32 @@ function findScrollable(start: Element | null, root: HTMLElement): HTMLElement |
 export function usePortalWheelScroll<T extends HTMLElement>(
   forwardedRef: React.ForwardedRef<T>,
 ) {
-  const localRef = React.useRef<T | null>(null);
-
-  React.useEffect(() => {
-    const el = localRef.current;
-    if (!el) return;
-
-    el.setAttribute("data-wheel-fix", "1");
-    const onWheel = (e: WheelEvent) => {
-      // eslint-disable-next-line no-console
-      if ((window as any).__wheelDebug) console.log("wheel", e.deltaY);
-      if (e.ctrlKey) return;
-      const target = e.target as Element | null;
-      const scroller = findScrollable(target, el);
-      if (!scroller) return;
-      const { x, y } = normalizeDelta(e);
-      const before = scroller.scrollTop;
-      scroller.scrollTop += y;
-      if (x) scroller.scrollLeft += x;
-      // Only swallow the event if we actually consumed it, so nested/edge
-      // cases can still bubble to the page when appropriate.
-      if (scroller.scrollTop !== before || x) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    };
-
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+  const cleanupRef = React.useRef<(() => void) | null>(null);
 
   return React.useCallback(
     (node: T | null) => {
-      localRef.current = node;
+      cleanupRef.current?.();
+      cleanupRef.current = null;
+
+      if (node) {
+        const onWheel = (e: WheelEvent) => {
+          if (e.ctrlKey) return;
+          const scroller = findScrollable(e.target as Element | null, node);
+          if (!scroller) return;
+          const { x, y } = normalizeDelta(e);
+          const beforeY = scroller.scrollTop;
+          const beforeX = scroller.scrollLeft;
+          scroller.scrollTop += y;
+          if (x) scroller.scrollLeft += x;
+          if (scroller.scrollTop !== beforeY || scroller.scrollLeft !== beforeX) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        };
+        node.addEventListener("wheel", onWheel, { passive: false });
+        cleanupRef.current = () => node.removeEventListener("wheel", onWheel);
+      }
+
       if (typeof forwardedRef === "function") forwardedRef(node);
       else if (forwardedRef) (forwardedRef as React.MutableRefObject<T | null>).current = node;
     },

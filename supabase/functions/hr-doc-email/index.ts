@@ -70,9 +70,13 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("authorization") || "";
-    if (!authHeader.toLowerCase().startsWith("bearer ")) return json({ error: "Unauthorized" }, 401);
+    const sampleKey = (Deno.env.get("HR_DOC_EMAIL_SAMPLE_KEY") || "").trim();
+    const providedSampleKey = (req.headers.get("x-sample-key") || "").trim();
+    const isSampleCaller = !!sampleKey && providedSampleKey === sampleKey;
+    if (!isSampleCaller && !authHeader.toLowerCase().startsWith("bearer ")) return json({ error: "Unauthorized" }, 401);
     const token = authHeader.replace(/^Bearer /i, "").trim();
-    const isServiceRole = token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const isServiceRole = isSampleCaller || token === Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
     let caller: { id: string; email: string | null } = { id: "00000000-0000-0000-0000-000000000000", email: "service-role" };
     if (!isServiceRole) {
       const { data: { user } } = await admin.auth.getUser(token);
@@ -106,6 +110,7 @@ Deno.serve(async (req) => {
     const overrideTo = String(body.to || "").trim();
 
     // ---- Preview lane: send sample renders of each document-type template ----
+    if (isSampleCaller && !body.previewCategories) return json({ error: "Sample key is limited to previews" }, 403);
     if (body.previewCategories) {
       const cats: string[] = Array.isArray(body.previewCategories) ? body.previewCategories : [];
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(overrideTo)) return json({ error: "A valid 'to' is required" }, 400);

@@ -93,6 +93,7 @@ Deno.serve(async (req) => {
       employeeName: empName,
       referenceNo: doc.reference_no || "—",
       documentName: doc.template_name || "Document",
+      category: doc.category,
       issuedDate: fmt(doc.issued_at) || fmt(new Date().toISOString())!,
       lastWorkingDate: lastWorking,
       designation,

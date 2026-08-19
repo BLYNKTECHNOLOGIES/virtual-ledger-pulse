@@ -32,16 +32,23 @@ export function IssuedTab() {
     },
   });
 
-  /** Open the archived PDF of the letter exactly as issued. */
+  /** Open the archived PDF, building it on demand if the letter has none yet. */
   const openPdf = async (doc: any) => {
+    const id = toast.loading(doc.pdf_path ? "Opening PDF…" : "Preparing PDF…");
     try {
-      if (!doc.pdf_path) throw new Error("No PDF was archived for this letter — use re-print instead");
+      const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
+      const { path } = await ensureIssuedPdf(doc);
       const { data, error } = await supabase.storage
-        .from("hr-doc-issued").createSignedUrl(doc.pdf_path, 300);
+        .from("hr-doc-issued").createSignedUrl(path, 300);
       if (error || !data?.signedUrl) throw error || new Error("Could not open the PDF");
       window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+      if (!doc.pdf_path) {
+        qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+        qc.invalidateQueries({ queryKey: ["hr_employee_documents", doc.employee_id] });
+      }
+      toast.success("PDF ready", { id });
     } catch (e: any) {
-      toast.error(e?.message || "Could not open the PDF");
+      toast.error(e?.message || "Could not open the PDF", { id });
     }
   };
 
@@ -53,12 +60,11 @@ export function IssuedTab() {
       if (error || !data?.signedUrl) throw error || new Error("Could not open the stored letter");
       const res = await fetch(data.signedUrl);
 
-      // Word artefacts (locked native templates) are downloaded, not printed.
+      // Word artefacts (locked native templates) are rendered to PDF for printing.
       if (String(doc.file_mime || "").includes("wordprocessingml")) {
-        const blob = await res.blob();
-        const { downloadBlob } = await import("@/lib/docxTemplate");
-        downloadBlob(blob, `${String(doc.reference_no || "letter").replace(/[^\w.-]+/g, "_")}.docx`);
-        toast.success("Word file downloaded — open it and print to PDF");
+        const { wrapDocxHtml } = await import("@/lib/docPdf");
+        const { convertDocxToHtml } = await import("@/lib/docxImport");
+        printDocument(wrapDocxHtml(convertDocxToHtml(await res.arrayBuffer()), doc.template_name || "Letter"));
         return;
       }
       printDocument(await res.text());
@@ -66,6 +72,7 @@ export function IssuedTab() {
       toast.error(e?.message || "Could not open the letter");
     }
   };
+
 
   /** Permanent removal — HR staff only (enforced by RLS as well). */
   const remove = async () => {
@@ -155,11 +162,10 @@ export function IssuedTab() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={d.status === "revoked" ? "destructive" : "outline"} className="text-[10px] capitalize">{d.status}</Badge>
-                  {d.pdf_path && (
-                    <Button size="sm" variant="ghost" title="Open PDF" onClick={() => openPdf(d)}>
-                      <FileDown className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button size="sm" variant="ghost" title="Open PDF" onClick={() => openPdf(d)}>
+                    <FileDown className="h-4 w-4" />
+                  </Button>
+
                   <Button size="sm" variant="ghost" title="Re-print original" onClick={() => reprint(d)}><Printer className="h-4 w-4" /></Button>
                   {d.status !== "revoked" && (
                     <Button size="sm" variant="ghost" title="Revoke" onClick={() => setRevokeTarget(d)}>

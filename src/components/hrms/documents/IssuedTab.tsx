@@ -162,11 +162,10 @@ export function IssuedTab() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={d.status === "revoked" ? "destructive" : "outline"} className="text-[10px] capitalize">{d.status}</Badge>
-                  {d.pdf_path && (
-                    <Button size="sm" variant="ghost" title="Open PDF" onClick={() => openPdf(d)}>
-                      <FileDown className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <Button size="sm" variant="ghost" title="Open PDF" onClick={() => openPdf(d)}>
+                    <FileDown className="h-4 w-4" />
+                  </Button>
+
                   <Button size="sm" variant="ghost" title="Re-print original" onClick={() => reprint(d)}><Printer className="h-4 w-4" /></Button>
                   {d.status !== "revoked" && (
                     <Button size="sm" variant="ghost" title="Revoke" onClick={() => setRevokeTarget(d)}>

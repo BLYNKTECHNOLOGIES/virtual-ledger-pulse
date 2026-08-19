@@ -20,6 +20,38 @@ const fmt = (d?: string | null) => {
   if (isNaN(dt.getTime())) return null;
   return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 };
+// Keep subjects strictly ASCII and short: denomailer 1.6.0 does not fold long
+// RFC2047 encoded-words, which leaks header text into the message body.
+const sanitizeSubject = (s: string) =>
+  s.replace(/[\u2010-\u2015]/g, "-").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim().slice(0, 72);
+
+type Mailbox = { from: string; host: string; user: string; pass: string };
+
+async function getMailbox(admin: any): Promise<Mailbox | { error: string }> {
+  const { data: mailbox } = await admin
+    .from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();
+  if (!mailbox) return { error: "No active HR mailbox configured" };
+  const host = Deno.env.get(mailbox.smtp_host_secret) || Deno.env.get("HR_SMTP_HOST");
+  const user = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get("HR_SMTP_USER") || "").trim();
+  const pass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
+  if (!host || !user || !pass) return { error: "SMTP credentials are not configured" };
+  return { from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`, host, user, pass };
+}
+
+async function sendMail(mb: Mailbox, to: string, subject: string, html: string, attachment: any) {
+  const client = new SMTPClient({
+    connection: { hostname: mb.host, port: 465, tls: true, auth: { username: mb.user, password: mb.pass } },
+  });
+  try {
+    await client.send({
+      from: mb.from, to, subject, content: hrSignatureText(), html,
+      attachments: attachment ? ([attachment] as any) : undefined,
+    });
+  } finally {
+    try { await client.close(); } catch { /* ignore */ }
+  }
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -45,6 +77,42 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const issuedId = String(body.issuedId || "").trim();
     const overrideTo = String(body.to || "").trim();
+
+    // ---- Preview lane: send sample renders of each document-type template ----
+    if (body.previewCategories) {
+      const cats: string[] = Array.isArray(body.previewCategories) ? body.previewCategories : [];
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(overrideTo)) return json({ error: "A valid 'to' is required" }, 400);
+      const mb = await getMailbox(admin);
+      if ("error" in mb) return json({ error: mb.error }, 400);
+      const sent: string[] = [];
+      for (const cat of cats) {
+        const names: Record<string, string> = {
+          relieving: "Relieving cum Experience Letter",
+          appointment: "Appointment Letter",
+          appraisal: "Appraisal Letter",
+          warning: "Warning / Disciplinary Letter",
+          custom: "Address Proof Letter",
+        };
+        const t = buildDocEmail({
+          employeeName: "Shubham Singh",
+          referenceNo: `BLYNK/SAMPLE/2026-27/000${cats.indexOf(cat) + 1}`,
+          documentName: names[cat] || "Document",
+          category: cat,
+          issuedDate: fmt(new Date().toISOString())!,
+          lastWorkingDate: cat === "relieving" ? "31 Jul 2026" : null,
+          designation: "Senior Operations Manager",
+        });
+        const subj = `[SAMPLE] ${sanitizeSubject(t.subject)}`.slice(0, 72);
+        await sendMail(mb, overrideTo, subj, wrapHrEmail(t.html, {
+          title: t.subject.split(" - ")[0],
+          preheader: `Sample template preview - ${names[cat] || cat}`,
+          refNote: `Sample preview - no document attached`,
+        }), null);
+        sent.push(subj);
+      }
+      return json({ success: true, to: overrideTo, sent });
+    }
+
     if (!issuedId) return json({ error: "issuedId is required" }, 400);
 
     const { data: doc } = await admin.from("hr_documents_issued").select("*").eq("id", issuedId).maybeSingle();
@@ -93,47 +161,21 @@ Deno.serve(async (req) => {
       employeeName: empName,
       referenceNo: doc.reference_no || "—",
       documentName: doc.template_name || "Document",
+      category: doc.category,
       issuedDate: fmt(doc.issued_at) || fmt(new Date().toISOString())!,
       lastWorkingDate: lastWorking,
       designation,
     });
-    // Keep the subject strictly ASCII and short: denomailer 1.6.0 does not fold
-    // long RFC2047 encoded-words, which leaks header text into the message body.
-    const safeSubject = tpl.subject
-      .replace(/[\u2010-\u2015]/g, "-")
-      .replace(/[^\x20-\x7E]/g, "")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 72);
+    const safeSubject = sanitizeSubject(tpl.subject);
     const html = wrapHrEmail(tpl.html, {
       title: tpl.subject.split(" - ")[0],
       preheader: `${doc.template_name} · ${doc.reference_no}`,
       refNote: `Automated notice · Ref ${doc.reference_no || "—"}`,
     });
 
-    const { data: mailbox } = await admin
-      .from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();
-    if (!mailbox) return json({ error: "No active HR mailbox configured" }, 400);
-    const host = Deno.env.get(mailbox.smtp_host_secret) || Deno.env.get("HR_SMTP_HOST");
-    const user = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get("HR_SMTP_USER") || "").trim();
-    const pass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
-    if (!host || !user || !pass) return json({ error: "SMTP credentials are not configured" }, 500);
-
-    const client = new SMTPClient({
-      connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } },
-    });
-    try {
-      await client.send({
-        from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`,
-        to,
-        subject: safeSubject,
-        content: hrSignatureText(),
-        html,
-        attachments: attachment ? ([attachment] as any) : undefined,
-      });
-    } finally {
-      try { await client.close(); } catch { /* ignore */ }
-    }
+    const mb = await getMailbox(admin);
+    if ("error" in mb) return json({ error: mb.error }, 400);
+    await sendMail(mb, to, safeSubject, html, attachment);
 
     await admin.from("hr_email_send_log").insert({
       message_id: crypto.randomUUID(),

@@ -236,7 +236,8 @@ export function TemplateEditorForm({
         name: form.name.trim(),
         category: form.category,
         description: form.description || null,
-        lane: "native",
+        lane,
+
         contains_sensitive: containsSensitive,
         requires_approval: form.requires_approval,
         reference_pattern: form.reference_pattern || null,

@@ -669,7 +669,10 @@ export default function EmployeeProfilePage() {
         shift_id: workInfoForm.shift_id || null,
         department_id: workInfoForm.department_id || null,
         job_position_id: workInfoForm.job_position_id || null,
-        job_role: workInfoForm.job_role || null,
+        // Job Role is retired — Position is the single designation. We keep the
+        // legacy column in sync with the selected position title so downstream
+        // consumers (RazorpayX push, documents, drift scan) keep working.
+        job_role: (allPositions || []).find((p: any) => p.id === workInfoForm.job_position_id)?.title || null,
         work_type: workInfoForm.work_type || null,
         employee_type: workInfoForm.employee_type || null,
         location: workInfoForm.location || null,

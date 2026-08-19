@@ -13,13 +13,13 @@ import { toast } from "sonner";
 import { FileSignature, Plus, Search, Pencil, Archive, ShieldAlert, History } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
-import TemplateEditorDialog, { type TemplateRecord } from "./TemplateEditorDialog";
+import { useNavigate } from "react-router-dom";
+import type { TemplateRecord } from "./TemplateEditorForm";
 
 export function TemplatesTab() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<TemplateRecord | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<TemplateRecord | null>(null);
 
   const { data: templates = [], isLoading } = useQuery({
@@ -55,7 +55,7 @@ export function TemplatesTab() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search templates..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
         </div>
-        <Button className="h-9" onClick={() => { setEditing(null); setEditorOpen(true); }}>
+        <Button className="h-9" onClick={() => navigate("/hrms/documents/templates/new")}>
           <Plus className="h-4 w-4 mr-2" /> New template
         </Button>
       </div>
@@ -69,7 +69,7 @@ export function TemplatesTab() {
               icon={FileSignature}
               title="No templates yet"
               description="Create a letter template with {variables}, or upload one."
-              action={<Button className="h-9" onClick={() => { setEditing(null); setEditorOpen(true); }}><Plus className="h-4 w-4 mr-2" />New template</Button>}
+              action={<Button className="h-9" onClick={() => navigate("/hrms/documents/templates/new")}><Plus className="h-4 w-4 mr-2" />New template</Button>}
             />
           </div>
         ) : filtered.map((t: any) => (
@@ -82,7 +82,7 @@ export function TemplatesTab() {
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0"
-                    onClick={() => { setEditing(t); setEditorOpen(true); }}>
+                    onClick={() => navigate(`/hrms/documents/templates/${t.id}`)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => setArchiveTarget(t)}>
@@ -105,8 +105,6 @@ export function TemplatesTab() {
           </Card>
         ))}
       </div>
-
-      <TemplateEditorDialog open={editorOpen} onOpenChange={setEditorOpen} template={editing} />
 
       <AlertDialog open={!!archiveTarget} onOpenChange={(o) => !o && setArchiveTarget(null)}>
         <AlertDialogContent>

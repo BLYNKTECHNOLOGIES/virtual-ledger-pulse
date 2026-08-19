@@ -121,6 +121,7 @@ const AssetAssignmentsPage = lazy(() => import('./pages/horilla/AssetAssignments
 const HelpdeskPage = lazy(() => import('./pages/horilla/HelpdeskPage'));
 const OrganizationPage = lazy(() => import('./pages/horilla/OrganizationPage'));
 const DocumentsPage = lazy(() => import('./pages/horilla/DocumentsPage'));
+const DocumentTemplateEditorPage = lazy(() => import('./pages/horilla/DocumentTemplateEditorPage'));
 const AnnouncementsPage = lazy(() => import('./pages/horilla/AnnouncementsPage'));
 const ReportsPage = lazy(() => import('./pages/horilla/ReportsPage'));
 const RegistersPage = lazy(() => import('./pages/horilla/RegistersPage'));
@@ -789,6 +790,8 @@ const router = createBrowserRouter([
         { path: "helpdesk/policies", element: <HRPoliciesPage /> },
         { path: "organization", element: <OrganizationPage /> },
         { path: "documents", element: <DocumentsPage /> },
+        { path: "documents/templates/new", element: <DocumentTemplateEditorPage /> },
+        { path: "documents/templates/:id", element: <DocumentTemplateEditorPage /> },
         { path: "announcements", element: <AnnouncementsPage /> },
         { path: "reports", element: <ReportsPage /> },
         { path: "registers", element: <RegistersPage /> },

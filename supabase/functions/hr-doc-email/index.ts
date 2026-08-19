@@ -59,13 +59,13 @@ Deno.serve(async (req) => {
     if (doc.employee_id) {
       const { data: emp } = await admin
         .from("hr_employees")
-        .select("first_name,last_name,email,personal_email,position,last_working_date")
+        .select("first_name,last_name,email,job_position,relieving_date")
         .eq("id", doc.employee_id).maybeSingle();
       if (emp) {
         empName = [emp.first_name, emp.last_name].filter(Boolean).join(" ") || empName;
-        designation = emp.position || null;
-        lastWorking = fmt(emp.last_working_date);
-        if (!to) to = String(emp.email || emp.personal_email || "").trim();
+        designation = (emp as any).job_position || null;
+        lastWorking = fmt((emp as any).relieving_date);
+        if (!to) to = String(emp.email || "").trim();
       }
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: "No valid recipient email available" }, 400);

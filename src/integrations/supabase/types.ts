@@ -7146,6 +7146,84 @@ export type Database = {
           },
         ]
       }
+      hr_company_identity: {
+        Row: {
+          cin: string
+          corporate_address: string
+          created_at: string
+          email: string
+          gstin: string
+          id: string
+          is_singleton: boolean
+          legal_name: string
+          letterhead_margin_bottom_mm: number
+          letterhead_margin_left_mm: number
+          letterhead_margin_right_mm: number
+          letterhead_margin_top_mm: number
+          letterhead_path: string | null
+          letterhead_url: string | null
+          logo_path: string | null
+          logo_url: string | null
+          pan: string
+          phone: string
+          registered_address: string
+          trade_name: string
+          updated_at: string
+          updated_by: string | null
+          website: string
+        }
+        Insert: {
+          cin?: string
+          corporate_address?: string
+          created_at?: string
+          email?: string
+          gstin?: string
+          id?: string
+          is_singleton?: boolean
+          legal_name?: string
+          letterhead_margin_bottom_mm?: number
+          letterhead_margin_left_mm?: number
+          letterhead_margin_right_mm?: number
+          letterhead_margin_top_mm?: number
+          letterhead_path?: string | null
+          letterhead_url?: string | null
+          logo_path?: string | null
+          logo_url?: string | null
+          pan?: string
+          phone?: string
+          registered_address?: string
+          trade_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          website?: string
+        }
+        Update: {
+          cin?: string
+          corporate_address?: string
+          created_at?: string
+          email?: string
+          gstin?: string
+          id?: string
+          is_singleton?: boolean
+          legal_name?: string
+          letterhead_margin_bottom_mm?: number
+          letterhead_margin_left_mm?: number
+          letterhead_margin_right_mm?: number
+          letterhead_margin_top_mm?: number
+          letterhead_path?: string | null
+          letterhead_url?: string | null
+          logo_path?: string | null
+          logo_url?: string | null
+          pan?: string
+          phone?: string
+          registered_address?: string
+          trade_name?: string
+          updated_at?: string
+          updated_by?: string | null
+          website?: string
+        }
+        Relationships: []
+      }
       hr_compoff_credits: {
         Row: {
           allocated_at: string | null

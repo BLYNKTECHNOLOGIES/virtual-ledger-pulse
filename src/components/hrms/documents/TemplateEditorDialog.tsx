@@ -44,6 +44,7 @@ export function TemplateEditorDialog({
 }) {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [form, setForm] = useState({
     name: "", category: "custom", description: "",
     requires_approval: false, reference_pattern: "BLYNK/{TYPE}/{FY}/{SEQ:4}",

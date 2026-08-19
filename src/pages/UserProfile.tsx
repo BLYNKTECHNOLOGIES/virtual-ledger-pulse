@@ -720,14 +720,29 @@ export default function UserProfile() {
     enabled: !!hrEmployee?.id,
   });
 
-  // Compute cumulative balances per leave type
+  // Comp-off is monthly and never carries forward; other leave types remain cumulative.
   const cumulativeLeaveBalances = (() => {
-    const map: Record<string, { totalAllocated: number; totalUsed: number }> = {};
+    const map: Record<string, { totalAllocated: number; totalUsed: number; available: number }> = {};
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
     for (const a of leaveAllocations) {
       const ltId = a.leave_type_id;
-      if (!map[ltId]) map[ltId] = { totalAllocated: 0, totalUsed: 0 };
+      const leaveType = leaveTypes.find((lt: any) => lt.id === ltId);
+      if (leaveType?.code === 'CO') {
+        if (a.year === currentYear && a.quarter === currentQuarter) {
+          map[ltId] = {
+            totalAllocated: Number(a.allocated_days || 0),
+            totalUsed: Number(a.used_days || 0),
+            available: Number(a.available_days ?? Math.max(Number(a.allocated_days || 0) - Number(a.used_days || 0), 0)),
+          };
+        }
+        continue;
+      }
+      if (!map[ltId]) map[ltId] = { totalAllocated: 0, totalUsed: 0, available: 0 };
       map[ltId].totalAllocated += Number(a.allocated_days || 0);
       map[ltId].totalUsed += Number(a.used_days || 0);
+      map[ltId].available = map[ltId].totalAllocated - map[ltId].totalUsed;
     }
     return map;
   })();
@@ -1299,7 +1314,7 @@ export default function UserProfile() {
                           const bal = cumulativeLeaveBalances[lt.id];
                           const allocated = bal?.totalAllocated || 0;
                           const used = bal?.totalUsed || 0;
-                          const available = allocated - used;
+                           const available = bal?.available || 0;
                           return (
                             <tr key={lt.id}>
                               <td>

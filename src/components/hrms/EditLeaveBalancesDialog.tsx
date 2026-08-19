@@ -41,7 +41,7 @@ export function EditLeaveBalancesDialog({
   useEffect(() => {
     if (open) {
       setRows(
-        leaveAllocations.map((a) => ({
+        leaveAllocations.filter((a) => getLt(a.leave_type_id)?.code !== "CO").map((a) => ({
           id: a.id,
           leave_type_id: a.leave_type_id,
           year: a.year,
@@ -57,6 +57,7 @@ export function EditLeaveBalancesDialog({
   const onProbation = isOnProbation(employeeId);
 
   const getLt = (id: string) => leaveTypes.find((t) => t.id === id);
+  const editableLeaveTypes = leaveTypes.filter((t) => t.code !== "CO");
   const isBlockedRow = (leaveTypeId: string) => onProbation && isSickLeaveType(getLt(leaveTypeId));
 
   const updateRow = (idx: number, patch: Partial<Row>) => {
@@ -64,7 +65,7 @@ export function EditLeaveBalancesDialog({
   };
 
   const addRow = () => {
-    const firstType = leaveTypes[0]?.id;
+    const firstType = editableLeaveTypes[0]?.id;
     if (!firstType) {
       toast.error("No leave types configured");
       return;
@@ -93,6 +94,8 @@ export function EditLeaveBalancesDialog({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const compOffRow = rows.find((r) => getLt(r.leave_type_id)?.code === "CO");
+      if (compOffRow) throw new Error("Comp-off is earned from verified weekly-off or holiday attendance and cannot be edited manually");
       const offending = rows.find((r) => !r._delete && Number(r.allocated_days) > 0 && isBlockedRow(r.leave_type_id));
       if (offending) throw new Error("Sick/Medical leave cannot be allocated while the employee is on probation");
       const toDelete = rows.filter((r) => r._delete && r.id).map((r) => r.id!);
@@ -145,7 +148,7 @@ export function EditLeaveBalancesDialog({
         <DialogHeader>
           <DialogTitle>Edit Leave Balances</DialogTitle>
           <DialogDescription>
-            Adjust allocated and used days per leave type. Use this to seed migrated balances. Each row is a period (year/quarter); the profile shows the cumulative total across all rows.
+            Adjust allocated and used days for manually managed leave types. Comp-off is maintained automatically from verified attendance.
           </DialogDescription>
         </DialogHeader>
 
@@ -184,7 +187,7 @@ export function EditLeaveBalancesDialog({
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {leaveTypes.map((t) => {
+                        {editableLeaveTypes.map((t) => {
                           const tBlocked = onProbation && isSickLeaveType(t);
                           return (
                             <SelectItem key={t.id} value={t.id} disabled={tBlocked}>

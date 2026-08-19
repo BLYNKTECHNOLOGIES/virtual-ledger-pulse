@@ -47,6 +47,9 @@ export function LeaveTab({
   });
 
   const getLeaveType = (typeId: string) => leaveTypes.find((t: any) => t.id === typeId);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
 
   // Compute cumulative balance per leave type (all allocations carry forward)
   const cumulativeByType: Record<string, { totalAllocated: number; totalUsed: number }> = {};
@@ -160,7 +163,7 @@ export function LeaveTab({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Leave Balances</h3>
-          <p className="text-xs text-muted-foreground">Cumulative across all quarters</p>
+          <p className="text-xs text-muted-foreground">Comp-off shows the current monthly ledger; other leave types are cumulative</p>
         </div>
         <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
           <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit Balances
@@ -203,7 +206,13 @@ export function LeaveTab({
         {uniqueLeaveTypeIds.map((ltId: string) => {
           const lt = getLeaveType(ltId);
           const cum = cumulativeByType[ltId] || { totalAllocated: 0, totalUsed: 0 };
-          const available = cum.totalAllocated - cum.totalUsed;
+          const isCompOff = lt?.code === "CO";
+          const currentAllocation = isCompOff
+            ? leaveAllocations.find((a: any) => a.leave_type_id === ltId && a.year === currentYear && a.quarter === currentQuarter)
+            : null;
+          const allocated = isCompOff ? Number(currentAllocation?.allocated_days || 0) : cum.totalAllocated;
+          const used = isCompOff ? Number(currentAllocation?.used_days || 0) : cum.totalUsed;
+          const available = isCompOff ? Number(currentAllocation?.available_days ?? Math.max(allocated - used, 0)) : allocated - used;
           return (
             <div key={ltId} className="min-w-[240px] border-r border-border last:border-r-0 pr-8 mr-8 last:pr-0 last:mr-0 py-4">
               <div
@@ -219,12 +228,12 @@ export function LeaveTab({
                   <span className="font-semibold text-foreground">{available}</span>
                 </div>
                 <div className="flex justify-between gap-6">
-                  <span className="text-muted-foreground">Total Allocated (All Qtrs)</span>
-                  <span className="font-semibold text-foreground">{cum.totalAllocated}</span>
+                  <span className="text-muted-foreground">{isCompOff ? "Earned This Month" : "Total Allocated (All Qtrs)"}</span>
+                  <span className="font-semibold text-foreground">{allocated}</span>
                 </div>
                 <div className="flex justify-between gap-6">
                   <span className="text-muted-foreground">Total Leave Taken</span>
-                  <span className="font-semibold text-foreground">{cum.totalUsed}</span>
+                  <span className="font-semibold text-foreground">{used}</span>
                 </div>
               </div>
             </div>

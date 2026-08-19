@@ -82,7 +82,26 @@ Deno.serve(async (req) => {
       caller = { id: user.id, email: user.email ?? null };
     }
 
+    // Always attach the highest-fidelity archived PDF. Older letters may still
+    // carry a browser-rasterised ".pdf"/".word.pdf" in pdf_path while the true
+    // Adobe conversion (".adobe.pdf") sits beside it — always prefer the latter,
+    // otherwise the emailed copy shows a degraded letterhead.
+    const downloadBest = async (pdfPath: string, filename: string) => {
+      const base = pdfPath.replace(/(\.adobe)?(\.word)?\.pdf$/i, "");
+      const candidates = [`${base}.adobe.pdf`, pdfPath];
+      for (const p of candidates) {
+        const { data: file } = await admin.storage.from("hr-doc-issued").download(p);
+        if (!file) continue;
+        const buf = new Uint8Array(await file.arrayBuffer());
+        let bin = "";
+        for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
+        return { filename, content: btoa(bin), encoding: "base64" as const, contentType: "application/pdf" };
+      }
+      return null;
+    };
+
     const body = await req.json().catch(() => ({}));
+
     const issuedId = String(body.issuedId || "").trim();
     const overrideTo = String(body.to || "").trim();
 
@@ -104,20 +123,13 @@ Deno.serve(async (req) => {
         .order("issued_at", { ascending: false })
         .limit(1).maybeSingle();
       if (latest?.pdf_path) {
-        const { data: file } = await admin.storage.from("hr-doc-issued").download(latest.pdf_path);
-        if (file) {
-          const buf = new Uint8Array(await file.arrayBuffer());
-          let bin = "";
-          for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-          sampleRef = latest.reference_no || "";
-          sampleAttachment = {
-            filename: `${(latest.reference_no || "sample-letter").replace(/[\\/]/g, "-")}.pdf`,
-            content: btoa(bin),
-            encoding: "base64",
-            contentType: "application/pdf",
-          };
-        }
+        sampleRef = latest.reference_no || "";
+        sampleAttachment = await downloadBest(
+          latest.pdf_path,
+          `${(latest.reference_no || "sample-letter").replace(/[\\/]/g, "-")}.pdf`,
+        );
       }
+
 
       const sent: string[] = [];
       for (const cat of cats) {
@@ -177,19 +189,12 @@ Deno.serve(async (req) => {
     // Attachment — reuse the archived PDF only, never re-convert
     let attachment: { filename: string; content: string; encoding: "base64"; contentType: string } | null = null;
     if (doc.pdf_path) {
-      const { data: file } = await admin.storage.from("hr-doc-issued").download(doc.pdf_path);
-      if (file) {
-        const buf = new Uint8Array(await file.arrayBuffer());
-        let bin = "";
-        for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-        attachment = {
-          filename: `${(doc.reference_no || "letter").replace(/[\\/]/g, "-")}.pdf`,
-          content: btoa(bin),
-          encoding: "base64",
-          contentType: "application/pdf",
-        };
-      }
+      attachment = await downloadBest(
+        doc.pdf_path,
+        `${(doc.reference_no || "letter").replace(/[\\/]/g, "-")}.pdf`,
+      );
     }
+
     if (!attachment && !body.allowWithoutAttachment) {
       return json({ error: "No archived PDF found for this letter — download it once to generate it, then email." }, 400);
     }

@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
     const overrideTo = String(body.to || "").trim();
 
     // ---- Preview lane: send sample renders of each document-type template ----
+    if (isSampleCaller && !body.previewCategories) return json({ error: "Sample key is limited to previews" }, 403);
     if (body.previewCategories) {
       const cats: string[] = Array.isArray(body.previewCategories) ? body.previewCategories : [];
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(overrideTo)) return json({ error: "A valid 'to' is required" }, 400);

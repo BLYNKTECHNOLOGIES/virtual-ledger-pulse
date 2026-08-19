@@ -45,6 +45,42 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const issuedId = String(body.issuedId || "").trim();
     const overrideTo = String(body.to || "").trim();
+
+    // ---- Preview lane: send sample renders of each document-type template ----
+    if (body.previewCategories) {
+      const cats: string[] = Array.isArray(body.previewCategories) ? body.previewCategories : [];
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(overrideTo)) return json({ error: "A valid 'to' is required" }, 400);
+      const mb = await getMailbox(admin);
+      if ("error" in mb) return json({ error: mb.error }, 400);
+      const sent: string[] = [];
+      for (const cat of cats) {
+        const names: Record<string, string> = {
+          relieving: "Relieving cum Experience Letter",
+          appointment: "Appointment Letter",
+          appraisal: "Appraisal Letter",
+          warning: "Warning / Disciplinary Letter",
+          custom: "Address Proof Letter",
+        };
+        const t = buildDocEmail({
+          employeeName: "Shubham Singh",
+          referenceNo: `BLYNK/SAMPLE/2026-27/000${cats.indexOf(cat) + 1}`,
+          documentName: names[cat] || "Document",
+          category: cat,
+          issuedDate: fmt(new Date().toISOString())!,
+          lastWorkingDate: cat === "relieving" ? "31 Jul 2026" : null,
+          designation: "Senior Operations Manager",
+        });
+        const subj = `[SAMPLE] ${sanitizeSubject(t.subject)}`.slice(0, 72);
+        await sendMail(mb, overrideTo, subj, wrapHrEmail(t.html, {
+          title: t.subject.split(" - ")[0],
+          preheader: `Sample template preview - ${names[cat] || cat}`,
+          refNote: `Sample preview - no document attached`,
+        }), null);
+        sent.push(subj);
+      }
+      return json({ success: true, to: overrideTo, sent });
+    }
+
     if (!issuedId) return json({ error: "issuedId is required" }, 400);
 
     const { data: doc } = await admin.from("hr_documents_issued").select("*").eq("id", issuedId).maybeSingle();

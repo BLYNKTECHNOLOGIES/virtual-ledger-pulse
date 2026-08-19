@@ -294,7 +294,9 @@ export function GenerateTab() {
         systemValues[m.token] = docxValues.generated_by || me?.email || "";
     }
 
-    return renderDocx(await blob.arrayBuffer(), { ...docxValues, ...systemValues }, docImages);
+    // Flatten transparent media onto white so PDF conversion can never bake the
+    // watermark's alpha into a grey rectangle (visible in mobile PDF readers).
+    return flattenDocxMedia(renderDocx(await blob.arrayBuffer(), { ...docxValues, ...systemValues }, docImages));
   };
 
 

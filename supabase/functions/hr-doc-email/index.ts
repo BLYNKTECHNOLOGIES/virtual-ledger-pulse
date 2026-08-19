@@ -59,12 +59,11 @@ Deno.serve(async (req) => {
     if (doc.employee_id) {
       const { data: emp } = await admin
         .from("hr_employees")
-        .select("first_name,last_name,email,job_position,relieving_date")
+        .select("first_name,last_name,email,last_working_day")
         .eq("id", doc.employee_id).maybeSingle();
       if (emp) {
         empName = [emp.first_name, emp.last_name].filter(Boolean).join(" ") || empName;
-        designation = (emp as any).job_position || null;
-        lastWorking = fmt((emp as any).relieving_date);
+        lastWorking = fmt((emp as any).last_working_day);
         if (!to) to = String(emp.email || "").trim();
       }
     }

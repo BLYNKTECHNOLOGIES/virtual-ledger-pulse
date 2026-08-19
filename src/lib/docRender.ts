@@ -140,7 +140,7 @@ export function buildPrintDocument(
   .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 8mm; }
   img { max-width: 100%; }
   .page-body table { border-collapse: collapse; width: 100%; }
-  .page-body td, .page-body th { border: 1px solid #999; padding: 6px 8px; }
+  .page-body td:not([style*="border"]), .page-body th:not([style*="border"]) { border: 1px solid #999; padding: 6px 8px; }
   @media print {
     html, body { background: #fff; }
     .sheet { width: auto; min-height: 0; margin: 0; box-shadow: none; background: transparent; }

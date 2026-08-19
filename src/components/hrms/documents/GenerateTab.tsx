@@ -279,15 +279,22 @@ export function GenerateTab() {
     const { renderDocx } = await import("@/lib/docxTemplate");
     const docImages: Record<string, string> = {};
     for (const m of mappings) if (imageTokens.has(m.token) && images[m.token]) docImages[m.token] = images[m.token];
-    return renderDocx(
-      await blob.arrayBuffer(),
-      {
-        ...docxValues,
-        reference_no: draft ? `${referenceNo} — DRAFT, NOT ISSUED` : referenceNo,
-        generated_by: docxValues.generated_by || me?.email || "",
-      },
-      docImages
-    );
+
+    // The Word file may name the reference token anything (ref_no, reference_no, ref…);
+    // inject the issued reference into every token mapped to the system reference field.
+    const refText = draft ? `${referenceNo} — DRAFT, NOT ISSUED` : referenceNo;
+    const systemValues: Record<string, string> = {
+      reference_no: refText,
+      generated_by: docxValues.generated_by || me?.email || "",
+    };
+    for (const m of mappings) {
+      const key = m.field_key || m.token;
+      if (key === "reference_no" || m.token === "reference_no") systemValues[m.token] = refText;
+      if (key === "generated_by" || m.token === "generated_by")
+        systemValues[m.token] = docxValues.generated_by || me?.email || "";
+    }
+
+    return renderDocx(await blob.arrayBuffer(), { ...docxValues, ...systemValues }, docImages);
   };
 
 

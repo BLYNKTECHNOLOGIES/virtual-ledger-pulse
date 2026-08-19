@@ -110,10 +110,13 @@ export function unescapeBraces(text: string): string {
 export type PlaceholderMapping = {
   token: string;
   field_key: string | null;
+  /** Explicit placeholder kind — never inferred from the token spelling. */
+  kind?: "text" | "signature" | "seal";
   /** For signature/image kinds: the chosen signatory */
   signatory_id?: string | null;
   label?: string | null;
 };
+
 
 export function mergeMappings(
   placeholders: ParsedPlaceholder[],

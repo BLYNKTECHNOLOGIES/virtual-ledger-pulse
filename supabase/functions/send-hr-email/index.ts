@@ -165,17 +165,43 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const smtpHost = Deno.env.get('HR_SMTP_HOST')
-  const smtpUser = Deno.env.get('HR_SMTP_USER')
-  const smtpPass = Deno.env.get('HR_SMTP_PASS')
 
-  if (!supabaseUrl || !supabaseServiceKey || !smtpHost || !smtpUser || !smtpPass) {
+  if (!supabaseUrl || !supabaseServiceKey) {
     console.error('Missing required environment variables')
     return new Response(
       JSON.stringify({ error: 'Server configuration error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
+
+  // Resolve SMTP credentials from the active HR mailbox (single source of
+  // truth used by every other HR mailer). Legacy HR_SMTP_* env vars are only
+  // a fallback — they are stale on this project and cause 535 auth failures.
+  const bootstrap = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+  const { data: activeMailbox } = await bootstrap
+    .from('hr_mailboxes')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle()
+
+  const smtpHost = Deno.env.get(activeMailbox?.smtp_host_secret || '') || Deno.env.get('HR_SMTP_HOST')
+  const smtpUser = (Deno.env.get(activeMailbox?.smtp_user_secret || '') || Deno.env.get('HR_SMTP_USER') || '').trim()
+  const smtpPass = (Deno.env.get(activeMailbox?.smtp_pass_secret || '') || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
+  const fromAddress = activeMailbox?.from_address || smtpUser
+  const fromName = activeMailbox?.from_name || 'HR - Blynk Virtual Technologies'
+
+  if (!smtpHost || !smtpUser || !smtpPass) {
+    console.error('SMTP credentials are not configured for the active HR mailbox')
+    return new Response(
+      JSON.stringify({ error: 'Server configuration error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
 
   let recipientEmail: string
   let subject: string
@@ -275,7 +301,7 @@ Deno.serve(async (req) => {
     const ccList = HR_CC_RECIPIENTS.filter(addr => addr.toLowerCase() !== primaryLower)
 
     await client.send({
-      from: `HR - Blynk Virtual Technologies <${smtpUser}>`,
+      from: `${fromName} <${fromAddress}>`,
       to: recipientEmail,
       cc: ccList.length ? ccList : undefined,
       replyTo: replyTo,

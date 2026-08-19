@@ -11,7 +11,7 @@ import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import { FilePlus2, Printer, AlertTriangle, ShieldAlert, FileCheck2 } from "lucide-react";
-import { fetchCatalog, resolveEmployeeValues, SYSTEM_FILLED_KEYS, type CatalogField } from "@/lib/docResolvers";
+import { fetchCatalog, resolveEmployeeValues, formatValue, SYSTEM_FILLED_KEYS, ALWAYS_EDITABLE_KEYS, type CatalogField } from "@/lib/docResolvers";
 import { renderTemplateHtml, buildPrintDocument, printDocument } from "@/lib/docRender";
 import type { PlaceholderMapping } from "@/lib/docTemplate";
 
@@ -20,6 +20,8 @@ export function GenerateTab() {
   const [templateId, setTemplateId] = useState("");
   const [employeeId, setEmployeeId] = useState("");
   const [overrides, setOverrides] = useState<Record<string, string>>({});
+  /** Raw (unformatted) operator input, kept so date pickers stay controlled. */
+  const [rawOverrides, setRawOverrides] = useState<Record<string, string>>({});
   const [issuing, setIssuing] = useState(false);
 
   const { data: templates = [] } = useQuery({
@@ -84,21 +86,39 @@ export function GenerateTab() {
     [version]
   );
 
+  /**
+   * Placeholder kind comes from the mapping (explicit `kind`, else the mapped
+   * catalog field's data_type) — never from how the token happens to be spelled,
+   * so {gm_signature} or {authorised_signatory} behave correctly.
+   */
+  const kindOf = useMemo(() => {
+    const byKey = new Map((catalog as CatalogField[]).map((c) => [c.field_key, c]));
+    return (m: PlaceholderMapping): "text" | "signature" | "seal" => {
+      if (m.kind) return m.kind;
+      const dt = m.field_key ? byKey.get(m.field_key)?.data_type : undefined;
+      if (dt === "signature") return "signature";
+      if (dt === "image") return "seal";
+      return "text";
+    };
+  }, [catalog]);
+
   const imageTokens = useMemo(
-    () => new Set(mappings.filter((m) => m.signatory_id && /^(sign|seal)/.test(m.token)).map((m) => m.token)),
-    [mappings]
+    () => new Set(mappings.filter((m) => kindOf(m) !== "text").map((m) => m.token)),
+    [mappings, kindOf]
   );
 
+
   const { data: images = {} } = useQuery({
-    queryKey: ["hr_doc_signature_urls", version?.id, signatories.length],
+    queryKey: ["hr_doc_signature_urls", version?.id, signatories.length, catalog.length],
     enabled: mappings.some((m) => m.signatory_id),
     queryFn: async () => {
       const out: Record<string, string> = {};
       for (const m of mappings) {
         if (!m.signatory_id) continue;
         const s = signatories.find((x: any) => x.id === m.signatory_id);
-        const path = m.token.startsWith("seal") ? s?.seal_path : s?.signature_path;
+        const path = kindOf(m) === "seal" ? s?.seal_path : s?.signature_path;
         if (!path) continue;
+
         // Inline as a data URL so the frozen letter still renders after the
         // signed URL expires (issued artefacts must be self-contained).
         const { data: blob } = await supabase.storage.from("hr-doc-signatures").download(path);
@@ -115,7 +135,16 @@ export function GenerateTab() {
   });
 
 
-  useEffect(() => { setOverrides({}); }, [employeeId, templateId]);
+  useEffect(() => { setOverrides({}); setRawOverrides({}); }, [employeeId, templateId]);
+
+  /** Store both the raw input and its printable, formatted counterpart. */
+  const setFieldValue = (field: CatalogField, raw: string) => {
+    setRawOverrides((o) => ({ ...o, [field.field_key]: raw }));
+    setOverrides((o) => ({
+      ...o,
+      [field.field_key]: raw ? formatValue(raw, field.data_type, field.formatter) : "",
+    }));
+  };
 
   /** Per-token signatory text (name / designation) so two signatories never collide. */
   const tokenValues = useMemo(() => {
@@ -154,7 +183,7 @@ export function GenerateTab() {
 
   /** Signature/seal placeholders whose signatory has no uploaded image. */
   const missingSignatures = useMemo(
-    () => (rendered?.unresolved || []).filter((t) => imageTokens.has(t) || /^(sign|seal)\d*$/.test(t)),
+    () => (rendered?.unresolved || []).filter((t) => imageTokens.has(t)),
     [rendered, imageTokens]
   );
 
@@ -164,7 +193,7 @@ export function GenerateTab() {
     const byToken = new Map(mappings.map((m) => [m.token, m]));
     const keys = new Set<string>();
     for (const token of rendered.unresolved) {
-      if (imageTokens.has(token) || /^(sign|seal)\d*$/.test(token)) continue;
+      if (imageTokens.has(token)) continue;
       const key = byToken.get(token)?.field_key || token;
       if (SYSTEM_FILLED_KEYS.has(key)) continue;
       keys.add(key);
@@ -175,6 +204,22 @@ export function GenerateTab() {
         ({ field_key: key, label: key.replace(/_/g, " "), field_group: "custom", data_type: "text", formatter: null, resolver_id: null, is_sensitive: false, default_value: null } as CatalogField)
     );
   }, [rendered, mappings, catalog, imageTokens]);
+
+  /**
+   * Resolved-but-adjustable fields used by this template (letter date, last
+   * working day, conduct) — letters are routinely dated in the past.
+   */
+  const editableFields = useMemo(() => {
+    const promptKeys = new Set(promptFields.map((f) => f.field_key));
+    const used = new Set(
+      mappings.map((m) => m.field_key).filter((k): k is string => !!k && ALWAYS_EDITABLE_KEYS.has(k))
+    );
+    return [...used]
+      .filter((k) => !promptKeys.has(k))
+      .map((k) => (catalog as CatalogField[]).find((c) => c.field_key === k))
+      .filter(Boolean) as CatalogField[];
+  }, [mappings, catalog, promptFields]);
+
 
   const preview = () => {
     if (!rendered) return toast.error("Pick a template with a saved version first");
@@ -194,7 +239,7 @@ export function GenerateTab() {
     setIssuing(true);
     try {
       const { data: refNo, error: refErr } = await (supabase as any).rpc("hr_doc_allocate_reference", {
-        _scope_key: "global",
+        _scope_key: `${template.category || "doc"}`,
         _pattern: template.reference_pattern || null,
         _type_code: (template.category || "doc").slice(0, 6),
       });
@@ -303,19 +348,32 @@ export function GenerateTab() {
                 <AlertTriangle className="h-3.5 w-3.5" /> {promptFields.length} field{promptFields.length > 1 ? "s" : ""} need your input
               </p>
               {promptFields.map((f) => (
-                <div key={f.field_key}>
-                  <Label className="text-xs capitalize">{f.label}</Label>
-                  <Input
-                    className="h-9 mt-1 text-foreground"
-                    value={overrides[f.field_key] || ""}
-                    placeholder={`Enter ${f.label.toLowerCase()}`}
-                    onChange={(e) => setOverrides((o) => ({ ...o, [f.field_key]: e.target.value }))}
-                  />
-                </div>
+                <FieldInput key={f.field_key} field={f} raw={rawOverrides[f.field_key] || ""} setValue={setFieldValue} />
               ))}
             </CardContent>
           </Card>
         )}
+
+        {editableFields.length > 0 && (
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <p className="text-xs font-medium text-foreground">Adjust before issuing</p>
+              <p className="text-[11px] text-muted-foreground -mt-1.5">
+                Resolved automatically — change them if this letter should carry a different date or wording.
+              </p>
+              {editableFields.map((f) => (
+                <FieldInput
+                  key={f.field_key}
+                  field={f}
+                  raw={rawOverrides[f.field_key] || ""}
+                  placeholderText={values[f.field_key]}
+                  setValue={setFieldValue}
+                />
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
 
 
         {missingSignatures.length > 0 && (
@@ -360,6 +418,31 @@ export function GenerateTab() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function FieldInput({
+  field, raw, placeholderText, setValue,
+}: {
+  field: CatalogField;
+  raw: string;
+  placeholderText?: string;
+  setValue: (f: CatalogField, raw: string) => void;
+}) {
+  return (
+    <div>
+      <Label className="text-xs capitalize">{field.label}</Label>
+      <Input
+        type={field.data_type === "date" ? "date" : "text"}
+        className="h-9 mt-1 text-foreground"
+        value={raw}
+        placeholder={placeholderText || `Enter ${field.label.toLowerCase()}`}
+        onChange={(e) => setValue(field, e.target.value)}
+      />
+      {placeholderText && !raw && (
+        <p className="text-[10px] text-muted-foreground mt-1">Currently: {placeholderText}</p>
+      )}
     </div>
   );
 }

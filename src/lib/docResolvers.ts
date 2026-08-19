@@ -77,6 +77,7 @@ export function formatValue(raw: unknown, dataType: string, formatter: string | 
 
 function tenureText(doj: unknown, lwd: unknown): string {
   const a = toValidDate(doj);
+  // For a serving employee (no last working day) tenure runs up to today.
   const b = toValidDate(lwd) || new Date();
   if (!a) return "";
   let months = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
@@ -89,6 +90,14 @@ function tenureText(doj: unknown, lwd: unknown): string {
   if (m) bits.push(`${m} month${m > 1 ? "s" : ""}`);
   return bits.join(" ") || "less than a month";
 }
+
+/** Today in Asia/Kolkata — a UTC date would print yesterday before 05:30 IST. */
+export function istToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
 
 export async function fetchCatalog(): Promise<CatalogField[]> {
   const { data, error } = await (supabase as any)
@@ -184,15 +193,18 @@ export async function resolveEmployeeValues(
     "employment.designation": designation,
     "employment.department": department,
     "employment.date_of_joining": work?.joining_date || "",
-    "employment.last_working_day": emp.last_working_day || emp.resignation_date || "",
+    // Last working day is a distinct fact from the resignation date — never
+    // substitute one for the other; an empty value prompts the operator instead.
+    "employment.last_working_day": emp.last_working_day || "",
     "employment.employment_type": work?.employee_type || work?.work_type || "",
     "employment.reporting_manager": manager,
     "employment.work_location": work?.location || work?.company_name || "",
-    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day || emp.resignation_date),
+    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day),
     "salary.annual_ctc": annualCtc || "",
     "derived.annual_ctc_words": annualCtc || "",
-    "salary.monthly_gross": annualCtc ? Math.round(annualCtc / 12) : "",
-    "system.today": new Date().toISOString(),
+    "salary.monthly_ctc": annualCtc ? Math.round(annualCtc / 12) : "",
+    "system.today": istToday(),
+
     "system.actor_name": actorName || "",
     // Allocated only at issue time; the generator substitutes it before printing.
     "system.reference_no": "",
@@ -214,4 +226,11 @@ export async function resolveEmployeeValues(
 
 /** Field keys that must never block issuing — they are filled by the system itself. */
 export const SYSTEM_FILLED_KEYS = new Set(["reference_no", "generated_by"]);
+
+/**
+ * Fields the operator must always be able to override even when they resolved —
+ * letters are routinely back-dated to the last working day or an agreed date.
+ */
+export const ALWAYS_EDITABLE_KEYS = new Set(["letter_date", "last_working_day", "conduct"]);
+
 

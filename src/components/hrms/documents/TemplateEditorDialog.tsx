@@ -303,9 +303,14 @@ export function TemplateEditorDialog({
                     </div>
                     <Select
                       value={m.field_key || ""}
-                      onValueChange={(v) =>
-                        setMappings((prev) => prev.map((x) => (x.token === m.token ? { ...x, field_key: v } : x)))
-                      }
+                      onValueChange={(v) => {
+                        // Kind is stored explicitly — never inferred from how the token is spelled.
+                        const dt = fieldByKey.get(v)?.data_type;
+                        const kind = dt === "signature" ? "signature" : dt === "image" ? "seal" : "text";
+                        setMappings((prev) =>
+                          prev.map((x) => (x.token === m.token ? { ...x, field_key: v, kind } : x))
+                        );
+                      }}
                     >
                       <SelectTrigger className="h-8 text-xs text-foreground">
                         <SelectValue placeholder="Which field is this?" />

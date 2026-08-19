@@ -8555,7 +8555,9 @@ export type Database = {
           document_type: string
           employee_id: string
           file_url: string
+          hidden_reason: string | null
           id: string
+          is_hidden: boolean
           is_verified: boolean
           notes: string | null
           uploaded_at: string
@@ -8568,7 +8570,9 @@ export type Database = {
           document_type: string
           employee_id: string
           file_url: string
+          hidden_reason?: string | null
           id?: string
+          is_hidden?: boolean
           is_verified?: boolean
           notes?: string | null
           uploaded_at?: string
@@ -8581,7 +8585,9 @@ export type Database = {
           document_type?: string
           employee_id?: string
           file_url?: string
+          hidden_reason?: string | null
           id?: string
+          is_hidden?: boolean
           is_verified?: boolean
           notes?: string | null
           uploaded_at?: string

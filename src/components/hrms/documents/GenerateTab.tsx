@@ -300,7 +300,7 @@ export function GenerateTab() {
 
 
   const issue = async () => {
-    if (!rendered || !template || !version) return toast.error("Select a template");
+    if ((!rendered && !isDocx) || !template || !version) return toast.error("Select a template");
     if (!employeeId) return toast.error("Select an employee");
     if (promptFields.length > 0) return toast.error("Fill the remaining fields before issuing");
     if (missingSignatures.length > 0) return toast.error("Upload the signature image for this template's signatory first");
@@ -313,18 +313,34 @@ export function GenerateTab() {
       });
       if (refErr) throw refErr;
 
-      // Re-render with the real reference so {reference_no} prints correctly.
-      const finalRender = renderWith(refNo);
-      if (!finalRender) throw new Error("Template has no saved content");
+      const safeRef = refNo.replace(/[^\w.-]+/g, "_");
+      let path: string;
+      let mime: string;
+      let docxBlob: Blob | null = null;
+      let fullHtml = "";
 
-      // Inline the letterhead into the frozen artefact so a re-print is byte-identical.
-      const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
-      const fullHtml = buildPrintDocument(finalRender.html, template.name, refNo, sheet);
-      const path = `${employeeId}/${refNo.replace(/[^\w.-]+/g, "_")}.html`;
-      const { error: upErr } = await supabase.storage
-        .from("hr-doc-issued")
-        .upload(path, new Blob([fullHtml], { type: "text/html" }), { contentType: "text/html", upsert: false });
-      if (upErr) throw upErr;
+      if (isDocx) {
+        // Locked Word lane: merge into the original .docx, byte-identical layout.
+        docxBlob = await buildDocx(refNo);
+        path = `${employeeId}/${safeRef}.docx`;
+        mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        const { error: upErr } = await supabase.storage
+          .from("hr-doc-issued").upload(path, docxBlob, { contentType: mime, upsert: false });
+        if (upErr) throw upErr;
+      } else {
+        // Re-render with the real reference so {reference_no} prints correctly.
+        const finalRender = renderWith(refNo);
+        if (!finalRender) throw new Error("Template has no saved content");
+        // Inline the letterhead into the frozen artefact so a re-print is byte-identical.
+        const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
+        fullHtml = buildPrintDocument(finalRender.html, template.name, refNo, sheet);
+        path = `${employeeId}/${safeRef}.html`;
+        mime = "text/html";
+        const { error: upErr } = await supabase.storage
+          .from("hr-doc-issued")
+          .upload(path, new Blob([fullHtml], { type: "text/html" }), { contentType: "text/html", upsert: false });
+        if (upErr) throw upErr;
+      }
 
       const { data: auth } = await supabase.auth.getUser();
       const { data: inserted, error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
@@ -338,8 +354,8 @@ export function GenerateTab() {
         status: "issued",
         contains_sensitive: !!template.contains_sensitive,
         file_path: path,
-        file_mime: "text/html",
-        values_snapshot: { ...values, reference_no: refNo },
+        file_mime: mime,
+        values_snapshot: { ...(isDocx ? docxValues : values), reference_no: refNo },
         signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
         issued_by: auth?.user?.id || null,
         issued_by_name: auth?.user?.email || null,
@@ -353,16 +369,22 @@ export function GenerateTab() {
         action: "issued",
         actor_id: auth?.user?.id || null,
         actor_name: auth?.user?.email || null,
-        details: { reference_no: refNo, template: template.name, employee_id: employeeId },
+        details: { reference_no: refNo, template: template.name, employee_id: employeeId, lane: isDocx ? "docx" : "native" },
       });
 
       qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
       toast.success(`Issued ${refNo}`);
-      try {
-        printDocument(fullHtml);
-      } catch {
-        toast.warning("Letter saved. Pop-up blocked — re-print it from the Issued tab.");
+      if (isDocx && docxBlob) {
+        saveBlob(docxBlob, `${safeRef}.docx`);
+        toast.info("Word file downloaded — open it and print to PDF");
+      } else {
+        try {
+          printDocument(fullHtml);
+        } catch {
+          toast.warning("Letter saved. Pop-up blocked — re-print it from the Issued tab.");
+        }
       }
+
     } catch (e: any) {
       toast.error(e?.message || "Could not issue the letter");
     } finally {

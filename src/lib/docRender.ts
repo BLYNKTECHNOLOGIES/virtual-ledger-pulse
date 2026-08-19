@@ -119,9 +119,9 @@ export function buildPrintDocument(
   body { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.6; color: #111; }
   /* Offset by the page margins: printed fixed elements are placed inside the
      @page content box, so the artwork must be pulled back out to full A4. */
-  .letterhead { position: fixed; top: -${mt}mm; left: -${ml}mm; width: 210mm; height: 297mm; z-index: -1; }
+  .letterhead { position: fixed; top: -${mt}mm; left: -${ml}mm; width: 210mm; height: 297mm; z-index: 0; }
   .letterhead img { width: 210mm; height: 297mm; object-fit: fill; display: block; }
-  .sheet { width: 210mm; min-height: 297mm; padding: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; }
+  .sheet { width: 210mm; min-height: 297mm; padding: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; z-index: 1; }
   .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 8mm; }
   img { max-width: 100%; }
   table { border-collapse: collapse; width: 100%; }

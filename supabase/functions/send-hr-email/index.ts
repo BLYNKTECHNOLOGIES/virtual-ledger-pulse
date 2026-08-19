@@ -120,43 +120,17 @@ function buildCareersHtml(data: CareersApplicationData): string {
     : ''
 
   return `
-<!DOCTYPE html>
-<html>
-  <body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 0;">
-      <tr><td align="center">
-        <table width="640" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;">
-          <tr>
-            <td style="background:#0f172a;padding:20px 24px;color:#ffffff;">
-              <div style="font-size:18px;font-weight:700;">New Careers Application</div>
-              <div style="font-size:13px;opacity:0.85;margin-top:4px;">Blynk Virtual Technologies — Careers</div>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding:24px;">
-              <p style="margin:0 0 4px;font-size:14px;color:#374151;">A new application has been submitted via the Careers page.</p>
-              <p style="margin:0 0 18px;font-size:15px;color:#111827;"><strong>${escapeHtml(applicantName)}</strong> has applied for <strong>${escapeHtml(role)}</strong>.</p>
+    <p style="margin:0 0 4px;font-size:14px;color:#374151;">A new application has been submitted via the Careers page.</p>
+    <p style="margin:0 0 18px;font-size:15px;color:#111827;"><strong>${escapeHtml(applicantName)}</strong> has applied for <strong>${escapeHtml(role)}</strong>.</p>
 
-              <h3 style="font-size:15px;color:#111827;margin:8px 0 8px;">Applicant Details</h3>
-              <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;">
-                ${rows.join('')}
-              </table>
-
-              ${longTextBlock}
-
-              <p style="margin:24px 0 0;font-size:12px;color:#6b7280;">Submitted at ${new Date().toISOString()}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="background:#f9fafb;padding:14px 24px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;">
-              This is an automated notification from the Blynk Careers form. Reply directly to the applicant at ${escapeHtml(data.email || '—')}.
-            </td>
-          </tr>
-        </table>
-      </td></tr>
+    <h3 style="font-size:15px;color:#111827;margin:8px 0 8px;">Applicant Details</h3>
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;">
+      ${rows.join('')}
     </table>
-  </body>
-</html>`
+
+    ${longTextBlock}
+
+    <p style="margin:20px 0 0;font-size:12px;color:#6b7280;">Submitted at ${new Date().toISOString()} · Reply directly to the applicant at ${escapeHtml(data.email || '—')}.</p>`
 }
 
 Deno.serve(async (req) => {
@@ -261,10 +235,9 @@ Deno.serve(async (req) => {
   // HR signature and legal footer. Idempotent — bodies already branded (or
   // already carrying the signature) are left untouched.
   htmlBody = wrapHrEmail(htmlBody, {
-    subject,
     showSignature: !hasHrSignature(htmlBody),
     refNote: `Automated message from Blynk ERP · ${templateName}`,
-  } as any)
+  })
 
 
 

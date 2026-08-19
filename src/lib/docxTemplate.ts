@@ -96,16 +96,13 @@ export function renderDocx(
   values: Record<string, string>,
   images: Record<string, string> = {}
 ): Blob {
-  const { merged, placeholders } = buildData(data, values, images);
+  // Word files routinely carry plain {{SIGN}} tags. Rather than refusing to
+  // issue, rewrite those tags to docxtemplater's image syntax {{%SIGN}} in the
+  // XML itself whenever an image is actually supplied for the token.
+  const prepared = upgradeImageTags(data, images);
 
-  const plainImageTokens = placeholders
-    .filter((p) => images[p.token] && !isImageTag(p.raw))
-    .map((p) => p.token);
-  if (plainImageTokens.length) {
-    throw new Error(
-      `Signature/seal placeholders must be written as {{%${plainImageTokens[0].toUpperCase()}}} in Word (with the % sign). Fix the Word file and re-upload it: ${plainImageTokens.join(", ")}`
-    );
-  }
+  const { merged, placeholders } = buildData(prepared, values, images);
+
   const unsuppliedImages = placeholders
     .filter((p) => isImageTag(p.raw) && !images[p.token])
     .map((p) => p.token);
@@ -115,7 +112,7 @@ export function renderDocx(
     );
   }
 
-  const zip = new PizZip(data);
+  const zip = new PizZip(prepared);
   const doc = new Docxtemplater(zip, {
     delimiters: DOCX_DELIMITERS,
     paragraphLoop: true,
@@ -123,6 +120,7 @@ export function renderDocx(
     nullGetter: () => "",
     modules: [buildImageModule(images)],
   });
+
 
   doc.render(merged);
   return doc.getZip().generate({

@@ -20,6 +20,38 @@ const fmt = (d?: string | null) => {
   if (isNaN(dt.getTime())) return null;
   return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 };
+// Keep subjects strictly ASCII and short: denomailer 1.6.0 does not fold long
+// RFC2047 encoded-words, which leaks header text into the message body.
+const sanitizeSubject = (s: string) =>
+  s.replace(/[\u2010-\u2015]/g, "-").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim().slice(0, 72);
+
+type Mailbox = { from: string; host: string; user: string; pass: string };
+
+async function getMailbox(admin: any): Promise<Mailbox | { error: string }> {
+  const { data: mailbox } = await admin
+    .from("hr_mailboxes").select("*").eq("is_active", true).order("created_at").limit(1).maybeSingle();
+  if (!mailbox) return { error: "No active HR mailbox configured" };
+  const host = Deno.env.get(mailbox.smtp_host_secret) || Deno.env.get("HR_SMTP_HOST");
+  const user = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get("HR_SMTP_USER") || "").trim();
+  const pass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
+  if (!host || !user || !pass) return { error: "SMTP credentials are not configured" };
+  return { from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`, host, user, pass };
+}
+
+async function sendMail(mb: Mailbox, to: string, subject: string, html: string, attachment: any) {
+  const client = new SMTPClient({
+    connection: { hostname: mb.host, port: 465, tls: true, auth: { username: mb.user, password: mb.pass } },
+  });
+  try {
+    await client.send({
+      from: mb.from, to, subject, content: hrSignatureText(), html,
+      attachments: attachment ? ([attachment] as any) : undefined,
+    });
+  } finally {
+    try { await client.close(); } catch { /* ignore */ }
+  }
+}
+
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });

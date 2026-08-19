@@ -264,8 +264,11 @@ export function TemplateEditorForm({
         .from("hr_doc_template_versions").insert({
           template_id: templateId,
           version_no: nextVersion,
-          lane: "native",
-          content_html: html,
+          lane,
+          content_html: lane === "docx" ? null : html,
+          source_file_path: lane === "docx" ? sourcePath : null,
+          source_file_name: lane === "docx" ? sourceName : null,
+
           placeholder_map: mappings,
           unparsed_tokens: parsed.unparsed,
           change_note: changeNote || null,

@@ -1,7 +1,10 @@
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import ImageModule from "docxtemplater-image-module-free";
+import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
+import { normaliseToken } from "@/lib/docTemplate";
 import { extractDocxText, parseDocxPlaceholders } from "@/lib/docxPlaceholders";
+
 
 export { extractDocxText, parseDocxPlaceholders, parseDocxToResult } from "@/lib/docxPlaceholders";
 export type { DocxPlaceholder } from "@/lib/docxPlaceholders";

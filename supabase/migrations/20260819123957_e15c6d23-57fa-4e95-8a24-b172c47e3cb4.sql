@@ -1,0 +1,3 @@
+INSERT INTO public.hr_doc_field_catalog (field_key, label, field_group, data_type, formatter, resolver_id, is_sensitive, sort_order, is_active)
+VALUES ('resignation_date', 'Resignation Date', 'employment', 'date', 'DD MMM YYYY', 'employment.resignation_date', false, 33.5, true)
+ON CONFLICT (field_key) DO UPDATE SET label = EXCLUDED.label, field_group = EXCLUDED.field_group, data_type = EXCLUDED.data_type, formatter = EXCLUDED.formatter, resolver_id = EXCLUDED.resolver_id, is_active = true;

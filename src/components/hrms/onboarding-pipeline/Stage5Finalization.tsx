@@ -888,7 +888,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       { key: "pan", label: "PAN (from Stage 3)", ok: /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(panFromDocs) },
       { key: "doj", label: "Date of Joining", ok: !!form.date_of_joining },
       { key: "dept", label: "Department", ok: !!onboardingRecord?.department_id },
-      { key: "title", label: "Job Role / Title", ok: !!onboardingRecord?.job_role },
+      { key: "title", label: "Position", ok: !!onboardingRecord?.job_role },
       { key: "ctc", label: "Annual CTC", ok: Number(onboardingRecord?.ctc) > 0 },
       { key: "bank_account", label: "Bank Account Number", ok: !!form.bank_account_number.trim() },
       { key: "bank_ifsc", label: "Bank IFSC (valid format)", ok: ifscOk },

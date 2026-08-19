@@ -134,7 +134,20 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
 
   const update = (field: string, value: string) => {
     dirtyRef.current = true;
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm(prev => {
+      const next: any = { ...prev, [field]: value };
+      // Job Role is retired — Position is the single designation. Mirror the
+      // chosen position title into the legacy job_role field so downstream
+      // finalization / RazorpayX push keep resolving a title.
+      if (field === "position_id") {
+        next.job_role = positions?.find((p: any) => p.id === value)?.title || "";
+      }
+      if (field === "department_id") {
+        next.position_id = "";
+        next.job_role = "";
+      }
+      return next;
+    });
   };
 
   // One input, structured storage: parse the typed line into
@@ -262,10 +275,6 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
                 {positions?.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
               </SelectContent>
             </Select>
-          </div>
-          <div>
-            <Label>Job Role</Label>
-            <Input value={form.job_role} onChange={e => update("job_role", e.target.value)} disabled={readOnly} />
           </div>
           <div>
             <Label>Shift</Label>

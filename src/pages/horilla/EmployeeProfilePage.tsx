@@ -669,7 +669,10 @@ export default function EmployeeProfilePage() {
         shift_id: workInfoForm.shift_id || null,
         department_id: workInfoForm.department_id || null,
         job_position_id: workInfoForm.job_position_id || null,
-        job_role: workInfoForm.job_role || null,
+        // Job Role is retired — Position is the single designation. We keep the
+        // legacy column in sync with the selected position title so downstream
+        // consumers (RazorpayX push, documents, drift scan) keep working.
+        job_role: (allPositions || []).find((p: any) => p.id === workInfoForm.job_position_id)?.title || null,
         work_type: workInfoForm.work_type || null,
         employee_type: workInfoForm.employee_type || null,
         location: workInfoForm.location || null,
@@ -1063,7 +1066,7 @@ export default function EmployeeProfilePage() {
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Job Position</label>
+                      <label className="text-xs text-muted-foreground block mb-1">Position</label>
                       <select value={workInfoForm.job_position_id || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_position_id: e.target.value })} className={inputCls}>
                         <option value="">Select Position</option>
                         {(allPositions || []).filter((p: any) => !workInfoForm.department_id || p.department_id === workInfoForm.department_id).map((p: any) => <option key={p.id} value={p.id}>{p.title}</option>)}
@@ -1099,10 +1102,6 @@ export default function EmployeeProfilePage() {
                         {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Job Role</label>
-                      <input type="text" value={workInfoForm.job_role || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_role: e.target.value })} className={inputCls} />
-                    </div>
                   </div>
                 </div>
               ) : (
@@ -1110,12 +1109,11 @@ export default function EmployeeProfilePage() {
                 <div className="md:hidden">
                   <MobileInfoGrid items={[
                     { label: "Badge ID", value: emp.badge_id },
-                    { label: "Job Position", value: position?.title || "None" },
+                    { label: "Position", value: position?.title || "None" },
                     { label: "Department", value: dept?.name || "None" },
                     { label: "Shift", value: shift?.name || "None" },
                     { label: "Work Type", value: prettyCase(workInfo?.work_type) },
                     { label: "Employee Type", value: employeeTypeLabel(workInfo?.employee_type) },
-                    { label: "Job Role", value: workInfo?.job_role || "None" },
                     { label: "Reporting Manager", value: reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None" },
                   ]} />
                 </div>
@@ -1124,12 +1122,11 @@ export default function EmployeeProfilePage() {
                     <thead>
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Badge Id</th>
-                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Job Position</th>
+                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Position</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Department</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Shift</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Work Type</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Employee Type</th>
-                        <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Job Role</th>
                         <th className="text-left py-2.5 px-3 text-xs font-semibold text-muted-foreground">Reporting Manager</th>
                       </tr>
                     </thead>
@@ -1141,7 +1138,6 @@ export default function EmployeeProfilePage() {
                         <td className="py-2.5 px-3 text-muted-foreground">{shift?.name || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{prettyCase(workInfo?.work_type)}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">{employeeTypeLabel(workInfo?.employee_type)}</td>
-                        <td className="py-2.5 px-3 text-muted-foreground">{workInfo?.job_role || "None"}</td>
                         <td className="py-2.5 px-3 text-muted-foreground">
                           {reportingManager ? `${reportingManager.first_name} ${reportingManager.last_name} (${reportingManager.badge_id})` : "None"}
                         </td>

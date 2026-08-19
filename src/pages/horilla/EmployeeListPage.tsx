@@ -1033,7 +1033,7 @@ export default function EmployeeListPage() {
                     {emp.first_name} {emp.last_name}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{emp.badge_id}</p>
-                  {wi?.job_role && <p className="text-xs text-muted-foreground mt-1">{wi.job_role}</p>}
+                  {(wi?.job_position_id || wi?.job_role) && <p className="text-xs text-muted-foreground mt-1">{wi?.job_position_id ? getPositionTitle(wi.job_position_id) : wi?.job_role}</p>}
                   {wi?.department_id && <p className="text-[11px] text-muted-foreground mt-0.5">{getDeptName(wi.department_id)}</p>}
                 </div>
 

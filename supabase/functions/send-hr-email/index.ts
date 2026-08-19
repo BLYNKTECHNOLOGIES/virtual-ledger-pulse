@@ -257,6 +257,17 @@ Deno.serve(async (req) => {
     )
   }
 
+  // Every mail leaving the HR mailbox carries the company branding shell,
+  // HR signature and legal footer. Idempotent — bodies already branded (or
+  // already carrying the signature) are left untouched.
+  htmlBody = wrapHrEmail(htmlBody, {
+    subject,
+    showSignature: !hasHrSignature(htmlBody),
+    refNote: `Automated message from Blynk ERP · ${templateName}`,
+  } as any)
+
+
+
   const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
   // Log pending

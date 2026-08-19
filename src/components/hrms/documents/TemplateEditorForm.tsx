@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { AlertTriangle, Braces, Check, FileLock2, ShieldAlert, Upload } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
-import { parsePlaceholders, mergeMappings, normaliseToken, type PlaceholderMapping } from "@/lib/docTemplate";
+import { parsePlaceholders, mergeMappings, type PlaceholderMapping } from "@/lib/docTemplate";
+import { parseDocxToResult } from "@/lib/docxPlaceholders";
+
 
 
 const CATEGORIES = [

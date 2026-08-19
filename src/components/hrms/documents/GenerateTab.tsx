@@ -99,12 +99,21 @@ export function GenerateTab() {
         const s = signatories.find((x: any) => x.id === m.signatory_id);
         const path = m.token.startsWith("seal") ? s?.seal_path : s?.signature_path;
         if (!path) continue;
-        const { data } = await supabase.storage.from("hr-doc-signatures").createSignedUrl(path, 3600);
-        if (data?.signedUrl) out[m.token] = data.signedUrl;
+        // Inline as a data URL so the frozen letter still renders after the
+        // signed URL expires (issued artefacts must be self-contained).
+        const { data: blob } = await supabase.storage.from("hr-doc-signatures").download(path);
+        if (!blob) continue;
+        out[m.token] = await new Promise<string>((res, rej) => {
+          const fr = new FileReader();
+          fr.onload = () => res(String(fr.result));
+          fr.onerror = () => rej(fr.error);
+          fr.readAsDataURL(blob);
+        });
       }
       return out;
     },
   });
+
 
   useEffect(() => { setOverrides({}); }, [employeeId, templateId]);
 

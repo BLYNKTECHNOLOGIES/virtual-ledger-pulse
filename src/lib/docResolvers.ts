@@ -100,10 +100,30 @@ export async function fetchCatalog(): Promise<CatalogField[]> {
   return (data || []) as CatalogField[];
 }
 
+/** Company letterhead facts, read from the shared invoice company profile. */
+async function fetchCompany(): Promise<Record<string, string>> {
+  const { data } = await (supabase as any)
+    .from("invoice_company_profiles")
+    .select("label,company")
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
+  const c = (data?.company || {}) as any;
+  const address = Array.isArray(c.address) ? c.address.filter(Boolean).join(", ") : String(c.address || "");
+  return {
+    "company.name": (c.name || data?.label || "").trim(),
+    "company.legal_name": (data?.label || c.name || "").trim(),
+    "company.address": address.trim(),
+    "company.gstin": (c.gstin || "").trim(),
+    "company.cin": (c.cin || "").trim(),
+  };
+}
+
 /** Resolve every catalog field for one employee. */
 export async function resolveEmployeeValues(
   employeeId: string,
-  catalog: CatalogField[]
+  catalog: CatalogField[],
+  actorName?: string
 ): Promise<ResolvedValues> {
   const { data: emp, error } = await (supabase as any)
     .from("hr_employees")
@@ -138,6 +158,8 @@ export async function resolveEmployeeValues(
     manager = [mgr?.first_name, mgr?.last_name].filter(Boolean).join(" ");
   }
 
+  const company = await fetchCompany();
+
   const fullName = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
   const gender = (emp.gender || "").toLowerCase();
   const isFemale = gender.startsWith("f");
@@ -147,6 +169,7 @@ export async function resolveEmployeeValues(
   const annualCtc = Number(emp.total_salary) || 0;
 
   const source: Record<string, unknown> = {
+    ...company,
     "employee.full_name": fullName,
     "employee.first_name": emp.first_name || "",
     "employee.badge_id": emp.badge_id || "",
@@ -161,15 +184,18 @@ export async function resolveEmployeeValues(
     "employment.designation": designation,
     "employment.department": department,
     "employment.date_of_joining": work?.joining_date || "",
-    "employment.last_working_day": emp.last_working_day || "",
+    "employment.last_working_day": emp.last_working_day || emp.resignation_date || "",
     "employment.employment_type": work?.employee_type || work?.work_type || "",
     "employment.reporting_manager": manager,
-    "employment.work_location": work?.location || "",
-    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day),
+    "employment.work_location": work?.location || work?.company_name || "",
+    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day || emp.resignation_date),
     "salary.annual_ctc": annualCtc || "",
     "derived.annual_ctc_words": annualCtc || "",
     "salary.monthly_gross": annualCtc ? Math.round(annualCtc / 12) : "",
-    "date.today": new Date().toISOString(),
+    "system.today": new Date().toISOString(),
+    "system.actor_name": actorName || "",
+    // Allocated only at issue time; the generator substitutes it before printing.
+    "system.reference_no": "",
   };
 
   const values: Record<string, string> = {};
@@ -182,7 +208,10 @@ export async function resolveEmployeeValues(
     values[f.field_key] = out;
     if (!out) missing.push(f.field_key);
   }
-  values["issue_date"] = values["issue_date"] || format(new Date(), "dd MMM yyyy");
 
   return { values, missing, employeeName: fullName };
 }
+
+/** Field keys that must never block issuing — they are filled by the system itself. */
+export const SYSTEM_FILLED_KEYS = new Set(["reference_no", "generated_by"]);
+

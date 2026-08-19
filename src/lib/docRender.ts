@@ -73,8 +73,6 @@ export function renderTemplateHtml(html: string, ctx: RenderContext): { html: st
   return { html: unescapeBraces(out), unresolved: [...new Set(unresolved)] };
 }
 
-
-
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -103,7 +101,8 @@ export function buildPrintDocument(
   bodyHtml: string,
   title: string,
   referenceNo?: string,
-  letterhead?: PrintLetterhead | null
+  letterhead?: PrintLetterhead | null,
+  fontFamily = "Georgia, 'Times New Roman', serif"
 ): string {
   const mt = letterhead?.marginTopMm ?? 20;
   const mb = letterhead?.marginBottomMm ?? 20;
@@ -119,7 +118,7 @@ export function buildPrintDocument(
      (the only technique Chrome honours on every page of a flowing document). */
   @page { size: A4; margin: 0; }
   html, body { margin: 0; padding: 0; background: #f2f2f2; }
-  body { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.6; color: #111; }
+  body { font-family: ${fontFamily}; font-size: 12pt; line-height: 1.6; color: #111; }
   .letterhead {
     position: fixed; inset: 0; z-index: 0;
     background-image: url("${art}");
@@ -146,7 +145,7 @@ export function buildPrintDocument(
     .sheet { width: auto; min-height: 0; margin: 0; box-shadow: none; background: transparent; }
   }
   @media screen {
-    .letterhead { position: absolute; inset: auto; top: 12px; left: 50%; margin-left: -105mm; width: 210mm; height: 297mm; }
+    .letterhead { position: absolute; inset: auto; top: 12px; left: 50%; margin-left: -105mm; width: 210mm; height: 100%; background-repeat: repeat-y; }
     .sheet { background: transparent; }
   }
 </style></head>
@@ -163,7 +162,6 @@ ${bodyHtml}
 </table>
 </div></body></html>`;
 }
-
 
 /** Open the merged document in a new window and trigger the browser print dialog. */
 export function printDocument(fullHtml: string) {

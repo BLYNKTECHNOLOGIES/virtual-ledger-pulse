@@ -1,3 +1,4 @@
+- 2026-08-20: Comp-off ledger repaired and backfilled — phantom bulk/manual allocations removed, current balances rebuilt from verified monthly weekly-off/holiday credits, manual CO edits blocked, and all profile surfaces switched from cumulative to monthly display.
 - 2026-08-20: HR Document Studio PDF opening hardened — private Supabase PDFs are downloaded through the authenticated Storage client and opened from a local blob URL, avoiding Chrome/client blocking of signed storage URLs.
 - 2026-08-20: HR Document Studio locked-DOCX PDF pipeline corrected — PDFs now render the final merged Word file itself, preserving its native letterhead/header/footer without applying a second ERP letterhead; legacy DOCX PDFs rebuild once as versioned native-Word PDFs.
 - 2026-08-18: Onboarding Stage 3 "Mail Received Date" field and its input removed from UI and the unused `document_mail_received_at` column dropped from `hr_employee_onboarding`.

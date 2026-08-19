@@ -42,12 +42,8 @@ export function IssuedTab() {
       // Word artefacts (locked native templates) are downloaded, not printed.
       if (String(doc.file_mime || "").includes("wordprocessingml")) {
         const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${String(doc.reference_no || "letter").replace(/[^\w.-]+/g, "_")}.docx`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        const { downloadBlob } = await import("@/lib/docxTemplate");
+        downloadBlob(blob, `${String(doc.reference_no || "letter").replace(/[^\w.-]+/g, "_")}.docx`);
         toast.success("Word file downloaded — open it and print to PDF");
         return;
       }

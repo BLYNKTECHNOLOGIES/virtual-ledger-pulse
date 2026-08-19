@@ -230,51 +230,53 @@ export function TemplateEditorForm({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2">
+          <div className="rounded-lg border border-dashed border-border px-3 py-2 space-y-2">
             <p className="text-[11px] text-muted-foreground">
-              Have a Word letterhead? Import it — the text and its <code>{"{variables}"}</code> come into the editor.
+              Import a Word letter two ways — <strong>locked</strong> keeps your .docx exactly as authored
+              (perfect formatting, edited in Word) and HRMS only fills its <code>{"{{VARIABLES}}"}</code>;
+              <strong> editable</strong> brings the text into the canvas below.
             </p>
-            <label className="shrink-0">
-              <input
-                type="file"
-                accept=".docx"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file) return;
-                  try {
-                    setImporting(true);
-                    const { convertDocxToHtml } = await import("@/lib/docxImport");
-                    const buffer = await file.arrayBuffer();
-                    let body = "";
-                    try {
-                      body = convertDocxToHtml(buffer).trim();
-                    } catch (primaryErr) {
-                      // Fall back to mammoth for unusual packages (text-only, no formatting).
-                      const mammoth = await import("mammoth/mammoth.browser");
-                      const result = await (mammoth as any).convertToHtml({ arrayBuffer: buffer });
-                      body = (result?.value || "").trim();
-                      if (!body) throw primaryErr;
-                    }
-                    if (!body) throw new Error("That document had no readable text.");
-                    setHtml(body);
-                    toast.success("Imported — review the formatting before saving");
-
-                  } catch (err: any) {
-                    toast.error(err?.message || "Could not read that .docx file");
-                  } finally {
-                    setImporting(false);
-                  }
-                }}
-              />
-              <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted">
-                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import .docx"}
-              </span>
-            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="shrink-0">
+                <input type="file" accept=".docx" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importLocked(f); }} />
+                <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90">
+                  <FileLock2 className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import .docx (locked)"}
+                </span>
+              </label>
+              <label className="shrink-0">
+                <input type="file" accept=".docx" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importEditable(f); }} />
+                <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted">
+                  <Upload className="h-3.5 w-3.5" /> Import .docx (editable)
+                </span>
+              </label>
+            </div>
           </div>
 
-          <RichTextEditor value={html} onChange={setHtml} onInsertVariable={insertVariable} />
+          {lane === "docx" ? (
+            <div className="rounded-lg border border-border p-4 space-y-2">
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <FileLock2 className="h-4 w-4" /> Locked Word template
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-mono">{sourceName || "—"}</span> is stored exactly as uploaded. At issue
+                time HRMS replaces its <code>{"{{VARIABLES}}"}</code> inside the real Word file, so the letter
+                is identical to your document. To change wording, edit it in Word and import it again.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {parsed.placeholders.length} variable{parsed.placeholders.length === 1 ? "" : "s"} found — map
+                them in the panel on the right.
+              </p>
+              <Button type="button" size="sm" variant="outline" className="h-8"
+                onClick={() => { setLane("native"); setSourcePath(null); setSourceName(null); setDocxText(""); }}>
+                Switch to editable canvas
+              </Button>
+            </div>
+          ) : (
+            <RichTextEditor value={html} onChange={setHtml} onInsertVariable={insertVariable} />
+          )}
+
         </div>
 
         <div className="space-y-3 min-w-0 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-8rem)] xl:overflow-auto xl:pr-1">

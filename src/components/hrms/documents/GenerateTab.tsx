@@ -388,25 +388,31 @@ export function GenerateTab() {
 
       const { data: auth } = await supabase.auth.getUser();
 
-      // File the PDF in the employee's own document section (private reference —
-      // it is signed on demand, never a public URL).
+      // File the letter in the employee's own document section (private reference —
+      // it is signed on demand, never a public URL). If the PDF could not be
+      // rasterised we still file the issued artefact itself, so the employee's
+      // Documents tab is never silently empty.
       let employeeDocumentId: string | null = null;
-      if (pdfPath) {
+      {
+        const filedPath = pdfPath || path;
         try {
           const { privateDocRef } = await import("@/lib/storedDoc");
-          const { data: docRow } = await (supabase as any).from("hr_employee_documents").insert({
+          const { data: docRow, error: docErr } = await (supabase as any).from("hr_employee_documents").insert({
             employee_id: employeeId,
             document_type: "hr_letter",
             document_name: `${refNo} — ${template.name}`,
-            file_url: privateDocRef("hr-doc-issued", pdfPath),
+            file_url: privateDocRef("hr-doc-issued", filedPath),
             notes: `Issued from HR Document Studio on ${new Date().toLocaleDateString()}`,
             uploaded_by: auth?.user?.email || null,
           }).select("id").maybeSingle();
+          if (docErr) throw docErr;
           employeeDocumentId = docRow?.id || null;
         } catch (e) {
           console.warn("Could not file the letter against the employee (non-fatal):", e);
+          toast.warning("Letter issued, but it could not be filed under the employee's documents.");
         }
       }
+
 
       const { data: inserted, error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
         template_id: template.id,

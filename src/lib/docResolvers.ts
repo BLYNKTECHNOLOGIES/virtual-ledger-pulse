@@ -236,6 +236,6 @@ export const SYSTEM_FILLED_KEYS = new Set(["reference_no", "generated_by"]);
  * Fields the operator must always be able to override even when they resolved —
  * letters are routinely back-dated to the last working day or an agreed date.
  */
-export const ALWAYS_EDITABLE_KEYS = new Set(["letter_date", "last_working_day", "conduct"]);
+export const ALWAYS_EDITABLE_KEYS = new Set(["letter_date", "last_working_day", "resignation_date", "conduct"]);
 
 

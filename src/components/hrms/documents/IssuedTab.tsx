@@ -12,13 +12,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
-import { Archive, Search, Printer, Ban, ShieldAlert } from "lucide-react";
+import { Archive, Search, Printer, Ban, ShieldAlert, FileDown, Trash2 } from "lucide-react";
 import { printDocument } from "@/lib/docRender";
 
 export function IssuedTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [revokeTarget, setRevokeTarget] = useState<any>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const [reason, setReason] = useState("");
 
   const { data: docs = [], isLoading } = useQuery({
@@ -30,6 +31,19 @@ export function IssuedTab() {
       return data || [];
     },
   });
+
+  /** Open the archived PDF of the letter exactly as issued. */
+  const openPdf = async (doc: any) => {
+    try {
+      if (!doc.pdf_path) throw new Error("No PDF was archived for this letter — use re-print instead");
+      const { data, error } = await supabase.storage
+        .from("hr-doc-issued").createSignedUrl(doc.pdf_path, 300);
+      if (error || !data?.signedUrl) throw error || new Error("Could not open the PDF");
+      window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not open the PDF");
+    }
+  };
 
   /** Re-open the frozen artefact exactly as issued — never re-resolved. */
   const reprint = async (doc: any) => {
@@ -53,6 +67,35 @@ export function IssuedTab() {
     }
   };
 
+  /** Permanent removal — HR staff only (enforced by RLS as well). */
+  const remove = async () => {
+    if (!deleteTarget) return;
+    const d = deleteTarget;
+    try {
+      const paths = [d.file_path, d.pdf_path].filter(Boolean);
+      if (paths.length) await supabase.storage.from("hr-doc-issued").remove(paths);
+      if (d.employee_document_id) {
+        await (supabase as any).from("hr_employee_documents").delete().eq("id", d.employee_document_id);
+      }
+      const { error } = await (supabase as any).from("hr_documents_issued").delete().eq("id", d.id);
+      if (error) throw error;
+
+      const { data: auth } = await supabase.auth.getUser();
+      await (supabase as any).from("hr_doc_audit_log").insert({
+        entity_type: "issued_document", entity_id: d.id, action: "deleted",
+        actor_id: auth?.user?.id || null, actor_name: auth?.user?.email || null,
+        details: { reference_no: d.reference_no, employee_id: d.employee_id },
+      });
+      qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_documents", d.employee_id] });
+      toast.success("Letter deleted");
+    } catch (e: any) {
+      toast.error(e?.message || "Could not delete the letter");
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+
 
   const revoke = async () => {
     if (!revokeTarget) return;
@@ -73,6 +116,7 @@ export function IssuedTab() {
     toast.success("Letter revoked");
     setRevokeTarget(null); setReason("");
   };
+
 
   const filtered = docs.filter((d: any) => {
     const q = search.toLowerCase();
@@ -111,12 +155,20 @@ export function IssuedTab() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Badge variant={d.status === "revoked" ? "destructive" : "outline"} className="text-[10px] capitalize">{d.status}</Badge>
-                  <Button size="sm" variant="ghost" onClick={() => reprint(d)}><Printer className="h-4 w-4" /></Button>
+                  {d.pdf_path && (
+                    <Button size="sm" variant="ghost" title="Open PDF" onClick={() => openPdf(d)}>
+                      <FileDown className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" title="Re-print original" onClick={() => reprint(d)}><Printer className="h-4 w-4" /></Button>
                   {d.status !== "revoked" && (
-                    <Button size="sm" variant="ghost" onClick={() => setRevokeTarget(d)}>
+                    <Button size="sm" variant="ghost" title="Revoke" onClick={() => setRevokeTarget(d)}>
                       <Ban className="h-4 w-4 text-destructive" />
                     </Button>
                   )}
+                  <Button size="sm" variant="ghost" title="Delete permanently" onClick={() => setDeleteTarget(d)}>
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
               </div>
             ))}
@@ -139,6 +191,23 @@ export function IssuedTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deleteTarget?.reference_no}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The stored letter, its PDF and the copy in the employee's documents are removed permanently.
+              Only the audit trail is kept. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={remove}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </div>
   );
 }

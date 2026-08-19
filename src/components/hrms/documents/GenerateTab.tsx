@@ -157,15 +157,24 @@ export function GenerateTab() {
   /** Per-token signatory text (name / designation) so two signatories never collide. */
   const tokenValues = useMemo(() => {
     const out: Record<string, string> = {};
+    // A signatory token without an explicit signatory falls back to the one this
+    // template already signs with (or the only active signatory), so the name
+    // never has to be re-typed when the letter already names the signer.
+    const defaultId =
+      mappings.find((m) => m.signatory_id)?.signatory_id ||
+      (signatories.length === 1 ? (signatories[0] as any).id : null);
     for (const m of mappings) {
-      if (!m.signatory_id) continue;
-      const s = signatories.find((x: any) => x.id === m.signatory_id);
+      const isName = m.field_key === "signatory_name" || /^signatory_name|^hr_name|_signatory_name/.test(m.token);
+      const isDesig = m.field_key === "signatory_designation" || /^signatory_designation|^hr_designation/.test(m.token);
+      if (!isName && !isDesig && !m.signatory_id) continue;
+      const s = signatories.find((x: any) => x.id === (m.signatory_id || defaultId));
       if (!s) continue;
-      if (m.field_key === "signatory_name" || /^signatory_name/.test(m.token)) out[m.token] = s.display_name || "";
-      if (m.field_key === "signatory_designation" || /^signatory_designation/.test(m.token)) out[m.token] = s.designation || "";
+      if (isName) out[m.token] = s.display_name || "";
+      if (isDesig) out[m.token] = s.designation || "";
     }
     return out;
   }, [mappings, signatories]);
+
 
   const values = useMemo(
     () => ({ ...(resolved?.values || {}), ...overrides }),
@@ -357,7 +366,48 @@ export function GenerateTab() {
         if (upErr) throw upErr;
       }
 
+      // Archive a PDF of exactly what was issued — readable without Word and
+      // filed against the employee. Non-fatal: the letter is already stored.
+      let pdfPath: string | null = null;
+      let pdfBlob: Blob | null = null;
+      try {
+        const { htmlToPdfBlob, docxToPdfBlob } = await import("@/lib/docPdf");
+        pdfBlob = isDocx && docxBlob
+          ? await docxToPdfBlob(await docxBlob.arrayBuffer(), template.name)
+          : await htmlToPdfBlob(fullHtml);
+        pdfPath = `${employeeId}/${safeRef}.pdf`;
+        const { error: pdfErr } = await supabase.storage
+          .from("hr-doc-issued")
+          .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });
+        if (pdfErr) throw pdfErr;
+      } catch (e) {
+        console.warn("PDF archive failed (non-fatal):", e);
+        pdfPath = null;
+        pdfBlob = null;
+      }
+
       const { data: auth } = await supabase.auth.getUser();
+
+      // File the PDF in the employee's own document section (private reference —
+      // it is signed on demand, never a public URL).
+      let employeeDocumentId: string | null = null;
+      if (pdfPath) {
+        try {
+          const { privateDocRef } = await import("@/lib/storedDoc");
+          const { data: docRow } = await (supabase as any).from("hr_employee_documents").insert({
+            employee_id: employeeId,
+            document_type: "hr_letter",
+            document_name: `${refNo} — ${template.name}`,
+            file_url: privateDocRef("hr-doc-issued", pdfPath),
+            notes: `Issued from HR Document Studio on ${new Date().toLocaleDateString()}`,
+            uploaded_by: auth?.user?.email || null,
+          }).select("id").maybeSingle();
+          employeeDocumentId = docRow?.id || null;
+        } catch (e) {
+          console.warn("Could not file the letter against the employee (non-fatal):", e);
+        }
+      }
+
       const { data: inserted, error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
         template_id: template.id,
         template_version_id: version.id,
@@ -370,6 +420,8 @@ export function GenerateTab() {
         contains_sensitive: !!template.contains_sensitive,
         file_path: path,
         file_mime: mime,
+        pdf_path: pdfPath,
+        employee_document_id: employeeDocumentId,
         values_snapshot: { ...(isDocx ? docxValues : values), reference_no: refNo },
         signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
         issued_by: auth?.user?.id || null,
@@ -384,21 +436,28 @@ export function GenerateTab() {
         action: "issued",
         actor_id: auth?.user?.id || null,
         actor_name: auth?.user?.email || null,
-        details: { reference_no: refNo, template: template.name, employee_id: employeeId, lane: isDocx ? "docx" : "native" },
+        details: { reference_no: refNo, template: template.name, employee_id: employeeId, lane: isDocx ? "docx" : "native", pdf: !!pdfPath },
       });
 
       qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_documents", employeeId] });
       toast.success(`Issued ${refNo}`);
+      if (pdfBlob) {
+        saveBlob(pdfBlob, `${safeRef}.pdf`);
+        toast.info("PDF archived and filed under the employee's documents");
+      } else {
+        toast.warning("Letter issued, but the PDF could not be generated — download it from the Issued tab.");
+      }
       if (isDocx && docxBlob) {
         saveBlob(docxBlob, `${safeRef}.docx`);
-        toast.info("Word file downloaded — open it and print to PDF");
-      } else {
+      } else if (!pdfBlob) {
         try {
           printDocument(fullHtml);
         } catch {
           toast.warning("Letter saved. Pop-up blocked — re-print it from the Issued tab.");
         }
       }
+
 
     } catch (e: any) {
       toast.error(e?.message || "Could not issue the letter");

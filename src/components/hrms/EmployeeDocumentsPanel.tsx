@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { smartUpload } from "@/lib/resumable-upload";
+import { openStoredDocument } from "@/lib/storedDoc";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,10 +142,15 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {d.file_url && (
-                  <Button size="sm" variant="ghost" asChild>
-                    <a href={d.file_url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /></a>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => openStoredDocument(d.file_url).catch((e: any) => toast.error(e?.message || "Could not open"))}
+                  >
+                    <ExternalLink className="h-4 w-4" />
                   </Button>
                 )}
+
                 {!d.is_verified && (
                   <Button size="sm" variant="ghost" onClick={() => verifyMutation.mutate(d.id)}>
                     <CheckCircle className="h-4 w-4" />

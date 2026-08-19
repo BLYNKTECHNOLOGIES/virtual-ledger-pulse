@@ -140,11 +140,30 @@ export async function resolveEmployeeValues(
 ): Promise<ResolvedValues> {
   const { data: emp, error } = await (supabase as any)
     .from("hr_employees")
-    .select("id,badge_id,first_name,last_name,email,phone,address,city,state,zip,country,gender,pan_number,total_salary,basic_salary,last_working_day,resignation_date")
+    .select("id,badge_id,first_name,last_name,email,phone,address,city,state,zip,country,gender,pan_number,total_salary,basic_salary,last_working_day,resignation_date,notice_period_end_date,account_deletion_date")
     .eq("id", employeeId)
     .maybeSingle();
   if (error) throw error;
   if (!emp) throw new Error("Employee not found");
+
+  /**
+   * Last working day is recorded in several places depending on how the person
+   * left (separation flow, F&F, or a plain deactivation). Read them in order of
+   * authority instead of prompting the operator for a date the ERP already has.
+   */
+  let lastWorkingDay: string = emp.last_working_day || "";
+  if (!lastWorkingDay) {
+    const { data: fnf } = await (supabase as any)
+      .from("hr_fnf_settlements")
+      .select("last_working_day")
+      .eq("employee_id", employeeId)
+      .not("last_working_day", "is", null)
+      .order("last_working_day", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    lastWorkingDay = fnf?.last_working_day || emp.notice_period_end_date || emp.account_deletion_date || "";
+  }
+
 
   const { data: work } = await (supabase as any)
     .from("hr_employee_work_info")
@@ -199,12 +218,13 @@ export async function resolveEmployeeValues(
     "employment.date_of_joining": work?.joining_date || "",
     // Last working day is a distinct fact from the resignation date — never
     // substitute one for the other; an empty value prompts the operator instead.
-    "employment.last_working_day": emp.last_working_day || "",
+    "employment.last_working_day": lastWorkingDay,
     "employment.resignation_date": emp.resignation_date || "",
     "employment.employment_type": work?.employee_type || work?.work_type || "",
     "employment.reporting_manager": manager,
     "employment.work_location": work?.location || work?.company_name || "",
-    "derived.tenure": tenureText(work?.joining_date, emp.last_working_day),
+    "derived.tenure": tenureText(work?.joining_date, lastWorkingDay),
+
     "salary.annual_ctc": annualCtc || "",
     "derived.annual_ctc_words": annualCtc || "",
     "salary.monthly_ctc": annualCtc ? Math.round(annualCtc / 12) : "",

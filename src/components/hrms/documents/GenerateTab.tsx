@@ -379,7 +379,7 @@ export function GenerateTab() {
               letterhead || (await resolveLetterhead(await fetchCompanyIdentity()))
             )
           : await htmlToPdfBlob(fullHtml, letterhead || (await resolveLetterhead(await fetchCompanyIdentity())));
-        pdfPath = `${employeeId}/${safeRef}.pdf`;
+        pdfPath = `${employeeId}/${safeRef}${isDocx ? ".letterhead" : ""}.pdf`;
         const { error: pdfErr } = await supabase.storage
           .from("hr-doc-issued")
           .upload(pdfPath, pdfBlob, { contentType: "application/pdf", upsert: true });

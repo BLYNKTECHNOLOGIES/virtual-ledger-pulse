@@ -1,4 +1,4 @@
-import type { PrintLetterhead } from "@/lib/docRender";
+import { buildPrintDocument, type PrintLetterhead } from "@/lib/docRender";
 
 /**
  * PDF rendering for HR Document Studio.
@@ -69,18 +69,6 @@ export async function htmlToPdfBlob(fullHtml: string, letterhead?: PrintLetterhe
     const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
     const pageSliceH = Math.floor((canvas.width * A4_H_MM) / A4_W_MM);
 
-    // Pre-load letterhead image if present
-    let lhImg: HTMLImageElement | null = null;
-    if (letterhead?.imageDataUri) {
-      lhImg = new Image();
-      lhImg.src = letterhead.imageDataUri;
-      await new Promise((res) => {
-        if (!lhImg) return res(null);
-        lhImg.onload = () => res(null);
-        lhImg.onerror = () => res(null);
-      });
-    }
-
     let y = 0;
     let first = true;
     while (y < canvas.height - 2) {
@@ -92,11 +80,6 @@ export async function htmlToPdfBlob(fullHtml: string, letterhead?: PrintLetterhe
       if (!ctx) throw new Error("Could not render the PDF page");
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, slice.width, slice.height);
-
-      // Draw letterhead first if available
-      if (lhImg) {
-        ctx.drawImage(lhImg, 0, 0, slice.width, slice.height);
-      }
 
       ctx.drawImage(canvas, 0, y, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
@@ -119,29 +102,19 @@ export async function htmlToPdfBlob(fullHtml: string, letterhead?: PrintLetterhe
   }
 }
 
-/** Wrap a converted Word body in a printable A4 sheet. */
-export function wrapDocxHtml(body: string, title = "Letter"): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-<style>
-  @page { size: A4; margin: 0; }
-  html,body { margin:0; padding:0; background:#fff; }
-  body { width:${A4_W_PX}px; padding:28px 60px 40px; box-sizing:border-box;
-         font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size:11pt; color:#000; line-height:1.45; }
-  p { margin:0 0 8px; }
-  table { border-collapse: collapse; }
-  img { max-width:100%; }
-</style></head><body>${body}</body></html>`;
+/** Wrap converted Word content in the universal A4 letterhead and safe area. */
+export function wrapDocxHtml(body: string, title = "Letter", letterhead?: PrintLetterhead | null): string {
+  return buildPrintDocument(
+    body,
+    title,
+    undefined,
+    letterhead,
+    "Calibri, Carlito, 'Segoe UI', Arial, sans-serif"
+  );
 }
 
 /** Convert merged Word bytes into a PDF blob (best-effort visual fidelity). */
 export async function docxToPdfBlob(data: ArrayBuffer, title = "Letter", letterhead?: PrintLetterhead | null): Promise<Blob> {
   const { convertDocxToHtml } = await import("@/lib/docxImport");
-  const { buildPrintDocument } = await import("@/lib/docRender");
-  
-  // When letterhead is present, use the high-fidelity print wrapper with Calibri font
-  const html = letterhead 
-    ? buildPrintDocument(convertDocxToHtml(data), title, undefined, letterhead, "Calibri, Carlito, 'Segoe UI', Arial, sans-serif")
-    : wrapDocxHtml(convertDocxToHtml(data), title);
-
-  return htmlToPdfBlob(html, letterhead);
+  return htmlToPdfBlob(wrapDocxHtml(convertDocxToHtml(data), title, letterhead));
 }

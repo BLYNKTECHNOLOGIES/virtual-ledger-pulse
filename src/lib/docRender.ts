@@ -117,7 +117,9 @@ export function buildPrintDocument(
   @page { size: A4; margin: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; }
   html, body { margin: 0; padding: 0; background: #f2f2f2; }
   body { font-family: Georgia, "Times New Roman", serif; font-size: 12pt; line-height: 1.6; color: #111; }
-  .letterhead { position: fixed; top: 0; left: 0; width: 210mm; height: 297mm; z-index: -1; }
+  /* Offset by the page margins: printed fixed elements are placed inside the
+     @page content box, so the artwork must be pulled back out to full A4. */
+  .letterhead { position: fixed; top: -${mt}mm; left: -${ml}mm; width: 210mm; height: 297mm; z-index: -1; }
   .letterhead img { width: 210mm; height: 297mm; object-fit: fill; display: block; }
   .sheet { width: 210mm; min-height: 297mm; padding: ${mt}mm ${mr}mm ${mb}mm ${ml}mm; margin: 12px auto; background: #fff; box-sizing: border-box; position: relative; }
   .ref { font-size: 9pt; color: #666; letter-spacing: .04em; margin-bottom: 8mm; }
@@ -126,11 +128,13 @@ export function buildPrintDocument(
   td, th { border: 1px solid #999; padding: 6px 8px; }
   @media print {
     html, body { background: #fff; }
-    .sheet { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; }
+    /* Transparent, otherwise the sheet paints over the letterhead layer. */
+    .sheet { width: auto; min-height: 0; padding: 0; margin: 0; box-shadow: none; background: transparent; }
   }
   @media screen {
     /* On screen the artwork sits behind the single preview sheet. */
-    .letterhead { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); }
+    .letterhead { position: absolute; top: 12px; left: 50%; margin-left: -105mm; }
+    .sheet { background: transparent; position: relative; z-index: 0; }
   }
 </style></head>
 <body>

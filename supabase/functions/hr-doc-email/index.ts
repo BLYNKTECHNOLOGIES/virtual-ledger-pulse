@@ -189,19 +189,12 @@ Deno.serve(async (req) => {
     // Attachment — reuse the archived PDF only, never re-convert
     let attachment: { filename: string; content: string; encoding: "base64"; contentType: string } | null = null;
     if (doc.pdf_path) {
-      const { data: file } = await admin.storage.from("hr-doc-issued").download(doc.pdf_path);
-      if (file) {
-        const buf = new Uint8Array(await file.arrayBuffer());
-        let bin = "";
-        for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-        attachment = {
-          filename: `${(doc.reference_no || "letter").replace(/[\\/]/g, "-")}.pdf`,
-          content: btoa(bin),
-          encoding: "base64",
-          contentType: "application/pdf",
-        };
-      }
+      attachment = await downloadBest(
+        doc.pdf_path,
+        `${(doc.reference_no || "letter").replace(/[\\/]/g, "-")}.pdf`,
+      );
     }
+
     if (!attachment && !body.allowWithoutAttachment) {
       return json({ error: "No archived PDF found for this letter — download it once to generate it, then email." }, 400);
     }

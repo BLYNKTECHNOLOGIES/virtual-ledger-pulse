@@ -1,5 +1,3 @@
-import { buildPrintDocument, type PrintLetterhead } from "@/lib/docRender";
-
 /**
  * PDF rendering for HR Document Studio.
  *
@@ -27,7 +25,7 @@ async function waitForImages(doc: Document) {
 }
 
 /** Rasterise a complete HTML document into a paginated A4 PDF blob. */
-export async function htmlToPdfBlob(fullHtml: string, letterhead?: PrintLetterhead | null): Promise<Blob> {
+export async function htmlToPdfBlob(fullHtml: string): Promise<Blob> {
   const frame = document.createElement("iframe");
   frame.setAttribute("aria-hidden", "true");
   frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_W_PX}px;height:1123px;border:0;background:#fff;`;
@@ -102,19 +100,35 @@ export async function htmlToPdfBlob(fullHtml: string, letterhead?: PrintLetterhe
   }
 }
 
-/** Wrap converted Word content in the universal A4 letterhead and safe area. */
-export function wrapDocxHtml(body: string, title = "Letter", letterhead?: PrintLetterhead | null): string {
-  return buildPrintDocument(
-    body,
-    title,
-    undefined,
-    letterhead,
-    "Calibri, Carlito, 'Segoe UI', Arial, sans-serif"
-  );
-}
-
-/** Convert merged Word bytes into a PDF blob (best-effort visual fidelity). */
-export async function docxToPdfBlob(data: ArrayBuffer, title = "Letter", letterhead?: PrintLetterhead | null): Promise<Blob> {
-  const { convertDocxToHtml } = await import("@/lib/docxImport");
-  return htmlToPdfBlob(wrapDocxHtml(convertDocxToHtml(data), title, letterhead));
+/**
+ * Render the merged Word file itself, including its native header, footer,
+ * artwork, page geometry and fonts. No separate ERP letterhead is overlaid.
+ */
+export async function docxToPdfBlob(data: ArrayBuffer, title = "Letter"): Promise<Blob> {
+  const host = document.createElement("div");
+  host.style.cssText = `position:fixed;left:-10000px;top:0;width:${A4_W_PX}px;background:#fff;`;
+  document.body.appendChild(host);
+  try {
+    const { renderAsync } = await import("docx-preview");
+    await renderAsync(data, host, host, {
+      inWrapper: false,
+      breakPages: true,
+      renderHeaders: true,
+      renderFooters: true,
+      renderFootnotes: true,
+      renderEndnotes: true,
+      renderComments: false,
+      renderChanges: true,
+      useBase64URL: true,
+    });
+    const safeTitle = title.replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    }[c] || c));
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>${safeTitle}</title>
+      <style>html,body{margin:0;padding:0;background:#fff}body{width:${A4_W_PX}px}</style>
+      </head><body>${host.innerHTML}</body></html>`;
+    return htmlToPdfBlob(html);
+  } finally {
+    host.remove();
+  }
 }

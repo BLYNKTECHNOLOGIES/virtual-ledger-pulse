@@ -62,15 +62,12 @@ export function IssuedTab() {
 
       // Word artefacts (locked native templates) are rendered to PDF for printing.
       if (String(doc.file_mime || "").includes("wordprocessingml")) {
-        const { wrapDocxHtml } = await import("@/lib/docPdf");
-        const { convertDocxToHtml } = await import("@/lib/docxImport");
-        const { fetchCompanyIdentity, resolveLetterhead } = await import("@/lib/companyIdentity");
-        const letterhead = await resolveLetterhead(await fetchCompanyIdentity());
-        printDocument(wrapDocxHtml(
-          convertDocxToHtml(await res.arrayBuffer()),
-          doc.template_name || "Letter",
-          letterhead
-        ));
+        const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
+        const { path } = await ensureIssuedPdf(doc);
+        const { data: pdf, error: pdfError } = await supabase.storage
+          .from("hr-doc-issued").createSignedUrl(path, 300);
+        if (pdfError || !pdf?.signedUrl) throw pdfError || new Error("Could not open the PDF");
+        window.open(pdf.signedUrl, "_blank", "noopener,noreferrer");
         return;
       }
       printDocument(await res.text());

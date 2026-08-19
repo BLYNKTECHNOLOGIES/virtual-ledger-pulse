@@ -71,3 +71,55 @@ export function appendHrSignatureHtml(html: string, refNote?: string): string {
   if (/<\/body>/i.test(html)) return html.replace(/<\/body>/i, `${sig}</body>`);
   return `${html}${sig}`;
 }
+
+/** Marker injected by wrapHrEmail so we never double-wrap a body. */
+const WRAP_MARKER = "<!--hr-branded-shell-->";
+
+function innerBody(html: string): string {
+  const m = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return m ? m[1] : html;
+}
+
+/**
+ * Canonical branded shell for EVERY mail sent from the HR mailbox.
+ * Wraps arbitrary content HTML with the Blynk header strip, a white card,
+ * the HR signature block and the legal footer. Idempotent.
+ */
+export function wrapHrEmail(
+  contentHtml: string,
+  opts: { title?: string; preheader?: string; refNote?: string; showSignature?: boolean } = {},
+): string {
+  if (!contentHtml) return contentHtml;
+  if (contentHtml.includes(WRAP_MARKER)) return contentHtml;
+
+  const content = innerBody(contentHtml);
+  const sig = opts.showSignature === false ? "" : hrSignatureHtml(opts.refNote);
+  const title = opts.title ? `<h1 style="margin:0 0 14px;font-size:20px;line-height:1.3;font-weight:800;color:${B.ink};">${opts.title}</h1>` : "";
+  const pre = opts.preheader
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${opts.preheader}</div>`
+    : "";
+
+  return `${WRAP_MARKER}<!DOCTYPE html>
+<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="color-scheme" content="light only"/><meta name="supported-color-schemes" content="light only"/></head>
+<body style="margin:0;padding:0;background:#f3f5f9;-webkit-text-size-adjust:100%;">
+${pre}
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f5f9;padding:22px 0;">
+  <tr><td align="center">
+    <table width="640" cellpadding="0" cellspacing="0" border="0" style="width:640px;max-width:96%;background:#ffffff;border:1px solid #e6ebf2;border-radius:10px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0B1524;">
+      <tr><td>${hrHeaderHtml()}</td></tr>
+      <tr><td style="padding:24px 22px 8px;font-size:14px;line-height:1.6;color:#1f2937;">
+        ${title}
+        ${content}
+        ${sig}
+      </td></tr>
+      <tr><td style="background:#f8fafc;border-top:1px solid #e6ebf2;padding:14px 22px;font-size:10.5px;line-height:1.5;color:#8a94a6;">
+        This message was sent by the HR desk of ${B.company}, ${B.address}. It may contain confidential
+        information intended only for the addressee — if you received it in error, please delete it and notify
+        <a href="mailto:${B.hrEmail}" style="color:#8a94a6;">${B.hrEmail}</a>.
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body></html>`;
+}

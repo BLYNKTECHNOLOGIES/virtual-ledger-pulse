@@ -10,6 +10,8 @@ import type { PlaceholderMapping } from "@/lib/docTemplate";
 export interface RenderContext {
   /** field_key -> printable value */
   values: Record<string, string>;
+  /** token -> value; wins over `values`, used for per-instance signatory text */
+  tokenValues?: Record<string, string>;
   /** token -> signature image data/url, used for signature & seal placeholders */
   images?: Record<string, string>;
   mappings: PlaceholderMapping[];
@@ -38,7 +40,7 @@ export function renderTemplateHtml(html: string, ctx: RenderContext): { html: st
     }
 
     const key = mapping?.field_key || token;
-    const value = ctx.values[key] ?? ctx.values[token];
+    const value = ctx.tokenValues?.[token] ?? ctx.values[key] ?? ctx.values[token];
     if (value === undefined || value === "") {
       unresolved.push(token);
       return `<span style="background:#fff3cd;color:#7a5b00;padding:0 2px">{${token}}</span>`;
@@ -48,6 +50,7 @@ export function renderTemplateHtml(html: string, ctx: RenderContext): { html: st
 
   return { html: unescapeBraces(out), unresolved: [...new Set(unresolved)] };
 }
+
 
 function escapeHtml(s: string): string {
   return s

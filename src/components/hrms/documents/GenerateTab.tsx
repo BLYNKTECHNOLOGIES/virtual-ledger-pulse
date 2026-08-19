@@ -114,8 +114,9 @@ export function GenerateTab() {
       for (const m of mappings) {
         if (!m.signatory_id) continue;
         const s = signatories.find((x: any) => x.id === m.signatory_id);
-        const path = m.token.startsWith("seal") ? s?.seal_path : s?.signature_path;
+        const path = kindOf(m) === "seal" ? s?.seal_path : s?.signature_path;
         if (!path) continue;
+
         // Inline as a data URL so the frozen letter still renders after the
         // signed URL expires (issued artefacts must be self-contained).
         const { data: blob } = await supabase.storage.from("hr-doc-signatures").download(path);

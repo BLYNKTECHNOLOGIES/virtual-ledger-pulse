@@ -1102,10 +1102,6 @@ export default function EmployeeProfilePage() {
                         {EMPLOYEE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                       </select>
                     </div>
-                    <div>
-                      <label className="text-xs text-muted-foreground block mb-1">Job Role</label>
-                      <input type="text" value={workInfoForm.job_role || ""} onChange={e => setWorkInfoForm({ ...workInfoForm, job_role: e.target.value })} className={inputCls} />
-                    </div>
                   </div>
                 </div>
               ) : (

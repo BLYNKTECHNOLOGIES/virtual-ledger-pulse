@@ -3,6 +3,7 @@ import * as MenubarPrimitive from "@radix-ui/react-menubar"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { usePortalWheelScroll } from "@/hooks/usePortalWheelScroll"
 
 const MenubarMenu = MenubarPrimitive.Menu
 

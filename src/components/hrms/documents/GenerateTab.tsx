@@ -67,16 +67,26 @@ export function GenerateTab() {
     },
   });
 
+  const { data: me } = useQuery({
+    queryKey: ["hr_doc_actor"],
+    queryFn: async () => (await supabase.auth.getUser()).data.user || null,
+  });
+
   const { data: resolved } = useQuery({
-    queryKey: ["hr_doc_resolved", employeeId, catalog.length],
+    queryKey: ["hr_doc_resolved", employeeId, catalog.length, me?.email],
     enabled: !!employeeId && catalog.length > 0,
-    queryFn: () => resolveEmployeeValues(employeeId, catalog as CatalogField[]),
+    queryFn: () => resolveEmployeeValues(employeeId, catalog as CatalogField[], me?.email || undefined),
   });
 
   // Signed URLs for every signatory image used by this template's mappings.
   const mappings: PlaceholderMapping[] = useMemo(
     () => (version?.placeholder_map as PlaceholderMapping[]) || [],
     [version]
+  );
+
+  const imageTokens = useMemo(
+    () => new Set(mappings.filter((m) => m.signatory_id && /^(sign|seal)/.test(m.token)).map((m) => m.token)),
+    [mappings]
   );
 
   const { data: images = {} } = useQuery({
@@ -98,15 +108,46 @@ export function GenerateTab() {
 
   useEffect(() => { setOverrides({}); }, [employeeId, templateId]);
 
+  /** Per-token signatory text (name / designation) so two signatories never collide. */
+  const tokenValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const m of mappings) {
+      if (!m.signatory_id) continue;
+      const s = signatories.find((x: any) => x.id === m.signatory_id);
+      if (!s) continue;
+      if (m.field_key === "signatory_name" || /^signatory_name/.test(m.token)) out[m.token] = s.display_name || "";
+      if (m.field_key === "signatory_designation" || /^signatory_designation/.test(m.token)) out[m.token] = s.designation || "";
+    }
+    return out;
+  }, [mappings, signatories]);
+
   const values = useMemo(
     () => ({ ...(resolved?.values || {}), ...overrides }),
     [resolved, overrides]
   );
 
-  const rendered = useMemo(() => {
+  /** Reference is allocated at issue time; the preview shows a dummy so it never blocks. */
+  const renderWith = (referenceNo: string) => {
     if (!version?.content_html) return null;
-    return renderTemplateHtml(version.content_html, { values, images, mappings });
-  }, [version, values, images, mappings]);
+    return renderTemplateHtml(version.content_html, {
+      values: { ...values, reference_no: referenceNo, generated_by: values.generated_by || me?.email || "" },
+      tokenValues,
+      images,
+      mappings,
+    });
+  };
+
+  const rendered = useMemo(
+    () => renderWith("BLY-DRAFT"),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [version, values, images, mappings, tokenValues, me?.email]
+  );
+
+  /** Signature/seal placeholders whose signatory has no uploaded image. */
+  const missingSignatures = useMemo(
+    () => (rendered?.unresolved || []).filter((t) => imageTokens.has(t) || /^(sign|seal)\d*$/.test(t)),
+    [rendered, imageTokens]
+  );
 
   /** Fields the letter actually needs but which came back empty. */
   const promptFields = useMemo(() => {
@@ -114,19 +155,27 @@ export function GenerateTab() {
     const byToken = new Map(mappings.map((m) => [m.token, m]));
     const keys = new Set<string>();
     for (const token of rendered.unresolved) {
-      keys.add(byToken.get(token)?.field_key || token);
+      if (imageTokens.has(token) || /^(sign|seal)\d*$/.test(token)) continue;
+      const key = byToken.get(token)?.field_key || token;
+      if (SYSTEM_FILLED_KEYS.has(key)) continue;
+      keys.add(key);
     }
     return [...keys].map(
       (key) =>
         (catalog as CatalogField[]).find((c) => c.field_key === key) ||
         ({ field_key: key, label: key.replace(/_/g, " "), field_group: "custom", data_type: "text", formatter: null, resolver_id: null, is_sensitive: false, default_value: null } as CatalogField)
     );
-  }, [rendered, mappings, catalog]);
+  }, [rendered, mappings, catalog, imageTokens]);
 
   const preview = () => {
     if (!rendered) return toast.error("Pick a template with a saved version first");
-    printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued"));
+    try {
+      printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued"));
+    } catch (e: any) {
+      toast.error(e?.message || "Could not open the print window");
+    }
   };
+
 
   const issue = async () => {
     if (!rendered || !template || !version) return toast.error("Select a template");

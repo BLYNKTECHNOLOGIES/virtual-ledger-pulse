@@ -458,9 +458,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             last_name: r.last_name || "",
             email: r.email,
             phone: r.phone || null,
-            gender: r.gender || null,
+            gender: r.gender ? String(r.gender).trim().toLowerCase() : null,
 
-            marital_status: r.marital_status || null,
+            marital_status: r.marital_status ? String(r.marital_status).trim().toLowerCase() : null,
             dob: r.date_of_birth || null,
             address: r.address || null,
             city: r.city || null,
@@ -492,9 +492,9 @@ export function OnboardingWizard({ onboardingId, onBack }: OnboardingWizardProps
             last_name: r.last_name || "",
             email: r.email,
             phone: r.phone || null,
-            gender: r.gender || null,
+            gender: r.gender ? String(r.gender).trim().toLowerCase() : null,
 
-            marital_status: r.marital_status || null,
+            marital_status: r.marital_status ? String(r.marital_status).trim().toLowerCase() : null,
             dob: r.date_of_birth || null,
             address: r.address || null,
             city: r.city || null,

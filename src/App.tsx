@@ -152,10 +152,7 @@ const ReportSettings = lazy(() => import('./pages/ReportSettings'));
 const OAuthConsent = lazy(() => import('./pages/OAuthConsent'));
 
 
-import WheelTest from './pages/WheelTest';
-
 const router = createBrowserRouter([
-  { path: "/__wheeltest", element: <WheelTest /> },
   // Login — the only public route
   {
     path: "/",

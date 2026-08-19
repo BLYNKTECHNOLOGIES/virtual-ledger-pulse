@@ -11,11 +11,23 @@ import { privateDocRef } from "@/lib/storedDoc";
  */
 export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: Blob | null }> {
   const isDocx = String(doc.file_mime || "").includes("wordprocessingml") || /\.docx$/i.test(doc.file_path || "");
-  // Rebuild older DOCX PDFs once with the native Word renderer. This preserves
-  // the letterhead already embedded in Word and avoids applying a second one.
-  if (doc.pdf_path && (!isDocx || /\.word\.pdf$/i.test(doc.pdf_path))) {
-    return { path: doc.pdf_path, blob: null };
+
+  // Word letters are converted by Adobe PDF Services server-side, so the PDF is
+  // byte-faithful to the Word file (letterhead, fonts, geometry). Converted once,
+  // then reused forever.
+  if (isDocx) {
+    if (doc.pdf_path && /\.adobe\.pdf$/i.test(doc.pdf_path)) return { path: doc.pdf_path, blob: null };
+    const { data, error } = await supabase.functions.invoke("hr-doc-convert-pdf", {
+      body: { issuedId: doc.id },
+    });
+    const pdfPath = (data as any)?.pdfPath;
+    if (error || !pdfPath) {
+      throw new Error((data as any)?.error || error?.message || "Word to PDF conversion failed");
+    }
+    return { path: pdfPath, blob: null };
   }
+
+  if (doc.pdf_path) return { path: doc.pdf_path, blob: null };
   if (!doc.file_path) throw new Error("This letter has no stored file");
 
   const { data: signed, error: sErr } = await supabase.storage
@@ -24,13 +36,12 @@ export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: B
   const res = await fetch(signed.signedUrl);
   if (!res.ok) throw new Error("Could not read the stored letter");
 
-  const { htmlToPdfBlob, docxToPdfBlob } = await import("@/lib/docPdf");
+  const { htmlToPdfBlob } = await import("@/lib/docPdf");
 
-  const blob = isDocx
-    ? await docxToPdfBlob(await res.arrayBuffer(), doc.template_name || "Letter")
-    : await htmlToPdfBlob(await res.text());
+  const blob = await htmlToPdfBlob(await res.text());
 
-  const pdfPath = doc.file_path.replace(/\.[^.]+$/, "") + (isDocx ? ".word.pdf" : ".pdf");
+  const pdfPath = doc.file_path.replace(/\.[^.]+$/, "") + ".pdf";
+
   const { error: upErr } = await supabase.storage
     .from("hr-doc-issued").upload(pdfPath, blob, { contentType: "application/pdf", upsert: true });
   if (upErr) throw upErr;

@@ -99,22 +99,48 @@ export async function htmlToPdfBlob(fullHtml: string): Promise<Blob> {
   }
 }
 
-/** Wrap a converted Word body in a printable A4 sheet. */
-export function wrapDocxHtml(body: string, title = "Letter"): string {
-  return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
-<style>
-  @page { size: A4; margin: 0; }
-  html,body { margin:0; padding:0; background:#fff; }
-  body { width:${A4_W_PX}px; padding:28px 60px 40px; box-sizing:border-box;
-         font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size:11pt; color:#000; line-height:1.45; }
-  p { margin:0 0 8px; }
-  table { border-collapse: collapse; }
-  img { max-width:100%; }
-</style></head><body>${body}</body></html>`;
+/** Wrap a converted Word body in the universal letterhead's printable A4 safe area. */
+export function wrapDocxHtml(
+  body: string,
+  title = "Letter",
+  letterhead?: import("@/lib/docRender").PrintLetterhead | null
+): string {
+  const { buildPrintDocument } = requireDocRender();
+  const wordBody = `<div style="font-family:Calibri,Carlito,'Segoe UI',Arial,sans-serif;font-size:11pt;line-height:1.45;color:#000">${body}</div>`;
+  return buildPrintDocument(wordBody, title, undefined, letterhead);
+}
+
+// Kept as a tiny synchronous boundary because wrapDocxHtml is also used by the
+// print action, which must return a complete document immediately.
+function requireDocRender() {
+  return { buildPrintDocument: (body: string, title: string, referenceNo?: string, letterhead?: import("@/lib/docRender").PrintLetterhead | null) => {
+    const mt = letterhead?.marginTopMm ?? 20;
+    const mb = letterhead?.marginBottomMm ?? 20;
+    const ml = letterhead?.marginLeftMm ?? 18;
+    const mr = letterhead?.marginRightMm ?? 18;
+    const art = letterhead?.imageDataUri || "";
+    return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><style>
+      @page{size:A4;margin:0}html,body{margin:0;padding:0;background:#fff}
+      body{font-family:Calibri,Carlito,"Segoe UI",Arial,sans-serif;color:#000}
+      .letterhead{position:fixed;inset:0;background:url("${art}") 0 0/210mm 297mm no-repeat;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .sheet{width:210mm;min-height:297mm;position:relative;z-index:1}
+      .page-frame{width:100%;border-collapse:collapse;border:0}.page-frame>thead>tr>td,.page-frame>tfoot>tr>td,.page-frame>tbody>tr>td{border:0;padding:0}
+      .band-top{height:${mt}mm}.band-bottom{height:${mb}mm}.page-body{padding:0 ${mr}mm 0 ${ml}mm}
+      p{margin:0 0 8px}table{border-collapse:collapse}img{max-width:100%}
+    </style></head><body>${art ? `<div class="letterhead"></div>` : ""}<div class="sheet"><table class="page-frame"><thead><tr><td><div class="band-top"></div></td></tr></thead><tfoot><tr><td><div class="band-bottom"></div></td></tr></tfoot><tbody><tr><td><div class="page-body">${body}</div></td></tr></tbody></table></div></body></html>`;
+  }};
 }
 
 /** Convert merged Word bytes into a PDF blob (best-effort visual fidelity). */
-export async function docxToPdfBlob(data: ArrayBuffer, title = "Letter"): Promise<Blob> {
+export async function docxToPdfBlob(
+  data: ArrayBuffer,
+  title = "Letter",
+  suppliedLetterhead?: import("@/lib/docRender").PrintLetterhead | null
+): Promise<Blob> {
   const { convertDocxToHtml } = await import("@/lib/docxImport");
-  return htmlToPdfBlob(wrapDocxHtml(convertDocxToHtml(data), title));
+  const letterhead = suppliedLetterhead ?? await (async () => {
+    const { fetchCompanyIdentity, resolveLetterhead } = await import("@/lib/companyIdentity");
+    return resolveLetterhead(await fetchCompanyIdentity());
+  })();
+  return htmlToPdfBlob(wrapDocxHtml(convertDocxToHtml(data), title, letterhead));
 }

@@ -64,7 +64,13 @@ export function IssuedTab() {
       if (String(doc.file_mime || "").includes("wordprocessingml")) {
         const { wrapDocxHtml } = await import("@/lib/docPdf");
         const { convertDocxToHtml } = await import("@/lib/docxImport");
-        printDocument(wrapDocxHtml(convertDocxToHtml(await res.arrayBuffer()), doc.template_name || "Letter"));
+        const { fetchCompanyIdentity, resolveLetterhead } = await import("@/lib/companyIdentity");
+        const letterhead = await resolveLetterhead(await fetchCompanyIdentity());
+        printDocument(wrapDocxHtml(
+          convertDocxToHtml(await res.arrayBuffer()),
+          doc.template_name || "Letter",
+          letterhead
+        ));
         return;
       }
       printDocument(await res.text());

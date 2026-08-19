@@ -40,9 +40,20 @@ export function splitInstance(token: string): { base: string; instance: number |
   return { base: m[1], instance: Number(m[2]) };
 }
 
+/**
+ * Remove regions that must never be scanned for placeholders — a CSS rule like
+ * `body { margin: 0 }` inside an imported letterhead is not a variable.
+ */
+export function stripNonContentRegions(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<!--[\s\S]*?-->/g, "");
+}
+
 /** Strip HTML tags to plain text so placeholders split across formatting runs still resolve. */
 export function htmlToText(html: string): string {
-  return html
+  return stripNonContentRegions(html)
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n")
     .replace(/<[^>]+>/g, "")
@@ -51,6 +62,7 @@ export function htmlToText(html: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">");
 }
+
 
 export function parsePlaceholders(source: string, isHtml = true): ParseResult {
   const text = (isHtml ? htmlToText(source) : source)

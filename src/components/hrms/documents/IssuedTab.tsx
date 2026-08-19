@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
-import { Archive, Search, FileText, Ban, ShieldAlert, FileDown, Trash2 } from "lucide-react";
+import { Archive, Search, FileText, Ban, ShieldAlert, FileDown, Trash2, Mail, RotateCcw } from "lucide-react";
 
 
 export function IssuedTab() {
@@ -123,16 +123,66 @@ export function IssuedTab() {
       revoke_reason: reason || null,
     }).eq("id", revokeTarget.id);
     if (error) return toast.error(error.message);
+
+    // Hide the employee-facing copy (ERP profile + HRMS employee documents)
+    if (revokeTarget.employee_document_id) {
+      await (supabase as any).from("hr_employee_documents")
+        .update({ is_hidden: true, hidden_reason: reason || "Letter revoked" })
+        .eq("id", revokeTarget.employee_document_id);
+    }
+
     await (supabase as any).from("hr_doc_audit_log").insert({
       entity_type: "issued_document", entity_id: revokeTarget.id, action: "revoked",
       actor_id: auth?.user?.id || null, actor_name: auth?.user?.email || null,
       details: { reference_no: revokeTarget.reference_no, reason },
     });
     qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
-    toast.success("Letter revoked");
+    qc.invalidateQueries({ queryKey: ["hr_employee_documents", revokeTarget.employee_id] });
+    qc.invalidateQueries({ queryKey: ["hr_employee_documents"] });
+    toast.success("Letter revoked and hidden from the employee");
     setRevokeTarget(null); setReason("");
   };
 
+  /** Undo a revocation — the letter becomes valid and visible to the employee again. */
+  const restore = async (d: any) => {
+    const { data: auth } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("hr_documents_issued").update({
+      status: "issued", revoked_by: null, revoked_at: null, revoke_reason: null,
+    }).eq("id", d.id);
+    if (error) return toast.error(error.message);
+    if (d.employee_document_id) {
+      await (supabase as any).from("hr_employee_documents")
+        .update({ is_hidden: false, hidden_reason: null })
+        .eq("id", d.employee_document_id);
+    }
+    await (supabase as any).from("hr_doc_audit_log").insert({
+      entity_type: "issued_document", entity_id: d.id, action: "restored",
+      actor_id: auth?.user?.id || null, actor_name: auth?.user?.email || null,
+      details: { reference_no: d.reference_no },
+    });
+    qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+    qc.invalidateQueries({ queryKey: ["hr_employee_documents", d.employee_id] });
+    qc.invalidateQueries({ queryKey: ["hr_employee_documents"] });
+    toast.success("Letter restored and visible to the employee again");
+  };
+
+  /** Email the letter to the employee with the archived PDF attached. */
+  const sendEmail = async (d: any) => {
+    const id = toast.loading("Sending email…");
+    try {
+      if (!d.pdf_path) {
+        const { ensureIssuedPdf } = await import("@/lib/ensureIssuedPdf");
+        await ensureIssuedPdf(d);
+        qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+      }
+      const { data, error } = await supabase.functions.invoke("hr-doc-email", { body: { issuedId: d.id } });
+      if (error) throw new Error((await (error as any)?.context?.text?.()) || error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success(`Emailed to ${(data as any)?.to}`, { id });
+    } catch (e: any) {
+      toast.error(e?.message || "Could not send the email", { id });
+    }
+  };
 
   const filtered = docs.filter((d: any) => {
     const q = search.toLowerCase();
@@ -177,9 +227,18 @@ export function IssuedTab() {
 
                   <Button size="sm" variant="ghost" title="Download Word original" onClick={() => downloadSource(d)}><FileText className="h-4 w-4" /></Button>
 
-                  {d.status !== "revoked" && (
-                    <Button size="sm" variant="ghost" title="Revoke" onClick={() => setRevokeTarget(d)}>
-                      <Ban className="h-4 w-4 text-destructive" />
+                  {d.status !== "revoked" ? (
+                    <>
+                      <Button size="sm" variant="ghost" title="Email to employee" onClick={() => sendEmail(d)}>
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="ghost" title="Revoke" onClick={() => setRevokeTarget(d)}>
+                        <Ban className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" variant="ghost" title="Restore (un-revoke)" onClick={() => restore(d)}>
+                      <RotateCcw className="h-4 w-4 text-primary" />
                     </Button>
                   )}
                   <Button size="sm" variant="ghost" title="Delete permanently" onClick={() => setDeleteTarget(d)}>
@@ -197,7 +256,7 @@ export function IssuedTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Revoke {revokeTarget?.reference_no}?</AlertDialogTitle>
             <AlertDialogDescription>
-              The letter stays on record for audit but is marked revoked. This cannot be undone.
+              The letter stays on record for audit, is marked revoked and disappears from the employee’s documents in the ERP profile and HRMS. You can restore it later.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Textarea placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} className="text-foreground" />

@@ -45,6 +45,7 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
         .from("hr_employee_documents")
         .select("*")
         .eq("employee_id", employeeId)
+        .or("is_hidden.is.null,is_hidden.eq.false")
         .order("uploaded_at", { ascending: false });
       if (error) throw error;
       return data || [];

@@ -73,6 +73,7 @@ export default function EmployeeDocumentsPage() {
       const { data, error } = await (supabase as any)
         .from("hr_employee_documents")
         .select("*, hr_employees!hr_employee_documents_employee_id_fkey(first_name, last_name, badge_id)")
+        .or("is_hidden.is.null,is_hidden.eq.false")
         .order("uploaded_at", { ascending: false });
       if (error) throw error;
       return data || [];

@@ -108,6 +108,8 @@ export function TemplateEditorForm({
       setForm({ name: "", category: "custom", description: "", requires_approval: false, reference_pattern: "BLYNK/{TYPE}/{FY}/{SEQ:4}" });
       setHtml("<p></p>");
       setMappings([]);
+      setLane("native");
+      setSourcePath(null); setSourceName(null); setDocxText("");
     }
   }, [template]);
 
@@ -115,15 +117,94 @@ export function TemplateEditorForm({
     if (version) {
       setHtml(version.content_html || "<p></p>");
       setMappings((version.placeholder_map as PlaceholderMapping[]) || []);
+      const isDocx = version.lane === "docx" && !!version.source_file_path;
+      setLane(isDocx ? "docx" : "native");
+      setSourcePath(version.source_file_path || null);
+      setSourceName(version.source_file_name || null);
+      if (isDocx) loadLockedText(version.source_file_path);
+      else setDocxText("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 
-  const parsed = useMemo(() => parsePlaceholders(html, true), [html]);
+  /** Re-read the stored .docx so its placeholders can be listed for mapping. */
+  const loadLockedText = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("hr-doc-templates").download(path);
+      if (error || !data) throw error || new Error("Stored Word file is missing");
+      const { extractDocxText } = await import("@/lib/docxTemplate");
+      setDocxText(extractDocxText(await data.arrayBuffer()));
+    } catch (e: any) {
+      toast.error(e?.message || "Could not read the stored Word template");
+    }
+  };
+
+  const importEditable = async (file: File) => {
+    try {
+      setImporting(true);
+      const { convertDocxToHtml } = await import("@/lib/docxImport");
+      const buffer = await file.arrayBuffer();
+      let body = "";
+      try {
+        body = convertDocxToHtml(buffer).trim();
+      } catch (primaryErr) {
+        const mammoth = await import("mammoth/mammoth.browser");
+        const result = await (mammoth as any).convertToHtml({ arrayBuffer: buffer });
+        body = (result?.value || "").trim();
+        if (!body) throw primaryErr;
+      }
+      if (!body) throw new Error("That document had no readable text.");
+      setLane("native");
+      setSourcePath(null); setSourceName(null); setDocxText("");
+      setHtml(body);
+      toast.success("Imported — review the formatting before saving");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not read that .docx file");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const importLocked = async (file: File) => {
+    try {
+      setImporting(true);
+      const buffer = await file.arrayBuffer();
+      const { extractDocxText, parseDocxPlaceholders } = await import("@/lib/docxTemplate");
+      const text = extractDocxText(buffer);
+      const found = parseDocxPlaceholders(text);
+      const path = `sources/${crypto.randomUUID()}.docx`;
+      const { error } = await supabase.storage.from("hr-doc-templates").upload(path, file, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: false,
+      });
+      if (error) throw error;
+      setLane("docx");
+      setSourcePath(path);
+      setSourceName(file.name);
+      setDocxText(text);
+      setHtml("");
+      toast.success(
+        found.length
+          ? `Stored as-is — ${found.length} variable${found.length === 1 ? "" : "s"} detected`
+          : "Stored as-is — no {{VARIABLES}} found in this document"
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Could not store that .docx file");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const parsed = useMemo(
+    () => (lane === "docx" ? parsePlaceholders(docxText, false) : parsePlaceholders(html, true)),
+    [lane, docxText, html]
+  );
 
   useEffect(() => {
     setMappings((prev) => mergeMappings(parsed.placeholders, prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed.placeholders.map((p) => p.token).join("|")]);
+
 
   const fieldByKey = useMemo(
     () => new Map<string, any>(fields.map((f: any) => [f.field_key, f])),

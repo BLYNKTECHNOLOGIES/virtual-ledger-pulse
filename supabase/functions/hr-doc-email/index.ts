@@ -38,13 +38,21 @@ async function getMailbox(admin: any): Promise<Mailbox | { error: string }> {
   return { from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`, host, user, pass };
 }
 
+// denomailer's quoted-printable encoder turns any space that sits at the end of a
+// line into a literal "=20", which mail clients then show as text. Strip trailing
+// whitespace (and blank lines) from every line before handing content to the mailer.
+const tidyBody = (s: string) =>
+  s.replace(/\r\n/g, "\n").replace(/[ \t]+(?=\n)/g, "").replace(/\n{2,}/g, "\n").trim();
+
 async function sendMail(mb: Mailbox, to: string, subject: string, html: string, attachment: any) {
   const client = new SMTPClient({
     connection: { hostname: mb.host, port: 465, tls: true, auth: { username: mb.user, password: mb.pass } },
   });
   try {
     await client.send({
-      from: mb.from, to, subject, content: hrSignatureText(), html,
+      from: mb.from, to, subject,
+      content: tidyBody(hrSignatureText()),
+      html: tidyBody(html),
       attachments: attachment ? ([attachment] as any) : undefined,
     });
   } finally {

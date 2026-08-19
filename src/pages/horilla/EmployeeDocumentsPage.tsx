@@ -13,6 +13,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { openStoredDocument } from "@/lib/storedDoc";
+
 
 const DOC_TYPES = [
   { value: "aadhaar", label: "Aadhaar Card" },
@@ -182,10 +184,12 @@ export default function EmployeeDocumentsPage() {
                     </Button>
                   )}
                   {doc.file_url && (
-                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0" asChild>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
+                    <Button size="sm" variant="ghost" className="h-8 w-8 p-0"
+                      onClick={() => { void openStoredDocument(doc.file_url); }}>
+                      <ExternalLink className="h-4 w-4" />
                     </Button>
                   )}
+
                 </div>
               </CardContent>
             </Card>

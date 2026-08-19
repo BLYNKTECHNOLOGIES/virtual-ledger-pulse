@@ -7961,6 +7961,7 @@ export type Database = {
           created_by: string | null
           delivered_at: string | null
           delivered_to: string | null
+          employee_document_id: string | null
           employee_id: string | null
           employee_name: string | null
           file_mime: string | null
@@ -7969,6 +7970,7 @@ export type Database = {
           issued_at: string | null
           issued_by: string | null
           issued_by_name: string | null
+          pdf_path: string | null
           reference_no: string | null
           revoke_reason: string | null
           revoked_at: string | null
@@ -7992,6 +7994,7 @@ export type Database = {
           created_by?: string | null
           delivered_at?: string | null
           delivered_to?: string | null
+          employee_document_id?: string | null
           employee_id?: string | null
           employee_name?: string | null
           file_mime?: string | null
@@ -8000,6 +8003,7 @@ export type Database = {
           issued_at?: string | null
           issued_by?: string | null
           issued_by_name?: string | null
+          pdf_path?: string | null
           reference_no?: string | null
           revoke_reason?: string | null
           revoked_at?: string | null
@@ -8023,6 +8027,7 @@ export type Database = {
           created_by?: string | null
           delivered_at?: string | null
           delivered_to?: string | null
+          employee_document_id?: string | null
           employee_id?: string | null
           employee_name?: string | null
           file_mime?: string | null
@@ -8031,6 +8036,7 @@ export type Database = {
           issued_at?: string | null
           issued_by?: string | null
           issued_by_name?: string | null
+          pdf_path?: string | null
           reference_no?: string | null
           revoke_reason?: string | null
           revoked_at?: string | null

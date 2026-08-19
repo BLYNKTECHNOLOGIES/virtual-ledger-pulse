@@ -50,6 +50,8 @@ import {
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { toast as sonnerToast } from 'sonner';
+import { openStoredDocument } from '@/lib/storedDoc';
+
 import { UserProfileTasks } from '@/components/tasks/UserProfileTasks';
 import AttendanceTab from '@/components/profile/AttendanceTab';
 import MyAssetsTab from '@/components/profile/MyAssetsTab';
@@ -546,9 +548,10 @@ function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
               {doc.is_verified ? 'Verified' : 'Pending'}
             </StatusPill>
             {doc.file_url ? (
-              <Button asChild variant="outline" size="sm">
-                <a href={doc.file_url} target="_blank" rel="noopener noreferrer">View</a>
+              <Button variant="outline" size="sm" onClick={() => { void openStoredDocument(doc.file_url); }}>
+                View
               </Button>
+
             ) : (
               <Button variant="outline" size="sm" disabled>Unavailable</Button>
             )}

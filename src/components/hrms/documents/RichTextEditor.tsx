@@ -39,7 +39,7 @@ export function RichTextEditor({ value, onChange, onInsertVariable }: Props) {
   const exec = (command: string, arg?: string) => {
     ref.current?.focus();
     document.execCommand(command, false, arg);
-    onChange(ref.current?.innerHTML || "");
+    emit();
   };
 
   const insertTable = () => {
@@ -101,7 +101,7 @@ export function RichTextEditor({ value, onChange, onInsertVariable }: Props) {
           ref={ref}
           contentEditable
           suppressContentEditableWarning
-          onInput={() => onChange(ref.current?.innerHTML || "")}
+          onInput={emit}
           className="doc-a4-page mx-auto bg-background text-foreground shadow-sm outline-none"
           style={{
             width: "210mm",

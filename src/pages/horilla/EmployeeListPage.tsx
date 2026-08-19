@@ -144,10 +144,19 @@ export default function EmployeeListPage() {
       if (error) throw error;
       return ((data || []) as any[]).filter((r) => {
         const src = r?.additional_info?.source;
-        // Hide ONLY inactive Razorpay drafts. Everything else (including
-        // activated Razorpay-imported employees) stays visible.
-        return !(src === "razorpay_import" && r?.is_active === false);
+        if (src !== "razorpay_import" || r?.is_active !== false) return true;
+        // Hide ONLY never-activated Razorpay drafts. An imported employee that
+        // was onboarded and later separated must stay visible (inactive) with
+        // their full history.
+        const wasActivated =
+          !!r?.additional_info?.onboarding_completed_at ||
+          !!r?.resignation_status ||
+          !!r?.last_working_day ||
+          !!r?.date_joining ||
+          !!r?.user_id;
+        return wasActivated;
       }) as HrEmployee[];
+
     },
   });
 

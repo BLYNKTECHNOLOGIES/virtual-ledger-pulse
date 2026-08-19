@@ -181,7 +181,7 @@ export function GenerateTab() {
   }, [mappings, signatories, signingSignatory]);
 
 
-  const values = useMemo(
+  const values = useMemo<Record<string, any>>(
     () => ({
       ...(resolved?.values || {}),
       // Signatory identity always comes from the signature block, never re-typed.

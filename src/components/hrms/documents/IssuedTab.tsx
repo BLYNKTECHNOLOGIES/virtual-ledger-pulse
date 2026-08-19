@@ -38,11 +38,25 @@ export function IssuedTab() {
         .from("hr-doc-issued").createSignedUrl(doc.file_path, 120);
       if (error || !data?.signedUrl) throw error || new Error("Could not open the stored letter");
       const res = await fetch(data.signedUrl);
+
+      // Word artefacts (locked native templates) are downloaded, not printed.
+      if (String(doc.file_mime || "").includes("wordprocessingml")) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${String(doc.reference_no || "letter").replace(/[^\w.-]+/g, "_")}.docx`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+        toast.success("Word file downloaded — open it and print to PDF");
+        return;
+      }
       printDocument(await res.text());
     } catch (e: any) {
       toast.error(e?.message || "Could not open the letter");
     }
   };
+
 
   const revoke = async () => {
     if (!revokeTarget) return;

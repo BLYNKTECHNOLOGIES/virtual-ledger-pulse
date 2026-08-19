@@ -9,9 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, Braces, Check, ShieldAlert, Upload } from "lucide-react";
+import { AlertTriangle, Braces, Check, FileLock2, ShieldAlert, Upload } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
 import { parsePlaceholders, mergeMappings, type PlaceholderMapping } from "@/lib/docTemplate";
+import { parseDocxToResult } from "@/lib/docxPlaceholders";
+
+
 
 const CATEGORIES = [
   { value: "relieving", label: "Relieving cum Experience Letter" },
@@ -54,6 +57,13 @@ export function TemplateEditorForm({
   const [html, setHtml] = useState("<p></p>");
   const [mappings, setMappings] = useState<PlaceholderMapping[]>([]);
   const [changeNote, setChangeNote] = useState("");
+  /** "native" = editable HTML canvas, "docx" = locked Word file kept as-is. */
+  const [lane, setLane] = useState<"native" | "docx">("native");
+  const [sourcePath, setSourcePath] = useState<string | null>(null);
+  const [sourceName, setSourceName] = useState<string | null>(null);
+  /** Plain text of the locked .docx — used only to discover its placeholders. */
+  const [docxText, setDocxText] = useState("");
+
 
   const { data: fields = [] } = useQuery({
     queryKey: ["hr_doc_field_catalog"],
@@ -100,6 +110,8 @@ export function TemplateEditorForm({
       setForm({ name: "", category: "custom", description: "", requires_approval: false, reference_pattern: "BLYNK/{TYPE}/{FY}/{SEQ:4}" });
       setHtml("<p></p>");
       setMappings([]);
+      setLane("native");
+      setSourcePath(null); setSourceName(null); setDocxText("");
     }
   }, [template]);
 
@@ -107,15 +119,95 @@ export function TemplateEditorForm({
     if (version) {
       setHtml(version.content_html || "<p></p>");
       setMappings((version.placeholder_map as PlaceholderMapping[]) || []);
+      const isDocx = version.lane === "docx" && !!version.source_file_path;
+      setLane(isDocx ? "docx" : "native");
+      setSourcePath(version.source_file_path || null);
+      setSourceName(version.source_file_name || null);
+      if (isDocx) loadLockedText(version.source_file_path);
+      else setDocxText("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [version]);
 
-  const parsed = useMemo(() => parsePlaceholders(html, true), [html]);
+  /** Re-read the stored .docx so its placeholders can be listed for mapping. */
+  const loadLockedText = async (path: string) => {
+    try {
+      const { data, error } = await supabase.storage.from("hr-doc-templates").download(path);
+      if (error || !data) throw error || new Error("Stored Word file is missing");
+      const { extractDocxText } = await import("@/lib/docxTemplate");
+      setDocxText(extractDocxText(await data.arrayBuffer()));
+    } catch (e: any) {
+      toast.error(e?.message || "Could not read the stored Word template");
+    }
+  };
+
+  const importEditable = async (file: File) => {
+    try {
+      setImporting(true);
+      const { convertDocxToHtml } = await import("@/lib/docxImport");
+      const buffer = await file.arrayBuffer();
+      let body = "";
+      try {
+        body = convertDocxToHtml(buffer).trim();
+      } catch (primaryErr) {
+        const mammoth = await import("mammoth/mammoth.browser");
+        const result = await (mammoth as any).convertToHtml({ arrayBuffer: buffer });
+        body = (result?.value || "").trim();
+        if (!body) throw primaryErr;
+      }
+      if (!body) throw new Error("That document had no readable text.");
+      setLane("native");
+      setSourcePath(null); setSourceName(null); setDocxText("");
+      setHtml(body);
+      toast.success("Imported — review the formatting before saving");
+    } catch (err: any) {
+      toast.error(err?.message || "Could not read that .docx file");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const importLocked = async (file: File) => {
+    try {
+      setImporting(true);
+      const buffer = await file.arrayBuffer();
+      const { extractDocxText, parseDocxPlaceholders } = await import("@/lib/docxTemplate");
+      const text = extractDocxText(buffer);
+      const found = parseDocxPlaceholders(text);
+      const path = `sources/${crypto.randomUUID()}.docx`;
+      const { error } = await supabase.storage.from("hr-doc-templates").upload(path, file, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: false,
+      });
+      if (error) throw error;
+      setLane("docx");
+      setSourcePath(path);
+      setSourceName(file.name);
+      setDocxText(text);
+      setHtml("");
+      toast.success(
+        found.length
+          ? `Stored as-is — ${found.length} variable${found.length === 1 ? "" : "s"} detected`
+          : "Stored as-is — no {{VARIABLES}} found in this document"
+      );
+    } catch (err: any) {
+      toast.error(err?.message || "Could not store that .docx file");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const parsed = useMemo(
+    () => (lane === "docx" ? parseDocxToResult(docxText) : parsePlaceholders(html, true)),
+    [lane, docxText, html]
+  );
+
 
   useEffect(() => {
     setMappings((prev) => mergeMappings(parsed.placeholders, prev));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed.placeholders.map((p) => p.token).join("|")]);
+
 
   const fieldByKey = useMemo(
     () => new Map<string, any>(fields.map((f: any) => [f.field_key, f])),
@@ -147,7 +239,8 @@ export function TemplateEditorForm({
         name: form.name.trim(),
         category: form.category,
         description: form.description || null,
-        lane: "native",
+        lane,
+
         contains_sensitive: containsSensitive,
         requires_approval: form.requires_approval,
         reference_pattern: form.reference_pattern || null,
@@ -174,8 +267,11 @@ export function TemplateEditorForm({
         .from("hr_doc_template_versions").insert({
           template_id: templateId,
           version_no: nextVersion,
-          lane: "native",
-          content_html: html,
+          lane,
+          content_html: lane === "docx" ? null : html,
+          source_file_path: lane === "docx" ? sourcePath : null,
+          source_file_name: lane === "docx" ? sourceName : null,
+
           placeholder_map: mappings,
           unparsed_tokens: parsed.unparsed,
           change_note: changeNote || null,
@@ -230,51 +326,53 @@ export function TemplateEditorForm({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border px-3 py-2">
+          <div className="rounded-lg border border-dashed border-border px-3 py-2 space-y-2">
             <p className="text-[11px] text-muted-foreground">
-              Have a Word letterhead? Import it — the text and its <code>{"{variables}"}</code> come into the editor.
+              Import a Word letter two ways — <strong>locked</strong> keeps your .docx exactly as authored
+              (perfect formatting, edited in Word) and HRMS only fills its <code>{"{{VARIABLES}}"}</code>;
+              <strong> editable</strong> brings the text into the canvas below.
             </p>
-            <label className="shrink-0">
-              <input
-                type="file"
-                accept=".docx"
-                className="hidden"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  if (!file) return;
-                  try {
-                    setImporting(true);
-                    const { convertDocxToHtml } = await import("@/lib/docxImport");
-                    const buffer = await file.arrayBuffer();
-                    let body = "";
-                    try {
-                      body = convertDocxToHtml(buffer).trim();
-                    } catch (primaryErr) {
-                      // Fall back to mammoth for unusual packages (text-only, no formatting).
-                      const mammoth = await import("mammoth/mammoth.browser");
-                      const result = await (mammoth as any).convertToHtml({ arrayBuffer: buffer });
-                      body = (result?.value || "").trim();
-                      if (!body) throw primaryErr;
-                    }
-                    if (!body) throw new Error("That document had no readable text.");
-                    setHtml(body);
-                    toast.success("Imported — review the formatting before saving");
-
-                  } catch (err: any) {
-                    toast.error(err?.message || "Could not read that .docx file");
-                  } finally {
-                    setImporting(false);
-                  }
-                }}
-              />
-              <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted">
-                <Upload className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import .docx"}
-              </span>
-            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="shrink-0">
+                <input type="file" accept=".docx" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importLocked(f); }} />
+                <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90">
+                  <FileLock2 className="h-3.5 w-3.5" /> {importing ? "Importing…" : "Import .docx (locked)"}
+                </span>
+              </label>
+              <label className="shrink-0">
+                <input type="file" accept=".docx" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importEditable(f); }} />
+                <span className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 text-xs font-medium hover:bg-muted">
+                  <Upload className="h-3.5 w-3.5" /> Import .docx (editable)
+                </span>
+              </label>
+            </div>
           </div>
 
-          <RichTextEditor value={html} onChange={setHtml} onInsertVariable={insertVariable} />
+          {lane === "docx" ? (
+            <div className="rounded-lg border border-border p-4 space-y-2">
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <FileLock2 className="h-4 w-4" /> Locked Word template
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-mono">{sourceName || "—"}</span> is stored exactly as uploaded. At issue
+                time HRMS replaces its <code>{"{{VARIABLES}}"}</code> inside the real Word file, so the letter
+                is identical to your document. To change wording, edit it in Word and import it again.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {parsed.placeholders.length} variable{parsed.placeholders.length === 1 ? "" : "s"} found — map
+                them in the panel on the right.
+              </p>
+              <Button type="button" size="sm" variant="outline" className="h-8"
+                onClick={() => { setLane("native"); setSourcePath(null); setSourceName(null); setDocxText(""); }}>
+                Switch to editable canvas
+              </Button>
+            </div>
+          ) : (
+            <RichTextEditor value={html} onChange={setHtml} onInsertVariable={insertVariable} />
+          )}
+
         </div>
 
         <div className="space-y-3 min-w-0 xl:sticky xl:top-4 xl:self-start xl:max-h-[calc(100vh-8rem)] xl:overflow-auto xl:pr-1">

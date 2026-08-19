@@ -172,6 +172,19 @@ export function GenerateTab() {
     [resolved, overrides]
   );
 
+  /** Locked Word lane: the .docx is merged as-is, never converted to HTML. */
+  const isDocx = version?.lane === "docx" && !!version?.source_file_path;
+
+  /** Token -> merged value, used by the locked Word lane. */
+  const docxValues = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const m of mappings) {
+      const v = tokenValues[m.token] ?? (m.field_key ? values[m.field_key] : undefined);
+      out[m.token] = v ?? "";
+    }
+    return out;
+  }, [mappings, tokenValues, values]);
+
   /** Reference is allocated at issue time; the preview shows a dummy so it never blocks. */
   const renderWith = (referenceNo: string) => {
     if (!version?.content_html) return null;
@@ -189,18 +202,53 @@ export function GenerateTab() {
     [version, values, images, mappings, tokenValues, me?.email]
   );
 
+  /** Unresolved tokens, whichever lane the template uses. */
+  const unresolvedTokens = useMemo(() => {
+    if (isDocx) {
+      return mappings
+        .filter((m) => m.token !== "reference_no" && !docxValues[m.token])
+        .map((m) => m.token);
+    }
+    return rendered?.unresolved || [];
+  }, [isDocx, mappings, docxValues, rendered]);
+
   /** Signature/seal placeholders whose signatory has no uploaded image. */
   const missingSignatures = useMemo(
-    () => (rendered?.unresolved || []).filter((t) => imageTokens.has(t)),
-    [rendered, imageTokens]
+    () => (isDocx ? [] : unresolvedTokens.filter((t) => imageTokens.has(t))),
+    [isDocx, unresolvedTokens, imageTokens]
   );
+
+  /** Download a generated Word file. */
+  const saveBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  };
+
+  /** Merge values into the stored .docx and return the finished Word bytes. */
+  const buildDocx = async (referenceNo: string) => {
+    const { data: blob, error } = await supabase.storage
+      .from("hr-doc-templates")
+      .download(version.source_file_path);
+    if (error || !blob) throw error || new Error("The Word template file is missing");
+    const { renderDocx } = await import("@/lib/docxTemplate");
+    return renderDocx(await blob.arrayBuffer(), {
+      ...docxValues,
+      reference_no: referenceNo,
+      generated_by: docxValues.generated_by || me?.email || "",
+    });
+  };
+
 
   /** Fields the letter actually needs but which came back empty. */
   const promptFields = useMemo(() => {
-    if (!rendered) return [] as CatalogField[];
+    if (!rendered && !isDocx) return [] as CatalogField[];
     const byToken = new Map(mappings.map((m) => [m.token, m]));
     const keys = new Set<string>();
-    for (const token of rendered.unresolved) {
+    for (const token of unresolvedTokens) {
       if (imageTokens.has(token)) continue;
       const key = byToken.get(token)?.field_key || token;
       if (SYSTEM_FILLED_KEYS.has(key)) continue;
@@ -211,7 +259,8 @@ export function GenerateTab() {
         (catalog as CatalogField[]).find((c) => c.field_key === key) ||
         ({ field_key: key, label: key.replace(/_/g, " "), field_group: "custom", data_type: "text", formatter: null, resolver_id: null, is_sensitive: false, default_value: null } as CatalogField)
     );
-  }, [rendered, mappings, catalog, imageTokens]);
+  }, [rendered, isDocx, unresolvedTokens, mappings, catalog, imageTokens]);
+
 
   /**
    * Resolved-but-adjustable fields used by this template (letter date, last
@@ -229,7 +278,17 @@ export function GenerateTab() {
   }, [mappings, catalog, promptFields]);
 
 
-  const preview = () => {
+  const preview = async () => {
+    if (isDocx) {
+      try {
+        const blob = await buildDocx("BLY-DRAFT");
+        saveBlob(blob, `DRAFT-${(template?.name || "letter").replace(/[^\w.-]+/g, "_")}.docx`);
+        toast.success("Draft Word file downloaded — open it to check, then Issue");
+      } catch (e: any) {
+        toast.error(e?.message || "Could not build the draft Word file");
+      }
+      return;
+    }
     if (!rendered) return toast.error("Pick a template with a saved version first");
     try {
       printDocument(buildPrintDocument(rendered.html, template?.name || "Draft", "DRAFT — not issued", letterhead));
@@ -239,8 +298,9 @@ export function GenerateTab() {
   };
 
 
+
   const issue = async () => {
-    if (!rendered || !template || !version) return toast.error("Select a template");
+    if ((!rendered && !isDocx) || !template || !version) return toast.error("Select a template");
     if (!employeeId) return toast.error("Select an employee");
     if (promptFields.length > 0) return toast.error("Fill the remaining fields before issuing");
     if (missingSignatures.length > 0) return toast.error("Upload the signature image for this template's signatory first");
@@ -253,18 +313,34 @@ export function GenerateTab() {
       });
       if (refErr) throw refErr;
 
-      // Re-render with the real reference so {reference_no} prints correctly.
-      const finalRender = renderWith(refNo);
-      if (!finalRender) throw new Error("Template has no saved content");
+      const safeRef = refNo.replace(/[^\w.-]+/g, "_");
+      let path: string;
+      let mime: string;
+      let docxBlob: Blob | null = null;
+      let fullHtml = "";
 
-      // Inline the letterhead into the frozen artefact so a re-print is byte-identical.
-      const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
-      const fullHtml = buildPrintDocument(finalRender.html, template.name, refNo, sheet);
-      const path = `${employeeId}/${refNo.replace(/[^\w.-]+/g, "_")}.html`;
-      const { error: upErr } = await supabase.storage
-        .from("hr-doc-issued")
-        .upload(path, new Blob([fullHtml], { type: "text/html" }), { contentType: "text/html", upsert: false });
-      if (upErr) throw upErr;
+      if (isDocx) {
+        // Locked Word lane: merge into the original .docx, byte-identical layout.
+        docxBlob = await buildDocx(refNo);
+        path = `${employeeId}/${safeRef}.docx`;
+        mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        const { error: upErr } = await supabase.storage
+          .from("hr-doc-issued").upload(path, docxBlob, { contentType: mime, upsert: false });
+        if (upErr) throw upErr;
+      } else {
+        // Re-render with the real reference so {reference_no} prints correctly.
+        const finalRender = renderWith(refNo);
+        if (!finalRender) throw new Error("Template has no saved content");
+        // Inline the letterhead into the frozen artefact so a re-print is byte-identical.
+        const sheet = letterhead || (await resolveLetterhead(await fetchCompanyIdentity()));
+        fullHtml = buildPrintDocument(finalRender.html, template.name, refNo, sheet);
+        path = `${employeeId}/${safeRef}.html`;
+        mime = "text/html";
+        const { error: upErr } = await supabase.storage
+          .from("hr-doc-issued")
+          .upload(path, new Blob([fullHtml], { type: "text/html" }), { contentType: "text/html", upsert: false });
+        if (upErr) throw upErr;
+      }
 
       const { data: auth } = await supabase.auth.getUser();
       const { data: inserted, error: insErr } = await (supabase as any).from("hr_documents_issued").insert({
@@ -278,8 +354,8 @@ export function GenerateTab() {
         status: "issued",
         contains_sensitive: !!template.contains_sensitive,
         file_path: path,
-        file_mime: "text/html",
-        values_snapshot: { ...values, reference_no: refNo },
+        file_mime: mime,
+        values_snapshot: { ...(isDocx ? docxValues : values), reference_no: refNo },
         signatory_ids: mappings.map((m) => m.signatory_id).filter(Boolean),
         issued_by: auth?.user?.id || null,
         issued_by_name: auth?.user?.email || null,
@@ -293,16 +369,22 @@ export function GenerateTab() {
         action: "issued",
         actor_id: auth?.user?.id || null,
         actor_name: auth?.user?.email || null,
-        details: { reference_no: refNo, template: template.name, employee_id: employeeId },
+        details: { reference_no: refNo, template: template.name, employee_id: employeeId, lane: isDocx ? "docx" : "native" },
       });
 
       qc.invalidateQueries({ queryKey: ["hr_documents_issued"] });
       toast.success(`Issued ${refNo}`);
-      try {
-        printDocument(fullHtml);
-      } catch {
-        toast.warning("Letter saved. Pop-up blocked — re-print it from the Issued tab.");
+      if (isDocx && docxBlob) {
+        saveBlob(docxBlob, `${safeRef}.docx`);
+        toast.info("Word file downloaded — open it and print to PDF");
+      } else {
+        try {
+          printDocument(fullHtml);
+        } catch {
+          toast.warning("Letter saved. Pop-up blocked — re-print it from the Issued tab.");
+        }
       }
+
     } catch (e: any) {
       toast.error(e?.message || "Could not issue the letter");
     } finally {
@@ -400,22 +482,32 @@ export function GenerateTab() {
         )}
 
         <div className="flex gap-2">
-          <Button variant="outline" className="h-9 flex-1" onClick={preview} disabled={!rendered}>
-            <Printer className="h-4 w-4 mr-1.5" /> Preview
+          <Button variant="outline" className="h-9 flex-1" onClick={preview} disabled={!rendered && !isDocx}>
+            <Printer className="h-4 w-4 mr-1.5" /> {isDocx ? "Draft .docx" : "Preview"}
           </Button>
-          <Button className="h-9 flex-1" onClick={issue} disabled={!rendered || !employeeId || issuing || promptFields.length > 0 || missingSignatures.length > 0}>
+          <Button className="h-9 flex-1" onClick={issue} disabled={(!rendered && !isDocx) || !employeeId || issuing || promptFields.length > 0 || missingSignatures.length > 0}>
             <FileCheck2 className="h-4 w-4 mr-1.5" /> {issuing ? "Issuing…" : "Issue letter"}
           </Button>
         </div>
 
         <p className="text-[11px] text-muted-foreground">
-          Issuing allocates a reference number, freezes the merged letter and its values, then opens the browser print dialog — choose “Save as PDF”.
+          {isDocx
+            ? "Issuing allocates a reference number, merges the values into the original Word file and downloads it — open it in Word and print to PDF."
+            : "Issuing allocates a reference number, freezes the merged letter and its values, then opens the browser print dialog — choose “Save as PDF”."}
         </p>
       </div>
 
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          {!rendered ? (
+          {isDocx ? (
+            <div className="p-10">
+              <EmptyState
+                icon={FileCheck2}
+                title="Locked Word template"
+                description={`${version?.source_file_name || "This template"} is merged inside the original Word file, so there is no on-screen preview. Use “Draft .docx” to check it before issuing.`}
+              />
+            </div>
+          ) : !rendered ? (
             <div className="p-10">
               <EmptyState icon={FilePlus2} title="Nothing to preview yet" description="Select a template and an employee." />
             </div>
@@ -428,6 +520,7 @@ export function GenerateTab() {
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }

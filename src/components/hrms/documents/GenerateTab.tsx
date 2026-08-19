@@ -206,40 +206,55 @@ export function GenerateTab() {
   const unresolvedTokens = useMemo(() => {
     if (isDocx) {
       return mappings
-        .filter((m) => m.token !== "reference_no" && !docxValues[m.token])
+        .filter((m) => m.token !== "reference_no" && !imageTokens.has(m.token) && !docxValues[m.token])
         .map((m) => m.token);
     }
     return rendered?.unresolved || [];
-  }, [isDocx, mappings, docxValues, rendered]);
+  }, [isDocx, mappings, docxValues, rendered, imageTokens]);
 
-  /** Signature/seal placeholders whose signatory has no uploaded image. */
-  const missingSignatures = useMemo(
-    () => (isDocx ? [] : unresolvedTokens.filter((t) => imageTokens.has(t))),
-    [isDocx, unresolvedTokens, imageTokens]
-  );
+  /**
+   * Signature/seal placeholders whose signatory has no uploaded image.
+   * The Word lane merges real images too, so an unsigned letter must never issue.
+   */
+  const missingSignatures = useMemo(() => {
+    if (isDocx) {
+      return mappings
+        .filter((m) => imageTokens.has(m.token) && !images[m.token])
+        .map((m) => m.token);
+    }
+    return unresolvedTokens.filter((t) => imageTokens.has(t));
+  }, [isDocx, mappings, images, unresolvedTokens, imageTokens]);
 
-  /** Download a generated Word file. */
+  /** Download a generated Word file (anchor must be in the DOM for Firefox). */
   const saveBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   };
 
   /** Merge values into the stored .docx and return the finished Word bytes. */
-  const buildDocx = async (referenceNo: string) => {
+  const buildDocx = async (referenceNo: string, draft = false) => {
     const { data: blob, error } = await supabase.storage
       .from("hr-doc-templates")
       .download(version.source_file_path);
     if (error || !blob) throw error || new Error("The Word template file is missing");
     const { renderDocx } = await import("@/lib/docxTemplate");
-    return renderDocx(await blob.arrayBuffer(), {
-      ...docxValues,
-      reference_no: referenceNo,
-      generated_by: docxValues.generated_by || me?.email || "",
-    });
+    const docImages: Record<string, string> = {};
+    for (const m of mappings) if (imageTokens.has(m.token) && images[m.token]) docImages[m.token] = images[m.token];
+    return renderDocx(
+      await blob.arrayBuffer(),
+      {
+        ...docxValues,
+        reference_no: draft ? `${referenceNo} — DRAFT, NOT ISSUED` : referenceNo,
+        generated_by: docxValues.generated_by || me?.email || "",
+      },
+      docImages
+    );
   };
 
 

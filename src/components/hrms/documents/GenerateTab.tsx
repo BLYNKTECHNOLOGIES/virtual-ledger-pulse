@@ -296,8 +296,8 @@ export function GenerateTab() {
   const preview = async () => {
     if (isDocx) {
       try {
-        const blob = await buildDocx("BLY-DRAFT");
-        saveBlob(blob, `DRAFT-${(template?.name || "letter").replace(/[^\w.-]+/g, "_")}.docx`);
+        const blob = await buildDocx("BLY-DRAFT", true);
+        saveBlob(blob, `DRAFT-DO-NOT-ISSUE-${(template?.name || "letter").replace(/[^\w.-]+/g, "_")}.docx`);
         toast.success("Draft Word file downloaded — open it to check, then Issue");
       } catch (e: any) {
         toast.error(e?.message || "Could not build the draft Word file");

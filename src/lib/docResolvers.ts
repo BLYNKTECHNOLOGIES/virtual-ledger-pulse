@@ -200,6 +200,7 @@ export async function resolveEmployeeValues(
     // Last working day is a distinct fact from the resignation date — never
     // substitute one for the other; an empty value prompts the operator instead.
     "employment.last_working_day": emp.last_working_day || "",
+    "employment.resignation_date": emp.resignation_date || "",
     "employment.employment_type": work?.employee_type || work?.work_type || "",
     "employment.reporting_manager": manager,
     "employment.work_location": work?.location || work?.company_name || "",

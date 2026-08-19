@@ -102,12 +102,15 @@ Deno.serve(async (req) => {
     if (!isDocx) return json({ error: "Only Word letters are converted through Adobe" }, 400);
 
     // Already converted — reuse the archived PDF, never call Adobe again.
+    // Only a confirmed-missing object may trigger a re-conversion; a listing
+    // error must never burn an API credit.
     if (!force && doc.pdf_path) {
       const slash = String(doc.pdf_path).lastIndexOf("/");
       const dir = slash > 0 ? doc.pdf_path.slice(0, slash) : "";
       const name = slash > 0 ? doc.pdf_path.slice(slash + 1) : doc.pdf_path;
-      const { data: listed } = await admin.storage.from("hr-doc-issued").list(dir, { search: name, limit: 100 });
-      if (listed?.some((f: any) => f.name === name)) {
+      const { data: listed, error: listErr } = await admin.storage
+        .from("hr-doc-issued").list(dir, { search: name, limit: 100 });
+      if (listErr || !listed || listed.some((f: any) => f.name === name)) {
         return json({ pdfPath: doc.pdf_path, cached: true });
       }
     }

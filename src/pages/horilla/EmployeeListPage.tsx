@@ -152,7 +152,6 @@ export default function EmployeeListPage() {
           !!r?.additional_info?.onboarding_completed_at ||
           !!r?.resignation_status ||
           !!r?.last_working_day ||
-          !!r?.date_joining ||
           !!r?.user_id;
         return wasActivated;
       }) as HrEmployee[];

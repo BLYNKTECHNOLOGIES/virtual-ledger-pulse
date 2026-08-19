@@ -108,16 +108,9 @@ ${pre}
   <tr><td align="center">
     <table width="640" cellpadding="0" cellspacing="0" border="0" style="width:640px;max-width:96%;background:#ffffff;border:1px solid #e6ebf2;border-radius:10px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0B1524;">
       <tr><td>${hrHeaderHtml()}</td></tr>
-      <tr><td style="padding:24px 22px 8px;font-size:14px;line-height:1.6;color:#1f2937;">
-        ${title}
-        ${content}
-        ${sig}
-      </td></tr>
-      <tr><td style="background:#f8fafc;border-top:1px solid #e6ebf2;padding:14px 22px;font-size:10.5px;line-height:1.5;color:#8a94a6;">
-        This message was sent by the HR desk of ${B.company}, ${B.address}. It may contain confidential
-        information intended only for the addressee — if you received it in error, please delete it and notify
-        <a href="mailto:${B.hrEmail}" style="color:#8a94a6;">${B.hrEmail}</a>.
-      </td></tr>
+      <tr><td align="left" style="padding:24px 24px 12px;font-size:14px;line-height:1.65;color:#1f2937;text-align:left;">${title}${content}${sig}</td></tr>
+      <tr><td align="left" style="background:#f8fafc;border-top:1px solid #e6ebf2;padding:14px 24px;font-size:10.5px;line-height:1.55;color:#8a94a6;text-align:left;">This message was sent by the HR desk of ${B.company}, ${B.address}. It may contain confidential information intended only for the addressee - if you received it in error, please delete it and notify <a href="mailto:${B.hrEmail}" style="color:#8a94a6;">${B.hrEmail}</a>.</td></tr>
+
     </table>
   </td></tr>
 </table>

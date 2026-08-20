@@ -73,7 +73,11 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 </td>
                 <td className="px-4 py-3 text-right font-semibold font-mono">₹{r.amount.toLocaleString('en-IN')}</td>
                 <td className="px-4 py-3">{r.buyerName}</td>
+                {isPaytm && (
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.transactionId || "-"}</td>
+                )}
                 <td className="px-4 py-3 text-muted-foreground text-xs">{r.date}</td>
+
               </tr>
             ))}
           </tbody>

@@ -345,19 +345,31 @@ export function OrgChartView() {
     };
     roots.forEach(walk);
 
-    // Anything still unreachable belongs to a cycle — promote one node per
-    // cycle to a root and detach it from its manager so the branch renders.
+    // Anything still unreachable sits under a cyclic reporting loop. Climb the
+    // manager chain until the loop is found, promote that node to a root and
+    // detach it from its manager so the whole branch renders again.
     const cycleMembers: string[] = [];
-    nodeMap.forEach((node, id) => {
+    nodeMap.forEach((_node, id) => {
       if (reachable.has(id)) return;
-      // Detach this node from its (cyclic) manager
-      const managerId = wiByEmp.get(id)?.reporting_manager_id;
+      const seen = new Set<string>();
+      let cur: string | undefined = id;
+      while (cur && !seen.has(cur) && !reachable.has(cur)) {
+        seen.add(cur);
+        const next = wiByEmp.get(cur)?.reporting_manager_id;
+        if (!next || !nodeMap.has(next)) break;
+        cur = next;
+      }
+      if (!cur || reachable.has(cur)) return;
+      const loopNode = nodeMap.get(cur);
+      if (!loopNode) return;
+      const managerId = wiByEmp.get(cur)?.reporting_manager_id;
       const mgr = managerId ? nodeMap.get(managerId) : null;
-      if (mgr) mgr.children = mgr.children.filter(c => c.id !== id);
-      roots.push(node);
-      cycleMembers.push(node.name);
-      walk(node);
+      if (mgr) mgr.children = mgr.children.filter(c => c.id !== cur);
+      roots.push(loopNode);
+      cycleMembers.push(loopNode.name);
+      walk(loopNode);
     });
+
 
     const sortChildren = (nodes: EmpChartNode[]) => {
       nodes.sort((a, b) => a.name.localeCompare(b.name));

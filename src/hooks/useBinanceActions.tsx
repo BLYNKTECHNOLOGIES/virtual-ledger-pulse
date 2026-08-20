@@ -341,7 +341,9 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null, accountId?
 export function useBinanceOrderHistory() {
   const { accountsToQuery } = useExchangeAccount();
   const accountKey = accountsToQuery.join(',');
-  const SELECT_COLS =
+  // Typed as plain `string` so supabase-js does not parse the select list at
+  // the type level (that parse is what blows up tsc on JSON path aliases).
+  const SELECT_COLS: string =
     'order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, exchange_account_id, raw_order_status:raw_data->>orderStatus, raw_kyc_verify:raw_data->>additionalKycVerify';
 
   // Phase 1: Fast initial load – latest 50 orders only

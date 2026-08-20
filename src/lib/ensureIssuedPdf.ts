@@ -75,8 +75,11 @@ export async function ensureIssuedPdf(doc: any): Promise<{ path: string; blob: B
       document_type: "hr_letter",
       document_name: `${doc.reference_no} — ${doc.template_name}`,
       file_url: fileUrl,
+      source: "issued",
+      source_ref: `issued:${doc.id}`,
       notes: "Issued from HR Document Studio",
       uploaded_by: doc.issued_by_name || null,
+
     }).select("id").maybeSingle();
     if (row?.id) {
       await (supabase as any).from("hr_documents_issued")

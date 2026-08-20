@@ -63,7 +63,7 @@ export function useUsers() {
           account_locked_until,
           created_at,
           updated_at,
-          password_hash,
+          
           role_id,
           badge_id,
           user_roles(

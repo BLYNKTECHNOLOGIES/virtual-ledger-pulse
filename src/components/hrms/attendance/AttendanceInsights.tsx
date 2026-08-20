@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Info,
   Minus,
@@ -28,6 +30,8 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import {
   Tooltip as UITooltip,
   TooltipContent,

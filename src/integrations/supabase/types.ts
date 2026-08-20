@@ -8569,6 +8569,8 @@ export type Database = {
           is_hidden: boolean
           is_verified: boolean
           notes: string | null
+          source: string
+          source_ref: string | null
           uploaded_at: string
           uploaded_by: string | null
           verified_at: string | null
@@ -8584,6 +8586,8 @@ export type Database = {
           is_hidden?: boolean
           is_verified?: boolean
           notes?: string | null
+          source?: string
+          source_ref?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
           verified_at?: string | null
@@ -8599,6 +8603,8 @@ export type Database = {
           is_hidden?: boolean
           is_verified?: boolean
           notes?: string | null
+          source?: string
+          source_ref?: string | null
           uploaded_at?: string
           uploaded_by?: string | null
           verified_at?: string | null
@@ -28971,6 +28977,10 @@ export type Database = {
       hr_sync_compoff_allocation: {
         Args: { p_employee_id: string }
         Returns: string
+      }
+      hr_sync_onboarding_documents: {
+        Args: { p_onboarding_id: string }
+        Returns: number
       }
       hr_sync_pay_head_lines: {
         Args: { p_period?: string }

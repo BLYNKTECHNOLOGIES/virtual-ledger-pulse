@@ -321,15 +321,42 @@ export function OrgChartView() {
       .map(e => ({ id: e.id, name: `${e.first_name} ${e.last_name}`.trim() }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    // Attach every employee to its manager, then determine which nodes are
+    // actually reachable from a top-level root. A cyclic reporting line
+    // (A reports to B, B reports to A) would otherwise make an entire branch
+    // unreachable and collapse the chart down to a single card.
     const roots: EmpChartNode[] = [];
     nodeMap.forEach((node, id) => {
       const wi = wiByEmp.get(id);
       const managerId = wi?.reporting_manager_id;
-      if (managerId && nodeMap.has(managerId)) {
+      if (managerId && managerId !== id && nodeMap.has(managerId)) {
         nodeMap.get(managerId)!.children.push(node);
       } else {
         roots.push(node);
       }
+    });
+
+    // Mark everything reachable from the natural roots.
+    const reachable = new Set<string>();
+    const walk = (n: EmpChartNode) => {
+      if (reachable.has(n.id)) return;
+      reachable.add(n.id);
+      n.children.forEach(walk);
+    };
+    roots.forEach(walk);
+
+    // Anything still unreachable belongs to a cycle — promote one node per
+    // cycle to a root and detach it from its manager so the branch renders.
+    const cycleMembers: string[] = [];
+    nodeMap.forEach((node, id) => {
+      if (reachable.has(id)) return;
+      // Detach this node from its (cyclic) manager
+      const managerId = wiByEmp.get(id)?.reporting_manager_id;
+      const mgr = managerId ? nodeMap.get(managerId) : null;
+      if (mgr) mgr.children = mgr.children.filter(c => c.id !== id);
+      roots.push(node);
+      cycleMembers.push(node.name);
+      walk(node);
     });
 
     const sortChildren = (nodes: EmpChartNode[]) => {
@@ -338,8 +365,9 @@ export function OrgChartView() {
     };
     sortChildren(roots);
 
-    return { empTree: roots, managers: managerList };
+    return { empTree: roots, managers: managerList, cycleMembers };
   }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts]);
+
 
   // When empTree is built, auto-expand only root nodes so the first level is visible
   useEffect(() => {

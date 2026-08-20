@@ -360,6 +360,8 @@ export function groupByInvoice(records: OrderRecord[], category: InvoiceCategory
       existing.items.push(record);
       existing.totalAmount += record.amount;
       if (!existing.transactionId && record.transactionId) existing.transactionId = record.transactionId;
+      if (!existing.orderId && record.orderId) existing.orderId = record.orderId;
+      if (!existing.rrn && record.rrn) existing.rrn = record.rrn;
     } else {
       map.set(record.invoiceNumber, {
         invoiceNumber: record.invoiceNumber,
@@ -372,6 +374,8 @@ export function groupByInvoice(records: OrderRecord[], category: InvoiceCategory
         totalAmount: record.amount,
         category,
         transactionId: record.transactionId,
+        orderId: record.orderId,
+        rrn: record.rrn,
       });
     }
 

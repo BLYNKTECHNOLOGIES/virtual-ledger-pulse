@@ -245,7 +245,9 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         invoiceNumber, description, hsnSac, quantity, rate, amount,
         buyerName, buyerAddress, buyerGstin, buyerContact, date,
         unit: "NOS",
+        transactionId: transactionId || undefined,
       });
+
     }
   }
 

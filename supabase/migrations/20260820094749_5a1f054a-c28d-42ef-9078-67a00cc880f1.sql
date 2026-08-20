@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.admin_top_slow_queries(int) TO supabase_read_only_user;

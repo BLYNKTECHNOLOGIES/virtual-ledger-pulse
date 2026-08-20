@@ -26949,6 +26949,18 @@ export type Database = {
         Args: { p_new_password: string; p_user_id: string }
         Returns: boolean
       }
+      admin_top_slow_queries: {
+        Args: { _limit?: number }
+        Returns: {
+          calls: number
+          max_ms: number
+          mean_ms: number
+          query: string
+          role_name: string
+          rows_returned: number
+          total_ms: number
+        }[]
+      }
       apply_due_scheduled_salary_revisions: { Args: never; Returns: number }
       apply_due_statutory_revisions: { Args: never; Returns: number }
       apply_salary_revision: {

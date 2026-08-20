@@ -153,7 +153,23 @@ function OrgChartNode({
         {node.department && (
           <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-medium text-primary">{node.department}</span>
         )}
+        {node.unassigned && (
+          <div className="mt-2 space-y-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-2.5 w-2.5" /> No manager
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 w-full text-[10px] gap-1"
+              onClick={(e) => { e.stopPropagation(); onAssign?.(node); }}
+            >
+              <UserPlus className="h-3 w-3" /> Assign manager
+            </Button>
+          </div>
+        )}
         {hasChildren && (
+
           <span className="absolute -top-2 -right-2 z-10 h-5 min-w-[20px] px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center shadow-sm">
             {node.children.length}
           </span>

@@ -4,13 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Building2, Briefcase, ChevronDown, ChevronRight, Users,
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, UserPlus, AlertTriangle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
@@ -33,8 +37,10 @@ interface EmpChartNode {
   designation: string;
   department: string;
   profileUrl: string | null;
+  unassigned?: boolean;
   children: EmpChartNode[];
 }
+
 
 /* ── Position Tree Item ── */
 

@@ -289,7 +289,20 @@ Deno.serve(async (req) => {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: "A valid recipientEmail is required" }, 400);
   if (!eventType) return json({ error: "eventType is required" }, 400);
 
+  // Recipients must be a known employee / ERP user mailbox — never an arbitrary address.
+  {
+    const [emp, workEmail, erpUser] = await Promise.all([
+      admin.from("hr_employees").select("id").ilike("email", to).limit(1).maybeSingle(),
+      admin.from("hr_employee_work_info").select("id").ilike("work_email", to).limit(1).maybeSingle(),
+      admin.from("users").select("id").ilike("email", to).limit(1).maybeSingle(),
+    ]);
+    if (!emp.data && !workEmail.data && !erpUser.data) {
+      return json({ error: "Recipient is not a known employee mailbox" }, 403);
+    }
+  }
+
   const idempotencyKey = String(body.idempotencyKey || `${kind}-${eventType}-${to}-${crypto.randomUUID()}`);
+
 
   try {
     if (!sample) {

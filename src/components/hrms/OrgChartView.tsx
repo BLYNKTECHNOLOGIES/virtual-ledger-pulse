@@ -128,12 +128,16 @@ function OrgChartNode({
     <div className="flex flex-col items-center">
       {/* The card */}
       <div
+        onClick={() => { if (node.unassigned) onAssign?.(node); }}
         className={`relative rounded-lg px-4 py-3 min-w-[170px] max-w-[220px] text-center transition-all select-none border
           ${isHighlighted
             ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md"
-            : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
+            : node.unassigned
+              ? "border-dashed border-amber-500/60 bg-amber-500/10 hover:shadow-md cursor-pointer"
+              : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
       >
+
         {/* Avatar */}
         <div className="flex justify-center mb-1.5">
           {node.profileUrl ? (

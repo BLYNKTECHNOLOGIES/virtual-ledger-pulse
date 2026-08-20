@@ -620,6 +620,36 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="lien_state">State</Label>
+                <Select
+                  value={formData.lien_state}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, lien_state: value }))}
+                >
+                  <SelectTrigger id="lien_state">
+                    <SelectValue placeholder="Select state / UT" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    {INDIAN_STATES_AND_UTS.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="lien_city">City</Label>
+                <Input
+                  id="lien_city"
+                  value={formData.lien_city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, lien_city: e.target.value }))}
+                  placeholder="Enter city"
+                />
+              </div>
+            </div>
+
+
+
             <div className="space-y-2">
               <Label htmlFor="bank_reason">Reason Provided by Bank</Label>
               <Textarea

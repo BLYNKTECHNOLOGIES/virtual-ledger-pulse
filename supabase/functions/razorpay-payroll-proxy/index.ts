@@ -6290,6 +6290,8 @@ Deno.serve(async (req) => {
         department: deptName,
         title: ob.job_role,
         state: DEFAULT_RP_STATE,
+        uan: uan || null,
+        "uan-number": uan || null,
         pan,
         "bank-account-number": accountNumber,
         "bank-ifsc": ifsc,

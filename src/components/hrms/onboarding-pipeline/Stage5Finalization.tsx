@@ -646,18 +646,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     }));
   }, [existingBank]);
 
-  const { data: roles } = useQuery({
-    queryKey: ["erp-roles-list"],
+  // ERP accounts created from HRMS are always provisioned as "Standby".
+  const { data: standbyRole } = useQuery({
+    queryKey: ["erp-standby-role"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("roles")
-        .select("id, name")
-        .order("name");
+      const { data, error } = await supabase.from("roles").select("id, name");
       if (error) throw error;
-      return data?.filter(r => !["admin", "super_admin", "Admin", "Super Admin"].includes(r.name)) || [];
+      return (data || []).find(r => String(r.name).trim().toLowerCase() === "standby") || null;
     },
     enabled: form.create_erp_account,
   });
+
+  useEffect(() => {
+    if (form.create_erp_account && standbyRole?.id && form.erp_role_id !== standbyRole.id) {
+      updateForm({ erp_role_id: standbyRole.id });
+    }
+  }, [form.create_erp_account, standbyRole?.id]);
+
 
   const { data: managers } = useQuery({
     queryKey: ["managers-list-stage5"],
@@ -1011,7 +1016,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         return false;
       }
     }
-    if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
+    if (form.create_erp_account && !form.erp_role_id) { toast.error("Standby role not found in ERP roles — cannot create the ERP account"); return false; }
     const anyBank = form.bank_account_number.trim() || form.bank_ifsc_code.trim();
     if (anyBank && !hasBankInput) {
       toast.error("Enter both Account Number and IFSC, or leave both blank");
@@ -1699,18 +1704,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{generatedUsername || "—"}</p>
               </div>
               <div>
-                <Label>Role *</Label>
-                <Select
-                  value={form.erp_role_id}
-                  onValueChange={v => updateForm({ erp_role_id: v })}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                  <SelectContent>
-                    {roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs text-muted-foreground">Role</Label>
+                <p className="text-sm bg-muted px-2 py-1 rounded">Standby</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Accounts created from HRMS are always Standby (profile access only). Elevate the role later from ERP user management.
+                </p>
               </div>
+
               <div className="flex items-start gap-2 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3 w-3 mt-0.5 text-warning" />
                 <span>A system-generated password will be emailed. User will be forced to change it on first login.</span>

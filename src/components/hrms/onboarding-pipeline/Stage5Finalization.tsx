@@ -1704,18 +1704,13 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
                 <p className="text-sm font-mono bg-muted px-2 py-1 rounded">{generatedUsername || "—"}</p>
               </div>
               <div>
-                <Label>Role *</Label>
-                <Select
-                  value={form.erp_role_id}
-                  onValueChange={v => updateForm({ erp_role_id: v })}
-                  disabled={readOnly}
-                >
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                  <SelectContent>
-                    {roles?.map(r => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label className="text-xs text-muted-foreground">Role</Label>
+                <p className="text-sm bg-muted px-2 py-1 rounded">Standby</p>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Accounts created from HRMS are always Standby (profile access only). Elevate the role later from ERP user management.
+                </p>
               </div>
+
               <div className="flex items-start gap-2 text-xs text-muted-foreground">
                 <AlertTriangle className="h-3 w-3 mt-0.5 text-warning" />
                 <span>A system-generated password will be emailed. User will be forced to change it on first login.</span>

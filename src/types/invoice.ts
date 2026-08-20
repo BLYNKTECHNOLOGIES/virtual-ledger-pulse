@@ -1,4 +1,4 @@
-export type InvoiceCategory = "it_services" | "financial_intermediation" | "usdt_sales" | "pure_agent";
+export type InvoiceCategory = "it_services" | "it_services_paytm" | "financial_intermediation" | "usdt_sales" | "pure_agent";
 
 export type MarginType = "percentage" | "absolute";
 export type GSTDirection = "forward" | "reverse";

@@ -547,6 +547,13 @@ export function OrgChartView() {
             </div>
           </div>
 
+          {cycleMembers.length > 0 && (
+            <div className="mb-3 mx-1 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              Circular reporting line detected — {cycleMembers.join(", ")} {cycleMembers.length === 1 ? "was" : "were"} shown as a separate top node. Fix the reporting manager in Work Information to restore a single hierarchy.
+            </div>
+          )}
+
+
           {/* Chart area */}
           <div
             className="relative border border-border rounded-lg bg-background overflow-hidden flex-1"

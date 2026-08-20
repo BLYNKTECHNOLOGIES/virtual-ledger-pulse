@@ -646,18 +646,23 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
     }));
   }, [existingBank]);
 
-  const { data: roles } = useQuery({
-    queryKey: ["erp-roles-list"],
+  // ERP accounts created from HRMS are always provisioned as "Standby".
+  const { data: standbyRole } = useQuery({
+    queryKey: ["erp-standby-role"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("roles")
-        .select("id, name")
-        .order("name");
+      const { data, error } = await supabase.from("roles").select("id, name");
       if (error) throw error;
-      return data?.filter(r => !["admin", "super_admin", "Admin", "Super Admin"].includes(r.name)) || [];
+      return (data || []).find(r => String(r.name).trim().toLowerCase() === "standby") || null;
     },
     enabled: form.create_erp_account,
   });
+
+  useEffect(() => {
+    if (form.create_erp_account && standbyRole?.id && form.erp_role_id !== standbyRole.id) {
+      updateForm({ erp_role_id: standbyRole.id });
+    }
+  }, [form.create_erp_account, standbyRole?.id]);
+
 
   const { data: managers } = useQuery({
     queryKey: ["managers-list-stage5"],

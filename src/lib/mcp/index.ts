@@ -5,7 +5,7 @@ import listPurchaseOrders from "./tools/list-purchase-orders";
 import getWalletBalances from "./tools/get-wallet-balances";
 
 // The OAuth issuer MUST be the direct Supabase host, built from the project ref
-// (never SUPABASE_URL, which is the Lovable Cloud proxy). VITE_SUPABASE_PROJECT_ID
+// (never SUPABASE_URL, which is the hosted Supabase edge proxy). VITE_SUPABASE_PROJECT_ID
 // is inlined as a literal at build time, keeping this entry import-safe.
 const projectRef = import.meta.env.VITE_SUPABASE_PROJECT_ID ?? "project-ref-unset";
 

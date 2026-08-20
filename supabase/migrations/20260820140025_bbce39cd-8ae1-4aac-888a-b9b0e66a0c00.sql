@@ -1,0 +1,1 @@
+drop table if exists public._cron_auth_probe;

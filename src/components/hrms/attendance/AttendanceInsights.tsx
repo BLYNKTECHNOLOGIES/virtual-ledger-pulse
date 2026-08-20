@@ -556,18 +556,14 @@ export function AttendanceInsights({
   }, [maintained]);
 
   /* ---------------- departments ---------------- */
+  const shiftOf = (id: string) => shiftNameByEmployee?.get(id) || "No shift mapped";
+
   const deptRows = useMemo(() => {
-    const acc = new Map<
-      string,
-      { headcount: number; total: number; present: number; half: number; lateDays: number; lop: number; netMin: number; workedDays: number }
-    >();
-    const ensure = (d: string) => {
-      if (!acc.has(d)) acc.set(d, { headcount: 0, total: 0, present: 0, half: 0, lateDays: 0, lop: 0, netMin: 0, workedDays: 0 });
-      return acc.get(d)!;
-    };
-    for (const s of summary) {
-      const dept = deptByEmployee.get(s.employee_id) || "Unassigned";
-      const a = ensure(dept);
+    type Agg = { headcount: number; total: number; present: number; half: number; lateDays: number; lop: number; netMin: number; workedDays: number };
+    const blank = (): Agg => ({ headcount: 0, total: 0, present: 0, half: 0, lateDays: 0, lop: 0, netMin: 0, workedDays: 0 });
+    const acc = new Map<string, { agg: Agg; shifts: Map<string, Agg> }>();
+
+    const add = (a: Agg, s: SummaryLite) => {
       a.headcount++;
       a.lop += Number(s.lop_days || 0);
       const st = perEmployee.get(s.employee_id);
@@ -579,18 +575,37 @@ export function AttendanceInsights({
         a.netMin += st.netMin;
         a.workedDays += st.workedDays;
       }
+    };
+
+    for (const s of summary) {
+      const dept = deptByEmployee.get(s.employee_id) || "Unassigned";
+      if (!acc.has(dept)) acc.set(dept, { agg: blank(), shifts: new Map() });
+      const bucket = acc.get(dept)!;
+      add(bucket.agg, s);
+      const sh = shiftOf(s.employee_id);
+      if (!bucket.shifts.has(sh)) bucket.shifts.set(sh, blank());
+      add(bucket.shifts.get(sh)!, s);
     }
+
+    const shape = (name: string, a: Agg) => ({
+      name,
+      headcount: a.headcount,
+      attendanceRate: a.total > 0 ? ((a.present + a.half * 0.5) / a.total) * 100 : null,
+      onTimeRate: a.present + a.half > 0 ? ((a.present + a.half - a.lateDays) / (a.present + a.half)) * 100 : null,
+      lop: a.lop,
+      avgHours: a.workedDays > 0 ? a.netMin / a.workedDays / 60 : null,
+    });
+
     return [...acc.entries()]
-      .map(([name, a]) => ({
-        name,
-        headcount: a.headcount,
-        attendanceRate: a.total > 0 ? ((a.present + a.half * 0.5) / a.total) * 100 : null,
-        onTimeRate: a.present + a.half > 0 ? ((a.present + a.half - a.lateDays) / (a.present + a.half)) * 100 : null,
-        lop: a.lop,
-        avgHours: a.workedDays > 0 ? a.netMin / a.workedDays / 60 : null,
+      .map(([name, b]) => ({
+        ...shape(name, b.agg),
+        shifts: [...b.shifts.entries()]
+          .map(([sname, sa]) => shape(sname, sa))
+          .sort((a, b2) => (a.attendanceRate ?? 999) - (b2.attendanceRate ?? 999)),
       }))
       .sort((a, b) => (a.attendanceRate ?? 999) - (b.attendanceRate ?? 999));
-  }, [summary, perEmployee, deptByEmployee]);
+  }, [summary, perEmployee, deptByEmployee, shiftNameByEmployee]);
+
 
   /* ---------------- exceptions ---------------- */
   const exceptions = useMemo(() => {

@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar, Upload, X } from "lucide-react";
 import { format } from "date-fns";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { usePermissions } from "@/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 import { useFileDropzone } from "@/hooks/useFileDropzone";
@@ -66,6 +67,8 @@ interface CaseFormData {
   supporting_proof: File[];
   amount_lien_marked: number;
   date_lien_marked: string;
+  lien_state: string;
+  lien_city: string;
   bank_reason: string;
   supporting_document: File[];
   remarks: string;
@@ -109,6 +112,8 @@ export function CaseGenerator() {
     supporting_proof: [],
     amount_lien_marked: 0,
     date_lien_marked: '',
+    lien_state: '',
+    lien_city: '',
     bank_reason: '',
     supporting_document: [],
     remarks: '',
@@ -261,6 +266,8 @@ export function CaseGenerator() {
         supporting_proof: uploadedSupportingProof[0] || null,
         amount_lien_marked: data.amount_lien_marked || null,
         date_lien_marked: data.date_lien_marked || null,
+        lien_state: data.lien_state || null,
+        lien_city: data.lien_city || null,
         bank_reason: data.bank_reason,
         supporting_document: uploadedSupportingDocument[0] || null,
         remarks: data.remarks,
@@ -323,6 +330,8 @@ export function CaseGenerator() {
       supporting_proof: [],
       amount_lien_marked: 0,
       date_lien_marked: '',
+      lien_state: '',
+      lien_city: '',
       bank_reason: '',
       supporting_document: [],
       remarks: '',

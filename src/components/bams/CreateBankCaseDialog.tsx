@@ -48,6 +48,8 @@ interface CaseFormData {
   supporting_proof: File[];
   amount_lien_marked: number;
   date_lien_marked: string;
+  lien_state: string;
+  lien_city: string;
   bank_reason: string;
   supporting_document: File[];
   remarks: string;
@@ -91,6 +93,8 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
     supporting_proof: [],
     amount_lien_marked: 0,
     date_lien_marked: '',
+    lien_state: '',
+    lien_city: '',
     bank_reason: '',
     supporting_document: [],
     remarks: '',
@@ -213,6 +217,8 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
         supporting_proof: uploadedSupportingProof[0] || null,
         amount_lien_marked: data.amount_lien_marked || null,
         date_lien_marked: data.date_lien_marked || null,
+        lien_state: data.lien_state || null,
+        lien_city: data.lien_city || null,
         bank_reason: data.bank_reason,
         supporting_document: uploadedSupportingDocument[0] || null,
         remarks: data.remarks,
@@ -275,6 +281,8 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
       supporting_proof: [],
       amount_lien_marked: 0,
       date_lien_marked: '',
+      lien_state: '',
+      lien_city: '',
       bank_reason: '',
       supporting_document: [],
       remarks: '',

@@ -418,7 +418,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'submit') {
-      const payload = body?.payload && typeof body.payload === 'object' ? body.payload : {};
+      const raw = body?.payload && typeof body.payload === 'object' ? body.payload : {};
+      // Candidates often paste values with stray leading/trailing whitespace
+      // (mobile keyboards add a trailing space). Trim every string before
+      // validating so a space never blocks a submission.
+      const payload: Record<string, any> = {};
+      for (const [k, v] of Object.entries(raw)) payload[k] = typeof v === 'string' ? v.trim() : v;
+
       const errs = validate(payload);
       if (errs.length) return json({ error: 'Please fix the highlighted fields', details: errs }, 400);
 
@@ -428,6 +434,7 @@ Deno.serve(async (req) => {
         bank_ifsc: String(payload.bank_ifsc).toUpperCase(),
         submitted_from_ip: req.headers.get('x-forwarded-for') || null,
       };
+
 
       const { error: upErr } = await admin
         .from('hr_onboarding_invites')

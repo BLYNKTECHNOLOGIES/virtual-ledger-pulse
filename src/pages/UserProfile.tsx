@@ -524,43 +524,56 @@ function EmployeeDocumentsTab({ employeeId }: { employeeId: string }) {
 
   const typeLabel = (t: string) => (t || 'document').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+  const groups = [
+    { key: 'onboarding', title: 'Submitted at onboarding', items: docs.filter((d: any) => d.source === 'onboarding') },
+    { key: 'issued', title: 'Letters issued to me', items: docs.filter((d: any) => d.source === 'issued') },
+    { key: 'hr_upload', title: 'Uploaded by HR', items: docs.filter((d: any) => !['onboarding', 'issued'].includes(d.source)) },
+  ].filter(g => g.items.length > 0);
+
   return (
     <SectionBlock
       title="My Documents"
       icon={FileText}
-      description="Need a new document uploaded or a certificate? Contact HR."
+      description="View-only. Documents are managed by HR — contact HR for any change or new certificate."
       actions={<span className="t-secondary">{docs.length} file{docs.length === 1 ? '' : 's'}</span>}
       bodyClassName="p-0"
     >
-      <ul className="divide-y divide-border">
-        {docs.map((doc: any) => (
-          <li key={doc.id} className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/40 transition-colors">
-            <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-medium text-foreground truncate">
-                {doc.document_name || typeLabel(doc.document_type)}
-              </p>
-              <p className="t-secondary truncate">
-                {typeLabel(doc.document_type)}
-                {doc.uploaded_at ? ` · ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
-              </p>
-            </div>
-            <StatusPill tone={doc.is_verified ? 'success' : 'warning'}>
-              {doc.is_verified ? 'Verified' : 'Pending'}
-            </StatusPill>
-            {doc.file_url ? (
-              <Button variant="outline" size="sm" onClick={() => { void openStoredDocument(doc.file_url); }}>
-                View
-              </Button>
-
-            ) : (
-              <Button variant="outline" size="sm" disabled>Unavailable</Button>
-            )}
-          </li>
-        ))}
-      </ul>
+      {groups.map(group => (
+        <div key={group.key}>
+          <p className="px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+            {group.title} · {group.items.length}
+          </p>
+          <ul className="divide-y divide-border">
+            {group.items.map((doc: any) => (
+              <li key={doc.id} className="flex items-center gap-3 px-3.5 py-2.5 hover:bg-muted/40 transition-colors">
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-medium text-foreground truncate">
+                    {doc.document_name || typeLabel(doc.document_type)}
+                  </p>
+                  <p className="t-secondary truncate">
+                    {typeLabel(doc.document_type)}
+                    {doc.uploaded_at ? ` · ${formatDistanceToNow(new Date(doc.uploaded_at), { addSuffix: true })}` : ''}
+                  </p>
+                </div>
+                <StatusPill tone={doc.is_verified ? 'success' : 'warning'}>
+                  {doc.is_verified ? 'Verified' : 'Pending'}
+                </StatusPill>
+                {doc.file_url ? (
+                  <Button variant="outline" size="sm" onClick={() => { void openStoredDocument(doc.file_url); }}>
+                    View
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" disabled>Unavailable</Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
     </SectionBlock>
   );
+
 }
 
 

@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _cron_auth_probe: {
+        Row: {
+          id: number
+          req_id: number | null
+        }
+        Insert: {
+          id?: number
+          req_id?: number | null
+        }
+        Update: {
+          id?: number
+          req_id?: number | null
+        }
+        Relationships: []
+      }
       account_investigations: {
         Row: {
           assigned_to: string | null

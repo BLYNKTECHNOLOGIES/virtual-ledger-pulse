@@ -107,12 +107,18 @@ export default function OnboardingApplyPage() {
       body: { action: "submit", token, payload: form },
     });
     setSubmitting(false);
-    const res = data as any;
+    let res = data as any;
+    // supabase-js does not parse the body of non-2xx responses, so read it off
+    // the FunctionsHttpError context to show the real validation messages.
+    if (error && (error as any)?.context?.json) {
+      try { res = await (error as any).context.json(); } catch { /* ignore */ }
+    }
     if (error || res?.error) {
-      setErrors(res?.details || [res?.error || "Something went wrong. Please try again."]);
+      setErrors(res?.details?.length ? res.details : [res?.error || "Something went wrong. Please try again."]);
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+
     setSubmitted(true);
     window.scrollTo({ top: 0 });
   };

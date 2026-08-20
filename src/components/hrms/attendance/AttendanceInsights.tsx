@@ -89,6 +89,8 @@ type Props = {
   activeIds?: Set<string>;
   deptByEmployee: Map<string, string>;
   shiftMinutesByEmployee: Map<string, number>;
+  /** Optional shift label per employee — enables the shift breakdown under each department. */
+  shiftNameByEmployee?: Map<string, string>;
 };
 
 /** Lateness beyond this is a shift-mapping / timestamp artefact, not real lateness. */

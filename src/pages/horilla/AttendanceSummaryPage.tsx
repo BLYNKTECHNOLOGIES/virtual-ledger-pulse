@@ -317,6 +317,7 @@ export default function AttendanceSummaryPage() {
           activeIds={activeIds}
           deptByEmployee={deptByEmployee}
           shiftMinutesByEmployee={shiftMinutesByEmployee}
+          shiftNameByEmployee={shiftNameByEmployee}
         />}
 
 

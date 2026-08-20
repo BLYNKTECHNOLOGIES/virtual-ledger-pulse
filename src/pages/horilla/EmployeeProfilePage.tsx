@@ -999,6 +999,31 @@ export default function EmployeeProfilePage() {
               </div>
               <div className="space-y-3">
                 <div className="border border-border rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Identity</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                    <InfoRow label="Badge ID" value={emp.badge_id != null ? String(emp.badge_id) : null} editKey="badge_id" />
+                    <div className="py-2">
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      {editing ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, is_active: !(editForm.is_active ?? emp.is_active) })}
+                          className={`mt-1 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                            (editForm.is_active ?? emp.is_active) ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {(editForm.is_active ?? emp.is_active) ? "Active" : "Inactive"}
+                        </button>
+                      ) : (
+                        <p className="text-sm font-medium text-foreground">{emp.is_active ? "Active" : "Inactive"}</p>
+                      )}
+                    </div>
+                    <InfoRow label="First Name" value={emp.first_name} editKey="first_name" />
+                    <InfoRow label="Last Name" value={emp.last_name} editKey="last_name" />
+                  </div>
+                </div>
+
+                <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Contact</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
                     <InfoRow label="Email" value={emp.email} editKey="email" inputType="email" />

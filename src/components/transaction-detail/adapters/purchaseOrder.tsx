@@ -30,9 +30,8 @@ export const purchaseOrderAdapter: TransactionAdapter = {
 
     let createdByName: string | null = null;
     if (data.created_by) {
-      const { data: u } = await supabase
-        usersDirectory()
-        .select('first_name, last_name, email, username')
+      const { data: u } = await usersDirectory()
+        .select('first_name, last_name, username')
         .eq('id', data.created_by)
         .maybeSingle();
       createdByName = [u?.first_name, u?.last_name].filter(Boolean).join(' ') || u?.username || u?.email || null;

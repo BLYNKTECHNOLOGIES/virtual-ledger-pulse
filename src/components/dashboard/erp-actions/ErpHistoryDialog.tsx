@@ -51,8 +51,7 @@ function useErpFullHistory() {
 
       let userMap: Record<string, string> = {};
       if (userIds.length > 0) {
-        const { data: users } = await supabase
-          usersDirectory()
+        const { data: users } = await usersDirectory()
           .select("id, username, first_name, last_name")
           .in("id", userIds);
         if (users) {

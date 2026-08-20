@@ -73,8 +73,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
     queryKey: ['sales_order_creator', order?.created_by],
     queryFn: async () => {
       if (!order?.created_by) return null;
-      const { data: user } = await supabase
-        usersDirectory()
+      const { data: user } = await usersDirectory()
         .select('username')
         .eq('id', order.created_by)
         .single();

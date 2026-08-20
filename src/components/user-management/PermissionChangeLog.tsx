@@ -40,8 +40,7 @@ export function PermissionChangeLog() {
       // Fetch usernames for changed_by
       const userIds = [...new Set((data || []).map(l => l.changed_by).filter(Boolean))];
       if (userIds.length > 0) {
-        const { data: users } = await supabase
-          usersDirectory()
+        const { data: users } = await usersDirectory()
           .select('id, username, first_name, last_name')
           .in('id', userIds);
 

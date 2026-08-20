@@ -559,8 +559,7 @@ export function ClientOnboardingApprovals() {
         new Set((approvals || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
       );
       if (ids.length === 0) return map;
-      const { data } = await supabase
-        usersDirectory()
+      const { data } = await usersDirectory()
         .select('id, first_name, last_name, username')
         .in('id', ids);
       for (const u of data || []) {

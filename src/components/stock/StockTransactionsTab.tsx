@@ -122,9 +122,8 @@ export function StockTransactionsTab() {
           ? supabase.from('wallets').select('id, wallet_name').in('id', walletIds)
           : Promise.resolve({ data: [], error: null } as any),
         creatorIds.length
-          ? supabase
-              usersDirectory()
-              .select('id, username, first_name, last_name, email, phone, avatar_url')
+          ? usersDirectory()
+              .select('id, username, first_name, last_name, avatar_url')
               .in('id', creatorIds)
           : Promise.resolve({ data: [], error: null } as any),
       ]);
@@ -295,9 +294,8 @@ export function StockTransactionsTab() {
       ) as string[];
 
       const { data: usersData } = creatorIds.length
-        ? await supabase
-            usersDirectory()
-            .select('id, username, first_name, last_name, email, phone, avatar_url')
+        ? await usersDirectory()
+            .select('id, username, first_name, last_name, avatar_url')
             .in('id', creatorIds)
         : ({ data: [] } as any);
 

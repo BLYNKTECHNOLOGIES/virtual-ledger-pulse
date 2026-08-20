@@ -92,8 +92,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     queryKey: ['user', order?.created_by],
     queryFn: async () => {
       if (!order?.created_by) return null;
-      const { data, error } = await supabase
-        usersDirectory()
+      const { data, error } = await usersDirectory()
         .select('id, username')
         .eq('id', order.created_by)
         .single();

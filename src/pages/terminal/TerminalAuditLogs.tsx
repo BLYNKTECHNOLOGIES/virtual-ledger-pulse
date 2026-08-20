@@ -66,8 +66,7 @@ export default function TerminalAuditLogs() {
       });
 
       const { data: users } = userIds.size > 0
-        ? await supabase
-            usersDirectory()
+        ? await usersDirectory()
             .select('id, username, first_name, last_name')
             .in('id', Array.from(userIds))
         : { data: [] };

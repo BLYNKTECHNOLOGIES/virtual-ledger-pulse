@@ -107,8 +107,7 @@ export function useActivityTimeline(entityId: string | undefined, entityType?: s
       const userIds = [...new Set(logs.map(log => log.user_id))];
 
       // Fetch user details
-      const { data: users, error: usersError } = await supabase
-        usersDirectory()
+      const { data: users, error: usersError } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .in('id', userIds);
 

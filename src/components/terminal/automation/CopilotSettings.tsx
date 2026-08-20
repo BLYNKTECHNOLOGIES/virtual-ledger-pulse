@@ -28,8 +28,7 @@ function useTerminalUsersList() {
   return useQuery({
     queryKey: ['copilot-user-list'],
     queryFn: async (): Promise<TUser[]> => {
-      const { data, error } = await supabase
-        usersDirectory()
+      const { data, error } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .order('first_name', { ascending: true });
       if (error) throw error;

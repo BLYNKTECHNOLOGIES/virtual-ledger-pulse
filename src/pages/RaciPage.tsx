@@ -81,8 +81,7 @@ function RaciPageContent() {
     const checkAdmin = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-      const { data } = await supabase
-        usersDirectory()
+      const { data } = await usersDirectory()
         .select('id')
         .eq('id', session.user.id)
         .single();

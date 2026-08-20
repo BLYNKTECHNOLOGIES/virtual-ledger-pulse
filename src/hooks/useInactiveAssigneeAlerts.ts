@@ -117,8 +117,7 @@ export function useInactiveAssigneeAlerts() {
 
       // 5. Get usernames for display
       const allUserIds = [...assignedUserIds];
-      const { data: usersData } = await supabase
-        usersDirectory()
+      const { data: usersData } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .in('id', allUserIds);
 

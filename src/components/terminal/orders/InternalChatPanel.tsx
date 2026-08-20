@@ -69,8 +69,7 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
       const allUserIds = [...new Set([...payerUserIds, ...operatorUserIds])];
       if (allUserIds.length === 0) return { payers: [], operators: [] };
 
-      const { data: users } = await supabase
-        usersDirectory()
+      const { data: users } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .in('id', allUserIds);
 

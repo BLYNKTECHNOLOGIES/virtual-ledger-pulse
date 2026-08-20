@@ -166,8 +166,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
       const uid = auth?.user?.id ?? null;
       let name: string | null = null;
       if (uid) {
-        const { data: me } = await supabase
-          usersDirectory()
+        const { data: me } = await usersDirectory()
           .select('first_name, last_name, username')
           .eq('id', uid)
           .maybeSingle();

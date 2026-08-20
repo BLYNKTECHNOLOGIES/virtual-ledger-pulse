@@ -51,8 +51,7 @@ async function resolveUsernames(userIds: string[]): Promise<Record<string, strin
   const map: Record<string, string> = {};
   if (userIds.length === 0) return map;
 
-  const { data: users } = await supabase
-    usersDirectory()
+  const { data: users } = await usersDirectory()
     .select('id, username')
     .in('id', userIds);
 

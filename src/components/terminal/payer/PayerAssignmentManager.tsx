@@ -61,8 +61,7 @@ export function PayerAssignmentManager() {
         .from('p2p_terminal_user_roles').select('user_id').in('role_id', allRoleIds);
       if (!userRoles || userRoles.length === 0) return [];
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
-      const { data: users } = await supabase
-        usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
+      const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
       return users || [];
     },
   });

@@ -73,12 +73,11 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
         .order("created_at", { ascending: false });
       if (error) throw error;
       const rows = (data as OnboardingRecord[]) || [];
-      // Push completed onboardings to the bottom; keep created_at ordering within each group
-      return [...rows].sort((a, b) => {
-        const aDone = a.status === "completed" ? 1 : 0;
-        const bDone = b.status === "completed" ? 1 : 0;
-        return aDone - bDone;
-      });
+      // Strict chronological order: newest started first.
+      return [...rows].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+
     },
   });
 

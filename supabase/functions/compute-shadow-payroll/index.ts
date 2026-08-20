@@ -143,12 +143,23 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const caller = await requireCaller(req, corsHeaders);
+    if (!caller.ok) return caller.response;
+    const supabase = caller.admin;
+    if (caller.kind === "user" && caller.userId) {
+      const [payroll, hr] = await Promise.all([
+        supabase.rpc("hr_payroll_cockpit_authorized", { _user_id: caller.userId }),
+        supabase.rpc("hr_is_hr_staff", { _user_id: caller.userId }),
+      ]);
+      if (!payroll.data && !hr.data) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     const body = await req.json().catch(() => ({}));
+
     const periodStr: string = body.period_month;
     if (!periodStr || !/^\d{4}-\d{2}-\d{2}$/.test(periodStr)) {
       return new Response(JSON.stringify({ error: "period_month (YYYY-MM-01) required" }), {

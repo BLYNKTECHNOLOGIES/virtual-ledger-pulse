@@ -27156,6 +27156,7 @@ export type Database = {
           old_drift: number
         }[]
       }
+      complete_forced_password_change: { Args: never; Returns: boolean }
       complete_sales_order_with_banking: {
         Args: {
           p_bank_account_id: string

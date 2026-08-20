@@ -52,12 +52,16 @@ export function ForcedPasswordResetDialog({ open, onSuccess }: ForcedPasswordRes
         return;
       }
 
-      // Clear the force_password_change flag
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.id) {
-        await supabase.from('users').update({ force_password_change: false }).eq('id', user.id);
-        setUserId(user.id);
+      // Complete the first-login transition through the self-scoped database action.
+      // A direct users update is intentionally blocked by RLS for non-managers.
+      const { error: completionError } = await supabase.rpc('complete_forced_password_change');
+      if (completionError) {
+        setError('Your password was updated, but account setup could not be completed. Please try again.');
+        return;
       }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.id) setUserId(user.id);
 
       // Optional next step: profile picture
       setStep('avatar');

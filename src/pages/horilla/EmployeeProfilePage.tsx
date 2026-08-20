@@ -236,6 +236,7 @@ function InlineStatusBadge({ value }: { value?: string | null }) {
 export default function EmployeeProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("About");
   const [editing, setEditing] = useState(false);

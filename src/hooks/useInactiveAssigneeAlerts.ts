@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 const CHECK_INTERVAL_MS = 60_000; // Check every 60 seconds
 const OFFLINE_THRESHOLD_MS = 90_000; // 90s without heartbeat = offline
 
@@ -116,8 +117,7 @@ export function useInactiveAssigneeAlerts() {
 
       // 5. Get usernames for display
       const allUserIds = [...assignedUserIds];
-      const { data: usersData } = await supabase
-        .from('users')
+      const { data: usersData } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .in('id', allUserIds);
 

@@ -21,14 +21,14 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { CopilotSettings as Settings } from '@/hooks/useCopilot';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 interface TUser { id: string; username: string | null; first_name: string | null; last_name: string | null; }
 
 function useTerminalUsersList() {
   return useQuery({
     queryKey: ['copilot-user-list'],
     queryFn: async (): Promise<TUser[]> => {
-      const { data, error } = await supabase
-        .from('users')
+      const { data, error } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .order('first_name', { ascending: true });
       if (error) throw error;

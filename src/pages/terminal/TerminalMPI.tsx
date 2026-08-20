@@ -20,6 +20,7 @@ import { TerminalPermissionGate } from '@/components/terminal/TerminalPermission
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
+import { usersDirectory } from '@/lib/usersDirectory';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -173,7 +174,7 @@ export default function TerminalMPI() {
 
       // Parallel fetch all data
       const [usersRes, assignmentsRes, payerLogsRes, actionLogsRes, rolesRes, userRolesRes, profilesRes, payerAssignRes, operatorAssignRes, payerLocksRes, sizeRangesRes] = await Promise.all([
-        supabase.from('users').select('id, username, first_name, last_name'),
+        usersDirectory().select('id, username, first_name, last_name'),
         supabase.from('terminal_order_assignments')
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
           .gte('created_at', rangeStartISO)

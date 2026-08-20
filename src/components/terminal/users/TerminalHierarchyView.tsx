@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, ChevronDown, ChevronRight, User, Users, Crown, Briefcase, Shield } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface HierarchyNode {
   userId: string;
   username: string;
@@ -107,7 +108,7 @@ export function TerminalHierarchyView() {
     try {
       const [assignmentsRes, usersRes, rolesRes, profilesRes, supervisorMapsRes] = await Promise.all([
         supabase.from("p2p_terminal_user_roles").select("user_id, role_id"),
-        supabase.from("users").select("id, username, first_name, last_name"),
+        usersDirectory().select("id, username, first_name, last_name"),
         supabase.from("p2p_terminal_roles").select("id, name, hierarchy_level"),
         supabase.from("terminal_user_profiles").select("user_id, specialization, shift, is_active"),
         supabase.from("terminal_user_supervisor_mappings").select("user_id, supervisor_id"),

@@ -27125,10 +27125,16 @@ export type Database = {
         Args: { user_uuid: string }
         Returns: number
       }
+      can_access_banking_credentials: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
+      can_access_client_kyc: { Args: { _user_id: string }; Returns: boolean }
       can_access_customer_support_ticket: {
         Args: { _ticket_id: string; _user_id: string }
         Returns: boolean
       }
+      can_access_tax_records: { Args: { _user_id: string }; Returns: boolean }
       can_manage_customer_support_tickets: {
         Args: { _user_id: string }
         Returns: boolean
@@ -28137,6 +28143,16 @@ export type Database = {
           username: string
         }[]
       }
+      get_users_contact: {
+        Args: { _ids: string[] }
+        Returns: {
+          email: string
+          first_name: string
+          id: string
+          last_name: string
+          username: string
+        }[]
+      }
       get_wallet_calculated_balances: {
         Args: never
         Returns: {
@@ -28382,6 +28398,10 @@ export type Database = {
           p_type: string
         }
         Returns: number
+      }
+      hr_can_manage_payroll_config: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
       hr_classify_drift_row: {
         Args: {
@@ -29707,6 +29727,24 @@ export type Database = {
           user_uuid: string
         }
         Returns: boolean
+      }
+      users_can_read_full: { Args: { _user_id: string }; Returns: boolean }
+      users_directory: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          badge_id: string
+          created_at: string
+          department_id: string
+          first_name: string
+          id: string
+          last_activity: string
+          last_name: string
+          position_id: string
+          role_id: string
+          status: string
+          username: string
+        }[]
       }
       validate_bank_details_row: {
         Args: { _hr_employee_id: string }

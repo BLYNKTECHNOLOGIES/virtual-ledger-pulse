@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { useStorageUrl } from '@/lib/storage-url';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 interface Props {
   orderNumber: string;
   advNo?: string | null;
@@ -68,8 +69,7 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
       const allUserIds = [...new Set([...payerUserIds, ...operatorUserIds])];
       if (allUserIds.length === 0) return { payers: [], operators: [] };
 
-      const { data: users } = await supabase
-        .from('users')
+      const { data: users } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .in('id', allUserIds);
 

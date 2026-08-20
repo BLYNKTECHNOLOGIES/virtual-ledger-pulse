@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { sendTaskEmail } from '@/utils/taskEmail';
+import { usersDirectory, fetchUserContacts } from '@/lib/usersDirectory';
 
 export interface Task {
   id: string;
@@ -55,7 +56,7 @@ const from = (table: string) => supabase.from(table as any);
 
 async function fetchUserMap(userIds: Set<string>): Promise<Record<string, string>> {
   if (userIds.size === 0) return {};
-  const { data } = await from('users')
+  const { data } = await usersDirectory()
     .select('id, first_name, last_name, username')
     .in('id', Array.from(userIds));
   const map: Record<string, string> = {};
@@ -274,11 +275,7 @@ export function useCreateTask() {
           [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
           user?.username ||
           'Someone';
-        const { data: assigneeData } = await from('users')
-          .select('email, first_name, last_name, username')
-          .eq('id', task.assignee_id)
-          .single();
-        const assignee = assigneeData as any;
+        const assignee = (await fetchUserContacts([task.assignee_id]))[0] as any;
 
         if (assignee?.email) {
           // Only send to assignee — creator should NOT receive the assigned email
@@ -303,10 +300,7 @@ export function useCreateTask() {
           const assigneeName =
             [assignee?.first_name, assignee?.last_name].filter(Boolean).join(' ') || assignee?.username || 'Someone';
 
-          const { data: spectatorUsersData } = await from('users')
-            .select('id, email, first_name, last_name, username')
-            .in('id', spectator_ids);
-          const spectatorUsers = (spectatorUsersData || []) as any[];
+          const spectatorUsers = (await fetchUserContacts(spectator_ids)) as any[];
 
           if (spectatorUsers.length) {
             for (const spec of spectatorUsers) {
@@ -394,10 +388,7 @@ export function useUpdateTask() {
 
           const uniqueIds = [...new Set(recipientIds)];
           if (uniqueIds.length) {
-            const { data: recipientUsersData } = await from('users')
-              .select('id, email, first_name, last_name, username')
-              .in('id', uniqueIds);
-            const recipientUsers = (recipientUsersData || []) as any[];
+            const recipientUsers = (await fetchUserContacts(uniqueIds)) as any[];
 
             for (const ru of recipientUsers) {
               if (!ru.email) continue;
@@ -440,11 +431,7 @@ export function useUpdateTask() {
         }
 
         const reassignerName = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.username || 'Someone';
-        const { data: reassigneeData } = await from('users')
-          .select('email, first_name, last_name, username')
-          .eq('id', updates.assignee_id)
-          .single();
-        const reassignee = reassigneeData as any;
+        const reassignee = (await fetchUserContacts([updates.assignee_id]))[0] as any;
         if (reassignee?.email) {
           sendTaskEmail({
             eventType: 'task_reassigned',
@@ -586,8 +573,8 @@ export function useUsers() {
   return useQuery({
     queryKey: ['erp-all-users'],
     queryFn: async () => {
-      const { data, error } = await from('users')
-        .select('id, first_name, last_name, username, email')
+      const { data, error } = await usersDirectory()
+        .select('id, first_name, last_name, username')
         .neq('status', 'inactive')
         .order('first_name');
       if (error) throw error;
@@ -595,7 +582,6 @@ export function useUsers() {
         id: u.id,
         full_name: [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username,
         username: u.username,
-        email: u.email,
       }));
     },
   });

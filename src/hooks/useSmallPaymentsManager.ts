@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { toast } from 'sonner';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 export type SmallPaymentCaseStatus = 'open' | 'waiting_counterparty' | 'awaiting_refund' | 'ready_to_repay' | 'resolved' | 'closed' | 'cancelled' | 'appeal';
 export type SmallPaymentCaseType = 'post_payment_followup' | 'alternate_upi_needed' | 'payment_not_received' | 'awaiting_refund' | 'invalid_upi' | 'unresponsive_counterparty' | 'appeal_risk' | 'other';
 
@@ -74,7 +75,7 @@ export function useSmallPaymentCases(filters?: { mineOnly?: boolean; status?: st
       const userIds = [...new Set(cases.flatMap((c) => [c.manager_user_id, c.payer_user_id]).filter(Boolean))] as string[];
 
       const [usersRes, p2pRes, historyRes, altUpiRes] = await Promise.all([
-        userIds.length ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
+        userIds.length ? usersDirectory().select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
         orderNumbers.length ? supabase.from('p2p_order_records').select('binance_order_number, order_status, synced_at, updated_at').in('binance_order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
         orderNumbers.length ? supabase.from('binance_order_history').select('order_number, order_status, synced_at').in('order_number', orderNumbers) : Promise.resolve({ data: [] as any[] }),
         orderNumbers.length ? supabase.from('terminal_alternate_upi_requests' as any).select('order_number, status').in('order_number', orderNumbers).eq('status', 'pending') : Promise.resolve({ data: [] as any[] }),
@@ -275,7 +276,7 @@ export function useAllSmallPaymentManagerAssignments() {
       const userIds = [...new Set(rows.map((a: any) => a.manager_user_id).filter(Boolean))] as string[];
       const rangeIds = [...new Set(rows.map((a: any) => a.size_range_id).filter(Boolean))] as string[];
       const [usersRes, rangesRes] = await Promise.all([
-        userIds.length ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
+        userIds.length ? usersDirectory().select('id, username, first_name, last_name').in('id', userIds) : Promise.resolve({ data: [] as any[] }),
         rangeIds.length ? supabase.from('terminal_order_size_ranges').select('id, name, min_amount, max_amount').in('id', rangeIds) : Promise.resolve({ data: [] as any[] }),
       ]);
       const users = new Map((usersRes.data || []).map((u: any) => [u.id, u]));

@@ -13,6 +13,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { ActivityTimeline } from "@/components/ui/activity-timeline";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface SalesOrderDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -72,8 +73,7 @@ export function SalesOrderDetailsDialog({ open, onOpenChange, order }: SalesOrde
     queryKey: ['sales_order_creator', order?.created_by],
     queryFn: async () => {
       if (!order?.created_by) return null;
-      const { data: user } = await supabase
-        .from('users')
+      const { data: user } = await usersDirectory()
         .select('username')
         .eq('id', order.created_by)
         .single();

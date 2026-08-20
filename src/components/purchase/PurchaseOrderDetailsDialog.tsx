@@ -16,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatSmartDecimal } from "@/lib/format-smart-decimal";
 import { fetchCoinMarketRate } from "@/hooks/useCoinMarketRate";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 
 interface PurchaseOrderDetailsDialogProps {
@@ -91,8 +92,7 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
     queryKey: ['user', order?.created_by],
     queryFn: async () => {
       if (!order?.created_by) return null;
-      const { data, error } = await supabase
-        .from('users')
+      const { data, error } = await usersDirectory()
         .select('id, username')
         .eq('id', order.created_by)
         .single();

@@ -20,6 +20,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { syncTerminalOrdersForErp } from "@/hooks/useBinanceOrderSync";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   synced_pending_approval: { label: "Pending Approval", variant: "default" },
   approved: { label: "Approved", variant: "default" },
@@ -118,8 +119,7 @@ export function TerminalSyncTab() {
       const reviewerIds = [...new Set(filtered.map((r: any) => r.reviewed_by).filter(Boolean))];
       let userMap: Record<string, string> = {};
       if (reviewerIds.length > 0) {
-        const { data: users } = await supabase
-          .from('users')
+        const { data: users } = await usersDirectory()
           .select('id, username, first_name, last_name')
           .in('id', reviewerIds as string[]);
         for (const u of (users || [])) {

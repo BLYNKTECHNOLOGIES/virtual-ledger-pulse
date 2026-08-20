@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getUserName, useAllSmallPaymentManagerAssignments, useCreateSmallPaymentManagerAssignment, useDeleteSmallPaymentManagerAssignment, useToggleSmallPaymentManagerAssignment } from '@/hooks/useSmallPaymentsManager';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 export function SmallPaymentManagerAssignmentManager() {
   const { data: assignments = [], isLoading } = useAllSmallPaymentManagerAssignments();
   const createAssignment = useCreateSmallPaymentManagerAssignment();
@@ -35,7 +36,7 @@ export function SmallPaymentManagerAssignmentManager() {
       const { data: userRoles } = await supabase.from('p2p_terminal_user_roles').select('user_id').in('role_id', roleIds);
       const userIds = [...new Set((userRoles || []).map((ur: any) => ur.user_id))];
       if (!userIds.length) return [];
-      const { data: users } = await supabase.from('users').select('id, username, first_name, last_name').in('id', userIds);
+      const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
       return users || [];
     },
   });

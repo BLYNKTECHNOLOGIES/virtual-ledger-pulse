@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface ActivityLog {
   id: string;
   userId: string;
@@ -106,8 +107,7 @@ export function useActivityTimeline(entityId: string | undefined, entityType?: s
       const userIds = [...new Set(logs.map(log => log.user_id))];
 
       // Fetch user details
-      const { data: users, error: usersError } = await supabase
-        .from('users')
+      const { data: users, error: usersError } = await usersDirectory()
         .select('id, username, first_name, last_name')
         .in('id', userIds);
 

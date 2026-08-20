@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface TimelineUpdate {
   id: string;
   update_text: string;
@@ -165,8 +166,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
       const uid = auth?.user?.id ?? null;
       let name: string | null = null;
       if (uid) {
-        const { data: me } = await supabase
-          .from('users')
+        const { data: me } = await usersDirectory()
           .select('first_name, last_name, username')
           .eq('id', uid)
           .maybeSingle();

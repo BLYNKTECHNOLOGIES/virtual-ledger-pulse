@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 /**
  * Suggests the smallest positive integer Employee ID that does not clash with
  * any current or historical identifier across HRMS:
@@ -36,7 +37,7 @@ export async function suggestNextEmployeeId(): Promise<string> {
       .from("hr_employee_onboarding")
       .select("essl_badge_id, razorpay_employee_id"),
     supabase.from("hr_razorpay_employee_map").select("razorpay_employee_id"),
-    supabase.from("users").select("badge_id"),
+    usersDirectory().select("badge_id"),
   ]);
 
   collect(emp.data as any[], "badge_id", "legacy_badge_id");

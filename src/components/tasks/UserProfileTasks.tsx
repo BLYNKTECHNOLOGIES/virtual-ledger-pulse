@@ -14,13 +14,14 @@ import { format, isPast } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { CheckSquare, AlertTriangle } from 'lucide-react';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 const from = (table: string) => supabase.from(table as any);
 
 async function fetchUserMap(userIds: Set<string>) {
   if (!userIds.size) return {};
-  const { data } = await from('users').select('id, full_name, username').in('id', Array.from(userIds));
+  const { data } = await usersDirectory().select('id, first_name, last_name, username').in('id', Array.from(userIds));
   const map: Record<string, string> = {};
-  ((data as any[]) || []).forEach((u: any) => { map[u.id] = u.full_name || u.username || 'Unknown'; });
+  ((data as any[]) || []).forEach((u: any) => { map[u.id] = [u.first_name, u.last_name].filter(Boolean).join(' ') || u.username || 'Unknown'; });
   return map;
 }
 

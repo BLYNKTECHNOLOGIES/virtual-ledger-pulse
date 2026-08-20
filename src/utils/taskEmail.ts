@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { fetchUserContacts } from '@/lib/usersDirectory';
 
 type TaskEmailEvent = 'task_assigned' | 'task_reassigned' | 'task_overdue' | 'task_due_soon' | 'task_mention';
 
@@ -51,10 +52,7 @@ export async function sendTaskEmail({
     }
 
     // Look up emails for all user IDs
-    const { data: users } = await supabase
-      .from('users')
-      .select('id, email, first_name, last_name')
-      .in('id', allUserIds);
+    const users = await fetchUserContacts(allUserIds);
 
     if (!users?.length) {
       console.warn('Task email: no users found for IDs', allUserIds);

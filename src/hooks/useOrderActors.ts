@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 /**
  * Actor information for a specific action on an order
  */
@@ -50,8 +51,7 @@ async function resolveUsernames(userIds: string[]): Promise<Record<string, strin
   const map: Record<string, string> = {};
   if (userIds.length === 0) return map;
 
-  const { data: users } = await supabase
-    .from('users')
+  const { data: users } = await usersDirectory()
     .select('id, username')
     .in('id', userIds);
 

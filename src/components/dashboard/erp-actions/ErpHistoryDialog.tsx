@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ArrowDownLeft, ArrowUpRight, CheckCircle, XCircle, Clock, Search } from "lucide-react";
 import { format } from "date-fns";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface ErpHistoryItem {
   id: string;
   movement_type: string;
@@ -50,8 +51,7 @@ function useErpFullHistory() {
 
       let userMap: Record<string, string> = {};
       if (userIds.length > 0) {
-        const { data: users } = await supabase
-          .from("users")
+        const { data: users } = await usersDirectory()
           .select("id, username, first_name, last_name")
           .in("id", userIds);
         if (users) {

@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { normaliseBinanceStatus } from '@/lib/orderStatusMapper';
 import { useOpenSmallPaymentCases } from '@/hooks/useSmallPaymentsManager';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 interface PayerAssignment {
   id: string;
   payer_user_id: string;
@@ -454,7 +455,7 @@ export function useAllPayerAssignments() {
 
       const [usersRes, rangesRes] = await Promise.all([
         userIds.length > 0
-          ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds)
+          ? usersDirectory().select('id, username, first_name, last_name').in('id', userIds)
           : { data: [] },
         sizeRangeIds.length > 0
           ? supabase.from('terminal_order_size_ranges').select('id, name, min_amount, max_amount').in('id', sizeRangeIds)

@@ -199,6 +199,7 @@ function TimingCard({ icon: Icon, label, value, subtitle, borderColor }: { icon:
 
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 function TerminalOperatorDetailContent() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -223,7 +224,7 @@ function TerminalOperatorDetailContent() {
     setIsLoading(true);
     try {
       const [userRes, assignmentsRes, payerLogsRes, actionLogsRes, userRolesRes, profileRes, payerAssignRes, operatorAssignRes, payerLocksRes, sizeRangesRes] = await Promise.all([
-        supabase.from('users').select('id, username, first_name, last_name').eq('id', userId).single(),
+        usersDirectory().select('id, username, first_name, last_name').eq('id', userId).single(),
         supabase.from('terminal_order_assignments')
           .select('assigned_to, trade_type, total_price, assignment_type, created_at, is_active, order_number, updated_at')
           .eq('assigned_to', userId),

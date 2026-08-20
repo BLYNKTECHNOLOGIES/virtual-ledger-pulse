@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import type { TransactionAdapter } from '../types';
 import { MonoValue } from '../fieldHelpers';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 export const walletTransactionAdapter: TransactionAdapter = {
   type: 'wallet_transaction',
   modulePermission: 'stock_view',
@@ -22,9 +23,8 @@ export const walletTransactionAdapter: TransactionAdapter = {
 
     let createdByName: string | null = null;
     if (data.created_by) {
-      const { data: u } = await supabase
-        .from('users')
-        .select('first_name, last_name, email, username')
+      const { data: u } = await usersDirectory()
+        .select('first_name, last_name, username')
         .eq('id', data.created_by)
         .maybeSingle();
       createdByName = [u?.first_name, u?.last_name].filter(Boolean).join(' ') || u?.username || u?.email || null;

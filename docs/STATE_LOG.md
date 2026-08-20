@@ -16,7 +16,7 @@
 
 Living cross-agent log. **Newest entry at top.** One dated line per event. Prune entries older than 30 days.
 
-Append here whenever the owner commands a significant state change (data wipes, resets, roster changes, config/mode switches, era boundaries) or when a multi-slice arc completes. Both Lovable (in-chat agent) and Claude (external verification agent) write to this file; commit messages carry the technical detail.
+Append here whenever the owner commands a significant state change (data wipes, resets, roster changes, config/mode switches, era boundaries) or when a multi-slice arc completes. Both the in-chat build agent and Claude (external verification agent) write to this file; commit messages carry the technical detail.
 
 ---
 

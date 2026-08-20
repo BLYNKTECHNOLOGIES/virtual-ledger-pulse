@@ -1,72 +1,71 @@
-# Welcome to your Lovable project
+# BlynkEx ERP
 
-## Project info
+Internal enterprise resource platform for BlynkEx — trading operations (P2P terminal), finance
+and accounting, banking & compliance, client management, and a full HRMS/payroll suite.
 
+Authored and maintained by **Devesh Kumar**.
 
+## Tech stack
 
-## How can I edit this code?
+- Vite + React 18 + TypeScript
+- Tailwind CSS + shadcn/ui
+- Supabase (Postgres, Auth, Storage, Edge Functions)
+- TanStack Query for data fetching
 
-There are several ways of editing your application.
+## Modules
 
-**Use Lovable**
+| Area | What it covers |
+| --- | --- |
+| Terminal | P2P order desk, ad manager, auto-pricing, auto-pay, chat |
+| Financials | Ledgers, wallets, multi-asset inventory, reports & analytics |
+| BAMS | Bank accounts, journal entries, beneficiaries, settlements |
+| Compliance | Bank cases, investigations, documents, audit activity feed |
+| Clients | KYC, onboarding approvals, risk grading, identity resolution |
+| HRMS | Attendance, leave, payroll, onboarding/offboarding, documents |
 
+## Local development
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requires Node.js 18+ (install via [nvm](https://github.com/nvm-sh/nvm)).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
 git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
+cd blynkex-erp
 npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The dev server runs on port `8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Environment
 
-**Use GitHub Codespaces**
+Copy the required keys into `.env` (never commit real secrets):
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```
+VITE_SUPABASE_URL=
+VITE_SUPABASE_PUBLISHABLE_KEY=
+VITE_SUPABASE_PROJECT_ID=
+```
 
-## What technologies are used for this project?
+Server-side secrets (payment, exchange and mail credentials) are stored as Edge Function
+secrets and are never exposed to the browser.
 
-This project is built with:
+## Build & deploy
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+```sh
+npm run build      # production bundle in dist/
+npm run preview    # serve the production build locally
+```
 
-## How can I deploy this project?
+Deployments are served from the configured custom domain; database changes ship as SQL
+migrations under `supabase/migrations`.
 
-Simply open [Lovable](https://lovable.dev/projects/6e94cc55-8772-4aff-9f0c-5408a2a60fe5) and click on Share -> Publish.
+## Conventions
 
-## Can I connect a custom domain to my Lovable project?
+- All colours, gradients and shadows come from semantic tokens in `src/index.css` — never
+  hardcode colour utilities in components.
+- Row Level Security is enforced for every table; roles live in a dedicated `user_roles` table.
+- Significant state changes are appended to `docs/STATE_LOG.md`.
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+© BlynkEx. Internal use only.

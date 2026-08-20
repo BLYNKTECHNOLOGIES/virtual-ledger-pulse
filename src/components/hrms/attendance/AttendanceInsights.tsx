@@ -1342,14 +1342,30 @@ export function AttendanceInsights({
 
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
-                  <InfoDot text="Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown." />
+                  <InfoDot text="Weakest attendance first. Rates use maintained days only. Click a department (or a shift under it) for the per-employee breakdown." />
                 </div>
-                <DrillBadge />
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={deptBreakdown}
+                    onValueChange={(v) => {
+                      setDeptBreakdown(v as "none" | "shift");
+                      setOpenDepts(new Set());
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[190px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Department only</SelectItem>
+                      <SelectItem value="shift">Subdivide by shift</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <DrillBadge />
+                </div>
               </div>
-
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">
@@ -1369,27 +1385,81 @@ export function AttendanceInsights({
                   </tr>
                 </thead>
                 <tbody>
-                  {deptRows.map((d) => (
-                    <tr
-                      key={d.name}
-                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                      onClick={() => openDept(d.name)}
-                    >
-                      <td className="px-4 py-2 font-medium text-primary underline-offset-2 hover:underline">{d.name}</td>
-
-                      <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">
-                        {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">{d.onTimeRate === null ? "—" : `${d.onTimeRate.toFixed(1)}%`}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-destructive">{Math.round(d.lop * 10) / 10}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{d.avgHours === null ? "—" : `${d.avgHours.toFixed(2)}h`}</td>
-                    </tr>
-                  ))}
+                  {deptRows.map((d) => {
+                    const expanded = deptBreakdown === "shift" && openDepts.has(d.name);
+                    return (
+                      <>
+                        <tr
+                          key={d.name}
+                          className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                          onClick={() => openDept(d.name)}
+                        >
+                          <td className="px-4 py-2 font-medium">
+                            <span className="flex items-center gap-1.5">
+                              {deptBreakdown === "shift" && (
+                                <button
+                                  type="button"
+                                  aria-label={expanded ? "Collapse shifts" : "Expand shifts"}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDepts((prev) => {
+                                      const next = new Set(prev);
+                                      next.has(d.name) ? next.delete(d.name) : next.add(d.name);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                              <span className="text-primary underline-offset-2 hover:underline">{d.name}</span>
+                              {deptBreakdown === "shift" && (
+                                <Badge variant="outline" className="h-4 px-1 text-[10px] font-normal text-muted-foreground">
+                                  {d.shifts.length} shift{d.shifts.length === 1 ? "" : "s"}
+                                </Badge>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">
+                            {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">{d.onTimeRate === null ? "—" : `${d.onTimeRate.toFixed(1)}%`}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-destructive">{Math.round(d.lop * 10) / 10}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{d.avgHours === null ? "—" : `${d.avgHours.toFixed(2)}h`}</td>
+                        </tr>
+                        {expanded &&
+                          d.shifts.map((s) => (
+                            <tr
+                              key={`${d.name}|${s.name}`}
+                              className="border-b last:border-0 bg-muted/20 hover:bg-muted/40 cursor-pointer"
+                              onClick={() => openDept(d.name, s.name)}
+                            >
+                              <td className="px-4 py-1.5 pl-11 text-[13px] text-muted-foreground">{s.name}</td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">{s.headcount}</td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">
+                                {s.attendanceRate === null ? "—" : `${s.attendanceRate.toFixed(1)}%`}
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">
+                                {s.onTimeRate === null ? "—" : `${s.onTimeRate.toFixed(1)}%`}
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px] text-destructive">
+                                {Math.round(s.lop * 10) / 10}
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">
+                                {s.avgHours === null ? "—" : `${s.avgHours.toFixed(2)}h`}
+                              </td>
+                            </tr>
+                          ))}
+                      </>
+                    );
+                  })}
                 </tbody>
               </table>
             </CardContent>
           </Card>
+
         </TabsContent>
 
         {/* ---------------- Exceptions ---------------- */}

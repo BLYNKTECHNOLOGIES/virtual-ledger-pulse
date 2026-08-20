@@ -250,8 +250,15 @@ export function OrgChartView() {
   const [rawPositions, setRawPositions] = useState<any[]>([]);
   const [rawDepts, setRawDepts] = useState<any[]>([]);
 
+  // Assign-manager dialog state
+  const [assignTarget, setAssignTarget] = useState<EmpChartNode | null>(null);
+  const [assignManagerId, setAssignManagerId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
     async function load() {
+
       setLoading(true);
       const [posRes, deptRes, dirRes] = await Promise.all([
         supabase.from("positions").select("id, title, department_id, hierarchy_level, reports_to_position_id").eq("is_active", true),

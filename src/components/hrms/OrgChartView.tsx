@@ -344,8 +344,10 @@ export function OrgChartView() {
         designation: pos?.title || wi?.job_role || "Not set",
         department: dept?.name || "",
         profileUrl: e.profile_image_url,
+        unassigned: !wi?.reporting_manager_id,
         children: [],
       });
+
     });
 
     const managerIdSet = new Set<string>();

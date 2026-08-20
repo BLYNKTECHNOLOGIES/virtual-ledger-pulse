@@ -4,13 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Building2, Briefcase, ChevronDown, ChevronRight, Users,
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
-  Maximize2, Minimize2,
+  Maximize2, Minimize2, UserPlus, AlertTriangle,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
@@ -33,8 +37,10 @@ interface EmpChartNode {
   designation: string;
   department: string;
   profileUrl: string | null;
+  unassigned?: boolean;
   children: EmpChartNode[];
 }
+
 
 /* ── Position Tree Item ── */
 
@@ -79,12 +85,14 @@ function OrgChartNode({
   onToggle,
   highlightId,
   zoom = 1,
+  onAssign,
 }: {
   node: EmpChartNode;
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
   highlightId: string | null;
   zoom?: number;
+  onAssign?: (node: EmpChartNode) => void;
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedIds.has(node.id);
@@ -120,12 +128,16 @@ function OrgChartNode({
     <div className="flex flex-col items-center">
       {/* The card */}
       <div
+        onClick={() => { if (node.unassigned) onAssign?.(node); }}
         className={`relative rounded-lg px-4 py-3 min-w-[170px] max-w-[220px] text-center transition-all select-none border
           ${isHighlighted
             ? "border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md"
-            : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
+            : node.unassigned
+              ? "border-dashed border-amber-500/60 bg-amber-500/10 hover:shadow-md cursor-pointer"
+              : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
       >
+
         {/* Avatar */}
         <div className="flex justify-center mb-1.5">
           {node.profileUrl ? (
@@ -141,7 +153,23 @@ function OrgChartNode({
         {node.department && (
           <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-medium text-primary">{node.department}</span>
         )}
+        {node.unassigned && (
+          <div className="mt-2 space-y-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="h-2.5 w-2.5" /> No manager
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-6 w-full text-[10px] gap-1"
+              onClick={(e) => { e.stopPropagation(); onAssign?.(node); }}
+            >
+              <UserPlus className="h-3 w-3" /> Assign manager
+            </Button>
+          </div>
+        )}
         {hasChildren && (
+
           <span className="absolute -top-2 -right-2 z-10 h-5 min-w-[20px] px-1 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center shadow-sm">
             {node.children.length}
           </span>
@@ -182,6 +210,7 @@ function OrgChartNode({
                   expandedIds={expandedIds}
                   onToggle={onToggle}
                   highlightId={highlightId}
+                  onAssign={onAssign}
                   zoom={zoom}
                 />
               </div>
@@ -221,8 +250,15 @@ export function OrgChartView() {
   const [rawPositions, setRawPositions] = useState<any[]>([]);
   const [rawDepts, setRawDepts] = useState<any[]>([]);
 
+  // Assign-manager dialog state
+  const [assignTarget, setAssignTarget] = useState<EmpChartNode | null>(null);
+  const [assignManagerId, setAssignManagerId] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
   useEffect(() => {
     async function load() {
+
       setLoading(true);
       const [posRes, deptRes, dirRes] = await Promise.all([
         supabase.from("positions").select("id, title, department_id, hierarchy_level, reports_to_position_id").eq("is_active", true),
@@ -289,10 +325,10 @@ export function OrgChartView() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [reloadKey]);
 
   // Build employee chart tree
-  const { empTree, managers, cycleMembers } = useMemo(() => {
+  const { empTree, managers, cycleMembers, unassignedList, allEmployees } = useMemo(() => {
     const posMap = new Map(rawPositions.map(p => [p.id, p]));
     const deptMap = new Map(rawDepts.map(d => [d.id, d]));
     const wiByEmp = new Map(rawWorkInfos.map(w => [w.employee_id, w]));
@@ -308,8 +344,10 @@ export function OrgChartView() {
         designation: pos?.title || wi?.job_role || "Not set",
         department: dept?.name || "",
         profileUrl: e.profile_image_url,
+        unassigned: !wi?.reporting_manager_id,
         children: [],
       });
+
     });
 
     const managerIdSet = new Set<string>();
@@ -371,14 +409,36 @@ export function OrgChartView() {
     });
 
 
+    // The biggest managerless root is the org head — everyone else sitting at
+    // the top without a manager is "out of the chain" and gets an assign action.
+    const subtreeSize = (n: EmpChartNode): number =>
+      1 + n.children.reduce((s, c) => s + subtreeSize(c), 0);
+    let head: EmpChartNode | null = null;
+    let headSize = -1;
+    roots.forEach(r => {
+      const size = subtreeSize(r);
+      if (size > headSize) { headSize = size; head = r; }
+    });
+    if (head) (head as EmpChartNode).unassigned = false;
+
+    const unassignedList = roots
+      .filter(r => r.unassigned)
+      .map(r => ({ id: r.id, name: r.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const allEmployees = Array.from(nodeMap.values())
+      .map(n => ({ id: n.id, name: n.name, designation: n.designation }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
     const sortChildren = (nodes: EmpChartNode[]) => {
       nodes.sort((a, b) => a.name.localeCompare(b.name));
       nodes.forEach(n => sortChildren(n.children));
     };
     sortChildren(roots);
 
-    return { empTree: roots, managers: managerList, cycleMembers };
+    return { empTree: roots, managers: managerList, cycleMembers, unassignedList, allEmployees };
   }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts]);
+
 
 
   // When empTree is built, auto-expand only root nodes so the first level is visible
@@ -448,7 +508,56 @@ export function OrgChartView() {
     });
   }, []);
 
+  // Descendants of the employee being assigned — they can't be his manager.
+  const blockedManagerIds = useMemo(() => {
+    const blocked = new Set<string>();
+    if (!assignTarget) return blocked;
+    const walk = (n: EmpChartNode) => { blocked.add(n.id); n.children.forEach(walk); };
+    walk(assignTarget);
+    return blocked;
+  }, [assignTarget]);
+
+  const openAssign = useCallback((node: EmpChartNode) => {
+    setAssignTarget(node);
+    setAssignManagerId("");
+  }, []);
+
+  const saveManager = async () => {
+    if (!assignTarget || !assignManagerId) return;
+    setSaving(true);
+    try {
+      const { data: existing, error: selErr } = await supabase
+        .from("hr_employee_work_info")
+        .select("id")
+        .eq("employee_id", assignTarget.id)
+        .maybeSingle();
+      if (selErr) throw selErr;
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from("hr_employee_work_info")
+          .update({ reporting_manager_id: assignManagerId })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("hr_employee_work_info")
+          .insert({ employee_id: assignTarget.id, reporting_manager_id: assignManagerId });
+        if (error) throw error;
+      }
+
+      toast.success(`${assignTarget.name} now reports to ${allEmployees.find(e => e.id === assignManagerId)?.name ?? "the selected manager"}`);
+      setAssignTarget(null);
+      setReloadKey(k => k + 1);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not update the reporting manager");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleZoom = (dir: "in" | "out") => {
+
     setZoom(z => dir === "in" ? Math.min(z + 0.15, 2.5) : Math.max(z - 0.15, 0.2));
   };
 
@@ -565,6 +674,29 @@ export function OrgChartView() {
             </div>
           )}
 
+          {unassignedList.length > 0 && (
+            <div className="mb-3 mx-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {unassignedList.length} employee{unassignedList.length === 1 ? " is" : "s are"} outside the reporting chain — click a card (or a name below) to assign a manager:
+                </span>
+                {unassignedList.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      const node = empTree.find(r => r.id === u.id);
+                      if (node) openAssign(node);
+                    }}
+                    className="underline underline-offset-2 font-medium hover:opacity-80"
+                  >
+                    {u.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
 
           {/* Chart area */}
           <div
@@ -639,6 +771,7 @@ export function OrgChartView() {
                         expandedIds={expandedIds}
                         onToggle={toggleExpand}
                         highlightId={highlightId}
+                        onAssign={openAssign}
                         zoom={zoom}
                       />
                     ))}
@@ -649,6 +782,38 @@ export function OrgChartView() {
           </div>
         </div>
       </TabsContent>
+
+      {/* Assign reporting manager */}
+      <Dialog open={!!assignTarget} onOpenChange={open => { if (!open) setAssignTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign reporting manager</DialogTitle>
+            <DialogDescription>
+              {assignTarget ? `${assignTarget.name} is currently outside the reporting chain. Choose who they report to.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Reporting manager</label>
+            <EmployeeCombobox
+              className="w-full"
+              placeholder="Select manager"
+              value={assignManagerId}
+              onChange={setAssignManagerId}
+              searchPlaceholder="Search employee…"
+              emptyText="No employee found."
+              options={allEmployees
+                .filter(e => !blockedManagerIds.has(e.id))
+                .map(e => ({ value: e.id, label: e.designation && e.designation !== "Not set" ? `${e.name} — ${e.designation}` : e.name }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignTarget(null)} disabled={saving}>Cancel</Button>
+            <Button onClick={saveManager} disabled={!assignManagerId || saving}>
+              {saving ? "Saving…" : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Tabs>
   );
 }

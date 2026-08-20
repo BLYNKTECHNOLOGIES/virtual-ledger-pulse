@@ -211,6 +211,7 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       // IT Services columns: Invoice Number, Description, HSN/SAC, Quantity, Rate, Amount,
       //                      Buyer Name, Buyer Address, Buyer GSTIN, Buyer Contact, Date,
       //                      GST Rate, GST Type, GST Inclusive
+      // IT Services Paytm adds a trailing "Transaction ID" column.
       const invoiceNumber = cols[0]?.trim() || "";
       const description = cols[1]?.trim() || "";
       const hsnSac = cols[2]?.trim() || "";
@@ -225,6 +226,10 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const gstRate = parseFloat(cols[11]?.trim());
       const gstTypeRaw = (cols[12]?.trim() || "").toUpperCase();
       const gstInclusiveRaw = (cols[13]?.trim() || "").toLowerCase();
+      const transactionId = category === "it_services_paytm"
+        ? getFieldByHeader(cols, ["transaction_id", "txn_id", "transaction", "paytm_transaction_id"], 14)
+        : "";
+
 
       // Detect GST settings from first row that has them
       if (!gstDetected && !isNaN(gstRate)) {

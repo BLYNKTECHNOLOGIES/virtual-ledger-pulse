@@ -7,6 +7,7 @@
  * Results land in public.hr_razorpay_orphans and surface on /hrms/data-health.
  */
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { requireCaller } from "../_shared/require-caller.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 
 const corsHeaders = {
@@ -17,6 +18,10 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
 
   const supaUrl = Deno.env.get("SUPABASE_URL")!;
   const svcKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

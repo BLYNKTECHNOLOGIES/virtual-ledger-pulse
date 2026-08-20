@@ -7,6 +7,7 @@
 //   preview  { email: string }           -> renders + sends today's digest to one address
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { requireCaller } from "../_shared/require-caller.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
@@ -385,6 +386,10 @@ function makeClient(_mailbox?: unknown) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 

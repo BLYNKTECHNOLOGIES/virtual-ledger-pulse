@@ -5,6 +5,7 @@
 // operator replies to build a style/phrasing corpus.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireCaller } from "../_shared/require-caller.ts";
 import {
   classifySituation,
   detectLanguage,
@@ -160,6 +161,10 @@ async function buildStats(admin: any) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
 
   try {
     const admin = createClient(

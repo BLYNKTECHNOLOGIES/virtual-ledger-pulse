@@ -38,7 +38,11 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 {isFinancial ? "Taxable Value" : "Amount"}
               </th>
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Buyer</th>
+              {isPaytm && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Transaction ID</th>
+              )}
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Date</th>
+
             </tr>
           </thead>
           <tbody>

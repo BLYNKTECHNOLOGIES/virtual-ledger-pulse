@@ -85,12 +85,14 @@ function OrgChartNode({
   onToggle,
   highlightId,
   zoom = 1,
+  onAssign,
 }: {
   node: EmpChartNode;
   expandedIds: Set<string>;
   onToggle: (id: string) => void;
   highlightId: string | null;
   zoom?: number;
+  onAssign?: (node: EmpChartNode) => void;
 }) {
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedIds.has(node.id);

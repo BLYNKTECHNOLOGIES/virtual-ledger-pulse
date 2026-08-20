@@ -292,7 +292,7 @@ export function OrgChartView() {
   }, []);
 
   // Build employee chart tree
-  const { empTree, managers } = useMemo(() => {
+  const { empTree, managers, cycleMembers } = useMemo(() => {
     const posMap = new Map(rawPositions.map(p => [p.id, p]));
     const deptMap = new Map(rawDepts.map(d => [d.id, d]));
     const wiByEmp = new Map(rawWorkInfos.map(w => [w.employee_id, w]));

@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
+import { ComplianceActivityFeed } from "./ComplianceActivityFeed";
+
 
 interface CommandCentre {
   open_cases: number;
@@ -192,6 +194,9 @@ export function ComplianceCommandCentre() {
         </Card>
 
       </div>
+
+      <ComplianceActivityFeed />
+
 
       <Card>
         <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">

@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.compliance_recent_activity(integer, integer) TO service_role;

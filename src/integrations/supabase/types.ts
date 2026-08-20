@@ -27204,6 +27204,10 @@ export type Database = {
         Returns: Json
       }
       compliance_command_centre: { Args: never; Returns: Json }
+      compliance_recent_activity: {
+        Args: { p_days?: number; p_limit?: number }
+        Returns: Json
+      }
       compliance_recompute_document_status: { Args: never; Returns: number }
       compute_annual_tax: {
         Args: { p_filing_status_id: string; p_taxable_income: number }

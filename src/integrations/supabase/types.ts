@@ -1228,13 +1228,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "bank_transactions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "bank_transactions_related_transaction_id_fkey"
             columns: ["related_transaction_id"]
             isOneToOne: false
@@ -4314,29 +4307,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "erp_product_conversions_approved_by_fkey"
-            columns: ["approved_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "erp_product_conversions_created_by_fkey"
             columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_product_conversions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_product_conversions_rejected_by_fkey"
-            columns: ["rejected_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -4345,7 +4317,7 @@ export type Database = {
             foreignKeyName: "erp_product_conversions_rejected_by_fkey"
             columns: ["rejected_by"]
             isOneToOne: false
-            referencedRelation: "users_directory"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -4404,13 +4376,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "erp_task_activity_log_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       erp_task_assignments: {
@@ -4444,13 +4409,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "erp_task_assignments_from_user_id_fkey"
-            columns: ["from_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "erp_task_assignments_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
@@ -4462,13 +4420,6 @@ export type Database = {
             columns: ["to_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_task_assignments_to_user_id_fkey"
-            columns: ["to_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -4516,13 +4467,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "erp_task_attachments_uploaded_by_fkey"
-            columns: ["uploaded_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       erp_task_comments: {
@@ -4565,13 +4509,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "erp_task_comments_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       erp_task_spectators: {
@@ -4605,13 +4542,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "erp_task_spectators_added_by_fkey"
-            columns: ["added_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "erp_task_spectators_task_id_fkey"
             columns: ["task_id"]
             isOneToOne: false
@@ -4623,13 +4553,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_task_spectators_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -4668,13 +4591,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_task_templates_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -4764,29 +4680,8 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "erp_tasks_assignee_id_fkey"
-            columns: ["assignee_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "erp_tasks_created_by_fkey"
             columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_tasks_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "erp_tasks_escalation_user_id_fkey"
-            columns: ["escalation_user_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -4795,7 +4690,7 @@ export type Database = {
             foreignKeyName: "erp_tasks_escalation_user_id_fkey"
             columns: ["escalation_user_id"]
             isOneToOne: false
-            referencedRelation: "users_directory"
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -10006,13 +9901,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "hr_employees_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -18961,13 +18849,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "p2p_terminal_user_roles_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "p2p_terminal_user_roles_role_id_fkey"
             columns: ["role_id"]
             isOneToOne: false
@@ -18979,13 +18860,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "p2p_terminal_user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -19036,24 +18910,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "password_reset_requests_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "password_reset_requests_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "password_reset_requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -19277,24 +19137,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "payment_gateway_settlements_reversed_by_fkey"
-            columns: ["reversed_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "payment_gateway_settlements_settled_by_fkey"
             columns: ["settled_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payment_gateway_settlements_settled_by_fkey"
-            columns: ["settled_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -19899,13 +19745,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "purchase_action_timings_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "purchase_action_timings_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
@@ -20045,13 +19884,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_order_payment_splits_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -20256,13 +20088,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchase_orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -20833,13 +20658,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "rekyc_requests_reviewed_by_fkey"
-            columns: ["reviewed_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "rekyc_requests_risk_flag_id_fkey"
             columns: ["risk_flag_id"]
             isOneToOne: false
@@ -20851,13 +20669,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "rekyc_requests_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -20958,13 +20769,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "risk_detection_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       risk_flags: {
@@ -21019,24 +20823,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "risk_flags_resolved_by_fkey"
-            columns: ["resolved_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "risk_flags_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "risk_flags_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -21498,13 +21288,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sales_orders_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -22303,13 +22086,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "stock_transactions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "stock_transactions_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -22710,13 +22486,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tds_records_paid_by_fkey"
-            columns: ["paid_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "tds_records_payment_bank_account_id_fkey"
             columns: ["payment_bank_account_id"]
             isOneToOne: false
@@ -23081,24 +22850,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_assignment_audit_logs_performed_by_fkey"
-            columns: ["performed_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_assignment_audit_logs_target_user_id_fkey"
             columns: ["target_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_assignment_audit_logs_target_user_id_fkey"
-            columns: ["target_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -23205,13 +22960,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "terminal_auto_reply_exclusions_excluded_by_fkey"
-            columns: ["excluded_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       terminal_biometric_sessions: {
@@ -23251,13 +22999,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_biometric_sessions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -23335,24 +23076,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_bypass_codes_generated_by_fkey"
-            columns: ["generated_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_bypass_codes_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_bypass_codes_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -23601,24 +23328,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_notifications_related_user_id_fkey"
-            columns: ["related_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -23663,24 +23376,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_operator_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_operator_assignments_operator_user_id_fkey"
             columns: ["operator_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_operator_assignments_operator_user_id_fkey"
-            columns: ["operator_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -23757,24 +23456,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_order_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_order_assignments_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_order_assignments_assigned_to_fkey"
-            columns: ["assigned_to"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -23911,24 +23596,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_payer_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_payer_assignments_payer_user_id_fkey"
             columns: ["payer_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_payer_assignments_payer_user_id_fkey"
-            columns: ["payer_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -23998,13 +23669,6 @@ export type Database = {
             columns: ["payer_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_payer_order_log_payer_id_fkey"
-            columns: ["payer_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -24291,13 +23955,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_small_payment_case_events_actor_user_id_fkey"
-            columns: ["actor_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_small_payment_case_events_case_id_fkey"
             columns: ["case_id"]
             isOneToOne: false
@@ -24400,24 +24057,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_small_payment_cases_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_small_payment_cases_manager_user_id_fkey"
             columns: ["manager_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_small_payment_cases_manager_user_id_fkey"
-            columns: ["manager_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -24428,24 +24071,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_small_payment_cases_payer_user_id_fkey"
-            columns: ["payer_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_small_payment_cases_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_small_payment_cases_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -24493,24 +24122,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_small_payment_manager_assignments_assigned_by_fkey"
-            columns: ["assigned_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_small_payment_manager_assignments_manager_user_id_fkey"
             columns: ["manager_user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_small_payment_manager_assignments_manager_user_id_fkey"
-            columns: ["manager_user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -24556,13 +24171,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "terminal_user_exchange_mappings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       terminal_user_presence: {
@@ -24593,13 +24201,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_user_presence_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -24650,24 +24251,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "terminal_user_profiles_reports_to_fkey"
-            columns: ["reports_to"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "terminal_user_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_user_profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -24704,13 +24291,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "terminal_user_size_range_mappings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -24826,13 +24406,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "terminal_webauthn_challenges_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       terminal_webauthn_credentials: {
@@ -24874,13 +24447,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "terminal_webauthn_credentials_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_activity_log: {
@@ -24920,13 +24486,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_activity_log_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -24979,13 +24538,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_preferences_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users_directory"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_roles: {
@@ -25023,13 +24575,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_roles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -25140,13 +24685,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "users_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -25422,13 +24960,6 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wallet_transactions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users_directory"
             referencedColumns: ["id"]
           },
           {
@@ -27317,73 +26848,6 @@ export type Database = {
           register_csv_uploaded_at: string | null
         }
         Relationships: []
-      }
-      users_directory: {
-        Row: {
-          avatar_url: string | null
-          badge_id: string | null
-          created_at: string | null
-          department_id: string | null
-          first_name: string | null
-          id: string | null
-          last_activity: string | null
-          last_name: string | null
-          position_id: string | null
-          role_id: string | null
-          status: string | null
-          username: string | null
-        }
-        Insert: {
-          avatar_url?: string | null
-          badge_id?: string | null
-          created_at?: string | null
-          department_id?: string | null
-          first_name?: string | null
-          id?: string | null
-          last_activity?: string | null
-          last_name?: string | null
-          position_id?: string | null
-          role_id?: string | null
-          status?: string | null
-          username?: string | null
-        }
-        Update: {
-          avatar_url?: string | null
-          badge_id?: string | null
-          created_at?: string | null
-          department_id?: string | null
-          first_name?: string | null
-          id?: string | null
-          last_activity?: string | null
-          last_name?: string | null
-          position_id?: string | null
-          role_id?: string | null
-          status?: string | null
-          username?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "users_department_id_fkey"
-            columns: ["department_id"]
-            isOneToOne: false
-            referencedRelation: "departments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "users_position_id_fkey"
-            columns: ["position_id"]
-            isOneToOne: false
-            referencedRelation: "positions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "users_role_id_fkey"
-            columns: ["role_id"]
-            isOneToOne: false
-            referencedRelation: "roles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       v_binance_ad_surplus_movement: {
         Row: {
@@ -30265,6 +29729,23 @@ export type Database = {
         Returns: boolean
       }
       users_can_read_full: { Args: { _user_id: string }; Returns: boolean }
+      users_directory: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          badge_id: string
+          created_at: string
+          department_id: string
+          first_name: string
+          id: string
+          last_activity: string
+          last_name: string
+          position_id: string
+          role_id: string
+          status: string
+          username: string
+        }[]
+      }
       validate_bank_details_row: {
         Args: { _hr_employee_id: string }
         Returns: Json

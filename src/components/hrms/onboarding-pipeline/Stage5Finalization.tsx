@@ -1016,7 +1016,7 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
         return false;
       }
     }
-    if (form.create_erp_account && !form.erp_role_id) { toast.error("Please select a role for ERP account"); return false; }
+    if (form.create_erp_account && !form.erp_role_id) { toast.error("Standby role not found in ERP roles — cannot create the ERP account"); return false; }
     const anyBank = form.bank_account_number.trim() || form.bank_ifsc_code.trim();
     if (anyBank && !hasBankInput) {
       toast.error("Enter both Account Number and IFSC, or leave both blank");

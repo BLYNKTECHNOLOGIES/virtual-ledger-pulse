@@ -3,6 +3,8 @@
 // and the resulting PDF is archived in `hr-doc-issued`, so later downloads are
 // plain storage reads — no re-rendering, no browser rasterisation.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireCaller } from "../_shared/require-caller.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

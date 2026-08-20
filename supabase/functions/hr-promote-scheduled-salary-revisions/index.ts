@@ -7,6 +7,7 @@
 // dialog just stores the SCHEDULED row and returns.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { requireCaller } from "../_shared/require-caller.ts";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -14,6 +15,10 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
   const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   const today = new Date().toISOString().slice(0, 10);

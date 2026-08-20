@@ -7,6 +7,7 @@
 // hr_attendance_absent_marker_runs so we can prove it ran.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireCaller } from "../_shared/require-caller.ts";
 import { fetchAllRows } from "../_shared/paginate.ts";
 
 const corsHeaders = {
@@ -31,6 +32,10 @@ function v4YesterdayIST(): { dateStr: string; dow: number } {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
 
   try {
     const supabase = createClient(

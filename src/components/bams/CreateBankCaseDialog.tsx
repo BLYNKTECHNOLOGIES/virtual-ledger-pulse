@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+
 
 
 const CASE_TYPES = [

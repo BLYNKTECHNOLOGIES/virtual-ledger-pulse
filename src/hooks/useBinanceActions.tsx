@@ -328,12 +328,20 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null, accountId?
 }
 
 /** Two-phase order history: Phase 1 fetches latest 50 orders instantly,
- *  Phase 2 lazily loads the rest in the background. Consumers see a single merged array. */
+ *  Phase 2 lazily loads the rest in the background. Consumers see a single merged array.
+ *
+ *  Performance notes (this was the #1 slowest query in the database):
+ *   - `raw_data` (a large JSONB blob) is NEVER selected in bulk; only the two
+ *     fields actually used are projected server-side.
+ *   - Pagination is keyset (create_time cursor) instead of deep OFFSET, so page
+ *     50 costs the same as page 1.
+ *   - The bulk phase no longer polls every 2 minutes; freshness comes from the
+ *     50-row fast phase, which is merged on top of the bulk snapshot. */
 export function useBinanceOrderHistory() {
   const { accountsToQuery } = useExchangeAccount();
   const accountKey = accountsToQuery.join(',');
   const SELECT_COLS =
-    'order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, raw_data, exchange_account_id';
+    'order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, commission, order_status, create_time, pay_method_name, counter_part_nick_name, verified_name, exchange_account_id, raw_order_status:raw_data->>orderStatus, raw_kyc_verify:raw_data->>additionalKycVerify';
 
   // Phase 1: Fast initial load – latest 50 orders only
   const phase1 = useQuery({
@@ -356,48 +364,67 @@ export function useBinanceOrderHistory() {
     refetchInterval: 30 * 1000,
   });
 
-  // Phase 2: Full background load – all remaining orders (deferred)
+  // Phase 2: Full background load – keyset paginated, no heavy JSON, no polling
   const phase2 = useQuery({
     queryKey: ['binance-order-history-bulk', accountKey],
     queryFn: async () => {
       const batchSize = 1000;
       const allOrders: any[] = [];
-      let offset = 0;
-      let hasMore = true;
+      const seen = new Set<string>();
+      let cursor: number | null = null;
 
-      while (hasMore) {
-        const { data, error } = await supabase
+      // Hard page cap keeps a pathological cursor stall from looping forever.
+      for (let page = 0; page < 500; page++) {
+        let q = supabase
           .from('binance_order_history')
           .select(SELECT_COLS)
           .in('exchange_account_id', accountsToQuery)
           .order('create_time', { ascending: false })
-          .range(offset, offset + batchSize - 1);
+          .limit(batchSize);
 
+        // `lte` (not `lt`) so rows sharing the boundary timestamp are not lost;
+        // the `seen` set removes the resulting duplicates.
+        if (cursor !== null) q = q.lte('create_time', cursor);
+
+        const { data, error } = await q;
         if (error) {
           console.error('[OrderHistory] Phase 2 fetch error:', error);
           break;
         }
+        if (!data || data.length === 0) break;
 
-        if (data && data.length > 0) {
-          for (const row of data) {
-            allOrders.push(mapOrderRow(row));
-          }
-          offset += batchSize;
-          hasMore = data.length === batchSize;
-        } else {
-          hasMore = false;
+        let added = 0;
+        for (const row of data as any[]) {
+          if (seen.has(row.order_number)) continue;
+          seen.add(row.order_number);
+          allOrders.push(mapOrderRow(row));
+          added++;
         }
+
+        const nextCursor = Number((data as any[])[data.length - 1].create_time);
+        // No progress (whole page was duplicates / cursor didn't move) → stop.
+        if (data.length < batchSize || added === 0 || nextCursor === cursor) break;
+        cursor = nextCursor;
       }
 
       return allOrders;
     },
-    staleTime: 60 * 1000,
-    refetchInterval: 120 * 1000,
+    staleTime: 10 * 60 * 1000,
     enabled: phase1.isFetched,
   });
 
-  // Merge: use full data once available, otherwise fast data
-  const mergedData = phase2.data && phase2.data.length > 0 ? phase2.data : (phase1.data || []);
+  // Merge: bulk snapshot as the base, fast phase overlaid for freshness.
+  const mergedData = useMemo(() => {
+    const bulk = phase2.data || [];
+    const fast = phase1.data || [];
+    if (bulk.length === 0) return fast;
+    if (fast.length === 0) return bulk;
+    const fresh = new Map(fast.map((o: any) => [o.orderNumber, o]));
+    const merged = bulk.map((o: any) => fresh.get(o.orderNumber) || o);
+    const known = new Set(bulk.map((o: any) => o.orderNumber));
+    const brandNew = fast.filter((o: any) => !known.has(o.orderNumber));
+    return brandNew.length ? [...brandNew, ...merged] : merged;
+  }, [phase1.data, phase2.data]);
 
   return {
     data: mergedData,
@@ -410,8 +437,17 @@ export function useBinanceOrderHistory() {
 }
 
 function mapOrderRow(row: any) {
-  const rawStatus = (row.raw_data as any)?.orderStatus;
-  const rawStatusText = rawStatus === undefined || rawStatus === null ? '' : String(rawStatus).toUpperCase();
+  // `raw_order_status` is the server-side projection of raw_data->>orderStatus.
+  // It arrives as text; numeric Binance codes are restored to numbers so
+  // downstream strict comparisons keep working.
+  const rawText = row.raw_order_status;
+  const rawStatus =
+    rawText === undefined || rawText === null || rawText === ''
+      ? undefined
+      : /^-?\d+$/.test(rawText)
+        ? Number(rawText)
+        : rawText;
+  const rawStatusText = rawStatus === undefined ? '' : String(rawStatus).toUpperCase();
   const orderStatus = rawStatusText.includes('APPEAL') || rawStatusText.includes('DISPUTE') || rawStatusText.includes('COMPLAINT')
     ? rawStatus
     : row.order_status;
@@ -432,7 +468,7 @@ function mapOrderRow(row: any) {
     payMethodName: row.pay_method_name,
     counterPartNickName: row.counter_part_nick_name,
     verifiedName: row.verified_name,
-    additionalKycVerify: (row.raw_data as any)?.additionalKycVerify ?? 0,
+    additionalKycVerify: row.raw_kyc_verify == null ? 0 : Number(row.raw_kyc_verify) || 0,
     _exchangeAccountId: row.exchange_account_id ?? null,
   };
 }

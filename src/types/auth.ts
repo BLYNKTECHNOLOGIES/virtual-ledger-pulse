@@ -47,7 +47,8 @@ export interface DatabaseUser {
   account_locked_until?: string;
   created_at: string;
   updated_at: string;
-  password_hash: string;
+  /** Never selected client-side; column access is revoked for authenticated users. */
+  password_hash?: string;
   role_id?: string;
   role?: {
     id: string;

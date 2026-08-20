@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { MultipartUploadManifest } from "@/lib/resumable-upload";
+import { resolveStorageUrl } from "@/lib/storage-url";
 
 const MANIFEST_KIND = "supabase-multipart-file";
 
@@ -7,16 +8,16 @@ export const isMultipartManifestUrl = (url?: string | null) =>
   !!url && /\/__multipart_manifests__\/.*\.manifest\.json(?:\?|$)/i.test(url);
 
 const getPublicStoragePath = (url: string, bucket: string) => {
-  const marker = `/storage/v1/object/public/${bucket}/`;
-  const markerIndex = url.indexOf(marker);
-  if (markerIndex < 0) return null;
-  return decodeURIComponent(url.slice(markerIndex + marker.length).split("?")[0]);
+  const marker = new RegExp(`/storage/v1/object/(?:public|sign|authenticated)/${bucket}/`);
+  const m = url.match(marker);
+  if (!m) return null;
+  return decodeURIComponent(url.slice((m.index ?? 0) + m[0].length).split("?")[0]);
 };
 
 export async function resolveMultipartManifestUrl(url: string, fallbackBucket = "kyc-documents") {
-  if (!isMultipartManifestUrl(url)) return url;
+  if (!isMultipartManifestUrl(url)) return await resolveStorageUrl(url, fallbackBucket);
 
-  const response = await fetch(url);
+  const response = await fetch(await resolveStorageUrl(url, fallbackBucket));
   if (!response.ok) throw new Error("Could not read the large video manifest.");
 
   const manifest = (await response.json()) as MultipartUploadManifest;
@@ -27,8 +28,8 @@ export async function resolveMultipartManifestUrl(url: string, fallbackBucket = 
   const bucket = manifest.bucket || fallbackBucket;
   const buffers: ArrayBuffer[] = [];
   for (const chunk of [...manifest.chunks].sort((a, b) => a.index - b.index)) {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(chunk.path);
-    const chunkResponse = await fetch(data.publicUrl);
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(chunk.path, 3600);
+    const chunkResponse = await fetch(data?.signedUrl ?? "");
     if (!chunkResponse.ok) throw new Error(`Could not load video chunk ${chunk.index + 1}.`);
     buffers.push(await chunkResponse.arrayBuffer());
   }
@@ -38,7 +39,8 @@ export async function resolveMultipartManifestUrl(url: string, fallbackBucket = 
 
 export async function openStorageDocumentUrl(url: string, bucket = "kyc-documents") {
   if (!isMultipartManifestUrl(url)) {
-    window.open(url, "_blank");
+    const direct = await resolveStorageUrl(url, bucket);
+    if (direct) window.open(direct, "_blank");
     return;
   }
 

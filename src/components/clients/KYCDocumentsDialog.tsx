@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileText, Download, Eye, Upload, Calendar, CreditCard, Briefcase, Video, ExternalLink, Trash2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { openStorageFile } from "@/lib/storage-url";
 import { downloadStorageDocumentUrl, openStorageDocumentUrl } from "@/lib/storage-multipart";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -317,7 +318,7 @@ export function KYCDocumentsDialog({ open, onOpenChange, client }: KYCDocumentsD
                           {bank.bank_name} <span className="text-muted-foreground">••••{bank.last_four_digits}</span>
                         </span>
                         {bank.statement_url && (
-                          <Button variant="outline" size="sm" onClick={() => window.open(bank.statement_url, '_blank')}>
+                          <Button variant="outline" size="sm" onClick={() => void openStorageFile(bank.statement_url)}>
                             <Download className="h-3 w-3 mr-1" />
                             Statement
                           </Button>

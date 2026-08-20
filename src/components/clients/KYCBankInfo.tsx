@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FileText, CheckCircle, AlertCircle, ExternalLink, Download, Video, Upload } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { openStorageFile } from "@/lib/storage-url";
 import { UploadKYCDocumentDialog } from "./UploadKYCDocumentDialog";
 import { openStorageDocumentUrl } from "@/lib/storage-multipart";
 
@@ -264,7 +265,7 @@ export function KYCBankInfo({ clientId, isSeller }: KYCBankInfoProps) {
                       {bank.bank_name} <span className="text-muted-foreground">x{bank.last_four_digits}</span>
                     </span>
                     {bank.statement_url && (
-                      <Button variant="ghost" size="sm" onClick={() => window.open(bank.statement_url!, '_blank')}>
+                      <Button variant="ghost" size="sm" onClick={() => void openStorageFile(bank.statement_url!)}>
                         <Download className="h-3 w-3 mr-1" />
                         Statement
                       </Button>

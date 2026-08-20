@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { openStorageFile } from "@/lib/storage-url";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -403,7 +404,7 @@ export function PendingApprovalsTab() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => window.open(url, '_blank')}
+                            onClick={() => void openStorageFile(url)}
                             className="text-info hover:text-info"
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />

@@ -63,7 +63,10 @@ export interface InvoiceGroup {
   category?: InvoiceCategory;
   /** Editable note for the invoice */
   note?: string;
+  /** Transaction ID (IT / Software Services Paytm category) */
+  transactionId?: string;
 }
+
 
 export interface CompanyInfo {
   name: string;

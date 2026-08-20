@@ -81,6 +81,9 @@ export default function ResetPassword() {
 
       if (error) throw error;
 
+      const { error: completionError } = await supabase.rpc('complete_forced_password_change');
+      if (completionError) throw completionError;
+
       toast.success('Password updated successfully!');
       
       // Sign out and redirect to login

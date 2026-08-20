@@ -136,6 +136,16 @@ Deno.serve(async (req) => {
       return json({ error: updateError.message || "Failed to reset password." }, 500);
     }
 
+    const { error: clearFlagError } = await admin
+      .from("users")
+      .update({ force_password_change: false })
+      .eq("id", userId);
+
+    if (clearFlagError) {
+      console.error("Failed to complete password reset state:", clearFlagError);
+      return json({ error: "Password changed, but account setup could not be completed. Please try again." }, 500);
+    }
+
     // Mark OTP used
     await admin.from("erp_password_otps").update({ used: true }).eq("id", otpRow.id);
 

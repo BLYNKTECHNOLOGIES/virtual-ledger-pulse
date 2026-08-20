@@ -10,7 +10,7 @@ import { ComplianceGovernanceTab } from "@/components/compliance/ComplianceGover
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   complianceTabsListCls,
   complianceTabTriggerCls,
@@ -19,6 +19,17 @@ import {
 
 export default function Compliance() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "overview";
+  const setTab = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("tab", value);
+    if (value !== tab) {
+      next.delete("sub");
+      next.delete("focus");
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   return (
     <PermissionGate
@@ -81,7 +92,7 @@ export default function Compliance() {
 
         <div className="px-6 md:px-10 py-5 max-w-[1600px] mx-auto">
           <ErrorBoundary>
-            <Tabs defaultValue="overview" className="space-y-5">
+            <Tabs value={tab} onValueChange={setTab} className="space-y-5">
               <div className={complianceTabsWrapperCls}>
                 <TabsList className={complianceTabsListCls}>
                   <TabsTrigger value="overview" className={complianceTabTriggerCls}>

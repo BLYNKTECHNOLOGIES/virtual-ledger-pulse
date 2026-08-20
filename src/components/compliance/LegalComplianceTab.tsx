@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Scale, MessageSquare } from "lucide-react";
 import { DocumentManagementTab } from "./DocumentManagementTab";
@@ -9,8 +10,16 @@ import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabs
 const triggerCls = complianceSubTabTriggerCls;
 
 export function LegalComplianceTab() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sub = searchParams.get("sub") || "documents";
+  const setSub = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("sub", value);
+    if (value !== sub) next.delete("focus");
+    setSearchParams(next, { replace: true });
+  };
   return (
-    <Tabs defaultValue="documents" className="space-y-4">
+    <Tabs value={sub} onValueChange={setSub} className="space-y-4">
       <div className={complianceSubTabsWrapperCls}>
         <TabsList className={complianceSubTabsListCls}>
           <TabsTrigger value="documents" className={triggerCls}>

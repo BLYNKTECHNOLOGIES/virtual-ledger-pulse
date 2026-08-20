@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, MessageSquare, Key, Search, Archive, Activity, Clock } from "lucide-react";
 import { CaseTrackingTab } from "./CaseTrackingTab";
@@ -16,6 +17,14 @@ import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabs
 const triggerCls = complianceSubTabTriggerCls;
 
 export function BankingComplianceTab() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sub = searchParams.get("sub") || "account-status";
+  const setSub = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("sub", value);
+    if (value !== sub) next.delete("focus");
+    setSearchParams(next, { replace: true });
+  };
   const { hasPermission } = usePermissions();
   const canApprove = hasPermission("compliance_approve");
 
@@ -33,7 +42,7 @@ export function BankingComplianceTab() {
   });
 
   return (
-    <Tabs defaultValue="account-status" className="space-y-4">
+    <Tabs value={sub} onValueChange={setSub} className="space-y-4">
       <div className={complianceSubTabsWrapperCls}>
         <TabsList className={complianceSubTabsListCls}>
           <TabsTrigger value="account-status" className={triggerCls}>

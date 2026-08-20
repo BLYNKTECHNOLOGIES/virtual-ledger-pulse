@@ -1,3 +1,4 @@
+import { useDeepLinkHighlight } from "@/components/transaction-detail/useDeepLinkHighlight";
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 const communicationModes = ["Email", "Call", "Letter", "Meeting"];
 
 export function BankCommunicationsTab() {
+  useDeepLinkHighlight(["focus"]);
   const [showBankCommDialog, setShowBankCommDialog] = useState(false);
   const [newComm, setNewComm] = useState({
     bank_name: "",
@@ -167,7 +169,7 @@ export function BankCommunicationsTab() {
       <CardContent>
         <div className="space-y-4">
           {bankComms?.map((comm) => (
-            <div key={comm.id} className="border rounded-lg p-4">
+            <div id={`tx-row-${comm.id}`} key={comm.id} className="border rounded-lg p-4">
               <div className="flex justify-between items-start mb-2">
                 <div>
                   <h4 className="font-medium">{comm.bank_name}</h4>

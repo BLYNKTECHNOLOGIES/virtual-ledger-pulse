@@ -1,3 +1,4 @@
+import { useDeepLinkHighlight } from "@/components/transaction-detail/useDeepLinkHighlight";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const caseTypeLabels = {
 };
 
 export function CaseTrackingTab() {
+  useDeepLinkHighlight(["focus"]);
   const [showNewCaseDialog, setShowNewCaseDialog] = useState(false);
   const [typeChange, setTypeChange] = useState<{ bankCase: any; newType: string } | null>(null);
   const [escalateSource, setEscalateSource] = useState<EscalationSource | null>(null);
@@ -277,7 +279,7 @@ export function CaseTrackingTab() {
       <CardContent>
         <div className="space-y-4">
           {(bankCases || []).map((bankCase) => (
-            <div key={bankCase.id} className={`border rounded-lg p-4 md:p-5 ${getStatusColor(bankCase.status)}`}>
+            <div id={`tx-row-${bankCase.id}`} key={bankCase.id} className={`border rounded-lg p-4 md:p-5 ${getStatusColor(bankCase.status)}`}>
               <div className="flex flex-wrap justify-between items-start gap-3 mb-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">

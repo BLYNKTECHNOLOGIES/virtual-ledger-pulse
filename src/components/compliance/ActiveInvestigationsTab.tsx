@@ -1,3 +1,4 @@
+import { useDeepLinkHighlight } from "@/components/transaction-detail/useDeepLinkHighlight";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ const caseTypeLabels = {
 };
 
 export function ActiveInvestigationsTab() {
+  useDeepLinkHighlight(["focus"]);
   const [selectedBankFilter, setSelectedBankFilter] = useState<string>("all");
   const [selectedPriorityFilter, setSelectedPriorityFilter] = useState<string>("all");
   const [selectedInvestigation, setSelectedInvestigation] = useState<any>(null);
@@ -217,7 +219,7 @@ export function ActiveInvestigationsTab() {
               </h3>
               <div className="space-y-3">
                 {investigations.filter(inv => inv.priority === 'HIGH').map((investigation) => (
-                  <div key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
+                  <div id={`tx-row-${investigation.id}`} key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -296,7 +298,7 @@ export function ActiveInvestigationsTab() {
               </h3>
               <div className="space-y-3">
                 {investigations.filter(inv => inv.priority === 'LOW').map((investigation) => (
-                  <div key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
+                  <div id={`tx-row-${investigation.id}`} key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -375,7 +377,7 @@ export function ActiveInvestigationsTab() {
               </h3>
               <div className="space-y-3">
                 {investigations.filter(inv => inv.priority === 'MEDIUM').map((investigation) => (
-                  <div key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
+                  <div id={`tx-row-${investigation.id}`} key={investigation.id} className={`border rounded-lg p-4 ${priorityColors[investigation.priority as keyof typeof priorityColors]}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">

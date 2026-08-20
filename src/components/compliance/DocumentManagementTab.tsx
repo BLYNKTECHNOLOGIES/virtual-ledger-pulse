@@ -1,3 +1,4 @@
+import { useDeepLinkHighlight } from "@/components/transaction-detail/useDeepLinkHighlight";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { cn } from "@/lib/utils";
 
 export function DocumentManagementTab() {
+  useDeepLinkHighlight(["focus"]);
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
@@ -260,7 +262,7 @@ export function DocumentManagementTab() {
               </div>
             ) : (
               filteredDocuments.map((document) => (
-                <div key={document.id} className="border rounded-lg p-4">
+                <div id={`tx-row-${document.id}`} key={document.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-start mb-2">
                     <div>
                       <h4 className="font-medium">{document.name}</h4>

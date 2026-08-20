@@ -8,9 +8,11 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { buildComplianceLink } from "./complianceDeepLink";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
 import {
-  Activity, ChevronDown, Download, FilePlus2, FileText, Gavel,
+  Activity, ChevronDown, ChevronRight, Download, FilePlus2, FileText, Gavel,
   Landmark, MessageSquare, PencilLine, Search, Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from "date-fns";
@@ -59,6 +61,7 @@ const dayHeading = (iso: string) => {
 };
 
 export function ComplianceActivityFeed() {
+  const navigate = useNavigate();
   const [days, setDays] = useState(7);
   const [source, setSource] = useState<string | "all">("all");
 
@@ -217,8 +220,24 @@ export function ComplianceActivityFeed() {
                   const meta = actionMeta(e.action);
                   const SrcIcon = SOURCE_META[e.source]?.icon ?? Activity;
                   const ActionIcon = meta.icon;
+                  const link = buildComplianceLink(e.source, e.record_id);
+                  const clickable = Boolean(link) && e.action !== "DELETE";
                   return (
-                    <li key={`${e.record_id}-${e.at}-${i}`} className="flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/40">
+                    <li
+                      key={`${e.record_id}-${e.at}-${i}`}
+                      role={clickable ? "button" : undefined}
+                      tabIndex={clickable ? 0 : undefined}
+                      onClick={() => clickable && link && navigate(link)}
+                      onKeyDown={(ev) => {
+                        if (clickable && link && (ev.key === "Enter" || ev.key === " ")) {
+                          ev.preventDefault();
+                          navigate(link);
+                        }
+                      }}
+                      className={`flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/40 ${
+                        clickable ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""
+                      }`}
+                    >
                       <span className={`mt-0.5 h-7 w-7 shrink-0 rounded-md flex items-center justify-center ${meta.cls}`}>
                         <ActionIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </span>
@@ -242,6 +261,9 @@ export function ComplianceActivityFeed() {
                           {meta.label} by {e.actor} · {format(parseISO(e.at), "HH:mm")} · {formatDistanceToNow(parseISO(e.at), { addSuffix: true })}
                         </p>
                       </div>
+                      {clickable && (
+                        <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" />
+                      )}
                     </li>
                   );
                 })}

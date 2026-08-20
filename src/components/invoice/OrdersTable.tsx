@@ -41,6 +41,12 @@ export default function OrdersTable({ records, category = "it_services" }: Order
               {isPaytm && (
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Transaction ID</th>
               )}
+              {isPaytm && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Order ID</th>
+              )}
+              {isPaytm && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">RRN</th>
+              )}
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Date</th>
 
             </tr>

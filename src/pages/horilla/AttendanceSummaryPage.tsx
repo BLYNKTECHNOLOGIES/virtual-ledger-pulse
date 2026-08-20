@@ -217,7 +217,10 @@ export default function AttendanceSummaryPage() {
 
   const { data: shifts = [] } = useQuery({
     queryKey: ["hr_shifts_durations"],
-    queryFn: async () => (await fetchAllPaginated<any>(() => (supabase as any).from("hr_shifts").select("id, duration_hours"))) || [],
+    queryFn: async () =>
+      (await fetchAllPaginated<any>(() =>
+        (supabase as any).from("hr_shifts").select("id, name, duration_hours, start_time, end_time"),
+      )) || [],
   });
 
   const deptByEmployee = useMemo(() => {
@@ -238,6 +241,19 @@ export default function AttendanceSummaryPage() {
     for (const s of shiftSchedule as any[]) if (s.shift_id && dur.has(s.shift_id)) m.set(s.employee_id, dur.get(s.shift_id)!);
     return m;
   }, [workInfo, shiftSchedule, shifts]);
+
+  const shiftNameByEmployee = useMemo(() => {
+    const label = new Map<string, string>();
+    for (const s of shifts as any[]) {
+      const time = s.start_time && s.end_time ? ` (${String(s.start_time).slice(0, 5)}–${String(s.end_time).slice(0, 5)})` : "";
+      label.set(s.id, `${s.name || "Shift"}${time}`);
+    }
+    const m = new Map<string, string>();
+    for (const w of workInfo as any[]) if (w.shift_id && label.has(w.shift_id)) m.set(w.employee_id, label.get(w.shift_id)!);
+    for (const s of shiftSchedule as any[]) if (s.shift_id && label.has(s.shift_id)) m.set(s.employee_id, label.get(s.shift_id)!);
+    return m;
+  }, [workInfo, shiftSchedule, shifts]);
+
 
 
   const exportCsv = () => {
@@ -301,6 +317,7 @@ export default function AttendanceSummaryPage() {
           activeIds={activeIds}
           deptByEmployee={deptByEmployee}
           shiftMinutesByEmployee={shiftMinutesByEmployee}
+          shiftNameByEmployee={shiftNameByEmployee}
         />}
 
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
   Clock,
   Info,
   Minus,
@@ -28,6 +30,8 @@ import {
   UserCheck,
   Users,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import {
   Tooltip as UITooltip,
   TooltipContent,
@@ -85,6 +89,8 @@ type Props = {
   activeIds?: Set<string>;
   deptByEmployee: Map<string, string>;
   shiftMinutesByEmployee: Map<string, number>;
+  /** Optional shift label per employee — enables the shift breakdown under each department. */
+  shiftNameByEmployee?: Map<string, string>;
 };
 
 /** Lateness beyond this is a shift-mapping / timestamp artefact, not real lateness. */
@@ -265,8 +271,11 @@ export function AttendanceInsights({
   activeIds,
   deptByEmployee,
   shiftMinutesByEmployee,
+  shiftNameByEmployee,
 }: Props) {
   const [showAllPeople, setShowAllPeople] = useState(false);
+  const [deptBreakdown, setDeptBreakdown] = useState<"none" | "shift">("none");
+  const [openDepts, setOpenDepts] = useState<Set<string>>(new Set());
   const [drill, setDrill] = useState<DrillPayload | null>(null);
 
 
@@ -547,18 +556,14 @@ export function AttendanceInsights({
   }, [maintained]);
 
   /* ---------------- departments ---------------- */
+  const shiftOf = (id: string) => shiftNameByEmployee?.get(id) || "No shift mapped";
+
   const deptRows = useMemo(() => {
-    const acc = new Map<
-      string,
-      { headcount: number; total: number; present: number; half: number; lateDays: number; lop: number; netMin: number; workedDays: number }
-    >();
-    const ensure = (d: string) => {
-      if (!acc.has(d)) acc.set(d, { headcount: 0, total: 0, present: 0, half: 0, lateDays: 0, lop: 0, netMin: 0, workedDays: 0 });
-      return acc.get(d)!;
-    };
-    for (const s of summary) {
-      const dept = deptByEmployee.get(s.employee_id) || "Unassigned";
-      const a = ensure(dept);
+    type Agg = { headcount: number; total: number; present: number; half: number; lateDays: number; lop: number; netMin: number; workedDays: number };
+    const blank = (): Agg => ({ headcount: 0, total: 0, present: 0, half: 0, lateDays: 0, lop: 0, netMin: 0, workedDays: 0 });
+    const acc = new Map<string, { agg: Agg; shifts: Map<string, Agg> }>();
+
+    const add = (a: Agg, s: SummaryLite) => {
       a.headcount++;
       a.lop += Number(s.lop_days || 0);
       const st = perEmployee.get(s.employee_id);
@@ -570,18 +575,37 @@ export function AttendanceInsights({
         a.netMin += st.netMin;
         a.workedDays += st.workedDays;
       }
+    };
+
+    for (const s of summary) {
+      const dept = deptByEmployee.get(s.employee_id) || "Unassigned";
+      if (!acc.has(dept)) acc.set(dept, { agg: blank(), shifts: new Map() });
+      const bucket = acc.get(dept)!;
+      add(bucket.agg, s);
+      const sh = shiftOf(s.employee_id);
+      if (!bucket.shifts.has(sh)) bucket.shifts.set(sh, blank());
+      add(bucket.shifts.get(sh)!, s);
     }
+
+    const shape = (name: string, a: Agg) => ({
+      name,
+      headcount: a.headcount,
+      attendanceRate: a.total > 0 ? ((a.present + a.half * 0.5) / a.total) * 100 : null,
+      onTimeRate: a.present + a.half > 0 ? ((a.present + a.half - a.lateDays) / (a.present + a.half)) * 100 : null,
+      lop: a.lop,
+      avgHours: a.workedDays > 0 ? a.netMin / a.workedDays / 60 : null,
+    });
+
     return [...acc.entries()]
-      .map(([name, a]) => ({
-        name,
-        headcount: a.headcount,
-        attendanceRate: a.total > 0 ? ((a.present + a.half * 0.5) / a.total) * 100 : null,
-        onTimeRate: a.present + a.half > 0 ? ((a.present + a.half - a.lateDays) / (a.present + a.half)) * 100 : null,
-        lop: a.lop,
-        avgHours: a.workedDays > 0 ? a.netMin / a.workedDays / 60 : null,
+      .map(([name, b]) => ({
+        ...shape(name, b.agg),
+        shifts: [...b.shifts.entries()]
+          .map(([sname, sa]) => shape(sname, sa))
+          .sort((a, b2) => (a.attendanceRate ?? 999) - (b2.attendanceRate ?? 999)),
       }))
       .sort((a, b) => (a.attendanceRate ?? 999) - (b.attendanceRate ?? 999));
-  }, [summary, perEmployee, deptByEmployee]);
+  }, [summary, perEmployee, deptByEmployee, shiftNameByEmployee]);
+
 
   /* ---------------- exceptions ---------------- */
   const exceptions = useMemo(() => {
@@ -889,20 +913,23 @@ export function AttendanceInsights({
     });
   };
 
-  const openDept = (name: string) => {
-    const ids = summary.filter((s) => deptOf(s.employee_id) === name).map((s) => s.employee_id);
+  const openDept = (name: string, shiftName?: string) => {
+    const ids = summary
+      .filter((s) => deptOf(s.employee_id) === name && (!shiftName || shiftOf(s.employee_id) === shiftName))
+      .map((s) => s.employee_id);
     const lopById = new Map(summary.map((s) => [s.employee_id, Number(s.lop_days || 0)]));
-    const row = deptRows.find((d) => d.name === name);
+    const deptRow = deptRows.find((d) => d.name === name);
+    const row = shiftName ? deptRow?.shifts.find((s) => s.name === shiftName) : deptRow;
     const drillRows: DrillRow[] = ids
       .map((id) => {
         const st = perEmployee.get(id);
-        const worked = st ? st.present + st.half : 0;
         const rate = st && st.maintained > 0 ? ((st.present + st.half * 0.5) / st.maintained) * 100 : null;
         return {
           id,
           dept: name,
           rank: 100 - (rate ?? 100),
           cells: [
+            cell(shiftOf(id)),
             cell(String(st?.maintained ?? 0)),
             cell(rate === null ? "—" : `${rate.toFixed(1)}%`, rate !== null && rate < 90 ? "bad" : "good"),
             cell(String(st?.lateDays ?? 0), (st?.lateDays ?? 0) > 0 ? "warn" : "default"),
@@ -914,12 +941,15 @@ export function AttendanceInsights({
       .sort((a, b) => (b.rank || 0) - (a.rank || 0));
 
     setDrill({
-      title: `${name} department`,
+      title: shiftName ? `${name} — ${shiftName}` : `${name} department`,
       subtitle: `${ids.length} employee(s) on the active roster`,
       narrative:
         `Department figures are the sum of each member's maintained attendance rows — no separate department-level source exists. ` +
+        (shiftName
+          ? `This view is limited to members currently mapped to ${shiftName}; shift mapping comes from the employee's current shift schedule (falling back to work info). `
+          : "") +
         `The attendance rate below is computed on maintained days only, so a department with unfinalised days will look different from one ` +
-        `that is fully maintained. The per-employee table shows exactly who is pulling the department average.`,
+        `that is fully maintained. The per-employee table shows exactly who is pulling the average.`,
       formula: {
         expression: `Σ (present + half × 0.5) ÷ Σ maintained days for ${ids.length} member(s)`,
         result: row?.attendanceRate != null ? `${row.attendanceRate.toFixed(1)}%` : "—",
@@ -931,10 +961,11 @@ export function AttendanceInsights({
         { label: "LOP days", value: String(Math.round((row?.lop || 0) * 10) / 10), tone: (row?.lop || 0) > 0 ? "bad" : "default" },
         { label: "Avg net hours", value: row?.avgHours != null ? `${row.avgHours.toFixed(2)}h` : "—" },
       ],
-      columns: ["Maintained days", "Attendance rate", "Late days", "LOP days", "Avg net hours"],
+      columns: ["Shift", "Maintained days", "Attendance rate", "Late days", "LOP days", "Avg net hours"],
       rows: drillRows,
     });
   };
+
 
   return (
     <TooltipProvider delayDuration={100}>
@@ -1311,14 +1342,30 @@ export function AttendanceInsights({
 
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-1.5">
                   <CardTitle className="text-sm font-semibold text-foreground">Department comparison</CardTitle>
-                  <InfoDot text="Weakest attendance first. Rates use maintained days only. Click a department for its per-employee breakdown." />
+                  <InfoDot text="Weakest attendance first. Rates use maintained days only. Click a department (or a shift under it) for the per-employee breakdown." />
                 </div>
-                <DrillBadge />
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={deptBreakdown}
+                    onValueChange={(v) => {
+                      setDeptBreakdown(v as "none" | "shift");
+                      setOpenDepts(new Set());
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-[190px] text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Department only</SelectItem>
+                      <SelectItem value="shift">Subdivide by shift</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <DrillBadge />
+                </div>
               </div>
-
             </CardHeader>
 
             <CardContent className="p-0 overflow-x-auto">
@@ -1338,27 +1385,80 @@ export function AttendanceInsights({
                   </tr>
                 </thead>
                 <tbody>
-                  {deptRows.map((d) => (
-                    <tr
-                      key={d.name}
-                      className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
-                      onClick={() => openDept(d.name)}
-                    >
-                      <td className="px-4 py-2 font-medium text-primary underline-offset-2 hover:underline">{d.name}</td>
-
-                      <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">
-                        {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">{d.onTimeRate === null ? "—" : `${d.onTimeRate.toFixed(1)}%`}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-destructive">{Math.round(d.lop * 10) / 10}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{d.avgHours === null ? "—" : `${d.avgHours.toFixed(2)}h`}</td>
-                    </tr>
-                  ))}
+                  {deptRows.map((d) => {
+                    const expanded = deptBreakdown === "shift" && openDepts.has(d.name);
+                    return (
+                      <Fragment key={d.name}>
+                        <tr
+                          className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                          onClick={() => openDept(d.name)}
+                        >
+                          <td className="px-4 py-2 font-medium">
+                            <span className="flex items-center gap-1.5">
+                              {deptBreakdown === "shift" && (
+                                <button
+                                  type="button"
+                                  aria-label={expanded ? "Collapse shifts" : "Expand shifts"}
+                                  className="text-muted-foreground hover:text-foreground"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenDepts((prev) => {
+                                      const next = new Set(prev);
+                                      next.has(d.name) ? next.delete(d.name) : next.add(d.name);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                                </button>
+                              )}
+                              <span className="text-primary underline-offset-2 hover:underline">{d.name}</span>
+                              {deptBreakdown === "shift" && (
+                                <Badge variant="outline" className="h-4 px-1 text-[10px] font-normal text-muted-foreground">
+                                  {d.shifts.length} shift{d.shifts.length === 1 ? "" : "s"}
+                                </Badge>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">{d.headcount}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">
+                            {d.attendanceRate === null ? "—" : `${d.attendanceRate.toFixed(1)}%`}
+                          </td>
+                          <td className="px-4 py-2 text-right tabular-nums">{d.onTimeRate === null ? "—" : `${d.onTimeRate.toFixed(1)}%`}</td>
+                          <td className="px-4 py-2 text-right tabular-nums text-destructive">{Math.round(d.lop * 10) / 10}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{d.avgHours === null ? "—" : `${d.avgHours.toFixed(2)}h`}</td>
+                        </tr>
+                        {expanded &&
+                          d.shifts.map((s) => (
+                            <tr
+                              key={`${d.name}|${s.name}`}
+                              className="border-b last:border-0 bg-muted/20 hover:bg-muted/40 cursor-pointer"
+                              onClick={() => openDept(d.name, s.name)}
+                            >
+                              <td className="px-4 py-1.5 pl-11 text-[13px] text-muted-foreground">{s.name}</td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">{s.headcount}</td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">
+                                {s.attendanceRate === null ? "—" : `${s.attendanceRate.toFixed(1)}%`}
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">
+                                {s.onTimeRate === null ? "—" : `${s.onTimeRate.toFixed(1)}%`}
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px] text-destructive">
+                                {Math.round(s.lop * 10) / 10}
+                              </td>
+                              <td className="px-4 py-1.5 text-right tabular-nums text-[13px]">
+                                {s.avgHours === null ? "—" : `${s.avgHours.toFixed(2)}h`}
+                              </td>
+                            </tr>
+                          ))}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </CardContent>
           </Card>
+
         </TabsContent>
 
         {/* ---------------- Exceptions ---------------- */}

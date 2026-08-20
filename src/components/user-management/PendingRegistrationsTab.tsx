@@ -77,7 +77,9 @@ export function PendingRegistrationsTab() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pending_registrations")
-        .select("*")
+        .select(
+          "id,username,email,first_name,last_name,phone,status,submitted_at,reviewed_at,reviewed_by,rejection_reason,badge_id,user_id"
+        )
         // DB stores status as 'PENDING' (historically some code used 'pending').
         // Accept both so the approvals portal never silently shows 0.
         .in("status", ["PENDING", "pending"])

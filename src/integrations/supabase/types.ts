@@ -29788,6 +29788,7 @@ export type Database = {
           stored_balance: number
         }[]
       }
+      verify_erp_sync_access: { Args: { p_user_id: string }; Returns: boolean }
       verify_terminal_access: { Args: { p_user_id: string }; Returns: boolean }
       verify_wallet_asset_running_balance:
         | {

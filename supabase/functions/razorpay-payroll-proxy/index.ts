@@ -1687,7 +1687,16 @@ Deno.serve(async (req) => {
           // it lands; sending `pan-number` here made the API silently no-op the
           // PAN write while returning 200, so PAN never reached RazorpayX.
           case "pan": data["pan"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
-          case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); expectedReadBack[k] = raw; break;
+          // Same lesson as PAN above: the Opfin people envelope keys UAN as
+          // `uan`; `uan-number` alone returns 200 but silently no-ops (which is
+          // why UAN never showed up on the RazorpayX profile / read-back). Send
+          // both spellings — unknown keys are ignored by the API.
+          case "uan": {
+            const uanDigits = String(raw).replace(/\D/g, "");
+            data["uan"] = uanDigits;
+            data["uan-number"] = uanDigits;
+            applied.push(k); expectedReadBack[k] = raw; break;
+          }
           // Statutory keys. Only `pt-enabled` and `state` are documented in the
           // Opfin people:edit contract; the PF/ESI keys below are probe-only —
           // people:view never returns any statutory field, so writes here can
@@ -6232,6 +6241,10 @@ Deno.serve(async (req) => {
       const docs = (ob.documents && typeof ob.documents === "object") ? ob.documents as any : {};
       const bank = (ob.bank_details && typeof ob.bank_details === "object") ? ob.bank_details as any : {};
       const pan = String(docs?.pan?.value || docs?.pan || "").trim().toUpperCase();
+      // UAN is optional (fresh hires may not have one) — pushed only when the
+      // candidate/HR actually supplied it, so PF continuity lands on the
+      // RazorpayX profile from creation instead of waiting for a later edit.
+      const uan = String(docs?.uan?.value || docs?.uan || "").replace(/\D/g, "");
       const dojIso = ob.date_of_joining ? String(ob.date_of_joining) : null;
       const dobIso = ob.date_of_birth ? String(ob.date_of_birth) : null;
       const toDdMmYyyy = (iso: string | null) =>
@@ -6277,6 +6290,8 @@ Deno.serve(async (req) => {
         department: deptName,
         title: ob.job_role,
         state: DEFAULT_RP_STATE,
+        uan: uan || null,
+        "uan-number": uan || null,
         pan,
         "bank-account-number": accountNumber,
         "bank-ifsc": ifsc,
@@ -6448,7 +6463,7 @@ Deno.serve(async (req) => {
       // Load employee + related rows.
       const [{ data: emp }, { data: wi }, { data: bank }, { data: structs }] = await Promise.all([
         svc.from("hr_employees")
-          .select("id,first_name,last_name,email,phone,gender,dob,pan_number,badge_id")
+          .select("id,first_name,last_name,email,phone,gender,dob,pan_number,uan_number,badge_id")
           .eq("id", hrId).maybeSingle(),
         svc.from("hr_employee_work_info")
           .select("department_id,job_role,joining_date,employee_type")
@@ -6467,6 +6482,8 @@ Deno.serve(async (req) => {
 
       const fullName = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
       const pan = (emp.pan_number || "").toString().trim().toUpperCase();
+      // Optional: only sent when the employee actually has a UAN on file.
+      const uan = (emp.uan_number || "").toString().replace(/\D/g, "");
       const dojIso = wi?.joining_date ? String(wi.joining_date) : null;
       const dobIso = emp.dob ? String(emp.dob) : null;
       const toDdMmYyyy = (iso: string | null) =>
@@ -6530,6 +6547,8 @@ Deno.serve(async (req) => {
         department: deptName,
         title: wi!.job_role,
         pan,
+        uan: uan || null,
+        "uan-number": uan || null,
         "bank-account-number": bank!.account_number,
         "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
         "bank-account-holder-name": accountHolder,

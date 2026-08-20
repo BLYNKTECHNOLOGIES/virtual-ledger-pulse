@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 
 import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
-import { EditEmployeeDialog } from "@/components/horilla/employee/EditEmployeeDialog";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -108,9 +107,6 @@ export default function EmployeeListPage() {
   // via useIsMobile().
   const viewMode: "list" | "grid" = isMobile ? "grid" : "list";
   const [addOpen, setAddOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editEmployee, setEditEmployee] = useState<any>(null);
-  const [editWorkInfo, setEditWorkInfo] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -214,11 +210,10 @@ export default function EmployeeListPage() {
     onError: () => toast.error("Failed to delete employee"),
   });
 
+  // Edit now opens the FULL employee profile in edit mode (personal, statutory,
+  // work info, payroll, documents…) instead of the old basic-details-only modal.
   const handleEdit = (emp: HrEmployee) => {
-    const wi = getWorkInfo(emp.id);
-    setEditEmployee(emp);
-    setEditWorkInfo(wi || null);
-    setEditOpen(true);
+    navigate(`/hrms/employee/${emp.id}?edit=1`);
   };
 
   const handleDelete = (emp: HrEmployee) => {
@@ -1091,14 +1086,6 @@ export default function EmployeeListPage() {
 
       {/* ─── Dialogs ─── */}
       <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} departments={departments || []} positions={positions || []} />
-      <EditEmployeeDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        employee={editEmployee}
-        workInfo={editWorkInfo}
-        departments={departments || []}
-        positions={positions || []}
-      />
 
       {/* Generic bulk work-info assignment dialog (department / position / shift / work type / employment type) */}
       {bulkField && (

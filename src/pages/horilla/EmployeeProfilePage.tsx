@@ -1,8 +1,8 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, Building2, User,
   Briefcase, CreditCard, FileText, Edit, Save, X, Check,
@@ -236,6 +236,7 @@ function InlineStatusBadge({ value }: { value?: string | null }) {
 export default function EmployeeProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("About");
   const [editing, setEditing] = useState(false);
@@ -585,7 +586,17 @@ export default function EmployeeProfilePage() {
             );
           }
         }
+        const firstName = (editForm.first_name ?? emp?.first_name ?? "").trim();
+        const lastName = (editForm.last_name ?? emp?.last_name ?? "").trim();
+        const badgeId = String(editForm.badge_id ?? emp?.badge_id ?? "").trim();
+        if (!firstName || !lastName) throw new Error("First and last name are required");
+        if (!badgeId) throw new Error("Badge ID is required");
+
         const { error } = await (supabase as any).from("hr_employees").update({
+          badge_id: badgeId,
+          first_name: firstName,
+          last_name: lastName,
+          is_active: editForm.is_active ?? emp?.is_active ?? true,
           email: nextEmail || null,
           phone: editForm.phone || null,
 
@@ -743,6 +754,10 @@ export default function EmployeeProfilePage() {
   const startEdit = () => {
     if (activeTab === "About" && emp) {
       setEditForm({
+        badge_id: emp.badge_id ?? "",
+        first_name: emp.first_name || "",
+        last_name: emp.last_name || "",
+        is_active: emp.is_active ?? true,
         email: emp.email || "",
         phone: emp.phone || "", gender: emp.gender || "", dob: emp.dob || "",
 
@@ -756,10 +771,31 @@ export default function EmployeeProfilePage() {
         pf_number: (emp as any).pf_number || "",
         uan_number: (emp as any).uan_number || "",
         esi_number: (emp as any).esi_number || "",
+        resignation_date: (emp as any).resignation_date || "",
+        termination_date: (emp as any).termination_date || "",
+        last_working_day: (emp as any).last_working_day || "",
+        separation_reason: (emp as any).separation_reason || "",
       });
     }
     setEditing(true);
   };
+
+  // Deep-link: the Employees list "Edit" action lands here with ?edit=1 so the
+  // full profile (not a cut-down modal) opens straight in edit mode.
+  const autoEditDone = useRef(false);
+  useEffect(() => {
+    if (autoEditDone.current) return;
+    if (searchParams.get("edit") !== "1") return;
+    if (!emp) return;
+    autoEditDone.current = true;
+    setActiveTab("About");
+    startEdit();
+    // Drop the flag so a later manual Cancel/refresh doesn't re-open edit mode.
+    const next = new URLSearchParams(searchParams);
+    next.delete("edit");
+    setSearchParams(next, { replace: true });
+  }, [emp, searchParams, setSearchParams]);
+
 
   const startWorkInfoEdit = () => {
     setWorkInfoForm({
@@ -962,6 +998,31 @@ export default function EmployeeProfilePage() {
                 )}
               </div>
               <div className="space-y-3">
+                <div className="border border-border rounded-lg p-3 md:p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Identity</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+                    <InfoRow label="Badge ID" value={emp.badge_id != null ? String(emp.badge_id) : null} editKey="badge_id" />
+                    <div className="py-2">
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      {editing ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditForm({ ...editForm, is_active: !(editForm.is_active ?? emp.is_active) })}
+                          className={`mt-1 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
+                            (editForm.is_active ?? emp.is_active) ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+                          }`}
+                        >
+                          {(editForm.is_active ?? emp.is_active) ? "Active" : "Inactive"}
+                        </button>
+                      ) : (
+                        <p className="text-sm font-medium text-foreground">{emp.is_active ? "Active" : "Inactive"}</p>
+                      )}
+                    </div>
+                    <InfoRow label="First Name" value={emp.first_name} editKey="first_name" />
+                    <InfoRow label="Last Name" value={emp.last_name} editKey="last_name" />
+                  </div>
+                </div>
+
                 <div className="border border-border rounded-lg p-3 md:p-4">
                   <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Contact</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">

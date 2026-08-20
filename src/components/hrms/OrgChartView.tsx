@@ -328,7 +328,7 @@ export function OrgChartView() {
   }, [reloadKey]);
 
   // Build employee chart tree
-  const { empTree, managers, cycleMembers } = useMemo(() => {
+  const { empTree, managers, cycleMembers, unassignedList, allEmployees } = useMemo(() => {
     const posMap = new Map(rawPositions.map(p => [p.id, p]));
     const deptMap = new Map(rawDepts.map(d => [d.id, d]));
     const wiByEmp = new Map(rawWorkInfos.map(w => [w.employee_id, w]));
@@ -419,7 +419,6 @@ export function OrgChartView() {
       const size = subtreeSize(r);
       if (size > headSize) { headSize = size; head = r; }
     });
-    nodeMap.forEach(n => { if (!n.unassigned) return; n.unassigned = true; });
     if (head) (head as EmpChartNode).unassigned = false;
 
     const unassignedList = roots

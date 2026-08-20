@@ -1687,7 +1687,16 @@ Deno.serve(async (req) => {
           // it lands; sending `pan-number` here made the API silently no-op the
           // PAN write while returning 200, so PAN never reached RazorpayX.
           case "pan": data["pan"] = String(raw).toUpperCase(); applied.push(k); expectedReadBack[k] = raw; break;
-          case "uan": data["uan-number"] = String(raw).replace(/\D/g, ""); applied.push(k); expectedReadBack[k] = raw; break;
+          // Same lesson as PAN above: the Opfin people envelope keys UAN as
+          // `uan`; `uan-number` alone returns 200 but silently no-ops (which is
+          // why UAN never showed up on the RazorpayX profile / read-back). Send
+          // both spellings — unknown keys are ignored by the API.
+          case "uan": {
+            const uanDigits = String(raw).replace(/\D/g, "");
+            data["uan"] = uanDigits;
+            data["uan-number"] = uanDigits;
+            applied.push(k); expectedReadBack[k] = raw; break;
+          }
           // Statutory keys. Only `pt-enabled` and `state` are documented in the
           // Opfin people:edit contract; the PF/ESI keys below are probe-only —
           // people:view never returns any statutory field, so writes here can

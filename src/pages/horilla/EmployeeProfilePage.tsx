@@ -586,7 +586,17 @@ export default function EmployeeProfilePage() {
             );
           }
         }
+        const firstName = (editForm.first_name ?? emp?.first_name ?? "").trim();
+        const lastName = (editForm.last_name ?? emp?.last_name ?? "").trim();
+        const badgeId = String(editForm.badge_id ?? emp?.badge_id ?? "").trim();
+        if (!firstName || !lastName) throw new Error("First and last name are required");
+        if (!badgeId) throw new Error("Badge ID is required");
+
         const { error } = await (supabase as any).from("hr_employees").update({
+          badge_id: badgeId,
+          first_name: firstName,
+          last_name: lastName,
+          is_active: editForm.is_active ?? emp?.is_active ?? true,
           email: nextEmail || null,
           phone: editForm.phone || null,
 

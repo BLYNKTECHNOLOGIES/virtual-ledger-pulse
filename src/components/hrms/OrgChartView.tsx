@@ -748,6 +748,7 @@ export function OrgChartView() {
                         expandedIds={expandedIds}
                         onToggle={toggleExpand}
                         highlightId={highlightId}
+                        onAssign={openAssign}
                         zoom={zoom}
                       />
                     ))}

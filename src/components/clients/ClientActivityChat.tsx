@@ -31,6 +31,7 @@ import { openTransaction } from "@/components/transaction-detail";
 import { smartUpload } from "@/lib/resumable-upload";
 import { useClientActivityFeed, type ClientFeedItem } from "@/hooks/useClientActivityFeed";
 import { cn } from "@/lib/utils";
+import { useStorageUrl } from "@/lib/storage-url";
 
 interface Props {
   clientId: string;
@@ -53,6 +54,7 @@ export function ClientActivityChat({ clientId, clientName }: Props) {
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const lightboxSigned = useStorageUrl(lightboxUrl);
   const [showJump, setShowJump] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -330,7 +332,7 @@ export function ClientActivityChat({ clientId, clientName }: Props) {
         <DialogContent className="max-w-4xl p-2 bg-background">
           {lightboxUrl && (
             <img
-              src={lightboxUrl}
+              src={lightboxSigned}
               alt="Attachment preview"
               className="w-full h-auto max-h-[85vh] object-contain rounded"
             />
@@ -362,6 +364,8 @@ function FeedBubble({
 
   const Icon = iconForKind(item.kind);
   const isImage = item.attachment?.mime?.startsWith("image/");
+  // kyc-documents is private: sign the thumbnail source.
+  const attachmentUrl = useStorageUrl(item.attachment?.url);
 
   const clickable = !!item.deepLink;
 
@@ -405,7 +409,7 @@ function FeedBubble({
                 className="block"
               >
                 <img
-                  src={item.attachment.url}
+                  src={attachmentUrl}
                   alt={item.attachment.filename}
                   className="h-24 w-24 object-cover rounded border"
                   loading="lazy"

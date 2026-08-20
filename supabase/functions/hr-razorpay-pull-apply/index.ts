@@ -148,6 +148,19 @@ Deno.serve(async (req) => {
     if (userErr || !userRes?.user) return json(401, { error: "Unauthorized" });
     const actorId = userRes.user.id;
 
+    // Authorization: this endpoint overwrites PAN / bank / salary fields, so it
+    // is restricted to callers holding the same permission enforced by
+    // razorpay-payroll-proxy (or HR staff).
+    const authz = createClient(SUPA_URL, SVC);
+    const { data: hasSync } = await authz.rpc("user_has_permission", {
+      user_uuid: actorId,
+      check_permission: "hrms_razorpay_sync",
+    });
+    if (!hasSync) {
+      const { data: isHr } = await authz.rpc("hr_is_hr_staff", { _user_id: actorId });
+      if (!isHr) return json(403, { error: "Forbidden — HR/payroll staff only" });
+    }
+
     const body = await req.json().catch(() => ({}));
     const hrEmployeeId = String(body?.hr_employee_id ?? "");
     if (!/^[0-9a-f-]{36}$/i.test(hrEmployeeId)) return json(400, { error: "hr_employee_id (uuid) required" });

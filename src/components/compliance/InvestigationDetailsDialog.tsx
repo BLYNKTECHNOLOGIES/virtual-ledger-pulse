@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { openStorageFile } from "@/lib/storage-url";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, CheckCircle, Clock, FileText, ExternalLink } from "lucide-react";
 import { StepCompletionDialog } from "./StepCompletionDialog";
@@ -648,7 +649,7 @@ export function InvestigationDetailsDialog({
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => window.open(url, '_blank')}
+                                onClick={() => void openStorageFile(url)}
                                 className="h-6 px-2 text-info hover:text-info"
                               >
                                 <ExternalLink className="h-3 w-3 mr-1" />

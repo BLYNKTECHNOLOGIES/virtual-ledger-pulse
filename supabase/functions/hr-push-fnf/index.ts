@@ -7,6 +7,7 @@
 // back on the live run (payroll:view-payroll read-back inside the proxy).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { requireHrCaller } from "../_shared/require-hr-caller.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -38,6 +39,11 @@ async function callProxy(action: string, payload: unknown) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Payroll payout push — service role / internal cron / HR-payroll staff only.
+  const caller = await requireHrCaller(req, corsHeaders, { allowPayrollAuthorized: true });
+  if (!caller.ok) return caller.response;
+
   const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   try {

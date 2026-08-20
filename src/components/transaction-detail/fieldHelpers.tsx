@@ -1,5 +1,6 @@
 import { ExternalLink, FileText, ImageIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useStorageUrl } from '@/lib/storage-url';
 
 export function MonoValue({ children }: { children: ReactNode }) {
   return <span className="font-mono text-xs text-foreground break-all">{children}</span>;
@@ -10,6 +11,9 @@ export function MonoValue({ children }: { children: ReactNode }) {
  * download link (for PDFs / other files). Shows "—" when no URL.
  */
 export function Attachment({ url, label }: { url?: string | null; label?: string }) {
+  // Private buckets need a signed URL for the inline <img> preview; anchors are
+  // signed on click by the global storage link interceptor.
+  const previewUrl = useStorageUrl(url);
   if (!url) return <span className="text-muted-foreground">—</span>;
   const isImage = /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(url);
   const isPdf = /\.pdf(\?|$)/i.test(url);
@@ -19,7 +23,7 @@ export function Attachment({ url, label }: { url?: string | null; label?: string
       {isImage ? (
         <a href={url} target="_blank" rel="noreferrer" className="block">
           <img
-            src={url}
+            src={previewUrl}
             alt={label || 'Attachment'}
             className="max-h-56 w-auto rounded-md border border-border object-contain bg-muted"
             loading="lazy"

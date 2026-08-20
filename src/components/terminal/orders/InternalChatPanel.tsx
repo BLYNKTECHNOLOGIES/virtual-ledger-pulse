@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
+import { useStorageUrl } from '@/lib/storage-url';
 
 interface Props {
   orderNumber: string;
@@ -261,6 +262,8 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
 
 function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOwn: boolean }) {
   const [imgError, setImgError] = useState(false);
+  // internal-chat-files is a private bucket: preview needs a signed URL.
+  const signedFileUrl = useStorageUrl(message.file_url);
 
   return (
     <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
@@ -281,7 +284,7 @@ function InternalChatBubble({ message, isOwn }: { message: InternalMessage; isOw
         {message.message_type === 'image' && message.file_url && !imgError && (
           <a href={message.file_url} target="_blank" rel="noopener noreferrer" className="block mb-1.5">
             <img
-              src={message.file_url}
+              src={signedFileUrl}
               alt={message.file_name || 'Image'}
               className="max-w-full w-auto rounded max-h-48 object-contain"
               loading="lazy"

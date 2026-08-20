@@ -193,6 +193,9 @@ export function ComplianceCommandCentre() {
 
       </div>
 
+      <ComplianceActivityFeed />
+
+
       <Card>
         <CardHeader className="pb-3 flex-row items-center justify-between space-y-0">
           <CardTitle className="text-sm">Documents expiring or expired</CardTitle>

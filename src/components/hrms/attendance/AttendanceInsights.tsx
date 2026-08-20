@@ -271,8 +271,11 @@ export function AttendanceInsights({
   activeIds,
   deptByEmployee,
   shiftMinutesByEmployee,
+  shiftNameByEmployee,
 }: Props) {
   const [showAllPeople, setShowAllPeople] = useState(false);
+  const [deptBreakdown, setDeptBreakdown] = useState<"none" | "shift">("none");
+  const [openDepts, setOpenDepts] = useState<Set<string>>(new Set());
   const [drill, setDrill] = useState<DrillPayload | null>(null);
 
 

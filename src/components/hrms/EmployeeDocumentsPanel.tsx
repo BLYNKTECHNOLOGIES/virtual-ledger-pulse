@@ -113,10 +113,16 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const groups = [
+    { key: "onboarding", title: "Onboarding submissions", items: docs.filter((d: any) => d.source === "onboarding") },
+    { key: "issued", title: "Issued letters", items: docs.filter((d: any) => d.source === "issued") },
+    { key: "hr_upload", title: "HR uploads", items: docs.filter((d: any) => !["onboarding", "issued"].includes(d.source)) },
+  ].filter(g => g.items.length > 0);
+
   return (
-    <div className="border border-border rounded-lg p-4 space-y-3">
+    <div className="border border-border rounded-lg p-4 space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <h4 className="text-sm font-semibold text-foreground">Uploaded Documents</h4>
+        <h4 className="text-sm font-semibold text-foreground">Documents</h4>
         <Button size="sm" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-1" /> Add Document
         </Button>
@@ -124,18 +130,23 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
 
       {isLoading ? (
         <p className="text-xs text-muted-foreground">Loading…</p>
-      ) : docs.length === 0 ? (
+      ) : groups.length === 0 ? (
         <p className="text-xs text-muted-foreground">No documents uploaded yet.</p>
       ) : (
-        <div className="space-y-2">
-          {docs.map((d: any) => (
+        groups.map(group => (
+          <div key={group.key} className="space-y-2">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {group.title} · {group.items.length}
+            </p>
+            {group.items.map((d: any) => (
             <div key={d.id} className="flex items-center justify-between gap-3 rounded-md border border-border p-2.5">
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm text-foreground truncate">{d.document_name}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {DOC_TYPES.find(t => t.value === d.document_type)?.label || d.document_type}
+                    {DOC_TYPES.find(t => t.value === d.document_type)?.label
+                      || (d.document_type || "").replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}
                     {d.uploaded_at ? ` · ${new Date(d.uploaded_at).toLocaleDateString()}` : ""}
                     {d.is_verified ? " · Verified" : ""}
                   </p>
@@ -162,9 +173,11 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
                 </Button>
               </div>
             </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ))
       )}
+
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
         <DialogContent className="max-w-md">

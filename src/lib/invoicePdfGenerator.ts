@@ -677,20 +677,24 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 5;
     }
 
-    // ── Transaction ID (IT / Software Services Paytm) ──
+    // ── Reference (IT / Software Services Paytm) ──
     if (invoice.category === "it_services_paytm") {
+      const orderId = invoice.orderId || invoice.items.find((it) => it.orderId)?.orderId || "";
       const txnId = invoice.transactionId || invoice.items.find((it) => it.transactionId)?.transactionId || "";
-      if (txnId) {
+      const rrn = invoice.rrn || invoice.items.find((it) => it.rrn)?.rrn || "";
+      if (orderId || txnId || rrn) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         setColor(t.colors.bodyText);
-        doc.text("Transaction ID:", marginL, y);
+        doc.text("Reference :", marginL, y);
         y += 5;
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         setColor(t.colors.mutedText);
-        doc.text(txnId, marginL, y);
-        y += 9;
+        if (orderId) { doc.text(`Order ID : ${orderId}`, marginL, y); y += 4; }
+        if (txnId) { doc.text(`Transaction ID .: ${txnId}`, marginL, y); y += 4; }
+        if (rrn) { doc.text(`RRN : ${rrn}`, marginL, y); y += 4; }
+        y += 5;
       }
     }
 

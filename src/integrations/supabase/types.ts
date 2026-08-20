@@ -29447,6 +29447,14 @@ export type Database = {
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       snapshot_ledger_anchor: { Args: never; Returns: number }
+      storage_can_read_sensitive_bucket: {
+        Args: { _bucket: string; _owner: string; _uid: string }
+        Returns: boolean
+      }
+      storage_can_write_sensitive_bucket: {
+        Args: { _bucket: string; _owner: string; _uid: string }
+        Returns: boolean
+      }
       store_webauthn_challenge: {
         Args: { p_challenge: string; p_type: string; p_user_id: string }
         Returns: string

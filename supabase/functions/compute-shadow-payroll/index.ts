@@ -29,6 +29,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross } from "../_shared/salaryBase.ts";
+import { requireCaller } from "../_shared/require-caller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

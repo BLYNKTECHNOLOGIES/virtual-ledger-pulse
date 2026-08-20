@@ -28610,6 +28610,7 @@ export type Database = {
         }
         Returns: number
       }
+      hr_link_self_employee: { Args: never; Returns: string }
       hr_lop_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {

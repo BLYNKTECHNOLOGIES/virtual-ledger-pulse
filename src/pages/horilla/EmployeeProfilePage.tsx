@@ -743,6 +743,10 @@ export default function EmployeeProfilePage() {
   const startEdit = () => {
     if (activeTab === "About" && emp) {
       setEditForm({
+        badge_id: emp.badge_id ?? "",
+        first_name: emp.first_name || "",
+        last_name: emp.last_name || "",
+        is_active: emp.is_active ?? true,
         email: emp.email || "",
         phone: emp.phone || "", gender: emp.gender || "", dob: emp.dob || "",
 
@@ -756,10 +760,31 @@ export default function EmployeeProfilePage() {
         pf_number: (emp as any).pf_number || "",
         uan_number: (emp as any).uan_number || "",
         esi_number: (emp as any).esi_number || "",
+        resignation_date: (emp as any).resignation_date || "",
+        termination_date: (emp as any).termination_date || "",
+        last_working_day: (emp as any).last_working_day || "",
+        separation_reason: (emp as any).separation_reason || "",
       });
     }
     setEditing(true);
   };
+
+  // Deep-link: the Employees list "Edit" action lands here with ?edit=1 so the
+  // full profile (not a cut-down modal) opens straight in edit mode.
+  const autoEditDone = useRef(false);
+  useEffect(() => {
+    if (autoEditDone.current) return;
+    if (searchParams.get("edit") !== "1") return;
+    if (!emp) return;
+    autoEditDone.current = true;
+    setActiveTab("About");
+    startEdit();
+    // Drop the flag so a later manual Cancel/refresh doesn't re-open edit mode.
+    const next = new URLSearchParams(searchParams);
+    next.delete("edit");
+    setSearchParams(next, { replace: true });
+  }, [emp, searchParams, setSearchParams]);
+
 
   const startWorkInfoEdit = () => {
     setWorkInfoForm({

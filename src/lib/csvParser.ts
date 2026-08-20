@@ -326,17 +326,20 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
     return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
   }
 
+  const isPaytm = category === "it_services_paytm";
   const headers = [
     "Invoice Number", "Description", "HSN/SAC", "Quantity", "Rate", "Amount",
     "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date",
-    "GST Rate", "GST Type", "GST Inclusive"
+    "GST Rate", "GST Type", "GST Inclusive",
+    ...(isPaytm ? ["Transaction ID"] : []),
   ];
   const rows = [
-    ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no"],
-    ["INV-001", "Server Maintenance", "998314", "2", "10000", "20000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no"],
-    ["INV-002", "UI/UX Design", "998314", "1", "30000", "30000", "XYZ Corp", "456 Park Avenue Mumbai", "27FGHIJ5678K2Z3", "9123456780", "17/02/2026", "18", "CGST_SGST", "no"],
+    ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no", ...(isPaytm ? ["PTM202602160001"] : [])],
+    ["INV-001", "Server Maintenance", "998314", "2", "10000", "20000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no", ...(isPaytm ? ["PTM202602160001"] : [])],
+    ["INV-002", "UI/UX Design", "998314", "1", "30000", "30000", "XYZ Corp", "456 Park Avenue Mumbai", "27FGHIJ5678K2Z3", "9123456780", "17/02/2026", "18", "CGST_SGST", "no", ...(isPaytm ? ["PTM202602170002"] : [])],
   ];
   return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
+
 }
 
 export function groupByInvoice(records: OrderRecord[], category: InvoiceCategory = "it_services"): InvoiceGroup[] {

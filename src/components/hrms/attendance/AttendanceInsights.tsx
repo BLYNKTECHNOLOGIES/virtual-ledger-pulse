@@ -913,20 +913,23 @@ export function AttendanceInsights({
     });
   };
 
-  const openDept = (name: string) => {
-    const ids = summary.filter((s) => deptOf(s.employee_id) === name).map((s) => s.employee_id);
+  const openDept = (name: string, shiftName?: string) => {
+    const ids = summary
+      .filter((s) => deptOf(s.employee_id) === name && (!shiftName || shiftOf(s.employee_id) === shiftName))
+      .map((s) => s.employee_id);
     const lopById = new Map(summary.map((s) => [s.employee_id, Number(s.lop_days || 0)]));
-    const row = deptRows.find((d) => d.name === name);
+    const deptRow = deptRows.find((d) => d.name === name);
+    const row = shiftName ? deptRow?.shifts.find((s) => s.name === shiftName) : deptRow;
     const drillRows: DrillRow[] = ids
       .map((id) => {
         const st = perEmployee.get(id);
-        const worked = st ? st.present + st.half : 0;
         const rate = st && st.maintained > 0 ? ((st.present + st.half * 0.5) / st.maintained) * 100 : null;
         return {
           id,
           dept: name,
           rank: 100 - (rate ?? 100),
           cells: [
+            cell(shiftOf(id)),
             cell(String(st?.maintained ?? 0)),
             cell(rate === null ? "—" : `${rate.toFixed(1)}%`, rate !== null && rate < 90 ? "bad" : "good"),
             cell(String(st?.lateDays ?? 0), (st?.lateDays ?? 0) > 0 ? "warn" : "default"),
@@ -938,12 +941,15 @@ export function AttendanceInsights({
       .sort((a, b) => (b.rank || 0) - (a.rank || 0));
 
     setDrill({
-      title: `${name} department`,
+      title: shiftName ? `${name} — ${shiftName}` : `${name} department`,
       subtitle: `${ids.length} employee(s) on the active roster`,
       narrative:
         `Department figures are the sum of each member's maintained attendance rows — no separate department-level source exists. ` +
+        (shiftName
+          ? `This view is limited to members currently mapped to ${shiftName}; shift mapping comes from the employee's current shift schedule (falling back to work info). `
+          : "") +
         `The attendance rate below is computed on maintained days only, so a department with unfinalised days will look different from one ` +
-        `that is fully maintained. The per-employee table shows exactly who is pulling the department average.`,
+        `that is fully maintained. The per-employee table shows exactly who is pulling the average.`,
       formula: {
         expression: `Σ (present + half × 0.5) ÷ Σ maintained days for ${ids.length} member(s)`,
         result: row?.attendanceRate != null ? `${row.attendanceRate.toFixed(1)}%` : "—",
@@ -955,10 +961,11 @@ export function AttendanceInsights({
         { label: "LOP days", value: String(Math.round((row?.lop || 0) * 10) / 10), tone: (row?.lop || 0) > 0 ? "bad" : "default" },
         { label: "Avg net hours", value: row?.avgHours != null ? `${row.avgHours.toFixed(2)}h` : "—" },
       ],
-      columns: ["Maintained days", "Attendance rate", "Late days", "LOP days", "Avg net hours"],
+      columns: ["Shift", "Maintained days", "Attendance rate", "Late days", "LOP days", "Avg net hours"],
       rows: drillRows,
     });
   };
+
 
   return (
     <TooltipProvider delayDuration={100}>

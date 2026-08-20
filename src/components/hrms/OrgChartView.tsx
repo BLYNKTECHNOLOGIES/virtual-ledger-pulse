@@ -782,6 +782,38 @@ export function OrgChartView() {
           </div>
         </div>
       </TabsContent>
+
+      {/* Assign reporting manager */}
+      <Dialog open={!!assignTarget} onOpenChange={open => { if (!open) setAssignTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign reporting manager</DialogTitle>
+            <DialogDescription>
+              {assignTarget ? `${assignTarget.name} is currently outside the reporting chain. Choose who they report to.` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-muted-foreground">Reporting manager</label>
+            <EmployeeCombobox
+              className="w-full"
+              placeholder="Select manager"
+              value={assignManagerId}
+              onChange={setAssignManagerId}
+              searchPlaceholder="Search employee…"
+              emptyText="No employee found."
+              options={allEmployees
+                .filter(e => !blockedManagerIds.has(e.id))
+                .map(e => ({ value: e.id, label: e.designation && e.designation !== "Not set" ? `${e.name} — ${e.designation}` : e.name }))}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignTarget(null)} disabled={saving}>Cancel</Button>
+            <Button onClick={saveManager} disabled={!assignManagerId || saving}>
+              {saving ? "Saving…" : "Assign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Tabs>
   );
 }

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { fetchAllRows } from "../_shared/paginate.ts";
+import { requireCaller } from "../_shared/require-caller.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +23,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

@@ -674,6 +674,29 @@ export function OrgChartView() {
             </div>
           )}
 
+          {unassignedList.length > 0 && (
+            <div className="mb-3 mx-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  {unassignedList.length} employee{unassignedList.length === 1 ? " is" : "s are"} outside the reporting chain — click a card (or a name below) to assign a manager:
+                </span>
+                {unassignedList.map(u => (
+                  <button
+                    key={u.id}
+                    onClick={() => {
+                      const node = empTree.find(r => r.id === u.id);
+                      if (node) openAssign(node);
+                    }}
+                    className="underline underline-offset-2 font-medium hover:opacity-80"
+                  >
+                    {u.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
 
           {/* Chart area */}
           <div

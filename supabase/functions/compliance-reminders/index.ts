@@ -393,6 +393,20 @@ Deno.serve(async (req) => {
 
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // Human callers must hold a compliance permission — the digest carries fraud/legal case detail.
+  if (caller.kind === "user" && caller.userId) {
+    const [view, manage] = await Promise.all([
+      admin.rpc("user_has_permission", { p_user_id: caller.userId, p_permission: "compliance_view" }),
+      admin.rpc("user_has_permission", { p_user_id: caller.userId, p_permission: "compliance_manage" }),
+    ]);
+    if (!view.data && !manage.data) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+
   let body: any = {};
   try { body = await req.json(); } catch { /* cron sends empty body */ }
   const action = body.action || "run";

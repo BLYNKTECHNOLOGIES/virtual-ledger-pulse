@@ -12,7 +12,7 @@ import { useNavigate } from "react-router-dom";
 import { buildComplianceLink } from "./complianceDeepLink";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
 import {
-  Activity, ChevronDown, Download, FilePlus2, FileText, Gavel,
+  Activity, ChevronDown, ChevronRight, Download, FilePlus2, FileText, Gavel,
   Landmark, MessageSquare, PencilLine, Search, Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from "date-fns";

@@ -292,7 +292,7 @@ export function OrgChartView() {
   }, []);
 
   // Build employee chart tree
-  const { empTree, managers } = useMemo(() => {
+  const { empTree, managers, cycleMembers } = useMemo(() => {
     const posMap = new Map(rawPositions.map(p => [p.id, p]));
     const deptMap = new Map(rawDepts.map(d => [d.id, d]));
     const wiByEmp = new Map(rawWorkInfos.map(w => [w.employee_id, w]));
@@ -321,16 +321,55 @@ export function OrgChartView() {
       .map(e => ({ id: e.id, name: `${e.first_name} ${e.last_name}`.trim() }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
+    // Attach every employee to its manager, then determine which nodes are
+    // actually reachable from a top-level root. A cyclic reporting line
+    // (A reports to B, B reports to A) would otherwise make an entire branch
+    // unreachable and collapse the chart down to a single card.
     const roots: EmpChartNode[] = [];
     nodeMap.forEach((node, id) => {
       const wi = wiByEmp.get(id);
       const managerId = wi?.reporting_manager_id;
-      if (managerId && nodeMap.has(managerId)) {
+      if (managerId && managerId !== id && nodeMap.has(managerId)) {
         nodeMap.get(managerId)!.children.push(node);
       } else {
         roots.push(node);
       }
     });
+
+    // Mark everything reachable from the natural roots.
+    const reachable = new Set<string>();
+    const walk = (n: EmpChartNode) => {
+      if (reachable.has(n.id)) return;
+      reachable.add(n.id);
+      n.children.forEach(walk);
+    };
+    roots.forEach(walk);
+
+    // Anything still unreachable sits under a cyclic reporting loop. Climb the
+    // manager chain until the loop is found, promote that node to a root and
+    // detach it from its manager so the whole branch renders again.
+    const cycleMembers: string[] = [];
+    nodeMap.forEach((_node, id) => {
+      if (reachable.has(id)) return;
+      const seen = new Set<string>();
+      let cur: string | undefined = id;
+      while (cur && !seen.has(cur) && !reachable.has(cur)) {
+        seen.add(cur);
+        const next = wiByEmp.get(cur)?.reporting_manager_id;
+        if (!next || !nodeMap.has(next)) break;
+        cur = next;
+      }
+      if (!cur || reachable.has(cur)) return;
+      const loopNode = nodeMap.get(cur);
+      if (!loopNode) return;
+      const managerId = wiByEmp.get(cur)?.reporting_manager_id;
+      const mgr = managerId ? nodeMap.get(managerId) : null;
+      if (mgr) mgr.children = mgr.children.filter(c => c.id !== cur);
+      roots.push(loopNode);
+      cycleMembers.push(loopNode.name);
+      walk(loopNode);
+    });
+
 
     const sortChildren = (nodes: EmpChartNode[]) => {
       nodes.sort((a, b) => a.name.localeCompare(b.name));
@@ -338,8 +377,9 @@ export function OrgChartView() {
     };
     sortChildren(roots);
 
-    return { empTree: roots, managers: managerList };
+    return { empTree: roots, managers: managerList, cycleMembers };
   }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts]);
+
 
   // When empTree is built, auto-expand only root nodes so the first level is visible
   useEffect(() => {
@@ -518,6 +558,13 @@ export function OrgChartView() {
               />
             </div>
           </div>
+
+          {cycleMembers.length > 0 && (
+            <div className="mb-3 mx-1 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              Circular reporting line detected — {cycleMembers.join(", ")} {cycleMembers.length === 1 ? "was" : "were"} shown as a separate top node. Fix the reporting manager in Work Information to restore a single hierarchy.
+            </div>
+          )}
+
 
           {/* Chart area */}
           <div

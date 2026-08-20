@@ -1,4 +1,4 @@
-export type InvoiceCategory = "it_services" | "financial_intermediation" | "usdt_sales" | "pure_agent";
+export type InvoiceCategory = "it_services" | "it_services_paytm" | "financial_intermediation" | "usdt_sales" | "pure_agent";
 
 export type MarginType = "percentage" | "absolute";
 export type GSTDirection = "forward" | "reverse";
@@ -41,10 +41,13 @@ export interface OrderRecord {
   marginPercentage?: number;
   /** Platform name (e.g., Binance) - for USDT sales */
   platform?: string;
+  /** Transaction ID (IT / Software Services Paytm category) */
+  transactionId?: string;
   /** Per-record GST settings (used by pure_agent where each row can differ) */
   gstEnabled?: boolean;
   gstRate?: number;
   gstType?: "IGST" | "CGST_SGST";
+
 }
 
 export interface InvoiceGroup {
@@ -60,7 +63,10 @@ export interface InvoiceGroup {
   category?: InvoiceCategory;
   /** Editable note for the invoice */
   note?: string;
+  /** Transaction ID (IT / Software Services Paytm category) */
+  transactionId?: string;
 }
+
 
 export interface CompanyInfo {
   name: string;

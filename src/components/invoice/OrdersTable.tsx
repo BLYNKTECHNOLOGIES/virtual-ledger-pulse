@@ -7,6 +7,8 @@ interface OrdersTableProps {
 
 export default function OrdersTable({ records, category = "it_services" }: OrdersTableProps) {
   const isFinancial = category === "financial_intermediation" || category === "pure_agent";
+  const isPaytm = category === "it_services_paytm";
+
 
   return (
     <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -36,7 +38,11 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 {isFinancial ? "Taxable Value" : "Amount"}
               </th>
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Buyer</th>
+              {isPaytm && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Transaction ID</th>
+              )}
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Date</th>
+
             </tr>
           </thead>
           <tbody>
@@ -67,7 +73,11 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 </td>
                 <td className="px-4 py-3 text-right font-semibold font-mono">₹{r.amount.toLocaleString('en-IN')}</td>
                 <td className="px-4 py-3">{r.buyerName}</td>
+                {isPaytm && (
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.transactionId || "-"}</td>
+                )}
                 <td className="px-4 py-3 text-muted-foreground text-xs">{r.date}</td>
+
               </tr>
             ))}
           </tbody>

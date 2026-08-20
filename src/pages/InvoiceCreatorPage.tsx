@@ -123,7 +123,10 @@ const InvoiceCreatorPage = () => {
         ? "pure_agent_invoice_template.csv"
         : category === "usdt_sales"
           ? "usdt_sales_template.csv"
-          : "invoice_template.csv";
+          : category === "it_services_paytm"
+            ? "invoice_template_paytm.csv"
+            : "invoice_template.csv";
+
     a.click();
     URL.revokeObjectURL(url);
   }, [category]);

@@ -677,6 +677,24 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       y += 5;
     }
 
+    // ── Transaction ID (IT / Software Services Paytm) ──
+    if (invoice.category === "it_services_paytm") {
+      const txnId = invoice.transactionId || invoice.items.find((it) => it.transactionId)?.transactionId || "";
+      if (txnId) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        setColor(t.colors.bodyText);
+        doc.text("Transaction ID:", marginL, y);
+        y += 5;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        setColor(t.colors.mutedText);
+        doc.text(txnId, marginL, y);
+        y += 9;
+      }
+    }
+
+
     // ── Declaration ──
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);

@@ -69,6 +69,7 @@ interface CaseFormData {
   date_lien_marked: string;
   lien_state: string;
   lien_city: string;
+  lien_acknowledgment_number: string;
   bank_reason: string;
   supporting_document: File[];
   remarks: string;
@@ -114,6 +115,7 @@ export function CaseGenerator() {
     date_lien_marked: '',
     lien_state: '',
     lien_city: '',
+    lien_acknowledgment_number: '',
     bank_reason: '',
     supporting_document: [],
     remarks: '',
@@ -268,6 +270,7 @@ export function CaseGenerator() {
         date_lien_marked: data.date_lien_marked || null,
         lien_state: data.lien_state || null,
         lien_city: data.lien_city || null,
+        lien_acknowledgment_number: data.lien_acknowledgment_number || null,
         bank_reason: data.bank_reason,
         supporting_document: uploadedSupportingDocument[0] || null,
         remarks: data.remarks,
@@ -332,6 +335,7 @@ export function CaseGenerator() {
       date_lien_marked: '',
       lien_state: '',
       lien_city: '',
+      lien_acknowledgment_number: '',
       bank_reason: '',
       supporting_document: [],
       remarks: '',
@@ -713,6 +717,16 @@ export function CaseGenerator() {
                   placeholder="Enter city"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="lien_acknowledgment_number">Acknowledgment Number</Label>
+              <Input
+                id="lien_acknowledgment_number"
+                value={formData.lien_acknowledgment_number}
+                onChange={(e) => setFormData(prev => ({ ...prev, lien_acknowledgment_number: e.target.value }))}
+                placeholder="Enter acknowledgment number"
+              />
             </div>
 
 

@@ -508,7 +508,56 @@ export function OrgChartView() {
     });
   }, []);
 
+  // Descendants of the employee being assigned — they can't be his manager.
+  const blockedManagerIds = useMemo(() => {
+    const blocked = new Set<string>();
+    if (!assignTarget) return blocked;
+    const walk = (n: EmpChartNode) => { blocked.add(n.id); n.children.forEach(walk); };
+    walk(assignTarget);
+    return blocked;
+  }, [assignTarget]);
+
+  const openAssign = useCallback((node: EmpChartNode) => {
+    setAssignTarget(node);
+    setAssignManagerId("");
+  }, []);
+
+  const saveManager = async () => {
+    if (!assignTarget || !assignManagerId) return;
+    setSaving(true);
+    try {
+      const { data: existing, error: selErr } = await supabase
+        .from("hr_employee_work_info")
+        .select("id")
+        .eq("employee_id", assignTarget.id)
+        .maybeSingle();
+      if (selErr) throw selErr;
+
+      if (existing?.id) {
+        const { error } = await supabase
+          .from("hr_employee_work_info")
+          .update({ reporting_manager_id: assignManagerId })
+          .eq("id", existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("hr_employee_work_info")
+          .insert({ employee_id: assignTarget.id, reporting_manager_id: assignManagerId });
+        if (error) throw error;
+      }
+
+      toast.success(`${assignTarget.name} now reports to ${allEmployees.find(e => e.id === assignManagerId)?.name ?? "the selected manager"}`);
+      setAssignTarget(null);
+      setReloadKey(k => k + 1);
+    } catch (e: any) {
+      toast.error(e?.message || "Could not update the reporting manager");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleZoom = (dir: "in" | "out") => {
+
     setZoom(z => dir === "in" ? Math.min(z + 0.15, 2.5) : Math.max(z - 0.15, 0.2));
   };
 

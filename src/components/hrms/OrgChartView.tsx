@@ -210,6 +210,7 @@ function OrgChartNode({
                   expandedIds={expandedIds}
                   onToggle={onToggle}
                   highlightId={highlightId}
+                  onAssign={onAssign}
                   zoom={zoom}
                 />
               </div>

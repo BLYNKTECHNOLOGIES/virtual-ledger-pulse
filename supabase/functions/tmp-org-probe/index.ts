@@ -19,7 +19,6 @@ Deno.serve(async (req) => {
 
   const userClient = createClient(url, anon);
   const { data: sess, error: otpErr } = await userClient.auth.verifyOtp({
-    email,
     token_hash: (link as any).properties.hashed_token,
     type: 'magiclink',
   });

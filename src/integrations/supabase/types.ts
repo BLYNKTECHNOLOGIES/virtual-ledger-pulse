@@ -846,6 +846,7 @@ export type Database = {
           investigation_started_at: string | null
           investigation_status: string | null
           last_activity_at: string | null
+          lien_acknowledgment_number: string | null
           lien_city: string | null
           lien_state: string | null
           order_references: string[] | null
@@ -904,6 +905,7 @@ export type Database = {
           investigation_started_at?: string | null
           investigation_status?: string | null
           last_activity_at?: string | null
+          lien_acknowledgment_number?: string | null
           lien_city?: string | null
           lien_state?: string | null
           order_references?: string[] | null
@@ -962,6 +964,7 @@ export type Database = {
           investigation_started_at?: string | null
           investigation_status?: string | null
           last_activity_at?: string | null
+          lien_acknowledgment_number?: string | null
           lien_city?: string | null
           lien_state?: string | null
           order_references?: string[] | null

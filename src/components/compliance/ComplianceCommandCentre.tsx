@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
+import { ComplianceActivityFeed } from "./ComplianceActivityFeed";
+
 
 interface CommandCentre {
   open_cases: number;

@@ -43,6 +43,10 @@ export interface OrderRecord {
   platform?: string;
   /** Transaction ID (IT / Software Services Paytm category) */
   transactionId?: string;
+  /** Order ID (IT / Software Services Paytm category) */
+  orderId?: string;
+  /** RRN (IT / Software Services Paytm category) */
+  rrn?: string;
   /** Per-record GST settings (used by pure_agent where each row can differ) */
   gstEnabled?: boolean;
   gstRate?: number;
@@ -65,6 +69,10 @@ export interface InvoiceGroup {
   note?: string;
   /** Transaction ID (IT / Software Services Paytm category) */
   transactionId?: string;
+  /** Order ID (IT / Software Services Paytm category) */
+  orderId?: string;
+  /** RRN (IT / Software Services Paytm category) */
+  rrn?: string;
 }
 
 

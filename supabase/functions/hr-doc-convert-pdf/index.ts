@@ -84,13 +84,20 @@ Deno.serve(async (req) => {
     const clientSecret = Deno.env.get("ADOBE_PDF_CLIENT_SECRET");
     if (!clientId || !clientSecret) return json({ error: "Adobe PDF Services credentials are not configured" }, 500);
 
+    const caller = await requireCaller(req, corsHeaders);
+    if (!caller.ok) return caller.response;
+    const admin = caller.admin;
+
+    // Human callers must be HR staff — conversion burns paid Adobe credits and
+    // rewrites the employee's filed document record.
+    if (caller.kind === "user" && caller.userId) {
+      const { data: isHr } = await admin.rpc("hr_is_hr_staff", { _user_id: caller.userId });
+      if (!isHr) return json({ error: "Forbidden" }, 403);
+    }
+
     const { issuedId, force } = await req.json().catch(() => ({}));
     if (!issuedId) return json({ error: "issuedId is required" }, 400);
 
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     const { data: doc, error: docErr } = await admin
       .from("hr_documents_issued").select("*").eq("id", issuedId).maybeSingle();

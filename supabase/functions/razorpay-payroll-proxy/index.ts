@@ -6241,6 +6241,10 @@ Deno.serve(async (req) => {
       const docs = (ob.documents && typeof ob.documents === "object") ? ob.documents as any : {};
       const bank = (ob.bank_details && typeof ob.bank_details === "object") ? ob.bank_details as any : {};
       const pan = String(docs?.pan?.value || docs?.pan || "").trim().toUpperCase();
+      // UAN is optional (fresh hires may not have one) — pushed only when the
+      // candidate/HR actually supplied it, so PF continuity lands on the
+      // RazorpayX profile from creation instead of waiting for a later edit.
+      const uan = String(docs?.uan?.value || docs?.uan || "").replace(/\D/g, "");
       const dojIso = ob.date_of_joining ? String(ob.date_of_joining) : null;
       const dobIso = ob.date_of_birth ? String(ob.date_of_birth) : null;
       const toDdMmYyyy = (iso: string | null) =>

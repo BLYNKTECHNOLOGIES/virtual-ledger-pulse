@@ -52,6 +52,7 @@ import {
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { useAuth } from "@/hooks/useAuth";
 
+import { usersDirectory } from '@/lib/usersDirectory';
 interface BankEntry {
   bankName: string;
   lastFourDigits: string;
@@ -559,7 +560,7 @@ export function ClientOnboardingApprovals() {
       );
       if (ids.length === 0) return map;
       const { data } = await supabase
-        .from('users')
+        usersDirectory()
         .select('id, first_name, last_name, username')
         .in('id', ids);
       for (const u of data || []) {

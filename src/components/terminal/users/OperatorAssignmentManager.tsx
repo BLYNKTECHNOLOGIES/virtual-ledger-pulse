@@ -17,6 +17,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { toast as sonnerToast } from 'sonner';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 function useAllOperatorAssignments() {
   return useQuery({
     queryKey: ['all-operator-assignments'],
@@ -32,7 +33,7 @@ function useAllOperatorAssignments() {
 
       const [usersRes, rangesRes] = await Promise.all([
         userIds.length > 0
-          ? supabase.from('users').select('id, username, first_name, last_name').in('id', userIds)
+          ? usersDirectory().select('id, username, first_name, last_name').in('id', userIds)
           : { data: [] },
         sizeRangeIds.length > 0
           ? supabase.from('terminal_order_size_ranges').select('id, name, min_amount, max_amount').in('id', sizeRangeIds)
@@ -158,7 +159,7 @@ export function OperatorAssignmentManager() {
       if (!userRoles || userRoles.length === 0) return [];
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
       const { data: users } = await supabase
-        .from('users').select('id, username, first_name, last_name').in('id', userIds);
+        usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
       return users || [];
     },
   });

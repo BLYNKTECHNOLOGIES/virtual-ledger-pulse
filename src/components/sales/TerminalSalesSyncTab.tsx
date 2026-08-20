@@ -21,6 +21,7 @@ import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ExchangeAccountBadge } from "@/components/shared/ExchangeAccountBadge";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 const STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   synced_pending_approval: { label: "Pending Approval", variant: "default" },
   approved: { label: "Approved", variant: "default" },
@@ -113,7 +114,7 @@ export function TerminalSalesSyncTab() {
       let userMap: Record<string, string> = {};
       if (reviewerIds.length > 0) {
         const { data: users } = await supabase
-          .from('users')
+          usersDirectory()
           .select('id, username, first_name, last_name')
           .in('id', reviewerIds as string[]);
         for (const u of (users || [])) {

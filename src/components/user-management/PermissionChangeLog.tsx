@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { History, Plus, Minus } from "lucide-react";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface ChangeLogEntry {
   id: string;
   role_name: string;
@@ -40,7 +41,7 @@ export function PermissionChangeLog() {
       const userIds = [...new Set((data || []).map(l => l.changed_by).filter(Boolean))];
       if (userIds.length > 0) {
         const { data: users } = await supabase
-          .from('users')
+          usersDirectory()
           .select('id, username, first_name, last_name')
           .in('id', userIds);
 

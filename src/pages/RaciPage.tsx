@@ -22,6 +22,7 @@ import { CorporateGovernanceMatrix } from '@/components/raci/CorporateGovernance
 import { supabase } from '@/integrations/supabase/client';
 import { QueryProvider } from '@/components/QueryProvider';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 const RACI_COLORS: Record<string, { bg: string; text: string; border: string; label: string; description: string }> = {
   R: {
     bg: 'bg-info/10',
@@ -81,7 +82,7 @@ function RaciPageContent() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       const { data } = await supabase
-        .from('users')
+        usersDirectory()
         .select('id')
         .eq('id', session.user.id)
         .single();

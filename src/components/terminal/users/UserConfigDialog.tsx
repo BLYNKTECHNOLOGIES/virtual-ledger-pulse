@@ -16,6 +16,7 @@ import { User, Settings2, ArrowUpRight, Briefcase, Clock, Zap, Building2, Ruler,
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface UserProfile {
   user_id: string;
   specialization: string;
@@ -87,7 +88,7 @@ export function UserConfigDialog({ open, onOpenChange, userId, username, display
 
       const [profileRes, usersRes, exchangeRes, sizeRes, exchMapRes, sizeMapRes, supervisorMapRes, rolesRes, userRolesRes, myRolesRes] = await Promise.all([
         supabase.from("terminal_user_profiles").select("*").eq("user_id", userId).maybeSingle(),
-        supabase.from("users").select("id, username, first_name, last_name").eq("status", "ACTIVE"),
+        usersDirectory().select("id, username, first_name, last_name").eq("status", "ACTIVE"),
         supabase.from("terminal_exchange_accounts").select("id, account_name").eq("is_active", true),
         supabase.from("terminal_order_size_ranges").select("id, name, min_amount, max_amount").eq("is_active", true),
         supabase.from("terminal_user_exchange_mappings").select("exchange_account_id").eq("user_id", userId),

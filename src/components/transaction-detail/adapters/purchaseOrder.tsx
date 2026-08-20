@@ -3,6 +3,7 @@ import { format } from 'date-fns';
 import type { TransactionAdapter } from '../types';
 import { Attachment, MonoValue } from '../fieldHelpers';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 const formatINR = (n: number) =>
   new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(n);
 
@@ -30,7 +31,7 @@ export const purchaseOrderAdapter: TransactionAdapter = {
     let createdByName: string | null = null;
     if (data.created_by) {
       const { data: u } = await supabase
-        .from('users')
+        usersDirectory()
         .select('first_name, last_name, email, username')
         .eq('id', data.created_by)
         .maybeSingle();

@@ -28,6 +28,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { ReversalBadge } from "./ReversalBadge";
 import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
 import { Switch } from "@/components/ui/switch";
+import { usersDirectory } from "@/lib/usersDirectory";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -122,7 +123,7 @@ export function StockTransactionsTab() {
           : Promise.resolve({ data: [], error: null } as any),
         creatorIds.length
           ? supabase
-              .from('users')
+              usersDirectory()
               .select('id, username, first_name, last_name, email, phone, avatar_url')
               .in('id', creatorIds)
           : Promise.resolve({ data: [], error: null } as any),
@@ -295,7 +296,7 @@ export function StockTransactionsTab() {
 
       const { data: usersData } = creatorIds.length
         ? await supabase
-            .from('users')
+            usersDirectory()
             .select('id, username, first_name, last_name, email, phone, avatar_url')
             .in('id', creatorIds)
         : ({ data: [] } as any);

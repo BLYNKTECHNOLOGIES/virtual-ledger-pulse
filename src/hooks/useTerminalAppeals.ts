@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { toast } from 'sonner';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 export type AppealStatus = 'requested' | 'under_appeal' | 'respond_by_set' | 'checked_in' | 'resolved' | 'closed' | 'cancelled';
 export type AppealSource = 'binance_status' | 'small_payment_request' | 'manual_request';
 
@@ -132,7 +133,7 @@ export function useAppealCases(filters?: { status?: string; search?: string }) {
         : cases;
       const userIds = [...new Set(filtered.flatMap((c) => [c.requested_by, c.last_checked_in_by, c.response_timer_set_by]).filter(Boolean))] as string[];
       if (!userIds.length) return filtered;
-      const { data: users } = await supabase.from('users').select('id, username, first_name, last_name').in('id', userIds);
+      const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
       const userMap = new Map((users || []).map((u: any) => [u.id, u]));
       return filtered.map((c) => ({
         ...c,
@@ -177,7 +178,7 @@ export function useAppealCaseEvents(caseId?: string | null) {
       const events = data || [];
       const userIds = [...new Set(events.map((e: any) => e.actor_user_id).filter(Boolean))] as string[];
       if (!userIds.length) return events;
-      const { data: users } = await supabase.from('users').select('id, username, first_name, last_name').in('id', userIds);
+      const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
       const userMap = new Map((users || []).map((u: any) => [u.id, u]));
       return events.map((e: any) => ({ ...e, actor: e.actor_user_id ? userMap.get(e.actor_user_id) : null }));
     },

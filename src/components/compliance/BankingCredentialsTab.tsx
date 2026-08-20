@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface BankAccount {
   id: string;
   account_name: string;
@@ -287,7 +288,7 @@ export function BankingCredentialsTab() {
       let name: string | null = null;
       if (uid) {
         const { data: me } = await supabase
-          .from('users')
+          usersDirectory()
           .select('first_name, last_name, username')
           .eq('id', uid)
           .maybeSingle();

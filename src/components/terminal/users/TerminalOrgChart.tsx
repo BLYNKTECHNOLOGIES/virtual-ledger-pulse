@@ -14,6 +14,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+import { usersDirectory } from "@/lib/usersDirectory";
 interface OrgNode {
   userId: string;
   username: string;
@@ -194,7 +195,7 @@ export function TerminalOrgChart() {
     try {
       const [assignmentsRes, usersRes, rolesRes, profilesRes, supervisorMapsRes] = await Promise.all([
         supabase.from("p2p_terminal_user_roles").select("user_id, role_id"),
-        supabase.from("users").select("id, username, first_name, last_name"),
+        usersDirectory().select("id, username, first_name, last_name"),
         supabase.from("p2p_terminal_roles").select("id, name, hierarchy_level"),
         supabase.from("terminal_user_profiles").select("user_id, specialization, shift, is_active"),
         supabase.from("terminal_user_supervisor_mappings").select("user_id, supervisor_id"),

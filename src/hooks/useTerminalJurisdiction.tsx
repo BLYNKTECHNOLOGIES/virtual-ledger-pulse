@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 interface OrderAssignment {
   order_number: string;
   assigned_to: string;
@@ -179,7 +180,7 @@ export function useTerminalJurisdiction() {
     try {
       const [visibleRes, usersRes, rolesRes, assignmentsRes, profilesRes, userRolesRes] = await Promise.all([
         supabase.rpc('get_terminal_visible_user_ids', { p_user_id: userId }),
-        supabase.from('users').select('id, username, first_name, last_name'),
+        usersDirectory().select('id, username, first_name, last_name'),
         supabase.from('p2p_terminal_roles').select('id, name, hierarchy_level'),
         supabase.rpc('get_terminal_operator_workloads'),
         supabase.from('terminal_user_profiles').select('user_id, specialization, shift, is_active, automation_included'),

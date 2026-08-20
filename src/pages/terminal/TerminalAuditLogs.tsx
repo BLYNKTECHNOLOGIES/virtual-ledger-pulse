@@ -13,6 +13,7 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
 
+import { usersDirectory } from '@/lib/usersDirectory';
 interface AuditLog {
   id: string;
   order_reference: string;
@@ -66,7 +67,7 @@ export default function TerminalAuditLogs() {
 
       const { data: users } = userIds.size > 0
         ? await supabase
-            .from('users')
+            usersDirectory()
             .select('id, username, first_name, last_name')
             .in('id', Array.from(userIds))
         : { data: [] };

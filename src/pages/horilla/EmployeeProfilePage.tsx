@@ -1,8 +1,8 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Calendar, Building2, User,
   Briefcase, CreditCard, FileText, Edit, Save, X, Check,

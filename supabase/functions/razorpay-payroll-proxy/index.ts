@@ -6463,7 +6463,7 @@ Deno.serve(async (req) => {
       // Load employee + related rows.
       const [{ data: emp }, { data: wi }, { data: bank }, { data: structs }] = await Promise.all([
         svc.from("hr_employees")
-          .select("id,first_name,last_name,email,phone,gender,dob,pan_number,badge_id")
+          .select("id,first_name,last_name,email,phone,gender,dob,pan_number,uan_number,badge_id")
           .eq("id", hrId).maybeSingle(),
         svc.from("hr_employee_work_info")
           .select("department_id,job_role,joining_date,employee_type")
@@ -6482,6 +6482,8 @@ Deno.serve(async (req) => {
 
       const fullName = [emp.first_name, emp.last_name].filter(Boolean).join(" ").trim();
       const pan = (emp.pan_number || "").toString().trim().toUpperCase();
+      // Optional: only sent when the employee actually has a UAN on file.
+      const uan = (emp.uan_number || "").toString().replace(/\D/g, "");
       const dojIso = wi?.joining_date ? String(wi.joining_date) : null;
       const dobIso = emp.dob ? String(emp.dob) : null;
       const toDdMmYyyy = (iso: string | null) =>
@@ -6545,6 +6547,8 @@ Deno.serve(async (req) => {
         department: deptName,
         title: wi!.job_role,
         pan,
+        uan: uan || null,
+        "uan-number": uan || null,
         "bank-account-number": bank!.account_number,
         "bank-ifsc": (bank!.ifsc_code || "").toUpperCase(),
         "bank-account-holder-name": accountHolder,

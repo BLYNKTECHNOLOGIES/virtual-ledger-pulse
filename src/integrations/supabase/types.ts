@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      _mig_role_probe: {
+        Row: {
+          id: number
+          roles: string | null
+          who: string | null
+        }
+        Insert: {
+          id?: number
+          roles?: string | null
+          who?: string | null
+        }
+        Update: {
+          id?: number
+          roles?: string | null
+          who?: string | null
+        }
+        Relationships: []
+      }
       account_investigations: {
         Row: {
           assigned_to: string | null

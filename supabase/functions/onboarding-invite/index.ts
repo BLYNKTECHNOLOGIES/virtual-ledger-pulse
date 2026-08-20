@@ -274,12 +274,16 @@ Deno.serve(async (req) => {
     // ── HR-authenticated actions ──
     if (action === 'sample') {
       const to = String(body?.recipientEmail || '').trim().toLowerCase();
-      // Preview sends are restricted to internal company mailboxes only.
-      if (!/^[a-z0-9._%+-]+@blynkex\.com$/.test(to)) {
+      // Always HR-gated — no domain-based bypass (the HR mailbox must never be an open relay).
+      {
         const auth = await requireHr(req);
         if (auth.error) return json({ error: auth.error }, auth.error === 'Forbidden' ? 403 : 401);
       }
+      if (!/^[a-z0-9._%+-]+@blynkex\.com$/.test(to)) {
+        return json({ error: 'Sample sends are restricted to internal @blynkex.com mailboxes' }, 400);
+      }
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return json({ error: 'A valid email is required' }, 400);
+
 
       const sentFrom = await mailInvite(
         to,

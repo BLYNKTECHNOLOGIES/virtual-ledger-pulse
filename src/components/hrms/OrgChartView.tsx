@@ -409,14 +409,37 @@ export function OrgChartView() {
     });
 
 
+    // The biggest managerless root is the org head — everyone else sitting at
+    // the top without a manager is "out of the chain" and gets an assign action.
+    const subtreeSize = (n: EmpChartNode): number =>
+      1 + n.children.reduce((s, c) => s + subtreeSize(c), 0);
+    let head: EmpChartNode | null = null;
+    let headSize = -1;
+    roots.forEach(r => {
+      const size = subtreeSize(r);
+      if (size > headSize) { headSize = size; head = r; }
+    });
+    nodeMap.forEach(n => { if (!n.unassigned) return; n.unassigned = true; });
+    if (head) (head as EmpChartNode).unassigned = false;
+
+    const unassignedList = roots
+      .filter(r => r.unassigned)
+      .map(r => ({ id: r.id, name: r.name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    const allEmployees = Array.from(nodeMap.values())
+      .map(n => ({ id: n.id, name: n.name, designation: n.designation }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
     const sortChildren = (nodes: EmpChartNode[]) => {
       nodes.sort((a, b) => a.name.localeCompare(b.name));
       nodes.forEach(n => sortChildren(n.children));
     };
     sortChildren(roots);
 
-    return { empTree: roots, managers: managerList, cycleMembers };
+    return { empTree: roots, managers: managerList, cycleMembers, unassignedList, allEmployees };
   }, [rawEmployees, rawWorkInfos, rawPositions, rawDepts]);
+
 
 
   // When empTree is built, auto-expand only root nodes so the first level is visible

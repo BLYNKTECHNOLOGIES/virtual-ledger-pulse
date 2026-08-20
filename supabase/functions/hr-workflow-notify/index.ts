@@ -270,7 +270,12 @@ function makeClient(mailbox: any) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  // Auth gate: internal service call, scheduled job secret, or signed-in user.
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
   const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
 
   let body: any = {};
   try { body = await req.json(); } catch { /* ignore */ }

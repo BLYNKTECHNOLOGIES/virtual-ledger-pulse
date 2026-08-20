@@ -226,8 +226,15 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const gstRate = parseFloat(cols[11]?.trim());
       const gstTypeRaw = (cols[12]?.trim() || "").toUpperCase();
       const gstInclusiveRaw = (cols[13]?.trim() || "").toLowerCase();
-      const transactionId = category === "it_services_paytm"
+      const isPaytmRow = category === "it_services_paytm";
+      const transactionId = isPaytmRow
         ? getFieldByHeader(cols, ["transaction_id", "txn_id", "transaction", "paytm_transaction_id"], 14)
+        : "";
+      const orderId = isPaytmRow
+        ? getFieldByHeader(cols, ["order_id", "orderid", "order"], 15)
+        : "";
+      const rrn = isPaytmRow
+        ? getFieldByHeader(cols, ["rrn", "rrn_no", "rrn_number", "retrieval_reference_number"], 16)
         : "";
 
 
@@ -246,6 +253,8 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         buyerName, buyerAddress, buyerGstin, buyerContact, date,
         unit: "NOS",
         transactionId: transactionId || undefined,
+        orderId: orderId || undefined,
+        rrn: rrn || undefined,
       });
 
     }

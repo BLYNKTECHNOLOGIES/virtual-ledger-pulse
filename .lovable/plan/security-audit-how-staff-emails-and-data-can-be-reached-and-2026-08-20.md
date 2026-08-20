@@ -24,27 +24,17 @@ Several email functions run without any authentication: the HR workflow notifier
 ## The fix
 
 **Phase 1 — stop the bleeding (same session)**
+
 - Revoke anonymous execute rights across all application database routines; grant them back only to logged-in roles.
 - Remove `get_active_users` and `validate_user_credentials` from anonymous reach entirely, and make each of them refuse to run without a valid session.
 - Gate the org-chart directory behind login.
 - Keep only the genuinely public routines reachable (the public onboarding-form path), each re-checked individually.
 
 **Phase 2 — permission checks inside the routines**
+
 - Add a caller check to every routine that changes data: HR/admin routines require HR staff, payroll routines require payroll rights, terminal routines require terminal roles. Read routines return only what the caller is entitled to see.
 - Anything that cannot be justified as callable from the browser is restricted to the service role and moved behind a backend function.
-
-**Phase 3 — lock down the email functions**
-- Require a verified caller (staff session) or a shared cron secret on every mail function; reject everything else.
-- Fix the previews so they can only send to the requesting staff member's own address, never an arbitrary one.
-- Add per-caller rate limiting to the OTP and password-reset paths.
-
-**Phase 4 — anti-phishing at the mail layer (configuration, outside the app)**
-- Confirm SPF/DKIM and move DMARC to reject for blynkex.com so spoofed "Blynk" mail is refused at the receiving server.
-- Turn on the external-sender warning banner in Google Workspace and brief staff on the pattern.
-- Optional: alert HR when a routine returns unusually large directory reads.
-
-**Phase 5 — verification**
-- Re-run the anonymous probe against every finding above and show the before/after output.
+- &nbsp;
 - Run the platform security scanner and confirm the app still works end-to-end for HR, payroll and terminal users after the permission changes.
 
 ## Technical notes

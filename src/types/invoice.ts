@@ -69,6 +69,10 @@ export interface InvoiceGroup {
   note?: string;
   /** Transaction ID (IT / Software Services Paytm category) */
   transactionId?: string;
+  /** Order ID (IT / Software Services Paytm category) */
+  orderId?: string;
+  /** RRN (IT / Software Services Paytm category) */
+  rrn?: string;
 }
 
 

@@ -613,50 +613,23 @@ export default function UserProfile() {
       if (primary.error) throw primary.error;
       if (primary.data?.[0]) return { employee: primary.data[0], matchedVia: 'user_id' };
 
-
-      // Fetch user record for fallback keys
-      const { data: u } = await supabase
-        .from('users')
-        .select('badge_id, email, phone')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      const tryMatch = async (col: string, val: string | null | undefined) => {
-        if (!val) return null;
-        const { data } = await (supabase as any)
-          .from('hr_employees').select('*').eq(col, val).limit(2);
-        return data && data.length === 1 ? data[0] : null; // only auto-match if unambiguous
-      };
-
-      const byBadge = await tryMatch('badge_id', u?.badge_id);
-      if (byBadge) return { employee: byBadge, matchedVia: 'badge_id' };
-      const byEmail = await tryMatch('email', u?.email);
-      if (byEmail) return { employee: byEmail, matchedVia: 'email' };
-      const byPhone = await tryMatch('phone', u?.phone);
-      if (byPhone) return { employee: byPhone, matchedVia: 'phone' };
+      // 2. Not linked yet (hr_employees RLS only exposes rows where
+      // user_id = auth.uid(), so client-side badge/email/phone fallbacks can
+      // never see an unlinked row). Ask the server to link us by badge id,
+      // email or phone, then re-read.
+      const { data: linkedId } = await (supabase as any).rpc('hr_link_self_employee');
+      if (linkedId) {
+        const healed = await supabase
+          .from('hr_employees').select('*').eq('id', linkedId).maybeSingle();
+        if (healed.data) return { employee: healed.data, matchedVia: 'auto_link' };
+      }
 
       return { employee: null, matchedVia: null };
     },
     enabled: !!user?.id,
   });
 
-  // Auto-heal: if we resolved the employee via a fallback (badge/email/phone)
-  // silently backfill hr_employees.user_id so this only happens once. The
-  // employee should never see linkage warnings — that's an HR-internal detail.
-  useEffect(() => {
-    const emp = employeeResolution?.employee;
-    const via = employeeResolution?.matchedVia;
-    if (!emp || !user?.id || !via || via === 'user_id' || emp.user_id) return;
-    (async () => {
-      try {
-        await (supabase as any)
-          .from('hr_employees')
-          .update({ user_id: user.id })
-          .eq('id', emp.id)
-          .is('user_id', null);
-      } catch { /* best-effort; HR can fix manually */ }
-    })();
-  }, [employeeResolution, user?.id]);
+
 
 
   const hrEmployee = employeeResolution?.employee ?? null;

@@ -325,7 +325,7 @@ export function OrgChartView() {
       setLoading(false);
     }
     load();
-  }, []);
+  }, [reloadKey]);
 
   // Build employee chart tree
   const { empTree, managers, cycleMembers } = useMemo(() => {

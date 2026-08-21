@@ -682,7 +682,8 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
       const orderId = invoice.orderId || invoice.items.find((it) => it.orderId)?.orderId || "";
       const txnId = invoice.transactionId || invoice.items.find((it) => it.transactionId)?.transactionId || "";
       const rrn = invoice.rrn || invoice.items.find((it) => it.rrn)?.rrn || "";
-      if (orderId || txnId || rrn) {
+      const posId = invoice.posId || invoice.items.find((it) => it.posId)?.posId || "";
+      if (orderId || txnId || rrn || posId) {
         doc.setFont("helvetica", "bold");
         doc.setFontSize(9);
         setColor(t.colors.bodyText);
@@ -694,9 +695,11 @@ export function generateInvoicesPDF(invoices: InvoiceGroup[], options: PDFOption
         if (orderId) { doc.text(`Order ID : ${orderId}`, marginL, y); y += 4; }
         if (txnId) { doc.text(`Transaction ID .: ${txnId}`, marginL, y); y += 4; }
         if (rrn) { doc.text(`RRN : ${rrn}`, marginL, y); y += 4; }
+        if (posId) { doc.text(`POS ID : ${posId}`, marginL, y); y += 4; }
         y += 5;
       }
     }
+
 
 
     // ── Declaration ──

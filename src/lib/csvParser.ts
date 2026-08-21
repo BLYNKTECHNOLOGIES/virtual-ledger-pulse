@@ -236,6 +236,10 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
       const rrn = isPaytmRow
         ? getFieldByHeader(cols, ["rrn", "rrn_no", "rrn_number", "retrieval_reference_number"], 16)
         : "";
+      const posId = isPaytmRow
+        ? getFieldByHeader(cols, ["pos_id", "posid", "pos_id_no", "pos_identifier", "terminal_id"], 17)
+        : "";
+
 
 
       // Detect GST settings from first row that has them
@@ -255,7 +259,9 @@ export function parseCSV(csvText: string, category: InvoiceCategory = "it_servic
         transactionId: transactionId || undefined,
         orderId: orderId || undefined,
         rrn: rrn || undefined,
+        posId: posId || undefined,
       });
+
 
     }
   }
@@ -340,13 +346,14 @@ export function generateCSVTemplate(category: InvoiceCategory = "it_services"): 
     "Invoice Number", "Description", "HSN/SAC", "Quantity", "Rate", "Amount",
     "Buyer Name", "Buyer Address", "Buyer GSTIN", "Buyer Contact", "Date",
     "GST Rate", "GST Type", "GST Inclusive",
-    ...(isPaytm ? ["Transaction ID", "Order ID", "RRN"] : []),
+    ...(isPaytm ? ["Transaction ID", "Order ID", "RRN", "POS ID"] : []),
   ];
   const rows = [
-    ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no", ...(isPaytm ? ["20260425111020000254866624835440315", "T2604251831501845189375", "123862859168"] : [])],
-    ["INV-001", "Server Maintenance", "998314", "2", "10000", "20000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no", ...(isPaytm ? ["20260425111020000254866624835440315", "T2604251831501845189375", "123862859168"] : [])],
-    ["INV-002", "UI/UX Design", "998314", "1", "30000", "30000", "XYZ Corp", "456 Park Avenue Mumbai", "27FGHIJ5678K2Z3", "9123456780", "17/02/2026", "18", "CGST_SGST", "no", ...(isPaytm ? ["20260425111020000254866624835440316", "T2604251831501845189376", "123862859169"] : [])],
+    ["INV-001", "Web Development Services", "998314", "1", "50000", "50000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no", ...(isPaytm ? ["20260425111020000254866624835440315", "T2604251831501845189375", "123862859168", "POS-001"] : [])],
+    ["INV-001", "Server Maintenance", "998314", "2", "10000", "20000", "ABC Pvt Ltd", "123 Main Street New Delhi", "29ABCDE1234F1Z5", "9876543210", "16/02/2026", "18", "IGST", "no", ...(isPaytm ? ["20260425111020000254866624835440315", "T2604251831501845189375", "123862859168", "POS-001"] : [])],
+    ["INV-002", "UI/UX Design", "998314", "1", "30000", "30000", "XYZ Corp", "456 Park Avenue Mumbai", "27FGHIJ5678K2Z3", "9123456780", "17/02/2026", "18", "CGST_SGST", "no", ...(isPaytm ? ["20260425111020000254866624835440316", "T2604251831501845189376", "123862859169", "POS-002"] : [])],
   ];
+
   return headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n") + "\n";
 
 }
@@ -362,6 +369,7 @@ export function groupByInvoice(records: OrderRecord[], category: InvoiceCategory
       if (!existing.transactionId && record.transactionId) existing.transactionId = record.transactionId;
       if (!existing.orderId && record.orderId) existing.orderId = record.orderId;
       if (!existing.rrn && record.rrn) existing.rrn = record.rrn;
+      if (!existing.posId && record.posId) existing.posId = record.posId;
     } else {
       map.set(record.invoiceNumber, {
         invoiceNumber: record.invoiceNumber,
@@ -376,8 +384,10 @@ export function groupByInvoice(records: OrderRecord[], category: InvoiceCategory
         transactionId: record.transactionId,
         orderId: record.orderId,
         rrn: record.rrn,
+        posId: record.posId,
       });
     }
+
 
   }
 

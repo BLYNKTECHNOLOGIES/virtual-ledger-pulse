@@ -47,7 +47,11 @@ export default function OrdersTable({ records, category = "it_services" }: Order
               {isPaytm && (
                 <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">RRN</th>
               )}
+              {isPaytm && (
+                <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">POS ID</th>
+              )}
               <th className="text-left px-4 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">Date</th>
+
 
             </tr>
           </thead>
@@ -88,7 +92,11 @@ export default function OrdersTable({ records, category = "it_services" }: Order
                 {isPaytm && (
                   <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.rrn || "-"}</td>
                 )}
+                {isPaytm && (
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{r.posId || "-"}</td>
+                )}
                 <td className="px-4 py-3 text-muted-foreground text-xs">{r.date}</td>
+
 
               </tr>
             ))}

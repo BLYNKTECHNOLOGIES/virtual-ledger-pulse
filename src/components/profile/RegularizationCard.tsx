@@ -10,6 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Plus, Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
+import {
+  buildRegularizationWindow,
+  validateRegularizationWindow,
+} from '@/lib/regularizationWindow';
+
 
 interface Props {
   employeeId: string;
@@ -31,6 +36,19 @@ export default function RegularizationCard({ employeeId }: Props) {
     requested_check_out: '',
     reason: '',
   });
+
+  const windowPreview = (() => {
+    const w = buildRegularizationWindow(
+      form.attendance_date,
+      form.requested_check_in,
+      form.requested_check_out,
+    );
+    return {
+      error: validateRegularizationWindow(w),
+      crossesMidnight: w.crossesMidnight,
+      spanLabel: w.spanHours !== null ? `${w.spanHours.toFixed(1)} h` : '',
+    };
+  })();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['reg_requests_self', employeeId],
@@ -59,17 +77,16 @@ export default function RegularizationCard({ employeeId }: Props) {
         reason: form.reason.trim(),
         status: 'pending',
       };
-      const toIso = (t: string) =>
-        t ? new Date(`${form.attendance_date}T${t}:00`).toISOString() : null;
-      payload.requested_check_in = toIso(form.requested_check_in);
-      payload.requested_check_out = toIso(form.requested_check_out);
-      // Overnight shift: an out time earlier than the in time belongs to the next day
-      if (payload.requested_check_in && payload.requested_check_out &&
-          payload.requested_check_out <= payload.requested_check_in) {
-        payload.requested_check_out = new Date(
-          new Date(payload.requested_check_out).getTime() + 86400000,
-        ).toISOString();
-      }
+      const win = buildRegularizationWindow(
+        form.attendance_date,
+        form.requested_check_in,
+        form.requested_check_out,
+      );
+      const windowError = validateRegularizationWindow(win);
+      if (windowError) throw new Error(windowError);
+      payload.requested_check_in = win.checkIn;
+      payload.requested_check_out = win.checkOut;
+
 
       const { error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')
@@ -241,6 +258,16 @@ export default function RegularizationCard({ employeeId }: Props) {
                 />
               </div>
             </div>
+            {windowPreview.error && (
+              <p className="text-xs text-destructive">{windowPreview.error}</p>
+            )}
+            {!windowPreview.error && windowPreview.crossesMidnight && (
+              <p className="text-xs text-muted-foreground">
+                Overnight shift detected — check-out will be recorded on the next day
+                ({windowPreview.spanLabel}).
+              </p>
+            )}
+
             <div>
               <Label className="mb-1.5 block">Reason *</Label>
               <Textarea
@@ -254,9 +281,14 @@ export default function RegularizationCard({ employeeId }: Props) {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button className="w-full sm:w-auto" onClick={() => submit.mutate()} disabled={submit.isPending}>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => submit.mutate()}
+              disabled={submit.isPending || !!windowPreview.error}
+            >
               {submit.isPending ? 'Submitting...' : 'Submit Request'}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

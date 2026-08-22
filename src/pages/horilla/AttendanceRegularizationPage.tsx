@@ -293,7 +293,14 @@ export default function AttendanceRegularizationPage() {
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
     },
-    onError: (e: any) => toast.error(e.message || 'Failed'),
+    onError: (e: any) =>
+      toast.error(e?.message || 'Failed', {
+        description: /18 hours|after check-in/i.test(e?.message || '')
+          ? 'Ask the employee to resubmit with corrected times, or fix the times before approving.'
+          : undefined,
+        duration: 10000,
+      }),
+
   });
 
   const fmtTime = (ts: string | null) =>

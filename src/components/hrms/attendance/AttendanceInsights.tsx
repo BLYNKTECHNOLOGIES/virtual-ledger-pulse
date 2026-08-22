@@ -1782,7 +1782,7 @@ function ExceptionBlock({
             key={d.id}
             type="button"
             onClick={() => onPick(d.id)}
-            title={`View the days behind this exception for ${""}`}
+            title="View the days and evidence behind this exception"
             className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[11px] transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Person id={d.id} />

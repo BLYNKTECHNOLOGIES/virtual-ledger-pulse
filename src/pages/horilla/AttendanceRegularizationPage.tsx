@@ -300,28 +300,22 @@ export default function AttendanceRegularizationPage() {
     ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
 
+
+
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Attendance Regularization"
-        description="Review and action attendance regularization requests. Every approval is audited."
-      />
+      <PageHeader title="Attendance Regularization" />
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Regularization requests</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Every approval demands a reason code and note, audited into <code>hr_attendance_intervention_log</code>.
-          </p>
-        </CardHeader>
-        <CardContent className="p-4 pt-0 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by badge, name, reason..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search badge, name or reason" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
             </div>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 sm:w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pending">Awaiting HR</SelectItem>
                 <SelectItem value="manager_review">With manager</SelectItem>
@@ -334,12 +328,13 @@ export default function AttendanceRegularizationPage() {
             </Select>
           </div>
 
+
           {/* Mobile */}
           <div className="md:hidden space-y-2">
             {isLoading ? (
               <TableSkeleton rows={4} columns={2} />
             ) : filtered.length === 0 ? (
-              <EmptyState icon={Hourglass} title="No requests" description="Nothing matches the current filter." />
+              <EmptyState icon={Hourglass} title="No requests" />
             ) : filtered.map((r: any) => {
               const emp = r.hr_employees;
               return (
@@ -397,73 +392,68 @@ export default function AttendanceRegularizationPage() {
             {isLoading ? (
               <TableSkeleton rows={5} />
             ) : filtered.length === 0 ? (
-              <EmptyState icon={Hourglass} title="No requests" description="Nothing matches the current filter." />
+              <EmptyState icon={Hourglass} title="No requests" />
             ) : (
-              <div className="overflow-x-auto border rounded-lg">
+              <div className="overflow-x-auto rounded-lg border">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 border-b">
-                    <tr>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Employee</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Date</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">In</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Out</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Reason / Code</th>
-                      <th className="text-left px-4 py-2 font-medium text-muted-foreground">Status</th>
-                      <th className="text-right px-4 py-2 font-medium text-muted-foreground">Action</th>
+                  <thead className="border-b bg-muted/40">
+                    <tr className="[&>th]:px-3 [&>th]:py-2 [&>th]:text-left [&>th]:text-xs [&>th]:font-medium [&>th]:uppercase [&>th]:tracking-wide [&>th]:text-muted-foreground">
+                      <th className="w-[22%]">Employee</th>
+                      <th className="w-[12%]">Date</th>
+                      <th className="w-[14%]">In / Out</th>
+                      <th>Reason</th>
+                      <th className="w-[15%]">Status</th>
+                      <th className="w-[1%] text-right">&nbsp;</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-border/60">
                     {filtered.map((r: any) => {
                       const emp = r.hr_employees;
+                      const actionable = r.status === 'pending' || r.status === 'manager_reviewed';
                       return (
-                        <tr key={r.id} className="border-b hover:bg-muted/30">
-                          <td className="px-4 py-2">
-                            <div className="font-medium text-foreground">{emp?.first_name} {emp?.last_name}</div>
-                            <div className="text-xs text-muted-foreground">{emp?.badge_id}</div>
+                        <tr key={r.id} className="align-middle hover:bg-muted/30">
+                          <td className="px-3 py-2">
+                            <div className="truncate font-medium text-foreground">{emp?.first_name} {emp?.last_name}</div>
+                            <div className="text-xs text-muted-foreground">#{emp?.badge_id}</div>
                           </td>
-                          <td className="px-4 py-2 font-medium">{r.attendance_date}</td>
-                          <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_in)}</td>
-                          <td className="px-4 py-2 font-mono text-xs">{fmtTime(r.requested_check_out)}</td>
-                          <td className="px-4 py-2 max-w-xs">
+                          <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                            {format(new Date(r.attendance_date), 'd MMM yyyy')}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 font-mono text-xs tabular-nums">
+                            {fmtTime(r.requested_check_in)} – {fmtTime(r.requested_check_out)}
+                          </td>
+                          <td className="max-w-0 px-3 py-2">
                             <div className="truncate" title={r.reason}>{r.reason}</div>
-                            <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {regCategoryLabel(r.reason_category)}{r.reason_code ? ` · ${r.reason_code}` : ''}
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {regCategoryLabel(r.reason_category)}{r.approver_notes ? ` · ${r.approver_notes}` : ''}
                             </div>
-                            {r.approver_notes && (
-                              <div className="text-xs text-muted-foreground italic mt-0.5">"{r.approver_notes}"</div>
-                            )}
                           </td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                          <td className="px-3 py-2">
+                            <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
                               r.status === 'approved' ? 'bg-success/10 text-success' :
                               r.status === 'rejected' ? 'bg-destructive/10 text-destructive' :
                               r.status === 'cancelled' ? 'bg-muted text-muted-foreground' :
                               'bg-warning/10 text-warning'
                             }`}>{regStageLabel(r)}</span>
-                            {r.manager_status && (
-                              <div className="text-[11px] text-muted-foreground mt-1">
-                                Manager {r.manager_status}
-                                {r.manager?.first_name ? ` · ${r.manager.first_name} ${r.manager.last_name || ''}` : ''}
-                                {r.manager_remarks ? ` · "${r.manager_remarks}"` : ''}
-                              </div>
-                            )}
                           </td>
-                          <td className="px-4 py-2 text-right space-x-1">
-                            {(r.status === 'pending' || r.status === 'manager_reviewed') && (
-                              <>
-                                <Button size="sm" variant="outline" onClick={() => openReview(r, 'approved')}>
-                                  <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
+                          <td className="px-3 py-2">
+                            {actionable && (
+                              <div className="flex items-center justify-end gap-1">
+                                <Button size="icon" variant="ghost" title="Approve" className="h-8 w-8 text-success hover:bg-success/10"
+                                  onClick={() => openReview(r, 'approved')}>
+                                  <CheckCircle2 className="h-4 w-4" />
                                 </Button>
-                                <Button size="sm" variant="outline" onClick={() => openReview(r, 'rejected')}>
-                                  <XCircle className="h-4 w-4 mr-1 text-destructive" /> Reject
+                                <Button size="icon" variant="ghost" title="Reject" className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                  onClick={() => openReview(r, 'rejected')}>
+                                  <XCircle className="h-4 w-4" />
                                 </Button>
                                 {r.status === 'pending' && (
-                                  <Button size="sm" variant="ghost" disabled={pushToManager.isPending}
-                                    onClick={() => pushToManager.mutate(r)}>
-                                    <UserCheck className="h-4 w-4 mr-1" /> Push to manager
+                                  <Button size="icon" variant="ghost" title="Push to manager" className="h-8 w-8"
+                                    disabled={pushToManager.isPending} onClick={() => pushToManager.mutate(r)}>
+                                    <UserCheck className="h-4 w-4" />
                                   </Button>
                                 )}
-                              </>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -474,6 +464,7 @@ export default function AttendanceRegularizationPage() {
               </div>
             )}
           </div>
+
         </CardContent>
       </Card>
 
@@ -588,13 +579,9 @@ export default function AttendanceRegularizationPage() {
                       <SelectTrigger><SelectValue placeholder="Pick a reason code" /></SelectTrigger>
                       <SelectContent>
                         {REASON_CODES.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            <div className="flex flex-col">
-                              <span>{c.label}</span>
-                              <span className="text-[10px] text-muted-foreground">{c.help}</span>
-                            </div>
-                          </SelectItem>
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                         ))}
+
                       </SelectContent>
                     </Select>
                   </div>

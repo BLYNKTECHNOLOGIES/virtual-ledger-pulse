@@ -579,13 +579,9 @@ export default function AttendanceRegularizationPage() {
                       <SelectTrigger><SelectValue placeholder="Pick a reason code" /></SelectTrigger>
                       <SelectContent>
                         {REASON_CODES.map((c) => (
-                          <SelectItem key={c.value} value={c.value}>
-                            <div className="flex flex-col">
-                              <span>{c.label}</span>
-                              <span className="text-[10px] text-muted-foreground">{c.help}</span>
-                            </div>
-                          </SelectItem>
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
                         ))}
+
                       </SelectContent>
                     </Select>
                   </div>

@@ -334,7 +334,7 @@ export default function AttendanceRegularizationPage() {
             {isLoading ? (
               <TableSkeleton rows={4} columns={2} />
             ) : filtered.length === 0 ? (
-              <EmptyState icon={Hourglass} title="No requests" description="Nothing matches the current filter." />
+              <EmptyState icon={Hourglass} title="No requests" />
             ) : filtered.map((r: any) => {
               const emp = r.hr_employees;
               return (

@@ -281,9 +281,14 @@ export default function RegularizationCard({ employeeId }: Props) {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button className="w-full sm:w-auto" onClick={() => submit.mutate()} disabled={submit.isPending}>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => submit.mutate()}
+              disabled={submit.isPending || !!windowPreview.error}
+            >
               {submit.isPending ? 'Submitting...' : 'Submit Request'}
             </Button>
+
           </DialogFooter>
         </DialogContent>
       </Dialog>

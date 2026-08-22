@@ -73,7 +73,7 @@ export function AttendancePoliciesPanel() {
 
   const openEdit = (p: any) => {
     setEditId(p.id);
-    setForm({ name: p.name, late_threshold_minutes: p.late_threshold_minutes || 15, half_day_threshold_minutes: p.half_day_threshold_minutes || 240, absent_if_no_punch: p.absent_if_no_punch ?? true, grace_period_minutes: p.grace_period_minutes || 0, late_count_for_lop: p.late_count_for_lop || 3, half_day_count_for_lop: p.half_day_count_for_lop || 2, early_leave_threshold_minutes: p.early_leave_threshold_minutes || 30, min_overtime_minutes: p.min_overtime_minutes || 30, is_default: p.is_default || false });
+    setForm({ name: p.name, late_threshold_minutes: p.late_threshold_minutes ?? 15, half_day_threshold_minutes: p.half_day_threshold_minutes ?? 240, absent_if_no_punch: p.absent_if_no_punch ?? true, grace_period_minutes: p.grace_period_minutes ?? 0, late_count_for_lop: p.late_count_for_lop ?? 3, half_day_count_for_lop: p.half_day_count_for_lop ?? 2, early_leave_threshold_minutes: p.early_leave_threshold_minutes ?? 30, min_overtime_minutes: p.min_overtime_minutes ?? 30, is_default: p.is_default ?? false });
     setShowDialog(true);
   };
 

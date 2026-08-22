@@ -10,6 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Plus, Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
+import {
+  buildRegularizationWindow,
+  validateRegularizationWindow,
+} from '@/lib/regularizationWindow';
+
 
 interface Props {
   employeeId: string;

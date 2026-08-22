@@ -37,6 +37,19 @@ export default function RegularizationCard({ employeeId }: Props) {
     reason: '',
   });
 
+  const windowPreview = (() => {
+    const w = buildRegularizationWindow(
+      form.attendance_date,
+      form.requested_check_in,
+      form.requested_check_out,
+    );
+    return {
+      error: validateRegularizationWindow(w),
+      crossesMidnight: w.crossesMidnight,
+      spanLabel: w.spanHours !== null ? `${w.spanHours.toFixed(1)} h` : '',
+    };
+  })();
+
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['reg_requests_self', employeeId],
     queryFn: async () => {

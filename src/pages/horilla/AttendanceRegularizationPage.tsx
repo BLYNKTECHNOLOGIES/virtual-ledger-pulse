@@ -300,28 +300,25 @@ export default function AttendanceRegularizationPage() {
     ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
 
+  const counts = useMemo(() => {
+    const pending = rows.filter((r: any) => r.status === 'pending').length;
+    const withMgr = rows.filter((r: any) => r.status === 'manager_review').length;
+    return { pending, withMgr, total: rows.length };
+  }, [rows]);
+
   return (
     <div className="space-y-4">
-      <PageHeader
-        title="Attendance Regularization"
-        description="Review and action attendance regularization requests. Every approval is audited."
-      />
+      <PageHeader title="Attendance Regularization" />
 
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Regularization requests</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Every approval demands a reason code and note, audited into <code>hr_attendance_intervention_log</code>.
-          </p>
-        </CardHeader>
-        <CardContent className="p-4 pt-0 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-3">
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by badge, name, reason..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search badge, name or reason" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
             </div>
             <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 sm:w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pending">Awaiting HR</SelectItem>
                 <SelectItem value="manager_review">With manager</SelectItem>
@@ -333,6 +330,7 @@ export default function AttendanceRegularizationPage() {
               </SelectContent>
             </Select>
           </div>
+
 
           {/* Mobile */}
           <div className="md:hidden space-y-2">

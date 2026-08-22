@@ -44,6 +44,12 @@ import {
   type DrillPayload,
   type DrillRow,
 } from "./AttendanceDrilldownDialog";
+import {
+  ExceptionEvidenceDialog,
+  type EvidenceCell,
+  type EvidencePayload,
+  type EvidenceRow,
+} from "./ExceptionEvidenceDialog";
 
 
 export type MaintainedRow = {
@@ -283,6 +289,7 @@ export function AttendanceInsights({
   const [deptBreakdown, setDeptBreakdown] = useState<"none" | "shift">("none");
   const [openDepts, setOpenDepts] = useState<Set<string>>(new Set());
   const [drill, setDrill] = useState<DrillPayload | null>(null);
+  const [evidence, setEvidence] = useState<EvidencePayload | null>(null);
 
 
   const empById = useMemo(() => {
@@ -1714,7 +1721,12 @@ export function AttendanceInsights({
               </CardHeader>
               <CardContent className="pt-0 space-y-4">
                 {exceptions.map((ex) => (
-                  <ExceptionBlock key={ex.key} ex={ex} Person={Person} />
+                  <ExceptionBlock
+                    key={ex.key}
+                    ex={ex}
+                    Person={Person}
+                    onPick={(id) => setEvidence(buildEvidence(ex.key, ex.label, id))}
+                  />
                 ))}
               </CardContent>
             </Card>
@@ -1728,6 +1740,8 @@ export function AttendanceInsights({
         renderPerson={(id) => <Person id={id} />}
         nameOf={nameOf}
       />
+
+      <ExceptionEvidenceDialog payload={evidence} onOpenChange={(o) => !o && setEvidence(null)} />
     </div>
     </TooltipProvider>
 
@@ -1738,9 +1752,11 @@ export function AttendanceInsights({
 function ExceptionBlock({
   ex,
   Person,
+  onPick,
 }: {
   ex: { key: string; label: string; hint: string; detail: { id: string; n: number }[] };
   Person: (p: { id: string; className?: string }) => JSX.Element;
+  onPick: (employeeId: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? ex.detail : ex.detail.slice(0, 8);
@@ -1752,6 +1768,7 @@ function ExceptionBlock({
             {ex.label} <span className="text-muted-foreground font-normal">({ex.detail.length})</span>
           </p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{ex.hint}</p>
+          <p className="text-[10px] text-muted-foreground/80 mt-0.5">Click a name to see the days and evidence behind it.</p>
         </div>
         {ex.detail.length > 8 && (
           <Button variant="ghost" size="sm" className="h-6 text-[11px] shrink-0" onClick={() => setExpanded((v) => !v)}>
@@ -1761,10 +1778,16 @@ function ExceptionBlock({
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {shown.map((d) => (
-          <span key={d.id} className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[11px]">
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => onPick(d.id)}
+            title={`View the days behind this exception for ${""}`}
+            className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-0.5 text-[11px] transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             <Person id={d.id} />
             {d.n > 0 && <span className="text-muted-foreground tabular-nums">· {d.n}</span>}
-          </span>
+          </button>
         ))}
       </div>
     </div>

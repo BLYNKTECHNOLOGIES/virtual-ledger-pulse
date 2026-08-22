@@ -59,17 +59,16 @@ export default function RegularizationCard({ employeeId }: Props) {
         reason: form.reason.trim(),
         status: 'pending',
       };
-      const toIso = (t: string) =>
-        t ? new Date(`${form.attendance_date}T${t}:00`).toISOString() : null;
-      payload.requested_check_in = toIso(form.requested_check_in);
-      payload.requested_check_out = toIso(form.requested_check_out);
-      // Overnight shift: an out time earlier than the in time belongs to the next day
-      if (payload.requested_check_in && payload.requested_check_out &&
-          payload.requested_check_out <= payload.requested_check_in) {
-        payload.requested_check_out = new Date(
-          new Date(payload.requested_check_out).getTime() + 86400000,
-        ).toISOString();
-      }
+      const win = buildRegularizationWindow(
+        form.attendance_date,
+        form.requested_check_in,
+        form.requested_check_out,
+      );
+      const windowError = validateRegularizationWindow(win);
+      if (windowError) throw new Error(windowError);
+      payload.requested_check_in = win.checkIn;
+      payload.requested_check_out = win.checkOut;
+
 
       const { error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')

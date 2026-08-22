@@ -68,6 +68,20 @@ export default function MyRequestsHub({ employeeId }: Props) {
     reason: '',
   });
 
+  const regWindow = (() => {
+    const w = buildRegularizationWindow(
+      regForm.attendance_date,
+      regForm.requested_check_in,
+      regForm.requested_check_out,
+    );
+    return {
+      error: validateRegularizationWindow(w),
+      crossesMidnight: w.crossesMidnight,
+      spanLabel: w.spanHours !== null ? `${w.spanHours.toFixed(1)} h` : '',
+    };
+  })();
+
+
   // ─── Leave requests ───
   const { data: leaves = [], isLoading: lLoading } = useQuery({
     queryKey: ['ess_hub_leaves', employeeId],

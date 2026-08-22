@@ -15,6 +15,8 @@ is the ONLY LOP calculator that payroll (shadow + real) is allowed to consume.
 | approved unpaid leave (`hr_leave_types.is_paid = false`) | 1.0 |
 | approved paid leave / weekly-off / holiday | 0 |
 | **day with an OPEN watchdog session** | **0 (held harmless)** |
+| **policy late occurrences** | **1 LOP day per `late_count_for_lop` lates** (only if threshold > 0) |
+| **policy half-day occurrences** | **1 extra LOP day per `half_day_count_for_lop` half-days** (only if threshold > 0) |
 
 ## Fairness gate
 

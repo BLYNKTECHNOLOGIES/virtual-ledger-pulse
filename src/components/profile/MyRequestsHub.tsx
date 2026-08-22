@@ -199,14 +199,16 @@ export default function MyRequestsHub({ employeeId }: Props) {
         throw new Error('Date and reason are required');
       }
       if (!regForm.reason_category) throw new Error('Pick a reason category');
-      const buildTs = (d: string, t: string) =>
-        d && t ? new Date(`${d}T${t}:00`).toISOString() : null;
-      let regIn = buildTs(regForm.attendance_date, regForm.requested_check_in);
-      let regOut = buildTs(regForm.attendance_date, regForm.requested_check_out);
-      // Overnight shift: an out time earlier than the in time belongs to the next day
-      if (regIn && regOut && regOut <= regIn) {
-        regOut = new Date(new Date(regOut).getTime() + 86400000).toISOString();
-      }
+      const win = buildRegularizationWindow(
+        regForm.attendance_date,
+        regForm.requested_check_in,
+        regForm.requested_check_out,
+      );
+      const windowError = validateRegularizationWindow(win);
+      if (windowError) throw new Error(windowError);
+      const regIn = win.checkIn;
+      const regOut = win.checkOut;
+
       const { data: inserted, error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')
         .insert({

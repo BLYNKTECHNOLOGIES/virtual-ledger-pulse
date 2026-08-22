@@ -300,11 +300,8 @@ export default function AttendanceRegularizationPage() {
     ts ? new Date(ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 
 
-  const counts = useMemo(() => {
-    const pending = rows.filter((r: any) => r.status === 'pending').length;
-    const withMgr = rows.filter((r: any) => r.status === 'manager_review').length;
-    return { pending, withMgr, total: rows.length };
-  }, [rows]);
+
+
 
   return (
     <div className="space-y-4">

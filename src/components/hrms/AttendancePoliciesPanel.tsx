@@ -116,8 +116,8 @@ export function AttendancePoliciesPanel() {
                   <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Grace:</span><span className="font-medium tabular-nums">{p.grace_period_minutes} min</span></div>
                   <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-warning" /><span className="text-muted-foreground">Half-day if &lt;</span><span className="font-medium tabular-nums">{p.half_day_threshold_minutes} min</span></div>
                   <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-destructive" /><span className="text-muted-foreground">Early leave:</span><span className="font-medium tabular-nums">{p.early_leave_threshold_minutes} min</span></div>
-                  <div className="flex items-center gap-2">{Number(p.late_count_for_lop) > 0 ? (<><span className="text-muted-foreground tabular-nums">{p.late_count_for_lop} lates</span><span className="text-xs text-destructive">= 1 LOP</span></>) : (<><span className="text-muted-foreground">Lates → LOP:</span><span className="font-medium">Off</span></>)}</div>
-                  <div className="flex items-center gap-2">{Number(p.half_day_count_for_lop) > 0 ? (<><span className="text-muted-foreground tabular-nums">{p.half_day_count_for_lop} half-days</span><span className="text-xs text-destructive">= 1 LOP</span></>) : (<><span className="text-muted-foreground">Half-days → LOP:</span><span className="font-medium">Off</span></>)}</div>
+                  <div className="flex items-center gap-2">{Number(p.late_count_for_lop) > 0 ? (<><span className="text-muted-foreground tabular-nums">{p.late_count_for_lop} lates</span><span className="text-xs text-destructive">= 1 LOP day</span></>) : (<><span className="text-muted-foreground">Late → LOP:</span><span className="font-medium text-green-600">Disabled</span></>)}</div>
+                  <div className="flex items-center gap-2">{Number(p.half_day_count_for_lop) > 0 ? (<><span className="text-muted-foreground tabular-nums">{p.half_day_count_for_lop} half-days</span><span className="text-xs text-destructive">= 1 LOP day</span></>) : (<><span className="text-muted-foreground">Half-day → LOP:</span><span className="font-medium text-green-600">Disabled</span></>)}</div>
                   <div className="flex items-center gap-2"><span className="text-muted-foreground">Min OT:</span><span className="font-medium tabular-nums">{p.min_overtime_minutes} min</span></div>
                   <div className="flex items-center gap-2"><span className="text-muted-foreground">No punch = absent:</span><span className="font-medium">{p.absent_if_no_punch ? "Yes" : "No"}</span></div>
                 </div>
@@ -141,8 +141,16 @@ export function AttendancePoliciesPanel() {
               <div><Label>Early Leave (minutes)</Label><Input type="number" className="h-9" value={form.early_leave_threshold_minutes} onChange={(e) => setForm({ ...form, early_leave_threshold_minutes: parseInt(e.target.value) || 0 })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Lates for 1 LOP</Label><Input type="number" className="h-9" value={form.late_count_for_lop} onChange={(e) => setForm({ ...form, late_count_for_lop: parseInt(e.target.value) || 0 })} /></div>
-              <div><Label>Half-Days for 1 LOP</Label><Input type="number" className="h-9" value={form.half_day_count_for_lop} onChange={(e) => setForm({ ...form, half_day_count_for_lop: parseInt(e.target.value) || 0 })} /></div>
+              <div>
+                <Label>Lates per 1 LOP day</Label>
+                <Input type="number" min={0} className="h-9" value={form.late_count_for_lop} onChange={(e) => setForm({ ...form, late_count_for_lop: parseInt(e.target.value) || 0 })} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable LOP deduction for lateness</p>
+              </div>
+              <div>
+                <Label>Half-days per 1 LOP day</Label>
+                <Input type="number" min={0} className="h-9" value={form.half_day_count_for_lop} onChange={(e) => setForm({ ...form, half_day_count_for_lop: parseInt(e.target.value) || 0 })} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable extra LOP from half-days</p>
+              </div>
             </div>
             <div><Label>Min Overtime (minutes)</Label><Input type="number" className="h-9" value={form.min_overtime_minutes} onChange={(e) => setForm({ ...form, min_overtime_minutes: parseInt(e.target.value) || 0 })} /></div>
             <div className="flex items-center gap-3"><Switch checked={form.absent_if_no_punch} onCheckedChange={(v) => setForm({ ...form, absent_if_no_punch: v })} /><Label>Mark absent if no punch recorded</Label></div>

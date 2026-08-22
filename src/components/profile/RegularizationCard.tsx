@@ -245,6 +245,16 @@ export default function RegularizationCard({ employeeId }: Props) {
                 />
               </div>
             </div>
+            {windowPreview.error && (
+              <p className="text-xs text-destructive">{windowPreview.error}</p>
+            )}
+            {!windowPreview.error && windowPreview.crossesMidnight && (
+              <p className="text-xs text-muted-foreground">
+                Overnight shift detected — check-out will be recorded on the next day
+                ({windowPreview.spanLabel}).
+              </p>
+            )}
+
             <div>
               <Label className="mb-1.5 block">Reason *</Label>
               <Textarea

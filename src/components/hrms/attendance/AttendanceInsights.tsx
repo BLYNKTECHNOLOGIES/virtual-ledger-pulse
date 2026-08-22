@@ -65,7 +65,13 @@ export type DailyRow = {
   punch_count: number | null;
   session_count: number | null;
   status: string | null;
+  first_in?: string | null;
+  last_out?: string | null;
+  early_by_minutes?: number | null;
+  break_minutes?: number | null;
+  suppressed_count?: number | null;
 };
+
 
 export type SummaryLite = {
   employee_id: string;

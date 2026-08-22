@@ -141,8 +141,16 @@ export function AttendancePoliciesPanel() {
               <div><Label>Early Leave (minutes)</Label><Input type="number" className="h-9" value={form.early_leave_threshold_minutes} onChange={(e) => setForm({ ...form, early_leave_threshold_minutes: parseInt(e.target.value) || 0 })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Lates for 1 LOP</Label><Input type="number" className="h-9" value={form.late_count_for_lop} onChange={(e) => setForm({ ...form, late_count_for_lop: parseInt(e.target.value) || 0 })} /></div>
-              <div><Label>Half-Days for 1 LOP</Label><Input type="number" className="h-9" value={form.half_day_count_for_lop} onChange={(e) => setForm({ ...form, half_day_count_for_lop: parseInt(e.target.value) || 0 })} /></div>
+              <div>
+                <Label>Lates per 1 LOP day</Label>
+                <Input type="number" min={0} className="h-9" value={form.late_count_for_lop} onChange={(e) => setForm({ ...form, late_count_for_lop: parseInt(e.target.value) || 0 })} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable LOP deduction for lateness</p>
+              </div>
+              <div>
+                <Label>Half-days per 1 LOP day</Label>
+                <Input type="number" min={0} className="h-9" value={form.half_day_count_for_lop} onChange={(e) => setForm({ ...form, half_day_count_for_lop: parseInt(e.target.value) || 0 })} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable extra LOP from half-days</p>
+              </div>
             </div>
             <div><Label>Min Overtime (minutes)</Label><Input type="number" className="h-9" value={form.min_overtime_minutes} onChange={(e) => setForm({ ...form, min_overtime_minutes: parseInt(e.target.value) || 0 })} /></div>
             <div className="flex items-center gap-3"><Switch checked={form.absent_if_no_punch} onCheckedChange={(v) => setForm({ ...form, absent_if_no_punch: v })} /><Label>Mark absent if no punch recorded</Label></div>

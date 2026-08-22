@@ -18,6 +18,19 @@ is the ONLY LOP calculator that payroll (shadow + real) is allowed to consume.
 | **policy late occurrences** | **1 LOP day per `late_count_for_lop` lates** (only if threshold > 0) |
 | **policy half-day occurrences** | **1 extra LOP day per `half_day_count_for_lop` half-days** (only if threshold > 0) |
 
+## Policy-driven LOP
+
+The active default `hr_attendance_policies` row drives two optional extra LOP
+rules:
+
+- `late_count_for_lop`: number of late-come occurrences that add 1 LOP day.
+  Set to `0` to disable late-based LOP deductions entirely.
+- `half_day_count_for_lop`: number of half-day occurrences that add 1 extra
+  LOP day on top of the base 0.5-per-half-day deduction. Set to `0` to disable.
+
+These thresholds are read from the default policy inside `hr_lop_days` and
+`hr_lop_days_window`.
+
 ## Fairness gate
 
 `hr_stale_session_held(employee_id, date)` returns TRUE when a stale session

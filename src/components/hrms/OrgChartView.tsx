@@ -763,12 +763,16 @@ export function OrgChartView() {
             <div
               ref={chartRef}
               className="w-full h-full overflow-hidden"
-              style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "550px", cursor: "grab" }}
+              style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "550px", cursor: "grab", touchAction: "none" }}
               onWheel={handleWheel}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
             >
               <div
                 className="inline-flex justify-center pt-10 pb-20 px-10 transition-transform duration-100"

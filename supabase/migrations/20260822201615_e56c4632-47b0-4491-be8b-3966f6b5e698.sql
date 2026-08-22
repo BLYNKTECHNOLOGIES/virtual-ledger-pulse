@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.fn_recompute_after_regularization() FROM PUBLIC, anon, authenticated;

@@ -382,6 +382,16 @@ export default function MyRequestsHub({ employeeId }: Props) {
                     />
                   </div>
                 </div>
+                {regWindow.error && (
+                  <p className="text-xs text-destructive">{regWindow.error}</p>
+                )}
+                {!regWindow.error && regWindow.crossesMidnight && (
+                  <p className="text-xs text-muted-foreground">
+                    Overnight shift detected — check-out will be recorded on the next day
+                    ({regWindow.spanLabel}).
+                  </p>
+                )}
+
                 <div>
                   <Label>Reason category *</Label>
                   <Select

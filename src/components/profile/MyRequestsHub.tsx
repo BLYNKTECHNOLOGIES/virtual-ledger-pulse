@@ -439,7 +439,7 @@ export default function MyRequestsHub({ employeeId }: Props) {
               <DialogFooter>
                 <Button variant="outline" onClick={() => setRegOpen(false)}>Close</Button>
                 <Button
-                  disabled={createReg.isPending || !regForm.attendance_date || !regForm.reason_category || !regForm.reason.trim()}
+                  disabled={createReg.isPending || !!regWindow.error || !regForm.attendance_date || !regForm.reason_category || !regForm.reason.trim()}
                   onClick={() => createReg.mutate()}
                 >
                   {createReg.isPending ? 'Submitting…' : 'Submit'}

@@ -599,6 +599,28 @@ export function OrgChartView() {
     (e.currentTarget as HTMLElement).style.cursor = 'grab';
   }, []);
 
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    panStart.current = { ...pan };
+  }, [pan]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current || e.touches.length !== 1) return;
+    e.preventDefault();
+    const dx = e.touches[0].clientX - dragStart.current.x;
+    const dy = e.touches[0].clientY - dragStart.current.y;
+    setPan({
+      x: panStart.current.x + dx / zoom,
+      y: panStart.current.y + dy / zoom,
+    });
+  }, [zoom]);
+
+  const handleTouchEnd = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
   // Fullscreen toggle
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(prev => !prev);

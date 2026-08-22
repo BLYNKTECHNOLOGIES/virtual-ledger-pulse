@@ -1,3 +1,4 @@
+- 2026-08-23: Attendance policy LOP thresholds wired into payroll — `hr_attendance_policies.late_count_for_lop` and `half_day_count_for_lop` now drive extra LOP days in `hr_lop_days` and `hr_lop_days_window`; a value of 0 disables the corresponding deduction.
 - 2026-08-20: First-login password reset loop repaired — successful forced, recovery-link, and OTP resets now atomically clear the ERP temporary-password requirement through an authenticated self-only completion action.
 - 2026-08-20: Comp-off ledger repaired and backfilled — phantom bulk/manual allocations removed, current balances rebuilt from verified monthly weekly-off/holiday credits, manual CO edits blocked, and all profile surfaces switched from cumulative to monthly display.
 - 2026-08-20: HR Document Studio PDF opening hardened — private Supabase PDFs are downloaded through the authenticated Storage client and opened from a local blob URL, avoiding Chrome/client blocking of signed storage URLs.

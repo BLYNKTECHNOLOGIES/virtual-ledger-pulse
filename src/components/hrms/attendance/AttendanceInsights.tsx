@@ -938,6 +938,90 @@ export function AttendanceInsights({
     };
   };
 
+  /** Day-by-day justification behind an employee's risk row. */
+  const buildPersonEvidence = (empId: string): EvidencePayload => {
+    const dayLabel = (d: string) =>
+      new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", weekday: "short" });
+    const timeOf = (t?: string | null) =>
+      t ? new Date(t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
+    const hrsF = (m: number | null | undefined) => (m == null ? "—" : `${(Number(m) / 60).toFixed(2)}h`);
+
+    const s = summary.find((x) => x.employee_id === empId);
+    const empMaintained = maintained
+      .filter((r) => r.employee_id === empId)
+      .sort((a, b) => a.attendance_date.localeCompare(b.attendance_date));
+    const empDaily = daily.filter((d) => d.employee_id === empId);
+    const dailyDates = new Set(empDaily.map((d) => d.attendance_date));
+    const allDates = Array.from(new Set([...empMaintained.map((r) => r.attendance_date), ...dailyDates])).sort();
+
+    const lateVals = empMaintained
+      .map((r) => Number(r.late_minutes || 0))
+      .filter((m) => m > 0 && m <= LATE_SANITY_MINUTES);
+    const avgLate = lateVals.length ? lateVals.reduce((a, b) => a + b, 0) / lateVals.length : null;
+    const netVals = empDaily.map((d) => Number(d.net_work_minutes || 0)).filter((m) => m > 0);
+    const avgHours = netVals.length ? netVals.reduce((a, b) => a + b, 0) / netVals.length / 60 : null;
+    const implausible = empMaintained.filter((r) => Number(r.late_minutes || 0) > LATE_SANITY_MINUTES).length;
+
+    const rows: EvidenceRow[] = allDates.map((date) => {
+      const m = maintainedByKey.get(`${empId}|${date}`);
+      const d = dailyByKey.get(`${empId}|${date}`);
+      const late = Number(m?.late_minutes || d?.late_by_minutes || 0);
+      const early = Number(m?.early_leave_minutes || d?.early_by_minutes || 0);
+      const net = d?.net_work_minutes ?? null;
+      return {
+        key: date,
+        label: dayLabel(date),
+        sublabel: pretty(m?.attendance_status ?? null),
+        cells: [
+          { value: timeOf(d?.first_in) },
+          { value: timeOf(d?.last_out), tone: d?.last_out ? "default" : "muted" },
+          {
+            value: late > 0 ? fmtMinutes(late) : "—",
+            tone: late > LATE_SANITY_MINUTES ? "bad" : late > 0 ? "warn" : "muted",
+          },
+          { value: early > 0 ? fmtMinutes(early) : "—", tone: early > 0 ? "warn" : "muted" },
+          {
+            value: hrsF(net),
+            tone: net == null ? "muted" : net > 14 * 60 || net < 120 ? "bad" : "default",
+          },
+          { value: String(d?.punch_count ?? 0), tone: (d?.punch_count ?? 0) === 0 ? "bad" : "default" },
+          { value: d?.status || "—", tone: "muted" },
+        ],
+      };
+    });
+
+    return {
+      exception: "Attendance risk — day-by-day evidence",
+      employeeName: nameOf(empId),
+      employeeMeta: [deptOf(empId), shiftNameByEmployee?.get(empId), isInactive(empId) ? "inactive" : null]
+        .filter(Boolean)
+        .join(" · "),
+      why:
+        "This is every attendance day recorded for this person in the month — the punches, lateness, early exits and net hours that add up to the ranking figures on the People table.",
+      rule: `days lost = loss of pay days · late days = maintained days with late_minutes > 0 · avg late excludes anything above ${LATE_SANITY_MINUTES / 60}h · avg hours = mean net worked hours over days with punches`,
+      stats: [
+        {
+          label: "Days lost",
+          value: `${Math.round(Number(s?.lop_days || 0) * 10) / 10} / ${Math.round(Number(s?.working_days || 0))}`,
+          tone: Number(s?.lop_days || 0) > 0 ? "bad" : "good",
+        },
+        { label: "Late days", value: `${lateVals.length + implausible} / ${empMaintained.length}`, tone: lateVals.length ? "warn" : "good" },
+        { label: "Avg late", value: avgLate == null ? "—" : fmtMinutes(avgLate), hint: implausible ? `${implausible} suspect day(s) excluded` : undefined },
+        { label: "Avg hours", value: avgHours == null ? "—" : `${avgHours.toFixed(2)}h` },
+        { label: "Present", value: String(s?.present_days ?? "—"), tone: "good" },
+        { label: "Half days", value: String(s?.half_days ?? "—"), tone: Number(s?.half_days || 0) > 0 ? "warn" : "default" },
+        { label: "Paid leave", value: String(s?.paid_leave_days ?? "—") },
+        { label: "Shift length", value: `${((shiftMinutesByEmployee.get(empId) || 0) / 60).toFixed(1)}h` },
+      ],
+      columns: ["First in", "Last out", "Late by", "Early out", "Net hours", "Punches", "Engine status"],
+      rows,
+      emptyText: "No attendance rows for this person this month.",
+      actions: [
+        "Check the days flagged red — missing out-punches and implausible hours distort both lateness and payroll.",
+        "Where the day was genuinely worked, ask the employee to raise a regularisation so the record is corrected at source.",
+      ],
+    };
+  };
 
 
   const deptOf = (id: string) => deptByEmployee.get(id) || "Unassigned";

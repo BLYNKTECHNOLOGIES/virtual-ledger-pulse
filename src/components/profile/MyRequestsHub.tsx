@@ -19,6 +19,11 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import RequestLeaveDialog from './RequestLeaveDialog';
 import { sendRegularizationEmail, regStageLabel, regCategoryLabel, REG_CATEGORIES } from '@/utils/regularizationEmail';
+import {
+  buildRegularizationWindow,
+  validateRegularizationWindow,
+} from '@/lib/regularizationWindow';
+
 
 interface Props {
   employeeId: string;

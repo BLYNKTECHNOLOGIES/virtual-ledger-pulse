@@ -1564,10 +1564,16 @@ export function AttendanceInsights({
                       </thead>
                       <tbody>
                         {visiblePeople.map((p) => (
-                          <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
+                          <tr
+                            key={p.id}
+                            className="border-b last:border-0 hover:bg-muted/40 cursor-pointer"
+                            onClick={() => setEvidence(buildPersonEvidence(p.id))}
+                            title="View the days and evidence behind this row"
+                          >
                             <td className="px-4 py-2 font-medium max-w-[220px]">
                               <Person id={p.id} />
                             </td>
+
                             <td className="px-4 py-2 text-muted-foreground whitespace-nowrap">{p.dept}</td>
                             <td className="px-4 py-2 text-right tabular-nums whitespace-nowrap">
                               {p.lop > 0 ? (

@@ -703,6 +703,236 @@ export function AttendanceInsights({
     return m;
   }, [daily]);
 
+  const maintainedByKey = useMemo(() => {
+    const m = new Map<string, MaintainedRow>();
+    for (const r of maintained) m.set(`${r.employee_id}|${r.attendance_date}`, r);
+    return m;
+  }, [maintained]);
+
+  /* ---------------- exception evidence ---------------- */
+  const buildEvidence = (exKey: string, exLabel: string, empId: string): EvidencePayload => {
+    const dayLabel = (d: string) =>
+      new Date(`${d}T00:00:00`).toLocaleDateString("en-IN", { day: "2-digit", month: "short", weekday: "short" });
+    const timeOf = (t?: string | null) =>
+      t ? new Date(t).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false }) : "—";
+    const hrs = (m: number | null | undefined) => (m == null ? "—" : `${(Number(m) / 60).toFixed(2)}h`);
+
+    const empDaily = daily
+      .filter((d) => d.employee_id === empId)
+      .sort((a, b) => a.attendance_date.localeCompare(b.attendance_date));
+    const empMaintained = maintained
+      .filter((r) => r.employee_id === empId)
+      .sort((a, b) => a.attendance_date.localeCompare(b.attendance_date));
+    const s = summary.find((x) => x.employee_id === empId);
+
+    const base = {
+      exception: exLabel,
+      employeeName: nameOf(empId),
+      employeeMeta: [deptOf(empId), shiftNameByEmployee?.get(empId), isInactive(empId) ? "inactive" : null]
+        .filter(Boolean)
+        .join(" · "),
+      emptyText: "No underlying rows found for this month.",
+    };
+
+    const punchCols = ["First in", "Last out", "Punches", "Sessions", "Net hours", "Engine status"];
+    const punchCells = (d: DailyRow, extra: EvidenceCell[] = []): EvidenceCell[] => [
+      { value: timeOf(d.first_in) },
+      { value: timeOf(d.last_out), tone: d.last_out ? "default" : "bad" },
+      { value: String(d.punch_count ?? 0) },
+      { value: String(d.session_count ?? 0) },
+      { value: hrs(d.net_work_minutes) },
+      { value: d.status || "—", tone: "muted" },
+      ...extra,
+    ];
+
+    if (exKey === "no-signal") {
+      const rows: EvidenceRow[] = empMaintained.map((r) => ({
+        key: r.attendance_date,
+        label: dayLabel(r.attendance_date),
+        cells: [
+          { value: r.attendance_status || "—" },
+          { value: r.late_minutes ? fmtMinutes(Number(r.late_minutes)) : "—", tone: "muted" },
+          { value: "0", tone: "bad" },
+        ],
+      }));
+      return {
+        ...base,
+        why:
+          "No biometric punch reached the system for this person in the whole month, so every day below was decided by HR/maintained data alone rather than device evidence.",
+        rule: "daily punch rows for employee in month = 0",
+        stats: [
+          { label: "Punch rows", value: "0", tone: "bad" },
+          { label: "Maintained days", value: String(empMaintained.length) },
+          { label: "Working days", value: String(s?.working_days ?? "—") },
+          { label: "Loss of pay", value: String(s?.lop_days ?? 0), tone: (s?.lop_days || 0) > 0 ? "bad" : "good" },
+        ],
+        columns: ["Maintained status", "Late", "Punches"],
+        rows,
+        actions: [
+          "Confirm the person is enrolled on a biometric device and mapped to the right device user id.",
+          "If they work off-site, regularise the days or mark them held-harmless before locking payroll.",
+        ],
+      };
+    }
+
+    if (exKey === "unmaintained") {
+      const rows: EvidenceRow[] = empDaily
+        .filter(
+          (d) =>
+            (Number(d.punch_count || 0) > 0 || Number(d.session_count || 0) > 0) &&
+            !maintainedByKey.has(`${empId}|${d.attendance_date}`),
+        )
+        .map((d) => ({ key: d.attendance_date, label: dayLabel(d.attendance_date), cells: punchCells(d) }));
+      return {
+        ...base,
+        why:
+          "Device punches exist for these days but no maintained attendance row was ever written, so payroll currently sees nothing for them.",
+        rule: "punch_count > 0 or session_count > 0  AND  no hr_attendance row for that date",
+        stats: [
+          { label: "Unfinalised days", value: String(rows.length), tone: "bad" },
+          { label: "Days with punches", value: String(empDaily.filter((d) => Number(d.punch_count || 0) > 0).length) },
+          { label: "Maintained days", value: String(empMaintained.length) },
+          { label: "Working days", value: String(s?.working_days ?? "—") },
+        ],
+        columns: punchCols,
+        rows,
+        actions: [
+          "Re-run the attendance engine for these dates so the maintained rows are created.",
+          "If the day should not count, mark it explicitly instead of leaving it blank.",
+        ],
+      };
+    }
+
+    if (exKey === "single") {
+      const rows: EvidenceRow[] = empDaily
+        .filter((d) => Number(d.punch_count || 0) === 1)
+        .map((d) => ({
+          key: d.attendance_date,
+          label: dayLabel(d.attendance_date),
+          sublabel: maintainedByKey.get(`${empId}|${d.attendance_date}`)?.attendance_status || undefined,
+          cells: punchCells(d),
+        }));
+      return {
+        ...base,
+        why:
+          "Exactly one punch was captured on these days — the pair is incomplete, so worked hours, late-by and early-out cannot be derived from the device.",
+        rule: "punch_count = 1 (no matching out-punch)",
+        stats: [
+          { label: "Single-punch days", value: String(rows.length), tone: "bad" },
+          { label: "Days with punches", value: String(empDaily.filter((d) => Number(d.punch_count || 0) > 0).length) },
+          {
+            label: "Hours lost (est.)",
+            value: `${rows.length * ((shiftMinutesByEmployee.get(empId) || 480) / 60)}h`.replace(/(\.\d*?)0+h$/, "$1h"),
+            hint: "at the person's shift length",
+          },
+          { label: "Working days", value: String(s?.working_days ?? "—") },
+        ],
+        columns: punchCols,
+        rows,
+        actions: [
+          "Ask the employee to raise a regularisation for the missing punch.",
+          "Check whether the exit device was offline or the finger/face template failed on that day.",
+        ],
+      };
+    }
+
+    if (exKey === "implausible") {
+      const rows: EvidenceRow[] = empMaintained
+        .filter((r) => Number(r.late_minutes || 0) > LATE_SANITY_MINUTES)
+        .map((r) => {
+          const d = dailyByKey.get(`${empId}|${r.attendance_date}`);
+          return {
+            key: r.attendance_date,
+            label: dayLabel(r.attendance_date),
+            sublabel: r.attendance_status || undefined,
+            cells: [
+              { value: fmtMinutes(Number(r.late_minutes || 0)), tone: "bad" },
+              { value: timeOf(d?.first_in) },
+              { value: timeOf(d?.last_out) },
+              { value: hrs(d?.net_work_minutes) },
+              { value: d?.status || "—", tone: "muted" },
+            ],
+          };
+        });
+      return {
+        ...base,
+        why:
+          `Lateness above ${LATE_SANITY_MINUTES / 60}h is treated as a data artefact — usually a night-shift day mapped to a day shift, or an out-punch stamped on the wrong calendar date. These days are excluded from the average-late figure so they do not distort the month.`,
+        rule: `late_minutes > ${LATE_SANITY_MINUTES} (${LATE_SANITY_MINUTES / 60}h)`,
+        stats: [
+          { label: "Flagged days", value: String(rows.length), tone: "bad" },
+          {
+            label: "Worst day",
+            value: rows.length ? rows[0].cells[0].value : "—",
+            hint: rows.length ? rows[0].label : undefined,
+          },
+          { label: "Shift on file", value: shiftNameByEmployee?.get(empId) || "—" },
+          {
+            label: "Shift length",
+            value: `${((shiftMinutesByEmployee.get(empId) || 0) / 60).toFixed(1)}h`,
+          },
+        ],
+        columns: ["Late by", "First in", "Last out", "Net hours", "Engine status"],
+        rows,
+        actions: [
+          "Verify the shift assigned to this person for those dates — a night shift judged against a morning shift produces exactly this.",
+          "If the in-punch time is correct, re-run the engine so shift detection re-maps the day.",
+        ],
+      };
+    }
+
+    const isLong = exKey === "long";
+    const rows: EvidenceRow[] = empDaily
+      .filter((d) => {
+        const net = Number(d.net_work_minutes || 0);
+        return isLong ? net > 14 * 60 : net > 0 && net < 120;
+      })
+      .map((d) => ({
+        key: d.attendance_date,
+        label: dayLabel(d.attendance_date),
+        sublabel: maintainedByKey.get(`${empId}|${d.attendance_date}`)?.attendance_status || undefined,
+        cells: [
+          { value: hrs(d.net_work_minutes), tone: "bad" },
+          { value: timeOf(d.first_in) },
+          { value: timeOf(d.last_out) },
+          { value: String(d.punch_count ?? 0) },
+          { value: String(d.session_count ?? 0) },
+          { value: d.break_minutes ? fmtMinutes(Number(d.break_minutes)) : "—", tone: "muted" },
+          { value: d.status || "—", tone: "muted" },
+        ],
+      }));
+    return {
+      ...base,
+      why: isLong
+        ? "A single day cannot realistically exceed 14 net hours. This normally means a session was never closed, or an in/out pair was duplicated across a midnight rollover."
+        : "These days were worked for under 2 hours yet still count as attendance. Either the person genuinely left early, or a punch pair is missing.",
+      rule: isLong ? "net_work_minutes > 840 (14h)" : "0 < net_work_minutes < 120 (2h)",
+      stats: [
+        { label: "Flagged days", value: String(rows.length), tone: "bad" },
+        {
+          label: isLong ? "Longest day" : "Shortest day",
+          value: rows.length ? rows[0].cells[0].value : "—",
+          hint: rows.length ? rows[0].label : undefined,
+        },
+        { label: "Shift length", value: `${((shiftMinutesByEmployee.get(empId) || 0) / 60).toFixed(1)}h` },
+        { label: "Working days", value: String(s?.working_days ?? "—") },
+      ],
+      columns: ["Net hours", "First in", "Last out", "Punches", "Sessions", "Break", "Engine status"],
+      rows,
+      actions: isLong
+        ? [
+            "Check the raw punches for a stale/unclosed session on that date.",
+            "If the out-punch belongs to the next day, correct it via regularisation and re-run the engine.",
+          ]
+        : [
+            "Confirm whether this was a genuine short day (half day / early exit) or a missing punch.",
+            "If a punch is missing, raise a regularisation so the day is valued correctly in payroll.",
+          ],
+    };
+  };
+
+
+
   const deptOf = (id: string) => deptByEmployee.get(id) || "Unassigned";
   const cell = (value: string, tone?: "default" | "good" | "warn" | "bad") => ({ value, tone });
   const hrsOf = (min: number) => `${(min / 60).toFixed(2)}h`;

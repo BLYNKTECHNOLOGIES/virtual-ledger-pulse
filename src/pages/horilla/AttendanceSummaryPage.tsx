@@ -181,7 +181,7 @@ export default function AttendanceSummaryPage() {
         (supabase as any)
           .from("hr_attendance_daily")
           .select(
-            "employee_id, attendance_date, net_work_minutes, late_by_minutes, is_late, early_departure, punch_count, session_count, status",
+            "employee_id, attendance_date, net_work_minutes, late_by_minutes, is_late, early_departure, punch_count, session_count, status, first_in, last_out, early_by_minutes, break_minutes, suppressed_count",
           )
           .gte("attendance_date", windows.start)
           .lte("attendance_date", windows.monthEnd),

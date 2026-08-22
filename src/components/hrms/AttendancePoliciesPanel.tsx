@@ -73,7 +73,7 @@ export function AttendancePoliciesPanel() {
 
   const openEdit = (p: any) => {
     setEditId(p.id);
-    setForm({ name: p.name, late_threshold_minutes: p.late_threshold_minutes || 15, half_day_threshold_minutes: p.half_day_threshold_minutes || 240, absent_if_no_punch: p.absent_if_no_punch ?? true, grace_period_minutes: p.grace_period_minutes || 0, late_count_for_lop: p.late_count_for_lop || 3, half_day_count_for_lop: p.half_day_count_for_lop || 2, early_leave_threshold_minutes: p.early_leave_threshold_minutes || 30, min_overtime_minutes: p.min_overtime_minutes || 30, is_default: p.is_default || false });
+    setForm({ name: p.name, late_threshold_minutes: p.late_threshold_minutes ?? 15, half_day_threshold_minutes: p.half_day_threshold_minutes ?? 240, absent_if_no_punch: p.absent_if_no_punch ?? true, grace_period_minutes: p.grace_period_minutes ?? 0, late_count_for_lop: p.late_count_for_lop ?? 3, half_day_count_for_lop: p.half_day_count_for_lop ?? 2, early_leave_threshold_minutes: p.early_leave_threshold_minutes ?? 30, min_overtime_minutes: p.min_overtime_minutes ?? 30, is_default: p.is_default ?? false });
     setShowDialog(true);
   };
 
@@ -116,8 +116,8 @@ export function AttendancePoliciesPanel() {
                   <div className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Grace:</span><span className="font-medium tabular-nums">{p.grace_period_minutes} min</span></div>
                   <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-warning" /><span className="text-muted-foreground">Half-day if &lt;</span><span className="font-medium tabular-nums">{p.half_day_threshold_minutes} min</span></div>
                   <div className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5 text-destructive" /><span className="text-muted-foreground">Early leave:</span><span className="font-medium tabular-nums">{p.early_leave_threshold_minutes} min</span></div>
-                  <div className="flex items-center gap-2"><span className="text-muted-foreground tabular-nums">{p.late_count_for_lop} lates</span><span className="text-xs text-destructive">= 1 LOP</span></div>
-                  <div className="flex items-center gap-2"><span className="text-muted-foreground tabular-nums">{p.half_day_count_for_lop} half-days</span><span className="text-xs text-destructive">= 1 LOP</span></div>
+                  <div className="flex items-center gap-2">{Number(p.late_count_for_lop) > 0 ? (<><span className="text-muted-foreground tabular-nums">{p.late_count_for_lop} lates</span><span className="text-xs text-destructive">= 1 LOP</span></>) : (<><span className="text-muted-foreground">Lates → LOP:</span><span className="font-medium">Off</span></>)}</div>
+                  <div className="flex items-center gap-2">{Number(p.half_day_count_for_lop) > 0 ? (<><span className="text-muted-foreground tabular-nums">{p.half_day_count_for_lop} half-days</span><span className="text-xs text-destructive">= 1 LOP</span></>) : (<><span className="text-muted-foreground">Half-days → LOP:</span><span className="font-medium">Off</span></>)}</div>
                   <div className="flex items-center gap-2"><span className="text-muted-foreground">Min OT:</span><span className="font-medium tabular-nums">{p.min_overtime_minutes} min</span></div>
                   <div className="flex items-center gap-2"><span className="text-muted-foreground">No punch = absent:</span><span className="font-medium">{p.absent_if_no_punch ? "Yes" : "No"}</span></div>
                 </div>

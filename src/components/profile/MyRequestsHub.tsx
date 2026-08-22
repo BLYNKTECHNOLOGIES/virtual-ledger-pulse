@@ -201,13 +201,20 @@ export default function MyRequestsHub({ employeeId }: Props) {
       if (!regForm.reason_category) throw new Error('Pick a reason category');
       const buildTs = (d: string, t: string) =>
         d && t ? new Date(`${d}T${t}:00`).toISOString() : null;
+      let regIn = buildTs(regForm.attendance_date, regForm.requested_check_in);
+      let regOut = buildTs(regForm.attendance_date, regForm.requested_check_out);
+      // Overnight shift: an out time earlier than the in time belongs to the next day
+      if (regIn && regOut && regOut <= regIn) {
+        regOut = new Date(new Date(regOut).getTime() + 86400000).toISOString();
+      }
       const { data: inserted, error } = await (supabase as any)
         .from('hr_attendance_regularization_requests')
         .insert({
           employee_id: employeeId,
           attendance_date: regForm.attendance_date,
-          requested_check_in: buildTs(regForm.attendance_date, regForm.requested_check_in),
-          requested_check_out: buildTs(regForm.attendance_date, regForm.requested_check_out),
+          requested_check_in: regIn,
+          requested_check_out: regOut,
+
           reason: regForm.reason.trim(),
           reason_category: regForm.reason_category,
           source: 'ess',

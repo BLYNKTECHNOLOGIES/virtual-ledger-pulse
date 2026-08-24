@@ -14,6 +14,7 @@ import { safeFormat } from '@/lib/safe-date';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useValueFlash } from '@/hooks/useValueFlash';
+import { isBlockAd, adZone } from '@/lib/adZone';
 
 const PAGE = 200;
 
@@ -25,9 +26,6 @@ function formatCommissionRate(ad: BinanceAd, identifier?: string) {
   return `${(Number(rate) * 100).toFixed(4)}%`;
 }
 
-function isBlockAd(ad: BinanceAd) {
-  return String(ad.classify || '').toLowerCase() === 'block';
-}
 
 function DeskPriceCell({ ad, isEditing, onRequestEdit, onClose }: { ad: BinanceAd; isEditing: boolean; onRequestEdit: () => void; onClose: () => void }) {
   const flash = useValueFlash(Number(ad.price || 0), 'value-flash');

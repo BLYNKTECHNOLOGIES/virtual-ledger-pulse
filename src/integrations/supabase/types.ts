@@ -164,6 +164,8 @@ export type Database = {
           avg_applied_price: number | null
           avg_competitor_price: number | null
           avg_spread: number | null
+          competitor_identity: string | null
+          competitor_zone: string | null
           created_at: string | null
           id: string
           orders_completed: number
@@ -177,6 +179,8 @@ export type Database = {
           avg_applied_price?: number | null
           avg_competitor_price?: number | null
           avg_spread?: number | null
+          competitor_identity?: string | null
+          competitor_zone?: string | null
           created_at?: string | null
           id?: string
           orders_completed?: number
@@ -190,6 +194,8 @@ export type Database = {
           avg_applied_price?: number | null
           avg_competitor_price?: number | null
           avg_spread?: number | null
+          competitor_identity?: string | null
+          competitor_zone?: string | null
           created_at?: string | null
           id?: string
           orders_completed?: number
@@ -218,7 +224,9 @@ export type Database = {
           failure_threshold: number
           id: string
           last_failure_at: string | null
+          last_merchant_identity: string | null
           last_success_at: string | null
+          last_zone: string | null
           merchant_business_status: number | null
           merchant_business_status_label: string | null
           merchant_state_checked_at: string | null
@@ -234,7 +242,9 @@ export type Database = {
           failure_threshold?: number
           id?: string
           last_failure_at?: string | null
+          last_merchant_identity?: string | null
           last_success_at?: string | null
+          last_zone?: string | null
           merchant_business_status?: number | null
           merchant_business_status_label?: string | null
           merchant_state_checked_at?: string | null
@@ -250,7 +260,9 @@ export type Database = {
           failure_threshold?: number
           id?: string
           last_failure_at?: string | null
+          last_merchant_identity?: string | null
           last_success_at?: string | null
+          last_zone?: string | null
           merchant_business_status?: number | null
           merchant_business_status_label?: string | null
           merchant_state_checked_at?: string | null
@@ -271,14 +283,17 @@ export type Database = {
       ad_pricing_logs: {
         Row: {
           ad_number: string | null
+          ad_zone: string | null
           applied_price: number | null
           applied_ratio: number | null
           asset: string | null
           calculated_price: number | null
           calculated_ratio: number | null
           competitor_badges: string[] | null
+          competitor_identity: string | null
           competitor_merchant: string | null
           competitor_price: number | null
+          competitor_vip_level: number | null
           competitor_zone: string | null
           created_at: string | null
           deviation_from_market_pct: number | null
@@ -293,14 +308,17 @@ export type Database = {
         }
         Insert: {
           ad_number?: string | null
+          ad_zone?: string | null
           applied_price?: number | null
           applied_ratio?: number | null
           asset?: string | null
           calculated_price?: number | null
           calculated_ratio?: number | null
           competitor_badges?: string[] | null
+          competitor_identity?: string | null
           competitor_merchant?: string | null
           competitor_price?: number | null
+          competitor_vip_level?: number | null
           competitor_zone?: string | null
           created_at?: string | null
           deviation_from_market_pct?: number | null
@@ -315,14 +333,17 @@ export type Database = {
         }
         Update: {
           ad_number?: string | null
+          ad_zone?: string | null
           applied_price?: number | null
           applied_ratio?: number | null
           asset?: string | null
           calculated_price?: number | null
           calculated_ratio?: number | null
           competitor_badges?: string[] | null
+          competitor_identity?: string | null
           competitor_merchant?: string | null
           competitor_price?: number | null
+          competitor_vip_level?: number | null
           competitor_zone?: string | null
           created_at?: string | null
           deviation_from_market_pct?: number | null
@@ -356,11 +377,13 @@ export type Database = {
           auto_pause_after_deviations: number | null
           check_interval_seconds: number | null
           competitor_badges: string[]
+          competitor_identities: string[]
           competitor_mode: string
           competitor_zone: string
           consecutive_deviations: number | null
           consecutive_errors: number | null
           created_at: string | null
+          enforce_zone_match: boolean
           exchange_account_id: string
           exclude_merchants: string[]
           fallback_merchants: string[] | null
@@ -383,6 +406,7 @@ export type Database = {
           max_ratio_change_per_cycle: number | null
           min_floor: number | null
           min_ratio_floor: number | null
+          min_vip_level: number | null
           name: string
           offset_amount: number | null
           offset_direction: string
@@ -406,11 +430,13 @@ export type Database = {
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
           competitor_badges?: string[]
+          competitor_identities?: string[]
           competitor_mode?: string
           competitor_zone?: string
           consecutive_deviations?: number | null
           consecutive_errors?: number | null
           created_at?: string | null
+          enforce_zone_match?: boolean
           exchange_account_id?: string
           exclude_merchants?: string[]
           fallback_merchants?: string[] | null
@@ -433,6 +459,7 @@ export type Database = {
           max_ratio_change_per_cycle?: number | null
           min_floor?: number | null
           min_ratio_floor?: number | null
+          min_vip_level?: number | null
           name: string
           offset_amount?: number | null
           offset_direction?: string
@@ -456,11 +483,13 @@ export type Database = {
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
           competitor_badges?: string[]
+          competitor_identities?: string[]
           competitor_mode?: string
           competitor_zone?: string
           consecutive_deviations?: number | null
           consecutive_errors?: number | null
           created_at?: string | null
+          enforce_zone_match?: boolean
           exchange_account_id?: string
           exclude_merchants?: string[]
           fallback_merchants?: string[] | null
@@ -483,6 +512,7 @@ export type Database = {
           max_ratio_change_per_cycle?: number | null
           min_floor?: number | null
           min_ratio_floor?: number | null
+          min_vip_level?: number | null
           name?: string
           offset_amount?: number | null
           offset_direction?: string

@@ -88,12 +88,15 @@ export interface AdFilters {
   tradeType?: string;
   advStatus?: number | null;
   priceType?: number | null;
+  /** Market zone filter (client-side): 'p2p' | 'block' | '' = both */
+  zone?: string;
   startDate?: string;
   endDate?: string;
   page?: number;
   rows?: number;
   fetchAll?: boolean;
 }
+
 
 async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
   const body: Record<string, any> = { action, ...payload };

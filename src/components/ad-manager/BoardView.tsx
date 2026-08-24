@@ -20,11 +20,9 @@ import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Megaphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { isBlockAd, adZone } from '@/lib/adZone';
 import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExclusion';
 
-function isBlockAd(ad: BinanceAd) {
-  return String(ad.classify || '').toLowerCase() === 'block';
-}
 
 interface BoardViewProps {
   ads: BinanceAd[];

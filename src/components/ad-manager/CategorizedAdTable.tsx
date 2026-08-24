@@ -17,6 +17,7 @@ import { useExcludedAds, useToggleAdExclusion } from '@/hooks/useAdAutomationExc
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
 import { useValueFlash } from '@/hooks/useValueFlash';
+import { isBlockAd, adZone } from '@/lib/adZone';
 
 export type AdSortMode = 'current' | 'price-asc' | 'price-desc' | 'avail-asc' | 'avail-desc' | 'updated-desc';
 
@@ -62,9 +63,6 @@ function formatCommissionRate(ad: BinanceAd, identifier?: string) {
   return `${(Number(rate) * 100).toFixed(4)}%`;
 }
 
-function isBlockAd(ad: BinanceAd) {
-  return String(ad.classify || '').toLowerCase() === 'block';
-}
 
 const COLLAPSE_PREF_KEY_PREFIX = 'terminal_ad_group_collapse_';
 

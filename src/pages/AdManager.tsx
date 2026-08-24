@@ -28,6 +28,7 @@ import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog
 import { AdCommandStrip } from '@/components/ad-manager/AdCommandStrip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { isBlockAd, adZone } from '@/lib/adZone';
 import { useBinanceAdsList, useUpdateAdStatus, AdFilters, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import {
@@ -58,9 +59,6 @@ const STATUS_CHIP_OPTIONS: { value: number; label: string; cls: string }[] = [
 
 
 
-function isBlockAd(ad: BinanceAd) {
-  return String(ad.classify || '').toLowerCase() === 'block';
-}
 
 export default function AdManager() {
    const location = useLocation();
@@ -76,6 +74,7 @@ export default function AdManager() {
     const tradeType = searchParams.get('tradeType'); if (tradeType) f.tradeType = tradeType;
     const advStatus = searchParams.get('advStatus'); if (advStatus !== null && advStatus !== '') f.advStatus = Number(advStatus);
     const priceType = searchParams.get('priceType'); if (priceType !== null && priceType !== '') f.priceType = Number(priceType);
+    const zone = searchParams.get('zone'); if (zone) f.zone = zone;
     const startDate = searchParams.get('startDate'); if (startDate) f.startDate = startDate;
     const endDate = searchParams.get('endDate'); if (endDate) f.endDate = endDate;
     return f;
@@ -130,6 +129,7 @@ export default function AdManager() {
     if (filters.tradeType) p.set('tradeType', filters.tradeType);
     if (filters.advStatus !== undefined && filters.advStatus !== null) p.set('advStatus', String(filters.advStatus));
     if (filters.priceType !== undefined && filters.priceType !== null) p.set('priceType', String(filters.priceType));
+    if (filters.zone) p.set('zone', filters.zone);
     if (filters.startDate) p.set('startDate', filters.startDate);
     if (filters.endDate) p.set('endDate', filters.endDate);
     setSearchParams(p, { replace: true });
@@ -145,8 +145,9 @@ export default function AdManager() {
   const handleHistory = (advNo: string) => navigate(`/terminal/logs?adv=${encodeURIComponent(advNo)}`);
 
 
-  // Status is now a client-side chip dimension, so always fetch all statuses.
-  const effectiveFilters: AdFilters = { ...filters };
+  // Status and zone are client-side dimensions, so they never go to the API.
+  const { zone: zoneFilter, ...serverFilters } = filters;
+  const effectiveFilters: AdFilters = { ...serverFilters };
 
   const { data, isLoading, refetch, isFetching } = useBinanceAdsList(effectiveFilters, { refetchInterval: autoRefresh ? 30000 : false });
   const { data: restAdsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
@@ -162,9 +163,11 @@ export default function AdManager() {
       if (activeTab === 'buy') list = list.filter(ad => ad.tradeType === 'BUY');
       else if (activeTab === 'sell') list = list.filter(ad => ad.tradeType === 'SELL');
     }
+    if (zoneFilter === 'p2p' || zoneFilter === 'block') list = list.filter(ad => adZone(ad) === zoneFilter);
     if (statusChips.size > 0) list = list.filter(ad => statusChips.has(ad.advStatus));
     return list;
-  }, [ads, activeTab, statusChips]);
+  }, [ads, activeTab, statusChips, zoneFilter]);
+
   const total = displayAds.length;
   const assetOptions = useMemo(() => Array.from(new Set(ads.map(a => a.asset).filter(Boolean))) as string[], [ads]);
   const onlineAds = useMemo(() => ads.filter(ad => ad.advStatus === BINANCE_AD_STATUS.ONLINE), [ads]);

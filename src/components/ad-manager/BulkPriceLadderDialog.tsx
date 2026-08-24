@@ -6,10 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
+import { AdZone, adZone, ZONE_SHORT } from '@/lib/adZone';
 import { useSpotIndexINR } from '@/hooks/useSpotIndexINR';
 import { useHybridPriceAdjuster } from '@/hooks/useHybridPriceAdjuster';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+
 
 interface Props {
   open: boolean;
@@ -31,6 +33,7 @@ interface Rung {
   next: number;
   asset: string;
   side: string;
+  zone: AdZone;
 }
 
 interface RungResult extends Rung {
@@ -41,6 +44,8 @@ interface RungResult extends Rung {
 interface LadderGroup {
   asset: string;
   side: string;
+  /** Market zone this group trades in — P2P and Block are separate books. */
+  zone: AdZone;
   /** live INR index price for this asset (spot × USDT/INR), or null when unavailable */
   index: number | null;
   /** fixed top rate for this group (scaled from the anchor asset) */
@@ -57,7 +62,8 @@ const fmtINR = (n: number | null | undefined) =>
   n === null || n === undefined || isNaN(n)
     ? '—'
     : n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const key = (asset: string, side: string) => `${asset}|${side}`;
+const key = (asset: string, side: string, zone: AdZone) => `${asset}|${side}|${zone}`;
+
 
 /** Hybrid-Adjust conversion: fixed price → floating ratio for a given index. */
 export function priceToRatio(price: number, index: number, adjuster: number) {
@@ -66,7 +72,9 @@ export function priceToRatio(price: number, index: number, adjuster: number) {
 }
 
 /**
- * Builds one ladder per asset+side group.
+ * Builds one ladder per asset + side + zone group.
+ * Zone matters because the P2P zone and the Block zone are separate order books
+ * that trade at different price levels — they are never merged into one ladder.
  * Fixed ads ladder on price from the group's top price; floating ads ladder on
  * ratio from the group's top ratio (converted from the same top price).
  */
@@ -80,7 +88,7 @@ export function buildLadderGroups(
 ): LadderGroup[] {
   const groups = new Map<string, BinanceAd[]>();
   ads.forEach((ad) => {
-    const k = key(ad.asset, ad.tradeType);
+    const k = key(ad.asset, ad.tradeType, adZone(ad));
     if (!groups.has(k)) groups.set(k, []);
     groups.get(k)!.push(ad);
   });
@@ -88,7 +96,8 @@ export function buildLadderGroups(
   const out: LadderGroup[] = [];
 
   for (const [k, groupAds] of groups) {
-    const [asset, side] = k.split('|');
+    const [asset, side, zoneKey] = k.split('|');
+    const zone = zoneKey as AdZone;
     const index = prices[asset] ?? null;
     const anchorIndex = prices[anchorAsset] ?? null;
 
@@ -104,14 +113,14 @@ export function buildLadderGroups(
 
     if (topPrice === null) {
       out.push({
-        asset, side, index, topPrice: null, topRatio: null, rungs: [],
+        asset, side, zone, index, topPrice: null, topRatio: null, rungs: [],
         skipped: 'No live index price for this asset — group skipped',
       });
       continue;
     }
     if (hasFloating && !index) {
       out.push({
-        asset, side, index, topPrice, topRatio: null, rungs: [],
+        asset, side, zone, index, topPrice, topRatio: null, rungs: [],
         skipped: 'No live index price — floating ratio cannot be derived, group skipped',
       });
       continue;
@@ -127,6 +136,7 @@ export function buildLadderGroups(
           floating,
           asset,
           side,
+          zone,
           current: floating ? Number(ad.priceFloatingRatio || 0) : Number(ad.price || 0),
         }))
         .sort((a, b) => b.current - a.current)
@@ -137,11 +147,13 @@ export function buildLadderGroups(
       ...(hasFloating && topRatio !== null ? family(true, topRatio) : []),
     ];
 
-    out.push({ asset, side, index, topPrice, topRatio, rungs });
+    out.push({ asset, side, zone, index, topPrice, topRatio, rungs });
   }
 
-  return out.sort((a, b) => a.asset.localeCompare(b.asset) || a.side.localeCompare(b.side));
+  return out.sort((a, b) =>
+    a.asset.localeCompare(b.asset) || a.side.localeCompare(b.side) || a.zone.localeCompare(b.zone));
 }
+
 
 export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: Props) {
   const { toast } = useToast();
@@ -299,8 +311,9 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
           <div className="space-y-4 py-2">
             <p className="text-sm text-muted-foreground">
               Step <strong>{ads.length}</strong> selected ad{ads.length !== 1 ? 's' : ''} down in fixed {LADDER_STEP} increments,
-              highest first — separately inside each asset + side group.
+              highest first — separately inside each asset + side + zone group (P2P and Block zones are separate books).
             </p>
+
 
             {assets.length > 1 && (
               <div>
@@ -347,9 +360,10 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             {groups.length > 0 && (
               <div className="rounded-lg border border-border divide-y divide-border">
                 {groups.map((g) => (
-                  <div key={`${g.asset}|${g.side}`} className="px-2 py-1.5 text-xs">
+                  <div key={`${g.asset}|${g.side}|${g.zone}`} className="px-2 py-1.5 text-xs">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-medium">{g.asset} · {g.side}</span>
+                      <span className="font-mono font-medium">{g.asset} · {g.side} · {ZONE_SHORT[g.zone]}</span>
+
                       {!g.skipped && (
                         <span className="text-muted-foreground tabular-nums">
                           {g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}
@@ -401,11 +415,12 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             <ScrollArea className="max-h-64">
               <div className="space-y-2 pr-1">
                 {groups.filter((g) => !g.skipped).map((g) => (
-                  <div key={`${g.asset}|${g.side}`} className="space-y-1">
+                  <div key={`${g.asset}|${g.side}|${g.zone}`} className="space-y-1">
                     <p className="text-xs font-semibold">
-                      {g.asset} · {g.side} — top ₹{fmtINR(g.topPrice)}
+                      {g.asset} · {g.side} · {ZONE_SHORT[g.zone]} — top ₹{fmtINR(g.topPrice)}
                       {g.topRatio !== null && ` / ${g.topRatio.toFixed(2)}%`}
                     </p>
+
                     {g.rungs.map((r, i) => (
                       <div key={r.ad.advNo} className="flex items-center justify-between gap-2 text-[11px] px-1">
                         <span className="font-mono truncate">

@@ -408,10 +408,38 @@ async function processAsset(
   let matchedMerchant: string | null = null;
   let competitorPrice: number | null = null;
   let matchedBadges: string[] | null = null;
+  let matchedIdentity: string | null = null;
+  let matchedVipLevel: number | null = null;
 
   const excludedNicks = new Set(
     (rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean)
   );
+
+  // Optional merchant-level + VIP gates (live Binance advertiser fields only)
+  const wantedIdentities = ((rule.competitor_identities || []) as string[])
+    .map((i) => String(i).trim().toUpperCase())
+    .filter(Boolean);
+  const minVip = rule.min_vip_level === null || rule.min_vip_level === undefined
+    ? null
+    : Number(rule.min_vip_level);
+
+  const passesMerchantGates = (item: any) => {
+    if (wantedIdentities.length > 0) {
+      const identity = String(item.advertiser?.userIdentity || "").toUpperCase();
+      if (!identity || !wantedIdentities.includes(identity)) return false;
+    }
+    if (minVip !== null && !Number.isNaN(minVip)) {
+      const vip = Number(item.advertiser?.vipLevel ?? -1);
+      if (!(vip >= minVip)) return false;
+    }
+    return true;
+  };
+
+  const captureMatch = (item: any) => {
+    matchedBadges = advertiserBadges(item);
+    matchedIdentity = item.advertiser?.userIdentity || null;
+    matchedVipLevel = item.advertiser?.vipLevel ?? null;
+  };
 
   if (rule.competitor_mode === "top_badged") {
     // Follow the TOP-placed advertiser in this zone carrying any of the selected badges
@@ -422,6 +450,7 @@ async function processAsset(
       const nick = (item.advertiser?.nickName || "").trim();
       if (!nick || excludedNicks.has(nick.toLowerCase())) return false;
       if (rule.only_counter_when_online && !isAdvertiserOnline(item)) return false;
+      if (!passesMerchantGates(item)) return false;
       if (wanted.length === 0) return true;
       const badges = advertiserBadges(item).map((b) => b.toLowerCase());
       return wanted.some((w) => badges.includes(w));
@@ -429,10 +458,11 @@ async function processAsset(
     if (found) {
       matchedMerchant = (found.advertiser?.nickName || "").trim();
       competitorPrice = parseFloat(found.adv?.price || "0");
-      matchedBadges = advertiserBadges(found);
-      console.log(`[top_badged] ${asset} ${zone}-zone top match: ${matchedMerchant} @ ${competitorPrice} [${matchedBadges.join(",")}]`);
+      captureMatch(found);
+      console.log(`[top_badged] ${asset} ${zone}-zone top match: ${matchedMerchant} @ ${competitorPrice} [${(matchedBadges || []).join(",")}] identity=${matchedIdentity} vip=${matchedVipLevel}`);
     }
   } else {
+
     // Find named target merchant (with fallbacks) in the results
     const merchants = [rule.target_merchant, ...(rule.fallback_merchants || [])].filter(Boolean);
     for (const nickname of merchants) {
@@ -441,12 +471,13 @@ async function processAsset(
         const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
         if (advNickName !== normalizedNick) return false;
         if (rule.only_counter_when_online && !isAdvertiserOnline(item)) return false;
+        if (!passesMerchantGates(item)) return false;
         return true;
       });
       if (found) {
         matchedMerchant = nickname;
         competitorPrice = parseFloat(found.adv?.price || "0");
-        matchedBadges = advertiserBadges(found);
+        captureMatch(found);
         break;
       }
     }
@@ -505,6 +536,8 @@ async function processAsset(
         competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
         competitor_price: competitorPrice,
         market_reference_price: marketReferencePrice,
         deviation_from_market_pct: deviationPct,
@@ -531,7 +564,39 @@ async function processAsset(
   let wasCapped = false;
   let wasRateLimited = false;
 
-  const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+  let adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+
+  // Zone integrity: P2P zone and Block zone are separate order books at different
+  // price levels. Never write a competitor price scraped from one zone onto an ad
+  // living in the other. Ads whose zone can't be read are left untouched by the gate.
+  const zoneMismatched: string[] = [];
+  if (rule.enforce_zone_match !== false && adNumbers.length > 0) {
+    const kept: string[] = [];
+    for (const adNo of adNumbers) {
+      const adZoneLive = await fetchAdZone(adNo);
+      if (adZoneLive && adZoneLive !== zone) { zoneMismatched.push(adNo); continue; }
+      kept.push(adNo);
+    }
+    if (zoneMismatched.length > 0) {
+      console.log(`[zone-guard] rule "${rule.name}" ${asset}: skipping ${zoneMismatched.length} ad(s) outside ${zone} zone: ${zoneMismatched.join(",")}`);
+      for (const adNo of zoneMismatched) {
+        await supabase.from("ad_pricing_logs").insert({
+          rule_id: rule.id,
+          ad_number: adNo,
+          asset,
+          status: "skipped",
+          skipped_reason: "zone_mismatch",
+          competitor_merchant: matchedMerchant,
+          competitor_zone: zone,
+          competitor_badges: matchedBadges,
+          competitor_identity: matchedIdentity,
+          competitor_vip_level: matchedVipLevel,
+          competitor_price: competitorPrice,
+        });
+      }
+    }
+    adNumbers = kept;
+  }
 
   if (rule.price_type === "FIXED") {
     if (rule.offset_direction === "OVERCUT") {
@@ -612,7 +677,7 @@ async function processAsset(
       rule_id: rule.id,
       asset,
       status: "skipped",
-      skipped_reason: "no_ads",
+      skipped_reason: zoneMismatched.length > 0 ? "zone_mismatch" : "no_ads",
     });
     return { asset, status: "skipped", reason: "no_ads" };
   }
@@ -625,6 +690,8 @@ async function processAsset(
       competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
       competitor_price: competitorPrice,
       market_reference_price: marketReferencePrice,
       deviation_from_market_pct: deviationPct,
@@ -681,6 +748,8 @@ async function processAsset(
           competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,
@@ -701,6 +770,8 @@ async function processAsset(
           competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,
@@ -966,6 +1037,29 @@ async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSou
     });
   } catch (e) {
     console.warn(`[ad-state-snapshot] ${snapshotSource} failed for ${adNo}:`, e);
+  }
+}
+
+/**
+ * Zone of one of OUR ads, read live from Binance (adv.classify).
+ * 'block' when classify === 'block', otherwise 'p2p'. null when unknown.
+ */
+async function fetchAdZone(adNo: string): Promise<string | null> {
+  const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  try {
+    const resp = await fetch(binanceAdsUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      body: JSON.stringify({ action: "getAdDetail", adsNo: adNo }),
+    });
+    const result = await resp.json();
+    const adData = result?.data?.data || result?.data;
+    const classify = adData?.classify ?? adData?.adDetailResp?.classify;
+    if (classify === undefined || classify === null || classify === "") return null;
+    return String(classify).toLowerCase() === "block" ? "block" : "p2p";
+  } catch (_e) {
+    return null;
   }
 }
 

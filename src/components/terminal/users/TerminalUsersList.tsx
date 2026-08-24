@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2, Fingerprint, Ruler } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { filterOutDeletedUsers } from "@/lib/deletedUser";
 import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { UserConfigDialog } from "./UserConfigDialog";
@@ -98,7 +99,7 @@ export function TerminalUsersList() {
         id: r.id, name: r.name, description: r.description, hierarchy_level: r.hierarchy_level ?? null,
       }));
       setAvailableRoles(roles);
-      const usersData = usersRes.data || [];
+      const usersData = filterOutDeletedUsers((usersRes.data || []) as any[]) as any[];
       setAllUsers(usersData);
 
       const profilesMap = new Map<string, any>();

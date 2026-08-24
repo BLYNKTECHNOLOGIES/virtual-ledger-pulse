@@ -24,7 +24,7 @@ const EMPTY = {
 };
 
 const fieldClass =
-  "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40";
+  "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(193_100%_52%)] focus-visible:ring-[hsl(193_100%_52%)]/40";
 
 export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogProps) {
   const { toast } = useToast();
@@ -126,7 +126,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
         <div className="relative overflow-hidden border-b border-white/10 px-6 py-5">
           <DialogHeader className="relative space-y-2 text-left">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] shadow-md">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] shadow-md">
                 <UserPlus className="h-4 w-4 text-white" />
               </div>
               <DialogTitle className="text-sm font-semibold text-white">Create your account</DialogTitle>
@@ -148,7 +148,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
               Your registration is pending Super Admin approval. You'll be able to log in once approved.
             </p>
             <Button
-              className="mt-2 bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] text-white hover:opacity-90"
+              className="mt-2 bg-gradient-to-r from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] text-white hover:opacity-90"
               onClick={() => handleClose(false)}
             >
               Back to Login
@@ -264,7 +264,7 @@ export function RegisterUserDialog({ open, onOpenChange }: RegisterUserDialogPro
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="h-11 bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+                className="h-11 bg-gradient-to-r from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] font-medium text-white shadow-lg shadow-[hsl(194_100%_38%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
               >
                 {isLoading ? "Submitting..." : "Submit Registration"}
               </Button>

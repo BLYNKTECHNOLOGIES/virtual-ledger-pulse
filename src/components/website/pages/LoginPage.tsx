@@ -174,7 +174,7 @@ export function LoginPage() {
       <AuroraBackdrop />
 
       {/* soft brand wash + vignette for grounding */}
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/10 blur-[160px]" />
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-[34rem] w-[34rem] -translate-x-1/2 rounded-full bg-[hsl(193_100%_45%)]/10 blur-[160px]" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_45%,#08080C_100%)]" />
 
       {/* Boot hairline sweep (once per session; hidden on reduced-motion) */}
@@ -225,7 +225,7 @@ export function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onFocus={emitRipple}
-                className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+                className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(193_100%_52%)] focus-visible:ring-[hsl(193_100%_52%)]/40"
                 required
               />
             </div>
@@ -236,7 +236,7 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowForgotPassword(true)}
-                  className="rounded-sm text-xs font-medium text-[hsl(231_81%_78%)] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(231_81%_60%)]/50"
+                  className="rounded-sm text-xs font-medium text-[hsl(195_91%_82%)] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(193_100%_52%)]/50"
                 >
                   Forgot password?
                 </button>
@@ -250,7 +250,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={emitRipple}
-                  className="h-11 border-white/10 bg-white/5 pr-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+                  className="h-11 border-white/10 bg-white/5 pr-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(193_100%_52%)] focus-visible:ring-[hsl(193_100%_52%)]/40"
                   required
                 />
                 <Button
@@ -268,7 +268,7 @@ export function LoginPage() {
 
             <Button
               type="submit"
-              className={`h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-all hover:-translate-y-0.5 hover:opacity-95 hover:shadow-[hsl(231_81%_50%)]/40 active:scale-[0.98] ${boot ? 'lsf-cta' : ''}`}
+              className={`h-11 w-full bg-gradient-to-r from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] font-medium text-white shadow-lg shadow-[hsl(194_100%_38%)]/25 transition-all hover:-translate-y-0.5 hover:opacity-95 hover:shadow-[hsl(194_100%_38%)]/40 active:scale-[0.98] ${boot ? 'lsf-cta' : ''}`}
               style={bootItem(470)}
               disabled={isLoading}
             >
@@ -288,7 +288,7 @@ export function LoginPage() {
             <button
               type="button"
               onClick={() => setShowRegister(true)}
-              className="rounded-sm font-medium text-[hsl(231_81%_78%)] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(231_81%_60%)]/50"
+              className="rounded-sm font-medium text-[hsl(195_91%_82%)] transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(193_100%_52%)]/50"
             >
               Register
             </button>

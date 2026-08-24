@@ -64,7 +64,7 @@ export function PendingRegistrationsTab() {
   const [selectedPositionId, setSelectedPositionId] = useState<string>("");
   const [rejectionReason, setRejectionReason] = useState("");
   const { toast } = useToast();
-  const { user, hasRole } = useAuth();
+  const { hasRole } = useAuth();
   const queryClient = useQueryClient();
 
   const isSuperAdmin = hasRole("super admin");

@@ -66,6 +66,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [priceType, setPriceType] = useState('FIXED');
   const [priorityMerchants, setPriorityMerchants] = useState<string[]>(['']);
   const [newMerchantInput, setNewMerchantInput] = useState('');
+  const [competitorZone, setCompetitorZone] = useState('p2p');
+  const [competitorMode, setCompetitorMode] = useState('nickname');
+  const [competitorBadges, setCompetitorBadges] = useState<string[]>(['Block', 'Shield']);
+  const [excludeMerchants, setExcludeMerchants] = useState('');
+
   const [onlyOnline, setOnlyOnline] = useState(false);
   const [pauseNoMerchant, setPauseNoMerchant] = useState(false);
   const [offsetDirection, setOffsetDirection] = useState('UNDERCUT');
@@ -156,7 +161,12 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       // Reconstruct priority list: target_merchant first, then fallbacks
       const merchants = [editingRule.target_merchant, ...(editingRule.fallback_merchants || [])].filter(Boolean);
       setPriorityMerchants(merchants.length > 0 ? merchants : ['']);
+      setCompetitorZone((editingRule as any).competitor_zone || 'p2p');
+      setCompetitorMode((editingRule as any).competitor_mode || 'nickname');
+      setCompetitorBadges((editingRule as any).competitor_badges || ['Block', 'Shield']);
+      setExcludeMerchants(((editingRule as any).exclude_merchants || []).join(', '));
       setOnlyOnline(editingRule.only_counter_when_online);
+
       setPauseNoMerchant(editingRule.pause_if_no_merchant_found);
       setOffsetDirection(editingRule.offset_direction);
       setMaxDeviation(String(editingRule.max_deviation_from_market_pct));
@@ -173,6 +183,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setTradeType('BUY'); setPriceType('FIXED');
       setPriorityMerchants(['']);
+      setCompetitorZone('p2p'); setCompetitorMode('nickname');
+      setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');
+
       setOnlyOnline(false); setPauseNoMerchant(false);
       setOffsetDirection('UNDERCUT');
       setMaxDeviation('5'); setMaxPriceChange(''); setMaxRatioChange('');
@@ -281,6 +294,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       price_type: priceType,
       target_merchant: primaryMerchant,
       fallback_merchants: fallbackMerchants,
+      competitor_zone: competitorZone,
+      competitor_mode: competitorMode,
+      competitor_badges: competitorMode === 'top_badged' ? competitorBadges : [],
+      exclude_merchants: excludeMerchants.split(',').map(s => s.trim()).filter(Boolean),
+
       ad_numbers: allAdNumbers,
       offset_direction: offsetDirection,
       offset_amount: 0, // defaults; per-asset overrides in asset_config
@@ -395,14 +413,68 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 2: Priority Merchants */}
             <AccordionItem value="merchants">
               <AccordionTrigger className="text-sm font-semibold">
-                Merchant Priority ({priorityMerchants.filter(m => m.trim()).length} merchants)
+                Competitor Target ({competitorZone === 'block' ? 'Block zone' : 'P2P zone'} · {competitorMode === 'top_badged' ? `top ${competitorBadges.join('/') || 'any'}` : `${priorityMerchants.filter(m => m.trim()).length} merchants`})
               </AccordionTrigger>
               <AccordionContent className="space-y-3 px-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Market Zone</Label>
+                    <Select value={competitorZone} onValueChange={setCompetitorZone}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="p2p">P2P zone (mass + profession)</SelectItem>
+                        <SelectItem value="block">Block zone (block ads)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Targeting Mode</Label>
+                    <Select value={competitorMode} onValueChange={setCompetitorMode}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nickname">Named merchants (priority list)</SelectItem>
+                        <SelectItem value="top_badged">Top badged merchant in zone</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {competitorMode === 'top_badged' && (
+                  <div className="space-y-2 p-3 border rounded-md bg-muted/20">
+                    <Label className="text-xs">Counter only merchants carrying</Label>
+                    <div className="flex flex-wrap gap-3">
+                      {['Block', 'Shield'].map(b => (
+                        <label key={b} className="flex items-center gap-1.5 text-xs">
+                          <Checkbox
+                            checked={competitorBadges.includes(b)}
+                            onCheckedChange={(c) => setCompetitorBadges(prev => c ? [...new Set([...prev, b])] : prev.filter(x => x !== b))}
+                          />
+                          {b} merchant
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
+                    </p>
+                    <div>
+                      <Label className="text-xs">Exclude nicknames (comma separated)</Label>
+                      <Input
+                        value={excludeMerchants}
+                        onChange={e => setExcludeMerchants(e.target.value)}
+                        placeholder="BlynkEx, MyOtherAccount"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {competitorMode === 'nickname' && (<>
                 <p className="text-[10px] text-muted-foreground">
                   Priority 1 is always used first. If it fails thresholds or is offline, Priority 2 takes over, and so on. Drag to reorder.
                 </p>
 
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMerchantDragEnd}>
+
                   <SortableContext items={priorityMerchants} strategy={verticalListSortingStrategy}>
                     <div className="space-y-1.5">
                       {priorityMerchants.map((merchant, index) => (
@@ -477,6 +549,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     </div>
                   </div>
                 )}
+                </>)}
+
+
 
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-2">

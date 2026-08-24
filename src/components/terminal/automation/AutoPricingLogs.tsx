@@ -76,7 +76,9 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                   <TableHead>Rule</TableHead>
                   <TableHead>Asset</TableHead>
                   <TableHead>Ad</TableHead>
+                  <TableHead>Zone</TableHead>
                   <TableHead>Merchant</TableHead>
+
                   <TableHead>Competitor ₹</TableHead>
                   <TableHead>Market Ref</TableHead>
                   <TableHead>Dev%</TableHead>
@@ -94,7 +96,14 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                     <TableCell className="text-xs font-medium">{ruleMap[log.rule_id] || '—'}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{log.asset || '—'}</Badge></TableCell>
                     <TableCell className="t-mono text-xs">{log.ad_number ? `…${log.ad_number.slice(-6)}` : '—'}</TableCell>
+                    <TableCell className="text-xs">
+                      <Badge variant="outline" className="text-[10px]">{log.competitor_zone === 'block' ? 'Block' : 'P2P'}</Badge>
+                      {log.competitor_badges?.length ? (
+                        <span className="ml-1 text-[10px] text-muted-foreground">{log.competitor_badges.join('/')}</span>
+                      ) : null}
+                    </TableCell>
                     <TableCell className="text-xs">{log.competitor_merchant || '—'}</TableCell>
+
                     <TableCell className="text-xs">{log.competitor_price ? `₹${Number(log.competitor_price).toLocaleString('en-IN')}` : '—'}</TableCell>
                     <TableCell className="text-xs">{log.market_reference_price ? `₹${Number(log.market_reference_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}</TableCell>
                     <TableCell className="text-xs">{log.deviation_from_market_pct != null ? `${Number(log.deviation_from_market_pct).toFixed(2)}%` : '—'}</TableCell>

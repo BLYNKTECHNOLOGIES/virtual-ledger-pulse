@@ -387,8 +387,9 @@ async function processAsset(
   now: Date,
   totalAssets: number = 1
 ) {
-  // 4. FETCH COMPETITOR DATA for this asset
-  const searchResult = await searchP2P(asset, rule.fiat, binanceTradeType);
+  // 4. FETCH COMPETITOR DATA for this asset (zone-aware: P2P zone vs Block zone)
+  const zone = rule.competitor_zone === "block" ? "block" : "p2p";
+  const searchResult = await searchP2P(asset, rule.fiat, binanceTradeType, zone);
 
   if (!searchResult || !searchResult.data || searchResult.data.length === 0) {
     if (rule.pause_if_no_merchant_found && totalAssets === 1) {
@@ -399,32 +400,55 @@ async function processAsset(
       asset,
       status: "skipped",
       skipped_reason: "no_listings",
+      competitor_zone: zone,
     });
     return { asset, status: "skipped", reason: "no_listings" };
   }
 
-  // Find target merchant in the results
-  const merchants = [rule.target_merchant, ...(rule.fallback_merchants || [])].filter(Boolean);
   let matchedMerchant: string | null = null;
   let competitorPrice: number | null = null;
+  let matchedBadges: string[] | null = null;
 
-  for (const nickname of merchants) {
-    const normalizedNick = nickname.trim().toLowerCase();
+  const excludedNicks = new Set(
+    (rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean)
+  );
+
+  if (rule.competitor_mode === "top_badged") {
+    // Follow the TOP-placed advertiser in this zone carrying any of the selected badges
+    const wanted = ((rule.competitor_badges || []) as string[])
+      .map((b) => String(b).trim().toLowerCase())
+      .filter(Boolean);
     const found = searchResult.data.find((item: any) => {
-      const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
-      if (advNickName !== normalizedNick) return false;
-      if (rule.only_counter_when_online) {
-        const onlineField = item.advertiser?.isOnline;
-        const onlineStatus = item.advertiser?.userOnlineStatus;
-        const isOnline = onlineField === true || onlineStatus === "online" || (onlineField === undefined && onlineStatus === undefined);
-        if (!isOnline) return false;
-      }
-      return true;
+      const nick = (item.advertiser?.nickName || "").trim();
+      if (!nick || excludedNicks.has(nick.toLowerCase())) return false;
+      if (rule.only_counter_when_online && !isAdvertiserOnline(item)) return false;
+      if (wanted.length === 0) return true;
+      const badges = advertiserBadges(item).map((b) => b.toLowerCase());
+      return wanted.some((w) => badges.includes(w));
     });
     if (found) {
-      matchedMerchant = nickname;
+      matchedMerchant = (found.advertiser?.nickName || "").trim();
       competitorPrice = parseFloat(found.adv?.price || "0");
-      break;
+      matchedBadges = advertiserBadges(found);
+      console.log(`[top_badged] ${asset} ${zone}-zone top match: ${matchedMerchant} @ ${competitorPrice} [${matchedBadges.join(",")}]`);
+    }
+  } else {
+    // Find named target merchant (with fallbacks) in the results
+    const merchants = [rule.target_merchant, ...(rule.fallback_merchants || [])].filter(Boolean);
+    for (const nickname of merchants) {
+      const normalizedNick = nickname.trim().toLowerCase();
+      const found = searchResult.data.find((item: any) => {
+        const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
+        if (advNickName !== normalizedNick) return false;
+        if (rule.only_counter_when_online && !isAdvertiserOnline(item)) return false;
+        return true;
+      });
+      if (found) {
+        matchedMerchant = nickname;
+        competitorPrice = parseFloat(found.adv?.price || "0");
+        matchedBadges = advertiserBadges(found);
+        break;
+      }
     }
   }
 
@@ -434,17 +458,23 @@ async function processAsset(
     }
     // AP-MISS-03: Alert on merchant disappearance (only if previously found)
     if (rule.last_matched_merchant) {
+      const label = rule.competitor_mode === "top_badged"
+        ? `No ${((rule.competitor_badges || []).join("/") || "badged")} merchant`
+        : `Merchant "${rule.target_merchant}"`;
       await insertPricingAlert(supabase, rule, "merchant_disappeared",
-        `Merchant "${rule.target_merchant}" disappeared from ${asset} listings for rule "${rule.name}"`);
+        `${label} found in ${zone === "block" ? "Block" : "P2P"} zone ${asset} listings for rule "${rule.name}"`);
     }
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,
       asset,
       status: "skipped",
       skipped_reason: "no_merchant",
+      competitor_zone: zone,
+      competitor_badges: rule.competitor_mode === "top_badged" ? (rule.competitor_badges || []) : null,
     });
     return { asset, status: "skipped", reason: "no_merchant" };
   }
+
 
   // 5. MARKET VALIDATION
   let marketReferencePrice: number | null = null;
@@ -473,6 +503,8 @@ async function processAsset(
         status: "skipped",
         skipped_reason: "deviation_exceeded",
         competitor_merchant: matchedMerchant,
+        competitor_zone: zone,
+        competitor_badges: matchedBadges,
         competitor_price: competitorPrice,
         market_reference_price: marketReferencePrice,
         deviation_from_market_pct: deviationPct,
@@ -591,6 +623,8 @@ async function processAsset(
       rule_id: rule.id,
       asset,
       competitor_merchant: matchedMerchant,
+        competitor_zone: zone,
+        competitor_badges: matchedBadges,
       competitor_price: competitorPrice,
       market_reference_price: marketReferencePrice,
       deviation_from_market_pct: deviationPct,
@@ -645,6 +679,8 @@ async function processAsset(
           ad_number: adNo,
           asset,
           competitor_merchant: matchedMerchant,
+        competitor_zone: zone,
+        competitor_badges: matchedBadges,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,
@@ -663,6 +699,8 @@ async function processAsset(
           ad_number: adNo,
           asset,
           competitor_merchant: matchedMerchant,
+        competitor_zone: zone,
+        competitor_badges: matchedBadges,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,
@@ -774,7 +812,8 @@ async function logAndUpdate(rule: any, supabase: any, logData: any) {
   }).eq("id", rule.id);
 }
 
-async function searchP2P(asset: string, fiat: string, tradeType: string) {
+async function searchP2P(asset: string, fiat: string, tradeType: string, zone: string = "p2p") {
+  const classifies = zone === "block" ? ["block"] : ["mass", "profession"];
   const allData: any[] = [];
   for (let page = 1; page <= 25; page++) {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
@@ -788,6 +827,7 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
         rows: 20,
         publisherType: "merchant",
         payTypes: [],
+        classifies,
       }),
     });
     const pageData = await resp.json();
@@ -797,6 +837,21 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
   }
   return { data: allData };
 }
+
+/** Badges carried by an advertiser, normalized (Block / Shield / Ordinary) */
+function advertiserBadges(item: any): string[] {
+  const raw: string[] = Array.isArray(item?.advertiser?.badges) ? item.advertiser.badges : [];
+  const set = new Set(raw.map((b) => String(b).trim()).filter(Boolean));
+  if (String(item?.advertiser?.userIdentity || "").toUpperCase() === "BLOCK_MERCHANT") set.add("Block");
+  return Array.from(set);
+}
+
+function isAdvertiserOnline(item: any): boolean {
+  const onlineField = item.advertiser?.isOnline;
+  const onlineStatus = item.advertiser?.userOnlineStatus;
+  return onlineField === true || onlineStatus === "online" || (onlineField === undefined && onlineStatus === undefined);
+}
+
 
 async function fetchCoinUsdtRate(asset: string): Promise<number> {
   const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");

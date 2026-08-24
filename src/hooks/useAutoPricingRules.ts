@@ -26,6 +26,11 @@ export interface AutoPricingRule {
   price_type: string;
   target_merchant: string;
   fallback_merchants: string[];
+  competitor_zone?: string | null;
+  competitor_mode?: string | null;
+  competitor_badges?: string[] | null;
+  exclude_merchants?: string[] | null;
+
   ad_numbers: string[];
   offset_direction: string;
   offset_amount: number;
@@ -65,6 +70,9 @@ export interface AutoPricingLog {
   ad_number: string | null;
   asset: string | null;
   competitor_merchant: string | null;
+  competitor_zone?: string | null;
+  competitor_badges?: string[] | null;
+
   competitor_price: number | null;
   market_reference_price: number | null;
   deviation_from_market_pct: number | null;

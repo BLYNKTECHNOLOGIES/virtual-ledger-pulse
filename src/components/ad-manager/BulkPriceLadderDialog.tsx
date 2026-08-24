@@ -18,8 +18,8 @@ interface Props {
   onComplete: () => void;
 }
 
-/** Fixed ladder step — one rung is 0.5 below the previous. */
-export const LADDER_STEP = 0.5;
+/** Fixed ladder step — one rung is 0.51 below the previous. */
+export const LADDER_STEP = 0.51;
 
 type ResultStatus = 'pending' | 'success' | 'error';
 

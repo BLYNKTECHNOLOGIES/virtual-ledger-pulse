@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
+import { advertiserBadges, normalizeZone, zoneClassifies } from "../_shared/adZone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -2038,21 +2039,13 @@ serve(async (req) => {
         // The crawl exits early once the requested target/badged rows are found so we
         // don't burn 25 pages (and rate limit) on every call.
         const binanceTradeType = payload.tradeType === "BUY" ? "SELL" : "BUY";
-        const zone = String(payload.zone || "p2p").toLowerCase() === "block" ? "block" : "p2p";
-        const classifies = zone === "block" ? ["block"] : ["mass", "profession"];
+        const zone = normalizeZone(payload.zone);
+        const classifies = zoneClassifies(zone);
         const maxPages = Math.min(Math.max(Number(payload.maxPages) || 25, 1), 25);
         const wantedBadges: string[] = (Array.isArray(payload.badges) ? payload.badges : [])
           .map((b: string) => String(b).trim().toLowerCase())
           .filter(Boolean);
         const targetNick = payload.nickname ? String(payload.nickname).trim().toLowerCase() : null;
-
-        /** Badges carried by an advertiser (identity implies the Block badge). */
-        const advertiserBadges = (item: any): string[] => {
-          const raw: string[] = Array.isArray(item?.advertiser?.badges) ? item.advertiser.badges : [];
-          const set = new Set(raw.map((b: string) => String(b).trim()).filter(Boolean));
-          if (String(item?.advertiser?.userIdentity || "").toUpperCase() === "BLOCK_MERCHANT") set.add("Block");
-          return Array.from(set);
-        };
 
         const searchBody: Record<string, any> = {
           asset: payload.asset || "USDT",

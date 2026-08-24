@@ -49,7 +49,7 @@ export function BulkActionToolbar({
     ? 'Select at least 2 ads'
     : !singleSide
       ? 'Select ads of a single side — buy and sell ads cannot be laddered together'
-      : 'Step selected ads down in 0.5 increments from a top fixed rate (per asset group)';
+      : 'Step selected ads down in 0.51 increments from a top fixed rate (per asset group)';
 
 
 

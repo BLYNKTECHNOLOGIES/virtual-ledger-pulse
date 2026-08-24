@@ -505,6 +505,7 @@
     /* ── Base ── */
     --background: 218 33% 97%;       /* #F7F9FC cool paper */
     --foreground: 222 32% 14%;       /* ink */
+    --heading: 222 36% 12%;          /* headings on paper canvas */
 
     /* ── Panels ── */
     --card: 0 0% 100%;

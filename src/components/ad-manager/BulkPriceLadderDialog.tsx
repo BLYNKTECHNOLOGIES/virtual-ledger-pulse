@@ -394,25 +394,25 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                 <p className="font-medium">Confirm Price Ladder</p>
                 <p className="text-muted-foreground mt-1">
                   {ladder.length} ad(s) across {groups.filter((g) => !g.skipped).length} group(s) will be re-priced in {LADDER_STEP} steps.
-                  {skippedGroups.length > 0 && ` ${skippedGroups.length} group(s) skipped — no reference price.`}
+                  {skippedGroups.length > 0 && ` ${skippedGroups.length} group(s) skipped — no index price.`}
                 </p>
               </div>
             </div>
             <ScrollArea className="max-h-64">
-              <div className="space-y-2">
+              <div className="space-y-2 pr-1">
                 {groups.filter((g) => !g.skipped).map((g) => (
                   <div key={`${g.asset}|${g.side}`} className="space-y-1">
                     <p className="text-xs font-semibold">
-                      {g.asset} {g.side} — top ₹{g.topPrice?.toFixed(2)}
+                      {g.asset} · {g.side} — top ₹{fmtINR(g.topPrice)}
                       {g.topRatio !== null && ` / ${g.topRatio.toFixed(2)}%`}
                     </p>
                     {g.rungs.map((r, i) => (
-                      <div key={r.ad.advNo} className="flex items-center justify-between text-xs px-1">
-                        <span className="font-mono">
-                          {i + 1}. …{r.ad.advNo.slice(-8)} {r.floating ? '(float %)' : ''}
+                      <div key={r.ad.advNo} className="flex items-center justify-between gap-2 text-[11px] px-1">
+                        <span className="font-mono truncate">
+                          {i + 1}. …{r.ad.advNo.slice(-6)}{r.floating ? ' float%' : ''}
                         </span>
-                        <span>
-                          {r.current.toFixed(2)} → <strong>{r.next.toFixed(2)}</strong>
+                        <span className="tabular-nums whitespace-nowrap">
+                          {fmtINR(r.current)} → <strong>{fmtINR(r.next)}</strong>
                         </span>
                       </div>
                     ))}
@@ -425,20 +425,26 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
         {(step === 'executing' || step === 'done') && (
           <ScrollArea className="max-h-60">
-            <div className="space-y-2 py-2">
+            <div className="space-y-2 py-2 pr-1">
               {step === 'done' && (
                 <p className="text-sm font-medium mb-2">
-                  {failCount === 0 ? '✅ All ads re-priced' : `⚠️ ${successCount} succeeded, ${failCount} failed`}
+                  {failCount === 0 ? 'All ads re-priced' : `${successCount} succeeded, ${failCount} failed`}
                 </p>
               )}
               {results.map((r) => (
-                <div key={r.ad.advNo} className="flex items-center gap-2 text-sm">
-                  {r.status === 'pending' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {r.status === 'success' && <CheckCircle className="h-4 w-4 text-success" />}
-                  {r.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                  <span className="font-mono text-xs">{r.asset} {r.side} …{r.ad.advNo.slice(-8)}</span>
-                  <span className="text-xs text-muted-foreground">{r.current.toFixed(2)} → {r.next.toFixed(2)}</span>
-                  {r.message && <span className="text-xs text-destructive ml-auto">{r.message}</span>}
+                <div key={r.ad.advNo} className="flex items-start gap-2 text-xs">
+                  {r.status === 'pending' && <Loader2 className="h-3.5 w-3.5 mt-0.5 shrink-0 animate-spin text-muted-foreground" />}
+                  {r.status === 'success' && <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-success" />}
+                  {r.status === 'error' && <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-destructive" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono truncate">{r.asset} {r.side} …{r.ad.advNo.slice(-6)}</span>
+                      <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+                        {fmtINR(r.current)} → {fmtINR(r.next)}
+                      </span>
+                    </div>
+                    {r.message && <p className="text-destructive break-words">{r.message}</p>}
+                  </div>
                 </div>
               ))}
             </div>

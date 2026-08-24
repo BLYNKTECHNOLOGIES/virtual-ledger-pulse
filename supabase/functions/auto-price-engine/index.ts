@@ -491,10 +491,10 @@ async function processAsset(
     // AP-MISS-03: Alert on merchant disappearance (only if previously found)
     if (rule.last_matched_merchant) {
       const label = rule.competitor_mode === "top_badged"
-        ? `No ${((rule.competitor_badges || []).join("/") || "badged")} merchant`
-        : `Merchant "${rule.target_merchant}"`;
+        ? `No ${((rule.competitor_badges || []).join("/") || "badged")} merchant found`
+        : `Merchant "${rule.target_merchant}" disappeared from`;
       await insertPricingAlert(supabase, rule, "merchant_disappeared",
-        `${label} found in ${zone === "block" ? "Block" : "P2P"} zone ${asset} listings for rule "${rule.name}"`);
+        `${label} ${zone === "block" ? "Block" : "P2P"} zone ${asset} listings for rule "${rule.name}"`);
     }
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,

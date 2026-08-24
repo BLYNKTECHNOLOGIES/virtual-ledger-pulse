@@ -149,17 +149,15 @@ export function PendingRegistrationsTab() {
       departmentId: string;
       positionId: string;
     }) => {
-      const { data, error } = await supabase.rpc("approve_registration", {
-        p_registration_id: registrationId,
-        p_role_id: roleId,
-        p_department_id: departmentId,
-        p_position_id: positionId,
-        // `reviewed_by` is a uuid in DB; demo admin uses a non-uuid id.
-        // Passing a non-uuid breaks the RPC call.
-        p_approved_by: isUuid(user?.id) ? user.id : null,
+      // Approval runs server-side: it verifies Super Admin, applies the role /
+      // department / position, and lifts the login ban that keeps pending
+      // accounts from obtaining a session.
+      const { data, error } = await supabase.functions.invoke("approve-erp-registration", {
+        body: { registrationId, roleId, departmentId, positionId },
       });
 
       if (error) throw error;
+      if ((data as { error?: string })?.error) throw new Error((data as { error?: string }).error);
       return data;
     },
     onSuccess: () => {

@@ -601,8 +601,8 @@
   h1, h2, h3, h4 {
     font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: -0.02em;
-    color: hsl(var(--heading, var(--foreground)));
   }
+
 
   /* Data reads as data */
   code, pre, kbd, samp {

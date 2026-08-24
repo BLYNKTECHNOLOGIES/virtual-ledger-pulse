@@ -602,7 +602,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
 
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   <div className="flex items-center gap-2">
                     <Switch checked={onlyOnline} onCheckedChange={setOnlyOnline} />
                     <Label className="text-xs">Only counter when online</Label>
@@ -617,6 +617,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
 
                 </div>
+
               </AccordionContent>
             </AccordionItem>
 

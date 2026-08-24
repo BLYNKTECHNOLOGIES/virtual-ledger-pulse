@@ -517,18 +517,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
             </div>
           </div>
 
-          {/* Market Zone (Binance `classify`) */}
-          <div className="rounded-lg border p-4 space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <Label>Market Zone</Label>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  P2P zone and Block zone are separate order books with different merchants and price levels.
-                </p>
-              </div>
-              {isEditing ? (
-                <span className="text-xs font-medium text-foreground shrink-0">{ZONE_LABEL[zone]}</span>
-              ) : (
+          {/* Market Zone (Binance `classify`) — creation only; zone is immutable after posting */}
+          {!isEditing && (
+            <div className="rounded-lg border p-4 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label>Market Zone</Label>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    P2P zone and Block zone are separate order books with different merchants and price levels.
+                  </p>
+                </div>
                 <Select value={zone} onValueChange={(v) => setZone(v as AdZone)}>
                   <SelectTrigger className="w-[170px] shrink-0"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -536,18 +534,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                     <SelectItem value="block" disabled={!blockZoneAvailable}>{ZONE_LABEL.block}</SelectItem>
                   </SelectContent>
                 </Select>
-              )}
+              </div>
+              {isLoadingZones ? (
+                <p className="text-[10px] text-muted-foreground">Checking available ad categories with Binance…</p>
+              ) : zonesError ? (
+                <p className="text-[10px] text-warning">Binance did not return the available ad categories — Block zone stays locked.</p>
+              ) : !blockZoneAvailable ? (
+                <p className="text-[10px] text-muted-foreground">Binance does not report Block zone as available for this account.</p>
+              ) : null}
             </div>
-            {isEditing ? (
-              <p className="text-[10px] text-muted-foreground">Cannot change after creation</p>
-            ) : isLoadingZones ? (
-              <p className="text-[10px] text-muted-foreground">Checking available ad categories with Binance…</p>
-            ) : zonesError ? (
-              <p className="text-[10px] text-warning">Binance did not return the available ad categories — Block zone stays locked.</p>
-            ) : !blockZoneAvailable ? (
-              <p className="text-[10px] text-muted-foreground">Binance does not report Block zone as available for this account.</p>
-            ) : null}
-          </div>
+          )}
 
 
           {/* Price Section */}

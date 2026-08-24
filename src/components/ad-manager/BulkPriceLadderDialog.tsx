@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { BinanceAd, useUpdateAd, useBinanceReferencePrices } from '@/hooks/useBinanceAds';
+import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
+import { useSpotIndexINR } from '@/hooks/useSpotIndexINR';
 import { useHybridPriceAdjuster } from '@/hooks/useHybridPriceAdjuster';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -40,7 +41,7 @@ interface RungResult extends Rung {
 interface LadderGroup {
   asset: string;
   side: string;
-  /** live Binance reference price for this asset+side, or null when unavailable */
+  /** live INR index price for this asset (spot × USDT/INR), or null when unavailable */
   index: number | null;
   /** fixed top rate for this group (scaled from the anchor asset) */
   topPrice: number | null;
@@ -51,6 +52,11 @@ interface LadderGroup {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+/** Compact INR display — grouped digits, 2 dp (readable for BTC-sized numbers on mobile). */
+const fmtINR = (n: number | null | undefined) =>
+  n === null || n === undefined || isNaN(n)
+    ? '—'
+    : n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const key = (asset: string, side: string) => `${asset}|${side}`;
 
 /** Hybrid-Adjust conversion: fixed price → floating ratio for a given index. */
@@ -68,6 +74,7 @@ export function buildLadderGroups(
   ads: BinanceAd[],
   anchorAsset: string,
   anchorTop: number,
+  /** live INR index price per asset (spot × USDT/INR) */
   prices: Record<string, number | null>,
   adjuster: number,
 ): LadderGroup[] {
@@ -82,12 +89,8 @@ export function buildLadderGroups(
 
   for (const [k, groupAds] of groups) {
     const [asset, side] = k.split('|');
-    const index = prices[k] ?? null;
-    // Anchor reference price for the same side — falls back to any side of the anchor.
-    const anchorIndex =
-      prices[key(anchorAsset, side)] ??
-      Object.entries(prices).find(([pk, v]) => pk.startsWith(`${anchorAsset}|`) && v)?.[1] ??
-      null;
+    const index = prices[asset] ?? null;
+    const anchorIndex = prices[anchorAsset] ?? null;
 
     const hasFloating = groupAds.some((a) => a.priceType === 2);
     const hasFixed = groupAds.some((a) => a.priceType !== 2);
@@ -102,14 +105,14 @@ export function buildLadderGroups(
     if (topPrice === null) {
       out.push({
         asset, side, index, topPrice: null, topRatio: null, rungs: [],
-        skipped: 'No Binance reference price available for this asset — group skipped',
+        skipped: 'No live index price for this asset — group skipped',
       });
       continue;
     }
     if (hasFloating && !index) {
       out.push({
         asset, side, index, topPrice, topRatio: null, rungs: [],
-        skipped: 'No Binance reference price — floating ratio cannot be derived, group skipped',
+        skipped: 'No live index price — floating ratio cannot be derived, group skipped',
       });
       continue;
     }
@@ -157,14 +160,13 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
   }, [ads, assets]);
   const anchor = anchorAsset && assets.includes(anchorAsset) ? anchorAsset : defaultAnchor;
 
-  const pairs = useMemo(
-    () => [...new Set(ads.map((a) => key(a.asset, a.tradeType)))].map((k) => {
-      const [asset, tradeType] = k.split('|');
-      return { asset, tradeType };
-    }),
-    [ads],
-  );
-  const { prices, isLoading: pricesLoading } = useBinanceReferencePrices(pairs, open);
+  const {
+    index: prices,
+    usdtInr,
+    rateSource,
+    rateIsFallback,
+    isLoading: pricesLoading,
+  } = useSpotIndexINR(assets, open);
 
   const top = Number(value);
   const groups = useMemo(
@@ -288,7 +290,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Price Ladder</DialogTitle>
         </DialogHeader>
@@ -314,7 +316,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  The rate you enter belongs to this asset; other assets are scaled by their live Binance reference price.
+                  The rate you enter belongs to this asset; other assets are scaled by their live spot index.
                 </p>
               </div>
             )}
@@ -332,26 +334,38 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
               />
             </div>
 
+            <p className={`text-xs ${rateIsFallback ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+              Index base — USDT/INR ₹{usdtInr ? usdtInr.toFixed(2) : '—'}{rateSource ? ` (${rateSource})` : ''}
+            </p>
+
             {pricesLoading && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading Binance reference prices…
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading live index prices…
               </p>
             )}
 
             {groups.length > 0 && (
-              <div className="space-y-1 rounded-lg border border-border p-2">
+              <div className="rounded-lg border border-border divide-y divide-border">
                 {groups.map((g) => (
-                  <div key={`${g.asset}|${g.side}`} className="text-xs flex items-center justify-between gap-2">
-                    <span className="font-mono">{g.asset} {g.side}</span>
+                  <div key={`${g.asset}|${g.side}`} className="px-2 py-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-medium">{g.asset} · {g.side}</span>
+                      {!g.skipped && (
+                        <span className="text-muted-foreground tabular-nums">
+                          {g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
                     {g.skipped ? (
-                      <span className="text-destructive text-right">{g.skipped}</span>
+                      <p className="text-destructive mt-0.5">{g.skipped}</p>
                     ) : (
-                      <span className="text-muted-foreground">
-                        top ₹{g.topPrice?.toFixed(2)}
-                        {g.topRatio !== null && <> · float {g.topRatio.toFixed(2)}%</>}
-                        {g.index && <> · index ₹{g.index.toFixed(2)}</>}
-                        {' '}· {g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}
-                      </span>
+                      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
+                        <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>
+                        {g.index !== null && <span>Index: <span className="text-foreground">₹{fmtINR(g.index)}</span></span>}
+                        {g.topRatio !== null && (
+                          <span className="col-span-2">Float top: <span className="text-foreground">{g.topRatio.toFixed(2)}%</span></span>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}
@@ -380,25 +394,25 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                 <p className="font-medium">Confirm Price Ladder</p>
                 <p className="text-muted-foreground mt-1">
                   {ladder.length} ad(s) across {groups.filter((g) => !g.skipped).length} group(s) will be re-priced in {LADDER_STEP} steps.
-                  {skippedGroups.length > 0 && ` ${skippedGroups.length} group(s) skipped — no reference price.`}
+                  {skippedGroups.length > 0 && ` ${skippedGroups.length} group(s) skipped — no index price.`}
                 </p>
               </div>
             </div>
             <ScrollArea className="max-h-64">
-              <div className="space-y-2">
+              <div className="space-y-2 pr-1">
                 {groups.filter((g) => !g.skipped).map((g) => (
                   <div key={`${g.asset}|${g.side}`} className="space-y-1">
                     <p className="text-xs font-semibold">
-                      {g.asset} {g.side} — top ₹{g.topPrice?.toFixed(2)}
+                      {g.asset} · {g.side} — top ₹{fmtINR(g.topPrice)}
                       {g.topRatio !== null && ` / ${g.topRatio.toFixed(2)}%`}
                     </p>
                     {g.rungs.map((r, i) => (
-                      <div key={r.ad.advNo} className="flex items-center justify-between text-xs px-1">
-                        <span className="font-mono">
-                          {i + 1}. …{r.ad.advNo.slice(-8)} {r.floating ? '(float %)' : ''}
+                      <div key={r.ad.advNo} className="flex items-center justify-between gap-2 text-[11px] px-1">
+                        <span className="font-mono truncate">
+                          {i + 1}. …{r.ad.advNo.slice(-6)}{r.floating ? ' float%' : ''}
                         </span>
-                        <span>
-                          {r.current.toFixed(2)} → <strong>{r.next.toFixed(2)}</strong>
+                        <span className="tabular-nums whitespace-nowrap">
+                          {fmtINR(r.current)} → <strong>{fmtINR(r.next)}</strong>
                         </span>
                       </div>
                     ))}
@@ -411,20 +425,26 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
         {(step === 'executing' || step === 'done') && (
           <ScrollArea className="max-h-60">
-            <div className="space-y-2 py-2">
+            <div className="space-y-2 py-2 pr-1">
               {step === 'done' && (
                 <p className="text-sm font-medium mb-2">
-                  {failCount === 0 ? '✅ All ads re-priced' : `⚠️ ${successCount} succeeded, ${failCount} failed`}
+                  {failCount === 0 ? 'All ads re-priced' : `${successCount} succeeded, ${failCount} failed`}
                 </p>
               )}
               {results.map((r) => (
-                <div key={r.ad.advNo} className="flex items-center gap-2 text-sm">
-                  {r.status === 'pending' && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                  {r.status === 'success' && <CheckCircle className="h-4 w-4 text-success" />}
-                  {r.status === 'error' && <XCircle className="h-4 w-4 text-destructive" />}
-                  <span className="font-mono text-xs">{r.asset} {r.side} …{r.ad.advNo.slice(-8)}</span>
-                  <span className="text-xs text-muted-foreground">{r.current.toFixed(2)} → {r.next.toFixed(2)}</span>
-                  {r.message && <span className="text-xs text-destructive ml-auto">{r.message}</span>}
+                <div key={r.ad.advNo} className="flex items-start gap-2 text-xs">
+                  {r.status === 'pending' && <Loader2 className="h-3.5 w-3.5 mt-0.5 shrink-0 animate-spin text-muted-foreground" />}
+                  {r.status === 'success' && <CheckCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-success" />}
+                  {r.status === 'error' && <XCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-destructive" />}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono truncate">{r.asset} {r.side} …{r.ad.advNo.slice(-6)}</span>
+                      <span className="text-muted-foreground tabular-nums whitespace-nowrap">
+                        {fmtINR(r.current)} → {fmtINR(r.next)}
+                      </span>
+                    </div>
+                    {r.message && <p className="text-destructive break-words">{r.message}</p>}
+                  </div>
                 </div>
               ))}
             </div>

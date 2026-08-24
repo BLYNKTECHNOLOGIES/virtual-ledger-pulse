@@ -340,6 +340,13 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const isFixed = priceType === 'FIXED';
   const totalAds = selectedAssets.reduce((sum, a) => sum + getConfig(a).ad_numbers.length, 0);
 
+  // Zone consistency: ads whose live Binance `classify` is outside the targeted zone.
+  const mismatchedZoneAds = useMemo(() => {
+    const selected = new Set(selectedAssets.flatMap(a => getConfig(a).ad_numbers));
+    return allAds.filter(ad => selected.has(ad.advNo) && adZone(ad) !== competitorZone);
+  }, [selectedAssets, assetConfigs, allAds, competitorZone]);
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="t-scale-in max-w-3xl max-h-[90vh]">

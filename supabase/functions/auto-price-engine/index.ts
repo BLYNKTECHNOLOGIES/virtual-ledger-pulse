@@ -408,10 +408,38 @@ async function processAsset(
   let matchedMerchant: string | null = null;
   let competitorPrice: number | null = null;
   let matchedBadges: string[] | null = null;
+  let matchedIdentity: string | null = null;
+  let matchedVipLevel: number | null = null;
 
   const excludedNicks = new Set(
     (rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean)
   );
+
+  // Optional merchant-level + VIP gates (live Binance advertiser fields only)
+  const wantedIdentities = ((rule.competitor_identities || []) as string[])
+    .map((i) => String(i).trim().toUpperCase())
+    .filter(Boolean);
+  const minVip = rule.min_vip_level === null || rule.min_vip_level === undefined
+    ? null
+    : Number(rule.min_vip_level);
+
+  const passesMerchantGates = (item: any) => {
+    if (wantedIdentities.length > 0) {
+      const identity = String(item.advertiser?.userIdentity || "").toUpperCase();
+      if (!identity || !wantedIdentities.includes(identity)) return false;
+    }
+    if (minVip !== null && !Number.isNaN(minVip)) {
+      const vip = Number(item.advertiser?.vipLevel ?? -1);
+      if (!(vip >= minVip)) return false;
+    }
+    return true;
+  };
+
+  const captureMatch = (item: any) => {
+    matchedBadges = advertiserBadges(item);
+    matchedIdentity = item.advertiser?.userIdentity || null;
+    matchedVipLevel = item.advertiser?.vipLevel ?? null;
+  };
 
   if (rule.competitor_mode === "top_badged") {
     // Follow the TOP-placed advertiser in this zone carrying any of the selected badges
@@ -422,6 +450,7 @@ async function processAsset(
       const nick = (item.advertiser?.nickName || "").trim();
       if (!nick || excludedNicks.has(nick.toLowerCase())) return false;
       if (rule.only_counter_when_online && !isAdvertiserOnline(item)) return false;
+      if (!passesMerchantGates(item)) return false;
       if (wanted.length === 0) return true;
       const badges = advertiserBadges(item).map((b) => b.toLowerCase());
       return wanted.some((w) => badges.includes(w));
@@ -429,10 +458,11 @@ async function processAsset(
     if (found) {
       matchedMerchant = (found.advertiser?.nickName || "").trim();
       competitorPrice = parseFloat(found.adv?.price || "0");
-      matchedBadges = advertiserBadges(found);
-      console.log(`[top_badged] ${asset} ${zone}-zone top match: ${matchedMerchant} @ ${competitorPrice} [${matchedBadges.join(",")}]`);
+      captureMatch(found);
+      console.log(`[top_badged] ${asset} ${zone}-zone top match: ${matchedMerchant} @ ${competitorPrice} [${(matchedBadges || []).join(",")}] identity=${matchedIdentity} vip=${matchedVipLevel}`);
     }
   } else {
+
     // Find named target merchant (with fallbacks) in the results
     const merchants = [rule.target_merchant, ...(rule.fallback_merchants || [])].filter(Boolean);
     for (const nickname of merchants) {

@@ -1683,21 +1683,25 @@ html {
   --ds-transition: var(--ds-duration) var(--ds-ease);
 }
 
-/* ── Typography scale ───────────────────────────────────────── */
+/* ── Typography scale (Blynk: Montserrat display · Manrope UI · JetBrains data) ── */
 .t-page-title {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.625rem;      /* 26px */
   line-height: 2rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  color: hsl(var(--heading, var(--foreground)));
 }
 @media (max-width: 640px) {
   .t-page-title { font-size: 1.375rem; line-height: 1.75rem; }
 }
 .t-section {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.0625rem;     /* 17px */
   line-height: 1.5rem;
   font-weight: 600;
-  letter-spacing: -0.011em;
+  letter-spacing: -0.02em;
+  color: hsl(var(--heading, var(--foreground)));
 }
 .t-card-title {
   font-size: 0.875rem;      /* 14px */
@@ -1720,20 +1724,37 @@ html {
   font-size: 0.6875rem;     /* 11px */
   line-height: 1rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: hsl(var(--muted-foreground));
 }
+/* Brand eyebrow — caps + wide tracking, a wordmark signature */
+.t-eyebrow {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+/* Identifiers, keys, endpoints and readings read as data, not prose */
+.t-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
 .t-kpi {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.75rem;       /* 28px */
   line-height: 2.125rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
+  color: hsl(var(--heading, var(--foreground)));
 }
 @media (max-width: 640px) {
   .t-kpi { font-size: 1.5rem; line-height: 1.875rem; }
 }
+
 
 /* ── Page shell — consistent page padding + rhythm ──────────── */
 .page-shell {

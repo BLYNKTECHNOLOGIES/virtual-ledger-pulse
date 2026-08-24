@@ -25,6 +25,7 @@ export function BulkActionToolbar({
   onBulkEditLimits,
   onBulkEditPaymentMethods,
   onBulkFloatingPrice,
+  onBulkPriceLadder,
   onBulkHybridAdjust,
   onBulkRiskGuard,
   onBulkActivate,
@@ -42,7 +43,19 @@ export function BulkActionToolbar({
   const sellCount = selectedAds.filter(ad => ad.tradeType === 'SELL').length;
   const someButNotAll = typeof totalAds === 'number' && selectedAds.length > 0 && selectedAds.length < totalAds;
 
+  const singleAsset = new Set(selectedAds.map(ad => ad.asset)).size === 1;
+  const singleSide = buyCount === 0 || sellCount === 0;
+  const ladderReady = selectedAds.length >= 2 && singleAsset && singleSide;
+  const ladderReason = selectedAds.length < 2
+    ? 'Select at least 2 ads'
+    : !singleAsset
+      ? 'Select ads of a single asset'
+      : !singleSide
+        ? 'Select ads of a single side (all buy or all sell)'
+        : 'Step selected ads down in 0.5 increments from a top rate';
+
   return (
+
     <div className="flex items-center gap-2 flex-wrap bg-card border border-border rounded-lg px-4 py-2.5 shadow-md animate-fade-in">
       <Badge variant="secondary" className="font-medium text-foreground bg-primary/20 border border-primary/30">
         {selectedAds.length} ad{selectedAds.length !== 1 ? 's' : ''} selected

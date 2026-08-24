@@ -458,7 +458,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
                 {competitorMode === 'top_badged' && (
                   <div className="space-y-2 p-3 border rounded-md bg-muted/20">
-                    <Label className="text-xs">Counter only merchants carrying</Label>
+                    <Label className="text-xs">Trust badge on the advertiser</Label>
                     <div className="flex flex-wrap gap-3">
                       {['Block', 'Shield'].map(b => (
                         <label key={b} className="flex items-center gap-1.5 text-xs">
@@ -466,16 +466,16 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             checked={competitorBadges.includes(b)}
                             onCheckedChange={(c) => setCompetitorBadges(prev => c ? [...new Set([...prev, b])] : prev.filter(x => x !== b))}
                           />
-                          {b} merchant
+                          {b} badge
                         </label>
                       ))}
                     </div>
                     <p className="text-[10px] text-muted-foreground">
                       The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <Label className="text-xs">Merchant level</Label>
+                        <Label className="text-xs">Account class</Label>
                         <div className="flex flex-col gap-1 pt-1">
                           {[
                             { v: 'MASS_MERCHANT', l: 'Mass merchant' },
@@ -490,7 +490,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             </label>
                           ))}
                         </div>
-                        <p className="text-[10px] text-muted-foreground pt-1">Leave both unchecked for any level.</p>
+                        <p className="text-[10px] text-muted-foreground pt-1">Binance advertiser identity, separate from the badge. Leave both unchecked for any class.</p>
                       </div>
                       <div>
                         <Label className="text-xs">Minimum VIP level</Label>
@@ -602,7 +602,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
 
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
                   <div className="flex items-center gap-2">
                     <Switch checked={onlyOnline} onCheckedChange={setOnlyOnline} />
                     <Label className="text-xs">Only counter when online</Label>
@@ -617,6 +617,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
 
                 </div>
+
               </AccordionContent>
             </AccordionItem>
 

@@ -21,6 +21,7 @@ import { BulkActionToolbar } from '@/components/ad-manager/BulkActionToolbar';
 import { BulkEditLimitsDialog } from '@/components/ad-manager/BulkEditLimitsDialog';
 import { BulkEditPaymentMethodsDialog } from '@/components/ad-manager/BulkEditPaymentMethodsDialog';
 import { BulkFloatingPriceDialog } from '@/components/ad-manager/BulkFloatingPriceDialog';
+import { BulkPriceLadderDialog } from '@/components/ad-manager/BulkPriceLadderDialog';
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog';
@@ -93,6 +94,7 @@ export default function AdManager() {
   const [bulkLimitsOpen, setBulkLimitsOpen] = useState(false);
   const [bulkPayMethodsOpen, setBulkPayMethodsOpen] = useState(false);
   const [bulkFloatingOpen, setBulkFloatingOpen] = useState(false);
+  const [bulkLadderOpen, setBulkLadderOpen] = useState(false);
   const [bulkHybridOpen, setBulkHybridOpen] = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
@@ -341,6 +343,7 @@ export default function AdManager() {
           onBulkEditLimits={() => setBulkLimitsOpen(true)}
           onBulkEditPaymentMethods={() => setBulkPayMethodsOpen(true)}
           onBulkFloatingPrice={() => setBulkFloatingOpen(true)}
+          onBulkPriceLadder={() => setBulkLadderOpen(true)}
           onBulkHybridAdjust={() => setBulkHybridOpen(true)}
           onBulkRiskGuard={() => setBulkRiskGuardOpen(true)}
           onBulkActivate={handleBulkActivate}
@@ -482,6 +485,7 @@ export default function AdManager() {
       <BulkEditLimitsDialog open={bulkLimitsOpen} onOpenChange={setBulkLimitsOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkEditPaymentMethodsDialog open={bulkPayMethodsOpen} onOpenChange={setBulkPayMethodsOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
+      <BulkPriceLadderDialog open={bulkLadderOpen} onOpenChange={setBulkLadderOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkRiskGuardDialog open={bulkRiskGuardOpen} onOpenChange={setBulkRiskGuardOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />

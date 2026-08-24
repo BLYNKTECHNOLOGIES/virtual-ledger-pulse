@@ -18,6 +18,7 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { toast as sonnerToast } from 'sonner';
 
 import { usersDirectory } from '@/lib/usersDirectory';
+import { filterOutDeletedUsers, isDeletedErpUser } from '@/lib/deletedUser';
 function useAllOperatorAssignments() {
   return useQuery({
     queryKey: ['all-operator-assignments'],
@@ -159,7 +160,7 @@ export function OperatorAssignmentManager() {
       if (!userRoles || userRoles.length === 0) return [];
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
       const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
-      return users || [];
+      return filterOutDeletedUsers(users as any[]);
     },
   });
 
@@ -175,18 +176,23 @@ export function OperatorAssignmentManager() {
     },
   });
 
+  const visibleAssignments = useMemo(
+    () => assignments.filter((a: any) => !isDeletedErpUser(a.user)),
+    [assignments],
+  );
+
   const groupedAssignments = useMemo(() => {
     const groups = new Map<string, { label: string; assignments: any[] }>();
 
     if (groupBy === 'user') {
-      for (const a of assignments) {
+      for (const a of visibleAssignments) {
         const userId = a.operator_user_id || a.user?.id || 'unknown';
         const userName = getUserName(a.user);
         if (!groups.has(userId)) groups.set(userId, { label: userName, assignments: [] });
         groups.get(userId)!.assignments.push(a);
       }
     } else {
-      for (const a of assignments) {
+      for (const a of visibleAssignments) {
         if (a.assignment_type === 'size_range' && a.size_range) {
           const key = a.size_range_id || a.size_range?.id || 'unknown';
           const label = `${a.size_range.name} (${(a.size_range.min_amount ?? 0).toLocaleString('en-IN')}–${(a.size_range.max_amount ?? 0).toLocaleString('en-IN')})`;
@@ -202,7 +208,7 @@ export function OperatorAssignmentManager() {
     }
 
     return Array.from(groups.entries()).sort((a, b) => a[1].label.localeCompare(b[1].label));
-  }, [assignments, groupBy]);
+  }, [visibleAssignments, groupBy]);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {

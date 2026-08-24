@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { getUserName, useAllSmallPaymentManagerAssignments, useCreateSmallPaymentManagerAssignment, useDeleteSmallPaymentManagerAssignment, useToggleSmallPaymentManagerAssignment } from '@/hooks/useSmallPaymentsManager';
 
 import { usersDirectory } from '@/lib/usersDirectory';
+import { filterOutDeletedUsers, isDeletedErpUser } from '@/lib/deletedUser';
 export function SmallPaymentManagerAssignmentManager() {
   const { data: assignments = [], isLoading } = useAllSmallPaymentManagerAssignments();
   const createAssignment = useCreateSmallPaymentManagerAssignment();
@@ -37,7 +38,7 @@ export function SmallPaymentManagerAssignmentManager() {
       const userIds = [...new Set((userRoles || []).map((ur: any) => ur.user_id))];
       if (!userIds.length) return [];
       const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
-      return users || [];
+      return filterOutDeletedUsers(users as any[]);
     },
   });
 
@@ -49,7 +50,9 @@ export function SmallPaymentManagerAssignmentManager() {
     },
   });
 
-  const summary = useMemo(() => ({ active: assignments.filter((a: any) => a.is_active).length, total: assignments.length }), [assignments]);
+  const visibleAssignments = useMemo(() => assignments.filter((a: any) => !isDeletedErpUser(a.user)), [assignments]);
+
+  const summary = useMemo(() => ({ active: visibleAssignments.filter((a: any) => a.is_active).length, total: visibleAssignments.length }), [visibleAssignments]);
 
   const handleCreate = async () => {
     if (!selectedManager) return toast.error('Select a manager');
@@ -85,9 +88,9 @@ export function SmallPaymentManagerAssignmentManager() {
       </div>
 
       <Card className="bg-card border-border"><CardContent className="p-0">
-        {isLoading ? <div className="p-4 space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div> : assignments.length === 0 ? <div className="py-12 text-center text-sm text-muted-foreground">No Small Payments assignments configured</div> : (
+        {isLoading ? <div className="p-4 space-y-2">{[1,2,3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div> : visibleAssignments.length === 0 ? <div className="py-12 text-center text-sm text-muted-foreground">No Small Payments assignments configured</div> : (
           <Table><TableHeader><TableRow><TableHead className="text-[10px]">Manager</TableHead><TableHead className="text-[10px]">Type</TableHead><TableHead className="text-[10px]">Assignment</TableHead><TableHead className="text-[10px]">Active</TableHead><TableHead className="text-right text-[10px]">Actions</TableHead></TableRow></TableHeader><TableBody>
-            {assignments.map((a: any) => <TableRow key={a.id}><TableCell className="py-2 text-xs font-medium">{getUserName(a.user)}</TableCell><TableCell className="py-2"><Badge variant="outline" className="text-[9px]">{a.assignment_type === 'size_range' ? 'Size Range' : 'Ad ID'}</Badge></TableCell><TableCell className="py-2 text-xs text-muted-foreground">{a.assignment_type === 'size_range' && a.size_range ? `${a.size_range.name} (${Number(a.size_range.min_amount).toLocaleString('en-IN')}–${Number(a.size_range.max_amount).toLocaleString('en-IN')})` : a.ad_id}</TableCell><TableCell className="py-2"><Switch checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} /></TableCell><TableCell className="py-2 text-right"><Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteAssignment.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell></TableRow>)}
+            {visibleAssignments.map((a: any) => <TableRow key={a.id}><TableCell className="py-2 text-xs font-medium">{getUserName(a.user)}</TableCell><TableCell className="py-2"><Badge variant="outline" className="text-[9px]">{a.assignment_type === 'size_range' ? 'Size Range' : 'Ad ID'}</Badge></TableCell><TableCell className="py-2 text-xs text-muted-foreground">{a.assignment_type === 'size_range' && a.size_range ? `${a.size_range.name} (${Number(a.size_range.min_amount).toLocaleString('en-IN')}–${Number(a.size_range.max_amount).toLocaleString('en-IN')})` : a.ad_id}</TableCell><TableCell className="py-2"><Switch checked={a.is_active} onCheckedChange={(checked) => toggleAssignment.mutate({ id: a.id, is_active: checked })} /></TableCell><TableCell className="py-2 text-right"><Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteAssignment.mutate(a.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell></TableRow>)}
           </TableBody></Table>
         )}
       </CardContent></Card>

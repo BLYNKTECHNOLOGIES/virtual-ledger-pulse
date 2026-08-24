@@ -52,6 +52,11 @@ interface LadderGroup {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+/** Compact INR display — grouped digits, 2 dp (readable for BTC-sized numbers on mobile). */
+const fmtINR = (n: number | null | undefined) =>
+  n === null || n === undefined || isNaN(n)
+    ? '—'
+    : n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const key = (asset: string, side: string) => `${asset}|${side}`;
 
 /** Hybrid-Adjust conversion: fixed price → floating ratio for a given index. */

@@ -76,7 +76,9 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                   <TableHead>Rule</TableHead>
                   <TableHead>Asset</TableHead>
                   <TableHead>Ad</TableHead>
+                  <TableHead>Zone</TableHead>
                   <TableHead>Merchant</TableHead>
+
                   <TableHead>Competitor ₹</TableHead>
                   <TableHead>Market Ref</TableHead>
                   <TableHead>Dev%</TableHead>

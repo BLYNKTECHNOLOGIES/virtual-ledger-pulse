@@ -72,6 +72,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [excludeMerchants, setExcludeMerchants] = useState('');
 
   const [onlyOnline, setOnlyOnline] = useState(false);
+  const [competitorIdentities, setCompetitorIdentities] = useState<string[]>([]);
+  const [minVipLevel, setMinVipLevel] = useState('');
+  const [enforceZoneMatch, setEnforceZoneMatch] = useState(true);
   const [pauseNoMerchant, setPauseNoMerchant] = useState(false);
   const [offsetDirection, setOffsetDirection] = useState('UNDERCUT');
   const [maxDeviation, setMaxDeviation] = useState('5');
@@ -164,6 +167,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setCompetitorZone((editingRule as any).competitor_zone || 'p2p');
       setCompetitorMode((editingRule as any).competitor_mode || 'nickname');
       setCompetitorBadges((editingRule as any).competitor_badges || ['Block', 'Shield']);
+      setCompetitorIdentities((editingRule as any).competitor_identities || []);
+      setMinVipLevel((editingRule as any).min_vip_level !== null && (editingRule as any).min_vip_level !== undefined ? String((editingRule as any).min_vip_level) : '');
+      setEnforceZoneMatch((editingRule as any).enforce_zone_match !== false);
       setExcludeMerchants(((editingRule as any).exclude_merchants || []).join(', '));
       setOnlyOnline(editingRule.only_counter_when_online);
 
@@ -313,6 +319,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       auto_pause_after_deviations: parseInt(autoPauseDeviations) || 5,
       manual_override_cooldown_minutes: parseInt(cooldownMinutes) || 0,
       only_counter_when_online: onlyOnline,
+      competitor_identities: competitorMode === 'top_badged' ? competitorIdentities : [],
+      min_vip_level: competitorMode === 'top_badged' && minVipLevel !== '' ? Number(minVipLevel) : null,
+      enforce_zone_match: enforceZoneMatch,
       pause_if_no_merchant_found: pauseNoMerchant,
       active_hours_start: activeStart || null,
       active_hours_end: activeEnd || null,
@@ -456,6 +465,38 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     <p className="text-[10px] text-muted-foreground">
                       The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
                     </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Merchant level</Label>
+                        <div className="flex flex-col gap-1 pt-1">
+                          {[
+                            { v: 'MASS_MERCHANT', l: 'Mass merchant' },
+                            { v: 'BLOCK_MERCHANT', l: 'Block merchant' },
+                          ].map(o => (
+                            <label key={o.v} className="flex items-center gap-1.5 text-xs">
+                              <Checkbox
+                                checked={competitorIdentities.includes(o.v)}
+                                onCheckedChange={(c) => setCompetitorIdentities(prev => c ? [...new Set([...prev, o.v])] : prev.filter(x => x !== o.v))}
+                              />
+                              {o.l}
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground pt-1">Leave both unchecked for any level.</p>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Minimum VIP level</Label>
+                        <Input
+                          value={minVipLevel}
+                          onChange={e => setMinVipLevel(e.target.value.replace(/[^0-9]/g, ''))}
+                          placeholder="any"
+                          inputMode="numeric"
+                          className="h-8 text-xs text-foreground"
+                        />
+                        <p className="text-[10px] text-muted-foreground pt-1">Skips advertisers whose Binance VIP level is lower.</p>
+                      </div>
+                    </div>
+
                     <div>
                       <Label className="text-xs">Exclude nicknames (comma separated)</Label>
                       <Input

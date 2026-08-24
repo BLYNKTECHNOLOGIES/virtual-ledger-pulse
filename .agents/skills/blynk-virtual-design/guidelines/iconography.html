@@ -1,0 +1,10 @@
+<!-- @dsCard group="Brand" viewport="700x160" name="Iconography — Lucide" subtitle="20px box, 1.75px stroke, currentColor" -->
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css"><style>html,body{margin:0}body{background:var(--surface-card);padding:16px 18px;font-family:var(--font-sans);height:160px;box-sizing:border-box;overflow:hidden}.sw{display:flex;gap:0;border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border-subtle)}.sw>div{flex:1;height:64px;display:flex;align-items:flex-end;padding:6px;font:var(--type-mono);font-size:9px}.lbl{font:var(--type-mono);font-size:10px;color:var(--text-faint);letter-spacing:.04em}.grid{display:grid;gap:10px}</style></head><body><div id="ic" style="display:flex;gap:18px;align-items:center;color:var(--text-heading)"></div>
+<div class="lbl" style="margin-top:14px">Lucide 0.451 via CDN · substitution flagged in readme.md — no original icon set was supplied</div>
+<script src="https://unpkg.com/lucide@0.451.0/dist/umd/lucide.js"></script>
+<script>
+['Activity','Cpu','Wifi','ShieldCheck','Workflow','BellRing','Gauge','LayoutDashboard','Settings','Radio','Server','Zap'].forEach(function(n){
+  var el=lucide.createElement(lucide.icons[n]); el.setAttribute('width',24); el.setAttribute('height',24); el.setAttribute('stroke-width',1.75);
+  document.getElementById('ic').appendChild(el);
+});
+</script></body></html>

@@ -1,0 +1,16 @@
+:root{
+  /* Shadows are cool-tinted (neutral-900 at low alpha), never black, never coloured
+     except the brand glow used for primary CTA hover. */
+  --shadow-none:none;
+  --shadow-xs:0 1px 2px rgba(18,23,27,.06);
+  --shadow-sm:0 1px 2px rgba(18,23,27,.05),0 2px 6px rgba(18,23,27,.05);
+  --shadow-md:0 2px 4px rgba(18,23,27,.05),0 8px 20px rgba(18,23,27,.07);
+  --shadow-lg:0 4px 8px rgba(18,23,27,.05),0 18px 40px rgba(18,23,27,.10);
+  --shadow-xl:0 8px 16px rgba(18,23,27,.06),0 32px 72px rgba(18,23,27,.14);
+  --shadow-inset:inset 0 1px 0 rgba(255,255,255,.6);
+  --shadow-brand:0 6px 20px rgba(0,180,232,.32);
+  --ring-focus:0 0 0 3px var(--focus-ring);
+  --blur-glass:saturate(140%) blur(14px); /* @kind other */
+  --glass-fill:rgba(255,255,255,.72);
+  --glass-fill-inverse:rgba(10,13,16,.62);
+}

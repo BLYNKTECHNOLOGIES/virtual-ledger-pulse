@@ -1,0 +1,5 @@
+/* Blynk Virtual webfonts — served from Google Fonts.
+   SUBSTITUTION NOTE: no original font binaries were supplied with the logos.
+   Montserrat is the nearest Google Fonts match to the wordmark's geometric caps
+   (wide circular bowls, spurred G, straight-legged R). Manrope carries UI/body text. */
+@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap");

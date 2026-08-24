@@ -1,0 +1,29 @@
+:root{
+  --font-display:"Montserrat","Helvetica Neue",Arial,sans-serif;
+  --font-sans:"Manrope","Helvetica Neue",Arial,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --weight-light:300; --weight-regular:400; --weight-medium:500;
+  --weight-semibold:600; --weight-bold:700; --weight-black:800;
+
+  /* Type scale — 1.25 major third, 16px base */
+  --text-2xs:11px; --text-xs:12px; --text-sm:14px; --text-base:16px;
+  --text-md:18px; --text-lg:20px; --text-xl:25px; --text-2xl:31px;
+  --text-3xl:39px; --text-4xl:49px; --text-5xl:61px; --text-6xl:76px;
+
+  --leading-tight:1.06; --leading-snug:1.22; --leading-normal:1.5; --leading-relaxed:1.68;
+
+  /* The wordmark is set in wide caps — that tracking is a brand signature */
+  --tracking-mark:.16em; --tracking-eyebrow:.14em; --tracking-caps:.08em;
+  --tracking-tight:-.02em; --tracking-normal:0;
+
+  /* Semantic roles */
+  --type-display:var(--weight-bold) var(--text-5xl)/var(--leading-tight) var(--font-display);
+  --type-h1:var(--weight-bold) var(--text-3xl)/var(--leading-snug) var(--font-display);
+  --type-h2:var(--weight-semibold) var(--text-2xl)/var(--leading-snug) var(--font-display);
+  --type-h3:var(--weight-semibold) var(--text-xl)/var(--leading-snug) var(--font-display);
+  --type-body:var(--weight-regular) var(--text-base)/var(--leading-normal) var(--font-sans);
+  --type-body-sm:var(--weight-regular) var(--text-sm)/var(--leading-normal) var(--font-sans);
+  --type-label:var(--weight-semibold) var(--text-sm)/1.3 var(--font-sans);
+  --type-mono:var(--weight-regular) var(--text-sm)/1.5 var(--font-mono);
+}

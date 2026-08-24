@@ -1,0 +1,63 @@
+:root{
+  /* ---- Brand core (sampled directly from the supplied logo artwork) ---- */
+  --blynk-cyan:#00B4E8;        /* lower block of the mark */
+  --blynk-sky:#4CBDE0;         /* upper block of the mark */
+  --blynk-ink:#000000;         /* wordmark black */
+
+  /* ---- Cyan ramp (tinted/shaded from --blynk-cyan) ---- */
+  --cyan-50:#E6F8FE; --cyan-100:#C2EFFC; --cyan-200:#8CE0F8; --cyan-300:#4CCDF2;
+  --cyan-400:#1ABEEC; --cyan-500:#00B4E8; --cyan-600:#0095C2; --cyan-700:#00779B;
+  --cyan-800:#065A74; --cyan-900:#0A4657;
+
+  /* ---- Sky ramp (the softer secondary block) ---- */
+  --sky-100:#DDF0F8; --sky-300:#9AD6EA; --sky-500:#4CBDE0; --sky-700:#2E8AA8; --sky-900:#1D5A6E;
+
+  /* ---- Neutrals: cool-tinted greys running to true black ---- */
+  --neutral-0:#FFFFFF;  --neutral-25:#FAFCFD; --neutral-50:#F4F7F9; --neutral-100:#E8EDF1;
+  --neutral-200:#D3DBE1; --neutral-300:#B3BEC7; --neutral-400:#8B98A3; --neutral-500:#657280;
+  --neutral-600:#4B5661; --neutral-700:#333C45; --neutral-800:#1E252B; --neutral-900:#12171B;
+  --neutral-950:#0A0D10; --neutral-1000:#000000;
+
+  /* ---- Semantic hues (matched in chroma to the cyan so they sit together) ---- */
+  --success-100:#DCF5E8; --success-500:#12A868; --success-700:#0B7A4B;
+  --warning-100:#FDF0D8; --warning-500:#E5A21B; --warning-700:#A97207;
+  --danger-100:#FCE3E3;  --danger-500:#E0402F;  --danger-700:#A62A1D;
+  --info-100:var(--cyan-100); --info-500:var(--cyan-500); --info-700:var(--cyan-700);
+
+  /* ---- Semantic aliases: surfaces ---- */
+  --surface-page:var(--neutral-25);
+  --surface-card:var(--neutral-0);
+  --surface-sunken:var(--neutral-50);
+  --surface-raised:var(--neutral-0);
+  --surface-inverse:var(--neutral-1000);
+  --surface-inverse-soft:var(--neutral-900);
+  --surface-brand:var(--cyan-500);
+  --surface-brand-soft:var(--cyan-50);
+  --surface-overlay:rgba(10,13,16,.62);
+
+  /* ---- Semantic aliases: text ---- */
+  --text-heading:var(--neutral-1000);
+  --text-body:var(--neutral-700);
+  --text-muted:var(--neutral-500);
+  --text-faint:var(--neutral-400);
+  --text-brand:var(--cyan-600);
+  --text-on-brand:#FFFFFF;
+  --text-on-inverse:#FFFFFF;
+  --text-on-inverse-muted:var(--neutral-300);
+  --text-link:var(--cyan-600);
+  --text-link-hover:var(--cyan-700);
+
+  /* ---- Semantic aliases: borders ---- */
+  --border-subtle:var(--neutral-100);
+  --border-default:var(--neutral-200);
+  --border-strong:var(--neutral-300);
+  --border-brand:var(--cyan-500);
+  --border-inverse:rgba(255,255,255,.14);
+
+  /* ---- Interaction ---- */
+  --brand-hover:var(--cyan-600);
+  --brand-active:var(--cyan-700);
+  --focus-ring:rgba(0,180,232,.38);
+  --hover-tint:rgba(0,180,232,.08);
+  --press-tint:rgba(0,180,232,.16);
+}

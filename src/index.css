@@ -426,6 +426,8 @@
     /* ── Base backgrounds (true-black layered surfaces) ── */
     --background: 240 10% 4%;        /* deepest canvas */
     --foreground: 228 20% 93%;       /* primary text */
+    --heading: 228 24% 97%;          /* page/section headings (must override ERP light) */
+
 
     /* ── Panel / container surfaces (graphite steps) ── */
     --card: 240 8% 6.5%;             /* panel bg */

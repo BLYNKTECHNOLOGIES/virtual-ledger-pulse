@@ -18,6 +18,7 @@ import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { toast as sonnerToast } from 'sonner';
 
 import { usersDirectory } from '@/lib/usersDirectory';
+import { filterOutDeletedUsers, isDeletedErpUser } from '@/lib/deletedUser';
 function useAllOperatorAssignments() {
   return useQuery({
     queryKey: ['all-operator-assignments'],
@@ -159,7 +160,7 @@ export function OperatorAssignmentManager() {
       if (!userRoles || userRoles.length === 0) return [];
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
       const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
-      return users || [];
+      return filterOutDeletedUsers(users as any[]);
     },
   });
 

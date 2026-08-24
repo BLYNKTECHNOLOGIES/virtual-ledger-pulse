@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { usersDirectory } from '@/lib/usersDirectory';
+import { filterOutDeletedUsers, isDeletedErpUser } from '@/lib/deletedUser';
 import {
   useAllPayerAssignments,
   useCreatePayerAssignment,
@@ -62,7 +63,7 @@ export function PayerAssignmentManager() {
       if (!userRoles || userRoles.length === 0) return [];
       const userIds = [...new Set(userRoles.map((ur: any) => ur.user_id))];
       const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
-      return users || [];
+      return filterOutDeletedUsers(users as any[]);
     },
   });
 

@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { getUserName, useAllSmallPaymentManagerAssignments, useCreateSmallPaymentManagerAssignment, useDeleteSmallPaymentManagerAssignment, useToggleSmallPaymentManagerAssignment } from '@/hooks/useSmallPaymentsManager';
 
 import { usersDirectory } from '@/lib/usersDirectory';
+import { filterOutDeletedUsers, isDeletedErpUser } from '@/lib/deletedUser';
 export function SmallPaymentManagerAssignmentManager() {
   const { data: assignments = [], isLoading } = useAllSmallPaymentManagerAssignments();
   const createAssignment = useCreateSmallPaymentManagerAssignment();
@@ -37,7 +38,7 @@ export function SmallPaymentManagerAssignmentManager() {
       const userIds = [...new Set((userRoles || []).map((ur: any) => ur.user_id))];
       if (!userIds.length) return [];
       const { data: users } = await usersDirectory().select('id, username, first_name, last_name').in('id', userIds);
-      return users || [];
+      return filterOutDeletedUsers(users as any[]);
     },
   });
 

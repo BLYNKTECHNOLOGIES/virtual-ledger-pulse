@@ -31,6 +31,10 @@ export function isBlockZoneAd(ad: { classify?: string | null }): boolean {
   return adZone(ad) === 'block';
 }
 
+/** Alias kept for the ad tables/boards that read "is this a Block-zone ad?". */
+export const isBlockAd = isBlockZoneAd;
+
+
 /** `classifies` payload for the Binance public search API. */
 export function zoneClassifies(zone: AdZone): string[] {
   return zone === 'block' ? ['block'] : ['mass', 'profession'];

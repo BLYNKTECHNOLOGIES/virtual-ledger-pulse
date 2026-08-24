@@ -70,6 +70,9 @@ export interface AutoPricingLog {
   ad_number: string | null;
   asset: string | null;
   competitor_merchant: string | null;
+  competitor_zone?: string | null;
+  competitor_badges?: string[] | null;
+
   competitor_price: number | null;
   market_reference_price: number | null;
   deviation_from_market_pct: number | null;

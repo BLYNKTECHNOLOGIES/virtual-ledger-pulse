@@ -27640,6 +27640,10 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: Json
       }
+      delete_user_with_cleanup_core: {
+        Args: { target_user_id: string }
+        Returns: Json
+      }
       delete_webauthn_credential: {
         Args: { p_credential_id: string }
         Returns: undefined
@@ -29539,6 +29543,7 @@ export type Database = {
         Args: { p_status: string }
         Returns: boolean
       }
+      terminal_revoke_all_access: { Args: { _uid: string }; Returns: Json }
       transfer_customer_support_ticket: {
         Args: {
           p_ticket_id: string

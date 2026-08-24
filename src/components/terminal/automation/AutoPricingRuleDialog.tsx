@@ -66,6 +66,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [priceType, setPriceType] = useState('FIXED');
   const [priorityMerchants, setPriorityMerchants] = useState<string[]>(['']);
   const [newMerchantInput, setNewMerchantInput] = useState('');
+  const [competitorZone, setCompetitorZone] = useState('p2p');
+  const [competitorMode, setCompetitorMode] = useState('nickname');
+  const [competitorBadges, setCompetitorBadges] = useState<string[]>(['Block', 'Shield']);
+  const [excludeMerchants, setExcludeMerchants] = useState('');
+
   const [onlyOnline, setOnlyOnline] = useState(false);
   const [pauseNoMerchant, setPauseNoMerchant] = useState(false);
   const [offsetDirection, setOffsetDirection] = useState('UNDERCUT');

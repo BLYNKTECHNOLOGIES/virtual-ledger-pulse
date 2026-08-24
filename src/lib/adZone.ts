@@ -49,3 +49,39 @@ export function zoneClassify(zone: AdZone): 'block' | 'profession' {
 export function zonesOf(ads: Array<{ classify?: string | null }>): AdZone[] {
   return Array.from(new Set(ads.map(adZone)));
 }
+
+/**
+ * Zones the account may publish ads in, read strictly from Binance's
+ * `getAvailableAdsCategory` response. The payload shape is not documented as a
+ * fixed schema, so we scan it for the classify tokens Binance itself uses
+ * (`block`, `profession`, `mass`) instead of assuming a key path. When Binance
+ * reports nothing usable we return an empty list and the caller must show that
+ * as "not reported" rather than assuming eligibility.
+ */
+export function parseAvailableZones(payload: unknown): AdZone[] {
+  const tokens = new Set<string>();
+
+  const walk = (node: unknown, depth = 0) => {
+    if (depth > 6 || node == null) return;
+    if (typeof node === 'string') {
+      const v = node.trim().toLowerCase();
+      if (v === 'block' || v === 'profession' || v === 'mass') tokens.add(v);
+      return;
+    }
+    if (Array.isArray(node)) {
+      node.forEach((n) => walk(n, depth + 1));
+      return;
+    }
+    if (typeof node === 'object') {
+      Object.values(node as Record<string, unknown>).forEach((n) => walk(n, depth + 1));
+    }
+  };
+
+  walk(payload);
+
+  const zones: AdZone[] = [];
+  if (tokens.has('profession') || tokens.has('mass')) zones.push('p2p');
+  if (tokens.has('block')) zones.push('block');
+  return zones;
+}
+

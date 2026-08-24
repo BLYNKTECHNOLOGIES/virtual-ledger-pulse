@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, TrendingUp, TrendingDown, BarChart3, ShoppingCart, Megaphone, Banknote, Clock, Shield, Activity, AlertTriangle, Target, Percent, Layers, Database, CloudDownload, RefreshCw } from 'lucide-react';
 import { useBinanceAdsList, BinanceAd } from '@/hooks/useBinanceAds';
+import { useAdZoneMap } from '@/hooks/useAdZoneMap';
 import { useCachedOrderHistory, useSyncMetadata, useSyncOrderHistory } from '@/hooks/useBinanceOrderSync';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid, Legend, Cell } from 'recharts';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
@@ -707,6 +708,9 @@ export default function TerminalAnalytics() {
     return Array.isArray(list) ? list : [];
   }, [adsRaw]);
 
+  const adZoneMap = useAdZoneMap(ads as any);
+
+
   const orderNumbers = useMemo(() => (
     Array.isArray(cachedOrders) ? cachedOrders.map((order: any) => order.orderNumber || order.order_number || '').filter(Boolean) : []
   ), [cachedOrders]);
@@ -815,7 +819,47 @@ export default function TerminalAnalytics() {
     };
   }, [orders, completed, configs, ads]);
 
+  // ─── Zone attribution (Binance `classify`, never inferred) ───────────────
+  const zoneRows = useMemo(() => {
+    type ZoneKey = 'p2p' | 'block' | 'unattributed';
+    const empty = () => ({ orders: 0, volume: 0, qty: 0, valuedVolume: 0, buyVolume: 0, sellVolume: 0, cancelled: 0, appeals: 0 });
+    const buckets: Record<ZoneKey, ReturnType<typeof empty>> = { p2p: empty(), block: empty(), unattributed: empty() };
+    const keyFor = (advNo: string): ZoneKey => {
+      if (!advNo) return 'unattributed';
+      const z = adZoneMap.get(String(advNo));
+      return z === 'block' ? 'block' : z === 'p2p' ? 'p2p' : 'unattributed';
+    };
+    for (const o of orders) {
+      const b = buckets[keyFor(o.advNo)];
+      if (o.orderStatus.includes('CANCELLED')) b.cancelled += 1;
+      if (o.orderStatus.includes('APPEAL') || o.orderStatus.includes('COMPLAINT')) b.appeals += 1;
+    }
+    for (const o of completed) {
+      const b = buckets[keyFor(o.advNo)];
+      b.orders += 1;
+      b.volume += o.totalPrice;
+      if (o.tradeType === 'BUY') b.buyVolume += o.totalPrice; else b.sellVolume += o.totalPrice;
+      if (o.hasEffectiveUsdtValuation) {
+        b.qty += o.effectiveUsdtQty;
+        b.valuedVolume += o.totalPrice;
+      }
+    }
+    return (['p2p', 'block', 'unattributed'] as ZoneKey[]).map((key) => {
+      const b = buckets[key];
+      const attempted = b.orders + b.cancelled;
+      return {
+        key,
+        label: key === 'p2p' ? 'P2P Zone' : key === 'block' ? 'Block Zone' : 'Zone not returned by Binance',
+        ...b,
+        weightedRate: b.qty > 0 ? b.valuedVolume / b.qty : 0,
+        completionRate: attempted ? (b.orders / attempted) * 100 : 0,
+        avgOrder: b.orders ? b.volume / b.orders : 0,
+      };
+    });
+  }, [orders, completed, adZoneMap]);
+
   const chartData = useMemo(() => {
+
     const isHourly = filter.mode === '1d';
     const map = new Map<string, Bucket>();
     for (const o of completed) {
@@ -1003,6 +1047,7 @@ export default function TerminalAnalytics() {
             <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
             <TabsTrigger value="types" className="text-xs">Order Types</TabsTrigger>
             <TabsTrigger value="ads" className="text-xs">Ad Performance</TabsTrigger>
+            <TabsTrigger value="zones" className="text-xs">Zones</TabsTrigger>
             <TabsTrigger value="rates" className="text-xs">Rates</TabsTrigger>
             <TabsTrigger value="risk" className="text-xs">Status / Risk</TabsTrigger>
           </TabsList>
@@ -1051,6 +1096,47 @@ export default function TerminalAnalytics() {
               <AdPerformanceGraph rows={filteredAdRows} tradeFilter={adTradeFilter} selectedAd={selectedAd} />
             </div>
           </TabsContent>
+
+          <TabsContent value="zones" className="min-h-0 flex-1 overflow-auto">
+            <div className="space-y-4 pb-2">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {zoneRows.map((row) => (
+                  <Card key={row.key} className="bg-card border-border">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Layers className="h-4 w-4 text-primary" /> {row.label}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div><p className="text-muted-foreground">Completed volume</p><p className="font-semibold t-mono">{fmtINR(row.volume)}</p></div>
+                        <div><p className="text-muted-foreground">Orders</p><p className="font-semibold t-mono">{row.orders}</p></div>
+                        <div><p className="text-muted-foreground">Weighted rate</p><p className="font-semibold t-mono">{row.qty > 0 ? fmtRate(row.weightedRate) : '—'}</p></div>
+                        <div><p className="text-muted-foreground">Avg order</p><p className="font-semibold t-mono">{fmtINR(row.avgOrder)}</p></div>
+                        <div><p className="text-muted-foreground">Completion</p><p className="font-semibold t-mono">{row.orders + row.cancelled ? `${row.completionRate.toFixed(1)}%` : '—'}</p></div>
+                        <div><p className="text-muted-foreground">Appeals</p><p className="font-semibold t-mono">{row.appeals}</p></div>
+                      </div>
+                      <div className="h-3 rounded-full overflow-hidden bg-secondary flex">
+                        <div className="bg-trade-buy" style={{ width: `${row.volume ? (row.buyVolume / row.volume) * 100 : 0}%` }} />
+                        <div className="bg-trade-sell flex-1" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div><p className="text-muted-foreground">Buy</p><p className="font-semibold text-trade-buy t-mono">{fmtINR(row.buyVolume)}</p></div>
+                        <div><p className="text-muted-foreground">Sell</p><p className="font-semibold text-trade-sell t-mono">{fmtINR(row.sellVolume)}</p></div>
+                      </div>
+                      {row.key === 'unattributed' && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Orders whose ad zone Binance never reported (ad closed before any state snapshot). Not assumed to be P2P.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </TabsContent>
+
+
 
           <TabsContent value="rates" className="min-h-0 flex-1">
             <div className="grid h-full grid-cols-1 lg:grid-cols-2 gap-4">

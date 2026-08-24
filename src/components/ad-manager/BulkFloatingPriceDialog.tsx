@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { zonesOf } from '@/lib/adZone';
 
 interface Props {
   open: boolean;
@@ -109,6 +110,16 @@ export function BulkFloatingPriceDialog({ open, onOpenChange, ads, onComplete }:
             <p className="text-sm text-muted-foreground">
               Set floating price ratio for <strong>{ads.length}</strong> floating ad{ads.length !== 1 ? 's' : ''}.
             </p>
+            {zonesOf(ads as any).length > 1 && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs">
+                <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                <p className="text-foreground">
+                  Your selection mixes <strong>P2P zone</strong> and <strong>Block zone</strong> ads. These are separate
+                  order books with different price levels — one shared ratio will misprice at least one zone.
+                </p>
+              </div>
+            )}
+
             <div>
               <Label>New Floating Ratio (%)</Label>
               <Input

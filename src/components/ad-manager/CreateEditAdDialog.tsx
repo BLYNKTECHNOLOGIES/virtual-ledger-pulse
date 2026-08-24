@@ -9,9 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, useBinanceDigitalCurrencies, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
+import { AdZone, ZONE_LABEL, adZone, zoneClassify, parseAvailableZones } from '@/lib/adZone';
 import { cn } from '@/lib/utils';
 
 /** Create-mode seed shape (subset of the internal form). Used by "Duplicate Ad". */
@@ -79,6 +80,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
   const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
   const isEditing = !!editingAd;
+
+  // Market zone (Binance `classify`). Zone is fixed after creation.
+  const [zone, setZone] = useState<AdZone>('p2p');
+  const { data: adsCategoryData, isLoading: isLoadingZones, isError: zonesError } = useAvailableAdsCategory(
+    createAccountId || null,
+    open && !isEditing,
+  );
+  const availableZones = useMemo(() => parseAvailableZones(adsCategoryData), [adsCategoryData]);
+  const blockZoneAvailable = availableZones.includes('block');
+
 
   const [form, setForm] = useState({
     tradeType: 'SELL',
@@ -205,9 +216,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
         ...(initialValues || {}),
       });
     }
+    setZone(editingAd ? adZone(editingAd) : 'p2p');
     setShowPayMethodPicker(false);
     setPayMethodSearch('');
   }, [editingAd, open, initialValues]);
+
+  // Never keep a zone Binance does not report as available for this account.
+  useEffect(() => {
+    if (!isEditing && zone === 'block' && adsCategoryData && !blockZoneAvailable) setZone('p2p');
+  }, [isEditing, zone, adsCategoryData, blockZoneAvailable]);
+
 
   // ─── Available balance from surplus across all ads ────────────
   const availableBalance = useMemo(() => {
@@ -346,7 +364,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       buyerRegDaysLimit: form.buyerRegDaysLimit,
       buyerBtcPositionLimit: form.buyerBtcPositionLimit,
       takerAdditionalKycRequired: form.takerAdditionalKycRequired,
-      classify: 'profession',
+      classify: zoneClassify(zone),
       onlineNow: true,
       onlineDelayTime: 0,
     };
@@ -498,6 +516,39 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
               {isEditing && <p className="text-[10px] text-muted-foreground mt-1">Cannot change after creation</p>}
             </div>
           </div>
+
+          {/* Market Zone (Binance `classify`) */}
+          <div className="rounded-lg border p-4 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label>Market Zone</Label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  P2P zone and Block zone are separate order books with different merchants and price levels.
+                </p>
+              </div>
+              {isEditing ? (
+                <span className="text-xs font-medium text-foreground shrink-0">{ZONE_LABEL[zone]}</span>
+              ) : (
+                <Select value={zone} onValueChange={(v) => setZone(v as AdZone)}>
+                  <SelectTrigger className="w-[170px] shrink-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="p2p">{ZONE_LABEL.p2p}</SelectItem>
+                    <SelectItem value="block" disabled={!blockZoneAvailable}>{ZONE_LABEL.block}</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+            {isEditing ? (
+              <p className="text-[10px] text-muted-foreground">Cannot change after creation</p>
+            ) : isLoadingZones ? (
+              <p className="text-[10px] text-muted-foreground">Checking available ad categories with Binance…</p>
+            ) : zonesError ? (
+              <p className="text-[10px] text-warning">Binance did not return the available ad categories — Block zone stays locked.</p>
+            ) : !blockZoneAvailable ? (
+              <p className="text-[10px] text-muted-foreground">Binance does not report Block zone as available for this account.</p>
+            ) : null}
+          </div>
+
 
           {/* Price Section */}
           <div className="space-y-3 rounded-lg border p-4">

@@ -100,14 +100,14 @@ export function buildLadderGroups(
     if (topPrice === null) {
       out.push({
         asset, side, index, topPrice: null, topRatio: null, rungs: [],
-        skipped: 'No Binance reference price available for this asset — group skipped',
+        skipped: 'No live index price for this asset — group skipped',
       });
       continue;
     }
     if (hasFloating && !index) {
       out.push({
         asset, side, index, topPrice, topRatio: null, rungs: [],
-        skipped: 'No Binance reference price — floating ratio cannot be derived, group skipped',
+        skipped: 'No live index price — floating ratio cannot be derived, group skipped',
       });
       continue;
     }

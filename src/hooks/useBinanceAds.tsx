@@ -225,6 +225,39 @@ export function useBinanceReferencePrice(asset: string, tradeType: string) {
   });
 }
 
+/**
+ * Reference prices for many asset+side pairs at once (one Binance call per pair,
+ * sharing the same cache keys as useBinanceReferencePrice).
+ * Returns a map keyed by `${asset}|${tradeType}` → referencePrice (number) or null.
+ */
+export function useBinanceReferencePrices(
+  pairs: { asset: string; tradeType: string }[],
+  enabled = true,
+) {
+  const results = useQueries({
+    queries: pairs.map(({ asset, tradeType }) => ({
+      queryKey: ['binance-ref-price', asset, tradeType],
+      queryFn: () => callBinanceAds('getReferencePrice', { assets: [asset], tradeType }),
+      staleTime: 15 * 1000,
+      enabled,
+    })),
+  });
+
+  const map: Record<string, number | null> = {};
+  pairs.forEach(({ asset, tradeType }, i) => {
+    const raw = (results[i]?.data as any)?.[0]?.referencePrice ?? (results[i]?.data as any)?.data?.[0]?.referencePrice;
+    const num = Number(raw);
+    map[`${asset}|${tradeType}`] = num && !isNaN(num) && num > 0 ? num : null;
+  });
+
+  return {
+    prices: map,
+    isLoading: results.some((r) => r.isLoading),
+    isError: results.some((r) => r.isError),
+  };
+}
+
+
 export function useBinanceDigitalCurrencies() {
   return useQuery({
     queryKey: ['binance-digital-currencies'],

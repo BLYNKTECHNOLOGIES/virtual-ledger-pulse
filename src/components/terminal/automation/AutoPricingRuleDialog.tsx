@@ -600,9 +600,14 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     <Label className="text-xs">Only counter when online</Label>
                   </div>
                   <div className="flex items-center gap-2">
+                    <Switch checked={enforceZoneMatch} onCheckedChange={setEnforceZoneMatch} />
+                    <Label className="text-xs">Only price ads in the targeted zone</Label>
+                  </div>
+                  <div className="flex items-center gap-2">
                     <Switch checked={pauseNoMerchant} onCheckedChange={setPauseNoMerchant} />
                     <Label className="text-xs">Pause if no merchant found</Label>
                   </div>
+
                 </div>
               </AccordionContent>
             </AccordionItem>

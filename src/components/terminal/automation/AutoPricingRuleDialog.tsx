@@ -161,7 +161,12 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       // Reconstruct priority list: target_merchant first, then fallbacks
       const merchants = [editingRule.target_merchant, ...(editingRule.fallback_merchants || [])].filter(Boolean);
       setPriorityMerchants(merchants.length > 0 ? merchants : ['']);
+      setCompetitorZone((editingRule as any).competitor_zone || 'p2p');
+      setCompetitorMode((editingRule as any).competitor_mode || 'nickname');
+      setCompetitorBadges((editingRule as any).competitor_badges || ['Block', 'Shield']);
+      setExcludeMerchants(((editingRule as any).exclude_merchants || []).join(', '));
       setOnlyOnline(editingRule.only_counter_when_online);
+
       setPauseNoMerchant(editingRule.pause_if_no_merchant_found);
       setOffsetDirection(editingRule.offset_direction);
       setMaxDeviation(String(editingRule.max_deviation_from_market_pct));

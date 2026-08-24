@@ -269,6 +269,22 @@ export function useBinanceDigitalCurrencies() {
   });
 }
 
+/**
+ * Binance `getAvailableAdsCategory` — which ad categories (market zones) the
+ * account is allowed to publish in. Used to gate the zone selector on ad
+ * creation; never used to invent eligibility.
+ */
+export function useAvailableAdsCategory(accountId?: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['binance-available-ads-category', accountId || 'active'],
+    queryFn: () => callBinanceAds('getAvailableAdsCategory', {}, accountId || undefined),
+    enabled,
+    retry: false,
+    staleTime: 10 * 60 * 1000,
+  });
+}
+
+
 export function useBinancePaymentMethods() {
   return useQuery({
     queryKey: ['binance-payment-methods'],

@@ -43,10 +43,14 @@ export function BulkActionToolbar({
   const sellCount = selectedAds.filter(ad => ad.tradeType === 'SELL').length;
   const someButNotAll = typeof totalAds === 'number' && selectedAds.length > 0 && selectedAds.length < totalAds;
 
-  const ladderReady = selectedAds.length >= 2;
-  const ladderReason = !ladderReady
+  const singleSide = buyCount === 0 || sellCount === 0;
+  const ladderReady = selectedAds.length >= 2 && singleSide;
+  const ladderReason = selectedAds.length < 2
     ? 'Select at least 2 ads'
-    : 'Step selected ads down in 0.5 increments from a top fixed rate (per asset + side group)';
+    : !singleSide
+      ? 'Select ads of a single side — buy and sell ads cannot be laddered together'
+      : 'Step selected ads down in 0.5 increments from a top fixed rate (per asset group)';
+
 
 
   return (

@@ -155,14 +155,13 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
   }, [ads, assets]);
   const anchor = anchorAsset && assets.includes(anchorAsset) ? anchorAsset : defaultAnchor;
 
-  const pairs = useMemo(
-    () => [...new Set(ads.map((a) => key(a.asset, a.tradeType)))].map((k) => {
-      const [asset, tradeType] = k.split('|');
-      return { asset, tradeType };
-    }),
-    [ads],
-  );
-  const { prices, isLoading: pricesLoading } = useBinanceReferencePrices(pairs, open);
+  const {
+    index: prices,
+    usdtInr,
+    rateSource,
+    rateIsFallback,
+    isLoading: pricesLoading,
+  } = useSpotIndexINR(assets, open);
 
   const top = Number(value);
   const groups = useMemo(

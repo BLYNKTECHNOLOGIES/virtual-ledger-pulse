@@ -570,10 +570,12 @@ async function processAsset(
   // price levels. Never write a competitor price scraped from one zone onto an ad
   // living in the other. Ads whose zone can't be read are left untouched by the gate.
   const zoneMismatched: string[] = [];
+  const liveAdZones = new Map<string, string | null>();
   if (rule.enforce_zone_match !== false && adNumbers.length > 0) {
     const kept: string[] = [];
     for (const adNo of adNumbers) {
       const adZoneLive = await fetchAdZone(adNo);
+      liveAdZones.set(adNo, adZoneLive);
       if (adZoneLive && adZoneLive !== zone) { zoneMismatched.push(adNo); continue; }
       kept.push(adNo);
     }
@@ -586,6 +588,7 @@ async function processAsset(
           asset,
           status: "skipped",
           skipped_reason: "zone_mismatch",
+          ad_zone: liveAdZones.get(adNo) ?? null,
           competitor_merchant: matchedMerchant,
           competitor_zone: zone,
           competitor_badges: matchedBadges,
@@ -687,6 +690,7 @@ async function processAsset(
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,
       asset,
+      ad_zone: zone,
       competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
@@ -745,6 +749,7 @@ async function processAsset(
           rule_id: rule.id,
           ad_number: adNo,
           asset,
+          ad_zone: liveAdZones.get(adNo) ?? zone,
           competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
@@ -767,6 +772,7 @@ async function processAsset(
           rule_id: rule.id,
           ad_number: adNo,
           asset,
+          ad_zone: liveAdZones.get(adNo) ?? zone,
           competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
@@ -792,6 +798,20 @@ async function processAsset(
         status: "error",
         error_message: (adErr as Error).message,
       });
+    }
+  }
+
+  // Record the zone/merchant level this cycle actually competed against, so the
+  // engine state reflects which book we last priced into.
+  if (successCount > 0) {
+    try {
+      await supabase.from("ad_pricing_engine_state").update({
+        last_zone: zone,
+        last_merchant_identity: matchedIdentity ?? null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", "singleton");
+    } catch (stateErr) {
+      console.warn("[engine-state] zone/level write failed:", stateErr);
     }
   }
 

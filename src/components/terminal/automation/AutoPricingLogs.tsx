@@ -22,10 +22,19 @@ const STATUS_COLORS: Record<string, string> = {
 export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLogsProps) {
   const [filterRuleId, setFilterRuleId] = useState(initialRuleId || 'all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterZone, setFilterZone] = useState('all');
   const activeRuleId = filterRuleId === 'all' ? undefined : filterRuleId;
   const { data: logs = [], isLoading } = useAutoPricingLogs(activeRuleId, 200);
 
-  const filteredLogs = filterStatus === 'all' ? logs : logs.filter(l => l.status === filterStatus);
+  const filteredLogs = logs.filter(l => {
+    if (filterStatus !== 'all' && l.status !== filterStatus) return false;
+    if (filterZone !== 'all') {
+      // Zone of the book the cycle competed in; falls back to our ad's own zone.
+      const zone = (l.competitor_zone || l.ad_zone || 'p2p').toLowerCase() === 'block' ? 'block' : 'p2p';
+      if (zone !== filterZone) return false;
+    }
+    return true;
+  });
   const ruleMap = Object.fromEntries(rules.map(r => [r.id, r.name]));
 
   return (
@@ -43,6 +52,16 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                 {rules.map(r => (
                   <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+            <Select value={filterZone} onValueChange={setFilterZone}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue placeholder="All Zones" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Zones</SelectItem>
+                <SelectItem value="p2p">P2P zone</SelectItem>
+                <SelectItem value="block">Block zone</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -102,7 +121,16 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                         <span className="ml-1 text-[10px] text-muted-foreground">{log.competitor_badges.join('/')}</span>
                       ) : null}
                     </TableCell>
-                    <TableCell className="text-xs">{log.competitor_merchant || '—'}</TableCell>
+                    <TableCell className="text-xs">
+                      {log.competitor_merchant || '—'}
+                      {(log.competitor_identity || log.competitor_vip_level != null) && (
+                        <span className="ml-1 text-[10px] text-muted-foreground">
+                          {log.competitor_identity === 'BLOCK_MERCHANT' ? 'Block merchant'
+                            : log.competitor_identity === 'MASS_MERCHANT' ? 'Mass merchant' : ''}
+                          {log.competitor_vip_level != null && log.competitor_vip_level > 0 ? ` VIP${log.competitor_vip_level}` : ''}
+                        </span>
+                      )}
+                    </TableCell>
 
                     <TableCell className="text-xs">{log.competitor_price ? `₹${Number(log.competitor_price).toLocaleString('en-IN')}` : '—'}</TableCell>
                     <TableCell className="text-xs">{log.market_reference_price ? `₹${Number(log.market_reference_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}` : '—'}</TableCell>

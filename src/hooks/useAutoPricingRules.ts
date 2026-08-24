@@ -29,6 +29,9 @@ export interface AutoPricingRule {
   competitor_zone?: string | null;
   competitor_mode?: string | null;
   competitor_badges?: string[] | null;
+  competitor_identity?: string | null;
+  competitor_vip_level?: number | null;
+  ad_zone?: string | null;
   exclude_merchants?: string[] | null;
 
   ad_numbers: string[];
@@ -72,6 +75,9 @@ export interface AutoPricingLog {
   competitor_merchant: string | null;
   competitor_zone?: string | null;
   competitor_badges?: string[] | null;
+  competitor_identity?: string | null;
+  competitor_vip_level?: number | null;
+  ad_zone?: string | null;
 
   competitor_price: number | null;
   market_reference_price: number | null;

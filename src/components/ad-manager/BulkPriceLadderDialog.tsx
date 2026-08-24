@@ -41,7 +41,7 @@ interface RungResult extends Rung {
 interface LadderGroup {
   asset: string;
   side: string;
-  /** live Binance reference price for this asset+side, or null when unavailable */
+  /** live INR index price for this asset (spot × USDT/INR), or null when unavailable */
   index: number | null;
   /** fixed top rate for this group (scaled from the anchor asset) */
   topPrice: number | null;

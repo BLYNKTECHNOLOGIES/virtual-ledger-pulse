@@ -50,7 +50,9 @@ export function SmallPaymentManagerAssignmentManager() {
     },
   });
 
-  const summary = useMemo(() => ({ active: assignments.filter((a: any) => a.is_active).length, total: assignments.length }), [assignments]);
+  const visibleAssignments = useMemo(() => assignments.filter((a: any) => !isDeletedErpUser(a.user)), [assignments]);
+
+  const summary = useMemo(() => ({ active: visibleAssignments.filter((a: any) => a.is_active).length, total: visibleAssignments.length }), [visibleAssignments]);
 
   const handleCreate = async () => {
     if (!selectedManager) return toast.error('Select a manager');

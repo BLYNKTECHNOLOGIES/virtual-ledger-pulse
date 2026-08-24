@@ -276,8 +276,10 @@ export type Database = {
           asset: string | null
           calculated_price: number | null
           calculated_ratio: number | null
+          competitor_badges: string[] | null
           competitor_merchant: string | null
           competitor_price: number | null
+          competitor_zone: string | null
           created_at: string | null
           deviation_from_market_pct: number | null
           error_message: string | null
@@ -296,8 +298,10 @@ export type Database = {
           asset?: string | null
           calculated_price?: number | null
           calculated_ratio?: number | null
+          competitor_badges?: string[] | null
           competitor_merchant?: string | null
           competitor_price?: number | null
+          competitor_zone?: string | null
           created_at?: string | null
           deviation_from_market_pct?: number | null
           error_message?: string | null
@@ -316,8 +320,10 @@ export type Database = {
           asset?: string | null
           calculated_price?: number | null
           calculated_ratio?: number | null
+          competitor_badges?: string[] | null
           competitor_merchant?: string | null
           competitor_price?: number | null
+          competitor_zone?: string | null
           created_at?: string | null
           deviation_from_market_pct?: number | null
           error_message?: string | null
@@ -349,10 +355,14 @@ export type Database = {
           assets: string[] | null
           auto_pause_after_deviations: number | null
           check_interval_seconds: number | null
+          competitor_badges: string[]
+          competitor_mode: string
+          competitor_zone: string
           consecutive_deviations: number | null
           consecutive_errors: number | null
           created_at: string | null
           exchange_account_id: string
+          exclude_merchants: string[]
           fallback_merchants: string[] | null
           fiat: string
           id: string
@@ -395,10 +405,14 @@ export type Database = {
           assets?: string[] | null
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
+          competitor_badges?: string[]
+          competitor_mode?: string
+          competitor_zone?: string
           consecutive_deviations?: number | null
           consecutive_errors?: number | null
           created_at?: string | null
           exchange_account_id?: string
+          exclude_merchants?: string[]
           fallback_merchants?: string[] | null
           fiat?: string
           id?: string
@@ -441,10 +455,14 @@ export type Database = {
           assets?: string[] | null
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
+          competitor_badges?: string[]
+          competitor_mode?: string
+          competitor_zone?: string
           consecutive_deviations?: number | null
           consecutive_errors?: number | null
           created_at?: string | null
           exchange_account_id?: string
+          exclude_merchants?: string[]
           fallback_merchants?: string[] | null
           fiat?: string
           id?: string

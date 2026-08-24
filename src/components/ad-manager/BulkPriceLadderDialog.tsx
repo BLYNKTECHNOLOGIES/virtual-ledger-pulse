@@ -69,6 +69,7 @@ export function buildLadderGroups(
   ads: BinanceAd[],
   anchorAsset: string,
   anchorTop: number,
+  /** live INR index price per asset (spot × USDT/INR) */
   prices: Record<string, number | null>,
   adjuster: number,
 ): LadderGroup[] {
@@ -83,12 +84,8 @@ export function buildLadderGroups(
 
   for (const [k, groupAds] of groups) {
     const [asset, side] = k.split('|');
-    const index = prices[k] ?? null;
-    // Anchor reference price for the same side — falls back to any side of the anchor.
-    const anchorIndex =
-      prices[key(anchorAsset, side)] ??
-      Object.entries(prices).find(([pk, v]) => pk.startsWith(`${anchorAsset}|`) && v)?.[1] ??
-      null;
+    const index = prices[asset] ?? null;
+    const anchorIndex = prices[anchorAsset] ?? null;
 
     const hasFloating = groupAds.some((a) => a.priceType === 2);
     const hasFixed = groupAds.some((a) => a.priceType !== 2);

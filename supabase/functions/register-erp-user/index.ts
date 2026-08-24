@@ -104,11 +104,15 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ── Create the Supabase auth user (so they can log in once approved) ──
+    // ── Create the Supabase auth user, BANNED until an admin approves ──
+    // A pending account must never be able to obtain a session: any authenticated
+    // session grants broad internal ERP data access. The ban is lifted by
+    // approve-erp-registration once a Super Admin approves the registration.
     const { data: authUser, error: authError } = await adminClient.auth.admin.createUser({
       email: normalizedEmail,
       password,
       email_confirm: true,
+      ban_duration: "876000h", // ~100 years; lifted on approval
     });
 
     if (authError || !authUser?.user) {

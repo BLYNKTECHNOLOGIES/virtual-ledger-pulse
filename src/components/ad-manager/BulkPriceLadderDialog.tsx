@@ -93,51 +93,87 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
     setStep('confirm');
   };
 
+  /** Applies one rung; resolves on success, throws on failure. */
+  const applyRung = async (rung: Rung) => {
+    const { ad, floating, current, next } = rung;
+    const tradeMethods = (ad.tradeMethods || []).map((m) => ({
+      payType: m.payType,
+      identifier: m.identifier,
+      ...(m.payId ? { payId: m.payId } : {}),
+    }));
+
+    await new Promise<void>((resolve, reject) => {
+      updateAd.mutate({
+        advNo: ad.advNo,
+        exchange_account_id: ad._exchangeAccountId,
+        asset: ad.asset,
+        fiatUnit: ad.fiatUnit,
+        tradeType: ad.tradeType,
+        priceType: floating ? 2 : 1,
+        initAmount: ad.initAmount,
+        surplusAmount: ad.surplusAmount,
+        minSingleTransAmount: ad.minSingleTransAmount,
+        maxSingleTransAmount: ad.maxSingleTransAmount,
+        ...(floating
+          ? { priceFloatingRatio: next, oldRatio: current }
+          : { price: next, oldPrice: current }),
+        tradeMethods,
+        payTimeLimit: ad.payTimeLimit || 15,
+      }, {
+        onSuccess: () => resolve(),
+        onError: (e) => reject(e),
+      });
+    });
+  };
+
+  /**
+   * Multi-pass execution.
+   * Binance rejects a price that overlaps another of our live ads — so a rung can
+   * legitimately fail only because a LOWER rung hasn't moved out of the way yet.
+   * We therefore run the whole ladder top-down, then keep re-attempting the failed
+   * rungs in further passes (they usually clear once the blocking ad has moved).
+   * Passes stop when nothing fails, or when a pass makes no progress at all.
+   */
   const executeUpdates = async () => {
     setStep('executing');
-    const initial: RungResult[] = ladder.map((r) => ({ ...r, status: 'pending' }));
-    setResults(initial);
+    setResults(ladder.map((r) => ({ ...r, status: 'pending' })));
 
-    for (let i = 0; i < ladder.length; i++) {
-      const { ad, floating, current, next } = ladder[i];
-      if (i > 0) await new Promise((r) => setTimeout(r, 300));
+    let queue = ladder.map((_, i) => i);
+    const MAX_PASSES = 4;
 
-      try {
-        const tradeMethods = (ad.tradeMethods || []).map((m) => ({
-          payType: m.payType,
-          identifier: m.identifier,
-          ...(m.payId ? { payId: m.payId } : {}),
-        }));
+    for (let pass = 1; pass <= MAX_PASSES && queue.length > 0; pass++) {
+      const stillFailing: number[] = [];
 
-        await new Promise<void>((resolve, reject) => {
-          updateAd.mutate({
-            advNo: ad.advNo,
-            exchange_account_id: ad._exchangeAccountId,
-            asset: ad.asset,
-            fiatUnit: ad.fiatUnit,
-            tradeType: ad.tradeType,
-            priceType: floating ? 2 : 1,
-            initAmount: ad.initAmount,
-            surplusAmount: ad.surplusAmount,
-            minSingleTransAmount: ad.minSingleTransAmount,
-            maxSingleTransAmount: ad.maxSingleTransAmount,
-            ...(floating
-              ? { priceFloatingRatio: next, oldRatio: current }
-              : { price: next, oldPrice: current }),
-            tradeMethods,
-            payTimeLimit: ad.payTimeLimit || 15,
-          }, {
-            onSuccess: () => resolve(),
-            onError: (e) => reject(e),
-          });
-        });
-        setResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: 'success' } : r)));
-      } catch (e: any) {
-        setResults((prev) => prev.map((r, idx) => (idx === i ? { ...r, status: 'error', message: e?.message || 'Failed' } : r)));
+      for (let q = 0; q < queue.length; q++) {
+        const i = queue[q];
+        if (pass > 1 || q > 0) await new Promise((r) => setTimeout(r, 300));
+        if (pass > 1) {
+          setResults((prev) => prev.map((r, idx) =>
+            idx === i ? { ...r, status: 'pending', message: `Retry ${pass - 1}…` } : r));
+        }
+        try {
+          await applyRung(ladder[i]);
+          setResults((prev) => prev.map((r, idx) =>
+            idx === i ? { ...r, status: 'success', message: pass > 1 ? `OK on retry ${pass - 1}` : undefined } : r));
+        } catch (e: any) {
+          stillFailing.push(i);
+          const msg = e?.message || 'Failed';
+          setResults((prev) => prev.map((r, idx) =>
+            idx === i ? { ...r, status: 'error', message: msg } : r));
+        }
       }
+
+      // No progress this pass — further passes would repeat the same failures.
+      if (stillFailing.length === queue.length && pass > 1) {
+        queue = stillFailing;
+        break;
+      }
+      queue = stillFailing;
     }
+
     setStep('done');
   };
+
 
   const successCount = results.filter((r) => r.status === 'success').length;
   const failCount = results.filter((r) => r.status === 'error').length;

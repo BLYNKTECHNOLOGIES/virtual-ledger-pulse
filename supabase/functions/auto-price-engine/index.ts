@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireCaller } from "../_shared/require-caller.ts";
+import { advertiserBadges } from "../_shared/adZone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -927,14 +928,6 @@ async function searchP2P(asset: string, fiat: string, tradeType: string, zone: s
     if (items.length < 20) break;
   }
   return { data: allData };
-}
-
-/** Badges carried by an advertiser, normalized (Block / Shield / Ordinary) */
-function advertiserBadges(item: any): string[] {
-  const raw: string[] = Array.isArray(item?.advertiser?.badges) ? item.advertiser.badges : [];
-  const set = new Set(raw.map((b) => String(b).trim()).filter(Boolean));
-  if (String(item?.advertiser?.userIdentity || "").toUpperCase() === "BLOCK_MERCHANT") set.add("Block");
-  return Array.from(set);
 }
 
 function isAdvertiserOnline(item: any): boolean {

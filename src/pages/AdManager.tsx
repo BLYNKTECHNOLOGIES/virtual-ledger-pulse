@@ -271,44 +271,50 @@ export default function AdManager() {
         description="Manage your Binance P2P merchant ads"
         actions={
           <>
-            <div className="flex items-center gap-1.5 mr-1">
-              <Switch id="ad-auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
-              <Label htmlFor="ad-auto-refresh" className="text-xs text-muted-foreground cursor-pointer">Auto 30s</Label>
+            {/* Toolbar row — keeps the switch + icon actions on ONE line on mobile */}
+            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-start">
+              <div className="flex items-center gap-1.5">
+                <Switch id="ad-auto-refresh" checked={autoRefresh} onCheckedChange={setAutoRefresh} />
+                <Label htmlFor="ad-auto-refresh" className="text-xs text-muted-foreground cursor-pointer">Auto 30s</Label>
+              </div>
+              <div className="flex items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => refetch()}
+                  disabled={isFetching}
+                  title="Sync ads from Binance"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={handleCopyLink}
+                  title="Copy shareable link to this view"
+                >
+                  <Link2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => setZoneBookOpen(true)}
+                  title="Zone Book — compare the P2P and Block order books"
+                >
+                  <Layers className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => refetch()}
-              disabled={isFetching}
-              title="Sync ads from Binance"
-            >
-              <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={handleCopyLink}
-              title="Copy shareable link to this view"
-            >
-              <Link2 className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-              onClick={() => setZoneBookOpen(true)}
-              title="Zone Book — compare the P2P and Block order books"
-            >
-              <Layers className="h-4 w-4" />
-            </Button>
-            <Button size="sm" onClick={handleCreate}>
+            <Button size="sm" onClick={handleCreate} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-1.5" />
               Create Ad
             </Button>
           </>
         }
+
       />
 
       {/* Condensed command strip — rest timer + merchant state in one slim row */}

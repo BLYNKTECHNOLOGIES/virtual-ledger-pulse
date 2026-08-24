@@ -17,12 +17,12 @@ const DEFAULT_ASSETS = ['USDT', 'BTC', 'ETH', 'BNB', 'USDC'];
 export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefreshing, assetOptions }: AdManagerFiltersProps) {
   const assets = Array.from(new Set([...DEFAULT_ASSETS, ...(assetOptions || [])])).sort();
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
       <Select
         value={filters.asset || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, asset: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="h-9 w-[130px]">
+        <SelectTrigger className="h-9 w-full sm:w-[130px]">
           <SelectValue placeholder="Asset" />
         </SelectTrigger>
         <SelectContent>
@@ -38,7 +38,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.tradeType || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, tradeType: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="h-9 w-[130px]">
+        <SelectTrigger className="h-9 w-full sm:w-[130px]">
           <SelectValue placeholder="Trade Type" />
         </SelectTrigger>
         <SelectContent>
@@ -52,7 +52,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.advStatus !== null && filters.advStatus !== undefined ? String(filters.advStatus) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, advStatus: v === 'all' ? null : Number(v), page: 1 })}
       >
-        <SelectTrigger className="h-9 w-[130px]">
+        <SelectTrigger className="h-9 w-full sm:w-[130px]">
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -67,7 +67,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.zone || 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, zone: v === 'all' ? '' : v, page: 1 })}
       >
-        <SelectTrigger className="h-9 w-[140px]">
+        <SelectTrigger className="h-9 w-full sm:w-[140px]">
           <SelectValue placeholder="Zone" />
         </SelectTrigger>
         <SelectContent>
@@ -81,7 +81,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
         value={filters.priceType !== null && filters.priceType !== undefined ? String(filters.priceType) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, priceType: v === 'all' ? null : Number(v), page: 1 })}
       >
-        <SelectTrigger className="h-9 w-[140px]">
+        <SelectTrigger className="h-9 w-full sm:w-[140px]">
           <SelectValue placeholder="Price Type" />
         </SelectTrigger>
         <SelectContent>
@@ -92,26 +92,36 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
       </Select>
 
 
-      <Input
-        type="date"
-        value={filters.startDate || ''}
-        onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value, page: 1 })}
-        className="h-9 w-[150px]"
-        placeholder="Start Date"
-      />
-      <span className="text-muted-foreground">→</span>
-      <Input
-        type="date"
-        value={filters.endDate || ''}
-        onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value, page: 1 })}
-        className="h-9 w-[150px]"
-        placeholder="End Date"
-      />
+      <div className="col-span-2 flex items-end gap-2 sm:contents">
+        <div className="min-w-0 flex-1 space-y-1 sm:flex-none">
+          <label htmlFor="ad-start-date" className="block text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">From</label>
+          <Input
+            id="ad-start-date"
+            type="date"
+            value={filters.startDate || ''}
+            onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value, page: 1 })}
+            className="h-9 w-full text-foreground sm:w-[150px]"
+            aria-label="Start date"
+          />
+        </div>
+        <span className="pb-2 text-muted-foreground sm:pb-0">→</span>
+        <div className="min-w-0 flex-1 space-y-1 sm:flex-none">
+          <label htmlFor="ad-end-date" className="block text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">To</label>
+          <Input
+            id="ad-end-date"
+            type="date"
+            value={filters.endDate || ''}
+            onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value, page: 1 })}
+            className="h-9 w-full text-foreground sm:w-[150px]"
+            aria-label="End date"
+          />
+        </div>
+      </div>
 
       <Button
         variant="outline"
         size="sm"
-        className="h-9"
+        className="h-9 flex-1 sm:flex-none"
         onClick={() => onFiltersChange({ page: 1, rows: 50, fetchAll: filters.fetchAll })}
       >
         Reset

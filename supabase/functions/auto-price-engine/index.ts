@@ -774,7 +774,8 @@ async function logAndUpdate(rule: any, supabase: any, logData: any) {
   }).eq("id", rule.id);
 }
 
-async function searchP2P(asset: string, fiat: string, tradeType: string) {
+async function searchP2P(asset: string, fiat: string, tradeType: string, zone: string = "p2p") {
+  const classifies = zone === "block" ? ["block"] : ["mass", "profession"];
   const allData: any[] = [];
   for (let page = 1; page <= 25; page++) {
     const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
@@ -788,6 +789,7 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
         rows: 20,
         publisherType: "merchant",
         payTypes: [],
+        classifies,
       }),
     });
     const pageData = await resp.json();
@@ -797,6 +799,21 @@ async function searchP2P(asset: string, fiat: string, tradeType: string) {
   }
   return { data: allData };
 }
+
+/** Badges carried by an advertiser, normalized (Block / Shield / Ordinary) */
+function advertiserBadges(item: any): string[] {
+  const raw: string[] = Array.isArray(item?.advertiser?.badges) ? item.advertiser.badges : [];
+  const set = new Set(raw.map((b) => String(b).trim()).filter(Boolean));
+  if (String(item?.advertiser?.userIdentity || "").toUpperCase() === "BLOCK_MERCHANT") set.add("Block");
+  return Array.from(set);
+}
+
+function isAdvertiserOnline(item: any): boolean {
+  const onlineField = item.advertiser?.isOnline;
+  const onlineStatus = item.advertiser?.userOnlineStatus;
+  return onlineField === true || onlineStatus === "online" || (onlineField === undefined && onlineStatus === undefined);
+}
+
 
 async function fetchCoinUsdtRate(asset: string): Promise<number> {
   const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");

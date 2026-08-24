@@ -1,0 +1,36 @@
+<!-- @dsCard group="Console" viewport="1280x760" name="Operations console" subtitle="Click-through: overview, devices with reboot dialog, settings — extrapolated" -->
+<!doctype html><html><head><meta charset="utf-8"><title>Blynk Virtual — Console kit</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>html,body{margin:0}</style></head>
+<body><template id="__bundler_thumbnail"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#000000"/><rect x="150" y="96" width="42" height="62" rx="9" fill="#4CBDE0"/><rect x="198" y="142" width="52" height="62" rx="9" fill="#00B4E8"/><text x="200" y="245" font-family="Montserrat,Helvetica,Arial,sans-serif" font-size="26" font-weight="700" letter-spacing="3" fill="#ffffff" text-anchor="middle">BLYNK</text></svg></template><div id="root"></div>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="OverviewScreen.jsx"></script>
+<script type="text/babel" src="DevicesScreen.jsx"></script>
+<script type="text/babel" src="SettingsScreen.jsx"></script>
+<script type="text/babel">
+const { Button, Toast, Card } = window.BlynkVirtualDesignSystem_efba8f;
+function App(){
+  const [view,setView]=React.useState('overview');
+  const [toast,setToast]=React.useState(null);
+  React.useEffect(()=>{ if(!toast) return; const t=setTimeout(()=>setToast(null),4000); return ()=>clearTimeout(t); },[toast]);
+  const actions = view==='devices'
+    ? <Button size="sm" iconLeft="plus" onClick={()=>setToast('Device onboarding started')}>Add device</Button>
+    : <Button size="sm" variant="secondary" iconLeft="download">Report</Button>;
+  const body = view==='devices' ? <DevicesScreen onToast={setToast}/>
+    : view==='settings' ? <SettingsScreen onToast={setToast}/>
+    : view==='overview' ? <OverviewScreen/>
+    : <Card padding={28}><h3 style={{fontSize:'var(--text-lg)'}}>{view==='alerts'?'Alerts':'Automations'}</h3>
+        <p style={{font:'var(--type-body-sm)',color:'var(--text-muted)',marginTop:8}}>
+          Intentionally blank — no source material was supplied for this view.</p></Card>;
+  return (<>
+    <Shell view={view} onView={setView} actions={actions}>{body}</Shell>
+    {toast ? <div style={{position:'fixed',right:24,bottom:24,zIndex:80}}>
+      <Toast tone="success" icon="check-circle" onDismiss={()=>setToast(null)}>{toast}</Toast></div> : null}
+  </>);
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>

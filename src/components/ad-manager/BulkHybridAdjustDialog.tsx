@@ -5,6 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertTriangle, CheckCircle, XCircle, Loader2, Info } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
+import { adZone, zonesOf } from '@/lib/adZone';
+
 import { useUSDTRate } from '@/hooks/useUSDTRate';
 import { useHybridPriceAdjuster } from '@/hooks/useHybridPriceAdjuster';
 import { useToast } from '@/hooks/use-toast';
@@ -42,6 +44,9 @@ export function BulkHybridAdjustDialog({ open, onOpenChange, ads, onComplete }: 
 
   const fixedAds = useMemo(() => ads.filter(a => a.priceType === 1), [ads]);
   const floatingAds = useMemo(() => ads.filter(a => a.priceType === 2), [ads]);
+  const zones = useMemo(() => zonesOf(ads), [ads]);
+  const blockCount = useMemo(() => ads.filter(a => adZone(a) === 'block').length, [ads]);
+
 
   const calculation = useMemo(() => {
     const target = parseFloat(targetPrice);
@@ -163,6 +168,23 @@ export function BulkHybridAdjustDialog({ open, onOpenChange, ads, onComplete }: 
                 <p className="font-medium">{floatingAds.length}</p>
               </div>
             </div>
+
+            <div className="text-xs text-muted-foreground tabular-nums">
+              Zones — {ads.length - blockCount} P2P / {blockCount} Block
+            </div>
+
+            {zones.length > 1 && (
+              <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-xs">
+                <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                <p>
+                  Selection mixes P2P-zone and Block-zone ads. These are separate order books trading at
+                  different price levels — the same target price will be written to both. Apply per zone
+                  instead if the books are not aligned.
+                </p>
+              </div>
+            )}
+
+
 
             <div className={`rounded-lg p-3 flex items-center gap-2 text-sm ${rateData?.isFallback ? 'bg-destructive/10 border border-destructive/30' : 'bg-muted/50'}`}>
               <Info className={`h-4 w-4 shrink-0 ${rateData?.isFallback ? 'text-destructive' : 'text-muted-foreground'}`} />

@@ -64,6 +64,20 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
       </Select>
 
       <Select
+        value={filters.zone || 'all'}
+        onValueChange={(v) => onFiltersChange({ ...filters, zone: v === 'all' ? '' : v, page: 1 })}
+      >
+        <SelectTrigger className="h-9 w-[140px]">
+          <SelectValue placeholder="Zone" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All Zones</SelectItem>
+          <SelectItem value="p2p">P2P zone</SelectItem>
+          <SelectItem value="block">Block zone</SelectItem>
+        </SelectContent>
+      </Select>
+
+      <Select
         value={filters.priceType !== null && filters.priceType !== undefined ? String(filters.priceType) : 'all'}
         onValueChange={(v) => onFiltersChange({ ...filters, priceType: v === 'all' ? null : Number(v), page: 1 })}
       >
@@ -76,6 +90,7 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
           <SelectItem value="2">Floating</SelectItem>
         </SelectContent>
       </Select>
+
 
       <Input
         type="date"

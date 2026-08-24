@@ -2,6 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Edit, Percent, Power, PowerOff, X, Blend, ShieldAlert, ListChecks, CreditCard, ArrowDownWideNarrow } from 'lucide-react';
 import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { adZone, zonesOf } from '@/lib/adZone';
+
 
 interface BulkActionToolbarProps {
   selectedAds: BinanceAd[];
@@ -43,13 +45,20 @@ export function BulkActionToolbar({
   const sellCount = selectedAds.filter(ad => ad.tradeType === 'SELL').length;
   const someButNotAll = typeof totalAds === 'number' && selectedAds.length > 0 && selectedAds.length < totalAds;
 
+  const zones = zonesOf(selectedAds);
+  const blockCount = selectedAds.filter(ad => adZone(ad) === 'block').length;
+  const singleZone = zones.length <= 1;
+
   const singleSide = buyCount === 0 || sellCount === 0;
-  const ladderReady = selectedAds.length >= 2 && singleSide;
+  const ladderReady = selectedAds.length >= 2 && singleSide && singleZone;
   const ladderReason = selectedAds.length < 2
     ? 'Select at least 2 ads'
     : !singleSide
       ? 'Select ads of a single side — buy and sell ads cannot be laddered together'
-      : 'Step selected ads down in 0.51 increments from a top fixed rate (per asset group)';
+      : !singleZone
+        ? 'Select ads of a single market zone — P2P-zone and Block-zone ads trade at different price levels and cannot be laddered together'
+        : 'Step selected ads down in 0.51 increments from a top fixed rate (per asset group)';
+
 
 
 
@@ -62,6 +71,15 @@ export function BulkActionToolbar({
       <span className="text-xs text-muted-foreground tabular-nums">
         {buyCount} buy / {sellCount} sell
       </span>
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {selectedAds.length - blockCount} P2P / {blockCount} Block
+      </span>
+      {!singleZone && (
+        <Badge variant="outline" className="text-[10px] text-warning border-warning/40">
+          Mixed zones
+        </Badge>
+      )}
+
 
       {someButNotAll && onSelectAll && (
         <Button variant="ghost" size="sm" onClick={onSelectAll} className="text-primary">

@@ -2028,52 +2028,109 @@ serve(async (req) => {
       }
 
       case "searchP2PMerchant": {
-        // Public Binance P2P search — no proxy auth needed
-        // Fetch up to 500 listings (25 pages of 20) to find merchants placed lower
-        // The raw API includes many small/unverified accounts the Binance website filters out
+        // Public Binance P2P search — no proxy auth needed.
+        //
+        // Zone is chosen by `classifies`:
+        //   p2p   -> ["mass","profession"]   (the mixed P2P zone)
+        //   block -> ["block"]               (the separate Block Trade zone)
+        // `shieldMerchantAds` is only a badge filter INSIDE a zone, never a zone switch.
+        //
+        // The crawl exits early once the requested target/badged rows are found so we
+        // don't burn 25 pages (and rate limit) on every call.
         const binanceTradeType = payload.tradeType === "BUY" ? "SELL" : "BUY";
+        const zone = String(payload.zone || "p2p").toLowerCase() === "block" ? "block" : "p2p";
+        const classifies = zone === "block" ? ["block"] : ["mass", "profession"];
+        const maxPages = Math.min(Math.max(Number(payload.maxPages) || 25, 1), 25);
+        const wantedBadges: string[] = (Array.isArray(payload.badges) ? payload.badges : [])
+          .map((b: string) => String(b).trim().toLowerCase())
+          .filter(Boolean);
+        const targetNick = payload.nickname ? String(payload.nickname).trim().toLowerCase() : null;
+
+        /** Badges carried by an advertiser (identity implies the Block badge). */
+        const advertiserBadges = (item: any): string[] => {
+          const raw: string[] = Array.isArray(item?.advertiser?.badges) ? item.advertiser.badges : [];
+          const set = new Set(raw.map((b: string) => String(b).trim()).filter(Boolean));
+          if (String(item?.advertiser?.userIdentity || "").toUpperCase() === "BLOCK_MERCHANT") set.add("Block");
+          return Array.from(set);
+        };
+
+        const searchBody: Record<string, any> = {
+          asset: payload.asset || "USDT",
+          fiat: payload.fiat || "INR",
+          tradeType: binanceTradeType,
+          rows: 20,
+          publisherType: payload.publisherType === null ? null : (payload.publisherType || "merchant"),
+          payTypes: Array.isArray(payload.payTypes) ? payload.payTypes : [],
+          classifies,
+        };
+        if (payload.minAmount) searchBody.transAmount = String(payload.minAmount);
+        if (payload.shieldMerchantAds === true) searchBody.shieldMerchantAds = true;
+
         const allItems: any[] = [];
-        for (let pg = 1; pg <= 25; pg++) {
+        let pagesFetched = 0;
+        for (let pg = 1; pg <= maxPages; pg++) {
           const searchResp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              asset: payload.asset || "USDT",
-              fiat: payload.fiat || "INR",
-              tradeType: binanceTradeType,
-              page: pg,
-              rows: 20,
-              publisherType: "merchant",
-              payTypes: [],
-            }),
+            body: JSON.stringify({ ...searchBody, page: pg }),
           });
           const pgData = await searchResp.json();
           const items = pgData?.data || [];
           allItems.push(...items);
+          pagesFetched = pg;
           if (items.length < 20) break;
+
+          // Early exit — we already have what the caller asked for.
+          if (targetNick && allItems.some((i: any) =>
+            String(i.advertiser?.nickName || "").trim().toLowerCase() === targetNick)) break;
+          if (!targetNick && wantedBadges.length > 0 && allItems.some((i: any) =>
+            advertiserBadges(i).some((b) => wantedBadges.includes(b.toLowerCase())))) break;
         }
+
         const allMerchants = allItems.map((item: any) => ({
           nickName: item.advertiser?.nickName,
           price: item.adv?.price,
           surplusAmount: item.adv?.surplusAmount,
           tradeType: item.adv?.tradeType,
           asset: item.adv?.asset,
+          fiatUnit: item.adv?.fiatUnit,
           completionRate: item.advertiser?.monthFinishRate,
           orderCount: item.advertiser?.monthOrderCount,
           userType: item.advertiser?.userType,
           isOnline: item.advertiser?.isOnline,
+          // Merchant level + badge intelligence (live Binance fields only)
+          userIdentity: item.advertiser?.userIdentity || null,
+          badges: advertiserBadges(item),
+          vipLevel: item.advertiser?.vipLevel ?? null,
+          userNo: item.advertiser?.userNo || null,
+          // Ad-side context
+          classify: item.adv?.classify || null,
+          zone: String(item.adv?.classify || "").toLowerCase() === "block" ? "block" : "p2p",
+          priceType: item.adv?.priceType ?? null,
+          minSingleTransAmount: item.adv?.minSingleTransAmount ?? null,
+          maxSingleTransAmount: item.adv?.maxSingleTransAmount ?? null,
+          payTypes: (item.adv?.tradeMethods || []).map((m: any) => m?.identifier).filter(Boolean),
         }));
 
-        if (payload.nickname) {
+        const meta = { zone, classifies, pagesFetched, count: allMerchants.length };
+
+        if (targetNick) {
           const target = allMerchants.find((m: any) =>
-            m.nickName?.toLowerCase() === payload.nickname.toLowerCase()
+            String(m.nickName || "").trim().toLowerCase() === targetNick
           );
-          result = { merchants: allMerchants, target: target || null };
+          result = { merchants: allMerchants, target: target || null, ...meta };
+        } else if (wantedBadges.length > 0) {
+          const topBadged = allMerchants.find((m: any) =>
+            (m.badges || []).some((b: string) => wantedBadges.includes(String(b).toLowerCase()))
+          );
+          result = { merchants: allMerchants, topBadged: topBadged || null, ...meta };
         } else {
-          result = { merchants: allMerchants };
+          result = { merchants: allMerchants, ...meta };
         }
         break;
       }
+
+
 
       default:
         return new Response(

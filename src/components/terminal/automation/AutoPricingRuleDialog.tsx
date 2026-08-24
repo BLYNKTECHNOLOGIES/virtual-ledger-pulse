@@ -183,6 +183,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setTradeType('BUY'); setPriceType('FIXED');
       setPriorityMerchants(['']);
+      setCompetitorZone('p2p'); setCompetitorMode('nickname');
+      setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');
+
       setOnlyOnline(false); setPauseNoMerchant(false);
       setOffsetDirection('UNDERCUT');
       setMaxDeviation('5'); setMaxPriceChange(''); setMaxRatioChange('');

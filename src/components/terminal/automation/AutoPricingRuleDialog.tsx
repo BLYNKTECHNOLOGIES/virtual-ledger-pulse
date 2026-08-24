@@ -294,6 +294,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       price_type: priceType,
       target_merchant: primaryMerchant,
       fallback_merchants: fallbackMerchants,
+      competitor_zone: competitorZone,
+      competitor_mode: competitorMode,
+      competitor_badges: competitorMode === 'top_badged' ? competitorBadges : [],
+      exclude_merchants: excludeMerchants.split(',').map(s => s.trim()).filter(Boolean),
+
       ad_numbers: allAdNumbers,
       offset_direction: offsetDirection,
       offset_amount: 0, // defaults; per-asset overrides in asset_config

@@ -97,6 +97,20 @@ export function BulkActionToolbar({
         Adjust Floating %
       </Button>
 
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onBulkPriceLadder}
+        disabled={!ladderReady}
+        title={ladderReason}
+        className="text-foreground border-border disabled:text-muted-foreground"
+      >
+        <ArrowDownWideNarrow className="h-3.5 w-3.5 mr-1.5" />
+        Price Ladder
+      </Button>
+
+
+
       {hasMix && (
         <Button variant="outline" size="sm" onClick={onBulkHybridAdjust} className="text-foreground border-border">
           <Blend className="h-3.5 w-3.5 mr-1.5" />

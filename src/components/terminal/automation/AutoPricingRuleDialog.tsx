@@ -626,6 +626,23 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                 Per-Asset Config ({totalAds} ads across {selectedAssets.length} assets)
               </AccordionTrigger>
               <AccordionContent className="px-1">
+                {mismatchedZoneAds.length > 0 && (
+                  <div className="mb-3 rounded-md border border-warning/30 bg-warning/10 p-3 text-xs space-y-1">
+                    <p className="font-medium text-foreground">
+                      {mismatchedZoneAds.length} selected ad(s) are not in the {ZONE_LABEL[competitorZone as 'p2p' | 'block']}
+                    </p>
+                    <p className="text-muted-foreground">
+                      {enforceZoneMatch
+                        ? 'The engine will skip these ads and log a zone_mismatch entry, so they will never be repriced by this rule.'
+                        : 'Zone enforcement is OFF — these ads would be repriced against a different order book. Turn on "Only price ads in the targeted zone" or deselect them.'}
+                    </p>
+                    <p className="t-mono text-muted-foreground">
+                      {mismatchedZoneAds.slice(0, 6).map(ad => `…${ad.advNo.slice(-8)} (${ZONE_SHORT[adZone(ad)]})`).join(', ')}
+                      {mismatchedZoneAds.length > 6 ? ` +${mismatchedZoneAds.length - 6} more` : ''}
+                    </p>
+                  </div>
+                )}
+
                 <Tabs value={activeAssetTab} onValueChange={setActiveAssetTab}>
                   <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 mb-3">
                     {selectedAssets.map(asset => {

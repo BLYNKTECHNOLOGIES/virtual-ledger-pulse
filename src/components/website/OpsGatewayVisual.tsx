@@ -7,8 +7,8 @@
  * `prefers-reduced-motion: no-preference` (see index.css).
  */
 
-const INDIGO = 'hsl(231 81% 62%)';
-const PURPLE = 'hsl(265 80% 64%)';
+const INDIGO = 'hsl(193 100% 52%)';
+const PURPLE = 'hsl(194 70% 68%)';
 
 // Bezier streams connecting the ₹ side (left) to the ₮ side (right).
 const STREAMS = [
@@ -40,8 +40,8 @@ export function OpsGatewayVisual() {
         }}
       />
       {/* Quiet brand wash */}
-      <div className="absolute -top-32 left-1/3 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/12 blur-[150px]" />
-      <div className="absolute bottom-[-8rem] right-0 h-[30rem] w-[30rem] rounded-full bg-[hsl(265_80%_58%)]/10 blur-[150px]" />
+      <div className="absolute -top-32 left-1/3 h-[36rem] w-[36rem] -translate-x-1/2 rounded-full bg-[hsl(193_100%_45%)]/12 blur-[150px]" />
+      <div className="absolute bottom-[-8rem] right-0 h-[30rem] w-[30rem] rounded-full bg-[hsl(194_70%_59%)]/10 blur-[150px]" />
 
       {/* Settlement streams */}
       <svg

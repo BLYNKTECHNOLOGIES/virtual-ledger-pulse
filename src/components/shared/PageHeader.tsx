@@ -17,9 +17,10 @@ export function PageHeader({ title, description, actions, className }: PageHeade
   return (
     <div className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4", className)}>
       <div className="min-w-0 max-w-full">
-        <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-foreground">
+        <h1 className="t-page-title">
           {title}
         </h1>
+
         {description && (
           <p className="text-sm text-muted-foreground mt-1 max-w-prose">{description}</p>
         )}

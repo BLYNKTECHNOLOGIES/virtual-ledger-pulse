@@ -20,11 +20,12 @@ export function MetricCard({ title, value, change, trend, icon: Icon }: MetricCa
         <Icon className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
-        <div className={`text-2xl font-bold ${flash}`}>{value}</div>
-        <p className={`text-xs ${trend === 'up' ? 'text-success' : 'text-destructive'}`}>
+        <div className={`t-kpi ${flash}`}>{value}</div>
+        <p className={`t-secondary ${trend === 'up' ? 'text-success' : 'text-destructive'}`}>
           {change} from last month
         </p>
       </CardContent>
+
     </Card>
   );
 }

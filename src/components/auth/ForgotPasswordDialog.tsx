@@ -110,16 +110,16 @@ export function ForgotPasswordDialog({ open, onOpenChange, defaultEmail = '' }: 
   };
 
   const fieldClass =
-    "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40";
+    "h-11 border-white/10 bg-white/5 text-white placeholder:text-white/35 focus-visible:border-[hsl(193_100%_52%)] focus-visible:ring-[hsl(193_100%_52%)]/40";
   const primaryBtn =
-    "h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]";
+    "h-11 w-full bg-gradient-to-r from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] font-medium text-white shadow-lg shadow-[hsl(194_100%_38%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]";
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md border-white/10 bg-[hsl(231_45%_7%)] text-white backdrop-blur-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-white">
-            <KeyRound className="h-4 w-4 text-[hsl(231_81%_75%)]" />
+            <KeyRound className="h-4 w-4 text-[hsl(195_91%_82%)]" />
             Reset Password
           </DialogTitle>
           <DialogDescription className="text-xs text-white/55">

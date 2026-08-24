@@ -20,9 +20,12 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
-				inter: ['Inter', 'sans-serif'],
+				sans: ['Manrope', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+				display: ['Montserrat', 'Helvetica Neue', 'Arial', 'sans-serif'],
+				mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+				inter: ['Manrope', 'sans-serif'],
 			},
+
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -87,15 +90,18 @@ export default {
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				md: 'calc(var(--radius) - 4px)',
+				sm: 'calc(var(--radius) - 8px)',
+				xl: 'calc(var(--radius) + 6px)',
 			},
 			boxShadow: {
 				xs: 'var(--shadow-xs)',
 				sm: 'var(--shadow-sm)',
 				md: 'var(--shadow-md)',
 				lg: 'var(--shadow-lg)',
+				brand: 'var(--shadow-brand)',
 			},
+
 			keyframes: {
 				'accordion-down': {
 					from: {

@@ -91,8 +91,8 @@
   transform: rotateX(74deg) translateZ(-40px);
   transform-origin: 50% 100%;
   background-image:
-    linear-gradient(hsl(231 81% 65% / 0.35) 1.5px, transparent 1.5px),
-    linear-gradient(90deg, hsl(231 81% 65% / 0.35) 1.5px, transparent 1.5px);
+    linear-gradient(hsl(193 100% 52% / 0.35) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, hsl(193 100% 52% / 0.35) 1.5px, transparent 1.5px);
   background-size: 80px 80px;
   animation: floor-move 3.2s linear infinite;
   mask-image: radial-gradient(ellipse at 50% 30%, #000 15%, transparent 72%);
@@ -120,8 +120,8 @@
 }
 .cube .face {
   position: absolute; inset: 0;
-  border: 1px solid hsl(231 81% 75% / 0.55);
-  background: linear-gradient(135deg, hsl(231 81% 60% / 0.14), hsl(265 80% 60% / 0.08));
+  border: 1px solid hsl(195 91% 82% / 0.55);
+  background: linear-gradient(135deg, hsl(193 100% 52% / 0.14), hsl(194 70% 59% / 0.08));
   backdrop-filter: blur(1px);
 }
 .cube .f-front  { transform: translateZ(var(--h)); }
@@ -180,12 +180,12 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 @keyframes lsf-cta-bloom {
-  0%   { opacity: 0; transform: translateY(16px); box-shadow: 0 0 0 0 hsl(231 81% 55% / 0); }
-  100% { opacity: 1; transform: translateY(0);   box-shadow: 0 12px 34px -8px hsl(231 81% 52% / 0.45); }
+  0%   { opacity: 0; transform: translateY(16px); box-shadow: 0 0 0 0 hsl(193 100% 45% / 0); }
+  100% { opacity: 1; transform: translateY(0);   box-shadow: 0 12px 34px -8px hsl(194 100% 38% / 0.45); }
 }
 .lsf-hairline {
   transform-origin: left center;
-  background: linear-gradient(90deg, transparent, hsl(231 81% 72% / 0.9), hsl(265 80% 70% / 0.9), transparent);
+  background: linear-gradient(90deg, transparent, hsl(195 91% 82% / 0.9), hsl(194 70% 68% / 0.9), transparent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -211,14 +211,14 @@
   left: -10%;
   width: 65vw;
   height: 65vw;
-  background: radial-gradient(circle at 30% 30%, hsl(231 81% 55% / 0.9), transparent 68%);
+  background: radial-gradient(circle at 30% 30%, hsl(193 100% 45% / 0.9), transparent 68%);
 }
 .aurora-b {
   bottom: -22%;
   right: -12%;
   width: 70vw;
   height: 70vw;
-  background: radial-gradient(circle at 60% 40%, hsl(265 80% 58% / 0.85), transparent 68%);
+  background: radial-gradient(circle at 60% 40%, hsl(194 70% 59% / 0.85), transparent 68%);
 }
 .aurora-c {
   top: 25%;
@@ -252,140 +252,168 @@
 
 @layer base {
   :root {
-    /* Modern VASP Design System - BitPay Inspired */
-    /* Application canvas: #F6F8FC — cool off-white, almost imperceptible */
-    --background: 220 50% 98%;
-    --foreground: 220 16% 14%;
-    /* Primary surfaces stay pure white so cards lift off the canvas */
-    --card: 0 0% 100%;
-    --card-foreground: 220 16% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 16% 14%;
-    --primary: 231 81% 60%;
-    --primary-foreground: 0 0% 100%;
-    /* Secondary / subtle surfaces: #F1F4F9 */
-    --secondary: 220 33% 96%;
-    --secondary-foreground: 220 16% 14%;
-    --muted: 220 33% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 33% 96%;
-    --accent-foreground: 220 16% 14%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    /* Hairline borders: #E5E9F0 */
-    --border: 218 27% 92%;
-    --input: 218 27% 92%;
-    /* Extra surface tokens */
-    --surface-subtle: 220 43% 99%;   /* #FAFBFD — inputs, table headers, inner panels */
-    --surface-canvas: 220 50% 98%;   /* #F6F8FC */
-    --surface-elevated: 0 0% 100%;   /* modals, popovers, sticky heads */
+    /* ═══════════════════════════════════════════════════════
+       BLYNK VIRTUAL TECHNOLOGIES — Brand identity (light)
+       Cyan #00B4E8 · Sky #4CBDE0 · true-black ink
+       Cool-tinted neutral ramp, single saturated accent.
+       ═══════════════════════════════════════════════════════ */
 
-    --ring: 231 81% 60%;
-    
-    /* VASP specific colors */
-    --crypto-bitcoin: 36 100% 50%;
-    --crypto-ethereum: 214 100% 59%;
-    --success: 142 76% 36%;
-    --warning: 38 92% 50%;
-    --info: 199 89% 48%;
-    
-    /* Clean blue and white theme */
-    --metric-sales-icon: 142 76% 36%;
-    --metric-orders-icon: 262 83% 48%;
-    --metric-clients-icon: 221 83% 53%;
-    --metric-cash-icon: 35 91% 41%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.75rem;
-    /* Subtle enterprise elevation scale (neutral, low-opacity) */
-    --shadow-xs: 0 1px 2px 0 hsl(220 13% 18% / 0.04);
-    --shadow-sm: 0 1px 3px 0 hsl(220 13% 18% / 0.06), 0 1px 2px -1px hsl(220 13% 18% / 0.05);
-    --shadow-md: 0 4px 12px -2px hsl(220 13% 18% / 0.08), 0 2px 6px -2px hsl(220 13% 18% / 0.05);
-    --shadow-lg: 0 12px 28px -6px hsl(220 13% 18% / 0.12), 0 4px 10px -4px hsl(220 13% 18% / 0.07);
-    --sidebar-background: 220 43% 99%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* ── Brand primitives ── */
+    --blynk-cyan: 193 100% 45%;
+    --blynk-sky: 194 70% 59%;
+    --blynk-ink: 0 0% 0%;
+    --cyan-50: 195 91% 95%;
+    --cyan-100: 196 90% 87%;
+    --cyan-500: 193 100% 45%;
+    --cyan-600: 194 100% 38%;
+    --cyan-700: 194 100% 30%;
+
+    /* ── Canvas & surfaces (cool near-white, white cards) ── */
+    --background: 200 43% 99%;
+    --foreground: 210 15% 24%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 15% 24%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 15% 24%;
+    --surface-subtle: 204 29% 97%;
+    --surface-canvas: 200 43% 99%;
+    --surface-elevated: 0 0% 100%;
+
+    /* ── Accent: the only saturated colour in the system ── */
+    --primary: 193 100% 40%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 204 29% 97%;
+    --secondary-foreground: 210 15% 24%;
+    --muted: 207 24% 96%;
+    --muted-foreground: 211 12% 45%;
+    --accent: 195 91% 95%;
+    --accent-foreground: 194 100% 30%;
+
+    /* ── Semantic hues, chroma-matched to the cyan ── */
+    --destructive: 6 74% 47%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 154 81% 32%;
+    --warning: 40 79% 40%;
+    --info: 194 100% 38%;
+
+    /* ── Lines & focus ── */
+    --border: 207 24% 91%;
+    --input: 207 24% 91%;
+    --ring: 193 100% 45%;
+
+    /* Headings sit on true ink per the brand plate */
+    --heading: 210 18% 14%;
+
+    --crypto-bitcoin: 36 100% 45%;
+    --crypto-ethereum: 214 90% 52%;
+
+    /* Metric icons stay neutral-to-brand; colour carries meaning only */
+    --metric-sales-icon: 154 81% 32%;
+    --metric-orders-icon: 194 100% 38%;
+    --metric-clients-icon: 211 12% 45%;
+    --metric-cash-icon: 40 79% 40%;
+
+    --chart-1: 193 100% 45%;
+    --chart-2: 194 70% 59%;
+    --chart-3: 154 81% 32%;
+    --chart-4: 40 79% 50%;
+    --chart-5: 6 74% 53%;
+
+    /* Mark geometry: ~14% edge radius drives the radius system */
+    --radius: 0.875rem;
+
+    /* Cool-tinted elevation — never black, never coloured */
+    --shadow-xs: 0 1px 2px 0 hsl(207 20% 9% / 0.06);
+    --shadow-sm: 0 1px 2px 0 hsl(207 20% 9% / 0.05), 0 2px 6px 0 hsl(207 20% 9% / 0.05);
+    --shadow-md: 0 2px 4px 0 hsl(207 20% 9% / 0.05), 0 8px 20px 0 hsl(207 20% 9% / 0.07);
+    --shadow-lg: 0 4px 8px 0 hsl(207 20% 9% / 0.05), 0 18px 40px 0 hsl(207 20% 9% / 0.10);
+    --shadow-brand: 0 6px 20px hsl(var(--blynk-cyan) / 0.32);
+
+    /* ── Sidebar: a step deeper than the canvas ── */
+    --sidebar-background: 204 29% 97%;
+    --sidebar-foreground: 211 12% 45%;
+    --sidebar-primary: 193 100% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent-foreground: 194 100% 30%;
+    --sidebar-border: 207 24% 91%;
+    --sidebar-ring: 193 100% 45%;
   }
 
   .dark {
     /* ═══════════════════════════════════════════════════════
-       BLYNK ERP — Dark Theme (layered neutral slate)
-       canvas #0F1115 → surface #16191F → elevated #1D2128
-       borders #292E37 · text #F3F4F6 / #A7AFBC / #737C8A
+       BLYNK ERP — Dark theme (true-black brand plate)
+       canvas #0A0D10 → card #12171B → elevated #1E252B
        ═══════════════════════════════════════════════════════ */
-    --background: 220 13% 7%;
-    --foreground: 220 14% 96%;
+    --background: 210 23% 5%;
+    --foreground: 204 29% 97%;
 
     /* Surfaces */
-    --card: 220 16% 11%;
-    --card-foreground: 220 14% 96%;
-    --popover: 220 15% 13%;
-    --popover-foreground: 220 14% 96%;
-    --surface-subtle: 220 15% 13%;   /* inputs, table headers, inner panels */
-    --surface-canvas: 220 13% 7%;
-    --surface-elevated: 220 15% 15%; /* modals, dropdown hover, sticky heads */
+    --card: 207 20% 9%;
+    --card-foreground: 204 29% 97%;
+    --popover: 208 18% 14%;
+    --popover-foreground: 204 29% 97%;
+    --surface-subtle: 208 18% 12%;
+    --surface-canvas: 210 23% 5%;
+    --surface-elevated: 208 18% 16%;
 
     /* Accent */
-    --primary: 228 84% 67%;
-    --primary-foreground: 224 40% 10%;
-    --secondary: 220 15% 15%;
-    --secondary-foreground: 220 14% 92%;
-    --muted: 220 15% 14%;
-    --muted-foreground: 217 13% 68%;
-    --accent: 220 15% 17%;
-    --accent-foreground: 220 14% 96%;
+    --primary: 193 100% 50%;
+    --primary-foreground: 210 23% 5%;
+    --secondary: 208 18% 16%;
+    --secondary-foreground: 204 29% 95%;
+    --muted: 208 18% 14%;
+    --muted-foreground: 207 15% 68%;
+    --accent: 208 18% 18%;
+    --accent-foreground: 195 91% 88%;
 
     /* Semantic */
-    --destructive: 0 70% 58%;
+    --destructive: 6 74% 58%;
     --destructive-foreground: 0 0% 100%;
-    --success: 152 55% 47%;
-    --warning: 38 88% 58%;
-    --info: 205 82% 60%;
+    --success: 154 60% 44%;
+    --warning: 40 85% 58%;
+    --info: 193 100% 58%;
 
     /* Lines & focus */
-    --border: 220 14% 20%;
-    --input: 220 14% 22%;
-    --ring: 228 84% 67%;
+    --border: 210 15% 20%;
+    --input: 210 15% 24%;
+    --ring: 193 100% 50%;
 
-    /* Elevation — deeper, low-spread shadows on dark canvas */
-    --shadow-xs: 0 1px 2px 0 hsl(220 30% 2% / 0.5);
-    --shadow-sm: 0 1px 3px 0 hsl(220 30% 2% / 0.55), 0 1px 2px -1px hsl(220 30% 2% / 0.45);
-    --shadow-md: 0 4px 12px -2px hsl(220 30% 2% / 0.6), 0 2px 6px -2px hsl(220 30% 2% / 0.45);
-    --shadow-lg: 0 12px 28px -6px hsl(220 30% 2% / 0.68), 0 4px 10px -4px hsl(220 30% 2% / 0.5);
+    --heading: 0 0% 100%;
+
+    /* Elevation — deeper, low-spread shadows on the ink plate */
+    --shadow-xs: 0 1px 2px 0 hsl(210 40% 1% / 0.5);
+    --shadow-sm: 0 1px 3px 0 hsl(210 40% 1% / 0.55), 0 1px 2px -1px hsl(210 40% 1% / 0.45);
+    --shadow-md: 0 4px 12px -2px hsl(210 40% 1% / 0.6), 0 2px 6px -2px hsl(210 40% 1% / 0.45);
+    --shadow-lg: 0 12px 28px -6px hsl(210 40% 1% / 0.68), 0 4px 10px -4px hsl(210 40% 1% / 0.5);
+    --shadow-brand: 0 6px 20px hsl(var(--blynk-cyan) / 0.28);
 
     /* Crypto / metric icon accents */
     --crypto-bitcoin: 36 90% 58%;
     --crypto-ethereum: 214 80% 68%;
-    --metric-sales-icon: 152 55% 50%;
-    --metric-orders-icon: 262 60% 68%;
-    --metric-clients-icon: 221 75% 66%;
-    --metric-cash-icon: 35 80% 58%;
+    --metric-sales-icon: 154 60% 46%;
+    --metric-orders-icon: 193 100% 58%;
+    --metric-clients-icon: 207 15% 68%;
+    --metric-cash-icon: 40 85% 58%;
 
-    /* Charts — restrained, readable on dark neutrals */
-    --chart-1: 221 75% 66%;
-    --chart-2: 152 50% 48%;
-    --chart-3: 38 80% 60%;
-    --chart-4: 268 55% 68%;
-    --chart-5: 0 62% 62%;
+    /* Charts */
+    --chart-1: 193 100% 55%;
+    --chart-2: 194 70% 65%;
+    --chart-3: 154 60% 46%;
+    --chart-4: 40 85% 58%;
+    --chart-5: 6 74% 60%;
 
-    /* Sidebar — one step off the canvas, never pure black */
-    --sidebar-background: 220 15% 9%;
-    --sidebar-foreground: 217 13% 72%;
-    --sidebar-primary: 228 84% 67%;
-    --sidebar-primary-foreground: 224 40% 10%;
-    --sidebar-accent: 220 15% 15%;
-    --sidebar-accent-foreground: 220 14% 96%;
-    --sidebar-border: 220 14% 18%;
-    --sidebar-ring: 228 84% 67%;
+    /* Sidebar — darkest layer, never pure black against the canvas */
+    --sidebar-background: 207 20% 8%;
+    --sidebar-foreground: 207 15% 70%;
+    --sidebar-primary: 193 100% 50%;
+    --sidebar-primary-foreground: 210 23% 5%;
+    --sidebar-accent: 208 18% 15%;
+    --sidebar-accent-foreground: 204 29% 96%;
+    --sidebar-border: 210 15% 18%;
+    --sidebar-ring: 193 100% 50%;
   }
+
 
 
   /* ═══════════════════════════════════════════════════════
@@ -559,18 +587,29 @@
   * {
     @apply border-border;
     box-sizing: border-box;
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
   }
-  
+
   html {
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    font-family: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
-  
+
   body {
-    @apply bg-background text-foreground;
-    font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* Brand display face carries every heading level */
+  h1, h2, h3, h4 {
+    font-family: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+
+  /* Data reads as data */
+  code, pre, kbd, samp {
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   }
 }
+
 
 /* Ensure all containers respect full width */
 @layer utilities {
@@ -1655,21 +1694,25 @@ html {
   --ds-transition: var(--ds-duration) var(--ds-ease);
 }
 
-/* ── Typography scale ───────────────────────────────────────── */
+/* ── Typography scale (Blynk: Montserrat display · Manrope UI · JetBrains data) ── */
 .t-page-title {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.625rem;      /* 26px */
   line-height: 2rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.02em;
+  color: hsl(var(--heading, var(--foreground)));
 }
 @media (max-width: 640px) {
   .t-page-title { font-size: 1.375rem; line-height: 1.75rem; }
 }
 .t-section {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.0625rem;     /* 17px */
   line-height: 1.5rem;
   font-weight: 600;
-  letter-spacing: -0.011em;
+  letter-spacing: -0.02em;
+  color: hsl(var(--heading, var(--foreground)));
 }
 .t-card-title {
   font-size: 0.875rem;      /* 14px */
@@ -1692,20 +1735,37 @@ html {
   font-size: 0.6875rem;     /* 11px */
   line-height: 1rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: hsl(var(--muted-foreground));
 }
+/* Brand eyebrow — caps + wide tracking, a wordmark signature */
+.t-eyebrow {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+/* Identifiers, keys, endpoints and readings read as data, not prose */
+.t-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
 .t-kpi {
+  font-family: 'Montserrat', 'Helvetica Neue', Arial, sans-serif;
   font-size: 1.75rem;       /* 28px */
   line-height: 2.125rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
+  color: hsl(var(--heading, var(--foreground)));
 }
 @media (max-width: 640px) {
   .t-kpi { font-size: 1.5rem; line-height: 1.875rem; }
 }
+
 
 /* ── Page shell — consistent page padding + rhythm ──────────── */
 .page-shell {

@@ -17,7 +17,7 @@ const Stage = ({ children }: { children: React.ReactNode }) => (
         backgroundSize: '26px 26px',
       }}
     />
-    <div className="pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-[hsl(231_81%_55%)]/12 blur-[150px]" />
+    <div className="pointer-events-none absolute -top-32 left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-[hsl(193_100%_45%)]/12 blur-[150px]" />
     <div className="login-rise relative z-10 w-full max-w-[400px]">
       <img src={blynkLogoWhite} alt="Blynk" className="mx-auto mb-8 h-7 w-auto" />
       {children}
@@ -101,7 +101,7 @@ export default function ResetPassword() {
     return (
       <Stage>
         <div className="flex items-center justify-center py-6">
-          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[hsl(231_81%_60%)]"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-[hsl(193_100%_52%)]"></div>
         </div>
       </Stage>
     );
@@ -119,7 +119,7 @@ export default function ResetPassword() {
         </p>
         <Button
           onClick={() => navigate('/')}
-          className="mt-8 h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+          className="mt-8 h-11 w-full bg-gradient-to-r from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] font-medium text-white shadow-lg shadow-[hsl(194_100%_38%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
         >
           Back to Login
         </Button>
@@ -148,7 +148,7 @@ export default function ResetPassword() {
               placeholder="Enter new password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="h-11 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+              className="h-11 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(193_100%_52%)] focus-visible:ring-[hsl(193_100%_52%)]/40"
               required
             />
           </div>
@@ -165,7 +165,7 @@ export default function ResetPassword() {
               placeholder="Confirm new password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="h-11 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(231_81%_60%)] focus-visible:ring-[hsl(231_81%_60%)]/40"
+              className="h-11 border-white/10 bg-white/5 pl-10 text-white placeholder:text-white/35 focus-visible:border-[hsl(193_100%_52%)] focus-visible:ring-[hsl(193_100%_52%)]/40"
               required
             />
           </div>
@@ -173,7 +173,7 @@ export default function ResetPassword() {
 
         <Button
           type="submit"
-          className="h-11 w-full bg-gradient-to-r from-[hsl(231_81%_58%)] to-[hsl(265_80%_60%)] font-medium text-white shadow-lg shadow-[hsl(231_81%_50%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
+          className="h-11 w-full bg-gradient-to-r from-[hsl(193_100%_45%)] to-[hsl(194_70%_59%)] font-medium text-white shadow-lg shadow-[hsl(194_100%_38%)]/25 transition-transform hover:opacity-95 active:scale-[0.98]"
           disabled={isLoading}
         >
           {isLoading ? (

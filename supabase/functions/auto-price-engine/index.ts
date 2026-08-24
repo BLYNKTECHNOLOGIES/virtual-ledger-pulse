@@ -471,12 +471,13 @@ async function processAsset(
         const advNickName = (item.advertiser?.nickName || "").trim().toLowerCase();
         if (advNickName !== normalizedNick) return false;
         if (rule.only_counter_when_online && !isAdvertiserOnline(item)) return false;
+        if (!passesMerchantGates(item)) return false;
         return true;
       });
       if (found) {
         matchedMerchant = nickname;
         competitorPrice = parseFloat(found.adv?.price || "0");
-        matchedBadges = advertiserBadges(found);
+        captureMatch(found);
         break;
       }
     }
@@ -535,6 +536,8 @@ async function processAsset(
         competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
         competitor_price: competitorPrice,
         market_reference_price: marketReferencePrice,
         deviation_from_market_pct: deviationPct,
@@ -655,6 +658,8 @@ async function processAsset(
       competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
       competitor_price: competitorPrice,
       market_reference_price: marketReferencePrice,
       deviation_from_market_pct: deviationPct,
@@ -711,6 +716,8 @@ async function processAsset(
           competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,
@@ -731,6 +738,8 @@ async function processAsset(
           competitor_merchant: matchedMerchant,
         competitor_zone: zone,
         competitor_badges: matchedBadges,
+        competitor_identity: matchedIdentity,
+        competitor_vip_level: matchedVipLevel,
           competitor_price: competitorPrice,
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,

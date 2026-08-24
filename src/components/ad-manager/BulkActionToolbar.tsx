@@ -43,16 +43,11 @@ export function BulkActionToolbar({
   const sellCount = selectedAds.filter(ad => ad.tradeType === 'SELL').length;
   const someButNotAll = typeof totalAds === 'number' && selectedAds.length > 0 && selectedAds.length < totalAds;
 
-  const singleAsset = new Set(selectedAds.map(ad => ad.asset)).size === 1;
-  const singleSide = buyCount === 0 || sellCount === 0;
-  const ladderReady = selectedAds.length >= 2 && singleAsset && singleSide;
-  const ladderReason = selectedAds.length < 2
+  const ladderReady = selectedAds.length >= 2;
+  const ladderReason = !ladderReady
     ? 'Select at least 2 ads'
-    : !singleAsset
-      ? 'Select ads of a single asset'
-      : !singleSide
-        ? 'Select ads of a single side (all buy or all sell)'
-        : 'Step selected ads down in 0.5 increments from a top rate';
+    : 'Step selected ads down in 0.5 increments from a top fixed rate (per asset + side group)';
+
 
   return (
 

@@ -413,14 +413,68 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 2: Priority Merchants */}
             <AccordionItem value="merchants">
               <AccordionTrigger className="text-sm font-semibold">
-                Merchant Priority ({priorityMerchants.filter(m => m.trim()).length} merchants)
+                Competitor Target ({competitorZone === 'block' ? 'Block zone' : 'P2P zone'} · {competitorMode === 'top_badged' ? `top ${competitorBadges.join('/') || 'any'}` : `${priorityMerchants.filter(m => m.trim()).length} merchants`})
               </AccordionTrigger>
               <AccordionContent className="space-y-3 px-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs">Market Zone</Label>
+                    <Select value={competitorZone} onValueChange={setCompetitorZone}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="p2p">P2P zone (mass + profession)</SelectItem>
+                        <SelectItem value="block">Block zone (block ads)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">Targeting Mode</Label>
+                    <Select value={competitorMode} onValueChange={setCompetitorMode}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nickname">Named merchants (priority list)</SelectItem>
+                        <SelectItem value="top_badged">Top badged merchant in zone</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {competitorMode === 'top_badged' && (
+                  <div className="space-y-2 p-3 border rounded-md bg-muted/20">
+                    <Label className="text-xs">Counter only merchants carrying</Label>
+                    <div className="flex flex-wrap gap-3">
+                      {['Block', 'Shield'].map(b => (
+                        <label key={b} className="flex items-center gap-1.5 text-xs">
+                          <Checkbox
+                            checked={competitorBadges.includes(b)}
+                            onCheckedChange={(c) => setCompetitorBadges(prev => c ? [...new Set([...prev, b])] : prev.filter(x => x !== b))}
+                          />
+                          {b} merchant
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
+                    </p>
+                    <div>
+                      <Label className="text-xs">Exclude nicknames (comma separated)</Label>
+                      <Input
+                        value={excludeMerchants}
+                        onChange={e => setExcludeMerchants(e.target.value)}
+                        placeholder="BlynkEx, MyOtherAccount"
+                        className="h-8 text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {competitorMode === 'nickname' && (<>
                 <p className="text-[10px] text-muted-foreground">
                   Priority 1 is always used first. If it fails thresholds or is offline, Priority 2 takes over, and so on. Drag to reorder.
                 </p>
 
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleMerchantDragEnd}>
+
                   <SortableContext items={priorityMerchants} strategy={verticalListSortingStrategy}>
                     <div className="space-y-1.5">
                       {priorityMerchants.map((merchant, index) => (

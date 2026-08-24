@@ -119,6 +119,19 @@ serve(async (req) => {
     let accountId: string | null = body?.exchange_account_id ?? null;
     let storedDetail: any = null;
 
+    // A detail payload is only usable when it is a real order detail — Binance
+    // error envelopes (e.g. { code: 83998, msg: "The operation is illegal" }, which
+    // is what a cross-account read returns) must never be treated as identity data.
+    const isUsableDetail = (d: any): boolean => {
+      if (!d || typeof d !== "object") return false;
+      if (d._enrich_no_detail) return false;
+      if (d.code !== undefined && String(d.code) !== "000000") return false;
+      if (d.msg && !d.orderNumber && !d.orderNo) return false;
+      const returned = d.orderNumber ?? d.orderNo;
+      if (returned && String(returned) !== orderNumber) return false;
+      return Boolean(d.orderNumber || d.orderNo || d.merchantNo || d.takerUserNo || d.sellerNickname || d.buyerNickname);
+    };
+
     const { data: hist } = await supabase
       .from("binance_order_history")
       .select("trade_type, exchange_account_id, order_detail_raw")
@@ -127,39 +140,89 @@ serve(async (req) => {
     if (hist) {
       tradeType = tradeType || hist.trade_type;
       accountId = accountId ?? hist.exchange_account_id ?? null;
-      if (hist.order_detail_raw && typeof hist.order_detail_raw === "object" && !(hist.order_detail_raw as any)._enrich_no_detail) {
-        storedDetail = hist.order_detail_raw;
-      }
+      if (isUsableDetail(hist.order_detail_raw)) storedDetail = hist.order_detail_raw;
     }
     if (!tradeType) tradeType = "BUY"; // safe default; counterparty=seller
+
+    // Second stored source: the terminal sync rows keep the raw Binance detail
+    // captured at sync time (order_data.*_payment_details._raw_detail).
+    if (!storedDetail) {
+      const syncTable = String(tradeType).toUpperCase() === "SELL" ? "terminal_sales_sync" : "terminal_purchase_sync";
+      const { data: syncRows } = await supabase
+        .from(syncTable)
+        .select("order_data")
+        .eq("binance_order_number", orderNumber);
+      for (const row of syncRows || []) {
+        const od: any = row.order_data || {};
+        const candidates = [
+          od?.seller_payment_details?._raw_detail,
+          od?.buyer_payment_details?._raw_detail,
+          od?.payment_details?._raw_detail,
+          od?._raw_detail,
+        ];
+        const hit = candidates.find(isUsableDetail);
+        if (hit) { storedDetail = hit; break; }
+      }
+    }
 
     // Fast path: userNo already sits in stored detail.
     let cp = storedDetail ? extractCounterparty(storedDetail, tradeType) : { nick: null, verified: null, userNo: null };
 
-    // Live fetch if we don't yet have a userNo.
+    // Live fetch if we don't yet have a userNo. Historical rows are sometimes
+    // attributed to the wrong exchange account — a read with the wrong API key
+    // returns 83998, so try every active account and repair the attribution.
     if (!cp.userNo) {
-      let proxyHeaders: Record<string, string> | null = null;
+      const candidateIds: (string | null)[] = [accountId];
       try {
-        const acct: ResolvedAccount = await resolveAccount(accountId);
-        proxyHeaders = proxyHeadersFor(acct);
+        const accounts = await listActiveAccounts();
+        for (const a of accounts) if (a.id !== accountId) candidateIds.push(a.id);
       } catch (e) {
-        console.warn(`Could not resolve credentials for account ${accountId}:`, (e as Error).message);
+        console.warn("listActiveAccounts failed:", (e as Error).message);
       }
-      if (proxyHeaders) {
-        const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
-        const response = await fetchWithRetry(url, {
-          method: "POST", headers: proxyHeaders, body: JSON.stringify({ adOrderNo: orderNumber }),
-        });
-        const text = await response.text();
-        let result: any = null;
-        try { result = JSON.parse(text); } catch { /* ignore */ }
-        const detail = result?.data?.data || result?.data || result;
-        if (detail && typeof detail === "object") {
-          cp = extractCounterparty(detail, tradeType);
-          await supabase.from("binance_order_history").update({ order_detail_raw: detail }).eq("order_number", orderNumber);
+
+      const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+      for (const candidateId of candidateIds) {
+        let acct: ResolvedAccount | null = null;
+        try {
+          acct = await resolveAccount(candidateId);
+        } catch (e) {
+          console.warn(`Could not resolve credentials for account ${candidateId}:`, (e as Error).message);
+          continue;
         }
+        let detail: any = null;
+        try {
+          const response = await fetchWithRetry(url, {
+            method: "POST",
+            headers: proxyHeadersFor(acct),
+            body: JSON.stringify({ adOrderNo: orderNumber, orderNo: orderNumber }),
+          });
+          const text = await response.text();
+          let result: any = null;
+          try { result = JSON.parse(text); } catch { /* ignore */ }
+          detail = result?.data?.data || result?.data || result;
+        } catch (e) {
+          console.warn(`getUserOrderDetail failed on ${acct.accountName}:`, (e as Error).message);
+          continue;
+        }
+        if (!isUsableDetail(detail)) {
+          console.warn(`Unusable order detail for ${orderNumber} on ${acct.accountName}:`, JSON.stringify(detail)?.slice(0, 300));
+          continue;
+        }
+        cp = extractCounterparty(detail, tradeType);
+        // Persist only verified detail, and repair the account attribution.
+        await supabase
+          .from("binance_order_history")
+          .update({ order_detail_raw: detail, exchange_account_id: acct.id })
+          .eq("order_number", orderNumber);
+        if (acct.id && acct.id !== accountId) {
+          const syncTable = String(tradeType).toUpperCase() === "SELL" ? "terminal_sales_sync" : "terminal_purchase_sync";
+          await supabase.from(syncTable).update({ exchange_account_id: acct.id }).eq("binance_order_number", orderNumber);
+        }
+        accountId = acct.id ?? accountId;
+        if (cp.userNo) break;
       }
     }
+
 
     if (!cp.userNo) {
       // Binance did not return a usable userNo (restricted / expired / rate-limited).

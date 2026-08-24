@@ -359,11 +359,8 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
     <div className="space-y-4">
       <div>
         <h2 className="t-section text-foreground">My Payslips</h2>
-        <p className="t-secondary max-w-3xl">
-          Statutory splits (PF / ESI / PT / TDS) and component-wise pay are published by HR after the payroll
-          run. Months not yet published show only the net figure and are marked <b>breakdown pending</b>.
-        </p>
       </div>
+
 
       <div className="space-y-3">
         {payslips.map((p) => {
@@ -475,13 +472,8 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
                       </div>
                     )}
                   </>
-                ) : (
-                  <p className="t-secondary bg-muted/40 border border-border rounded-md p-3">
-                    The detailed breakdown for this month has not been published yet, so component-wise
-                    Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
-                    shown. HR will publish the full breakdown after the payroll run is finalised.
-                  </p>
-                )}
+                ) : null}
+
               </div>
             </article>
           );

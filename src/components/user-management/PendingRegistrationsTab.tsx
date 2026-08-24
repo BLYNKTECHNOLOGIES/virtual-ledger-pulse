@@ -24,7 +24,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { isUuid } from "@/utils/isUuid";
 import {
   UserPlus,
   Check,

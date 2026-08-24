@@ -285,7 +285,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg w-[calc(100vw-1.5rem)] sm:w-full max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Price Ladder</DialogTitle>
         </DialogHeader>
@@ -311,7 +311,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  The rate you enter belongs to this asset; other assets are scaled by their live Binance reference price.
+                  The rate you enter belongs to this asset; other assets are scaled by their live spot index.
                 </p>
               </div>
             )}
@@ -329,26 +329,38 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
               />
             </div>
 
+            <p className={`text-xs ${rateIsFallback ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
+              Index base — USDT/INR ₹{usdtInr ? usdtInr.toFixed(2) : '—'}{rateSource ? ` (${rateSource})` : ''}
+            </p>
+
             {pricesLoading && (
               <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Loader2 className="h-3 w-3 animate-spin" /> Loading Binance reference prices…
+                <Loader2 className="h-3 w-3 animate-spin" /> Loading live index prices…
               </p>
             )}
 
             {groups.length > 0 && (
-              <div className="space-y-1 rounded-lg border border-border p-2">
+              <div className="rounded-lg border border-border divide-y divide-border">
                 {groups.map((g) => (
-                  <div key={`${g.asset}|${g.side}`} className="text-xs flex items-center justify-between gap-2">
-                    <span className="font-mono">{g.asset} {g.side}</span>
+                  <div key={`${g.asset}|${g.side}`} className="px-2 py-1.5 text-xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-medium">{g.asset} · {g.side}</span>
+                      {!g.skipped && (
+                        <span className="text-muted-foreground tabular-nums">
+                          {g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
                     {g.skipped ? (
-                      <span className="text-destructive text-right">{g.skipped}</span>
+                      <p className="text-destructive mt-0.5">{g.skipped}</p>
                     ) : (
-                      <span className="text-muted-foreground">
-                        top ₹{g.topPrice?.toFixed(2)}
-                        {g.topRatio !== null && <> · float {g.topRatio.toFixed(2)}%</>}
-                        {g.index && <> · index ₹{g.index.toFixed(2)}</>}
-                        {' '}· {g.rungs.length} rung{g.rungs.length !== 1 ? 's' : ''}
-                      </span>
+                      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
+                        <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>
+                        {g.index !== null && <span>Index: <span className="text-foreground">₹{fmtINR(g.index)}</span></span>}
+                        {g.topRatio !== null && (
+                          <span className="col-span-2">Float top: <span className="text-foreground">{g.topRatio.toFixed(2)}%</span></span>
+                        )}
+                      </div>
                     )}
                   </div>
                 ))}

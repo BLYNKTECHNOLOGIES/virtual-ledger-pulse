@@ -781,6 +781,12 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                                           <Badge variant="outline" className="text-[10px] px-1.5 py-0">{ad.priceType === 1 ? 'Fixed' : 'Float'}</Badge>
                                           <Badge
                                             variant="outline"
+                                            className={`text-[10px] px-1.5 py-0 ${adZone(ad) === competitorZone ? 'border-border text-muted-foreground' : 'border-warning text-warning'}`}
+                                          >
+                                            {ZONE_SHORT[adZone(ad)]}
+                                          </Badge>
+                                          <Badge
+                                            variant="outline"
                                             className={`text-[10px] px-1.5 py-0 ${
                                               ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'border-success text-success'
                                               : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'border-warning text-warning'

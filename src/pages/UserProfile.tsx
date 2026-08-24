@@ -475,13 +475,8 @@ function EmployeePayslipsTab({ employeeId, badgeId }: { employeeId: string; badg
                       </div>
                     )}
                   </>
-                ) : (
-                  <p className="t-secondary bg-muted/40 border border-border rounded-md p-3">
-                    The detailed breakdown for this month has not been published yet, so component-wise
-                    Basic / HRA / PF / ESI / PT / TDS values aren't available. Only the summary figures are
-                    shown. HR will publish the full breakdown after the payroll run is finalised.
-                  </p>
-                )}
+                ) : null}
+
               </div>
             </article>
           );

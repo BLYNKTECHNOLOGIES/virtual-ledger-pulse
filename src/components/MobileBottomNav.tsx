@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePermissions } from "@/hooks/usePermissions";
+import { expandPermissions } from "@/lib/permissions/catalog";
 
 interface MobileNavItem {
   title: string;
@@ -47,14 +48,15 @@ export function MobileBottomNav() {
   const { hasAnyPermission, isLoading } = usePermissions();
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
+  const canAccess = (permissions: string[]) => hasAnyPermission(expandPermissions(permissions));
 
   const visibleMainNavItems = useMemo(
-    () => mainNavItems.filter((item) => item.alwaysVisible || hasAnyPermission(item.permissions)),
+    () => mainNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
     [hasAnyPermission]
   );
 
   const visibleMoreNavItems = useMemo(
-    () => moreNavItems.filter((item) => item.alwaysVisible || hasAnyPermission(item.permissions)),
+    () => moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
     [hasAnyPermission]
   );
 

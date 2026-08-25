@@ -310,7 +310,7 @@ export default function HelpAssistant() {
             <div className="max-w-3xl mx-auto space-y-6">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"} rounded-2xl px-4 py-3`}>
+                  <div className={`max-w-[92%] md:max-w-[85%] ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"} rounded-2xl px-4 py-3`}>
                     {m.image_urls && m.image_urls.length > 0 && (
                       <div className="flex gap-2 mb-2 flex-wrap">
                         {m.image_urls.map((u, k) => (
@@ -352,7 +352,7 @@ export default function HelpAssistant() {
           </div>
 
           {/* Input bar */}
-          <div className={`border-t border-border bg-card px-6 py-4 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
+          <div className={`border-t border-border bg-card px-3 py-3 md:px-6 md:py-4 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
             <div className="max-w-3xl mx-auto">
               {pendingImages.length > 0 && (
                 <div className="flex gap-2 mb-2 flex-wrap">

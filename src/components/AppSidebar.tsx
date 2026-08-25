@@ -38,8 +38,9 @@ const reportSettingsItem: SidebarGroupItem = {
   icon: Mail,
   color: "text-primary",
   bgColor: "bg-primary/10",
-  permissions: [],
+  permissions: ["report_formats_manage", "financials_manage", "accounting_manage"],
 };
+
 
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [

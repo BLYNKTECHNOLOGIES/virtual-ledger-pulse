@@ -217,6 +217,9 @@ export default function LeaveAllocationsPage() {
         actions={
           <>
             <ViewToggle value={viewMode} onChange={setViewMode} />
+            <Button variant="outline" onClick={() => setShowHistory(true)} className="h-9">
+              <History className="h-4 w-4 mr-2" /> History
+            </Button>
             <Button variant="outline" onClick={exportCsv} disabled={groupedArr.length === 0} className="h-9">
               <Download className="h-4 w-4 mr-2" /> Export CSV
             </Button>

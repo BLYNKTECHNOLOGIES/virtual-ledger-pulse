@@ -193,12 +193,15 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <ExchangeAccountsSettings />
+              <PermissionGate permissions={["terminal_manage"]}>
+                <ExchangeAccountsSettings />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
     ),
   },
+
   {
     path: "/settings/report-formats",
     element: (

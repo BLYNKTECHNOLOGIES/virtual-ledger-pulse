@@ -66,6 +66,8 @@ export function SellerOnboardingApprovals() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { hasPermission } = usePermissions();
+  const canManageKycApprovals = hasPermission("kyc_approvals_manage");
+  const canRejectKycApprovals = canManageKycApprovals || hasPermission("clients_destructive");
 
   // Fetch pending seller approvals (sellers without KYC documents with PENDING status)
   const { data: pendingSellers, isLoading } = useQuery({
@@ -510,15 +512,27 @@ export function SellerOnboardingApprovals() {
   });
 
   const handleApprove = (sellerId: string) => {
+    if (!canManageKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     approveMutation.mutate(sellerId);
   };
 
   const handleRejectClick = (seller: any) => {
+    if (!canRejectKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     setSellerToReject(seller);
     setShowRejectDialog(true);
   };
 
   const handleRejectConfirm = () => {
+    if (!canRejectKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     if (sellerToReject && rejectReason.trim()) {
       rejectMutation.mutate({ 
         sellerId: sellerToReject.id, 
@@ -562,6 +576,10 @@ export function SellerOnboardingApprovals() {
   };
 
   const handleBulkApproveConfirm = () => {
+    if (!canManageKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     setShowBulkConfirm(false);
     bulkApproveMutation.mutate(Array.from(selectedIds));
   };
@@ -641,13 +659,15 @@ export function SellerOnboardingApprovals() {
             <Table stickyHeader density={density} maxHeight="65vh" className={selectedIds.size > 0 ? "pb-20" : undefined}>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Select all sellers"
-                      />
-                    </TableHead>
+                    {canManageKycApprovals && (
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all sellers"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead>Seller Name</TableHead>
                     <TableHead>Binance ID</TableHead>
                     <TableHead>Client ID</TableHead>
@@ -672,13 +692,15 @@ export function SellerOnboardingApprovals() {
                     const noIdentitySignal = identityState === 'new_client' && !safeNick && !isSameUserByVName;
                     return (
                       <TableRow key={seller.id} data-state={selectedIds.has(seller.id) ? "selected" : undefined}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedIds.has(seller.id)}
-                            onCheckedChange={() => toggleSelectOne(seller.id)}
-                            aria-label={`Select ${seller.name}`}
-                          />
-                        </TableCell>
+                        {canManageKycApprovals && (
+                          <TableCell>
+                            <Checkbox
+                              checked={selectedIds.has(seller.id)}
+                              onCheckedChange={() => toggleSelectOne(seller.id)}
+                              aria-label={`Select ${seller.name}`}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell>
                           <button
                             onClick={() => handleViewOrders(seller.id)}
@@ -758,23 +780,25 @@ export function SellerOnboardingApprovals() {
                               <ShoppingCart className="h-3 w-3 mr-1" />
                               Orders
                             </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleApprove(seller.id)}
-                              disabled={approveMutation.isPending}
-                              className="bg-success hover:bg-success/90"
-                              title={
-                                identityState === 'linked_known' && nickInfo?.existingClient
-                                  ? `Approve seller side on existing client: ${nickInfo.existingClient.name}`
-                                  : 'Approve seller'
-                              }
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              {identityState === 'linked_known' && nickInfo?.existingClient
-                                ? 'Approve as Seller'
-                                : 'Approve'}
-                            </Button>
-                            {hasPermission('clients_destructive') && (
+                            {canManageKycApprovals && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprove(seller.id)}
+                                disabled={approveMutation.isPending}
+                                className="bg-success hover:bg-success/90"
+                                title={
+                                  identityState === 'linked_known' && nickInfo?.existingClient
+                                    ? `Approve seller side on existing client: ${nickInfo.existingClient.name}`
+                                    : 'Approve seller'
+                                }
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                {identityState === 'linked_known' && nickInfo?.existingClient
+                                  ? 'Approve as Seller'
+                                  : 'Approve'}
+                              </Button>
+                            )}
+                            {canRejectKycApprovals && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -803,23 +827,25 @@ export function SellerOnboardingApprovals() {
       </Card>
 
       {/* Floating bulk action bar — appears when sellers are selected */}
-      <BulkActionBar
-        count={selectedIds.size}
-        itemNoun="seller"
-        onClear={() => setSelectedIds(new Set())}
-      >
-        <Button
-          size="sm"
-          className="bg-success hover:bg-success/90"
-          onClick={() => setShowBulkConfirm(true)}
-          disabled={bulkApproveMutation.isPending}
+      {canManageKycApprovals && (
+        <BulkActionBar
+          count={selectedIds.size}
+          itemNoun="seller"
+          onClear={() => setSelectedIds(new Set())}
         >
-          <CheckCircle className="h-3 w-3 mr-1" />
-          {bulkApproveMutation.isPending && bulkProgress
-            ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
-            : `Bulk Approve (${selectedIds.size})`}
-        </Button>
-      </BulkActionBar>
+          <Button
+            size="sm"
+            className="bg-success hover:bg-success/90"
+            onClick={() => setShowBulkConfirm(true)}
+            disabled={bulkApproveMutation.isPending}
+          >
+            <CheckCircle className="h-3 w-3 mr-1" />
+            {bulkApproveMutation.isPending && bulkProgress
+              ? `Approving ${bulkProgress.done}/${bulkProgress.total}...`
+              : `Bulk Approve (${selectedIds.size})`}
+          </Button>
+        </BulkActionBar>
+      )}
 
 
       {/* Order Summary Dialog */}

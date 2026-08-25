@@ -113,7 +113,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, parentLoading]);
+  }, [user?.id, user?.roles, parentLoading]);
 
   useEffect(() => {
     fetchTerminalAuth();

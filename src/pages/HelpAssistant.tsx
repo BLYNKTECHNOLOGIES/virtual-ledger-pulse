@@ -35,7 +35,9 @@ export default function HelpAssistant() {
   const [lang, setLang] = useState<Lang>("en");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [input, setInput] = useState("");
+
   const [pendingImages, setPendingImages] = useState<{ url: string; path: string }[]>([]);
   const [streaming, setStreaming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

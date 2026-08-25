@@ -1,9 +1,10 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
 
 interface MobileNavItem {
@@ -28,6 +29,7 @@ const moreNavItems: MobileNavItem[] = [
   { title: "Purchase", url: "/purchase", icon: ShoppingCart, permissions: ["purchase_view", "purchase_manage"] },
   { title: "BAMS", url: "/bams", icon: Package, permissions: ["bams_view", "bams_manage"] },
   { title: "Clients", url: "/clients", icon: Users, permissions: ["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage"] },
+  { title: "RA Dashboard", url: "/ra-dashboard", icon: Headset, permissions: ["ra_dashboard_view"] },
   { title: "Leads", url: "/leads", icon: Users, permissions: ["leads_view", "leads_manage"] },
   { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage"] },
   { title: "Compliance", url: "/compliance", icon: Package, permissions: ["compliance_view", "compliance_manage"] },
@@ -46,21 +48,24 @@ export function MobileBottomNav() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { hasAnyPermission, isLoading } = usePermissions();
+  const { isAdmin } = useAuth();
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
-  const canAccess = (permissions: string[]) => hasAnyPermission(expandPermissions(permissions));
+  const canAccess = (permissions: string[]) =>
+    isAdmin || hasAnyPermission(expandPermissions(permissions));
 
   const visibleMainNavItems = useMemo(
     () => mainNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
-    [hasAnyPermission]
+    [hasAnyPermission, isAdmin]
   );
 
   const visibleMoreNavItems = useMemo(
     () => moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
-    [hasAnyPermission]
+    [hasAnyPermission, isAdmin]
   );
 
-  if (isLoading) return null;
+  if (isLoading && !isAdmin) return null;
+
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t-2 border-border shadow-lg print:hidden">

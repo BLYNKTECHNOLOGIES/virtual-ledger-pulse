@@ -34,10 +34,23 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
     onOpenChange(v);
   };
 
+  const hasMin = min !== '' && !isNaN(Number(min));
+  const hasMax = max !== '' && !isNaN(Number(max));
+
   const validate = (): string | null => {
-    if (!min || Number(min) <= 0) return 'Min order limit is required';
-    if (!max || Number(max) <= 0) return 'Max order limit is required';
-    if (Number(min) >= Number(max)) return 'Min must be less than max';
+    if (!hasMin && !hasMax) return 'Enter at least one of min or max order limit';
+    if (hasMin && Number(min) <= 0) return 'Min order limit must be greater than 0';
+    if (hasMax && Number(max) <= 0) return 'Max order limit must be greater than 0';
+    if (hasMin && hasMax && Number(min) >= Number(max)) return 'Min must be less than max';
+    // Cross-check against each ad's existing untouched side
+    if (hasMin && !hasMax) {
+      const bad = ads.find(a => Number(a.maxSingleTransAmount) <= Number(min));
+      if (bad) return `Min ₹${Number(min).toLocaleString('en-IN')} is not below the existing max of ad …${bad.advNo.slice(-8)}`;
+    }
+    if (hasMax && !hasMin) {
+      const bad = ads.find(a => Number(a.minSingleTransAmount) >= Number(max));
+      if (bad) return `Max ₹${Number(max).toLocaleString('en-IN')} is not above the existing min of ad …${bad.advNo.slice(-8)}`;
+    }
     return null;
   };
 

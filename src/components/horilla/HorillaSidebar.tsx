@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -305,23 +305,26 @@ export function HorillaSidebar({
     if (!path.startsWith("http")) prefetchHrmsRoute(path.split("?")[0]);
   };
 
-  const canAccessPath = (path: string) => {
+  const canAccessPath = useCallback((path: string) => {
     const permissions = HRMS_ROUTE_PERMISSIONS[path.split("?")[0]] || ["hrms_view", "hrms_manage"];
     return hasAnyPermission(expandPermissions(permissions));
-  };
+  }, [hasAnyPermission]);
 
-  const visibleNavGroups = navGroups
-    .map((group) => ({
-      ...group,
-      items: group.items
-        .map((item) => {
-          const children = item.children?.filter((child) => canAccessPath(child.path));
-          const itemVisible = canAccessPath(item.path) || Boolean(children?.length);
-          return itemVisible ? { ...item, children } : null;
-        })
-        .filter((item): item is NavItem => Boolean(item)),
-    }))
-    .filter((group) => group.items.length > 0);
+  const visibleNavGroups = useMemo<NavGroup[]>(
+    () => navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .map<NavItem | null>((item) => {
+            const children = item.children?.filter((child) => canAccessPath(child.path));
+            const itemVisible = canAccessPath(item.path) || Boolean(children?.length);
+            return itemVisible ? { ...item, children } : null;
+          })
+          .filter((item): item is NavItem => item !== null),
+      }))
+      .filter((group) => group.items.length > 0),
+    [canAccessPath]
+  );
 
   // Auto-expand any parent group whose child matches current route
   useEffect(() => {

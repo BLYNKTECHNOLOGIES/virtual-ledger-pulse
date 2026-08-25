@@ -75,25 +75,41 @@ const nonPermissionPrefixes = [
 ];
 const erpSuffixes = /_(view|manage|approve|destructive|create|export|sync|entry|formats|dashboard)$/;
 
+const recordKey = (key, file, lineNo, line) => {
+  if (key.startsWith('terminal_')) {
+    if (terminalKeys.has(key) || /TerminalPermissionGate|terminalPermissions|TerminalPermission/.test(line)) {
+      addUsage(terminalUsage, key, file, lineNo);
+    } else {
+      addUsage(erpUsage, key, file, lineNo);
+    }
+    return;
+  }
+  if (!erpPermissionShape.test(key)) return;
+  if (!nonPermissionPrefixes.some((prefix) => key.startsWith(prefix)) && !erpSuffixes.test(key)) return;
+  addUsage(erpUsage, key, file, lineNo);
+};
+
+const recordArrayLiteral = (arrayBody, file, lineNo, line) => {
+  for (const match of arrayBody.matchAll(/['"]([A-Za-z0-9_]+)['"]/g)) {
+    recordKey(match[1], file, lineNo, line);
+  }
+};
+
 for (const fileName of sourceFiles) {
   const abs = join(root, fileName);
   const lines = readFileSync(abs, 'utf8').split('\n');
   lines.forEach((line, index) => {
     const inPermissionContext = /PermissionGate|TerminalPermissionGate|hasPermission\(|hasAnyPermission\(|hasAllPermissions\(|permissions:|permissions=/.test(line);
     if (!inPermissionContext) return;
-    for (const match of line.matchAll(/['"]([A-Za-z0-9_]+)['"]/g)) {
-      const key = match[1];
-      if (key.startsWith('terminal_')) {
-        if (terminalKeys.has(key) || /TerminalPermissionGate|terminalPermissions|TerminalPermission/.test(line)) {
-          addUsage(terminalUsage, key, abs, index + 1);
-        } else {
-          addUsage(erpUsage, key, abs, index + 1);
-        }
-        continue;
-      }
-      if (!erpPermissionShape.test(key)) continue;
-      if (!nonPermissionPrefixes.some((prefix) => key.startsWith(prefix)) && !erpSuffixes.test(key)) continue;
-      addUsage(erpUsage, key, abs, index + 1);
+
+    for (const match of line.matchAll(/hasPermission\(\s*['"]([A-Za-z0-9_]+)['"]\s*\)/g)) {
+      recordKey(match[1], abs, index + 1, line);
+    }
+    for (const match of line.matchAll(/has(?:Any|All)Permission[s]?\(\s*\[([^\]]*)\]/g)) {
+      recordArrayLiteral(match[1], abs, index + 1, line);
+    }
+    for (const match of line.matchAll(/permissions\s*[:=]\s*\{?\s*\[([^\]]*)\]/g)) {
+      recordArrayLiteral(match[1], abs, index + 1, line);
     }
   });
 }

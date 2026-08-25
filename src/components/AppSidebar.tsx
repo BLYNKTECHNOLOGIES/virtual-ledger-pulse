@@ -38,8 +38,9 @@ const reportSettingsItem: SidebarGroupItem = {
   icon: Mail,
   color: "text-primary",
   bgColor: "bg-primary/10",
-  permissions: [],
+  permissions: ["report_formats_manage", "financials_manage", "accounting_manage"],
 };
+
 
 // Standalone menu items (not in groups)
 const standaloneItems: SidebarGroupItem[] = [
@@ -205,7 +206,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: BookOpen,
         color: "text-warning",
         bgColor: "bg-warning/10",
-        permissions: ["accounting_view", "accounting_manage"]
+        permissions: ["tax_management_view", "tax_management_manage", "accounting_view"]
       },
       {
         id: "profit-loss",
@@ -214,7 +215,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: TrendingUp,
         color: "text-success",
         bgColor: "bg-success/10",
-        permissions: ["accounting_view", "accounting_manage"]
+        permissions: ["profit_loss_view", "accounting_view", "accounting_manage"]
       },
       {
         id: "financials",
@@ -223,7 +224,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: Calculator,
         color: "text-success",
         bgColor: "bg-success/10",
-        permissions: ["accounting_view", "accounting_manage"]
+        permissions: ["financials_view", "financials_manage", "accounting_view"]
       },
       {
         id: "statistics",

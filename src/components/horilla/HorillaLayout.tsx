@@ -6,6 +6,9 @@ import { HrmsRouteFallback } from "./HrmsRouteFallback";
 import { RouteProgressBar } from "./RouteProgressBar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { RazorpayPushFeedbackProvider } from "@/components/hrms/RazorpayPushFeedbackProvider";
+import { PermissionGate } from "@/components/PermissionGate";
+import { Card, CardContent } from "@/components/ui/card";
+import { Shield } from "lucide-react";
 
 
 export function HorillaLayout() {
@@ -22,6 +25,26 @@ export function HorillaLayout() {
   };
 
   return (
+    <PermissionGate
+      permissions={["hrms_view", "hrms_manage"]}
+      fallback={
+        <div className="min-h-screen bg-muted/40 p-6 flex items-center justify-center">
+          <Card className="w-full max-w-md">
+            <CardContent className="pt-6">
+              <div className="flex flex-col items-center text-center space-y-3">
+                <Shield className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <h2 className="text-lg font-semibold">Access Denied</h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    HRMS is restricted to HR and administrative staff.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      }
+    >
     <div className="horilla-root flex h-screen w-full max-w-full overflow-hidden bg-muted/40 dark:bg-background">
       <HorillaSidebar
         collapsed={isMobile ? false : sidebarCollapsed}
@@ -53,6 +76,7 @@ export function HorillaLayout() {
       </div>
       <RazorpayPushFeedbackProvider />
     </div>
+    </PermissionGate>
   );
 }
 

@@ -301,7 +301,7 @@ export const LEGACY_PERMISSION_MAP: Record<string, string> = {
   view_stock: 'stock_view',
   view_stock_management: 'stock_view',
   view_inventory: 'stock_view',
-  view_accounting: 'tax_management_view',
+  
   view_banking: 'bams_view',
   view_statistics: 'statistics_view',
   VIEW_REPORTS: 'statistics_view',
@@ -320,8 +320,6 @@ export const LEGACY_PERMISSION_MAP: Record<string, string> = {
   MANAGE_HRMS: 'hrms_manage',
   manage_payroll: 'payroll_manage',
   MANAGE_PAYROLL: 'payroll_manage',
-  manage_accounting: 'tax_management_manage',
-  MANAGE_ACCOUNTING: 'tax_management_manage',
   manage_banking: 'bams_manage',
   manage_compliance: 'compliance_manage',
   MANAGE_COMPLIANCE: 'compliance_manage',

@@ -219,7 +219,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Sales />
+              <PermissionGate permissions={["sales_view", "sales_manage"]}>
+                <Sales />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -231,7 +233,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Purchase />
+              <PermissionGate permissions={["purchase_view", "purchase_manage"]}>
+                <Purchase />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -243,7 +247,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <BAMS />
+              <PermissionGate permissions={["bams_view", "bams_manage", "bams_journal_entry"]}>
+                <BAMS />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>

@@ -30066,6 +30066,7 @@ export type Database = {
         | "user_management_hr_manage"
         | "hrms_razorpay_sync"
         | "compliance_approve"
+        | "bams_journal_entry"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -30458,6 +30459,7 @@ export const Constants = {
         "user_management_hr_manage",
         "hrms_razorpay_sync",
         "compliance_approve",
+        "bams_journal_entry",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

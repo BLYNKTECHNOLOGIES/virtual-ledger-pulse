@@ -37,6 +37,7 @@ import { TerminalAccessTab } from "@/components/user-management/TerminalAccessTa
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { DatabaseUser } from "@/types/auth";
+import { normalizePermissions } from "@/lib/permissions/catalog";
 import { supabase } from "@/integrations/supabase/client";
 import { PermissionGate } from "@/components/PermissionGate";
 import { PageHeader } from "@/components/shared/PageHeader";
@@ -60,33 +61,9 @@ interface OnlineUser {
   status: string;
 }
 
-// Map old permission format to new format (for backwards compatibility)
-const permissionMapping: Record<string, string> = {
-  'view_dashboard': 'dashboard_view',
-  'view_sales': 'sales_view',
-  'view_purchase': 'purchase_view',
-  'view_bams': 'bams_view',
-  'view_clients': 'clients_view',
-  'view_leads': 'leads_view',
-  'view_user_management': 'user_management_view',
-  'view_hrms': 'hrms_view',
-  'view_payroll': 'payroll_view',
-  'view_compliance': 'compliance_view',
-  'view_stock': 'stock_view',
-  'view_stock_management': 'stock_view',
-  'view_accounting': 'accounting_view',
-  'view_statistics': 'statistics_view',
-  'view_ems': 'ems_view',
-};
-
-// Normalize and deduplicate permissions array
-const normalizePermissions = (perms: string[]): string[] => {
-  const normalized = perms.map(p => permissionMapping[p] || p);
-  // IMPORTANT: do NOT filter unknown/legacy permissions.
-  // This project historically stored multiple permission formats in app_permission.
-  // Filtering makes the UI appear fine but would DELETE legacy permissions on save.
-  return [...new Set(normalized)];
-};
+// Legacy permission normalization lives in the single-source catalog.
+// IMPORTANT: do NOT filter unknown/legacy permissions — this project historically
+// stored multiple formats in app_permission, and filtering would DELETE them on save.
 
 // Format permission for display
 const formatPermissionDisplay = (perm: string): string => {

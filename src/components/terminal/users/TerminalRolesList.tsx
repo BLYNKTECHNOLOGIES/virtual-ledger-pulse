@@ -18,6 +18,13 @@ import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TerminalRoleComparison } from "./TerminalRoleComparison";
+import {
+  TERMINAL_PERMISSION_MODULES,
+  TERMINAL_ROLE_TEMPLATES,
+  TERMINAL_TIER_STYLES,
+  TERMINAL_TIER_SWITCH_STYLES,
+  type TerminalPermissionDef,
+} from '@/lib/permissions/terminalCatalog';
 
 interface Role {
   id: string;
@@ -27,15 +34,6 @@ interface Role {
   hierarchy_level: number | null;
   permissions: string[];
 }
-
-import {
-  TERMINAL_PERMISSION_MODULES,
-  TERMINAL_TERMINAL_ROLE_TEMPLATES,
-  TERMINAL_TERMINAL_TIER_STYLES,
-  TERMINAL_TERMINAL_TIER_SWITCH_STYLES,
-  type TerminalPermission,
-  type TerminalPermissionDef,
-} from '@/lib/permissions/terminalCatalog';
 
 // ─── Component ─────────────────────────────────────────────────────
 
@@ -448,7 +446,7 @@ export function TerminalRolesList() {
           open={showCompare}
           onOpenChange={setShowCompare}
           roles={roles}
-          modules={PERMISSION_MODULES}
+          modules={TERMINAL_PERMISSION_MODULES}
         />
       </div>
     </TooltipProvider>

@@ -82,8 +82,8 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
     label: 'Terminal',
     section: 'Operations',
     permissions: [
-      { id: 'terminal_view', name: 'View', description: 'Open the Terminal workspace', tier: 'view', routes: ['/terminal'] },
-      { id: 'terminal_manage', name: 'Manage', description: 'Act inside Terminal (fine-grained rights come from Terminal roles)', tier: 'manage' },
+      { id: 'terminal_view', name: 'Terminal Access (Standby)', description: 'Lets the user sign into the Terminal in standby mode — biometric enrolment only, nothing else. Operational rights are granted separately inside Terminal → Users & Roles.', tier: 'view', routes: ['/terminal'] },
+
     ],
   },
   bams: {

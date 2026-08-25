@@ -69,8 +69,9 @@ export function ClientDashboard() {
   const navigate = useNavigate();
   const { hasPermission, hasAnyPermission } = usePermissions();
   const canAssignRA = hasPermission("ra_assign");
+  const canViewDirectory = hasAnyPermission(["clients_view", "clients_manage"]);
   const canViewApprovals = hasAnyPermission(["kyc_approvals_view", "kyc_approvals_manage"]);
-  const visibleTabCount = 1 + (canViewApprovals ? 1 : 0) + (canAssignRA ? 1 : 0);
+  const visibleTabCount = (canViewDirectory ? 1 : 0) + (canViewApprovals ? 1 : 0) + (canAssignRA ? 1 : 0);
   const tabGridClass = visibleTabCount === 3 ? "grid-cols-3" : visibleTabCount === 2 ? "grid-cols-2" : "grid-cols-1";
   const { data: raAssignmentsMap } = useActiveRAAssignments();
 
@@ -102,10 +103,15 @@ export function ClientDashboard() {
   }, [activeApprovalTab]);
 
   useEffect(() => {
-    if ((activeTab === 'approvals' && !canViewApprovals) || (activeTab === 'assignments' && !canAssignRA)) {
-      setActiveTab('directory');
+    const fallbackTab = canViewDirectory ? 'directory' : canViewApprovals ? 'approvals' : 'assignments';
+    if (
+      (activeTab === 'directory' && !canViewDirectory) ||
+      (activeTab === 'approvals' && !canViewApprovals) ||
+      (activeTab === 'assignments' && !canAssignRA)
+    ) {
+      setActiveTab(fallbackTab);
     }
-  }, [activeTab, canAssignRA, canViewApprovals]);
+  }, [activeTab, canAssignRA, canViewApprovals, canViewDirectory]);
 
   // Fetch clients (paginated past Supabase's 1000-row default cap)
   const { data: clients, isLoading } = useQuery({
@@ -129,6 +135,7 @@ export function ClientDashboard() {
       }
       return all;
     },
+    enabled: canViewDirectory,
   });
 
   // Get client types based on actual orders
@@ -469,7 +476,7 @@ export function ClientDashboard() {
     <div className="space-y-6 page-mount">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className={`grid w-full ${tabGridClass}`}>
-          <TabsTrigger value="directory">Client Directory</TabsTrigger>
+          {canViewDirectory && <TabsTrigger value="directory">Client Directory</TabsTrigger>}
           {canViewApprovals && (
             <TabsTrigger value="approvals" className="flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
@@ -485,7 +492,7 @@ export function ClientDashboard() {
         </TabsList>
 
 
-        <TabsContent value="directory" className="space-y-6">
+        {canViewDirectory && <TabsContent value="directory" className="space-y-6">
           {/* Nested tabs for Buyers and Sellers */}
           <Tabs value={activeDirectoryTab} onValueChange={setActiveDirectoryTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -821,7 +828,7 @@ export function ClientDashboard() {
             </TabsContent>
 
           </Tabs>
-        </TabsContent>
+        </TabsContent>}
 
         {canViewApprovals && (
           <TabsContent value="approvals">
@@ -877,16 +884,20 @@ export function ClientDashboard() {
 
 
       {/* Add Client Dialog */}
-      <AddClientDialog 
-        open={showAddClientDialog} 
-        onOpenChange={setShowAddClientDialog}
-      />
+      {canViewDirectory && (
+        <AddClientDialog 
+          open={showAddClientDialog} 
+          onOpenChange={setShowAddClientDialog}
+        />
+      )}
       
       {/* Add Buyer Dialog */}
-      <AddBuyerDialog 
-        open={showAddBuyerDialog} 
-        onOpenChange={setShowAddBuyerDialog}
-      />
+      {canViewDirectory && (
+        <AddBuyerDialog 
+          open={showAddBuyerDialog} 
+          onOpenChange={setShowAddBuyerDialog}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
-import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import type { TerminalPermission } from '@/lib/permissions/terminalCatalog';
 import { Shield } from 'lucide-react';
 
 interface Props {

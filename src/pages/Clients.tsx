@@ -12,7 +12,7 @@ export default function Clients() {
   
   return (
     <PermissionGate
-      permissions={["clients_view"]}
+      permissions={["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage"]}
       fallback={
         <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center">
           <Card className="w-full max-w-md">

@@ -33,7 +33,8 @@ import {
   Keyboard,
 } from 'lucide-react';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
-import { useTerminalAuth, TerminalPermission } from '@/hooks/useTerminalAuth';
+import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import type { TerminalPermission } from '@/lib/permissions/terminalCatalog';
 import { usePayerOrders } from '@/hooks/usePayerModule';
 import { usePendingAppealCheckInCount } from '@/hooks/useTerminalAppeals';
 

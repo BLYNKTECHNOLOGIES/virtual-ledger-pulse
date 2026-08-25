@@ -34,10 +34,23 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
     onOpenChange(v);
   };
 
+  const hasMin = min !== '' && !isNaN(Number(min));
+  const hasMax = max !== '' && !isNaN(Number(max));
+
   const validate = (): string | null => {
-    if (!min || Number(min) <= 0) return 'Min order limit is required';
-    if (!max || Number(max) <= 0) return 'Max order limit is required';
-    if (Number(min) >= Number(max)) return 'Min must be less than max';
+    if (!hasMin && !hasMax) return 'Enter at least one of min or max order limit';
+    if (hasMin && Number(min) <= 0) return 'Min order limit must be greater than 0';
+    if (hasMax && Number(max) <= 0) return 'Max order limit must be greater than 0';
+    if (hasMin && hasMax && Number(min) >= Number(max)) return 'Min must be less than max';
+    // Cross-check against each ad's existing untouched side
+    if (hasMin && !hasMax) {
+      const bad = ads.find(a => Number(a.maxSingleTransAmount) <= Number(min));
+      if (bad) return `Min ₹${Number(min).toLocaleString('en-IN')} is not below the existing max of ad …${bad.advNo.slice(-8)}`;
+    }
+    if (hasMax && !hasMin) {
+      const bad = ads.find(a => Number(a.minSingleTransAmount) >= Number(max));
+      if (bad) return `Max ₹${Number(max).toLocaleString('en-IN')} is not above the existing min of ad …${bad.advNo.slice(-8)}`;
+    }
     return null;
   };
 
@@ -72,8 +85,8 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
             priceType: ad.priceType,
             initAmount: ad.initAmount,
             surplusAmount: ad.surplusAmount,
-            minSingleTransAmount: Number(min),
-            maxSingleTransAmount: Number(max),
+            minSingleTransAmount: hasMin ? Number(min) : Number(ad.minSingleTransAmount),
+            maxSingleTransAmount: hasMax ? Number(max) : Number(ad.maxSingleTransAmount),
             tradeMethods,
             payTimeLimit: ad.payTimeLimit || 15,
             ...(ad.priceType === 1 ? { price: ad.price } : { priceFloatingRatio: ad.priceFloatingRatio }),
@@ -115,6 +128,9 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
                 <Input type="number" value={max} onChange={e => setMax(e.target.value)} placeholder="e.g. 50000" />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Fill only one field to change just that side — the other side stays exactly as it is on each ad.
+            </p>
           </div>
         )}
 
@@ -128,8 +144,8 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
                   This will update <strong>{ads.length}</strong> ad{ads.length !== 1 ? 's' : ''} with:
                 </p>
                 <ul className="mt-1 list-disc list-inside text-muted-foreground">
-                  <li>Min Order: ₹{Number(min).toLocaleString('en-IN')}</li>
-                  <li>Max Order: ₹{Number(max).toLocaleString('en-IN')}</li>
+                  <li>Min Order: {hasMin ? `₹${Number(min).toLocaleString('en-IN')}` : 'unchanged'}</li>
+                  <li>Max Order: {hasMax ? `₹${Number(max).toLocaleString('en-IN')}` : 'unchanged'}</li>
                 </ul>
               </div>
             </div>

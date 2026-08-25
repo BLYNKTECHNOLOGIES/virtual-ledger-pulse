@@ -320,8 +320,6 @@ export const LEGACY_PERMISSION_MAP: Record<string, string> = {
   MANAGE_HRMS: 'hrms_manage',
   manage_payroll: 'payroll_manage',
   MANAGE_PAYROLL: 'payroll_manage',
-  manage_accounting: 'tax_management_manage',
-  MANAGE_ACCOUNTING: 'tax_management_manage',
   manage_banking: 'bams_manage',
   manage_compliance: 'compliance_manage',
   MANAGE_COMPLIANCE: 'compliance_manage',

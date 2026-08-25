@@ -128,6 +128,9 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
                 <Input type="number" value={max} onChange={e => setMax(e.target.value)} placeholder="e.g. 50000" />
               </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Fill only one field to change just that side — the other side stays exactly as it is on each ad.
+            </p>
           </div>
         )}
 

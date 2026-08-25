@@ -504,7 +504,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
         'stock_manage',
         'clients_manage',
         'erp_entry_manage',
-        'terminal_manage',
+        'terminal_view',
         'tasks_manage',
       ]),
   },

@@ -1,6 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { RefreshCw } from 'lucide-react';
 import { AdFilters } from '@/hooks/useBinanceAds';
 
@@ -90,33 +89,6 @@ export function AdManagerFilters({ filters, onFiltersChange, onRefresh, isRefres
           <SelectItem value="2">Floating</SelectItem>
         </SelectContent>
       </Select>
-
-
-      <div className="col-span-2 flex items-end gap-2 sm:contents">
-        <div className="min-w-0 flex-1 space-y-1 sm:flex-none">
-          <label htmlFor="ad-start-date" className="block text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">From</label>
-          <Input
-            id="ad-start-date"
-            type="date"
-            value={filters.startDate || ''}
-            onChange={(e) => onFiltersChange({ ...filters, startDate: e.target.value, page: 1 })}
-            className="h-9 w-full text-foreground sm:w-[150px]"
-            aria-label="Start date"
-          />
-        </div>
-        <span className="pb-2 text-muted-foreground sm:pb-0">→</span>
-        <div className="min-w-0 flex-1 space-y-1 sm:flex-none">
-          <label htmlFor="ad-end-date" className="block text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">To</label>
-          <Input
-            id="ad-end-date"
-            type="date"
-            value={filters.endDate || ''}
-            onChange={(e) => onFiltersChange({ ...filters, endDate: e.target.value, page: 1 })}
-            className="h-9 w-full text-foreground sm:w-[150px]"
-            aria-label="End date"
-          />
-        </div>
-      </div>
 
       <Button
         variant="outline"

@@ -90,8 +90,6 @@ export interface AdFilters {
   priceType?: number | null;
   /** Market zone filter (client-side): 'p2p' | 'block' | '' = both */
   zone?: string;
-  startDate?: string;
-  endDate?: string;
   page?: number;
   rows?: number;
   fetchAll?: boolean;

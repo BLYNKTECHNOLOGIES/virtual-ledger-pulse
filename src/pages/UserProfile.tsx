@@ -597,6 +597,8 @@ export default function UserProfile() {
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
   });
+  const { enabled: assistantEnabled, setHelpAssistantEnabled } = useHelpAssistantEnabled();
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveCreate, setShowLeaveCreate] = useState(false);

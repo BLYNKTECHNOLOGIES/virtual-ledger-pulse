@@ -207,7 +207,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: BookOpen,
         color: "text-warning",
         bgColor: "bg-warning/10",
-        permissions: ["tax_management_view", "tax_management_manage", "accounting_view"]
+        permissions: ["tax_management_view", "tax_management_manage"]
       },
       {
         id: "profit-loss",
@@ -216,7 +216,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: TrendingUp,
         color: "text-success",
         bgColor: "bg-success/10",
-        permissions: ["profit_loss_view", "accounting_view", "accounting_manage"]
+        permissions: ["profit_loss_view"]
       },
       {
         id: "financials",
@@ -225,7 +225,7 @@ const sidebarGroups: SidebarGroupConfig[] = [
         icon: Calculator,
         color: "text-success",
         bgColor: "bg-success/10",
-        permissions: ["financials_view", "financials_manage", "accounting_view"]
+        permissions: ["financials_view", "financials_manage"]
       },
       {
         id: "statistics",

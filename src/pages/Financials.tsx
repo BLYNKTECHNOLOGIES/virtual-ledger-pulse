@@ -189,7 +189,7 @@ export default function Financials() {
 
   return (
     <PermissionGate
-      permissions={["financials_view", "financials_manage", "accounting_view"]}
+      permissions={["financials_view", "financials_manage"]}
       fallback={
         <div className="min-h-screen bg-muted/50 p-6 flex items-center justify-center page-mount">
           <Card className="w-full max-w-md">

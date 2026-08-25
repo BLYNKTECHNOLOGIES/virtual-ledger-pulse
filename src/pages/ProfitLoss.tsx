@@ -102,7 +102,7 @@ interface ExpenseIncomeEntry {
 
 export default function ProfitLoss() {
   const { hasAnyPermission, isLoading: permissionsLoading } = usePermissions();
-  const canViewProfitLoss = hasAnyPermission(["profit_loss_view", "accounting_view", "accounting_manage"]);
+  const canViewProfitLoss = hasAnyPermission(["profit_loss_view"]);
 
   const [datePreset, setDatePreset] = useState<DateRangePreset>(() => {
     const saved = localStorage.getItem('pnl_date_preset') as DateRangePreset | null;

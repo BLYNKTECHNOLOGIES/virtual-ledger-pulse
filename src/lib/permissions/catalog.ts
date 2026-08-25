@@ -433,7 +433,8 @@ export const normalizePermissions = (perms: string[]): string[] =>
  */
 export const PERMISSION_ALIASES: Record<string, string[]> = {
   accounting_view: ['tax_management_view', 'profit_loss_view', 'financials_view'],
-  accounting_manage: ['tax_management_manage', 'financials_manage'],
+  accounting_manage: ['tax_management_view', 'tax_management_manage', 'profit_loss_view', 'financials_view', 'financials_manage'],
+  bams_manage: ['bams_view', 'bams_journal_entry'],
   hrms_view: [
     'hrms_employees_view',
     'hrms_attendance_view',
@@ -447,6 +448,7 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
     'hrms_data_health_view',
   ],
   hrms_manage: [
+    'hrms_view',
     'hrms_employees_manage',
     'hrms_attendance_manage',
     'hrms_attendance_approve',
@@ -459,6 +461,17 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
     'hrms_pms_manage',
     'hrms_mailbox_manage',
   ],
+  hrms_employees_manage: ['hrms_employees_view'],
+  hrms_attendance_manage: ['hrms_attendance_view'],
+  hrms_attendance_approve: ['hrms_attendance_view'],
+  hrms_leave_manage: ['hrms_leave_view'],
+  hrms_leave_approve: ['hrms_leave_view'],
+  hrms_payroll_manage: ['hrms_payroll_view'],
+  hrms_recruitment_manage: ['hrms_recruitment_view'],
+  hrms_documents_manage: ['hrms_documents_view'],
+  hrms_assets_manage: ['hrms_assets_view'],
+  hrms_pms_manage: ['hrms_pms_view'],
+  hrms_mailbox_manage: ['hrms_mailbox_view'],
   // Any HRMS sub-module view implies the module can be opened at all.
   hrms_employees_view: ['hrms_view'],
   hrms_attendance_view: ['hrms_view'],
@@ -474,7 +487,6 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   sales_manage: ['sales_view'],
   purchase_manage: ['purchase_view'],
   stock_manage: ['stock_view'],
-  bams_manage: ['bams_view'],
   clients_manage: ['clients_view'],
   leads_manage: ['leads_view'],
   compliance_manage: ['compliance_view'],

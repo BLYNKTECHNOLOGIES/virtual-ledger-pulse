@@ -48,21 +48,24 @@ export function MobileBottomNav() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { hasAnyPermission, isLoading } = usePermissions();
+  const { isAdmin } = useAuth();
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
-  const canAccess = (permissions: string[]) => hasAnyPermission(expandPermissions(permissions));
+  const canAccess = (permissions: string[]) =>
+    isAdmin || hasAnyPermission(expandPermissions(permissions));
 
   const visibleMainNavItems = useMemo(
     () => mainNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
-    [hasAnyPermission]
+    [hasAnyPermission, isAdmin]
   );
 
   const visibleMoreNavItems = useMemo(
     () => moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
-    [hasAnyPermission]
+    [hasAnyPermission, isAdmin]
   );
 
-  if (isLoading) return null;
+  if (isLoading && !isAdmin) return null;
+
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t-2 border-border shadow-lg print:hidden">

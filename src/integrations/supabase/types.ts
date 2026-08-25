@@ -27201,10 +27201,15 @@ export type Database = {
         Returns: boolean
       }
       can_access_tax_records: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_banking: { Args: { _user_id: string }; Returns: boolean }
+      can_manage_clients: { Args: { _user_id: string }; Returns: boolean }
       can_manage_customer_support_tickets: {
         Args: { _user_id: string }
         Returns: boolean
       }
+      can_manage_orders: { Args: { _user_id: string }; Returns: boolean }
+      can_view_banking: { Args: { _user_id: string }; Returns: boolean }
+      can_view_orders: { Args: { _user_id: string }; Returns: boolean }
       cancel_scheduled_salary_revision: {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: undefined
@@ -28468,6 +28473,10 @@ export type Database = {
           p_type: string
         }
         Returns: number
+      }
+      hr_can_access_payroll_data: {
+        Args: { _user_id: string }
+        Returns: boolean
       }
       hr_can_manage_payroll_config: {
         Args: { _user_id: string }

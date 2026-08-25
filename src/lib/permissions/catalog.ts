@@ -460,6 +460,7 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
     'hrms_assets_manage',
     'hrms_pms_manage',
     'hrms_mailbox_manage',
+    'hrms_razorpay_sync',
   ],
   hrms_employees_manage: ['hrms_employees_view'],
   hrms_attendance_manage: ['hrms_attendance_view'],

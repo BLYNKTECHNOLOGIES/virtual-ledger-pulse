@@ -13,7 +13,9 @@
  * Terminal has its own permission system (`useTerminalAuth` /
  * `public.terminal_permission`). Its catalog is described in
  * `src/lib/permissions/terminalCatalog.ts` for documentation parity; ERP roles
- * only carry `terminal_view` / `terminal_manage` / `terminal_destructive`.
+ * only carry `terminal_view` (standby sign-in) and `terminal_destructive`.
+ * `terminal_manage` is deprecated: it is kept in the enum and aliased onto
+ * `terminal_view` so legacy roles keep working, but it is no longer offered.
  */
 
 export type PermissionTier = 'view' | 'manage' | 'approve' | 'destructive' | 'special';
@@ -401,6 +403,7 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   utility_manage: ['utility_view'],
   user_management_manage: ['user_management_view'],
   erp_entry_manage: ['erp_entry_view'],
+  // Deprecated ERP grant — legacy roles holding it get standby sign-in only.
   terminal_manage: ['terminal_view'],
   shift_reconciliation_create: ['reconciliation_view'],
   shift_reconciliation_approve: ['reconciliation_view'],

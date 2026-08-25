@@ -207,97 +207,17 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
     ],
   },
   hrms: {
-    label: 'HRMS (umbrella)',
+    label: 'HRMS',
     section: 'People',
     permissions: [
-      { id: 'hrms_view', name: 'View All', description: 'Open HRMS — also unlocks every HRMS sub-module view', tier: 'view', routes: ['/hrms'] },
-      { id: 'hrms_manage', name: 'Manage All', description: 'Full HR control — also unlocks every HRMS sub-module manage', tier: 'manage' },
+      { id: 'hrms_view', name: 'View', description: 'Open HRMS (read-only across every HR area)', tier: 'view', routes: ['/hrms'] },
+      { id: 'hrms_manage', name: 'Manage', description: 'Full HR control — employees, attendance, leave, payroll, recruitment, documents, assets, performance, mailbox, data health', tier: 'manage' },
       { id: 'hrms_razorpay_sync', name: 'RazorpayX Sync', description: 'Push/pull payroll data to RazorpayX', tier: 'special' },
-    ],
-  },
-  hrms_employees: {
-    label: 'HR · Employees',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_employees_view', name: 'View', description: 'View employee records and org chart', tier: 'view', routes: ['/hrms/employee'] },
-      { id: 'hrms_employees_manage', name: 'Manage', description: 'Create, edit, onboard and offboard employees', tier: 'manage' },
-    ],
-  },
-  hrms_attendance: {
-    label: 'HR · Attendance',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_attendance_view', name: 'View', description: 'View attendance, punches and summaries', tier: 'view', routes: ['/hrms/attendance'] },
-      { id: 'hrms_attendance_manage', name: 'Manage', description: 'Edit attendance, shifts, devices and period locks', tier: 'manage' },
-      { id: 'hrms_attendance_approve', name: 'Approve', description: 'Approve or reject regularization requests', tier: 'approve' },
-    ],
-  },
-  hrms_leave: {
-    label: 'HR · Leave',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_leave_view', name: 'View', description: 'View leave requests, balances and allocations', tier: 'view', routes: ['/hrms/leave'] },
-      { id: 'hrms_leave_manage', name: 'Manage', description: 'Edit leave types, allocations and balances', tier: 'manage' },
-      { id: 'hrms_leave_approve', name: 'Approve', description: 'Approve or reject leave requests', tier: 'approve' },
-    ],
-  },
-  hrms_payroll: {
-    label: 'HR · Payroll',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_payroll_view', name: 'View', description: 'View payslips, salary structures and payroll runs', tier: 'view', routes: ['/hrms/payroll'] },
-      { id: 'hrms_payroll_manage', name: 'Manage', description: 'Run payroll, revise salaries, manage loans and deposits', tier: 'manage' },
       { id: 'payroll_view', name: 'ERP Payroll View', description: 'View payroll data inside the ERP profile surfaces', tier: 'view' },
       { id: 'payroll_manage', name: 'ERP Payroll Manage', description: 'Manage payroll data from ERP profile surfaces', tier: 'manage' },
     ],
   },
-  hrms_recruitment: {
-    label: 'HR · Recruitment',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_recruitment_view', name: 'View', description: 'View candidates, pipeline and interviews', tier: 'view', routes: ['/hrms/recruitment'] },
-      { id: 'hrms_recruitment_manage', name: 'Manage', description: 'Manage candidates, stages, interviews and offers', tier: 'manage' },
-    ],
-  },
-  hrms_documents: {
-    label: 'HR · Documents',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_documents_view', name: 'View', description: 'View HR documents and templates', tier: 'view', routes: ['/hrms/documents'] },
-      { id: 'hrms_documents_manage', name: 'Manage', description: 'Issue documents and edit templates/signatories', tier: 'manage' },
-    ],
-  },
-  hrms_assets: {
-    label: 'HR · Assets',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_assets_view', name: 'View', description: 'View HR assets and assignments', tier: 'view', routes: ['/hrms/asset'] },
-      { id: 'hrms_assets_manage', name: 'Manage', description: 'Create assets and manage assignments', tier: 'manage' },
-    ],
-  },
-  hrms_pms: {
-    label: 'HR · Performance',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_pms_view', name: 'View', description: 'View performance, feedback and MPI', tier: 'view', routes: ['/hrms/pms'] },
-      { id: 'hrms_pms_manage', name: 'Manage', description: 'Manage reviews, feedback cycles and disciplinary actions', tier: 'manage' },
-    ],
-  },
-  hrms_mailbox: {
-    label: 'HR · Mailbox',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_mailbox_view', name: 'View', description: 'Read the HR mailbox', tier: 'view', routes: ['/hrms/mailbox'] },
-      { id: 'hrms_mailbox_manage', name: 'Manage', description: 'Send HR mail and run campaigns', tier: 'manage' },
-    ],
-  },
-  hrms_data_health: {
-    label: 'HR · Data Health',
-    section: 'People',
-    permissions: [
-      { id: 'hrms_data_health_view', name: 'View', description: 'View data health and system pulse diagnostics', tier: 'view', routes: ['/hrms/data-health', '/hrms/system-pulse'] },
-    ],
-  },
+
   tasks: {
     label: 'Tasks',
     section: 'Workplace',
@@ -439,45 +359,11 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   clients_manage: ['clients_view', 'kyc_approvals_manage', 'video_kyc_manage'],
   kyc_approvals_manage: ['kyc_approvals_view'],
   video_kyc_manage: ['video_kyc_view'],
-  hrms_view: [
-    'hrms_employees_view',
-    'hrms_attendance_view',
-    'hrms_leave_view',
-    'hrms_payroll_view',
-    'hrms_recruitment_view',
-    'hrms_documents_view',
-    'hrms_assets_view',
-    'hrms_pms_view',
-    'hrms_mailbox_view',
-    'hrms_data_health_view',
-  ],
-  hrms_manage: [
-    'hrms_view',
-    'hrms_employees_manage',
-    'hrms_attendance_manage',
-    'hrms_attendance_approve',
-    'hrms_leave_manage',
-    'hrms_leave_approve',
-    'hrms_payroll_manage',
-    'hrms_recruitment_manage',
-    'hrms_documents_manage',
-    'hrms_assets_manage',
-    'hrms_pms_manage',
-    'hrms_mailbox_manage',
-    'hrms_razorpay_sync',
-  ],
-  hrms_employees_manage: ['hrms_employees_view'],
-  hrms_attendance_manage: ['hrms_attendance_view'],
-  hrms_attendance_approve: ['hrms_attendance_view'],
-  hrms_leave_manage: ['hrms_leave_view'],
-  hrms_leave_approve: ['hrms_leave_view'],
-  hrms_payroll_manage: ['hrms_payroll_view'],
-  hrms_recruitment_manage: ['hrms_recruitment_view'],
-  hrms_documents_manage: ['hrms_documents_view'],
-  hrms_assets_manage: ['hrms_assets_view'],
-  hrms_pms_manage: ['hrms_pms_view'],
-  hrms_mailbox_manage: ['hrms_mailbox_view'],
-  // Any HRMS sub-module view implies the module can be opened at all.
+  // HRMS is intentionally NOT sub-divided: a single HR owner manages everything.
+  hrms_view: ['payroll_view'],
+  hrms_manage: ['hrms_view', 'hrms_razorpay_sync', 'payroll_view', 'payroll_manage'],
+  // Backward compatibility: legacy sub-module grants still stored on roles keep
+  // working by mapping straight onto the umbrella keys.
   hrms_employees_view: ['hrms_view'],
   hrms_attendance_view: ['hrms_view'],
   hrms_leave_view: ['hrms_view'],
@@ -488,6 +374,18 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   hrms_pms_view: ['hrms_view'],
   hrms_mailbox_view: ['hrms_view'],
   hrms_data_health_view: ['hrms_view'],
+  hrms_employees_manage: ['hrms_manage'],
+  hrms_attendance_manage: ['hrms_manage'],
+  hrms_attendance_approve: ['hrms_manage'],
+  hrms_leave_manage: ['hrms_manage'],
+  hrms_leave_approve: ['hrms_manage'],
+  hrms_payroll_manage: ['hrms_manage'],
+  hrms_recruitment_manage: ['hrms_manage'],
+  hrms_documents_manage: ['hrms_manage'],
+  hrms_assets_manage: ['hrms_manage'],
+  hrms_pms_manage: ['hrms_manage'],
+  hrms_mailbox_manage: ['hrms_manage'],
+
   // Managing implies viewing.
   sales_manage: ['sales_view'],
   purchase_manage: ['purchase_view'],

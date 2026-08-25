@@ -18,6 +18,10 @@ import { PayslipPdfDownloadButton } from '@/components/hrms/PayslipPdfDownloadBu
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
+import { Switch } from '@/components/ui/switch';
+import { Bot } from 'lucide-react';
+import { useHelpAssistantEnabled } from '@/hooks/useHelpAssistantEnabled';
+
 import { 
   User, 
   Building2, 
@@ -593,6 +597,8 @@ export default function UserProfile() {
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
   });
+  const { enabled: assistantEnabled, setHelpAssistantEnabled } = useHelpAssistantEnabled();
+
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [showLeaveCreate, setShowLeaveCreate] = useState(false);
@@ -1525,7 +1531,32 @@ export default function UserProfile() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base"><Bot className="h-4 w-4" /> AI Assistant</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <Label htmlFor="assistant-toggle" className="text-sm">Floating AI assistant</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Shows the assistant mascot button in the corner of every page. Turning it off hides it on this device — you can still open the assistant from the menu.
+                    </p>
+                  </div>
+                  <Switch
+                    id="assistant-toggle"
+                    checked={assistantEnabled}
+                    onCheckedChange={(v) => {
+                      setHelpAssistantEnabled(v);
+                      toast({ title: v ? 'AI assistant enabled' : 'AI assistant disabled', duration: 2500 });
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </section>
+
 
           {/* Security */}
           <section className="space-y-4">

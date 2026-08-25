@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useHelpAssistantEnabled } from "@/hooks/useHelpAssistantEnabled";
 
 /**
  * Floating "Eve-style" robot mascot button — opens the AI Help Assistant.
@@ -12,10 +13,13 @@ export function HelpAssistantFab() {
   const navigate = useNavigate();
   const location = useLocation();
   const { hasPermission } = usePermissions();
+  const { enabled } = useHelpAssistantEnabled();
   const [hover, setHover] = useState(false);
 
+  if (!enabled) return null;
   if (location.pathname.startsWith("/help-assistant")) return null;
   if (!hasPermission("help_assistant_view") && !hasPermission("help_assistant_manage")) return null;
+
 
   return (
     <div className="fixed z-50 bottom-20 right-4 md:bottom-6 md:right-6 flex flex-col items-end gap-2 select-none print:hidden">

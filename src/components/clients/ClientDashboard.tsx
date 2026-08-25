@@ -539,7 +539,7 @@ export function ClientDashboard() {
                         <SelectItem value="volume-asc">Volume: Lowest</SelectItem>
                       </SelectContent>
                     </Select>
-                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+                    <PermissionGate permissions={["clients_manage"]} showFallback={false}>
                       <Button size="sm" onClick={() => setShowAddBuyerDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add New Buyer
@@ -702,7 +702,7 @@ export function ClientDashboard() {
                         <SelectItem value="volume-asc">Volume: Lowest</SelectItem>
                       </SelectContent>
                     </Select>
-                    <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+                    <PermissionGate permissions={["clients_manage"]} showFallback={false}>
                       <Button size="sm" onClick={() => setShowAddClientDialog(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Add New Seller

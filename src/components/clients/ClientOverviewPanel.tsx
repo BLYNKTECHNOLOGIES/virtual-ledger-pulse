@@ -449,7 +449,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
         {/* Action Buttons */}
         <div className="space-y-4 pt-4 border-t">
           <div className="grid grid-cols-2 gap-2">
-            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+            <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               <Button 
                 size="sm" 
                 variant="outline" 
@@ -473,7 +473,7 @@ export function ClientOverviewPanel({ clientId, isSeller, isComposite }: ClientO
           
           {/* Only show limit and cosmos buttons for buyers */}
           {!isSeller && (
-            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+            <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               <div className="grid grid-cols-2 gap-2">
                 <Button 
                   size="sm" 

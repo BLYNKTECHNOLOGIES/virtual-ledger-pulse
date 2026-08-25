@@ -27,7 +27,7 @@ type LedgerEvent = {
 
 const fmtDays = (n: number) => `${Number(n) % 1 === 0 ? Number(n) : Number(n).toFixed(1)}d`;
 
-export default function LeaveLedgerHistoryPage() { open, onOpenChange }: Props) {
+export default function LeaveLedgerHistoryPage() {
   const [search, setSearch] = useState("");
   const [directionFilter, setDirectionFilter] = useState<"all" | "credit" | "debit">("all");
 

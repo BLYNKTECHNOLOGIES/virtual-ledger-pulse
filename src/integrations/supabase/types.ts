@@ -29031,6 +29031,10 @@ export type Database = {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean
       }
+      hr_stamp_leave_attendance: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       hr_statutory_profile: {
         Args: { p_employee: string; p_month: string }
         Returns: {

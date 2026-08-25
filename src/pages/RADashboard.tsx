@@ -12,6 +12,7 @@ import { useMyRAAssignments, useAllRARemarks } from "@/hooks/useRA";
 import { useClientTypeFromOrders } from "@/hooks/useClientTypeFromOrders";
 import { RARemarkDialog } from "@/components/clients/RARemarkDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 
@@ -28,6 +29,7 @@ const formatVolume = (v: number) =>
 
 export default function RADashboard() {
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { hasPermission, isLoading: permsLoading } = usePermissions();
   const { data: assignments, isLoading: aLoading } = useMyRAAssignments();
   const { data: allRemarks } = useAllRARemarks();
@@ -75,7 +77,7 @@ export default function RADashboard() {
       });
   }, [clients, orderCounts, search, assignments, lastRemarkByClient]);
 
-  if (!permsLoading && !hasPermission("ra_dashboard_view")) {
+  if (!permsLoading && !isAdmin && !hasPermission("ra_dashboard_view")) {
     return (
       <div className="p-8 text-center text-muted-foreground">
         You do not have access to the RA Dashboard.

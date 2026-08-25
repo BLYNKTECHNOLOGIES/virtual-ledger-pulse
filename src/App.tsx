@@ -264,7 +264,7 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <PermissionGate permissions={["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage"]}>
+              <PermissionGate permissions={["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage", "ra_assign"]}>
                 <Clients />
               </PermissionGate>
             </Layout>

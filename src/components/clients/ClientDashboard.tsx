@@ -21,6 +21,7 @@ import { useClientTypeFromOrders, getClientActivityStatus, ClientOrderData, Volu
 import { ClientDirectoryFilterButton, ClientDirectoryFilterPanel, ClientFilters, defaultFilters } from "./ClientDirectoryFilters";
 import { VolumeTrendBadge } from "./VolumeTrendBadge";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { useActiveRAAssignments } from "@/hooks/useRA";
 import { AssignToRADialog } from "./AssignToRADialog";
 import { RAAssignmentsTab } from "./RAAssignmentsTab";
@@ -67,9 +68,10 @@ export function ClientDashboard() {
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const { hasPermission, hasAnyPermission } = usePermissions();
-  const canAssignRA = hasPermission("ra_assign");
-  const canViewDirectory = hasAnyPermission(["clients_view", "clients_manage"]);
+  const canAssignRA = isAdmin || hasPermission("ra_assign");
+  const canViewDirectory = isAdmin || hasAnyPermission(["clients_view", "clients_manage"]);
   const canViewApprovals = hasAnyPermission(["kyc_approvals_view", "kyc_approvals_manage"]);
   const visibleTabCount = (canViewDirectory ? 1 : 0) + (canViewApprovals ? 1 : 0) + (canAssignRA ? 1 : 0);
   const tabGridClass = visibleTabCount === 3 ? "grid-cols-3" : visibleTabCount === 2 ? "grid-cols-2" : "grid-cols-1";

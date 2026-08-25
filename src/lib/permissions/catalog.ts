@@ -152,12 +152,18 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
     permissions: [
       { id: 'clients_view', name: 'View', description: 'View clients and KYC status', tier: 'view', routes: ['/clients'] },
       { id: 'clients_manage', name: 'Manage', description: 'Create and edit clients', tier: 'manage' },
-      { id: 'ra_assign', name: 'Assign RA', description: 'Assign clients to Relationship Associates', tier: 'special' },
-      { id: 'ra_dashboard_view', name: 'RA Dashboard', description: 'Access own Relationship Associate dashboard', tier: 'special', routes: ['/ra-dashboard'] },
       { id: 'video_kyc_view', name: 'Video KYC View', description: 'View video KYC sessions', tier: 'view' },
       { id: 'video_kyc_manage', name: 'Video KYC Manage', description: 'Conduct and record video KYC', tier: 'manage' },
       { id: 'kyc_approvals_view', name: 'KYC Approvals View', description: 'View pending KYC/onboarding approvals', tier: 'view' },
       { id: 'kyc_approvals_manage', name: 'KYC Approvals Manage', description: 'Approve or reject client onboarding', tier: 'approve' },
+    ],
+  },
+  ra_assignment: {
+    label: 'RA Assignment',
+    section: 'Relationships',
+    permissions: [
+      { id: 'ra_assign', name: 'Assign / Reassign Clients', description: 'Open Clients → Assignments and assign or reassign clients to Relationship Associates', tier: 'special', routes: ['/clients'] },
+      { id: 'ra_dashboard_view', name: 'RA Dashboard View', description: 'Open the Relationship Associate dashboard for assigned clients and remarks', tier: 'view', routes: ['/ra-dashboard'] },
     ],
   },
   leads: {

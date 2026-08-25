@@ -106,7 +106,7 @@ const standaloneItems: SidebarGroupItem[] = [
     icon: Users,
     color: "text-info",
     bgColor: "bg-info/10",
-    permissions: ["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage"]
+    permissions: ["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage", "ra_assign"]
   },
   {
     id: "ra-dashboard",

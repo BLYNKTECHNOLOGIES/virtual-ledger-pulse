@@ -144,8 +144,8 @@ export function BulkEditLimitsDialog({ open, onOpenChange, ads, onComplete }: Pr
                   This will update <strong>{ads.length}</strong> ad{ads.length !== 1 ? 's' : ''} with:
                 </p>
                 <ul className="mt-1 list-disc list-inside text-muted-foreground">
-                  <li>Min Order: ₹{Number(min).toLocaleString('en-IN')}</li>
-                  <li>Max Order: ₹{Number(max).toLocaleString('en-IN')}</li>
+                  <li>Min Order: {hasMin ? `₹${Number(min).toLocaleString('en-IN')}` : 'unchanged'}</li>
+                  <li>Max Order: {hasMax ? `₹${Number(max).toLocaleString('en-IN')}` : 'unchanged'}</li>
                 </ul>
               </div>
             </div>

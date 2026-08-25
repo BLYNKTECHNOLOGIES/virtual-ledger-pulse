@@ -271,12 +271,11 @@ export function AppSidebar() {
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
   const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
-  const { hasRole, user } = useAuth();
-  const isSuperAdmin = hasRole("super admin");
+  const { isAdmin, user } = useAuth();
   const isCollapsed = state === "collapsed";
 
   const canAccess = (permissions: string[]) =>
-    permissions.length === 0 || hasAnyPermission(expandPermissions(permissions));
+    isAdmin || permissions.length === 0 || hasAnyPermission(expandPermissions(permissions));
 
   // Configure drag sensors
   const sensors = useSensors(
@@ -302,11 +301,11 @@ export function AppSidebar() {
     });
 
     // Reconciliation cockpit — gated by the reconciliation function/role
-    if (!isLoading && hasReconAccess) {
+    if (!isLoading && (isAdmin || hasReconAccess)) {
       entries.push({ type: 'item', data: reconciliationItem });
     }
 
-    if (!isLoading && (isSuperAdmin || canAccess(reportSettingsItem.permissions))) {
+    if (!isLoading && canAccess(reportSettingsItem.permissions)) {
       entries.push({ type: 'item', data: reportSettingsItem });
     }
 
@@ -325,7 +324,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission, hasReconAccess, isSuperAdmin]);
+  }, [isLoading, hasAnyPermission, hasReconAccess, isAdmin]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

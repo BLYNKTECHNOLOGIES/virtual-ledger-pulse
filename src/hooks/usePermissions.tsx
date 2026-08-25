@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { isStandbyRoles } from '@/hooks/useIsStandby';
 import { ADMIN_PERMISSIONS, expandPermissions } from '@/lib/permissions/catalog';
+import { isAdminRoleName, isSuperAdminRoleName } from '@/lib/auth/roles';
 
 
 const permissionCache = new Map<string, string[]>();
@@ -35,8 +36,11 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function usePermissions() {
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?.id || null;
+  const userHasAdminRole = Boolean(user?.roles?.some(isAdminRoleName));
   const cachedPermissions = userId
-    ? permissionCache.get(userId) || readPersistedPermissions(userId) || undefined
+    ? userHasAdminRole
+      ? ADMIN_PERMISSIONS
+      : permissionCache.get(userId) || readPersistedPermissions(userId) || undefined
     : undefined;
   const [permissions, setPermissions] = useState<string[]>(cachedPermissions || []);
   const [isLoading, setIsLoading] = useState(!cachedPermissions);
@@ -50,6 +54,15 @@ export function usePermissions() {
       
       if (!user) {
         setPermissions([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // Admin-level roles must never be constrained by stale granular caches.
+      if (user.roles?.some(isAdminRoleName)) {
+        persistPermissions(user.id, ADMIN_PERMISSIONS);
+        setPermissions(ADMIN_PERMISSIONS);
+        setIsDegraded(false);
         setIsLoading(false);
         return;
       }
@@ -73,8 +86,8 @@ export function usePermissions() {
         setIsLoading(true);
       }
       
-      // Check if user is super admin (role-based only)
-      if (user.roles?.some(r => r.toLowerCase() === 'super admin')) {
+      // Defensive legacy fallback for odd role casing/spacing.
+      if (user.roles?.some(isSuperAdminRoleName)) {
         persistPermissions(user.id, ADMIN_PERMISSIONS);
         setPermissions(ADMIN_PERMISSIONS);
         setIsDegraded(false);
@@ -98,7 +111,7 @@ export function usePermissions() {
         console.error('Error fetching user permissions:', error);
 
         // Fallback: check if user has admin role from user object
-        const isAdmin = user.roles?.some(role => role.toLowerCase() === 'admin');
+        const isAdmin = user.roles?.some(isAdminRoleName);
         if (isAdmin) {
           persistPermissions(user.id, ADMIN_PERMISSIONS);
           setPermissions(ADMIN_PERMISSIONS);

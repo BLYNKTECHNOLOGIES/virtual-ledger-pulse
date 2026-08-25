@@ -1,6 +1,7 @@
 
 import { ReactNode } from 'react';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Shield } from 'lucide-react';
 
@@ -20,6 +21,11 @@ export function PermissionGate({
   children 
 }: PermissionGateProps) {
   const { hasPermission, hasAnyPermission, hasAllPermissions, isLoading } = usePermissions();
+  const { isAdmin } = useAuth();
+
+  if (isAdmin) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (

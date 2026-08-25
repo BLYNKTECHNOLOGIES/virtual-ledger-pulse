@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext, ReactNode, useCallback 
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { ALL_TERMINAL_PERMISSIONS, type TerminalPermission } from '@/lib/permissions/terminalCatalog';
+import { isSuperAdminRoleName } from '@/lib/auth/roles';
 
 export type { TerminalPermission } from '@/lib/permissions/terminalCatalog';
 
@@ -47,6 +48,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
 
   const fetchTerminalAuth = useCallback(async () => {
     if (parentLoading) return;
+    const sessionIsSuperAdmin = user?.roles?.some(isSuperAdminRoleName) || false;
     if (!user?.id) {
       setTerminalRoles([]);
       setTerminalPermissions([]);
@@ -96,23 +98,22 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
         if (erpUser.roles && Array.isArray(erpUser.roles)) {
           dbIsSuperAdmin = erpUser.roles.some((r: any) => {
             const name = typeof r === 'string' ? r : r.name;
-            return name?.toLowerCase() === 'super admin';
+            return isSuperAdminRoleName(name);
           });
         }
       }
       // Also check from cached session as fallback
-      const sessionIsSuperAdmin = user?.roles?.some(r => r.toLowerCase() === 'super admin') || false;
       setIsSuperAdmin(dbIsSuperAdmin || sessionIsSuperAdmin);
 
     } catch (err) {
       console.error('Error fetching terminal auth:', err);
       setTerminalRoles([]);
       setTerminalPermissions([]);
-      setIsSuperAdmin(false);
+      setIsSuperAdmin(sessionIsSuperAdmin);
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id, parentLoading]);
+  }, [user?.id, user?.roles, parentLoading]);
 
   useEffect(() => {
     fetchTerminalAuth();

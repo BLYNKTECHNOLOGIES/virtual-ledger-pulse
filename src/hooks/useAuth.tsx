@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ValidationUser, UserWithRoles, User, AuthContextType } from '@/types/auth';
 import { initSessionCache, setSessionCache } from '@/lib/session-cache';
+import { hasRoleName } from '@/lib/auth/roles';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -366,13 +367,7 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
   };
 
   const hasRole = (role: string): boolean => {
-    if (!user?.roles) {
-      return false;
-    }
-    
-    return user.roles.some(userRole => 
-      userRole.toLowerCase() === role.toLowerCase()
-    );
+    return hasRoleName(user?.roles, role);
   };
 
   const isAdmin = hasRole('admin') || hasRole('super admin');

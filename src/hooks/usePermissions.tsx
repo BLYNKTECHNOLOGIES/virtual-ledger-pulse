@@ -129,7 +129,7 @@ export function usePermissions() {
 
       if (userPermissions && Array.isArray(userPermissions) && userPermissions.length > 0) {
         // Normalize legacy keys and resolve umbrella/implied grants so that a
-        // role holding e.g. accounting_view keeps Tax/P&L/Financials access.
+        // role holding e.g. hrms_manage keeps its sub-module access.
         const raw = userPermissions.map((p: any) => p.permission as string);
         // Mirror the database side: admin_access / super_admin_access are a full
         // bypass (public.has_permission behaves the same way).

@@ -13,7 +13,9 @@ is the ONLY LOP calculator that payroll (shadow + real) is allowed to consume.
 | half_day (any origin) | 0.5 |
 | absent (with no approved leave, no weekly-off, no holiday) | 1.0 |
 | approved unpaid leave (`hr_leave_types.is_paid = false`) | 1.0 |
-| approved paid leave / weekly-off / holiday | 0 |
+| approved paid leave actually covered by a balance / weekly-off / holiday | 0 |
+| **approved paid-type leave NOT covered by any balance** (cascade shortfall, `hr_leave_requests.unpaid_days`) | **1.0 per uncovered working day** |
+| **day worked during approved leave** (`hr_leave_worked_days`) | **0 — counted as attendance only, never as leave** |
 | **day with an OPEN watchdog session** | **0 (held harmless)** |
 | **policy late occurrences** | **1 LOP day per `late_count_for_lop` lates** (only if threshold > 0) |
 | **policy half-day occurrences** | **1 extra LOP day per `half_day_count_for_lop` half-days** (only if threshold > 0) |

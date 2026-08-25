@@ -19618,6 +19618,24 @@ export type Database = {
         }
         Relationships: []
       }
+      permission_implications: {
+        Row: {
+          child_permission: string
+          created_at: string
+          parent_permission: string
+        }
+        Insert: {
+          child_permission: string
+          created_at?: string
+          parent_permission: string
+        }
+        Update: {
+          child_permission?: string
+          created_at?: string
+          parent_permission?: string
+        }
+        Relationships: []
+      }
       positions: {
         Row: {
           created_at: string | null

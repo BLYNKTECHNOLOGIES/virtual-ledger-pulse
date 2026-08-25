@@ -2,11 +2,12 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, ArrowUpCircle, ArrowDownCircle, History } from "lucide-react";
+import { Search, Download, ArrowUpCircle, ArrowDownCircle, ArrowLeft } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { PageHeader } from "@/components/shared/PageHeader";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 
@@ -24,20 +25,14 @@ type LedgerEvent = {
   detail: string;
 };
 
-interface Props {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}
-
 const fmtDays = (n: number) => `${Number(n) % 1 === 0 ? Number(n) : Number(n).toFixed(1)}d`;
 
-export function LeaveLedgerHistoryDialog({ open, onOpenChange }: Props) {
+export default function LeaveLedgerHistoryPage() {
   const [search, setSearch] = useState("");
   const [directionFilter, setDirectionFilter] = useState<"all" | "credit" | "debit">("all");
 
   const { data, isLoading } = useQuery({
     queryKey: ["hr_leave_ledger_history"],
-    enabled: open,
     queryFn: async () => {
       const [employees, leaveTypes, allocations, accruals, compoffCredits, compoffSettlements, consumption, requests] =
         await Promise.all([
@@ -267,101 +262,101 @@ export function LeaveLedgerHistoryDialog({ open, onOpenChange }: Props) {
     toast.success("History exported");
   };
 
+  const navigate = useNavigate();
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[88vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <History className="h-4 w-4" /> Leave Allocation & Redemption History
-          </DialogTitle>
-          <DialogDescription>
-            Every credit (allocation, monthly accrual, comp-off earned) and every debit (leave redeemed, comp-off
-            encashed or offset against loss of pay), grouped by employee and ordered newest first.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className="flex flex-wrap gap-2">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search employee, badge or leave type..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9 text-foreground"
-            />
-          </div>
-          <Select value={directionFilter} onValueChange={(v) => setDirectionFilter(v as any)}>
-            <SelectTrigger className="w-[170px] h-9 text-foreground"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All movements</SelectItem>
-              <SelectItem value="credit">Credits only</SelectItem>
-              <SelectItem value="debit">Debits only</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" className="h-9" onClick={exportCsv} disabled={filtered.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Export CSV
+    <div className="p-4 md:p-6 space-y-4 page-mount">
+      <PageHeader
+        title="Leave Allocation & Redemption History"
+        description="Every credit (allocation, monthly accrual, comp-off earned) and every debit (leave redeemed, comp-off encashed or offset against loss of pay), grouped by employee and ordered newest first."
+        actions={
+          <Button variant="outline" className="h-9" onClick={() => navigate("/hrms/leave/allocations")}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Allocations
           </Button>
-        </div>
+        }
+      />
 
-        <div className="flex-1 overflow-y-auto -mx-6 px-6 space-y-4">
-          {isLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Loading history…</p>
-          ) : grouped.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">No leave movements recorded yet.</p>
-          ) : (
-            grouped.map((g) => (
-              <div key={`${g.name}-${g.badge}`} className="rounded-lg border border-border">
-                <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-t-lg">
-                  <p className="text-sm font-semibold">
-                    {g.name} <span className="text-xs font-normal text-muted-foreground">· {g.badge}</span>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground tabular-nums">
-                    +{fmtDays(g.list.filter((e) => e.direction === "credit").reduce((s, e) => s + e.days, 0))} / −
-                    {fmtDays(g.list.filter((e) => e.direction === "debit").reduce((s, e) => s + e.days, 0))}
-                  </p>
-                </div>
-                <div className="divide-y divide-border">
-                  {g.list.map((e) => (
-                    <div key={e.id} className="flex items-start gap-3 px-3 py-2">
-                      {e.direction === "credit" ? (
-                        <ArrowUpCircle className="h-4 w-4 mt-0.5 text-success shrink-0" />
-                      ) : (
-                        <ArrowDownCircle className="h-4 w-4 mt-0.5 text-warning shrink-0" />
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium flex items-center gap-2 flex-wrap">
-                          {e.leaveTypeColor && (
-                            <span
-                              className="w-2 h-2 rounded-full inline-block"
-                              style={{ backgroundColor: e.leaveTypeColor }}
-                            />
-                          )}
-                          {e.kind}
-                          <span className="text-xs font-normal text-muted-foreground">{e.leaveTypeName}</span>
-                        </p>
-                        {e.detail && <p className="text-[11px] text-muted-foreground">{e.detail}</p>}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p
-                          className={`text-sm font-semibold tabular-nums ${
-                            e.direction === "credit" ? "text-success" : "text-warning"
-                          }`}
-                        >
-                          {e.direction === "credit" ? "+" : "−"}
-                          {fmtDays(e.days)}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          {format(new Date(e.at), "dd MMM yyyy HH:mm")}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search employee, badge or leave type..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-foreground"
+          />
         </div>
-      </DialogContent>
-    </Dialog>
+        <Select value={directionFilter} onValueChange={(v) => setDirectionFilter(v as any)}>
+          <SelectTrigger className="w-[170px] h-9 text-foreground"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All movements</SelectItem>
+            <SelectItem value="credit">Credits only</SelectItem>
+            <SelectItem value="debit">Debits only</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" className="h-9" onClick={exportCsv} disabled={filtered.length === 0}>
+          <Download className="h-4 w-4 mr-2" /> Export CSV
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto space-y-4">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">Loading history…</p>
+        ) : grouped.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">No leave movements recorded yet.</p>
+        ) : (
+          grouped.map((g) => (
+            <div key={`${g.name}-${g.badge}`} className="rounded-lg border border-border">
+              <div className="flex items-center justify-between px-3 py-2 bg-muted/40 rounded-t-lg">
+                <p className="text-sm font-semibold">
+                  {g.name} <span className="text-xs font-normal text-muted-foreground">· {g.badge}</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground tabular-nums">
+                  +{fmtDays(g.list.filter((e) => e.direction === "credit").reduce((s, e) => s + e.days, 0))} / −
+                  {fmtDays(g.list.filter((e) => e.direction === "debit").reduce((s, e) => s + e.days, 0))}
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {g.list.map((e) => (
+                  <div key={e.id} className="flex items-start gap-3 px-3 py-2">
+                    {e.direction === "credit" ? (
+                      <ArrowUpCircle className="h-4 w-4 mt-0.5 text-success shrink-0" />
+                    ) : (
+                      <ArrowDownCircle className="h-4 w-4 mt-0.5 text-warning shrink-0" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium flex items-center gap-2 flex-wrap">
+                        {e.leaveTypeColor && (
+                          <span
+                            className="w-2 h-2 rounded-full inline-block"
+                            style={{ backgroundColor: e.leaveTypeColor }}
+                          />
+                        )}
+                        {e.kind}
+                        <span className="text-xs font-normal text-muted-foreground">{e.leaveTypeName}</span>
+                      </p>
+                      {e.detail && <p className="text-[11px] text-muted-foreground">{e.detail}</p>}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p
+                        className={`text-sm font-semibold tabular-nums ${
+                          e.direction === "credit" ? "text-success" : "text-warning"
+                        }`}
+                      >
+                        {e.direction === "credit" ? "+" : "−"}
+                        {fmtDays(e.days)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground tabular-nums">
+                        {format(new Date(e.at), "dd MMM yyyy HH:mm")}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
   );
 }

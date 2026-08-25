@@ -84,6 +84,7 @@ const LeaveRequestsPage = lazy(() => import('./pages/horilla/LeaveRequestsPage')
 const LeaveTypesPage = lazy(() => import('./pages/horilla/LeaveTypesPage'));
 const HolidaysPage = lazy(() => import('./pages/horilla/HolidaysPage'));
 const LeaveAllocationsPage = lazy(() => import('./pages/horilla/LeaveAllocationsPage'));
+const LeaveLedgerHistoryPage = lazy(() => import('./pages/horilla/LeaveLedgerHistoryPage'));
 const AttendanceCalendarPage = lazy(() => import('./pages/horilla/AttendanceCalendarPage'));
 
 const AttendanceSummaryPage = lazy(() => import('./pages/horilla/AttendanceSummaryPage'));
@@ -745,6 +746,7 @@ const router = createBrowserRouter([
         { path: "leave", element: <LeaveDashboardPage /> },
         { path: "leave/requests", element: <LeaveRequestsPage /> },
         { path: "leave/allocations", element: <LeaveAllocationsPage /> },
+        { path: "leave/allocations/history", element: <LeaveLedgerHistoryPage /> },
         { path: "leave/types", element: <LeaveTypesPage /> },
         { path: "leave/holidays", element: <HolidaysPage /> },
         { path: "leave/comp-off", element: <CompOffPage /> },

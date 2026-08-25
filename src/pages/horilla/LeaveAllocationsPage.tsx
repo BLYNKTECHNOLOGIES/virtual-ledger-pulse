@@ -18,7 +18,7 @@ import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { ViewToggle } from "@/components/hrms/ViewToggle";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LeaveLedgerHistoryDialog } from "@/components/hrms/LeaveLedgerHistoryDialog";
+import { useNavigate } from "react-router-dom";
 
 function getCurrentQuarter() {
   return Math.ceil((new Date().getMonth() + 1) / 3);
@@ -29,13 +29,13 @@ function getQuarterLabel(q: number) {
 }
 
 export default function LeaveAllocationsPage() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [quarterFilter, setQuarterFilter] = useState(getCurrentQuarter().toString());
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", allocated_days: 12 });
 
   const { isOnProbation, probationEndDate } = useProbationStatus();
@@ -219,7 +219,7 @@ export default function LeaveAllocationsPage() {
         actions={
           <>
             <ViewToggle value={viewMode} onChange={setViewMode} />
-            <Button variant="outline" onClick={() => setShowHistory(true)} className="h-9">
+            <Button variant="outline" onClick={() => navigate("/hrms/leave/allocations/history")} className="h-9">
               <History className="h-4 w-4 mr-2" /> History
             </Button>
             <Button variant="outline" onClick={exportCsv} disabled={groupedArr.length === 0} className="h-9">
@@ -512,7 +512,6 @@ export default function LeaveAllocationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <LeaveLedgerHistoryDialog open={showHistory} onOpenChange={setShowHistory} />
     </div>
   );
 }

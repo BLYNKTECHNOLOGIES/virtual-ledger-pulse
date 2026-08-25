@@ -6,7 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Send, Paperclip, X, Plus, MessageSquare, Settings as SettingsIcon, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sparkles, Send, Paperclip, X, Plus, MessageSquare, Menu, Settings as SettingsIcon, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
+
 import { PermissionGate } from "@/components/PermissionGate";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";

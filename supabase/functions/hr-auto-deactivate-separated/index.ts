@@ -9,6 +9,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { requireHrCaller } from "../_shared/require-hr-caller.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -128,6 +129,10 @@ async function dismissInRazorpay(
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Cron/service/HR-staff only — this deactivates ERP logins and pushes RazorpayX dismissals.
+  const caller = await requireHrCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
 
   const svc = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};

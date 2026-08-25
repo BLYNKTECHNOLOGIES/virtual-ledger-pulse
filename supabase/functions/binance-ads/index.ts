@@ -726,25 +726,49 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    try {
-      const authClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
-        global: { headers: { Authorization: authHeader } },
-        auth: { persistSession: false },
-      });
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims?.sub) {
+    let callerUserId: string | null = null;
+    const callerIsServiceRole =
+      !!SUPABASE_SERVICE_ROLE_KEY && authHeader.replace("Bearer ", "").trim() === SUPABASE_SERVICE_ROLE_KEY;
+    if (!callerIsServiceRole) {
+      try {
+        const authClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
+          global: { headers: { Authorization: authHeader } },
+          auth: { persistSession: false },
+        });
+        const token = authHeader.replace("Bearer ", "");
+        const { data: claimsData, error: claimsError } = await authClient.auth.getClaims(token);
+        if (claimsError || !claimsData?.claims?.sub) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        callerUserId = String(claimsData.claims.sub);
+      } catch (_err) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-    } catch (_err) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     }
+
+    // Financially sensitive order actions require an explicit terminal permission,
+    // not just a valid ERP login. Service-role (internal automation) is trusted.
+    const requireOrderActionPermission = async (actionName: string) => {
+      if (callerIsServiceRole) return;
+      if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+      if (!callerUserId) throw new Error("Authentication required");
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      for (const perm of ["terminal_orders_actions", "terminal_orders_manage"]) {
+        const { data: allowed } = await admin.rpc("has_terminal_permission", {
+          _user_id: callerUserId,
+          _permission: perm,
+        });
+        if (allowed === true) return;
+      }
+      throw new Error(`Permission denied: terminal_orders_actions required for ${actionName}`);
+    };
+
 
     const { action, ...payload } = await req.json();
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
@@ -1384,6 +1408,7 @@ serve(async (req) => {
       }
 
       case "markOrderAsPaid": {
+        await requireOrderActionPermission("markOrderAsPaid");
         // POST /sapi/v1/c2c/orderMatch/markOrderAsPaid
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`;
         const body: Record<string, any> = { orderNumber: payload.orderNumber };
@@ -1418,6 +1443,7 @@ serve(async (req) => {
       }
 
       case "releaseCoin": {
+        await requireOrderActionPermission("releaseCoin");
         // POST /sapi/v1/c2c/orderMatch/releaseCoin (API doc #29)
         // IMPORTANT: OTP codes (especially YubiKey/FIDO2) are one-time; never retry with alternate payloads.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
@@ -1519,6 +1545,7 @@ serve(async (req) => {
       }
 
       case "cancelOrder": {
+        await requireOrderActionPermission("cancelOrder");
         // POST /sapi/v1/c2c/orderMatch/cancelOrder
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/cancelOrder`;
         const reasonCode = Number(payload.orderCancelReasonCode);

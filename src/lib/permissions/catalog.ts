@@ -435,6 +435,10 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   accounting_view: ['tax_management_view', 'profit_loss_view', 'financials_view'],
   accounting_manage: ['tax_management_view', 'tax_management_manage', 'profit_loss_view', 'financials_view', 'financials_manage'],
   bams_manage: ['bams_view', 'bams_journal_entry'],
+  clients_view: ['kyc_approvals_view', 'video_kyc_view'],
+  clients_manage: ['clients_view', 'kyc_approvals_manage', 'video_kyc_manage'],
+  kyc_approvals_manage: ['kyc_approvals_view'],
+  video_kyc_manage: ['video_kyc_view'],
   hrms_view: [
     'hrms_employees_view',
     'hrms_attendance_view',
@@ -488,7 +492,6 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   sales_manage: ['sales_view'],
   purchase_manage: ['purchase_view'],
   stock_manage: ['stock_view'],
-  clients_manage: ['clients_view'],
   leads_manage: ['leads_view'],
   compliance_manage: ['compliance_view'],
   risk_management_manage: ['risk_management_view'],

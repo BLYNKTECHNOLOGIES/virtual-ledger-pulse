@@ -399,7 +399,12 @@ export function ClientOnboardingApprovals() {
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, hasAnyPermission } = usePermissions();
+  const canViewKycApprovals = hasAnyPermission(['kyc_approvals_view', 'kyc_approvals_manage']);
+  const canManageKycApprovals = hasPermission('kyc_approvals_manage');
+  const canRejectKycApprovals = canManageKycApprovals || hasPermission('clients_destructive');
+  const canViewVideoKyc = hasAnyPermission(['video_kyc_view', 'video_kyc_manage']);
+  const canManageVideoKyc = hasPermission('video_kyc_manage');
   const { user } = useAuth();
   const reviewerId = user?.id ?? null;
 
@@ -1567,6 +1572,10 @@ export function ClientOnboardingApprovals() {
 
   const handleApprove = () => {
     if (!selectedApproval) return;
+    if (!canManageKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     
     // Buyer mandatory validation: phone and state required
     if (!formData.client_phone?.trim()) {
@@ -1663,18 +1672,26 @@ export function ClientOnboardingApprovals() {
         aadhaarFiles,
         usdtProofFile,
         tradeHistoryFile,
-        vkycVideoFile,
+        vkycVideoFile: canManageVideoKyc ? vkycVideoFile : null,
         additionalDocs
       }
     });
   };
 
   const handleReject = (id: string, reason: string) => {
+    if (!canRejectKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     rejectClientMutation.mutate({ id, reason });
   };
 
   // Reject all duplicate approval records for the same client
   const handleRejectAll = (ids: string[], reason: string) => {
+    if (!canRejectKycApprovals) {
+      toast({ title: "Insufficient permissions", description: "KYC approval management access is required.", variant: "destructive" });
+      return;
+    }
     for (const id of ids) {
       rejectClientMutation.mutate({ id, reason });
     }
@@ -1950,6 +1967,11 @@ export function ClientOnboardingApprovals() {
 
   const handleUnavailable = (meta?: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string }) => {
     if (meta) {
+      const canReupload = meta.field === 'vkyc_recording_url' ? canManageVideoKyc : canManageKycApprovals;
+      if (!canReupload) {
+        toast({ title: 'Insufficient permissions', description: 'Document re-upload requires manage access.', variant: 'destructive' });
+        return;
+      }
       setReuploadTarget(meta);
     } else {
       toast({ title: 'Document unavailable', description: 'This file is missing (404) and needs to be re-uploaded.', variant: 'destructive' });
@@ -1960,6 +1982,10 @@ export function ClientOnboardingApprovals() {
     url: string,
     meta?: { approvalId: string; field: 'aadhar_front_url' | 'binance_id_screenshot_url' | 'vkyc_recording_url'; label: string },
   ) => {
+    if (meta?.field === 'vkyc_recording_url' && !canViewVideoKyc) {
+      toast({ title: 'Insufficient permissions', description: 'Video KYC view access is required.', variant: 'destructive' });
+      return;
+    }
     // Large vKYC videos are stored as multipart chunks + a manifest JSON.
     // Opening the raw manifest URL shows JSON instead of the video, so resolve
     // and reconstruct the original file before opening. Resolve exactly ONCE —
@@ -2112,6 +2138,16 @@ export function ClientOnboardingApprovals() {
     }
   }
 
+  if (!canViewKycApprovals) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center text-muted-foreground">
+          Insufficient permissions
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -2168,7 +2204,7 @@ export function ClientOnboardingApprovals() {
                    <TableHead numeric>Order Details</TableHead>
                    <TableHead>Contact</TableHead>
                    <TableHead>Documents</TableHead>
-                   <TableHead>VKYC</TableHead>
+                    {canViewVideoKyc && <TableHead>VKYC</TableHead>}
                    <TableHead>Status</TableHead>
                    <TableHead>Actions</TableHead>
                  </TableRow>
@@ -2311,20 +2347,22 @@ export function ClientOnboardingApprovals() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {approval.vkyc_recording_url ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openDocument(approval.vkyc_recording_url!, { approvalId: approval.id, field: 'vkyc_recording_url', label: 'vKYC recording' })}
-                        >
-                          <Video className="h-3 w-3 mr-1" />
-                          View
-                        </Button>
-                      ) : (
-                        <span className="text-muted-foreground">No VKYC</span>
-                      )}
-                    </TableCell>
+                    {canViewVideoKyc && (
+                      <TableCell>
+                        {approval.vkyc_recording_url ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openDocument(approval.vkyc_recording_url!, { approvalId: approval.id, field: 'vkyc_recording_url', label: 'vKYC recording' })}
+                          >
+                            <Video className="h-3 w-3 mr-1" />
+                            View
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground">No VKYC</span>
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell>
                       {getStatusBadge(approval.approval_status)}
                     </TableCell>
@@ -2349,14 +2387,16 @@ export function ClientOnboardingApprovals() {
                             View Orders
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          onClick={() => handleApprovalClick(approval, entry.all)}
-                        >
-                          <Eye className="h-3 w-3 mr-1" />
-                          Review
-                        </Button>
-                        {hasPermission('clients_destructive') && (
+                        {canManageKycApprovals && (
+                          <Button
+                            size="sm"
+                            onClick={() => handleApprovalClick(approval, entry.all)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Review
+                          </Button>
+                        )}
+                        {canRejectKycApprovals && (
                           <Button
                             size="sm"
                             variant="destructive"
@@ -2373,7 +2413,7 @@ export function ClientOnboardingApprovals() {
                 })}
                 {pendingApprovals.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={canViewVideoKyc ? 8 : 7} className="text-center py-8 text-muted-foreground">
                       No pending approvals found.
                     </TableCell>
                   </TableRow>
@@ -3075,6 +3115,7 @@ export function ClientOnboardingApprovals() {
                   </div>
 
                   {/* vKYC Video - optional */}
+                  {canManageVideoKyc && (
                   <div className="bg-card p-3 rounded-md border space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm font-medium">vKYC Video <span className="text-xs text-muted-foreground">(Optional — resumable upload for large files)</span></Label>
@@ -3113,6 +3154,7 @@ export function ClientOnboardingApprovals() {
                       </div>
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
 
@@ -3256,18 +3298,20 @@ export function ClientOnboardingApprovals() {
                 <Button variant="outline" onClick={closeApprovalDialog}>
                   Cancel
                 </Button>
-                <Button
-                  onClick={handleApprove}
-                  disabled={approveClientMutation.isPending || (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new')}
-                  className="bg-success hover:bg-success/90"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {approveClientMutation.isPending 
-                    ? 'Approving...' 
-                    : approvalMode === 'merge' 
-                      ? 'Link & Approve'
-                      : 'Approve & Onboard Client'}
-                </Button>
+                {canManageKycApprovals && (
+                  <Button
+                    onClick={handleApprove}
+                    disabled={approveClientMutation.isPending || (existingClientMatch && approvalMode !== 'merge' && approvalMode !== 'create_new')}
+                    className="bg-success hover:bg-success/90"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    {approveClientMutation.isPending 
+                      ? 'Approving...' 
+                      : approvalMode === 'merge' 
+                        ? 'Link & Approve'
+                        : 'Approve & Onboard Client'}
+                  </Button>
+                )}
               </div>
             </div>
           )}

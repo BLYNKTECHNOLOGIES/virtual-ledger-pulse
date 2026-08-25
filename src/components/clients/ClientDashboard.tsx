@@ -67,8 +67,11 @@ export function ClientDashboard() {
   const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const navigate = useNavigate();
-  const { hasPermission } = usePermissions();
+  const { hasPermission, hasAnyPermission } = usePermissions();
   const canAssignRA = hasPermission("ra_assign");
+  const canViewApprovals = hasAnyPermission(["kyc_approvals_view", "kyc_approvals_manage"]);
+  const visibleTabCount = 1 + (canViewApprovals ? 1 : 0) + (canAssignRA ? 1 : 0);
+  const tabGridClass = visibleTabCount === 3 ? "grid-cols-3" : visibleTabCount === 2 ? "grid-cols-2" : "grid-cols-1";
   const { data: raAssignmentsMap } = useActiveRAAssignments();
 
   const toggleClient = (id: string) =>
@@ -97,6 +100,12 @@ export function ClientDashboard() {
   useEffect(() => {
     writeStoredTab(CLIENT_APPROVAL_TAB_KEY, activeApprovalTab);
   }, [activeApprovalTab]);
+
+  useEffect(() => {
+    if ((activeTab === 'approvals' && !canViewApprovals) || (activeTab === 'assignments' && !canAssignRA)) {
+      setActiveTab('directory');
+    }
+  }, [activeTab, canAssignRA, canViewApprovals]);
 
   // Fetch clients (paginated past Supabase's 1000-row default cap)
   const { data: clients, isLoading } = useQuery({
@@ -459,12 +468,14 @@ export function ClientDashboard() {
   return (
     <div className="space-y-6 page-mount">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className={`grid w-full ${canAssignRA ? "grid-cols-3" : "grid-cols-2"}`}>
+        <TabsList className={`grid w-full ${tabGridClass}`}>
           <TabsTrigger value="directory">Client Directory</TabsTrigger>
-          <TabsTrigger value="approvals" className="flex items-center gap-2">
-            <UserCheck className="h-4 w-4" />
-            Approvals
-          </TabsTrigger>
+          {canViewApprovals && (
+            <TabsTrigger value="approvals" className="flex items-center gap-2">
+              <UserCheck className="h-4 w-4" />
+              Approvals
+            </TabsTrigger>
+          )}
           {canAssignRA && (
             <TabsTrigger value="assignments" className="flex items-center gap-2">
               <Headset className="h-4 w-4" />
@@ -812,26 +823,28 @@ export function ClientDashboard() {
           </Tabs>
         </TabsContent>
 
-        <TabsContent value="approvals">
-          <Tabs value={activeApprovalTab} onValueChange={setActiveApprovalTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="buyer-approvals" className="flex items-center gap-2">
-                <UserCheck className="h-4 w-4" />
-                Buyer Approvals
-              </TabsTrigger>
-              <TabsTrigger value="seller-approvals" className="flex items-center gap-2">
-                <ShoppingCart className="h-4 w-4" />
-                Seller Approvals
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="buyer-approvals">
-              <ClientOnboardingApprovals />
-            </TabsContent>
-            <TabsContent value="seller-approvals">
-              <SellerOnboardingApprovals />
-            </TabsContent>
-          </Tabs>
-        </TabsContent>
+        {canViewApprovals && (
+          <TabsContent value="approvals">
+            <Tabs value={activeApprovalTab} onValueChange={setActiveApprovalTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="buyer-approvals" className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  Buyer Approvals
+                </TabsTrigger>
+                <TabsTrigger value="seller-approvals" className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Seller Approvals
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="buyer-approvals">
+                <ClientOnboardingApprovals />
+              </TabsContent>
+              <TabsContent value="seller-approvals">
+                <SellerOnboardingApprovals />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        )}
 
         {canAssignRA && (
           <TabsContent value="assignments">

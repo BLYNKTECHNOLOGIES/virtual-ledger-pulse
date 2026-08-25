@@ -1,9 +1,10 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
 
 interface MobileNavItem {

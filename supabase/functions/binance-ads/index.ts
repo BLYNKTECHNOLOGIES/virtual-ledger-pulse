@@ -1408,6 +1408,7 @@ serve(async (req) => {
       }
 
       case "markOrderAsPaid": {
+        await requireOrderActionPermission("markOrderAsPaid");
         // POST /sapi/v1/c2c/orderMatch/markOrderAsPaid
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/markOrderAsPaid`;
         const body: Record<string, any> = { orderNumber: payload.orderNumber };
@@ -1442,6 +1443,7 @@ serve(async (req) => {
       }
 
       case "releaseCoin": {
+        await requireOrderActionPermission("releaseCoin");
         // POST /sapi/v1/c2c/orderMatch/releaseCoin (API doc #29)
         // IMPORTANT: OTP codes (especially YubiKey/FIDO2) are one-time; never retry with alternate payloads.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
@@ -1543,6 +1545,7 @@ serve(async (req) => {
       }
 
       case "cancelOrder": {
+        await requireOrderActionPermission("cancelOrder");
         // POST /sapi/v1/c2c/orderMatch/cancelOrder
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/cancelOrder`;
         const reasonCode = Number(payload.orderCancelReasonCode);

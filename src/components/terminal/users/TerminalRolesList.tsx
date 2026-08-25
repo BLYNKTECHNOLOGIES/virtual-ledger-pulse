@@ -94,7 +94,7 @@ export function TerminalRolesList() {
     setIsNew(false);
     setEditName(role.name);
     setEditDesc(role.description);
-    const knownKeys = new Set<string>(TERMINAL_TERMINAL_PERMISSION_MODULES.flatMap(m => m.permissions.map(p => p.key)));
+    const knownKeys = new Set<string>(TERMINAL_PERMISSION_MODULES.flatMap(m => m.permissions.map(p => p.key)));
     setEditPerms(new Set(role.permissions.filter(p => knownKeys.has(p as string))));
     setEditHierarchy(role.hierarchy_level !== null ? String(role.hierarchy_level) : "");
     setCollapsedModules(new Set());

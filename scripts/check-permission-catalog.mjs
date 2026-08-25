@@ -16,7 +16,7 @@ const terminalKeys = new Set([...terminalCatalog.matchAll(/'((?:terminal)_[a-z0-
 
 const sourceFiles = execFileSync('rg', [
   '-l',
-  'PermissionGate|hasPermission\(|hasAnyPermission\(|hasAllPermissions\(|TerminalPermissionGate|permissions:',
+  'PermissionGate|hasPermission\\(|hasAnyPermission\\(|hasAllPermissions\\(|TerminalPermissionGate|permissions:',
   'src',
   '--glob', '*.ts',
   '--glob', '*.tsx',

@@ -193,12 +193,15 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <ExchangeAccountsSettings />
+              <PermissionGate permissions={["terminal_manage"]}>
+                <ExchangeAccountsSettings />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
     ),
   },
+
   {
     path: "/settings/report-formats",
     element: (
@@ -892,7 +895,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <UtilityHub />
+              <PermissionGate permissions={["utility_view", "utility_manage"]}>
+                <UtilityHub />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -904,7 +909,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <InvoiceCreatorPage />
+              <PermissionGate permissions={["utility_view", "utility_manage"]}>
+                <InvoiceCreatorPage />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -916,12 +923,15 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <PaymentScreenshotGenerator />
+              <PermissionGate permissions={["utility_view", "utility_manage"]}>
+                <PaymentScreenshotGenerator />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
     ),
   },
+
    // Public unsubscribe route
     {
       path: "/unsubscribe",

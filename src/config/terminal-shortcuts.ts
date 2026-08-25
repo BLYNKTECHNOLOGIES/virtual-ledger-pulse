@@ -6,7 +6,7 @@ import {
   Navigation, type LucideIcon,
 } from "lucide-react";
 import type { ShortcutCombo } from "@/config/shortcuts";
-import type { TerminalPermission } from "@/hooks/useTerminalAuth";
+import type { TerminalPermission } from "@/lib/permissions/terminalCatalog";
 
 /**
  * Central shortcut registry — the SINGLE SOURCE OF TRUTH for every terminal

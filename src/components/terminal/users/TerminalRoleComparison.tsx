@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeftRight, CheckCircle2, XCircle, Minus } from "lucide-react";
-import { TerminalPermission } from "@/hooks/useTerminalAuth";
+import type { TerminalPermission } from "@/lib/permissions/terminalCatalog";
 
 interface Role {
   id: string;

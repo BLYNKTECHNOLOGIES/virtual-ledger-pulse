@@ -215,7 +215,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         <div>
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-muted-foreground">Operator Notes</label>
-            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+            <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               {!isEditingNotes && (
                 <Button size="sm" variant="ghost" onClick={handleNotesEdit}>
                   <Edit className="h-3 w-3" />
@@ -254,7 +254,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         <div>
           <div className="flex items-center justify-between">
             <label className="text-sm font-medium text-muted-foreground">Next Follow-up</label>
-            <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+            <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               {!isEditingFollowup && (
                 <Button size="sm" variant="ghost" onClick={handleFollowupEdit}>
                   <Edit className="h-3 w-3" />
@@ -298,7 +298,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
         </div>
 
         <div className="flex gap-2 pt-2">
-          <PermissionGate permissions={["MANAGE_CLIENTS"]} showFallback={false}>
+          <PermissionGate permissions={["clients_manage"]} showFallback={false}>
             <Button size="sm" variant="outline" onClick={handleNotesEdit}>
               <MessageCircle className="h-4 w-4 mr-1" />
               Add Note

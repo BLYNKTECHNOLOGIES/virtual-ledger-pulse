@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
 import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 import { useAuth } from "@/hooks/useAuth";
+import { expandPermissions } from "@/lib/permissions/catalog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Reconciliation cockpit item (gated by reconciliation function, not a permission string)
@@ -38,7 +39,7 @@ const reportSettingsItem: SidebarGroupItem = {
   icon: Mail,
   color: "text-primary",
   bgColor: "bg-primary/10",
-  permissions: ["report_formats_manage", "financials_manage", "accounting_manage"],
+  permissions: ["report_formats_manage"],
 };
 
 
@@ -274,6 +275,9 @@ export function AppSidebar() {
   const isSuperAdmin = hasRole("super admin");
   const isCollapsed = state === "collapsed";
 
+  const canAccess = (permissions: string[]) =>
+    permissions.length === 0 || hasAnyPermission(expandPermissions(permissions));
+
   // Configure drag sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -292,7 +296,7 @@ export function AppSidebar() {
     
     // Add standalone items that user has permission for
     standaloneItems.forEach(item => {
-      if (!isLoading && (item.permissions.length === 0 || hasAnyPermission(item.permissions))) {
+      if (!isLoading && canAccess(item.permissions)) {
         entries.push({ type: 'item', data: item });
       }
     });
@@ -302,8 +306,7 @@ export function AppSidebar() {
       entries.push({ type: 'item', data: reconciliationItem });
     }
 
-    // Report Formats — Super Admin only
-    if (isSuperAdmin) {
+    if (!isLoading && (isSuperAdmin || canAccess(reportSettingsItem.permissions))) {
       entries.push({ type: 'item', data: reportSettingsItem });
     }
 
@@ -311,7 +314,7 @@ export function AppSidebar() {
     // Add groups (filter children by permissions)
     sidebarGroups.forEach(group => {
       const filteredChildren = group.children.filter(
-        child => !isLoading && hasAnyPermission(child.permissions)
+        child => !isLoading && canAccess(child.permissions)
       );
       if (filteredChildren.length > 0) {
         entries.push({

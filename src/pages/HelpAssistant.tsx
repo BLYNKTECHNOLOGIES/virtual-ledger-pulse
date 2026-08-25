@@ -6,7 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sparkles, Send, Paperclip, X, Plus, MessageSquare, Settings as SettingsIcon, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sparkles, Send, Paperclip, X, Plus, MessageSquare, Menu, Settings as SettingsIcon, ThumbsUp, ThumbsDown, Loader2 } from "lucide-react";
+
 import { PermissionGate } from "@/components/PermissionGate";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +35,9 @@ export default function HelpAssistant() {
   const [lang, setLang] = useState<Lang>("en");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [input, setInput] = useState("");
+
   const [pendingImages, setPendingImages] = useState<{ url: string; path: string }[]>([]);
   const [streaming, setStreaming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -209,49 +213,79 @@ export default function HelpAssistant() {
     multiple: true,
   });
 
+  const historyPanel = (
+    <>
+      <div className="p-3 border-b border-border space-y-2">
+        <Button onClick={newChat} className="w-full" variant="default">
+          <Plus className="h-4 w-4" /> {t("newChat", lang)}
+        </Button>
+        <PermissionGate permissions={["help_assistant_manage"]} showFallback={false}>
+          <Button onClick={() => navigate("/help-assistant/admin")} variant="outline" className="w-full">
+            <SettingsIcon className="h-4 w-4" /> {t("manage", lang)}
+          </Button>
+        </PermissionGate>
+      </div>
+      <div className="px-3 pt-3 text-xs uppercase tracking-wider text-muted-foreground">{t("history", lang)}</div>
+      <ScrollArea className="flex-1 px-2 py-2">
+        {conversations.map((c: any) => (
+          <button
+            key={c.id}
+            onClick={() => { loadConversation(c.id); setHistoryOpen(false); }}
+            className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-accent flex items-start gap-2 mb-1 ${conversationId === c.id ? "bg-accent" : ""}`}
+          >
+            <MessageSquare className="h-3.5 w-3.5 mt-1 text-muted-foreground shrink-0" />
+            <span className="truncate text-foreground">{c.title}</span>
+          </button>
+        ))}
+      </ScrollArea>
+    </>
+  );
+
   return (
     <PermissionGate permissions={["help_assistant_view", "help_assistant_manage"]}>
-      <div className="flex h-[calc(100vh-4rem)] bg-background">
-        {/* Sidebar */}
-        <aside className="w-64 border-r border-border bg-card flex flex-col">
-          <div className="p-3 border-b border-border space-y-2">
-            <Button onClick={newChat} className="w-full" variant="default">
-              <Plus className="h-4 w-4" /> {t("newChat", lang)}
-            </Button>
-            <PermissionGate permissions={["help_assistant_manage"]} showFallback={false}>
-              <Button onClick={() => navigate("/help-assistant/admin")} variant="outline" className="w-full">
-                <SettingsIcon className="h-4 w-4" /> {t("manage", lang)}
-              </Button>
-            </PermissionGate>
-          </div>
-          <div className="px-3 pt-3 text-xs uppercase tracking-wider text-muted-foreground">{t("history", lang)}</div>
-          <ScrollArea className="flex-1 px-2 py-2">
-            {conversations.map((c: any) => (
-              <button
-                key={c.id}
-                onClick={() => loadConversation(c.id)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm hover:bg-accent flex items-start gap-2 mb-1 ${conversationId === c.id ? "bg-accent" : ""}`}
-              >
-                <MessageSquare className="h-3.5 w-3.5 mt-1 text-muted-foreground shrink-0" />
-                <span className="truncate text-foreground">{c.title}</span>
-              </button>
-            ))}
-          </ScrollArea>
+      <div className="flex h-[calc(100vh-4rem)] min-h-0 bg-background">
+        {/* Sidebar — desktop only */}
+        <aside className="hidden md:flex w-64 border-r border-border bg-card flex-col">
+          {historyPanel}
         </aside>
 
+        {/* Mobile history drawer */}
+        <Sheet open={historyOpen} onOpenChange={setHistoryOpen}>
+          <SheetContent side="left" className="w-[85vw] max-w-sm p-0 flex flex-col md:hidden">
+            {historyPanel}
+          </SheetContent>
+        </Sheet>
+
         {/* Chat panel */}
-        <main className="flex-1 flex flex-col">
-          <header className="border-b border-border bg-card px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+        <main className="flex-1 min-w-0 flex flex-col">
+          <header className="border-b border-border bg-card px-3 py-2.5 md:px-6 md:py-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <Button
+                variant="outline"
+                size="icon"
+                className="md:hidden shrink-0"
+                onClick={() => setHistoryOpen(true)}
+                aria-label={t("history", lang)}
+              >
+                <Menu className="h-4 w-4" />
+              </Button>
+              <div className="hidden sm:flex h-9 w-9 rounded-lg bg-primary/10 items-center justify-center shrink-0">
                 <Sparkles className="h-5 w-5 text-primary" />
               </div>
-              <div>
-                <h1 className="text-lg font-semibold text-foreground">{t("title", lang)}</h1>
-                <p className="text-xs text-muted-foreground">{t("subtitle", lang)}</p>
+              <div className="min-w-0">
+                <h1 className="text-base md:text-lg font-semibold text-foreground truncate">{t("title", lang)}</h1>
+                <p className="hidden md:block text-xs text-muted-foreground">{t("subtitle", lang)}</p>
               </div>
+              <Select value={lang} onValueChange={(v) => updateLang(v as Lang)}>
+                <SelectTrigger className="md:hidden ml-auto w-28 h-9 text-xs text-foreground shrink-0"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {LANG_OPTIONS.map((o) => (
+                    <SelectItem key={o.value} value={o.value} className="text-foreground">{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{t("language", lang)}:</span>
               <Select value={lang} onValueChange={(v) => updateLang(v as Lang)}>
                 <SelectTrigger className="w-32 text-foreground"><SelectValue /></SelectTrigger>
@@ -264,7 +298,8 @@ export default function HelpAssistant() {
             </div>
           </header>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
+
             {messages.length === 0 && (
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <Sparkles className="h-12 w-12 text-primary/40 mb-4" />
@@ -275,7 +310,7 @@ export default function HelpAssistant() {
             <div className="max-w-3xl mx-auto space-y-6">
               {messages.map((m, i) => (
                 <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"} rounded-2xl px-4 py-3`}>
+                  <div className={`max-w-[92%] md:max-w-[85%] ${m.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"} rounded-2xl px-4 py-3`}>
                     {m.image_urls && m.image_urls.length > 0 && (
                       <div className="flex gap-2 mb-2 flex-wrap">
                         {m.image_urls.map((u, k) => (
@@ -317,7 +352,7 @@ export default function HelpAssistant() {
           </div>
 
           {/* Input bar */}
-          <div className={`border-t border-border bg-card px-6 py-4 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
+          <div className={`border-t border-border bg-card px-3 py-3 md:px-6 md:py-4 transition-colors${isDragActive ? ' ring-2 ring-primary ring-inset' : ''}`} {...dropzoneProps}>
             <div className="max-w-3xl mx-auto">
               {pendingImages.length > 0 && (
                 <div className="flex gap-2 mb-2 flex-wrap">

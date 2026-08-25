@@ -9,8 +9,15 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield, Eye, Settings, Trash2, Zap, ChevronDown, ChevronRight } from "lucide-react";
+import { Shield, ShieldCheck, Eye, Settings, Trash2, Zap, ChevronDown, ChevronRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  PERMISSION_MODULES,
+  PERMISSION_SECTION_ORDER,
+  ROLE_TEMPLATES,
+  normalizePermissions,
+} from "@/lib/permissions/catalog";
+
 
 interface Role {
   id: string;
@@ -34,222 +41,17 @@ interface EditRoleDialogProps {
   onClose: () => void;
 }
 
-// Permission definitions grouped by module
-const PERMISSION_MODULES: Record<string, { label: string; permissions: { id: string; name: string; description: string; tier: 'view' | 'manage' | 'destructive' | 'special' }[] }> = {
-  dashboard: {
-    label: 'Dashboard',
-    permissions: [
-      { id: 'dashboard_view', name: 'View', description: 'View main dashboard', tier: 'view' },
-    ],
-  },
-  sales: {
-    label: 'Sales',
-    permissions: [
-      { id: 'sales_view', name: 'View', description: 'View sales data', tier: 'view' },
-      { id: 'sales_manage', name: 'Manage', description: 'Manage sales orders', tier: 'manage' },
-    ],
-  },
-  purchase: {
-    label: 'Purchase',
-    permissions: [
-      { id: 'purchase_view', name: 'View', description: 'View purchase data', tier: 'view' },
-      { id: 'purchase_manage', name: 'Manage', description: 'Manage purchase orders', tier: 'manage' },
-    ],
-  },
-  terminal: {
-    label: 'Terminal',
-    permissions: [
-      { id: 'terminal_view', name: 'View', description: 'View terminal data', tier: 'view' },
-      { id: 'terminal_manage', name: 'Manage', description: 'Manage terminal', tier: 'manage' },
-    ],
-  },
-  bams: {
-    label: 'BAMS',
-    permissions: [
-      { id: 'bams_view', name: 'View', description: 'View bank accounts', tier: 'view' },
-      { id: 'bams_manage', name: 'Manage', description: 'Manage bank accounts', tier: 'manage' },
-      { id: 'bams_journal_entry', name: 'Bank Journal Entry', description: 'Access only the Bank Journal Entries section (expense, income & contra entries)', tier: 'special' },
-    ],
-  },
-  clients: {
-    label: 'Clients',
-    permissions: [
-      { id: 'clients_view', name: 'View', description: 'View clients', tier: 'view' },
-      { id: 'clients_manage', name: 'Manage', description: 'Manage clients', tier: 'manage' },
-      { id: 'ra_assign', name: 'Assign RA', description: 'Assign clients to Relationship Associates', tier: 'special' },
-      { id: 'ra_dashboard_view', name: 'RA Dashboard', description: 'Access own Relationship Associate dashboard', tier: 'special' },
-    ],
-  },
-  leads: {
-    label: 'Leads',
-    permissions: [
-      { id: 'leads_view', name: 'View', description: 'View leads', tier: 'view' },
-      { id: 'leads_manage', name: 'Manage', description: 'Manage leads', tier: 'manage' },
-    ],
-  },
-  user_management: {
-    label: 'User Management',
-    permissions: [
-      { id: 'user_management_view', name: 'View', description: 'View users and roles', tier: 'view' },
-      { id: 'user_management_manage', name: 'Manage', description: 'Manage users and roles', tier: 'manage' },
-      { id: 'user_management_hr_manage', name: 'HR Manage', description: 'HR: edit user details & delete non-admins. No role/terminal/approval control', tier: 'manage' },
-    ],
-  },
-  hrms: {
-    label: 'HRMS',
-    permissions: [
-      { id: 'hrms_view', name: 'View', description: 'View HR data', tier: 'view' },
-      { id: 'hrms_manage', name: 'Manage', description: 'Manage HR', tier: 'manage' },
-    ],
-  },
-  payroll: {
-    label: 'Payroll',
-    permissions: [
-      { id: 'payroll_view', name: 'View', description: 'View payroll', tier: 'view' },
-      { id: 'payroll_manage', name: 'Manage', description: 'Manage payroll', tier: 'manage' },
-    ],
-  },
-  compliance: {
-    label: 'Compliance',
-    permissions: [
-      { id: 'compliance_view', name: 'View', description: 'View compliance', tier: 'view' },
-      { id: 'compliance_manage', name: 'Manage', description: 'Manage compliance', tier: 'manage' },
-      { id: 'compliance_approve', name: 'Approve', description: 'Approve/reject investigations (cannot approve own submissions)', tier: 'special' },
-    ],
-  },
-  stock: {
-    label: 'Stock',
-    permissions: [
-      { id: 'stock_view', name: 'View', description: 'View inventory', tier: 'view' },
-      { id: 'stock_manage', name: 'Manage', description: 'Manage inventory', tier: 'manage' },
-      { id: 'stock_conversion_create', name: 'Create Conversions', description: 'Create stock conversions', tier: 'special' },
-      { id: 'stock_conversion_approve', name: 'Approve Conversions', description: 'Approve stock conversions', tier: 'special' },
-    ],
-  },
-  accounting: {
-    label: 'Accounting',
-    permissions: [
-      { id: 'accounting_view', name: 'View', description: 'View financial data', tier: 'view' },
-      { id: 'accounting_manage', name: 'Manage', description: 'Manage accounting', tier: 'manage' },
-    ],
-  },
-  statistics: {
-    label: 'Statistics',
-    permissions: [
-      { id: 'statistics_view', name: 'View', description: 'View reports', tier: 'view' },
-      { id: 'statistics_manage', name: 'Manage', description: 'Manage statistics', tier: 'manage' },
-    ],
-  },
-  ems: {
-    label: 'EMS',
-    permissions: [
-      { id: 'ems_view', name: 'View', description: 'View EMS data', tier: 'view' },
-      { id: 'ems_manage', name: 'Manage', description: 'Manage EMS', tier: 'manage' },
-    ],
-  },
-  utility: {
-    label: 'Utility',
-    permissions: [
-      { id: 'utility_view', name: 'View', description: 'View utility tools', tier: 'view' },
-      { id: 'utility_manage', name: 'Manage', description: 'Manage utility tools', tier: 'manage' },
-    ],
-  },
-  tasks: {
-    label: 'Tasks',
-    permissions: [
-      { id: 'tasks_view', name: 'View', description: 'View tasks', tier: 'view' },
-      { id: 'tasks_manage', name: 'Manage', description: 'Manage tasks', tier: 'manage' },
-    ],
-  },
-  erp_entry: {
-    label: 'ERP Entry',
-    permissions: [
-      { id: 'erp_entry_view', name: 'View', description: 'View ERP Entry feed', tier: 'view' },
-      { id: 'erp_entry_manage', name: 'Manage', description: 'Approve, reject, and trigger syncs from ERP Entry', tier: 'manage' },
-    ],
-  },
-  destructive: {
-    label: 'Destructive Actions',
-    permissions: [
-      { id: 'erp_destructive', name: 'ERP', description: 'Delete/reject ERP records', tier: 'destructive' },
-      { id: 'terminal_destructive', name: 'Terminal', description: 'Delete terminal data', tier: 'destructive' },
-      { id: 'bams_destructive', name: 'BAMS', description: 'Delete/close bank accounts', tier: 'destructive' },
-      { id: 'clients_destructive', name: 'Clients', description: 'Delete/reject clients', tier: 'destructive' },
-      { id: 'stock_destructive', name: 'Stock', description: 'Delete stock data', tier: 'destructive' },
-    ],
-  },
-  special: {
-    label: 'Special',
-    permissions: [
-      { id: 'shift_reconciliation_create', name: 'Reconciliation Create', description: 'Submit shift reconciliation records', tier: 'special' },
-      { id: 'shift_reconciliation_approve', name: 'Reconciliation Approve', description: 'Approve/reject shift reconciliation', tier: 'special' },
-    ],
-  },
-};
+// Permission matrix is rendered from the single-source catalog.
 
-// Role templates
-const ROLE_TEMPLATES = [
-  {
-    name: 'Read-Only Auditor',
-    description: 'All view permissions, no manage or destructive',
-    getPermissions: () => {
-      const viewPerms: string[] = [];
-      Object.values(PERMISSION_MODULES).forEach(mod => {
-        mod.permissions.forEach(p => {
-          if (p.tier === 'view') viewPerms.push(p.id);
-        });
-      });
-      return viewPerms;
-    },
-  },
-  {
-    name: 'Full Operations',
-    description: 'All view + manage, no destructive',
-    getPermissions: () => {
-      const perms: string[] = [];
-      Object.values(PERMISSION_MODULES).forEach(mod => {
-        mod.permissions.forEach(p => {
-          if (p.tier === 'view' || p.tier === 'manage' || p.tier === 'special') perms.push(p.id);
-        });
-      });
-      return perms;
-    },
-  },
-  {
-    name: 'Finance View-Only',
-    description: 'Accounting, BAMS, Payroll view only',
-    getPermissions: () => ['dashboard_view', 'accounting_view', 'bams_view', 'payroll_view', 'statistics_view'],
-  },
-];
-
-// Map old permission format to new format
-const permissionMapping: Record<string, string> = {
-  'view_dashboard': 'dashboard_view',
-  'view_sales': 'sales_view',
-  'view_purchase': 'purchase_view',
-  'view_bams': 'bams_view',
-  'view_clients': 'clients_view',
-  'view_leads': 'leads_view',
-  'view_user_management': 'user_management_view',
-  'view_hrms': 'hrms_view',
-  'view_payroll': 'payroll_view',
-  'view_compliance': 'compliance_view',
-  'view_stock': 'stock_view',
-  'view_stock_management': 'stock_view',
-  'view_accounting': 'accounting_view',
-  'view_statistics': 'statistics_view',
-  'view_ems': 'ems_view',
-};
-
-const normalizePermission = (perm: string): string => permissionMapping[perm] || perm;
-const normalizePermissions = (perms: string[]): string[] => [...new Set(perms.map(normalizePermission))];
 
 const TIER_STYLES: Record<string, { badge: string; icon: typeof Eye }> = {
   view: { badge: 'bg-success/10 text-success border-success/20', icon: Eye },
   manage: { badge: 'bg-info/10 text-info border-info/20', icon: Settings },
+  approve: { badge: 'bg-primary/10 text-primary border-primary/20', icon: ShieldCheck },
   destructive: { badge: 'bg-destructive/10 text-destructive border-destructive/20', icon: Trash2 },
   special: { badge: 'bg-warning/10 text-warning border-warning/20', icon: Zap },
 };
+
 
 // System roles that cannot have their name changed
 const SYSTEM_ROLE_NAMES = ['Super Admin', 'Admin'];
@@ -265,9 +67,38 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingFunctions, setIsLoadingFunctions] = useState(true);
   const [collapsedModules, setCollapsedModules] = useState<Set<string>>(new Set());
+  const [permissionSearch, setPermissionSearch] = useState('');
   const { toast } = useToast();
 
   const isSystemRole = SYSTEM_ROLE_NAMES.includes(role.name);
+
+  const filteredModules = useMemo(() => {
+    const q = permissionSearch.trim().toLowerCase();
+    const entries = Object.entries(PERMISSION_MODULES);
+    if (!q) return entries;
+    return entries
+      .map(([key, mod]) => {
+        if (mod.label.toLowerCase().includes(q)) return [key, mod] as typeof entries[number];
+        const perms = mod.permissions.filter(
+          (p) =>
+            p.id.toLowerCase().includes(q) ||
+            p.name.toLowerCase().includes(q) ||
+            p.description.toLowerCase().includes(q)
+        );
+        return perms.length > 0 ? ([key, { ...mod, permissions: perms }] as typeof entries[number]) : null;
+      })
+      .filter(Boolean) as typeof entries;
+  }, [permissionSearch]);
+
+  const toggleAllInModule = (ids: string[], checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      permissions: checked
+        ? Array.from(new Set([...prev.permissions, ...ids]))
+        : prev.permissions.filter((p) => !ids.includes(p)),
+    }));
+  };
+
 
   // Compute diff for preview
   const permissionDiff = useMemo(() => {
@@ -451,21 +282,24 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
 
           <Separator />
 
-          {/* Permissions by Module */}
+          {/* Permissions by Section → Module */}
           <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
               <div>
                 <Label className="text-base font-medium">Permissions</Label>
                 <p className="text-sm text-muted-foreground">
                   {formData.permissions.length} selected
                 </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Badge variant="outline" className={cn("text-xs", TIER_STYLES.view.badge)}>
                   <Eye className="h-3 w-3 mr-1" /> View
                 </Badge>
                 <Badge variant="outline" className={cn("text-xs", TIER_STYLES.manage.badge)}>
                   <Settings className="h-3 w-3 mr-1" /> Manage
+                </Badge>
+                <Badge variant="outline" className={cn("text-xs", TIER_STYLES.approve.badge)}>
+                  <ShieldCheck className="h-3 w-3 mr-1" /> Approve
                 </Badge>
                 <Badge variant="outline" className={cn("text-xs", TIER_STYLES.destructive.badge)}>
                   <Trash2 className="h-3 w-3 mr-1" /> Destructive
@@ -473,60 +307,97 @@ export function EditRoleDialog({ role, onSave, onClose }: EditRoleDialogProps) {
               </div>
             </div>
 
-            <div className="space-y-1 border rounded-lg overflow-hidden">
-              {Object.entries(PERMISSION_MODULES).map(([key, module]) => {
-                const isCollapsed = collapsedModules.has(key);
-                const modulePermCount = module.permissions.filter(p => formData.permissions.includes(p.id)).length;
-                
+            <div className="relative mb-3">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={permissionSearch}
+                onChange={(e) => setPermissionSearch(e.target.value)}
+                placeholder="Search permissions or modules…"
+                className="pl-8 text-foreground"
+              />
+            </div>
+
+            <div className="space-y-4">
+              {PERMISSION_SECTION_ORDER.map((section) => {
+                const modules = filteredModules.filter(([, m]) => (m.section || 'Core') === section);
+                if (modules.length === 0) return null;
                 return (
-                  <div key={key} className={cn(
-                    "border-b last:border-b-0",
-                    key === 'destructive' && "bg-destructive/10"
-                  )}>
-                    <button
-                      type="button"
-                      onClick={() => toggleModule(key)}
-                      className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-2">
-                        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                        <span className="font-medium text-sm">{module.label}</span>
-                      </div>
-                      {modulePermCount > 0 && (
-                        <Badge variant="secondary" className="text-xs">
-                          {modulePermCount}/{module.permissions.length}
-                        </Badge>
-                      )}
-                    </button>
-                    {!isCollapsed && (
-                      <div className="px-4 pb-3 pt-1 flex flex-wrap gap-3">
-                        {module.permissions.map((perm) => {
-                          const tierStyle = TIER_STYLES[perm.tier] || TIER_STYLES.special;
-                          const isChecked = formData.permissions.includes(perm.id);
-                          return (
-                            <label
-                              key={perm.id}
-                              className={cn(
-                                "flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-all text-sm",
-                                isChecked ? tierStyle.badge : "bg-background border-border opacity-60 hover:opacity-100"
-                              )}
-                            >
-                              <Checkbox
-                                checked={isChecked}
-                                onCheckedChange={(checked) => handlePermissionChange(perm.id, checked as boolean)}
-                                className="h-3.5 w-3.5"
-                              />
-                              {perm.name}
-                            </label>
-                          );
-                        })}
-                      </div>
-                    )}
+                  <div key={section}>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
+                      {section}
+                    </p>
+                    <div className="space-y-1 border rounded-lg overflow-hidden">
+                      {modules.map(([key, module]) => {
+                        const isCollapsed = collapsedModules.has(key) && !permissionSearch.trim();
+                        const modulePermCount = module.permissions.filter(p => formData.permissions.includes(p.id)).length;
+                        const allChecked = modulePermCount === module.permissions.length;
+
+                        return (
+                          <div key={key} className={cn(
+                            "border-b last:border-b-0",
+                            key === 'destructive' && "bg-destructive/10"
+                          )}>
+                            <div className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/50 transition-colors">
+                              <button
+                                type="button"
+                                onClick={() => toggleModule(key)}
+                                className="flex items-center gap-2 flex-1 text-left"
+                              >
+                                {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                <span className="font-medium text-sm">{module.label}</span>
+                              </button>
+                              <div className="flex items-center gap-2">
+                                {modulePermCount > 0 && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {modulePermCount}/{module.permissions.length}
+                                  </Badge>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs h-7"
+                                  onClick={() => toggleAllInModule(module.permissions.map(p => p.id), !allChecked)}
+                                >
+                                  {allChecked ? 'Clear' : 'All'}
+                                </Button>
+                              </div>
+                            </div>
+                            {!isCollapsed && (
+                              <div className="px-4 pb-3 pt-1 flex flex-wrap gap-3">
+                                {module.permissions.map((perm) => {
+                                  const tierStyle = TIER_STYLES[perm.tier] || TIER_STYLES.special;
+                                  const isChecked = formData.permissions.includes(perm.id);
+                                  return (
+                                    <label
+                                      key={perm.id}
+                                      title={perm.description}
+                                      className={cn(
+                                        "flex items-center gap-2 px-3 py-1.5 rounded-md border cursor-pointer transition-all text-sm",
+                                        isChecked ? tierStyle.badge : "bg-background border-border opacity-60 hover:opacity-100"
+                                      )}
+                                    >
+                                      <Checkbox
+                                        checked={isChecked}
+                                        onCheckedChange={(checked) => handlePermissionChange(perm.id, checked as boolean)}
+                                        className="h-3.5 w-3.5"
+                                      />
+                                      {perm.name}
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
             </div>
           </div>
+
 
           <Separator />
 

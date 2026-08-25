@@ -30067,6 +30067,38 @@ export type Database = {
         | "hrms_razorpay_sync"
         | "compliance_approve"
         | "bams_journal_entry"
+        | "risk_management_view"
+        | "risk_management_manage"
+        | "support_view"
+        | "support_manage"
+        | "tax_management_view"
+        | "tax_management_manage"
+        | "profit_loss_view"
+        | "financials_view"
+        | "financials_manage"
+        | "reconciliation_view"
+        | "report_formats_manage"
+        | "hrms_employees_view"
+        | "hrms_employees_manage"
+        | "hrms_attendance_view"
+        | "hrms_attendance_manage"
+        | "hrms_attendance_approve"
+        | "hrms_leave_view"
+        | "hrms_leave_manage"
+        | "hrms_leave_approve"
+        | "hrms_payroll_view"
+        | "hrms_payroll_manage"
+        | "hrms_recruitment_view"
+        | "hrms_recruitment_manage"
+        | "hrms_documents_view"
+        | "hrms_documents_manage"
+        | "hrms_assets_view"
+        | "hrms_assets_manage"
+        | "hrms_pms_view"
+        | "hrms_pms_manage"
+        | "hrms_mailbox_view"
+        | "hrms_mailbox_manage"
+        | "hrms_data_health_view"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -30460,6 +30492,38 @@ export const Constants = {
         "hrms_razorpay_sync",
         "compliance_approve",
         "bams_journal_entry",
+        "risk_management_view",
+        "risk_management_manage",
+        "support_view",
+        "support_manage",
+        "tax_management_view",
+        "tax_management_manage",
+        "profit_loss_view",
+        "financials_view",
+        "financials_manage",
+        "reconciliation_view",
+        "report_formats_manage",
+        "hrms_employees_view",
+        "hrms_employees_manage",
+        "hrms_attendance_view",
+        "hrms_attendance_manage",
+        "hrms_attendance_approve",
+        "hrms_leave_view",
+        "hrms_leave_manage",
+        "hrms_leave_approve",
+        "hrms_payroll_view",
+        "hrms_payroll_manage",
+        "hrms_recruitment_view",
+        "hrms_recruitment_manage",
+        "hrms_documents_view",
+        "hrms_documents_manage",
+        "hrms_assets_view",
+        "hrms_assets_manage",
+        "hrms_pms_view",
+        "hrms_pms_manage",
+        "hrms_mailbox_view",
+        "hrms_mailbox_manage",
+        "hrms_data_health_view",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

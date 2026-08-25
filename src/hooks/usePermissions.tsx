@@ -3,33 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { isStandbyRoles } from '@/hooks/useIsStandby';
+import { ADMIN_PERMISSIONS, expandPermissions } from '@/lib/permissions/catalog';
 
-
-const ADMIN_PERMISSIONS = [
-  'dashboard_view',
-  'sales_view', 'sales_manage',
-  'purchase_view', 'purchase_manage',
-  'terminal_view', 'terminal_manage',
-  'bams_view', 'bams_manage', 'bams_journal_entry',
-  'clients_view', 'clients_manage',
-  'ra_assign', 'ra_dashboard_view',
-  'leads_view', 'leads_manage',
-  'user_management_view', 'user_management_manage', 'user_management_hr_manage',
-  'hrms_view', 'hrms_manage', 'hrms_razorpay_sync',
-  'payroll_view', 'payroll_manage',
-  'compliance_view', 'compliance_manage', 'compliance_approve',
-  'stock_view', 'stock_manage',
-  'accounting_view', 'accounting_manage',
-  'statistics_view', 'statistics_manage',
-  'risk_management_view', 'risk_management_manage',
-  'erp_destructive', 'terminal_destructive', 'bams_destructive',
-  'clients_destructive', 'stock_destructive',
-  'shift_reconciliation_create', 'shift_reconciliation_approve',
-  'utility_view', 'utility_manage',
-  'tasks_view', 'tasks_manage',
-  'erp_entry_view', 'erp_entry_manage',
-  'support_view', 'support_manage'
-];
 
 const permissionCache = new Map<string, string[]>();
 
@@ -140,10 +115,13 @@ export function usePermissions() {
       }
 
       if (userPermissions && Array.isArray(userPermissions) && userPermissions.length > 0) {
-        const fetchedPermissions = userPermissions.map((p: any) => p.permission);
+        // Normalize legacy keys and resolve umbrella/implied grants so that a
+        // role holding e.g. accounting_view keeps Tax/P&L/Financials access.
+        const fetchedPermissions = expandPermissions(userPermissions.map((p: any) => p.permission));
         persistPermissions(user.id, fetchedPermissions);
         setPermissions(fetchedPermissions);
         setIsDegraded(false);
+
       } else {
         // Genuine empty result from the backend — authoritative.
         persistPermissions(user.id, ['dashboard_view']);

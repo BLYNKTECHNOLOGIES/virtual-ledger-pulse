@@ -8,57 +8,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PERMISSION_MODULES } from "@/lib/permissions/catalog";
+
 
 interface AddRoleDialogProps {
   onAddRole: (roleData: { name: string; description: string; permissions: string[] }) => Promise<{ success: boolean; error?: any }>;
 }
 
-// Available permissions that correspond to the app_permission enum
-const availablePermissions = [
-  { id: "dashboard_view", name: "Dashboard View", description: "View main dashboard" },
-  { id: "sales_view", name: "Sales View", description: "View sales data" },
-  { id: "sales_manage", name: "Sales Manage", description: "Manage sales orders and data" },
-  { id: "purchase_view", name: "Purchase View", description: "View purchase data" },
-  { id: "purchase_manage", name: "Purchase Manage", description: "Manage purchase orders" },
-  { id: "bams_view", name: "BAMS View", description: "View Bank Account Management System" },
-  { id: "bams_manage", name: "BAMS Manage", description: "Manage Bank Account Management System" },
-  { id: "bams_journal_entry", name: "BAMS Bank Journal Entry", description: "Access only the Bank Journal Entries section (expense, income & contra entries)" },
-  { id: "clients_view", name: "Clients View", description: "View client information" },
-  { id: "clients_manage", name: "Clients Manage", description: "Manage clients" },
-  { id: "ra_assign", name: "Assign RA", description: "Assign clients to Relationship Associates" },
-  { id: "ra_dashboard_view", name: "RA Dashboard", description: "Access own Relationship Associate dashboard" },
-  { id: "leads_view", name: "Leads View", description: "View leads" },
-  { id: "leads_manage", name: "Leads Manage", description: "Manage leads" },
-  { id: "user_management_view", name: "User Management View", description: "View users and roles" },
-  { id: "user_management_manage", name: "User Management Manage", description: "Manage users and roles" },
-  { id: "user_management_hr_manage", name: "User Management (HR)", description: "HR access: edit user details & delete non-admin users. Cannot change roles, grant terminal access, or approve new registrations" },
-  { id: "hrms_view", name: "HRMS View", description: "View Human Resource Management" },
-  { id: "hrms_manage", name: "HRMS Manage", description: "Manage Human Resources" },
-  { id: "payroll_view", name: "Payroll View", description: "View payroll data" },
-  { id: "payroll_manage", name: "Payroll Manage", description: "Manage payroll" },
-  { id: "compliance_view", name: "Compliance View", description: "View compliance data" },
-  { id: "compliance_manage", name: "Compliance Manage", description: "Manage compliance" },
-  { id: "compliance_approve", name: "Compliance Approve", description: "Approve or reject compliance investigations (cannot approve own submissions)" },
-  { id: "stock_view", name: "Stock View", description: "View inventory" },
-  { id: "stock_manage", name: "Stock Manage", description: "Manage inventory" },
-  { id: "accounting_view", name: "Accounting View", description: "View financial data" },
-  { id: "accounting_manage", name: "Accounting Manage", description: "Manage accounting" },
-  { id: "statistics_view", name: "Statistics View", description: "View statistics and reports" },
-  { id: "statistics_manage", name: "Statistics Manage", description: "Manage statistics" },
-  { id: "erp_destructive", name: "ERP Destructive", description: "Reject/delete ERP actions and conversions" },
-  { id: "terminal_destructive", name: "Terminal Destructive", description: "Reject/delete terminal syncs and orders" },
-  { id: "bams_destructive", name: "BAMS Destructive", description: "Delete/close/reverse BAMS entries and accounts" },
-  { id: "clients_destructive", name: "Clients Destructive", description: "Delete/reject clients" },
-  { id: "stock_destructive", name: "Stock Destructive", description: "Delete stock/wallet transactions and conversions" },
-  { id: "shift_reconciliation_create", name: "Shift Reconciliation Create", description: "Submit shift reconciliation records" },
-  { id: "shift_reconciliation_approve", name: "Shift Reconciliation Approve", description: "Approve or reject shift reconciliation records" },
-  { id: "stock_conversion_approve", name: "Stock Conversion Approve", description: "Approve stock/product conversions" },
-  { id: "stock_conversion_create", name: "Stock Conversion Create", description: "Create stock/product conversions" },
-  { id: "utility_view", name: "Utility View", description: "View utility tools and features" },
-  { id: "utility_manage", name: "Utility Manage", description: "Manage utility tools and settings" },
-  { id: "erp_entry_view", name: "ERP Entry View", description: "View the ERP Entry unified pending feed" },
-  { id: "erp_entry_manage", name: "ERP Entry Manage", description: "Approve, reject, and trigger syncs from ERP Entry" },
-];
+// Permissions come from the single-source catalog (src/lib/permissions/catalog.ts)
+const availablePermissions = Object.values(PERMISSION_MODULES).flatMap((mod) =>
+  mod.permissions.map((p) => ({
+    id: p.id,
+    name: `${mod.label} · ${p.name}`,
+    description: p.description,
+  }))
+);
+
 
 export function AddRoleDialog({ onAddRole }: AddRoleDialogProps) {
   const [open, setOpen] = useState(false);

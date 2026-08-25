@@ -730,7 +730,7 @@ export default function UserManagement() {
                                     <p><strong>Last Seen:</strong> {formatTime(user.last_seen)}</p>
                                   </div>
                                   
-                                  <PermissionGate permissions={['super_admin_access']}>
+                                  {isSuperAdmin && (
                                     <div className="pt-2 border-t">
                                       <Button
                                         variant="outline"
@@ -743,7 +743,7 @@ export default function UserManagement() {
                                         Reset Password
                                       </Button>
                                     </div>
-                                  </PermissionGate>
+                                  )}
                                 </div>
                               </CardContent>
                             </Card>

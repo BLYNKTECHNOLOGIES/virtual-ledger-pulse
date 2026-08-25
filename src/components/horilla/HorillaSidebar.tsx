@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchHrmsRoute } from "@/lib/hrmsPrefetch";
+import { usePermissions } from "@/hooks/usePermissions";
+import { expandPermissions } from "@/lib/permissions/catalog";
 
 interface NavItem {
   label: string;
@@ -207,6 +209,70 @@ const navGroups: NavGroup[] = [
   },
 ];
 
+const HRMS_ROUTE_PERMISSIONS: Record<string, string[]> = {
+  "/hrms": ["hrms_view", "hrms_manage"],
+  "/hrms/employee": ["hrms_employees_view", "hrms_employees_manage"],
+  "/hrms/employee/departments": ["hrms_employees_view", "hrms_employees_manage"],
+  "/hrms/employee/positions": ["hrms_employees_view", "hrms_employees_manage"],
+  "/hrms/employee/documents": ["hrms_documents_view", "hrms_documents_manage"],
+  "/hrms/employee/separation": ["hrms_employees_view", "hrms_employees_manage"],
+  "/hrms/offboarding/fnf": ["hrms_employees_view", "hrms_employees_manage", "hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/onboarding-pipeline": ["hrms_employees_view", "hrms_employees_manage", "hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/pipeline": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/candidates": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/rejected": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/interviews": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/stages": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/skill-zones": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/recruitment/surveys": ["hrms_recruitment_view", "hrms_recruitment_manage"],
+  "/hrms/attendance": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/biometric-devices": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/calendar": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/summary": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/shifts": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/hours": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/late-early": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/punches": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/regularization": ["hrms_attendance_view", "hrms_attendance_manage", "hrms_attendance_approve"],
+  "/hrms/attendance/stale-sessions": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/attendance/period-locks": ["hrms_attendance_view", "hrms_attendance_manage"],
+  "/hrms/leave": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/leave/requests": ["hrms_leave_view", "hrms_leave_manage", "hrms_leave_approve"],
+  "/hrms/leave/allocations": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/leave/types": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/leave/holidays": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/leave/comp-off": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/leave/allocation-requests": ["hrms_leave_view", "hrms_leave_manage", "hrms_leave_approve"],
+  "/hrms/leave/accrual-plans": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/leave/weekly-off": ["hrms_leave_view", "hrms_leave_manage"],
+  "/hrms/payroll": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/cockpit": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/payslips": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/salary-revisions": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/statutory-settings": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/salary-components": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/penalties": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/loans": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/payroll/deposits": ["hrms_payroll_view", "hrms_payroll_manage"],
+  "/hrms/asset": ["hrms_assets_view", "hrms_assets_manage"],
+  "/hrms/asset/list": ["hrms_assets_view", "hrms_assets_manage"],
+  "/hrms/asset/assignments": ["hrms_assets_view", "hrms_assets_manage"],
+  "/hrms/pms": ["hrms_pms_view", "hrms_pms_manage"],
+  "/hrms/pms/feedback": ["hrms_pms_view", "hrms_pms_manage"],
+  "/hrms/pms/mpi": ["hrms_pms_view", "hrms_pms_manage"],
+  "/hrms/helpdesk": ["hrms_employees_view", "hrms_employees_manage"],
+  "/hrms/helpdesk/policies": ["hrms_documents_view", "hrms_documents_manage"],
+  "/hrms/organization": ["hrms_employees_view", "hrms_employees_manage"],
+  "/hrms/documents": ["hrms_documents_view", "hrms_documents_manage"],
+  "/hrms/announcements": ["hrms_documents_view", "hrms_documents_manage"],
+  "/hrms/mailbox": ["hrms_mailbox_view", "hrms_mailbox_manage"],
+  "/hrms/disciplinary-actions": ["hrms_pms_view", "hrms_pms_manage"],
+  "/hrms/reports": ["hrms_data_health_view", "hrms_payroll_view", "hrms_attendance_view", "hrms_leave_view"],
+  "/hrms/registers": ["hrms_data_health_view", "hrms_payroll_view", "hrms_attendance_view", "hrms_leave_view"],
+  "/hrms/logs": ["hrms_data_health_view", "hrms_manage"],
+};
+
 interface HorillaSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
@@ -224,6 +290,7 @@ export function HorillaSidebar({
 }: HorillaSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { hasAnyPermission, isLoading } = usePermissions();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   // Path the user just clicked — highlighted immediately so the nav responds
@@ -238,10 +305,31 @@ export function HorillaSidebar({
     if (!path.startsWith("http")) prefetchHrmsRoute(path.split("?")[0]);
   };
 
+  const canAccessPath = useCallback((path: string) => {
+    const permissions = HRMS_ROUTE_PERMISSIONS[path.split("?")[0]] || ["hrms_view", "hrms_manage"];
+    return hasAnyPermission(expandPermissions(permissions));
+  }, [hasAnyPermission]);
+
+  const visibleNavGroups = useMemo<NavGroup[]>(
+    () => navGroups
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .map<NavItem | null>((item) => {
+            const children = item.children?.filter((child) => canAccessPath(child.path));
+            const itemVisible = canAccessPath(item.path) || Boolean(children?.length);
+            return itemVisible ? { ...item, children } : null;
+          })
+          .filter((item): item is NavItem => item !== null),
+      }))
+      .filter((group) => group.items.length > 0),
+    [canAccessPath]
+  );
+
   // Auto-expand any parent group whose child matches current route
   useEffect(() => {
     const toExpand: string[] = [];
-    navGroups.forEach((g) =>
+    visibleNavGroups.forEach((g) =>
       g.items.forEach((it) => {
         if (it.children?.some((c) => location.pathname.startsWith(c.path) || location.pathname === c.path)) {
           toExpand.push(it.label);
@@ -251,7 +339,9 @@ export function HorillaSidebar({
     if (toExpand.length) {
       setExpandedItems((prev) => Array.from(new Set([...prev, ...toExpand])));
     }
-  }, [location.pathname]);
+  }, [location.pathname, visibleNavGroups]);
+
+  if (isLoading) return null;
 
   const isActive = (path: string) => {
     // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.
@@ -311,7 +401,7 @@ export function HorillaSidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 sidebar-scroll">
-        {navGroups.map((group) => (
+        {visibleNavGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
               <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.12em] px-2 mb-1.5">

@@ -8,6 +8,7 @@ import { TerminalLayout } from './components/terminal/TerminalLayout';
 import { LoginPage } from './components/website/pages/LoginPage';
 import NotFound from './pages/NotFound';
 import { HorillaLayout } from './components/horilla/HorillaLayout';
+import { PermissionGate } from "@/components/PermissionGate";
 import { QueryProvider } from './components/QueryProvider';
 import { Layout } from './components/Layout';
 import { AuthProvider } from './components/AuthProvider';
@@ -200,7 +201,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <ReportSettings />
+              <PermissionGate permissions={["report_formats_manage", "financials_manage", "accounting_manage"]}>
+                <ReportSettings />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>

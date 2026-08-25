@@ -304,7 +304,6 @@ export const LEGACY_PERMISSION_MAP: Record<string, string> = {
   view_accounting: 'tax_management_view',
   view_banking: 'bams_view',
   view_statistics: 'statistics_view',
-  view_ems: 'ems_view',
   VIEW_REPORTS: 'statistics_view',
   manage_sales: 'sales_manage',
   MANAGE_SALES: 'sales_manage',

@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Search, Users, CalendarDays, BarChart3, Download } from "lucide-react";
+import { Plus, Search, Users, CalendarDays, BarChart3, Download, History } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,7 @@ import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { ViewToggle } from "@/components/hrms/ViewToggle";
 import { useViewMode } from "@/hooks/useViewMode";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LeaveLedgerHistoryDialog } from "@/components/hrms/LeaveLedgerHistoryDialog";
 
 function getCurrentQuarter() {
   return Math.ceil((new Date().getMonth() + 1) / 3);
@@ -34,6 +35,7 @@ export default function LeaveAllocationsPage() {
   const [quarterFilter, setQuarterFilter] = useState(getCurrentQuarter().toString());
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", allocated_days: 12 });
 
   const { isOnProbation, probationEndDate } = useProbationStatus();
@@ -510,6 +512,7 @@ export default function LeaveAllocationsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <LeaveLedgerHistoryDialog open={showHistory} onOpenChange={setShowHistory} />
     </div>
   );
 }

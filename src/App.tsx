@@ -56,6 +56,7 @@ const UserProfile = lazy(() => import('./pages/UserProfile'));
 const Shortcuts = lazy(() => import('./pages/Shortcuts'));
 const RiskManagement = lazy(() => import('./pages/RiskManagement'));
 const AdManager = lazy(() => import('./pages/AdManager'));
+const ZoneBookPage = lazy(() => import('./pages/ZoneBookPage'));
 const TerminalAdManager = lazy(() => import('./pages/terminal/TerminalAdManager'));
 const TerminalDashboard = lazy(() => import('./pages/terminal/TerminalDashboard'));
 const TerminalLanding = lazy(() => import('./pages/terminal/TerminalLanding'));
@@ -483,6 +484,18 @@ const router = createBrowserRouter([
         </QueryProvider>
       ),
     },
+    {
+      path: "/ad-manager/zone-book",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <Layout>
+                <ZoneBookPage />
+              </Layout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
     // P2P Trading Terminal routes
     {
       path: "/terminal",
@@ -515,6 +528,18 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalAdManager />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/ads/zone-book",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <ZoneBookPage />
               </TerminalLayout>
             </AuthCheck>
         </QueryProvider>

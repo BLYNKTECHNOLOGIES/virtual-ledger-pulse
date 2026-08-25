@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/PageHeader';
-import { ArrowLeft, RefreshCw, ShieldCheck, Boxes, Layers } from 'lucide-react';
+import { ArrowLeft, RefreshCw, ShieldCheck, Boxes } from 'lucide-react';
 import { AdZone, ZONE_LABEL, adZone } from '@/lib/adZone';
 import { useBinanceAdsList, BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useZoneBook, rankInBook, ZoneBookRow } from '@/hooks/useZoneBook';
@@ -220,7 +220,6 @@ export default function ZoneBookPage() {
         <PageHeader
           title="Zone Book"
           description="The P2P zone and the Block zone are two separate order books with different top merchants and different price levels. Both columns are live Binance data for the same asset, side and ticket size."
-          icon={Layers}
         />
         <Button variant="outline" size="sm" onClick={() => navigate(backTo)} className="shrink-0">
           <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Ads

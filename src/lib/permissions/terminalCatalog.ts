@@ -14,8 +14,6 @@ export type TerminalPermission =
   | 'terminal_orders_resolve_escalation'
   | 'terminal_orders_chat'
   | 'terminal_orders_export'
-  | 'terminal_support_view'
-  | 'terminal_support_manage'
   // Ads
   | 'terminal_ads_view'
   | 'terminal_ads_manage'
@@ -370,9 +368,7 @@ export const TERMINAL_ROLE_TEMPLATES: Record<string, { label: string; permission
 
 
 export const TERMINAL_HIDDEN_PERMISSIONS: TerminalPermission[] = [
-  // Kept out of the role matrix because there is no active Terminal UI gate for these broad legacy keys.
-  'terminal_support_view',
-  'terminal_support_manage',
+  // Kept out of the role matrix because there is no active Terminal UI gate for this broad legacy key.
   'terminal_mpi_view',
 ];
 

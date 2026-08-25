@@ -129,13 +129,14 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
     ],
   },
   accounting_legacy: {
-    label: 'Accounting (legacy umbrella)',
+    label: 'Accounting (legacy umbrella — no page of its own)',
     section: 'Finance',
     permissions: [
-      { id: 'accounting_view', name: 'View (umbrella)', description: 'Legacy grant — also unlocks Tax Management, P&L and Financials view', tier: 'view' },
-      { id: 'accounting_manage', name: 'Manage (umbrella)', description: 'Legacy grant — also unlocks Tax Management and Financials manage', tier: 'manage' },
+      { id: 'accounting_view', name: 'View (umbrella)', description: 'Opens no tab itself — silently unlocks Tax Management, P&L and Financials view. Legacy; prefer the specific keys.', tier: 'view' },
+      { id: 'accounting_manage', name: 'Manage (umbrella)', description: 'Opens no tab itself — silently unlocks Tax Management and Financials manage. Legacy; prefer the specific keys.', tier: 'manage' },
     ],
   },
+
   reconciliation: {
     label: 'Reconciliation',
     section: 'Finance',

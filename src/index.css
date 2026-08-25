@@ -405,11 +405,11 @@
 
     /* Sidebar — darkest layer, never pure black against the canvas */
     --sidebar-background: 207 20% 8%;
-    --sidebar-foreground: 207 15% 70%;
+    --sidebar-foreground: 207 15% 86%;
     --sidebar-primary: 193 100% 50%;
     --sidebar-primary-foreground: 210 23% 5%;
     --sidebar-accent: 208 18% 15%;
-    --sidebar-accent-foreground: 204 29% 96%;
+    --sidebar-accent-foreground: 204 29% 98%;
     --sidebar-border: 210 15% 18%;
     --sidebar-ring: 193 100% 50%;
   }

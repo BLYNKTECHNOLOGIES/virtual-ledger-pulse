@@ -193,7 +193,7 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <PermissionGate permissions={["terminal_manage"]}>
+              <PermissionGate permissions={["terminal_view"]}>
                 <ExchangeAccountsSettings />
               </PermissionGate>
             </Layout>

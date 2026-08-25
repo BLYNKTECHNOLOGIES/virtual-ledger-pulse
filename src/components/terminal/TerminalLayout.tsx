@@ -4,7 +4,9 @@ import { TerminalSidebar } from './TerminalSidebar';
 import { TerminalHeader } from './TerminalHeader';
 import { TerminalAuthProvider, useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { BiometricAuthGate } from './BiometricAuthGate';
+import { TerminalStandby } from './TerminalStandby';
 import { ShieldOff, Loader2 } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
 import { TerminalPresenceAndAlerts } from './TerminalPresenceAndAlerts';
 import { ExchangeAccountProvider } from '@/contexts/ExchangeAccountContext';
 import { TerminalShortcutsProvider } from '@/contexts/TerminalShortcutsProvider';
@@ -16,8 +18,9 @@ interface TerminalLayoutProps {
 
 function TerminalAccessGate({ children }: { children: React.ReactNode }) {
   const { terminalRoles, isLoading, userId, isTerminalAdmin } = useTerminalAuth();
+  const { hasPermission, isLoading: permsLoading } = usePermissions();
 
-  if (isLoading) {
+  if (isLoading || permsLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -25,8 +28,11 @@ function TerminalAccessGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Allow access if user has terminal roles OR is a Super Admin (isTerminalAdmin covers that)
-  if (!userId || (terminalRoles.length === 0 && !isTerminalAdmin)) {
+  const hasTerminalRole = terminalRoles.length > 0 || isTerminalAdmin;
+  const canEnterStandby = hasPermission('terminal_view');
+
+  // No ERP Terminal access grant at all — nothing to show.
+  if (!userId || (!hasTerminalRole && !canEnterStandby)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4 px-4 text-center">
         <ShieldOff className="h-16 w-16 text-muted-foreground/40" />
@@ -36,6 +42,11 @@ function TerminalAccessGate({ children }: { children: React.ReactNode }) {
         </p>
       </div>
     );
+  }
+
+  // Signed in, but no Terminal role yet — standby mode: biometric enrolment only.
+  if (!hasTerminalRole) {
+    return <TerminalStandby />;
   }
 
   return <>{children}</>;

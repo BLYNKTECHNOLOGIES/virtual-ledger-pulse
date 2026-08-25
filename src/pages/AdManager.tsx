@@ -76,8 +76,6 @@ export default function AdManager() {
     const advStatus = searchParams.get('advStatus'); if (advStatus !== null && advStatus !== '') f.advStatus = Number(advStatus);
     const priceType = searchParams.get('priceType'); if (priceType !== null && priceType !== '') f.priceType = Number(priceType);
     const zone = searchParams.get('zone'); if (zone) f.zone = zone;
-    const startDate = searchParams.get('startDate'); if (startDate) f.startDate = startDate;
-    const endDate = searchParams.get('endDate'); if (endDate) f.endDate = endDate;
     return f;
   });
   const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('tab') || localStorage.getItem(TAB_PREF_KEY) || 'all');
@@ -132,8 +130,6 @@ export default function AdManager() {
     if (filters.advStatus !== undefined && filters.advStatus !== null) p.set('advStatus', String(filters.advStatus));
     if (filters.priceType !== undefined && filters.priceType !== null) p.set('priceType', String(filters.priceType));
     if (filters.zone) p.set('zone', filters.zone);
-    if (filters.startDate) p.set('startDate', filters.startDate);
-    if (filters.endDate) p.set('endDate', filters.endDate);
     setSearchParams(p, { replace: true });
   }, [activeTab, statusChips, sortMode, viewMode, compact, autoRefresh, filters, setSearchParams]);
 

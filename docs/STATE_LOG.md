@@ -22,6 +22,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 ---
 
 - 2026-08-25: ERP permission library Phase 4 shipped — Terminal permissions moved into a shared catalog for auth/role-editor/verification parity while Terminal database grants and role behaviour remain unchanged.
+- 2026-08-25: ERP permission library hygiene completed — permission drift checker now validates ERP/Terminal source usages; catalogs verified against live `app_permission` and `terminal_permission` enums with no missing enum-backed keys.
 - 2026-08-25: ERP permission library Phase 3 shipped — split Finance/BAMS/Clients-KYC/HRMS permissions backfilled onto existing roles only; HRMS sub-routes/sidebar and KYC approval actions now enforce granular gates while umbrella aliases preserve legacy access.
 - 2026-08-10: Biometric health false alarm repaired — visitor PIN 100 and eSSL protocol-noise PIN 0 are excluded from mapping/rejection health; false device counters cleared and both devices verified with zero actionable unmapped users.
 - 2026-08-05: Employee Work Information saves repaired — shift sync now ignores unchanged shifts, replaces same-day corrections, and closes prior assignments on the preceding day to prevent inclusive-date overlap failures.

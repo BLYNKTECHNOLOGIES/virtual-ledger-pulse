@@ -82,7 +82,7 @@ export const NAVIGATION_SHORTCUTS: ShortcutDef[] = [
   { id: "nav-sales", category: "Navigation", label: "Sales", description: "Go to Sales orders", combo: A("KeyS"), icon: TrendingUp, url: "/sales", permissions: ["sales_view", "sales_manage"] },
   { id: "nav-purchase", category: "Navigation", label: "Purchase", description: "Go to Purchase orders", combo: A("KeyP"), icon: ShoppingCart, url: "/purchase", permissions: ["purchase_view", "purchase_manage"] },
   { id: "nav-bams", category: "Navigation", label: "BAMS", description: "Go to Bank Account Management", combo: A("KeyB"), icon: Building2, url: "/bams", permissions: ["bams_view", "bams_manage"] },
-  { id: "nav-clients", category: "Navigation", label: "Clients", description: "Go to Client management", combo: A("KeyC"), icon: Users, url: "/clients", permissions: ["clients_view", "clients_manage"] },
+  { id: "nav-clients", category: "Navigation", label: "Clients", description: "Go to Client management", combo: A("KeyC"), icon: Users, url: "/clients", permissions: ["clients_view", "clients_manage", "ra_assign"] },
   { id: "nav-terminal-orders", category: "Navigation", label: "Terminal Orders", description: "Go to Terminal orders", combo: A("KeyO"), icon: ListOrdered, url: "/terminal/orders", permissions: ["terminal_view"] },
   { id: "nav-stock", category: "Navigation", label: "Stock Management", description: "Go to Stock management", combo: A("KeyK"), icon: Package, url: "/stock", permissions: ["stock_view", "stock_manage"] },
   { id: "nav-erp-entry", category: "Navigation", label: "ERP Entry", description: "Go to the ERP entry queue", combo: A("KeyE"), icon: Inbox, url: "/erp-entry", permissions: ["erp_entry_view", "erp_entry_manage"] },

@@ -1,6 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TerminalPermissionGate } from "@/components/terminal/TerminalPermissionGate";
 import { TerminalUsersList } from "@/components/terminal/users/TerminalUsersList";
+import { TerminalStandbyUsers } from "@/components/terminal/users/TerminalStandbyUsers";
 import { TerminalRolesList } from "@/components/terminal/users/TerminalRolesList";
 import { TerminalExchangeAccounts } from "@/components/terminal/users/TerminalExchangeAccounts";
 import { TerminalSizeRanges } from "@/components/terminal/users/TerminalSizeRanges";
@@ -40,7 +41,8 @@ export default function TerminalUsers() {
             <TabsTrigger value="orgchart" className="text-xs">Org Chart</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-4">
+          <TabsContent value="users" className="mt-4 space-y-4">
+            <TerminalStandbyUsers />
             <TerminalUsersList />
           </TabsContent>
 

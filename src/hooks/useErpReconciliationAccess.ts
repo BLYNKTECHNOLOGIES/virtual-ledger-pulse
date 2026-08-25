@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 
 /**
  * Checks if the current user has the 'erp_reconciliation' system function
@@ -9,11 +10,25 @@ import { useAuth } from '@/hooks/useAuth';
  */
 export function useErpReconciliationAccess() {
   const { user } = useAuth();
+  const { hasAnyPermission, isLoading: permsLoading } = usePermissions();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Granular permissions are an equally valid grant alongside the legacy
+  // erp_reconciliation system function.
+  const permissionGrant = hasAnyPermission([
+    'reconciliation_view',
+    'shift_reconciliation_create',
+    'shift_reconciliation_approve',
+  ]);
+
   useEffect(() => {
     const check = async () => {
+      if (!permsLoading && permissionGrant) {
+        setHasAccess(true);
+        setIsLoading(false);
+        return;
+      }
       if (!user?.id) {
         setHasAccess(false);
         setIsLoading(false);
@@ -69,7 +84,7 @@ export function useErpReconciliationAccess() {
     };
 
     check();
-  }, [user?.id]);
+  }, [user?.id, permissionGrant, permsLoading]);
 
   return { hasAccess, isLoading };
 }

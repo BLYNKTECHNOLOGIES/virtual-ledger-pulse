@@ -128,15 +128,6 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
       { id: 'statistics_manage', name: 'Manage', description: 'Configure statistics and export analytics', tier: 'manage' },
     ],
   },
-  accounting_legacy: {
-    label: 'Accounting (legacy umbrella — no page of its own)',
-    section: 'Finance',
-    permissions: [
-      { id: 'accounting_view', name: 'View (umbrella)', description: 'Opens no tab itself — silently unlocks Tax Management, P&L and Financials view. Legacy; prefer the specific keys.', tier: 'view' },
-      { id: 'accounting_manage', name: 'Manage (umbrella)', description: 'Opens no tab itself — silently unlocks Tax Management and Financials manage. Legacy; prefer the specific keys.', tier: 'manage' },
-    ],
-  },
-
   reconciliation: {
     label: 'Reconciliation',
     section: 'Finance',
@@ -316,7 +307,7 @@ export const LEGACY_PERMISSION_MAP: Record<string, string> = {
   view_stock: 'stock_view',
   view_stock_management: 'stock_view',
   view_inventory: 'stock_view',
-  view_accounting: 'accounting_view',
+  view_accounting: 'tax_management_view',
   view_banking: 'bams_view',
   view_statistics: 'statistics_view',
   view_ems: 'ems_view',
@@ -336,8 +327,8 @@ export const LEGACY_PERMISSION_MAP: Record<string, string> = {
   MANAGE_HRMS: 'hrms_manage',
   manage_payroll: 'payroll_manage',
   MANAGE_PAYROLL: 'payroll_manage',
-  manage_accounting: 'accounting_manage',
-  MANAGE_ACCOUNTING: 'accounting_manage',
+  manage_accounting: 'tax_management_manage',
+  MANAGE_ACCOUNTING: 'tax_management_manage',
   manage_banking: 'bams_manage',
   manage_compliance: 'compliance_manage',
   MANAGE_COMPLIANCE: 'compliance_manage',
@@ -362,8 +353,6 @@ export const normalizePermissions = (perms: string[]): string[] =>
  * sub-module breakdown — nobody loses access on deploy.
  */
 export const PERMISSION_ALIASES: Record<string, string[]> = {
-  accounting_view: ['tax_management_view', 'profit_loss_view', 'financials_view'],
-  accounting_manage: ['tax_management_view', 'tax_management_manage', 'profit_loss_view', 'financials_view', 'financials_manage'],
   bams_manage: ['bams_view', 'bams_journal_entry'],
   clients_view: ['kyc_approvals_view', 'video_kyc_view'],
   clients_manage: ['clients_view', 'kyc_approvals_manage', 'video_kyc_manage'],
@@ -456,12 +445,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   {
     name: 'Read-Only Auditor',
     description: 'Every view permission, no manage, approve or destructive rights',
-    getPermissions: () => keysByTier(['view']).filter((k) => k !== 'accounting_view'),
+    getPermissions: () => keysByTier(['view']),
   },
   {
     name: 'Full Operations',
     description: 'All view, manage, approve and special rights — no destructive',
-    getPermissions: () => keysByTier(['view', 'manage', 'approve', 'special']).filter((k) => !k.startsWith('accounting_')),
+    getPermissions: () => keysByTier(['view', 'manage', 'approve', 'special']),
   },
   {
     name: 'Finance',

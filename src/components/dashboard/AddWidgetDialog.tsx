@@ -152,13 +152,13 @@ const dynamicWidgets: WidgetType[] = [
   { id: 'bank-balance-total', name: 'Total Bank Balance', description: 'Combined balance across all active bank accounts', icon: Landmark, category: 'Banking', size: 'small', requiredPermissions: ['bams_view'] },
   { id: 'bank-balance-filter', name: 'Bank Balance Filter', description: 'View combined balance of selected active bank accounts', icon: Building, category: 'Banking', size: 'medium', requiredPermissions: ['bams_view'] },
   { id: 'total-cash', name: 'Total Cash', description: 'Banks + Stock combined value', icon: Banknote, category: 'Banking', size: 'small', requiredPermissions: ['bams_view', 'stock_view'], requireAll: true },
-  { id: 'cash-flow', name: 'Cash Flow', description: 'Gross profit (PNL) vs operational expenses', icon: ArrowUpRight, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
+  { id: 'cash-flow', name: 'Cash Flow', description: 'Gross profit (PNL) vs operational expenses', icon: ArrowUpRight, category: 'PNL', size: 'large', requiredPermissions: ['profit_loss_view'] },
   // PNL
-  { id: 'profit-margin', name: 'Profit Margin', description: 'Profit margin from sales vs purchase cost (30d)', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
-  { id: 'gross-profit', name: 'Gross Profit', description: 'Gross profit from sales vs purchase cost', icon: Target, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
-  { id: 'growth-rate', name: 'Growth Rate', description: 'Month-over-month revenue growth rate', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['accounting_view'] },
-  { id: 'expense-details', name: 'Expense Breakdown', description: 'Bank transaction expenses by category', icon: CreditCard, category: 'PNL', size: 'large', requiredPermissions: ['accounting_view'] },
-  { id: 'expense-trends', name: 'Expense Trends', description: 'Monthly expense trends from bank transactions', icon: TrendingDown, category: 'PNL', size: 'medium', requiredPermissions: ['accounting_view'] },
+  { id: 'profit-margin', name: 'Profit Margin', description: 'Profit margin from sales vs purchase cost (30d)', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['profit_loss_view'] },
+  { id: 'gross-profit', name: 'Gross Profit', description: 'Gross profit from sales vs purchase cost', icon: Target, category: 'PNL', size: 'small', requiredPermissions: ['profit_loss_view'] },
+  { id: 'growth-rate', name: 'Growth Rate', description: 'Month-over-month revenue growth rate', icon: TrendingUp, category: 'PNL', size: 'small', requiredPermissions: ['profit_loss_view'] },
+  { id: 'expense-details', name: 'Expense Breakdown', description: 'Bank transaction expenses by category', icon: CreditCard, category: 'PNL', size: 'large', requiredPermissions: ['profit_loss_view'] },
+  { id: 'expense-trends', name: 'Expense Trends', description: 'Monthly expense trends from bank transactions', icon: TrendingDown, category: 'PNL', size: 'medium', requiredPermissions: ['profit_loss_view'] },
   // Statistics
   { id: 'performance-overview', name: 'Performance Overview', description: 'Revenue, profit, margin & volume KPIs with MoM trends', icon: PieChart, category: 'Statistics', size: 'large', requiredPermissions: ['statistics_view'] },
   

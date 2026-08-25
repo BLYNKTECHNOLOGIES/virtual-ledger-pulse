@@ -242,14 +242,8 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
       { id: 'help_assistant_manage', name: 'Manage', description: 'Administer assistant knowledge and settings', tier: 'manage', routes: ['/help-assistant/admin'] },
     ],
   },
-  ems: {
-    label: 'EMS (legacy — inert, no surface in the app)',
-    section: 'Workplace',
-    permissions: [
-      { id: 'ems_view', name: 'View (inert)', description: 'Legacy key from the old EMS module. No route, page or control reads it — granting or revoking it changes nothing today. Kept only so old roles keep validating.', tier: 'view' },
-      { id: 'ems_manage', name: 'Manage (inert)', description: 'Legacy key from the old EMS module. No route, page or control reads it — granting or revoking it changes nothing today. Kept only so old roles keep validating.', tier: 'manage' },
-    ],
-  },
+
+
 
   destructive: {
     label: 'Destructive Actions',

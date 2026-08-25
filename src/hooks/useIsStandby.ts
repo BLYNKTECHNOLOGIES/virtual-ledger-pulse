@@ -1,4 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
+import { isAdminRoleName } from '@/lib/auth/roles';
 
 /** Role name (case-insensitive) that is restricted to the profile section only. */
 export const STANDBY_ROLE = 'standby';
@@ -7,7 +8,7 @@ export function isStandbyRoles(roles?: string[] | null): boolean {
   if (!roles || roles.length === 0) return false;
   const normalized = roles.map((r) => String(r).trim().toLowerCase());
   // Super Admin / Admin always wins, even if a standby role is also attached.
-  if (normalized.some((r) => r === 'super admin' || r === 'admin')) return false;
+  if (roles.some(isAdminRoleName)) return false;
   return normalized.some((r) => r === STANDBY_ROLE);
 }
 

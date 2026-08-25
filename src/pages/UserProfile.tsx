@@ -18,6 +18,10 @@ import { PayslipPdfDownloadButton } from '@/components/hrms/PayslipPdfDownloadBu
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
+import { Switch } from '@/components/ui/switch';
+import { Bot } from 'lucide-react';
+import { useHelpAssistantEnabled } from '@/hooks/useHelpAssistantEnabled';
+
 import { 
   User, 
   Building2, 

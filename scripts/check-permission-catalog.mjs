@@ -16,7 +16,7 @@ const terminalKeys = new Set([...terminalCatalog.matchAll(/'((?:terminal)_[a-z0-
 
 const sourceFiles = execFileSync('rg', [
   '-l',
-  'PermissionGate|hasPermission|hasAnyPermission|hasAllPermissions|TerminalPermissionGate|permissions:',
+  'PermissionGate|hasPermission\(|hasAnyPermission\(|hasAllPermissions\(|TerminalPermissionGate|permissions:',
   'src',
   '--glob', '*.ts',
   '--glob', '*.tsx',
@@ -79,12 +79,16 @@ for (const fileName of sourceFiles) {
   const abs = join(root, fileName);
   const lines = readFileSync(abs, 'utf8').split('\n');
   lines.forEach((line, index) => {
-    const inPermissionContext = /PermissionGate|TerminalPermissionGate|hasPermission|hasAnyPermission|hasAllPermissions|permissions:|permissions=/.test(line);
+    const inPermissionContext = /PermissionGate|TerminalPermissionGate|hasPermission\(|hasAnyPermission\(|hasAllPermissions\(|permissions:|permissions=/.test(line);
     if (!inPermissionContext) return;
     for (const match of line.matchAll(/['"]([A-Za-z0-9_]+)['"]/g)) {
       const key = match[1];
       if (key.startsWith('terminal_')) {
-        addUsage(terminalUsage, key, abs, index + 1);
+        if (terminalKeys.has(key) || /TerminalPermissionGate|terminalPermissions|TerminalPermission/.test(line)) {
+          addUsage(terminalUsage, key, abs, index + 1);
+        } else {
+          addUsage(erpUsage, key, abs, index + 1);
+        }
         continue;
       }
       if (!erpPermissionShape.test(key)) continue;

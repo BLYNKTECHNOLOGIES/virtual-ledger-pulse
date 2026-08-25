@@ -289,7 +289,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <RADashboard />
+              <PermissionGate permissions={["ra_dashboard_view"]}>
+                <RADashboard />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -301,7 +303,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Leads />
+              <PermissionGate permissions={["leads_view", "leads_manage"]}>
+                <Leads />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -313,7 +317,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <UserManagement />
+              <PermissionGate permissions={["user_management_view", "user_management_manage", "user_management_hr_manage"]}>
+                <UserManagement />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -325,7 +331,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Compliance />
+              <PermissionGate permissions={["compliance_view", "compliance_manage", "compliance_approve"]}>
+                <Compliance />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -337,7 +345,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <HelpAssistant />
+              <PermissionGate permissions={["help_assistant_view"]}>
+                <HelpAssistant />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -349,7 +359,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <HelpAssistantAdmin />
+              <PermissionGate permissions={["help_assistant_manage"]}>
+                <HelpAssistantAdmin />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -361,7 +373,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <StockManagement />
+              <PermissionGate permissions={["stock_view", "stock_manage"]}>
+                <StockManagement />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -373,7 +387,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Accounting />
+              <PermissionGate permissions={["tax_management_view", "tax_management_manage", "accounting_view", "accounting_manage"]}>
+                <Accounting />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -385,7 +401,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Statistics />
+              <PermissionGate permissions={["statistics_view", "statistics_manage"]}>
+                <Statistics />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -397,7 +415,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <ProfitLoss />
+              <PermissionGate permissions={["profit_loss_view", "accounting_view"]}>
+                <ProfitLoss />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -409,7 +429,9 @@ const router = createBrowserRouter([
       <QueryProvider>
           <AuthCheck>
             <Layout>
-              <Financials />
+              <PermissionGate permissions={["financials_view", "financials_manage", "accounting_view"]}>
+                <Financials />
+              </PermissionGate>
             </Layout>
           </AuthCheck>
       </QueryProvider>
@@ -445,7 +467,9 @@ const router = createBrowserRouter([
        <QueryProvider>
            <AuthCheck>
              <Layout>
-               <Tasks />
+               <PermissionGate permissions={["tasks_view", "tasks_manage"]}>
+                <Tasks />
+              </PermissionGate>
              </Layout>
            </AuthCheck>
        </QueryProvider>
@@ -459,7 +483,9 @@ const router = createBrowserRouter([
         <QueryProvider>
             <AuthCheck>
               <Layout>
+                <PermissionGate permissions={["erp_entry_view", "erp_entry_manage"]}>
                 <ErpEntryManager />
+              </PermissionGate>
               </Layout>
             </AuthCheck>
         </QueryProvider>
@@ -471,7 +497,9 @@ const router = createBrowserRouter([
         <QueryProvider>
             <AuthCheck>
               <Layout>
+                <PermissionGate permissions={["reconciliation_view", "shift_reconciliation_create", "shift_reconciliation_approve"]}>
                 <Reconciliation />
+              </PermissionGate>
               </Layout>
             </AuthCheck>
         </QueryProvider>
@@ -483,7 +511,9 @@ const router = createBrowserRouter([
         <QueryProvider>
             <AuthCheck>
               <Layout>
+                <PermissionGate permissions={["risk_management_view", "risk_management_manage"]}>
                 <RiskManagement />
+              </PermissionGate>
               </Layout>
             </AuthCheck>
         </QueryProvider>

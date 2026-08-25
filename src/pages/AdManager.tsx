@@ -25,7 +25,6 @@ import { BulkPriceLadderDialog } from '@/components/ad-manager/BulkPriceLadderDi
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog';
-import { ZoneBookDialog } from '@/components/ad-manager/ZoneBookDialog';
 import { AdCommandStrip } from '@/components/ad-manager/AdCommandStrip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -96,7 +95,6 @@ export default function AdManager() {
   const [bulkHybridOpen, setBulkHybridOpen] = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
-  const [zoneBookOpen, setZoneBookOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
@@ -297,7 +295,7 @@ export default function AdManager() {
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => setZoneBookOpen(true)}
+                  onClick={() => navigate(isTerminalContext ? '/terminal/ads/zone-book' : '/ad-manager/zone-book')}
                   title="Zone Book — compare the P2P and Block order books"
                 >
                   <Layers className="h-4 w-4" />
@@ -503,7 +501,6 @@ export default function AdManager() {
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkPriceLadderDialog open={bulkLadderOpen} onOpenChange={setBulkLadderOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
-      <ZoneBookDialog open={zoneBookOpen} onOpenChange={setZoneBookOpen} ads={ads} />
       <BulkRiskGuardDialog open={bulkRiskGuardOpen} onOpenChange={setBulkRiskGuardOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>

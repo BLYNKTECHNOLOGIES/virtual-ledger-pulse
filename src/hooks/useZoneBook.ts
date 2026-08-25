@@ -46,6 +46,8 @@ interface ZoneBookParams {
   zone: AdZone;
   /** Ticket size (transAmount) so the book reflects the size we actually trade. */
   minAmount?: string | number | null;
+  /** Book depth in Binance pages (20 ads per page). */
+  maxPages?: number;
   enabled?: boolean;
   refetchInterval?: number | false;
 }
@@ -61,7 +63,7 @@ async function fetchZoneBook(p: ZoneBookParams): Promise<ZoneBookResult> {
       minAmount: p.minAmount || undefined,
       // Book view wants the visible book, not a single target — one page is the
       // top of the book and keeps rate-limit pressure low.
-      maxPages: 1,
+      maxPages: p.maxPages && p.maxPages > 0 ? p.maxPages : 1,
     },
   });
   if (error) throw new Error(error.message);
@@ -78,7 +80,7 @@ async function fetchZoneBook(p: ZoneBookParams): Promise<ZoneBookResult> {
 
 export function useZoneBook(params: ZoneBookParams) {
   return useQuery({
-    queryKey: ['zone-book', params.asset, params.fiat || 'INR', params.tradeType, params.zone, params.minAmount || ''],
+    queryKey: ['zone-book', params.asset, params.fiat || 'INR', params.tradeType, params.zone, params.minAmount || '', params.maxPages || 1],
     queryFn: () => fetchZoneBook(params),
     enabled: params.enabled !== false && !!params.asset,
     refetchInterval: params.refetchInterval ?? false,

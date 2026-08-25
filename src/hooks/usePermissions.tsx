@@ -117,10 +117,15 @@ export function usePermissions() {
       if (userPermissions && Array.isArray(userPermissions) && userPermissions.length > 0) {
         // Normalize legacy keys and resolve umbrella/implied grants so that a
         // role holding e.g. accounting_view keeps Tax/P&L/Financials access.
-        const fetchedPermissions = expandPermissions(userPermissions.map((p: any) => p.permission));
+        const raw = userPermissions.map((p: any) => p.permission as string);
+        // Mirror the database side: admin_access / super_admin_access are a full
+        // bypass (public.has_permission behaves the same way).
+        const isAdminGrant = raw.some((p) => p === 'admin_access' || p === 'super_admin_access');
+        const fetchedPermissions = isAdminGrant ? ADMIN_PERMISSIONS : expandPermissions(raw);
         persistPermissions(user.id, fetchedPermissions);
         setPermissions(fetchedPermissions);
         setIsDegraded(false);
+
 
       } else {
         // Genuine empty result from the backend — authoritative.

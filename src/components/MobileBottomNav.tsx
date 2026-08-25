@@ -29,6 +29,7 @@ const moreNavItems: MobileNavItem[] = [
   { title: "Purchase", url: "/purchase", icon: ShoppingCart, permissions: ["purchase_view", "purchase_manage"] },
   { title: "BAMS", url: "/bams", icon: Package, permissions: ["bams_view", "bams_manage"] },
   { title: "Clients", url: "/clients", icon: Users, permissions: ["clients_view", "clients_manage", "kyc_approvals_view", "kyc_approvals_manage"] },
+  { title: "RA Dashboard", url: "/ra-dashboard", icon: Headset, permissions: ["ra_dashboard_view"] },
   { title: "Leads", url: "/leads", icon: Users, permissions: ["leads_view", "leads_manage"] },
   { title: "User Management", url: "/user-management", icon: Users, permissions: ["user_management_view", "user_management_manage"] },
   { title: "Compliance", url: "/compliance", icon: Package, permissions: ["compliance_view", "compliance_manage"] },

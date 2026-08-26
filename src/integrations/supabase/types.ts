@@ -6353,6 +6353,127 @@ export type Database = {
           },
         ]
       }
+      hr_bank_change_requests: {
+        Row: {
+          account_holder_name: string
+          account_number: string
+          applied_at: string | null
+          bank_name: string
+          branch: string | null
+          created_at: string
+          employee_id: string
+          employee_note: string | null
+          hr_notes: string | null
+          hr_reviewed_at: string | null
+          hr_reviewed_by: string | null
+          id: string
+          ifsc_code: string
+          previous_bank: Json | null
+          proof_type: string | null
+          proof_urls: string[]
+          razorpay_attempts: number
+          razorpay_error: string | null
+          razorpay_status: string
+          razorpay_verified_at: string | null
+          requested_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          account_holder_name: string
+          account_number: string
+          applied_at?: string | null
+          bank_name: string
+          branch?: string | null
+          created_at?: string
+          employee_id: string
+          employee_note?: string | null
+          hr_notes?: string | null
+          hr_reviewed_at?: string | null
+          hr_reviewed_by?: string | null
+          id?: string
+          ifsc_code: string
+          previous_bank?: Json | null
+          proof_type?: string | null
+          proof_urls?: string[]
+          razorpay_attempts?: number
+          razorpay_error?: string | null
+          razorpay_status?: string
+          razorpay_verified_at?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          account_holder_name?: string
+          account_number?: string
+          applied_at?: string | null
+          bank_name?: string
+          branch?: string | null
+          created_at?: string
+          employee_id?: string
+          employee_note?: string | null
+          hr_notes?: string | null
+          hr_reviewed_at?: string | null
+          hr_reviewed_by?: string | null
+          id?: string
+          ifsc_code?: string
+          previous_bank?: Json | null
+          proof_type?: string | null
+          proof_urls?: string[]
+          razorpay_attempts?: number
+          razorpay_error?: string | null
+          razorpay_status?: string
+          razorpay_verified_at?: string | null
+          requested_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_biometric_device_commands: {
         Row: {
           ack_at: string | null
@@ -28469,6 +28590,20 @@ export type Database = {
       hr_backfill_one_time_payout_from_register: {
         Args: { p_approved_by?: string; p_line_id: string }
         Returns: string
+      }
+      hr_bank_change_apply: { Args: { _request_id: string }; Returns: Json }
+      hr_bank_change_finalize: {
+        Args: {
+          _error?: string
+          _not_linked?: boolean
+          _request_id: string
+          _verified: boolean
+        }
+        Returns: Json
+      }
+      hr_bank_change_reject: {
+        Args: { _notes: string; _request_id: string }
+        Returns: Json
       }
       hr_broadcast_notification_to_hr: {
         Args: {

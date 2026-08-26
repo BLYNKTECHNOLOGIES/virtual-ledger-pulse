@@ -97,7 +97,9 @@ export default function RequestsPage() {
   }, [requests, type, stage, range, search]);
 
   const counts = useMemo(() => {
-    const pending = requests.filter((r) => r.stage === "awaiting_hr" || r.stage === "awaiting_manager").length;
+    const pending = requests.filter(
+      (r) => r.stage === "awaiting_hr" || r.stage === "awaiting_manager" || r.stage === "awaiting_payroll",
+    ).length;
     return { total: requests.length, pending };
   }, [requests]);
 

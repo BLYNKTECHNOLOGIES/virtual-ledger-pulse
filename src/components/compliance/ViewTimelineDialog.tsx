@@ -1,13 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clock, FileText, Download, Eye, Send } from "lucide-react";
+import { Clock, FileText, Download, Eye, Send, Paperclip, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePermissions } from "@/hooks/usePermissions";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+
 
 import { usersDirectory } from "@/lib/usersDirectory";
 interface TimelineUpdate {
@@ -40,8 +41,11 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
   const [newUpdate, setNewUpdate] = useState("");
   const [updateType, setUpdateType] = useState("NOTE");
   const [posting, setPosting] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { hasPermission } = usePermissions();
   const canPost = hasPermission("compliance_manage") && caseType === "bank_case";
+
 
   const fetchUpdates = async () => {
     if (!open) return;
@@ -158,8 +162,35 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
     }
   };
 
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+  const addFiles = (files: File[]) => {
+    const accepted = files.filter((f) => {
+      if (f.size > MAX_FILE_BYTES) {
+        toast.error(`${f.name} is larger than 25MB`);
+        return false;
+      }
+      return true;
+    });
+    if (accepted.length) setAttachments((prev) => [...prev, ...accepted]);
+  };
+
+  const uploadAttachments = async (): Promise<string[]> => {
+    const paths: string[] = [];
+    for (const file of attachments) {
+      const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+      const path = `compliance-case-updates/${caseId}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage
+        .from('kyc-documents')
+        .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+      if (error) throw error;
+      paths.push(path);
+    }
+    return paths;
+  };
+
   const postUpdate = async () => {
-    if (!newUpdate.trim()) return;
+    if (!newUpdate.trim() && attachments.length === 0) return;
     setPosting(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -172,16 +203,19 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
           .maybeSingle();
         if (me) name = [me.first_name, me.last_name].filter(Boolean).join(' ').trim() || me.username;
       }
+      const attachmentPaths = attachments.length > 0 ? await uploadAttachments() : [];
       const { error } = await supabase.from('compliance_case_updates').insert({
         bank_case_id: caseId,
-        update_text: newUpdate.trim(),
+        update_text: newUpdate.trim() || `${attachmentPaths.length} document(s) attached`,
         update_type: updateType,
         created_by: uid,
         created_by_name: name,
+        attachment_urls: attachmentPaths.length > 0 ? attachmentPaths : null,
       });
       if (error) throw error;
       setNewUpdate('');
       setUpdateType('NOTE');
+      setAttachments([]);
       toast.success('Update added to the case timeline');
       fetchUpdates();
     } catch (e) {
@@ -190,6 +224,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
       setPosting(false);
     }
   };
+
 
   useEffect(() => {
     fetchUpdates();
@@ -241,13 +276,15 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                       <div className="space-y-1">
                         {update.attachment_urls.map((url, urlIndex) => {
                           const fileName = url.split('/').pop() || `Document ${urlIndex + 1}`;
-                          const isPdf = fileName.toLowerCase().endsWith('.pdf');
+                          const lower = fileName.toLowerCase();
+                          const isPdf = lower.endsWith('.pdf');
+                          const isImage = /\.(png|jpe?g|gif|webp|bmp|svg|heic)$/.test(lower);
                           return (
                             <div key={urlIndex} className="flex items-center gap-2 p-2 bg-card rounded border">
                               <FileText className="h-4 w-4 text-destructive" />
                               <span className="text-sm flex-1 truncate">{fileName}</span>
                               <div className="flex gap-1">
-                                {isPdf && (
+                                {(isPdf || isImage) && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -258,6 +295,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                                     View
                                   </Button>
                                 )}
+
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -302,14 +340,57 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
               value={newUpdate}
               onChange={(e) => setNewUpdate(e.target.value)}
             />
-            <div className="flex justify-end">
-              <Button size="sm" onClick={postUpdate} disabled={posting || !newUpdate.trim()}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                addFiles(Array.from(e.target.files || []));
+                e.target.value = '';
+              }}
+            />
+            {attachments.length > 0 && (
+              <div className="space-y-1">
+                {attachments.map((file, i) => (
+                  <div key={`${file.name}-${i}`} className="flex items-center gap-2 rounded border bg-muted/40 px-2 py-1">
+                    <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="flex-1 truncate text-xs">{file.name}</span>
+                    <span className="text-[10px] text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6"
+                      onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={posting}
+              >
+                <Paperclip className="h-4 w-4 mr-2" />
+                Attach documents
+              </Button>
+              <Button
+                size="sm"
+                onClick={postUpdate}
+                disabled={posting || (!newUpdate.trim() && attachments.length === 0)}
+              >
                 <Send className="h-4 w-4 mr-2" />
                 {posting ? "Posting…" : "Post update"}
               </Button>
             </div>
           </div>
         )}
+
       </DialogContent>
     </Dialog>
   );

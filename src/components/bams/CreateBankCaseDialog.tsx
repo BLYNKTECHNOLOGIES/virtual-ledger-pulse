@@ -12,6 +12,11 @@ import { Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+import {
+  type CaseDocumentField,
+  uploadCaseDocumentFiles,
+  uniqueCaseDocumentUrls,
+} from "@/lib/compliance-case-documents";
 
 
 
@@ -125,34 +130,6 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
     },
   });
 
-  // File upload handler
-  const handleFileUpload = async (files: File[], fieldName: string) => {
-    const uploadedUrls: string[] = [];
-    
-    for (const file of files) {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const filePath = `case-documents/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('investigation-documents')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        toast.error(`Failed to upload ${file.name}`);
-        continue;
-      }
-
-      const { data } = supabase.storage
-        .from('investigation-documents')
-        .getPublicUrl(filePath);
-
-      uploadedUrls.push(data.publicUrl);
-    }
-    
-    return uploadedUrls;
-  };
-
   // Create case mutation
   const createCaseMutation = useMutation({
     mutationFn: async (data: CaseFormData) => {
@@ -175,21 +152,32 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
       let uploadedSupportingDocument: string[] = [];
       let uploadedStatementProof: string[] = [];
 
+      const uploadField = (fieldName: CaseDocumentField, files: File[]) =>
+        uploadCaseDocumentFiles(files, fieldName, caseNumber);
+
       if (data.screenshots?.length > 0) {
-        uploadedScreenshots = await handleFileUpload(data.screenshots, 'screenshots');
+        uploadedScreenshots = await uploadField('screenshots', data.screenshots);
       }
       if (data.proof_of_debit?.length > 0) {
-        uploadedProofOfDebit = await handleFileUpload(data.proof_of_debit, 'proof_of_debit');
+        uploadedProofOfDebit = await uploadField('proof_of_debit', data.proof_of_debit);
       }
       if (data.supporting_proof?.length > 0) {
-        uploadedSupportingProof = await handleFileUpload(data.supporting_proof, 'supporting_proof');
+        uploadedSupportingProof = await uploadField('supporting_proof', data.supporting_proof);
       }
       if (data.supporting_document?.length > 0) {
-        uploadedSupportingDocument = await handleFileUpload(data.supporting_document, 'supporting_document');
+        uploadedSupportingDocument = await uploadField('supporting_document', data.supporting_document);
       }
       if (data.statement_proof?.length > 0) {
-        uploadedStatementProof = await handleFileUpload(data.statement_proof, 'statement_proof');
+        uploadedStatementProof = await uploadField('statement_proof', data.statement_proof);
       }
+
+      const allUploadedDocuments = uniqueCaseDocumentUrls([
+        ...uploadedScreenshots,
+        ...uploadedProofOfDebit,
+        ...uploadedSupportingProof,
+        ...uploadedSupportingDocument,
+        ...uploadedStatementProof,
+      ]);
 
       // Get current user for audit trail
       const { data: { user } } = await supabase.auth.getUser();
@@ -203,6 +191,7 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
         description: data.description,
         contact_person: data.contact_person,
         contact_details: data.contact_details,
+        documents_attached: allUploadedDocuments,
         // Case-specific fields
         error_message: data.error_message,
         screenshots: uploadedScreenshots,
@@ -256,7 +245,7 @@ export function CreateBankCaseDialog({ open, onOpenChange }: CreateBankCaseDialo
     },
     onError: (error) => {
       console.error('Error creating case:', error);
-      toast.error("Failed to create case");
+      toast.error(error instanceof Error ? error.message : "Failed to create case");
     },
   });
 

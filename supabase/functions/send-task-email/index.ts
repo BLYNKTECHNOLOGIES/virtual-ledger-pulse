@@ -64,13 +64,13 @@ function getEmailBody(eventType: string, data: EmailRequest): string {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f5f5f5;padding:30px 0;">
     <tr><td align="center">
       <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
-        <tr><td style="background:#1a1a2e;padding:24px 30px;">
+        <tr><td style="background:linear-gradient(120deg,#04121F 0%,#0A2233 45%,#00A3D1 100%);background-color:#04121F;padding:24px 30px;">
           <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:600;">BLYNK ERP — Task Management</h1>
         </td></tr>
         <tr><td style="padding:30px;">
           <p style="margin:0 0 16px;font-size:16px;color:#333;font-weight:600;">${headers[eventType] || "Task Update"}</p>
-          <div style="background:#f8f9fa;border-left:4px solid #1a1a2e;padding:16px;border-radius:0 6px 6px 0;margin:16px 0;">
-            <h2 style="margin:0 0 8px;font-size:18px;color:#1a1a2e;">${taskTitle}</h2>
+          <div style="background:#f8f9fa;border-left:4px solid #00A3D1;padding:16px;border-radius:0 6px 6px 0;margin:16px 0;">
+            <h2 style="margin:0 0 8px;font-size:18px;color:#04121F;">${taskTitle}</h2>
             <p style="margin:0;color:#666;font-size:14px;line-height:1.5;">${descSnippet}</p>
           </div>
           ${dueLine}

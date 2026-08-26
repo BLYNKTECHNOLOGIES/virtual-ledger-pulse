@@ -130,7 +130,7 @@ export const template = {
 const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
 const container = { maxWidth: '560px', margin: '0 auto' }
 const headerBar = {
-  backgroundColor: '#1a1a2e',
+  backgroundColor: '#04121F',
   padding: '20px 30px',
   borderRadius: '8px 8px 0 0',
 }
@@ -144,7 +144,7 @@ const content = { padding: '30px' }
 const h1 = {
   fontSize: '20px',
   fontWeight: 'bold' as const,
-  color: '#1a1a2e',
+  color: '#04121F',
   margin: '0 0 16px',
 }
 const text = {
@@ -163,7 +163,7 @@ const taskCard = {
 const taskTitle_style = {
   fontSize: '16px',
   fontWeight: 'bold' as const,
-  color: '#1a1a2e',
+  color: '#04121F',
   margin: '0 0 8px',
 }
 const taskDesc = {

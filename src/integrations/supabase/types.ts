@@ -29132,6 +29132,10 @@ export type Database = {
           window_date: string
         }[]
       }
+      hr_v4_regularization_override: {
+        Args: { p_device: string; p_employee_id: string; p_punch_time: string }
+        Returns: boolean
+      }
       hr_v4_resolve_shift: {
         Args: { p_date: string; p_employee_id: string }
         Returns: string

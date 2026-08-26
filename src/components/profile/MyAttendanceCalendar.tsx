@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import {
-  ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock, AlertCircle,
+  ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock,
   CheckCircle2, XCircle, Circle, PieChart, Palmtree, PartyPopper, Coffee, Timer,
   type LucideIcon,
 } from 'lucide-react';

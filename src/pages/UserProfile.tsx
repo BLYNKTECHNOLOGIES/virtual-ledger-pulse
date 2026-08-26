@@ -1206,7 +1206,11 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <EmployeeBankingTab employeeId={hrEmployee.id} />
+            <EmployeeBankingTab
+              employeeId={hrEmployee.id}
+              userId={user?.id}
+              holderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
+            />
           )}
         </TabsContent>
 

@@ -20,6 +20,7 @@ import {
   Briefcase,
   AlertTriangle,
   Mail,
+  Inbox,
 
   
   FileSpreadsheet,
@@ -44,7 +45,10 @@ interface NavGroup {
 const navGroups: NavGroup[] = [
   {
     title: "MAIN",
-    items: [{ label: "Dashboard", icon: LayoutDashboard, path: "/hrms" }],
+    items: [
+      { label: "Dashboard", icon: LayoutDashboard, path: "/hrms" },
+      { label: "Requests", icon: Inbox, path: "/hrms/requests" },
+    ],
   },
   {
     title: "WORKFORCE",

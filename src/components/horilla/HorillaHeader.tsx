@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useDebounce } from "@/hooks/useDebounce";
+import { requestDeepLinkFromNotification } from "@/lib/hrms/requestRegistry";
 
 
 interface HorillaHeaderProps {
@@ -17,14 +18,12 @@ interface HorillaHeaderProps {
 
 /**
  * Inside the HRMS portal, employee-self notification deep links (/profile...) are the wrong
- * destination — HR should land on the matching HRMS workspace page instead.
+ * destination — HR should land on the unified Requests inbox, opened on the exact request.
  */
 function resolveHrmsLink(n: any): string | null {
-  const type: string = n?.notification_type || n?.type || "";
   const link: string = n?.link || "";
-  const isSelfLink = !link || link.startsWith("/profile");
-  if (type.startsWith("regularization") && isSelfLink) return "/hrms/attendance/regularization";
-  if (type.startsWith("leave") && isSelfLink) return "/hrms/leave/requests";
+  const requestLink = requestDeepLinkFromNotification(n);
+  if (requestLink) return requestLink;
   return link || null;
 }
 

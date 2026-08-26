@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,9 +11,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { Inbox, Search, ExternalLink, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
+import { Inbox, Search, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
+import { LeaveApprovalPanel } from "@/components/hrms/LeaveApprovalPanel";
+import { RegularizationApprovalPanel } from "@/components/hrms/RegularizationApprovalPanel";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,
@@ -54,7 +56,6 @@ const RANGE_DAYS: Record<string, number | null> = { all: null, "7": 7, "30": 30,
  * actions and share the same underlying tables, so both views never diverge.
  */
 export default function RequestsPage() {
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
   const [type, setType] = useState(params.get("type") || "all");
@@ -254,17 +255,9 @@ export default function RequestsPage() {
         description={selected ? `${selected.employeeName}${selected.badgeId ? ` · ${selected.badgeId}` : ""}` : undefined}
         contentClassName="max-w-lg"
         footer={
-          selected ? (
-            <>
-              <Button variant="outline" onClick={() => setSelected(null)}>Close</Button>
-              {selected.type !== "bank_change" && (
-                <Button onClick={() => navigate(selected.sourcePath)}>
-                  <ExternalLink className="h-4 w-4 mr-2" /> Review in {selected.sourceLabel}
-                </Button>
-              )}
-            </>
-          ) : null
+          selected ? <Button variant="outline" onClick={() => setSelected(null)}>Close</Button> : null
         }
+
       >
         {selected && (
           <div className="space-y-3 text-sm">
@@ -291,13 +284,18 @@ export default function RequestsPage() {
               <div className="pt-2 border-t border-border">
                 <BankChangeApprovalPanel request={selected.raw} />
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground pt-1">
-                Approvals are handled on the {selected.sourceLabel} page — this inbox and that page read the same records.
-              </p>
-            )}
+            ) : selected.type === "leave" ? (
+              <div className="pt-2 border-t border-border">
+                <LeaveApprovalPanel request={selected.raw} onDone={() => setSelected(null)} />
+              </div>
+            ) : selected.type === "regularization" ? (
+              <div className="pt-2 border-t border-border">
+                <RegularizationApprovalPanel request={selected.raw} onDone={() => setSelected(null)} />
+              </div>
+            ) : null}
           </div>
         )}
+
       </ResponsiveDialog>
     </div>
   );

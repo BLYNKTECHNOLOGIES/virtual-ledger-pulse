@@ -141,7 +141,7 @@ export default function HorillaDashboard() {
   const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
   const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
 
-  const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "pending");
+  const pendingLeaves = (leaveRequests || []).filter((l: any) => l.status === "requested" || l.status === "manager_approved");
   const approvedLeaves = (leaveRequests || []).filter((l: any) => l.status === "approved").length;
 
   const lastPayroll = (payrollRuns || [])[0];

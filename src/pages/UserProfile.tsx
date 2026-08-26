@@ -809,16 +809,6 @@ export default function UserProfile() {
       if (end < start) throw new Error('End date must be after start date');
       const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
-      const { error } = await supabase.from('hr_leave_requests').insert({
-        employee_id: hrEmployee.id,
-        leave_type_id: req.leave_type_id,
-        start_date: req.from_date,
-        end_date: req.to_date,
-        total_days: totalDays,
-        reason: req.reason || null,
-        status: 'pending',
-      });
-      if (error) throw error;
       // If editing, update instead of insert
       if (editingLeaveId) {
         const { error } = await (supabase as any).from('hr_leave_requests').update({
@@ -837,7 +827,7 @@ export default function UserProfile() {
           end_date: req.to_date,
           total_days: totalDays,
           reason: req.reason || null,
-          status: 'pending',
+          status: 'requested',
         });
         if (error) throw error;
       }
@@ -1351,11 +1341,11 @@ export default function UserProfile() {
                     ) : (
                       leaveRequests.map((req: any) => {
                         const lt = getLeaveType(req.leave_type_id);
-                        const isCancellable = req.status === 'pending' || req.status === 'approved';
-                        const isEditable = req.status === 'pending';
+                        const isCancellable = ['requested', 'manager_approved', 'approved'].includes(req.status);
+                        const isEditable = req.status === 'requested';
                         const tone = req.status === 'approved' ? 'success'
                           : req.status === 'rejected' ? 'danger'
-                          : req.status === 'pending' ? 'warning' : 'neutral';
+                          : ['requested', 'manager_approved'].includes(req.status) ? 'warning' : 'neutral';
                         return (
                           <tr key={req.id}>
                             <td>
@@ -1372,7 +1362,7 @@ export default function UserProfile() {
                             <td className="ds-num font-medium">{req.total_days}</td>
                             <td>
                               <StatusPill tone={tone as any}>
-                                {req.status === 'pending' ? 'Requested' : req.status}
+                                {req.status === 'requested' ? 'Requested' : req.status === 'manager_approved' ? 'Awaiting HR' : req.status}
                               </StatusPill>
                             </td>
                             <td className="text-muted-foreground max-w-[180px] truncate">{req.reason || '—'}</td>

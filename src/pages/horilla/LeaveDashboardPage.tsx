@@ -31,7 +31,7 @@ export default function LeaveDashboardPage() {
   const stats = {
     total: requests.length,
     approved: requests.filter((r: any) => r.status === "approved").length,
-    pending: requests.filter((r: any) => r.status === "requested" || r.status === "pending").length,
+    pending: requests.filter((r: any) => r.status === "requested" || r.status === "manager_approved").length,
     rejected: requests.filter((r: any) => r.status === "rejected").length,
   };
 

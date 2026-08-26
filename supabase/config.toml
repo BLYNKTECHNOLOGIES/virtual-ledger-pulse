@@ -123,8 +123,6 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.onboarding-invite]
     verify_jwt = false
-  [functions.counterparty-completed-count]
-    verify_jwt = true
 
 
 

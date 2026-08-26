@@ -27287,6 +27287,10 @@ export type Database = {
         Returns: Json
       }
       compliance_command_centre: { Args: never; Returns: Json }
+      compliance_payload_attachments: {
+        Args: { p_payload: Json; p_source: string }
+        Returns: string[]
+      }
       compliance_recent_activity: {
         Args: { p_days?: number; p_limit?: number }
         Returns: Json

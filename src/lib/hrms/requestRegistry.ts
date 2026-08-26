@@ -267,6 +267,7 @@ export function requestDeepLinkFromNotification(n: any): string | null {
 
   let kind: string | null = null;
   if (type.includes("regulariz")) kind = "regularization";
+  else if (type.includes("bank_change")) kind = "bank_change";
   else if (type.includes("leave")) kind = "leave";
   if (!kind) return null;
 

@@ -11,8 +11,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { Inbox, Search, ExternalLink, CalendarDays, Clock, RefreshCw } from "lucide-react";
+import { Inbox, Search, ExternalLink, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,

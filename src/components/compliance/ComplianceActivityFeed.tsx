@@ -16,6 +16,8 @@ import {
   Landmark, MessageSquare, PencilLine, Search, Trash2,
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from "date-fns";
+import { InlineAttachmentStrip } from "./InlineAttachmentStrip";
+
 
 type ActivityEvent = {
   at: string;

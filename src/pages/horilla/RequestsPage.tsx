@@ -253,9 +253,11 @@ export default function RequestsPage() {
           selected ? (
             <>
               <Button variant="outline" onClick={() => setSelected(null)}>Close</Button>
-              <Button onClick={() => navigate(selected.sourcePath)}>
-                <ExternalLink className="h-4 w-4 mr-2" /> Review in {selected.sourceLabel}
-              </Button>
+              {selected.type !== "bank_change" && (
+                <Button onClick={() => navigate(selected.sourcePath)}>
+                  <ExternalLink className="h-4 w-4 mr-2" /> Review in {selected.sourceLabel}
+                </Button>
+              )}
             </>
           ) : null
         }
@@ -267,10 +269,12 @@ export default function RequestsPage() {
               <span className="text-xs text-muted-foreground font-mono">{selected.rawStatus}</span>
             </div>
             <Row label="Subject" value={selected.subject} />
-            <Row
-              label="Period"
-              value={selected.periodFrom === selected.periodTo ? selected.periodFrom || "—" : `${selected.periodFrom} → ${selected.periodTo}`}
-            />
+            {selected.type !== "bank_change" && (
+              <Row
+                label="Period"
+                value={selected.periodFrom === selected.periodTo ? selected.periodFrom || "—" : `${selected.periodFrom} → ${selected.periodTo}`}
+              />
+            )}
             <Row label="Reason" value={selected.detail || "—"} />
             <Row label="Submitted" value={format(new Date(selected.createdAt), "dd MMM yyyy, HH:mm")} />
             {selected.updatedAt && (
@@ -279,9 +283,15 @@ export default function RequestsPage() {
             {selected.raw?.manager_remarks && <Row label="Manager remarks" value={selected.raw.manager_remarks} />}
             {selected.raw?.approver_notes && <Row label="Approver notes" value={selected.raw.approver_notes} />}
             {selected.raw?.rejection_reason && <Row label="Rejection reason" value={selected.raw.rejection_reason} />}
-            <p className="text-xs text-muted-foreground pt-1">
-              Approvals are handled on the {selected.sourceLabel} page — this inbox and that page read the same records.
-            </p>
+            {selected.type === "bank_change" ? (
+              <div className="pt-2 border-t border-border">
+                <BankChangeApprovalPanel request={selected.raw} />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground pt-1">
+                Approvals are handled on the {selected.sourceLabel} page — this inbox and that page read the same records.
+              </p>
+            )}
           </div>
         )}
       </ResponsiveDialog>

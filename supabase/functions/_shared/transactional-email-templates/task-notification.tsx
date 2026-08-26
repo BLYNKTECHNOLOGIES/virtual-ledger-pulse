@@ -235,13 +235,17 @@ const TaskNotificationEmail = ({
             )}
 
             {/* CTA */}
-            <Section style={{ textAlign: 'center', margin: '26px 0 6px' }}>
-              <Button
-                href={`${APP_URL}/tasks`}
-                style={{ ...ctaBtn, backgroundColor: meta.accent }}
-              >
-                {meta.cta} &nbsp;›
-              </Button>
+            <Section style={{ margin: '26px 0 6px' }}>
+              <Row>
+                <Column align="center">
+                  <Button
+                    href={`${APP_URL}/tasks`}
+                    style={{ ...ctaBtn, backgroundColor: meta.accent }}
+                  >
+                    {meta.cta} &nbsp;›
+                  </Button>
+                </Column>
+              </Row>
             </Section>
 
             <Hr style={divider} />

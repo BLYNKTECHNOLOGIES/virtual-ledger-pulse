@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { format, formatDistanceToNow } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,9 +11,11 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { Inbox, Search, ExternalLink, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
+import { Inbox, Search, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
+import { LeaveApprovalPanel } from "@/components/hrms/LeaveApprovalPanel";
+import { RegularizationApprovalPanel } from "@/components/hrms/RegularizationApprovalPanel";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,
@@ -54,7 +56,6 @@ const RANGE_DAYS: Record<string, number | null> = { all: null, "7": 7, "30": 30,
  * actions and share the same underlying tables, so both views never diverge.
  */
 export default function RequestsPage() {
-  const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
 
   const [type, setType] = useState(params.get("type") || "all");

@@ -26,7 +26,9 @@ type ActivityEvent = {
   subtitle: string | null;
   fields: string[];
   actor: string;
+  attachments?: string[] | null;
 };
+
 
 type FeedPayload = { days: number; total: number; events: ActivityEvent[] };
 

@@ -144,6 +144,7 @@ export function ComplianceActivityFeed() {
                     record: e.title,
                     details: e.subtitle ?? "",
                     changed: e.fields.map(prettyField).join(", "),
+                    docs: (e.attachments ?? []).length,
                     by: e.actor,
                   })),
                   [
@@ -153,9 +154,11 @@ export function ComplianceActivityFeed() {
                     { key: "record", label: "Record" },
                     { key: "details", label: "Details" },
                     { key: "changed", label: "Fields changed" },
+                    { key: "docs", label: "Documents" },
                     { key: "by", label: "By" },
                   ],
                 )
+
               }
             >
               <Download className="h-4 w-4 mr-2" /> Export CSV

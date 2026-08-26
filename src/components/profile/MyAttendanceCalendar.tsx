@@ -406,27 +406,56 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
                 </div>
               </div>
             )}
-            {(selectedRec.meta?.late_by_minutes > 0 || selectedRec.meta?.late_minutes > 0) && (
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 rounded-md px-2 py-1">
-                <AlertCircle className="h-3 w-3 shrink-0" />
-                Late by {selectedRec.meta.late_by_minutes || selectedRec.meta.late_minutes} min
+            {selectedRec.timing && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 rounded-md px-2 py-1">
+                <Timer className="h-3 w-3 shrink-0 mt-0.5" />
+                <span>
+                  {[
+                    (selectedRec.meta?.late_by_minutes ?? 0) > 0 && `Late by ${selectedRec.meta.late_by_minutes} min`,
+                    (selectedRec.meta?.early_by_minutes ?? 0) > 0 && `Early out by ${selectedRec.meta.early_by_minutes} min`,
+                  ].filter(Boolean).join(' · ')}
+                  {(selectedRec.key === 'present' || selectedRec.key === 'half_day') && (
+                    <span className="text-muted-foreground">
+                      {' '}— still marked {LEGEND[selectedRec.key].label.toLowerCase()} for the day
+                    </span>
+                  )}
+                </span>
               </div>
             )}
           </div>
         )}
 
         {/* Legend */}
-        <div className="pt-2 border-t border-border/60">
+        <div className="pt-2 border-t border-border/60 space-y-2">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
-            {(Object.keys(LEGEND) as LegendKey[]).filter(k => k !== 'upcoming').map(k => (
-              <div key={k} className="flex items-center gap-2 text-[11px]">
-                <span className={cn('w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-background', LEGEND[k].dot)} />
-                <span className="text-muted-foreground truncate">{LEGEND[k].label}</span>
-                <span className="ml-auto text-foreground font-bold tabular-nums">{counts[k] || 0}</span>
-              </div>
-            ))}
+            {(Object.keys(LEGEND) as LegendKey[]).filter(k => k !== 'upcoming').map(k => {
+              const I = LEGEND[k].icon;
+              return (
+                <div key={k} className="flex items-center gap-1.5 text-[11px]">
+                  <span
+                    className={cn(
+                      'h-4 w-4 rounded-md border shrink-0 flex items-center justify-center',
+                      LEGEND[k].cell,
+                      LEGEND[k].text,
+                    )}
+                  >
+                    <I className="h-2.5 w-2.5" />
+                  </span>
+                  <span className="text-muted-foreground truncate">{LEGEND[k].label}</span>
+                  <span className="ml-auto text-foreground font-bold tabular-nums">{counts[k] || 0}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] rounded-md bg-warning/10 border border-warning/25 px-2 py-1">
+            <Timer className="h-3 w-3 shrink-0 text-warning" />
+            <span className="text-muted-foreground">
+              Amber corner mark = late in / early out, but the day is still counted by its status colour
+            </span>
+            <span className="ml-auto text-foreground font-bold tabular-nums">{timingFlagged}</span>
           </div>
         </div>
+
       </div>
     </Card>
   );

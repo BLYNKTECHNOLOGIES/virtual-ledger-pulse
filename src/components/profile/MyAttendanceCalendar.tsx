@@ -27,7 +27,6 @@ type LegendKey =
   | 'present'
   | 'half_day'
   | 'absent'
-  | 'late'
   | 'on_leave'
   | 'holiday'
   | 'week_off'
@@ -36,66 +35,93 @@ type LegendKey =
 
 const LEGEND: Record<
   LegendKey,
-  { label: string; dot: string; cell: string; text: string; glow?: string }
+  {
+    label: string;
+    short: string;
+    hint?: string;
+    icon: LucideIcon;
+    dot: string;
+    cell: string;
+    text: string;
+    glow?: string;
+  }
 > = {
   present: {
     label: 'Present',
+    short: 'P',
+    hint: 'Marked present',
+    icon: CheckCircle2,
     dot: 'bg-emerald-500',
-    text: 'text-emerald-600 dark:text-emerald-300',
-    cell: 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border-emerald-500/40',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    cell: 'bg-emerald-500/15 border-emerald-500/50',
     glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(16,185,129,0.35)]',
   },
   half_day: {
     label: 'Half Day',
-    dot: 'bg-amber-400',
+    short: '½',
+    hint: 'Half day credited',
+    icon: PieChart,
+    dot: 'bg-amber-500',
     text: 'text-amber-700 dark:text-amber-300',
-    cell: 'bg-gradient-to-br from-amber-400/25 to-amber-400/5 border-amber-400/50',
+    cell: 'bg-amber-500/20 border-amber-500/50',
     glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(251,191,36,0.35)]',
   },
   absent: {
     label: 'Absent',
+    short: 'A',
+    hint: 'Marked absent',
+    icon: XCircle,
     dot: 'bg-rose-500',
-    text: 'text-rose-600 dark:text-rose-300',
-    cell: 'bg-gradient-to-br from-rose-500/20 to-rose-500/5 border-rose-500/40',
+    text: 'text-rose-700 dark:text-rose-300',
+    cell: 'bg-rose-500/15 border-rose-500/50',
     glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(244,63,94,0.35)]',
-  },
-  late: {
-    label: 'Late',
-    dot: 'bg-orange-500',
-    text: 'text-orange-600 dark:text-orange-300',
-    cell: 'bg-gradient-to-br from-orange-500/20 to-orange-500/5 border-orange-500/40',
   },
   on_leave: {
     label: 'On Leave',
+    short: 'L',
+    hint: 'Approved leave',
+    icon: Palmtree,
     dot: 'bg-violet-500',
-    text: 'text-violet-600 dark:text-violet-300',
-    cell: 'bg-gradient-to-br from-violet-500/20 to-violet-500/5 border-violet-500/40',
+    text: 'text-violet-700 dark:text-violet-300',
+    cell: 'bg-violet-500/15 border-violet-500/50',
   },
   holiday: {
     label: 'Holiday',
+    short: 'H',
+    hint: 'Company holiday',
+    icon: PartyPopper,
     dot: 'bg-sky-500',
-    text: 'text-sky-600 dark:text-sky-300',
-    cell: 'bg-gradient-to-br from-sky-500/20 to-sky-500/5 border-sky-500/40',
+    text: 'text-sky-700 dark:text-sky-300',
+    cell: 'bg-sky-500/15 border-sky-500/50',
   },
   week_off: {
     label: 'Week Off',
+    short: 'W',
+    hint: 'Weekly off',
+    icon: Coffee,
     dot: 'bg-slate-400',
     text: 'text-muted-foreground',
-    cell: 'bg-muted/40 border-border',
+    cell: 'bg-muted/50 border-border',
   },
   no_punch: {
     label: 'No Punch',
+    short: '—',
+    hint: 'No punch recorded',
+    icon: Circle,
     dot: 'bg-muted-foreground/40',
     text: 'text-muted-foreground',
     cell: 'bg-background border-dashed border-border',
   },
   upcoming: {
     label: 'Upcoming',
+    short: '',
+    icon: Circle,
     dot: 'bg-transparent',
     text: 'text-muted-foreground/60',
     cell: 'bg-background border-border/40',
   },
 };
+
 
 export default function MyAttendanceCalendar({ employeeId }: Props) {
   const [cursor, setCursor] = useState(() => new Date());

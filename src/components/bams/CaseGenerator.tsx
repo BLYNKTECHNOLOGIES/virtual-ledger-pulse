@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar, Upload, X } from "lucide-react";
+import { Plus, Eye, AlertCircle, CreditCard, TrendingUp, Users, DollarSign, FileText, Calendar, X } from "lucide-react";
 import { format } from "date-fns";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -167,15 +167,6 @@ export function CaseGenerator() {
       return data;
     },
   });
-
-  // Generate case number - Legacy function (now replaced by edge function)
-  const generateCaseNumber = () => {
-    const now = new Date();
-    const year = now.getFullYear().toString().slice(-2);
-    const month = (now.getMonth() + 1).toString().padStart(2, '0');
-    const random = Math.floor(Math.random() * 9999).toString().padStart(4, '0');
-    return `CASE${year}${month}${random}`;
-  };
 
   // Create case mutation
   const createCaseMutation = useMutation({

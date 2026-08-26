@@ -9,6 +9,8 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { downloadStorageFile, openStorageFile } from "@/lib/storage-url";
+import { CASE_DOCUMENT_BUCKET, getCaseDocumentFileName, uniqueCaseDocumentUrls } from "@/lib/compliance-case-documents";
 
 
 import { usersDirectory } from "@/lib/usersDirectory";
@@ -74,6 +76,35 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
 
         const merged: TimelineUpdate[] = [];
 
+        const { data: bankCase, error: bankCaseError } = await supabase
+          .from('bank_cases')
+          .select('created_at, created_by, documents_attached, screenshots, proof_of_debit, supporting_proof, supporting_document, statement_proof')
+          .eq('id', caseId)
+          .maybeSingle();
+        if (bankCaseError) throw bankCaseError;
+
+        if (bankCase) {
+          const initialAttachments = uniqueCaseDocumentUrls([
+            ...(bankCase.documents_attached || []),
+            ...(bankCase.screenshots || []),
+            bankCase.proof_of_debit,
+            bankCase.supporting_proof,
+            bankCase.supporting_document,
+            bankCase.statement_proof,
+          ]);
+
+          if (initialAttachments.length > 0) {
+            merged.push({
+              id: `${caseId}-initial-documents`,
+              update_text: `${initialAttachments.length} document(s) attached while creating the case`,
+              created_at: bankCase.created_at,
+              created_by: bankCase.created_by || 'System',
+              attachment_urls: initialAttachments,
+              update_type: 'DOCUMENT_SUBMITTED',
+            });
+          }
+        }
+
         const { data: caseUpdates, error: caseUpdatesError } = await supabase
           .from('compliance_case_updates')
           .select('id, update_text, created_at, created_by_name, attachment_urls, update_type')
@@ -111,56 +142,12 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
     }
   };
 
-  const handleViewDocument = async (fileUrl: string) => {
-    try {
-      if (fileUrl.startsWith('http')) {
-        window.open(fileUrl, '_blank');
-        return;
-      }
-      const { data, error } = await supabase.storage
-        .from('kyc-documents')
-        .createSignedUrl(fileUrl, 3600);
-      if (error) throw error;
-      if (data.signedUrl) {
-        window.open(data.signedUrl, '_blank');
-      }
-    } catch (error) {
-      console.error('Error viewing document:', error);
-    }
+  const handleViewDocument = (fileUrl: string) => {
+    void openStorageFile(fileUrl, CASE_DOCUMENT_BUCKET);
   };
 
-  const handleDownloadDocument = async (fileUrl: string) => {
-    try {
-      if (fileUrl.startsWith('http')) {
-        const fileName = fileUrl.split('/').pop() || 'document';
-        const response = await fetch(fileUrl);
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        return;
-      }
-      const { data, error } = await supabase.storage
-        .from('kyc-documents')
-        .download(fileUrl);
-      if (error) throw error;
-      const fileName = fileUrl.split('/').pop() || 'document';
-      const url = URL.createObjectURL(data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Error downloading document:', error);
-    }
+  const handleDownloadDocument = (fileUrl: string) => {
+    void downloadStorageFile(fileUrl, getCaseDocumentFileName(fileUrl), CASE_DOCUMENT_BUCKET);
   };
 
   const MAX_FILE_BYTES = 25 * 1024 * 1024;
@@ -282,7 +269,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                       <div className="text-sm font-medium text-foreground">Attachments:</div>
                       <div className="space-y-1">
                         {update.attachment_urls.map((url, urlIndex) => {
-                          const fileName = url.split('/').pop() || `Document ${urlIndex + 1}`;
+                          const fileName = getCaseDocumentFileName(url, `Document ${urlIndex + 1}`);
                           const lower = fileName.toLowerCase();
                           const isPdf = lower.endsWith('.pdf');
                           const isImage = /\.(png|jpe?g|gif|webp|bmp|svg|heic)$/.test(lower);

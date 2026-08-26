@@ -11,8 +11,9 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { Inbox, Search, ExternalLink, CalendarDays, Clock, RefreshCw } from "lucide-react";
+import { Inbox, Search, ExternalLink, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,
@@ -24,6 +25,7 @@ import {
 const STAGE_STYLE: Record<RequestStage, string> = {
   awaiting_manager: "bg-warning/10 text-warning border-warning/30",
   awaiting_hr: "bg-primary/10 text-primary border-primary/30",
+  awaiting_payroll: "bg-warning/10 text-warning border-warning/30",
   approved: "bg-success/10 text-success border-success/30",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
   cancelled: "bg-muted text-muted-foreground border-border",
@@ -39,7 +41,7 @@ function StageBadge({ stage }: { stage: RequestStage }) {
 }
 
 function TypeIcon({ type }: { type: string }) {
-  const Icon = type === "leave" ? CalendarDays : Clock;
+  const Icon = type === "leave" ? CalendarDays : type === "bank_change" ? Landmark : Clock;
   return <Icon className="h-4 w-4 text-muted-foreground shrink-0" />;
 }
 
@@ -95,7 +97,9 @@ export default function RequestsPage() {
   }, [requests, type, stage, range, search]);
 
   const counts = useMemo(() => {
-    const pending = requests.filter((r) => r.stage === "awaiting_hr" || r.stage === "awaiting_manager").length;
+    const pending = requests.filter(
+      (r) => r.stage === "awaiting_hr" || r.stage === "awaiting_manager" || r.stage === "awaiting_payroll",
+    ).length;
     return { total: requests.length, pending };
   }, [requests]);
 
@@ -253,9 +257,11 @@ export default function RequestsPage() {
           selected ? (
             <>
               <Button variant="outline" onClick={() => setSelected(null)}>Close</Button>
-              <Button onClick={() => navigate(selected.sourcePath)}>
-                <ExternalLink className="h-4 w-4 mr-2" /> Review in {selected.sourceLabel}
-              </Button>
+              {selected.type !== "bank_change" && (
+                <Button onClick={() => navigate(selected.sourcePath)}>
+                  <ExternalLink className="h-4 w-4 mr-2" /> Review in {selected.sourceLabel}
+                </Button>
+              )}
             </>
           ) : null
         }
@@ -267,10 +273,12 @@ export default function RequestsPage() {
               <span className="text-xs text-muted-foreground font-mono">{selected.rawStatus}</span>
             </div>
             <Row label="Subject" value={selected.subject} />
-            <Row
-              label="Period"
-              value={selected.periodFrom === selected.periodTo ? selected.periodFrom || "—" : `${selected.periodFrom} → ${selected.periodTo}`}
-            />
+            {selected.type !== "bank_change" && (
+              <Row
+                label="Period"
+                value={selected.periodFrom === selected.periodTo ? selected.periodFrom || "—" : `${selected.periodFrom} → ${selected.periodTo}`}
+              />
+            )}
             <Row label="Reason" value={selected.detail || "—"} />
             <Row label="Submitted" value={format(new Date(selected.createdAt), "dd MMM yyyy, HH:mm")} />
             {selected.updatedAt && (
@@ -279,9 +287,15 @@ export default function RequestsPage() {
             {selected.raw?.manager_remarks && <Row label="Manager remarks" value={selected.raw.manager_remarks} />}
             {selected.raw?.approver_notes && <Row label="Approver notes" value={selected.raw.approver_notes} />}
             {selected.raw?.rejection_reason && <Row label="Rejection reason" value={selected.raw.rejection_reason} />}
-            <p className="text-xs text-muted-foreground pt-1">
-              Approvals are handled on the {selected.sourceLabel} page — this inbox and that page read the same records.
-            </p>
+            {selected.type === "bank_change" ? (
+              <div className="pt-2 border-t border-border">
+                <BankChangeApprovalPanel request={selected.raw} />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground pt-1">
+                Approvals are handled on the {selected.sourceLabel} page — this inbox and that page read the same records.
+              </p>
+            )}
           </div>
         )}
       </ResponsiveDialog>

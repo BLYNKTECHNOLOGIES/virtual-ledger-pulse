@@ -74,6 +74,7 @@ import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
+import { BankChangeRequestCard } from '@/components/profile/BankChangeRequestCard';
 import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -99,7 +100,15 @@ interface BankAccount {
 }
 
 // ─── Employee Banking Sub-Component (HRMS bank details) ───
-function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
+function EmployeeBankingTab({
+  employeeId,
+  userId,
+  holderName,
+}: {
+  employeeId: string;
+  userId?: string;
+  holderName?: string;
+}) {
   const { data: bankDetails = [], isLoading } = useQuery({
     queryKey: ['hr_employee_bank_details', employeeId],
     queryFn: async () => {
@@ -113,40 +122,41 @@ function EmployeeBankingTab({ employeeId }: { employeeId: string }) {
     enabled: !!employeeId,
   });
 
-  if (isLoading) return <ProfileSkeleton rows={4} />;
-
-  if (bankDetails.length === 0) {
-    return (
-      <ProfileEmptyState
-        icon={CreditCard}
-        title="No bank details on file"
-        description="Your salary bank details have not been added by HR yet. Please contact HR."
-      />
-    );
-  }
-
   return (
     <div className="space-y-4">
-      {bankDetails.map((bank: any) => (
-        <SectionBlock
-          key={bank.id}
-          title={bank.bank_name || 'Salary Bank Account'}
-          description={bank.branch || undefined}
+      {isLoading ? (
+        <ProfileSkeleton rows={4} />
+      ) : bankDetails.length === 0 ? (
+        <ProfileEmptyState
           icon={CreditCard}
-        >
-          <FieldGrid wide>
-            {bank.account_number && <Field label="Account Number" value={bank.account_number} mono />}
-            {bank.ifsc_code && <Field label="IFSC Code" value={bank.ifsc_code} mono />}
-            {bank.bank_code_2 && <Field label="Bank Code 2" value={bank.bank_code_2} mono />}
-            {bank.city && <Field label="City" value={bank.city} />}
-            {bank.state && <Field label="State" value={bank.state} />}
-            {bank.country && <Field label="Country" value={bank.country} />}
-          </FieldGrid>
-        </SectionBlock>
-      ))}
+          title="No bank details on file"
+          description="Your salary bank details have not been added by HR yet. You can request a bank update below."
+        />
+      ) : (
+        bankDetails.map((bank: any) => (
+          <SectionBlock
+            key={bank.id}
+            title={bank.bank_name || 'Salary Bank Account'}
+            description={bank.branch || undefined}
+            icon={CreditCard}
+          >
+            <FieldGrid wide>
+              {bank.account_number && <Field label="Account Number" value={bank.account_number} mono />}
+              {bank.ifsc_code && <Field label="IFSC Code" value={bank.ifsc_code} mono />}
+              {bank.bank_code_2 && <Field label="Bank Code 2" value={bank.bank_code_2} mono />}
+              {bank.city && <Field label="City" value={bank.city} />}
+              {bank.state && <Field label="State" value={bank.state} />}
+              {bank.country && <Field label="Country" value={bank.country} />}
+            </FieldGrid>
+          </SectionBlock>
+        ))
+      )}
+
+      <BankChangeRequestCard employeeId={employeeId} userId={userId} defaultHolderName={holderName} />
     </div>
   );
 }
+
 
 
 // ─── Salary & PF Sub-Component ───────────────────────────────────────────────
@@ -1197,7 +1207,11 @@ export default function UserProfile() {
           {!hrEmployee ? (
             <NoEmployeeProfile />
           ) : (
-            <EmployeeBankingTab employeeId={hrEmployee.id} />
+            <EmployeeBankingTab
+              employeeId={hrEmployee.id}
+              userId={user?.id}
+              holderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
+            />
           )}
         </TabsContent>
 

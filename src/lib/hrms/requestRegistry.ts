@@ -13,7 +13,14 @@ import { supabase } from "@/integrations/supabase/client";
  * inbox are always in sync by construction — no mirror table, no copies.
  */
 
-export type RequestStage = "awaiting_manager" | "awaiting_hr" | "approved" | "rejected" | "cancelled" | "other";
+export type RequestStage =
+  | "awaiting_manager"
+  | "awaiting_hr"
+  | "awaiting_payroll"
+  | "approved"
+  | "rejected"
+  | "cancelled"
+  | "other";
 
 export interface UnifiedRequest {
   /** `${type}:${id}` — unique across sources */
@@ -44,6 +51,7 @@ export interface UnifiedRequest {
 export const STAGE_LABEL: Record<RequestStage, string> = {
   awaiting_manager: "Awaiting manager",
   awaiting_hr: "Awaiting HR",
+  awaiting_payroll: "Awaiting payroll confirmation",
   approved: "Approved",
   rejected: "Rejected",
   cancelled: "Cancelled",
@@ -172,6 +180,60 @@ async function fetchRegularization(): Promise<UnifiedRequest[]> {
   });
 }
 
+/* --------------------------- Bank change --------------------------- */
+
+function bankChangeStage(status: string): RequestStage {
+  switch (status) {
+    case "pending":
+      return "awaiting_hr";
+    case "pending_razorpay":
+    case "razorpay_failed":
+      return "awaiting_payroll";
+    case "approved":
+      return "approved";
+    case "rejected":
+      return "rejected";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "other";
+  }
+}
+
+async function fetchBankChange(): Promise<UnifiedRequest[]> {
+  const { data, error } = await (supabase as any)
+    .from("hr_bank_change_requests")
+    .select("*, hr_employees!hr_bank_change_requests_employee_id_fkey(badge_id, first_name, last_name, email)")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+
+  return ((data as any[]) || []).map((r) => {
+    const stage = bankChangeStage(r.status);
+    return {
+      key: `bank_change:${r.id}`,
+      id: r.id,
+      type: "bank_change",
+      typeLabel: "Bank account change",
+      employeeId: r.employee_id,
+      employeeName: employeeName(r.hr_employees),
+      badgeId: r.hr_employees?.badge_id || null,
+      subject: `${r.bank_name} · ****${String(r.account_number || "").slice(-4)} · ${String(r.ifsc_code || "").toUpperCase()}`,
+      detail: r.employee_note || r.hr_notes || null,
+      periodFrom: null,
+      periodTo: null,
+      rawStatus: r.status,
+      stage,
+      statusLabel: r.status === "razorpay_failed" ? "RazorpayX not confirmed" : STAGE_LABEL[stage],
+      createdAt: r.created_at,
+      updatedAt: r.updated_at || null,
+      sourcePath: "/hrms/requests?type=bank_change",
+      sourceLabel: "Bank change requests",
+      raw: r,
+    } as UnifiedRequest;
+  });
+}
+
 /* ------------------------------ Registry ------------------------------ */
 
 export interface RequestSource {
@@ -183,6 +245,7 @@ export interface RequestSource {
 export const REQUEST_SOURCES: RequestSource[] = [
   { type: "leave", label: "Leave", fetch: fetchLeave },
   { type: "regularization", label: "Attendance regularization", fetch: fetchRegularization },
+  { type: "bank_change", label: "Bank account change", fetch: fetchBankChange },
 ];
 
 export async function fetchAllRequests(): Promise<UnifiedRequest[]> {
@@ -204,6 +267,7 @@ export function requestDeepLinkFromNotification(n: any): string | null {
 
   let kind: string | null = null;
   if (type.includes("regulariz")) kind = "regularization";
+  else if (type.includes("bank_change")) kind = "bank_change";
   else if (type.includes("leave")) kind = "leave";
   if (!kind) return null;
 

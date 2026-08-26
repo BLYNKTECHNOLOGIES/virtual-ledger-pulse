@@ -276,13 +276,15 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                       <div className="space-y-1">
                         {update.attachment_urls.map((url, urlIndex) => {
                           const fileName = url.split('/').pop() || `Document ${urlIndex + 1}`;
-                          const isPdf = fileName.toLowerCase().endsWith('.pdf');
+                          const lower = fileName.toLowerCase();
+                          const isPdf = lower.endsWith('.pdf');
+                          const isImage = /\.(png|jpe?g|gif|webp|bmp|svg|heic)$/.test(lower);
                           return (
                             <div key={urlIndex} className="flex items-center gap-2 p-2 bg-card rounded border">
                               <FileText className="h-4 w-4 text-destructive" />
                               <span className="text-sm flex-1 truncate">{fileName}</span>
                               <div className="flex gap-1">
-                                {isPdf && (
+                                {(isPdf || isImage) && (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -293,6 +295,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                                     View
                                   </Button>
                                 )}
+
                                 <Button
                                   size="sm"
                                   variant="outline"

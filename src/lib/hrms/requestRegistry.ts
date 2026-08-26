@@ -51,6 +51,7 @@ export interface UnifiedRequest {
 export const STAGE_LABEL: Record<RequestStage, string> = {
   awaiting_manager: "Awaiting manager",
   awaiting_hr: "Awaiting HR",
+  awaiting_payroll: "Awaiting payroll confirmation",
   approved: "Approved",
   rejected: "Rejected",
   cancelled: "Cancelled",

@@ -41,8 +41,11 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
   const [newUpdate, setNewUpdate] = useState("");
   const [updateType, setUpdateType] = useState("NOTE");
   const [posting, setPosting] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { hasPermission } = usePermissions();
   const canPost = hasPermission("compliance_manage") && caseType === "bank_case";
+
 
   const fetchUpdates = async () => {
     if (!open) return;

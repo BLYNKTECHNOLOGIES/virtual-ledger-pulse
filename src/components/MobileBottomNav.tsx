@@ -1,4 +1,4 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset, Sparkles } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -40,6 +40,7 @@ const moreNavItems: MobileNavItem[] = [
   { title: "Financials", url: "/financials", icon: Package, permissions: ["financials_view", "financials_manage"] },
   { title: "Statistics", url: "/statistics", icon: TrendingUp, permissions: ["statistics_view", "statistics_manage"] },
   { title: "Tasks", url: "/tasks", icon: Users, permissions: ["tasks_view", "tasks_manage"] },
+  { title: "AI Help", url: "/help-assistant", icon: Sparkles, permissions: ["help_assistant_view", "help_assistant_manage"] },
   { title: "ERP Entry", url: "/erp-entry", icon: Inbox, permissions: ["erp_entry_view", "erp_entry_manage"] },
   { title: "Utility", url: "/utility", icon: Wrench, permissions: ["utility_view"] },
 ];

@@ -22,6 +22,19 @@ const SITE_NAME = 'Blynkex'
 const APP_URL = 'https://erp.blynkex.com'
 const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/b6b06bc5-e6c4-4625-b9d1-57b258a7be69/blynkex-logo.svg'
 
+/* Blynk brand tokens (email-safe hex of the ERP design system) */
+const INK = '#04121F'
+const INK_SOFT = '#0A2233'
+const CYAN = '#00A3D1' // primary  hsl(193 100% 41%)
+const CYAN_BRIGHT = '#22D3EE'
+const SKY = '#5CC6E8'
+const SLATE = '#5B6B7B'
+const SLATE_DEEP = '#0F1D2A'
+const LINE = '#E3EAF0'
+
+const DISPLAY_FONT = 'Montserrat, "Segoe UI", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif'
+const BODY_FONT = 'Manrope, "Segoe UI", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif'
+const MONO_FONT = '"JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace'
 
 interface TaskNotificationProps {
   eventType?: string
@@ -37,7 +50,7 @@ interface EventMeta {
   emoji: string
   label: string
   intro: (assigner?: string) => string
-  accent: string      // primary accent for gradient / borders
+  accent: string      // primary accent for borders / CTA
   accentSoft: string  // soft tint for backgrounds
   cta: string
 }
@@ -47,40 +60,40 @@ const eventMeta: Record<string, EventMeta> = {
     emoji: '',
     label: 'New Task Assigned',
     intro: (a) => a ? `${a} has assigned a new task to you.` : 'A new task has been assigned to you.',
-    accent: '#4361ee',
-    accentSoft: '#eef1ff',
+    accent: CYAN,
+    accentSoft: '#E6F6FB',
     cta: 'Open Task',
   },
   task_reassigned: {
     emoji: '',
     label: 'Task Reassigned to You',
     intro: (a) => a ? `${a} has reassigned this task to you.` : 'This task has been reassigned to you.',
-    accent: '#7c3aed',
-    accentSoft: '#f2ecff',
+    accent: '#0E7490',
+    accentSoft: '#E4F4F8',
     cta: 'Review Task',
   },
   task_overdue: {
     emoji: '',
     label: 'Task Overdue',
     intro: () => 'This task has passed its due date and still needs your attention.',
-    accent: '#dc2626',
-    accentSoft: '#fdecec',
+    accent: '#DC2626',
+    accentSoft: '#FDECEC',
     cta: 'Resolve Now',
   },
   task_due_soon: {
     emoji: '',
     label: 'Task Due Soon',
     intro: () => 'Heads up — this task is coming up on its deadline.',
-    accent: '#d97706',
-    accentSoft: '#fdf3e2',
+    accent: '#B45309',
+    accentSoft: '#FDF3E2',
     cta: 'View Task',
   },
   task_mention: {
     emoji: '',
     label: 'You Were Mentioned',
     intro: (a) => a ? `${a} mentioned you in a task discussion.` : 'You were mentioned in a task discussion.',
-    accent: '#0891b2',
-    accentSoft: '#e6f6fa',
+    accent: '#0891B2',
+    accentSoft: '#E6F6FA',
     cta: 'Jump to Thread',
   },
 }
@@ -125,48 +138,46 @@ const TaskNotificationEmail = ({
       <Head>
         <meta name="color-scheme" content="light only" />
         <meta name="supported-color-schemes" content="light only" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
+          rel="stylesheet"
+        />
       </Head>
       <Preview>{previewText}</Preview>
       <Body style={main}>
         <Container style={container}>
-          {/* Brand header — Blynkex identity: deep indigo → cyan */}
-          <Section style={{ ...brandHeader, background: 'linear-gradient(135deg, #0a1747 0%, #1e2a8a 45%, #2563eb 75%, #06b6d4 100%)' }}>
-            {/* Subtle top hairline for premium feel */}
-            <div style={{ height: '2px', background: 'linear-gradient(90deg, transparent 0%, #22d3ee 50%, transparent 100%)', margin: '-22px -28px 18px' }} />
+          {/* Brand header — Blynk ink → cyan */}
+          <Section style={brandHeader}>
             <Row>
-              <Column style={{ width: '56px', verticalAlign: 'middle' as const }}>
-                <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(34,211,238,0.25), rgba(255,255,255,0.08))', border: '1px solid rgba(34,211,238,0.45)', padding: '4px', boxShadow: '0 4px 14px rgba(6,182,212,0.35)' }}>
+              <Column style={{ width: '54px', verticalAlign: 'middle' as const }}>
+                <div style={logoPlate}>
                   <img
                     src={LOGO_URL}
                     alt="Blynkex"
-                    width="36"
-                    height="36"
-                    style={{ display: 'block', width: '36px', height: '36px' }}
+                    width="34"
+                    height="34"
+                    style={{ display: 'block', width: '34px', height: '34px' }}
                   />
                 </div>
               </Column>
-              <Column style={{ verticalAlign: 'middle' as const, paddingLeft: '4px' }}>
+              <Column style={{ verticalAlign: 'middle' as const, paddingLeft: '2px' }}>
                 <div style={brandName}>
-                  <span style={{ color: '#ffffff', WebkitTextFillColor: '#ffffff' }}>BLYNK</span>
-                  <span style={{ color: '#22d3ee', WebkitTextFillColor: '#22d3ee' }}>EX</span>
+                  <span style={{ color: '#FFFFFF', WebkitTextFillColor: '#FFFFFF' }}>BLYNK</span>
+                  <span style={{ color: CYAN_BRIGHT, WebkitTextFillColor: CYAN_BRIGHT }}>EX</span>
                 </div>
-                <div style={brandTag}>
-                  <span style={{ color: '#22d3ee', WebkitTextFillColor: '#22d3ee', marginRight: '6px' }}>▸</span>
-                  Enterprise Resource Platform
-                </div>
+                <div style={brandTag}>Enterprise Resource Platform</div>
               </Column>
               <Column align="right" style={{ verticalAlign: 'middle' as const }}>
                 <span style={eyebrow}>Tasks</span>
               </Column>
             </Row>
-            {/* Bottom cyan accent strip */}
-            <div style={{ height: '3px', background: 'linear-gradient(90deg, #22d3ee 0%, #2563eb 50%, #7c3aed 100%)', margin: '18px -28px -22px' }} />
           </Section>
-
+          {/* Cyan accent rule under the header */}
+          <div style={accentRule} />
 
           {/* Content */}
           <Section style={content}>
-            <Text style={eventLabel}>{meta.label.toUpperCase()}</Text>
+            <Text style={{ ...eventLabel, color: meta.accent }}>{meta.label.toUpperCase()}</Text>
             <Heading style={h1}>{taskTitle}</Heading>
 
             <Text style={intro}>
@@ -178,11 +189,11 @@ const TaskNotificationEmail = ({
             {assignedByName && (eventType === 'task_assigned' || eventType === 'task_reassigned' || eventType === 'task_mention') && (
               <Section style={{ ...assignerCard, backgroundColor: meta.accentSoft, borderLeft: `3px solid ${meta.accent}` }}>
                 <Row>
-                  <Column style={{ width: '44px' }}>
+                  <Column style={{ width: '46px', verticalAlign: 'middle' as const }}>
                     <div style={{ ...avatar, backgroundColor: meta.accent }}>{initials}</div>
                   </Column>
-                  <Column>
-                    <Text style={assignerFrom}>From</Text>
+                  <Column style={{ verticalAlign: 'middle' as const }}>
+                    <Text style={assignerFrom}>Assigned by</Text>
                     <Text style={assignerName}>{assignedByName}</Text>
                   </Column>
                 </Row>
@@ -201,33 +212,35 @@ const TaskNotificationEmail = ({
               </Section>
             )}
 
-            {/* Meta grid */}
-            <Section style={metaGrid}>
-              {formattedDue && (
-                <Row style={metaRow}>
-                  <Column style={metaKeyCol}><Text style={metaKey}>Due</Text></Column>
-                  <Column><Text style={metaVal}>{formattedDue} IST</Text></Column>
-                </Row>
-              )}
-              {statusLabel && (
-                <Row style={metaRow}>
-                  <Column style={metaKeyCol}><Text style={metaKey}>◉ Status</Text></Column>
-                  <Column>
-                    <span style={{ ...statusPill, backgroundColor: meta.accentSoft, color: meta.accent, borderColor: meta.accent }}>
-                      {statusLabel}
-                    </span>
-                  </Column>
-                </Row>
-              )}
-            </Section>
+            {/* Meta panel */}
+            {(formattedDue || statusLabel) && (
+              <Section style={metaGrid}>
+                {formattedDue && (
+                  <Row style={metaRow}>
+                    <Column style={metaKeyCol}><Text style={metaKey}>DUE</Text></Column>
+                    <Column><Text style={metaVal}>{formattedDue} IST</Text></Column>
+                  </Row>
+                )}
+                {statusLabel && (
+                  <Row style={metaRow}>
+                    <Column style={metaKeyCol}><Text style={metaKey}>STATUS</Text></Column>
+                    <Column>
+                      <span style={{ ...statusPill, backgroundColor: meta.accentSoft, color: meta.accent, borderColor: meta.accent }}>
+                        {statusLabel}
+                      </span>
+                    </Column>
+                  </Row>
+                )}
+              </Section>
+            )}
 
             {/* CTA */}
-            <Section style={{ textAlign: 'center', margin: '28px 0 8px' }}>
+            <Section style={{ textAlign: 'center', margin: '26px 0 6px' }}>
               <Button
                 href={`${APP_URL}/tasks`}
                 style={{ ...ctaBtn, backgroundColor: meta.accent }}
               >
-                {meta.cta} →
+                {meta.cta} &nbsp;›
               </Button>
             </Section>
 
@@ -236,7 +249,7 @@ const TaskNotificationEmail = ({
             <Text style={footer}>
               You're receiving this because you're part of the {SITE_NAME} team.
               <br />
-              Sign in to <a href={APP_URL} style={{ color: meta.accent, textDecoration: 'none' }}>erp.blynkex.com</a> to respond.
+              Sign in to <a href={APP_URL} style={{ color: meta.accent, textDecoration: 'none', fontWeight: 600 }}>erp.blynkex.com</a> to respond.
             </Text>
           </Section>
 
@@ -277,186 +290,206 @@ export const template = {
 
 // Styles
 const main = {
-  backgroundColor: '#f4f5f9',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  backgroundColor: '#F1F5F8',
+  fontFamily: BODY_FONT,
   padding: '24px 12px',
 }
 const container = {
   maxWidth: '580px',
   margin: '0 auto',
-  backgroundColor: '#ffffff',
+  backgroundColor: '#FFFFFF',
   borderRadius: '14px',
   overflow: 'hidden' as const,
-  boxShadow: '0 4px 24px rgba(15, 23, 42, 0.06)',
+  border: `1px solid ${LINE}`,
+  boxShadow: '0 6px 28px rgba(4, 18, 31, 0.07)',
 }
 const brandHeader = {
-  padding: '22px 28px',
-  color: '#ffffff',
+  padding: '20px 26px',
+  color: '#FFFFFF',
+  background: `linear-gradient(120deg, ${INK} 0%, ${INK_SOFT} 42%, #0B5B78 78%, ${CYAN} 100%)`,
+  backgroundColor: INK,
 }
-const brandMark = {
-  width: '36px',
-  height: '36px',
-  borderRadius: '10px',
-  backgroundColor: 'rgba(255,255,255,0.15)',
-  border: '1px solid rgba(255,255,255,0.25)',
-  color: '#ffffff',
-  fontSize: '18px',
-  fontWeight: 800 as const,
-  lineHeight: '34px',
-  textAlign: 'center' as const,
-  letterSpacing: '-0.5px',
+const logoPlate = {
+  width: '42px',
+  height: '42px',
+  borderRadius: '12px',
+  background: 'rgba(34, 211, 238, 0.16)',
+  border: '1px solid rgba(34, 211, 238, 0.42)',
+  padding: '4px',
 }
 const brandName = {
-  color: '#ffffff',
-  WebkitTextFillColor: '#ffffff',
+  color: '#FFFFFF',
+  WebkitTextFillColor: '#FFFFFF',
   fontSize: '18px',
   fontWeight: 800 as const,
   letterSpacing: '3px',
   margin: '0',
   lineHeight: '1.1',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  fontFamily: DISPLAY_FONT,
 }
 const brandTag = {
-  color: '#c7d2fe',
-  WebkitTextFillColor: '#c7d2fe',
-  fontSize: '11px',
-  margin: '4px 0 0',
-  letterSpacing: '0.8px',
-  fontWeight: 500 as const,
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  color: '#A8D8E8',
+  WebkitTextFillColor: '#A8D8E8',
+  fontSize: '10px',
+  margin: '5px 0 0',
+  letterSpacing: '1.4px',
+  fontWeight: 600 as const,
+  fontFamily: BODY_FONT,
   textTransform: 'uppercase' as const,
 }
 const eyebrow = {
-  color: '#ffffff',
-  WebkitTextFillColor: '#ffffff',
-  fontSize: '12px',
+  color: CYAN_BRIGHT,
+  WebkitTextFillColor: CYAN_BRIGHT,
+  fontSize: '10px',
   fontWeight: 700 as const,
+  letterSpacing: '1.4px',
+  textTransform: 'uppercase' as const,
   padding: '5px 12px',
-  backgroundColor: 'rgba(255,255,255,0.18)',
-  border: '1px solid rgba(255,255,255,0.3)',
+  backgroundColor: 'rgba(34, 211, 238, 0.14)',
+  border: '1px solid rgba(34, 211, 238, 0.4)',
   borderRadius: '999px',
   display: 'inline-block' as const,
   whiteSpace: 'nowrap' as const,
+  fontFamily: BODY_FONT,
+}
+const accentRule = {
+  height: '3px',
+  background: `linear-gradient(90deg, ${CYAN_BRIGHT} 0%, ${CYAN} 55%, ${SKY} 100%)`,
+  backgroundColor: CYAN,
 }
 
-const content = { padding: '28px 28px 20px' }
+const content = { padding: '26px 26px 20px' }
 const eventLabel = {
-  fontSize: '11px',
+  fontSize: '10px',
   fontWeight: 700 as const,
-  color: '#64748b',
-  letterSpacing: '1.5px',
-  margin: '0 0 6px',
+  letterSpacing: '1.6px',
+  margin: '0 0 8px',
+  fontFamily: BODY_FONT,
 }
 const h1 = {
   fontSize: '22px',
   fontWeight: 700 as const,
-  color: '#0f172a',
-  margin: '0 0 14px',
+  color: SLATE_DEEP,
+  margin: '0 0 12px',
   lineHeight: '1.3',
   letterSpacing: '-0.3px',
+  fontFamily: DISPLAY_FONT,
 }
 const intro = {
   fontSize: '14px',
-  color: '#475569',
-  lineHeight: '1.6',
+  color: SLATE,
+  lineHeight: '1.65',
   margin: '0 0 20px',
 }
 const assignerCard = {
   padding: '12px 14px',
-  borderRadius: '10px',
+  borderRadius: '12px',
   margin: '0 0 18px',
 }
 const avatar = {
-  width: '36px',
-  height: '36px',
+  width: '38px',
+  height: '38px',
   borderRadius: '50%',
-  color: '#ffffff',
+  color: '#FFFFFF',
   fontSize: '13px',
   fontWeight: 700 as const,
-  lineHeight: '36px',
+  lineHeight: '38px',
   textAlign: 'center' as const,
   letterSpacing: '0.5px',
+  fontFamily: DISPLAY_FONT,
 }
 const assignerFrom = {
-  fontSize: '10px',
-  color: '#64748b',
-  letterSpacing: '1px',
-  fontWeight: 600 as const,
+  fontSize: '9px',
+  color: SLATE,
+  letterSpacing: '1.3px',
+  fontWeight: 700 as const,
   margin: '0',
   textTransform: 'uppercase' as const,
 }
 const assignerName = {
   fontSize: '15px',
-  color: '#0f172a',
-  fontWeight: 600 as const,
-  margin: '1px 0 0',
+  color: SLATE_DEEP,
+  fontWeight: 700 as const,
+  margin: '2px 0 0',
+  fontFamily: DISPLAY_FONT,
 }
 const descCard = {
-  backgroundColor: '#f8fafc',
-  border: '1px solid #e2e8f0',
+  backgroundColor: '#F7FAFC',
+  border: `1px solid ${LINE}`,
   padding: '14px 16px',
-  borderRadius: '10px',
+  borderRadius: '12px',
   margin: '0 0 18px',
 }
 const descLabel = {
-  fontSize: '10px',
-  color: '#64748b',
-  letterSpacing: '1.2px',
+  fontSize: '9px',
+  color: SLATE,
+  letterSpacing: '1.4px',
   fontWeight: 700 as const,
   margin: '0 0 6px',
 }
+const metaGrid = {
+  margin: '4px 0 6px',
+  border: `1px solid ${LINE}`,
+  borderRadius: '12px',
+  padding: '6px 14px',
+  backgroundColor: '#FBFDFE',
+}
 const descText = {
   fontSize: '14px',
-  color: '#334155',
+  color: '#33475B',
   lineHeight: '1.6',
   margin: '0',
 }
-const metaGrid = { margin: '4px 0 8px' }
-const metaRow = { padding: '6px 0' }
-const metaKeyCol = { width: '90px', verticalAlign: 'top' as const }
+const metaRow = { padding: '8px 0' }
+const metaKeyCol = { width: '82px', verticalAlign: 'middle' as const }
 const metaKey = {
-  fontSize: '13px',
-  color: '#64748b',
+  fontSize: '9px',
+  color: SLATE,
   margin: '0',
-  fontWeight: 500 as const,
+  fontWeight: 700 as const,
+  letterSpacing: '1.3px',
 }
 const metaVal = {
   fontSize: '13px',
-  color: '#0f172a',
+  color: SLATE_DEEP,
   margin: '0',
   fontWeight: 600 as const,
+  fontFamily: MONO_FONT,
 }
 const statusPill = {
-  fontSize: '11px',
+  fontSize: '10px',
   fontWeight: 700 as const,
-  padding: '3px 10px',
+  padding: '4px 11px',
   borderRadius: '999px',
   border: '1px solid',
-  letterSpacing: '0.5px',
+  letterSpacing: '1px',
   display: 'inline-block' as const,
+  fontFamily: BODY_FONT,
 }
 const ctaBtn = {
-  color: '#ffffff',
+  color: '#FFFFFF',
   fontSize: '14px',
-  fontWeight: 600 as const,
-  padding: '12px 28px',
-  borderRadius: '10px',
+  fontWeight: 700 as const,
+  padding: '13px 30px',
+  borderRadius: '12px',
   textDecoration: 'none',
   display: 'inline-block' as const,
-  letterSpacing: '0.2px',
+  letterSpacing: '0.3px',
+  fontFamily: BODY_FONT,
 }
-const divider = { borderTop: '1px solid #e2e8f0', margin: '24px 0 16px' }
+const divider = { borderTop: `1px solid ${LINE}`, margin: '24px 0 16px' }
 const footer = {
   fontSize: '12px',
-  color: '#94a3b8',
+  color: '#8195A6',
   lineHeight: '1.6',
   margin: '0',
   textAlign: 'center' as const,
 }
 const legalFooter = {
-  fontSize: '11px',
-  color: '#94a3b8',
+  fontSize: '10px',
+  color: '#93A5B4',
   textAlign: 'center' as const,
   margin: '16px 0 0',
   padding: '0 20px',
+  letterSpacing: '0.4px',
 }

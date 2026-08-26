@@ -759,15 +759,24 @@ serve(async (req) => {
       if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
       if (!callerUserId) throw new Error("Authentication required");
       const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      for (const perm of ["terminal_orders_actions", "terminal_orders_manage"]) {
-        const { data: allowed } = await admin.rpc("has_terminal_permission", {
-          _user_id: callerUserId,
-          _permission: perm,
-        });
-        if (allowed === true) return;
+      // get_terminal_permissions() already expands implicit rights: ERP Super Admin
+      // and terminal admins (hierarchy_level <= 0) receive the full permission set.
+      const { data, error } = await admin.rpc("get_terminal_permissions", {
+        p_user_id: callerUserId,
+      });
+      if (error) {
+        console.error("permission lookup failed:", error.message);
+        throw new Error(`Permission check failed for ${actionName}: ${error.message}`);
       }
+      const perms = new Set(
+        (Array.isArray(data) ? data : []).map((p: any) =>
+          typeof p === "string" ? p : p?.get_terminal_permissions ?? p?.permission
+        )
+      );
+      if (perms.has("terminal_orders_actions") || perms.has("terminal_orders_manage")) return;
       throw new Error(`Permission denied: terminal_orders_actions required for ${actionName}`);
     };
+
 
 
     const { action, ...payload } = await req.json();

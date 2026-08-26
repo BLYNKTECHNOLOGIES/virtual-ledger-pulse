@@ -245,6 +245,7 @@ export interface RequestSource {
 export const REQUEST_SOURCES: RequestSource[] = [
   { type: "leave", label: "Leave", fetch: fetchLeave },
   { type: "regularization", label: "Attendance regularization", fetch: fetchRegularization },
+  { type: "bank_change", label: "Bank account change", fetch: fetchBankChange },
 ];
 
 export async function fetchAllRequests(): Promise<UnifiedRequest[]> {

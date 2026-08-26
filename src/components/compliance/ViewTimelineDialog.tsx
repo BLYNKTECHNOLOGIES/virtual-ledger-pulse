@@ -5,6 +5,7 @@ import { Clock, FileText, Download, Eye, Send, Paperclip, X } from "lucide-react
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -189,6 +190,12 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
     return paths;
   };
 
+  const { isDragActive, dropzoneProps } = useFileDropzone({
+    onFiles: addFiles,
+    disabled: posting,
+    multiple: true,
+  });
+
   const postUpdate = async () => {
     if (!newUpdate.trim() && attachments.length === 0) return;
     setPosting(true);
@@ -240,11 +247,11 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
           View Timeline
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] max-h-[600px]">
+      <DialogContent className="flex max-h-[85vh] flex-col sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 max-h-[400px] overflow-y-auto">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
           {loading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
@@ -353,6 +360,22 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
               value={newUpdate}
               onChange={(e) => setNewUpdate(e.target.value)}
             />
+            <div
+              className={`rounded-md border border-dashed border-border bg-muted/30 p-3 transition-colors ${isDragActive ? "border-primary bg-primary/10" : ""}`}
+              {...dropzoneProps}
+            >
+              <Button
+                size="sm"
+                variant="ghost"
+                type="button"
+                className="w-full justify-start text-primary hover:bg-primary/10"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={posting}
+              >
+                <Paperclip className="h-4 w-4 mr-2" />
+                Upload documents, PDFs, images, or files
+              </Button>
+            </div>
             <input
               ref={fileInputRef}
               type="file"

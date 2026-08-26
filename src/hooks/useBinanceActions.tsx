@@ -536,18 +536,20 @@ export function useCounterpartyCompletedOrderCount(
         cpUserNo = (resolved as any)?.cp_userno ?? null;
       }
 
-      // Server-side count. The RPC resolves the counterparty (non-self side) and
+      // Server-side count. The function resolves the counterparty (non-self side) and
       // counts COMPLETED orders where they acted as EITHER the ad merchant or the
       // taker — the raw takerUserNo-only match previously missed most orders and
       // returned 0 for active orders not yet in history.
-      const { data, error } = await supabase.rpc('get_counterparty_completed_order_count', {
-        p_order_number: orderNumber,
-        p_cp_userno: cpUserNo,
-        p_exchange_account_id: exchangeAccountId ?? null,
-        p_verified_name: verifiedName ?? null,
+      const { data, error } = await supabase.functions.invoke('counterparty-completed-count', {
+        body: {
+          order_number: orderNumber,
+          cp_userno: cpUserNo,
+          exchange_account_id: exchangeAccountId ?? null,
+          verified_name: verifiedName ?? null,
+        },
       });
       if (error) throw error;
-      return { count: (data as number) ?? 0, resolved: !!cpUserNo };
+      return { count: Number((data as any)?.count) || 0, resolved: !!cpUserNo };
     },
     enabled: !!currentOrderNumber,
     staleTime: 30 * 1000,

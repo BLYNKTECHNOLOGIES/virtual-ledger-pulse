@@ -13,7 +13,14 @@ import { supabase } from "@/integrations/supabase/client";
  * inbox are always in sync by construction — no mirror table, no copies.
  */
 
-export type RequestStage = "awaiting_manager" | "awaiting_hr" | "approved" | "rejected" | "cancelled" | "other";
+export type RequestStage =
+  | "awaiting_manager"
+  | "awaiting_hr"
+  | "awaiting_payroll"
+  | "approved"
+  | "rejected"
+  | "cancelled"
+  | "other";
 
 export interface UnifiedRequest {
   /** `${type}:${id}` — unique across sources */

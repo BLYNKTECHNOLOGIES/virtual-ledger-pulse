@@ -162,8 +162,35 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
     }
   };
 
+  const MAX_FILE_BYTES = 25 * 1024 * 1024;
+
+  const addFiles = (files: File[]) => {
+    const accepted = files.filter((f) => {
+      if (f.size > MAX_FILE_BYTES) {
+        toast.error(`${f.name} is larger than 25MB`);
+        return false;
+      }
+      return true;
+    });
+    if (accepted.length) setAttachments((prev) => [...prev, ...accepted]);
+  };
+
+  const uploadAttachments = async (): Promise<string[]> => {
+    const paths: string[] = [];
+    for (const file of attachments) {
+      const safeName = file.name.replace(/[^\w.\-]+/g, '_');
+      const path = `compliance-case-updates/${caseId}/${Date.now()}-${safeName}`;
+      const { error } = await supabase.storage
+        .from('kyc-documents')
+        .upload(path, file, { contentType: file.type || 'application/octet-stream' });
+      if (error) throw error;
+      paths.push(path);
+    }
+    return paths;
+  };
+
   const postUpdate = async () => {
-    if (!newUpdate.trim()) return;
+    if (!newUpdate.trim() && attachments.length === 0) return;
     setPosting(true);
     try {
       const { data: auth } = await supabase.auth.getUser();
@@ -176,16 +203,19 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
           .maybeSingle();
         if (me) name = [me.first_name, me.last_name].filter(Boolean).join(' ').trim() || me.username;
       }
+      const attachmentPaths = attachments.length > 0 ? await uploadAttachments() : [];
       const { error } = await supabase.from('compliance_case_updates').insert({
         bank_case_id: caseId,
-        update_text: newUpdate.trim(),
+        update_text: newUpdate.trim() || `${attachmentPaths.length} document(s) attached`,
         update_type: updateType,
         created_by: uid,
         created_by_name: name,
+        attachment_urls: attachmentPaths.length > 0 ? attachmentPaths : null,
       });
       if (error) throw error;
       setNewUpdate('');
       setUpdateType('NOTE');
+      setAttachments([]);
       toast.success('Update added to the case timeline');
       fetchUpdates();
     } catch (e) {
@@ -194,6 +224,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
       setPosting(false);
     }
   };
+
 
   useEffect(() => {
     fetchUpdates();

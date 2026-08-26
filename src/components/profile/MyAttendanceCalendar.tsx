@@ -170,7 +170,10 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
     );
     const today = startOfDay(new Date());
 
-    const out: Record<string, { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay }> = {};
+    const out: Record<
+      string,
+      { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay; timing?: 'late' | 'early' | 'both' | null }
+    > = {};
     for (const d of days) {
       const iso = format(d, 'yyyy-MM-dd');
       const holiday = holidayMap.get(iso);
@@ -179,18 +182,23 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
 
       let key: LegendKey | null = null;
       let meta: any = null;
+      let timing: 'late' | 'early' | 'both' | null = null;
       if (row) {
         meta = {
           first_in: row.first_in,
           last_out: row.last_out,
           net_work_minutes: row.worked_minutes,
           late_by_minutes: row.late_minutes,
+          early_by_minutes: row.early_minutes,
           total_hours: row.total_hours,
           lop_contribution: row.lop_contribution,
           watchdog_held: row.watchdog_held,
         };
+        const late = (row.late_minutes ?? 0) > 0;
+        const early = (row.early_minutes ?? 0) > 0;
+        timing = late && early ? 'both' : late ? 'late' : early ? 'early' : null;
         switch (row.status) {
-          case 'present':      key = row.late_minutes > 0 ? 'late' : 'present'; break;
+          case 'present':      key = 'present'; break;
           case 'half_day':     key = 'half_day'; break;
           case 'absent':       key = 'absent'; break;
           case 'on_leave':     key = 'on_leave'; break;
@@ -205,7 +213,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
       if (!key && isWeeklyOff(d, compliance)) key = 'week_off';
       if (!key) key = upcoming ? 'upcoming' : 'no_punch';
 
-      out[iso] = { key, meta, label: holiday, row };
+      out[iso] = { key, meta, label: holiday, row, timing };
     }
     return out;
   }, [days, dayRows, holidays, compliance]);
@@ -216,13 +224,20 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
     return c;
   }, [map]);
 
+  /** Days marked present/half-day that still carry a late or early-out flag. */
+  const timingFlagged = useMemo(
+    () => Object.values(map).filter(v => v.timing && (v.key === 'present' || v.key === 'half_day')).length,
+    [map],
+  );
+
   const selectedRec = selected ? map[selected] : null;
   const attendanceRate = useMemo(() => {
     const totalCounted =
-      (counts.present || 0) + (counts.late || 0) + (counts.half_day || 0) + (counts.absent || 0);
+      (counts.present || 0) + (counts.half_day || 0) + (counts.absent || 0);
     if (!totalCounted) return 0;
-    const good = (counts.present || 0) + (counts.late || 0) + (counts.half_day || 0) * 0.5;
+    const good = (counts.present || 0) + (counts.half_day || 0) * 0.5;
     return Math.round((good / totalCounted) * 100);
+
   }, [counts]);
 
   const goToday = () => {

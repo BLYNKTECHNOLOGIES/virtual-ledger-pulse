@@ -180,6 +180,60 @@ async function fetchRegularization(): Promise<UnifiedRequest[]> {
   });
 }
 
+/* --------------------------- Bank change --------------------------- */
+
+function bankChangeStage(status: string): RequestStage {
+  switch (status) {
+    case "pending":
+      return "awaiting_hr";
+    case "pending_razorpay":
+    case "razorpay_failed":
+      return "awaiting_payroll";
+    case "approved":
+      return "approved";
+    case "rejected":
+      return "rejected";
+    case "cancelled":
+      return "cancelled";
+    default:
+      return "other";
+  }
+}
+
+async function fetchBankChange(): Promise<UnifiedRequest[]> {
+  const { data, error } = await (supabase as any)
+    .from("hr_bank_change_requests")
+    .select("*, hr_employees!hr_bank_change_requests_employee_id_fkey(badge_id, first_name, last_name, email)")
+    .order("created_at", { ascending: false })
+    .limit(1000);
+  if (error) throw error;
+
+  return ((data as any[]) || []).map((r) => {
+    const stage = bankChangeStage(r.status);
+    return {
+      key: `bank_change:${r.id}`,
+      id: r.id,
+      type: "bank_change",
+      typeLabel: "Bank account change",
+      employeeId: r.employee_id,
+      employeeName: employeeName(r.hr_employees),
+      badgeId: r.hr_employees?.badge_id || null,
+      subject: `${r.bank_name} · ****${String(r.account_number || "").slice(-4)} · ${String(r.ifsc_code || "").toUpperCase()}`,
+      detail: r.employee_note || r.hr_notes || null,
+      periodFrom: null,
+      periodTo: null,
+      rawStatus: r.status,
+      stage,
+      statusLabel: r.status === "razorpay_failed" ? "RazorpayX not confirmed" : STAGE_LABEL[stage],
+      createdAt: r.created_at,
+      updatedAt: r.updated_at || null,
+      sourcePath: "/hrms/requests?type=bank_change",
+      sourceLabel: "Bank change requests",
+      raw: r,
+    } as UnifiedRequest;
+  });
+}
+
 /* ------------------------------ Registry ------------------------------ */
 
 export interface RequestSource {

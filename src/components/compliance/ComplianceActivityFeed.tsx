@@ -239,37 +239,66 @@ export function ComplianceActivityFeed() {
                           navigate(link);
                         }
                       }}
-                      className={`flex items-start gap-3 rounded-md px-2 py-2 hover:bg-muted/40 ${
+                      className={`group/row grid grid-cols-[1.75rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 rounded-lg border border-transparent px-2 py-2.5 hover:border-border hover:bg-muted/40 ${
                         clickable ? "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring" : ""
                       }`}
                     >
                       <span className={`mt-0.5 h-7 w-7 shrink-0 rounded-md flex items-center justify-center ${meta.cls}`}>
                         <ActionIcon className="h-3.5 w-3.5" strokeWidth={1.75} />
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <span className="text-sm text-foreground font-medium truncate max-w-full">{e.title}</span>
-                          <Badge variant="outline" className="text-[10px] gap-1 font-normal">
+
+                      <div className="min-w-0">
+                        {/* Line 1 — what area + what happened */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className="text-[10px] gap-1 font-normal shrink-0">
                             <SrcIcon className="h-3 w-3" /> {SOURCE_META[e.source]?.label ?? e.source}
                           </Badge>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${meta.cls}`}>{meta.label}</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">
+                            {format(parseISO(e.at), "HH:mm")}
+                          </span>
                         </div>
-                        {e.subtitle && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{e.subtitle}</p>
+
+                        {/* Line 2 — the record */}
+                        <p className="text-sm text-foreground font-medium mt-1 break-words">{e.title}</p>
+
+                        {/* Line 3 — status facts as discrete pills */}
+                        {subtitleParts.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1 mt-1">
+                            {subtitleParts.map((part, pi) => (
+                              <span
+                                key={pi}
+                                className="text-[10px] uppercase tracking-wide text-muted-foreground bg-muted rounded px-1.5 py-0.5"
+                              >
+                                {part}
+                              </span>
+                            ))}
+                          </div>
                         )}
+                        {freeText && (
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{freeText}</p>
+                        )}
+
                         {e.action === "UPDATE" && e.fields.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-1">
                             Changed: <span className="text-foreground/80">{e.fields.slice(0, 6).map(prettyField).join(", ")}</span>
                             {e.fields.length > 6 ? ` +${e.fields.length - 6} more` : ""}
                           </p>
                         )}
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {meta.label} by {e.actor} · {format(parseISO(e.at), "HH:mm")} · {formatDistanceToNow(parseISO(e.at), { addSuffix: true })}
+
+                        {/* Inline document review — glance without opening the case */}
+                        <InlineAttachmentStrip urls={e.attachments} />
+
+                        <p className="text-[11px] text-muted-foreground mt-1.5">
+                          {e.actor} · {formatDistanceToNow(parseISO(e.at), { addSuffix: true })}
                         </p>
                       </div>
+
                       {clickable && (
-                        <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground" />
+                        <ChevronRight className="h-4 w-4 shrink-0 self-center text-muted-foreground group-hover/row:text-foreground" />
                       )}
                     </li>
+
                   );
                 })}
               </ul>

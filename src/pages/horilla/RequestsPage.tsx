@@ -254,17 +254,9 @@ export default function RequestsPage() {
         description={selected ? `${selected.employeeName}${selected.badgeId ? ` · ${selected.badgeId}` : ""}` : undefined}
         contentClassName="max-w-lg"
         footer={
-          selected ? (
-            <>
-              <Button variant="outline" onClick={() => setSelected(null)}>Close</Button>
-              {selected.type !== "bank_change" && (
-                <Button onClick={() => navigate(selected.sourcePath)}>
-                  <ExternalLink className="h-4 w-4 mr-2" /> Review in {selected.sourceLabel}
-                </Button>
-              )}
-            </>
-          ) : null
+          selected ? <Button variant="outline" onClick={() => setSelected(null)}>Close</Button> : null
         }
+
       >
         {selected && (
           <div className="space-y-3 text-sm">

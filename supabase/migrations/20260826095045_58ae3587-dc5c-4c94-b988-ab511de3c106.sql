@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.get_counterparty_completed_order_count(text, text, uuid, text) TO service_role;

@@ -504,36 +504,52 @@ export function useCounterpartyBinanceStats(
 // counts belonging to other people.
 export function useCounterpartyCompletedOrderCount(
   currentOrderNumber?: string,
-  exchangeAccountId?: string | null
+  exchangeAccountId?: string | null,
+  verifiedName?: string | null
 ) {
   return useQuery({
-    queryKey: ['counterparty-completed-count', currentOrderNumber, exchangeAccountId],
+    queryKey: ['counterparty-completed-count', currentOrderNumber, exchangeAccountId, verifiedName],
     queryFn: async () => {
       const { supabase } = await import('@/integrations/supabase/client');
+      const orderNumber = currentOrderNumber?.trim();
+      if (!orderNumber) return { count: 0, resolved: false };
 
       // Resolve the counterparty's authoritative Binance userNo. cp_order_identity
-      // is populated asynchronously by resolve-order-userno; for freshly opened
-      // active orders it may not exist yet, in which case the RPC also falls back
-      // to binance_order_history if the order has already synced there.
+      // is populated asynchronously; for freshly opened active orders force one
+      // live resolution pass first so the UI does not show a misleading zero from
+      // masked history rows.
       const { data: identity } = await supabase
         .from('cp_order_identity')
         .select('cp_userno')
-        .eq('order_number', currentOrderNumber!)
+        .eq('order_number', orderNumber)
         .maybeSingle();
 
-      const cpUserNo = (identity as any)?.cp_userno ?? null;
+      let cpUserNo = (identity as any)?.cp_userno ?? null;
 
-      // Server-side count. The RPC resolves the counterparty (non-self side) and
+      if (!cpUserNo) {
+        const { data: resolved } = await supabase.functions.invoke('resolve-order-userno', {
+          body: {
+            order_number: orderNumber,
+            exchange_account_id: exchangeAccountId ?? null,
+          },
+        });
+        cpUserNo = (resolved as any)?.cp_userno ?? null;
+      }
+
+      // Server-side count. The function resolves the counterparty (non-self side) and
       // counts COMPLETED orders where they acted as EITHER the ad merchant or the
       // taker — the raw takerUserNo-only match previously missed most orders and
       // returned 0 for active orders not yet in history.
-      const { data, error } = await supabase.rpc('get_counterparty_completed_order_count', {
-        p_order_number: currentOrderNumber!,
-        p_cp_userno: cpUserNo,
-        p_exchange_account_id: exchangeAccountId ?? null,
+      const { data, error } = await supabase.functions.invoke('counterparty-completed-count', {
+        body: {
+          order_number: orderNumber,
+          cp_userno: cpUserNo,
+          exchange_account_id: exchangeAccountId ?? null,
+          verified_name: verifiedName ?? null,
+        },
       });
       if (error) throw error;
-      return { count: (data as number) ?? 0, resolved: !!cpUserNo };
+      return { count: Number((data as any)?.count) || 0, resolved: !!cpUserNo };
     },
     enabled: !!currentOrderNumber,
     staleTime: 30 * 1000,

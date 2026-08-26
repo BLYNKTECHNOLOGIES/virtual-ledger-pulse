@@ -21,6 +21,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-08-26: Terminal counterparty completed-order count repaired — order detail now resolves Binance userNo before counting local completed history; masked active-order rows no longer show false zero.
 - 2026-08-25: Super Admin UI access repaired — frontend permission caches/gates/sidebar/Terminal auth now treat Admin/Super Admin as full-access bypasses, matching database `admin_access`/`super_admin_access` semantics.
 - 2026-08-25: ERP permission library Phase 4 shipped — Terminal permissions moved into a shared catalog for auth/role-editor/verification parity while Terminal database grants and role behaviour remain unchanged.
 - 2026-08-25: ERP permission library hygiene completed — permission drift checker now validates ERP/Terminal source usages; catalogs verified against live `app_permission` and `terminal_permission` enums with no missing enum-backed keys.

@@ -27972,6 +27972,7 @@ export type Database = {
           p_cp_userno?: string
           p_exchange_account_id?: string
           p_order_number: string
+          p_verified_name?: string
         }
         Returns: number
       }

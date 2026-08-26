@@ -12,12 +12,15 @@ import { HelpAssistantFab } from "./HelpAssistantFab";
 import { TransactionDetailDialog } from "./transaction-detail";
 import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
 import { useIsStandby } from "@/hooks/useIsStandby";
-
+import { useRef } from "react";
+import { useSidebarScrollCollapse } from "@/hooks/useSidebarScrollCollapse";
 
 
 function MainWorkArea({ children }: { children: React.ReactNode }) {
+  const scrollRef = useRef<HTMLElement>(null);
+  useSidebarScrollCollapse(scrollRef);
   return (
-    <main className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
+    <main ref={scrollRef} className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
       {children}
     </main>
   );

@@ -576,11 +576,17 @@ function DayCell({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="space-y-1.5 text-[11px] leading-snug">
-          <div className="flex items-center gap-2">
-            <span className={cn('h-2 w-2 rounded-full shrink-0', legend.dot)} />
-            <span className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</span>
+          <div className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</div>
+          <div
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-bold',
+              legend.cell,
+              legend.text,
+            )}
+          >
+            <Icon className="h-3 w-3 shrink-0" />
+            {legend.label}
           </div>
-          <div className={cn('font-semibold', legend.text)}>{legend.label}</div>
 
           {rec.label && <div className="text-sky-600 dark:text-sky-300">{rec.label}</div>}
 
@@ -601,13 +607,22 @@ function DayCell({
             </div>
           )}
 
-          {row && ((row.late_minutes ?? 0) > 0 || (row.early_minutes ?? 0) > 0) && (
-            <div className="tabular-nums text-warning">
-              {(row.late_minutes ?? 0) > 0 && `Late ${row.late_minutes}m`}
-              {(row.late_minutes ?? 0) > 0 && (row.early_minutes ?? 0) > 0 && ' · '}
-              {(row.early_minutes ?? 0) > 0 && `Early out ${row.early_minutes}m`}
+          {rec.timing && (
+            <div className="rounded-md bg-warning/10 border border-warning/30 px-1.5 py-1 text-warning">
+              <div className="flex items-center gap-1 tabular-nums font-semibold">
+                <Timer className="h-3 w-3 shrink-0" />
+                {(row?.late_minutes ?? 0) > 0 && `Late ${row?.late_minutes}m`}
+                {(row?.late_minutes ?? 0) > 0 && (row?.early_minutes ?? 0) > 0 && ' · '}
+                {(row?.early_minutes ?? 0) > 0 && `Early out ${row?.early_minutes}m`}
+              </div>
+              {(rec.key === 'present' || rec.key === 'half_day') && (
+                <div className="text-muted-foreground">
+                  Still marked {legend.label.toLowerCase()} for this day
+                </div>
+              )}
             </div>
           )}
+
 
           {row && Number(row.lop_contribution ?? 0) > 0 && (
             <div className="text-destructive">LOP {Number(row.lop_contribution).toFixed(2)} day</div>

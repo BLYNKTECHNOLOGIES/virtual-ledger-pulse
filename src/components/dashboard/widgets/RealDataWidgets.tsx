@@ -1354,7 +1354,7 @@ export function UpcomingTasksWidget() {
 
       if (hasHrmsView) {
         const [{ count: pendingLeave }, { count: pendingOnboard }] = await Promise.all([
-          supabase.from('hr_leave_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('hr_leave_requests').select('id', { count: 'exact', head: true }).in('status', ['requested', 'manager_approved']),
           supabase.from('hr_employee_onboarding').select('id', { count: 'exact', head: true }).not('status', 'in', '("completed","cancelled")'),
         ]);
         items.push(

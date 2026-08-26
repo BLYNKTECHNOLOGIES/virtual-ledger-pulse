@@ -92,6 +92,7 @@ const AttendanceCalendarPage = lazy(() => import('./pages/horilla/AttendanceCale
 const AttendanceSummaryPage = lazy(() => import('./pages/horilla/AttendanceSummaryPage'));
 const BiometricDevicesPage = lazy(() => import('./pages/horilla/BiometricDevicesPage'));
 const AttendanceRegularizationPage = lazy(() => import('./pages/horilla/AttendanceRegularizationPage'));
+const HrmsRequestsPage = lazy(() => import('./pages/horilla/RequestsPage'));
 const AttendanceStaleSessionsPage = lazy(() => import('./pages/horilla/AttendanceStaleSessionsPage'));
 const AttendanceDayDetailPage = lazy(() => import('./pages/horilla/AttendanceDayDetailPage'));
 const AttendancePeriodLockPage = lazy(() => import('./pages/horilla/AttendancePeriodLockPage'));
@@ -812,7 +813,7 @@ const router = createBrowserRouter([
         { path: "attendance/policies", element: <Navigate to="/hrms/attendance/shifts" replace /> },
         { path: "attendance/punches", element: hrmsGate(["hrms_view", "hrms_manage"], <AttendancePunchesPage />) },
         { path: "attendance/monthly-hours", element: <Navigate to="/hrms/attendance/hours" replace /> },
-
+        { path: "requests", element: hrmsGate(["hrms_view", "hrms_manage"], <HrmsRequestsPage />) },
        { path: "attendance/regularization", element: hrmsGate(["hrms_view", "hrms_manage"], <AttendanceRegularizationPage />) },
        { path: "attendance/watchdog", element: <Navigate to="/hrms/attendance/stale-sessions" replace /> },
        { path: "attendance/stale-sessions", element: hrmsGate(["hrms_view", "hrms_manage"], <AttendanceStaleSessionsPage />) },

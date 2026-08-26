@@ -74,6 +74,7 @@ import MySecurityCard from '@/components/profile/MySecurityCard';
 import { AnnouncementsBanner } from '@/components/hrms/AnnouncementsBanner';
 import { UpcomingHolidaysCard } from '@/components/hrms/UpcomingHolidaysCard';
 import { CompensationHistory } from '@/components/hrms/CompensationHistory';
+import { BankChangeRequestCard } from '@/components/profile/BankChangeRequestCard';
 import { useCanonicalPayslips } from '@/hooks/hrms/usePayslips';
 import { formatDistanceToNow } from 'date-fns';
 import {

@@ -169,10 +169,10 @@ export function ComplianceActivityFeed() {
         </div>
 
         {sourceCounts.size > 0 && (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 sm:flex-wrap sm:overflow-visible [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <button
               onClick={() => setSource("all")}
-              className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+              className={`shrink-0 px-2.5 py-1 rounded-full text-xs border transition-colors ${
                 source === "all" ? "bg-primary/10 border-primary/40 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -182,7 +182,7 @@ export function ComplianceActivityFeed() {
               <button
                 key={key}
                 onClick={() => setSource(key)}
-                className={`px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                className={`shrink-0 px-2.5 py-1 rounded-full text-xs border transition-colors ${
                   source === key ? "bg-primary/10 border-primary/40 text-foreground" : "border-border text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -192,6 +192,7 @@ export function ComplianceActivityFeed() {
           </div>
         )}
       </CardHeader>
+
 
       <CardContent className="space-y-4">
         {isLoading && (

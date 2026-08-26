@@ -4,7 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock, AlertCircle } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock,
+  CheckCircle2, XCircle, Circle, PieChart, Palmtree, PartyPopper, Coffee, Timer,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,
@@ -27,7 +31,6 @@ type LegendKey =
   | 'present'
   | 'half_day'
   | 'absent'
-  | 'late'
   | 'on_leave'
   | 'holiday'
   | 'week_off'
@@ -36,66 +39,93 @@ type LegendKey =
 
 const LEGEND: Record<
   LegendKey,
-  { label: string; dot: string; cell: string; text: string; glow?: string }
+  {
+    label: string;
+    short: string;
+    hint?: string;
+    icon: LucideIcon;
+    dot: string;
+    cell: string;
+    text: string;
+    glow?: string;
+  }
 > = {
   present: {
     label: 'Present',
+    short: 'P',
+    hint: 'Marked present',
+    icon: CheckCircle2,
     dot: 'bg-emerald-500',
-    text: 'text-emerald-600 dark:text-emerald-300',
-    cell: 'bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border-emerald-500/40',
+    text: 'text-emerald-700 dark:text-emerald-300',
+    cell: 'bg-emerald-500/15 border-emerald-500/50',
     glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(16,185,129,0.35)]',
   },
   half_day: {
     label: 'Half Day',
-    dot: 'bg-amber-400',
+    short: '½',
+    hint: 'Half day credited',
+    icon: PieChart,
+    dot: 'bg-amber-500',
     text: 'text-amber-700 dark:text-amber-300',
-    cell: 'bg-gradient-to-br from-amber-400/25 to-amber-400/5 border-amber-400/50',
+    cell: 'bg-amber-500/20 border-amber-500/50',
     glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(251,191,36,0.35)]',
   },
   absent: {
     label: 'Absent',
+    short: 'A',
+    hint: 'Marked absent',
+    icon: XCircle,
     dot: 'bg-rose-500',
-    text: 'text-rose-600 dark:text-rose-300',
-    cell: 'bg-gradient-to-br from-rose-500/20 to-rose-500/5 border-rose-500/40',
+    text: 'text-rose-700 dark:text-rose-300',
+    cell: 'bg-rose-500/15 border-rose-500/50',
     glow: 'shadow-[0_0_0_1px_hsl(var(--background)),0_4px_14px_-2px_rgba(244,63,94,0.35)]',
-  },
-  late: {
-    label: 'Late',
-    dot: 'bg-orange-500',
-    text: 'text-orange-600 dark:text-orange-300',
-    cell: 'bg-gradient-to-br from-orange-500/20 to-orange-500/5 border-orange-500/40',
   },
   on_leave: {
     label: 'On Leave',
+    short: 'L',
+    hint: 'Approved leave',
+    icon: Palmtree,
     dot: 'bg-violet-500',
-    text: 'text-violet-600 dark:text-violet-300',
-    cell: 'bg-gradient-to-br from-violet-500/20 to-violet-500/5 border-violet-500/40',
+    text: 'text-violet-700 dark:text-violet-300',
+    cell: 'bg-violet-500/15 border-violet-500/50',
   },
   holiday: {
     label: 'Holiday',
+    short: 'H',
+    hint: 'Company holiday',
+    icon: PartyPopper,
     dot: 'bg-sky-500',
-    text: 'text-sky-600 dark:text-sky-300',
-    cell: 'bg-gradient-to-br from-sky-500/20 to-sky-500/5 border-sky-500/40',
+    text: 'text-sky-700 dark:text-sky-300',
+    cell: 'bg-sky-500/15 border-sky-500/50',
   },
   week_off: {
     label: 'Week Off',
+    short: 'W',
+    hint: 'Weekly off',
+    icon: Coffee,
     dot: 'bg-slate-400',
     text: 'text-muted-foreground',
-    cell: 'bg-muted/40 border-border',
+    cell: 'bg-muted/50 border-border',
   },
   no_punch: {
     label: 'No Punch',
+    short: '—',
+    hint: 'No punch recorded',
+    icon: Circle,
     dot: 'bg-muted-foreground/40',
     text: 'text-muted-foreground',
     cell: 'bg-background border-dashed border-border',
   },
   upcoming: {
     label: 'Upcoming',
+    short: '',
+    icon: Circle,
     dot: 'bg-transparent',
     text: 'text-muted-foreground/60',
     cell: 'bg-background border-border/40',
   },
 };
+
 
 export default function MyAttendanceCalendar({ employeeId }: Props) {
   const [cursor, setCursor] = useState(() => new Date());
@@ -140,7 +170,10 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
     );
     const today = startOfDay(new Date());
 
-    const out: Record<string, { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay }> = {};
+    const out: Record<
+      string,
+      { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay; timing?: 'late' | 'early' | 'both' | null }
+    > = {};
     for (const d of days) {
       const iso = format(d, 'yyyy-MM-dd');
       const holiday = holidayMap.get(iso);
@@ -149,18 +182,23 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
 
       let key: LegendKey | null = null;
       let meta: any = null;
+      let timing: 'late' | 'early' | 'both' | null = null;
       if (row) {
         meta = {
           first_in: row.first_in,
           last_out: row.last_out,
           net_work_minutes: row.worked_minutes,
           late_by_minutes: row.late_minutes,
+          early_by_minutes: row.early_minutes,
           total_hours: row.total_hours,
           lop_contribution: row.lop_contribution,
           watchdog_held: row.watchdog_held,
         };
+        const late = (row.late_minutes ?? 0) > 0;
+        const early = (row.early_minutes ?? 0) > 0;
+        timing = late && early ? 'both' : late ? 'late' : early ? 'early' : null;
         switch (row.status) {
-          case 'present':      key = row.late_minutes > 0 ? 'late' : 'present'; break;
+          case 'present':      key = 'present'; break;
           case 'half_day':     key = 'half_day'; break;
           case 'absent':       key = 'absent'; break;
           case 'on_leave':     key = 'on_leave'; break;
@@ -175,7 +213,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
       if (!key && isWeeklyOff(d, compliance)) key = 'week_off';
       if (!key) key = upcoming ? 'upcoming' : 'no_punch';
 
-      out[iso] = { key, meta, label: holiday, row };
+      out[iso] = { key, meta, label: holiday, row, timing };
     }
     return out;
   }, [days, dayRows, holidays, compliance]);
@@ -186,13 +224,20 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
     return c;
   }, [map]);
 
+  /** Days marked present/half-day that still carry a late or early-out flag. */
+  const timingFlagged = useMemo(
+    () => Object.values(map).filter(v => v.timing && (v.key === 'present' || v.key === 'half_day')).length,
+    [map],
+  );
+
   const selectedRec = selected ? map[selected] : null;
   const attendanceRate = useMemo(() => {
     const totalCounted =
-      (counts.present || 0) + (counts.late || 0) + (counts.half_day || 0) + (counts.absent || 0);
+      (counts.present || 0) + (counts.half_day || 0) + (counts.absent || 0);
     if (!totalCounted) return 0;
-    const good = (counts.present || 0) + (counts.late || 0) + (counts.half_day || 0) * 0.5;
+    const good = (counts.present || 0) + (counts.half_day || 0) * 0.5;
     return Math.round((good / totalCounted) * 100);
+
   }, [counts]);
 
   const goToday = () => {
@@ -316,13 +361,17 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
                   LEGEND[selectedRec.key].text,
                 )}
               >
-                <span className={cn('w-1.5 h-1.5 rounded-full', LEGEND[selectedRec.key].dot)} />
+                {(() => { const I = LEGEND[selectedRec.key].icon; return <I className="h-3 w-3 shrink-0" />; })()}
                 {LEGEND[selectedRec.key].label}
               </span>
             </div>
+            {LEGEND[selectedRec.key].hint && (
+              <p className="text-[11px] text-muted-foreground">{LEGEND[selectedRec.key].hint}</p>
+            )}
             {selectedRec.meta?.name && (
               <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">{selectedRec.meta.name}</p>
             )}
+
             {(selectedRec.meta?.first_in || selectedRec.meta?.check_in) && (
               <div className="grid grid-cols-3 gap-2 mt-2">
                 <div className="rounded-lg bg-background/60 border border-border/50 p-2">
@@ -357,27 +406,56 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
                 </div>
               </div>
             )}
-            {(selectedRec.meta?.late_by_minutes > 0 || selectedRec.meta?.late_minutes > 0) && (
-              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 rounded-md px-2 py-1">
-                <AlertCircle className="h-3 w-3 shrink-0" />
-                Late by {selectedRec.meta.late_by_minutes || selectedRec.meta.late_minutes} min
+            {selectedRec.timing && (
+              <div className="mt-2 flex items-start gap-1.5 text-[11px] text-warning bg-warning/10 border border-warning/30 rounded-md px-2 py-1">
+                <Timer className="h-3 w-3 shrink-0 mt-0.5" />
+                <span>
+                  {[
+                    (selectedRec.meta?.late_by_minutes ?? 0) > 0 && `Late by ${selectedRec.meta.late_by_minutes} min`,
+                    (selectedRec.meta?.early_by_minutes ?? 0) > 0 && `Early out by ${selectedRec.meta.early_by_minutes} min`,
+                  ].filter(Boolean).join(' · ')}
+                  {(selectedRec.key === 'present' || selectedRec.key === 'half_day') && (
+                    <span className="text-muted-foreground">
+                      {' '}— still marked {LEGEND[selectedRec.key].label.toLowerCase()} for the day
+                    </span>
+                  )}
+                </span>
               </div>
             )}
           </div>
         )}
 
         {/* Legend */}
-        <div className="pt-2 border-t border-border/60">
+        <div className="pt-2 border-t border-border/60 space-y-2">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-2">
-            {(Object.keys(LEGEND) as LegendKey[]).filter(k => k !== 'upcoming').map(k => (
-              <div key={k} className="flex items-center gap-2 text-[11px]">
-                <span className={cn('w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-background', LEGEND[k].dot)} />
-                <span className="text-muted-foreground truncate">{LEGEND[k].label}</span>
-                <span className="ml-auto text-foreground font-bold tabular-nums">{counts[k] || 0}</span>
-              </div>
-            ))}
+            {(Object.keys(LEGEND) as LegendKey[]).filter(k => k !== 'upcoming').map(k => {
+              const I = LEGEND[k].icon;
+              return (
+                <div key={k} className="flex items-center gap-1.5 text-[11px]">
+                  <span
+                    className={cn(
+                      'h-4 w-4 rounded-md border shrink-0 flex items-center justify-center',
+                      LEGEND[k].cell,
+                      LEGEND[k].text,
+                    )}
+                  >
+                    <I className="h-2.5 w-2.5" />
+                  </span>
+                  <span className="text-muted-foreground truncate">{LEGEND[k].label}</span>
+                  <span className="ml-auto text-foreground font-bold tabular-nums">{counts[k] || 0}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] rounded-md bg-warning/10 border border-warning/25 px-2 py-1">
+            <Timer className="h-3 w-3 shrink-0 text-warning" />
+            <span className="text-muted-foreground">
+              Amber corner mark = late in / early out, but the day is still counted by its status colour
+            </span>
+            <span className="ml-auto text-foreground font-bold tabular-nums">{timingFlagged}</span>
           </div>
         </div>
+
       </div>
     </Card>
   );
@@ -424,7 +502,7 @@ function DayCell({
   iso: string;
   date: Date;
   idx: number;
-  rec: { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay };
+  rec: { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay; timing?: 'late' | 'early' | 'both' | null };
   legend: (typeof LEGEND)[LegendKey];
   isToday: boolean;
   isSelected: boolean;
@@ -435,6 +513,12 @@ function DayCell({
   const inT = fmtIST(row?.first_in);
   const outT = fmtIST(row?.last_out);
   const outNextDay = !!(row?.last_out && istDateOf(row.last_out) !== iso);
+  const Icon = legend.icon;
+  const timingText =
+    rec.timing === 'both' ? 'late in and early out'
+    : rec.timing === 'late' ? 'late in'
+    : rec.timing === 'early' ? 'early out'
+    : null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -453,7 +537,7 @@ function DayCell({
           style={{ animationDelay: `${idx * 12}ms` }}
           className={cn(
             'group relative aspect-square rounded-xl border text-[11px] md:text-xs font-semibold',
-            'flex flex-col items-center justify-center gap-1',
+            'flex flex-col items-center justify-center gap-0.5',
             'transition-all duration-300 ease-out will-change-transform',
             'hover:-translate-y-0.5 hover:scale-[1.04] active:scale-95',
             'animate-fade-in',
@@ -462,20 +546,28 @@ function DayCell({
             today && !isSelected && 'ring-2 ring-primary/70 ring-offset-1 ring-offset-background',
             isSelected && cn('scale-[1.08] ring-2 ring-primary z-10', legend.glow),
           )}
-          aria-label={`${format(date, 'EEE, MMM d')} — ${legend.label}`}
+          aria-label={`${format(date, 'EEE, MMM d')} — ${legend.label}${timingText ? ` (${timingText})` : ''}`}
         >
           <span className="tabular-nums leading-none text-[12px] md:text-[13px]">{date.getDate()}</span>
-          <span
-            className={cn(
-              'w-1.5 h-1.5 rounded-full transition-transform',
-              legend.dot,
-              isSelected && 'scale-150 animate-pulse',
-            )}
-          />
+          {rec.key !== 'upcoming' && (
+            <span className="flex items-center gap-0.5 leading-none">
+              <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" />
+              <span className="text-[9px] md:text-[10px] font-bold leading-none">{legend.short}</span>
+            </span>
+          )}
+          {rec.timing && (
+            <span
+              className="absolute bottom-0.5 right-0.5 flex items-center justify-center h-3 w-3 rounded-full bg-warning/25 text-warning ring-1 ring-warning/50"
+              title={`Marked ${legend.label} — ${timingText}`}
+            >
+              <Timer className="h-2 w-2" />
+            </span>
+          )}
           {today && (
             <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-primary animate-pulse" />
           )}
         </button>
+
       </PopoverTrigger>
       <PopoverContent
         side="top"
@@ -484,11 +576,17 @@ function DayCell({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <div className="space-y-1.5 text-[11px] leading-snug">
-          <div className="flex items-center gap-2">
-            <span className={cn('h-2 w-2 rounded-full shrink-0', legend.dot)} />
-            <span className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</span>
+          <div className="font-semibold text-foreground">{format(date, 'EEE, dd MMM yyyy')}</div>
+          <div
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 font-bold',
+              legend.cell,
+              legend.text,
+            )}
+          >
+            <Icon className="h-3 w-3 shrink-0" />
+            {legend.label}
           </div>
-          <div className={cn('font-semibold', legend.text)}>{legend.label}</div>
 
           {rec.label && <div className="text-sky-600 dark:text-sky-300">{rec.label}</div>}
 
@@ -509,13 +607,22 @@ function DayCell({
             </div>
           )}
 
-          {row && ((row.late_minutes ?? 0) > 0 || (row.early_minutes ?? 0) > 0) && (
-            <div className="tabular-nums text-warning">
-              {(row.late_minutes ?? 0) > 0 && `Late ${row.late_minutes}m`}
-              {(row.late_minutes ?? 0) > 0 && (row.early_minutes ?? 0) > 0 && ' · '}
-              {(row.early_minutes ?? 0) > 0 && `Early out ${row.early_minutes}m`}
+          {rec.timing && (
+            <div className="rounded-md bg-warning/10 border border-warning/30 px-1.5 py-1 text-warning">
+              <div className="flex items-center gap-1 tabular-nums font-semibold">
+                <Timer className="h-3 w-3 shrink-0" />
+                {(row?.late_minutes ?? 0) > 0 && `Late ${row?.late_minutes}m`}
+                {(row?.late_minutes ?? 0) > 0 && (row?.early_minutes ?? 0) > 0 && ' · '}
+                {(row?.early_minutes ?? 0) > 0 && `Early out ${row?.early_minutes}m`}
+              </div>
+              {(rec.key === 'present' || rec.key === 'half_day') && (
+                <div className="text-muted-foreground">
+                  Still marked {legend.label.toLowerCase()} for this day
+                </div>
+              )}
             </div>
           )}
+
 
           {row && Number(row.lop_contribution ?? 0) > 0 && (
             <div className="text-destructive">LOP {Number(row.lop_contribution).toFixed(2)} day</div>

@@ -320,9 +320,10 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
 
         {canPost && (
           <div className="border-t border-border pt-4 space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
               <Select value={updateType} onValueChange={setUpdateType}>
-                <SelectTrigger className="w-[190px] text-foreground h-9">
+                <SelectTrigger className="min-w-0 flex-1 text-foreground h-9 sm:flex-none sm:w-[190px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -331,6 +332,18 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                   ))}
                 </SelectContent>
               </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  type="button"
+                  className="shrink-0 border-primary/40 text-primary hover:bg-primary/10"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={posting}
+                >
+                  <Paperclip className="h-4 w-4 mr-2" />
+                  Attach
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">Posting an update refreshes the case activity clock</p>
             </div>
             <Textarea
@@ -369,16 +382,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                 ))}
               </div>
             )}
-            <div className="flex items-center justify-between gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={posting}
-              >
-                <Paperclip className="h-4 w-4 mr-2" />
-                Attach documents
-              </Button>
+            <div className="flex items-center justify-end gap-2">
               <Button
                 size="sm"
                 onClick={postUpdate}

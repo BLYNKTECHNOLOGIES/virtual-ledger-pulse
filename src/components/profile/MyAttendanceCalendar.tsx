@@ -502,7 +502,7 @@ function DayCell({
   iso: string;
   date: Date;
   idx: number;
-  rec: { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay };
+  rec: { key: LegendKey; meta?: any; label?: string; row?: AttendanceDay; timing?: 'late' | 'early' | 'both' | null };
   legend: (typeof LEGEND)[LegendKey];
   isToday: boolean;
   isSelected: boolean;
@@ -513,6 +513,12 @@ function DayCell({
   const inT = fmtIST(row?.first_in);
   const outT = fmtIST(row?.last_out);
   const outNextDay = !!(row?.last_out && istDateOf(row.last_out) !== iso);
+  const Icon = legend.icon;
+  const timingText =
+    rec.timing === 'both' ? 'late in and early out'
+    : rec.timing === 'late' ? 'late in'
+    : rec.timing === 'early' ? 'early out'
+    : null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -531,7 +537,7 @@ function DayCell({
           style={{ animationDelay: `${idx * 12}ms` }}
           className={cn(
             'group relative aspect-square rounded-xl border text-[11px] md:text-xs font-semibold',
-            'flex flex-col items-center justify-center gap-1',
+            'flex flex-col items-center justify-center gap-0.5',
             'transition-all duration-300 ease-out will-change-transform',
             'hover:-translate-y-0.5 hover:scale-[1.04] active:scale-95',
             'animate-fade-in',
@@ -540,20 +546,28 @@ function DayCell({
             today && !isSelected && 'ring-2 ring-primary/70 ring-offset-1 ring-offset-background',
             isSelected && cn('scale-[1.08] ring-2 ring-primary z-10', legend.glow),
           )}
-          aria-label={`${format(date, 'EEE, MMM d')} — ${legend.label}`}
+          aria-label={`${format(date, 'EEE, MMM d')} — ${legend.label}${timingText ? ` (${timingText})` : ''}`}
         >
           <span className="tabular-nums leading-none text-[12px] md:text-[13px]">{date.getDate()}</span>
-          <span
-            className={cn(
-              'w-1.5 h-1.5 rounded-full transition-transform',
-              legend.dot,
-              isSelected && 'scale-150 animate-pulse',
-            )}
-          />
+          {rec.key !== 'upcoming' && (
+            <span className="flex items-center gap-0.5 leading-none">
+              <Icon className="h-2.5 w-2.5 md:h-3 md:w-3 shrink-0" />
+              <span className="text-[9px] md:text-[10px] font-bold leading-none">{legend.short}</span>
+            </span>
+          )}
+          {rec.timing && (
+            <span
+              className="absolute bottom-0.5 right-0.5 flex items-center justify-center h-3 w-3 rounded-full bg-warning/25 text-warning ring-1 ring-warning/50"
+              title={`Marked ${legend.label} — ${timingText}`}
+            >
+              <Timer className="h-2 w-2" />
+            </span>
+          )}
           {today && (
             <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-primary animate-pulse" />
           )}
         </button>
+
       </PopoverTrigger>
       <PopoverContent
         side="top"

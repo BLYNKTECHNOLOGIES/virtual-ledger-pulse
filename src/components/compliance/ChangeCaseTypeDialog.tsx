@@ -8,6 +8,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
+import {
+  type CaseDocumentField,
+  CASE_DOCUMENT_FIELDS,
+  uploadCaseDocumentFiles,
+  uniqueCaseDocumentUrls,
+} from "@/lib/compliance-case-documents";
 
 export const CASE_TYPE_LABELS: Record<string, string> = {
   ACCOUNT_NOT_WORKING: "Account Not Working",
@@ -73,6 +79,7 @@ export const CASE_TYPE_FIELDS: Record<string, FieldSpec[]> = {
 };
 
 const MULTI_FILE_COLUMNS = new Set(["screenshots"]);
+const FILE_FIELD_KEYS = new Set<string>(CASE_DOCUMENT_FIELDS);
 
 function isBlank(value: unknown) {
   if (value === null || value === undefined) return true;
@@ -109,34 +116,26 @@ export function ChangeCaseTypeDialog({ open, onOpenChange, bankCase, newType }: 
     }
   }, [open, newType]);
 
-  const uploadFiles = async (list: File[]) => {
-    const urls: string[] = [];
-    for (const file of list) {
-      const ext = file.name.split(".").pop();
-      const path = `case-documents/${crypto.randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from("investigation-documents").upload(path, file);
-      if (error) {
-        toast.error(`Failed to upload ${file.name}`);
-        continue;
-      }
-      urls.push(supabase.storage.from("investigation-documents").getPublicUrl(path).data.publicUrl);
-    }
-    return urls;
-  };
-
   const mutation = useMutation({
     mutationFn: async () => {
       if (!bankCase || !newType) return;
 
       const payload: Record<string, any> = { case_type: newType };
       const captured: string[] = [];
+      const uploadedDocumentUrls: string[] = [];
 
       for (const field of missingFields) {
         if (field.kind === "file") {
           const list = files[field.key] || [];
           if (list.length === 0) continue;
-          const urls = await uploadFiles(list);
+          if (!FILE_FIELD_KEYS.has(field.key)) continue;
+          const urls = await uploadCaseDocumentFiles(
+            list,
+            field.key as CaseDocumentField,
+            bankCase.case_number || bankCase.id,
+          );
           if (urls.length === 0) continue;
+          uploadedDocumentUrls.push(...urls);
           payload[field.key] = MULTI_FILE_COLUMNS.has(field.key) ? urls : urls[0];
           captured.push(`${field.label}: ${urls.length} file(s)`);
           continue;
@@ -145,6 +144,13 @@ export function ChangeCaseTypeDialog({ open, onOpenChange, bankCase, newType }: 
         if (isBlank(raw)) continue;
         payload[field.key] = field.kind === "number" ? Number(raw) : raw;
         captured.push(`${field.label}: ${payload[field.key]}`);
+      }
+
+      if (uploadedDocumentUrls.length > 0) {
+        payload.documents_attached = uniqueCaseDocumentUrls([
+          ...((bankCase.documents_attached || []) as string[]),
+          ...uploadedDocumentUrls,
+        ]);
       }
 
       const { error } = await supabase.from("bank_cases").update(payload).eq("id", bankCase.id);
@@ -235,7 +241,7 @@ export function ChangeCaseTypeDialog({ open, onOpenChange, bankCase, newType }: 
                     <Input
                       id={field.key}
                       type="file"
-                      multiple={MULTI_FILE_COLUMNS.has(field.key)}
+                      multiple
                       accept="image/*,.pdf"
                       className="text-foreground"
                       onChange={(e) => setFiles((p) => ({ ...p, [field.key]: Array.from(e.target.files || []) }))}

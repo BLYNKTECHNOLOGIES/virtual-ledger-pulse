@@ -283,13 +283,18 @@ export default function RequestsPage() {
               <div className="pt-2 border-t border-border">
                 <BankChangeApprovalPanel request={selected.raw} />
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground pt-1">
-                Approvals are handled on the {selected.sourceLabel} page — this inbox and that page read the same records.
-              </p>
-            )}
+            ) : selected.type === "leave" ? (
+              <div className="pt-2 border-t border-border">
+                <LeaveApprovalPanel request={selected.raw} onDone={() => setSelected(null)} />
+              </div>
+            ) : selected.type === "regularization" ? (
+              <div className="pt-2 border-t border-border">
+                <RegularizationApprovalPanel request={selected.raw} onDone={() => setSelected(null)} />
+              </div>
+            ) : null}
           </div>
         )}
+
       </ResponsiveDialog>
     </div>
   );

@@ -4,7 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock, AlertCircle } from 'lucide-react';
+import {
+  ChevronLeft, ChevronRight, CalendarDays, Sparkles, LogIn, LogOut, Clock, AlertCircle,
+  CheckCircle2, XCircle, Circle, PieChart, Palmtree, PartyPopper, Coffee, Timer,
+  type LucideIcon,
+} from 'lucide-react';
 import {
   startOfMonth,
   endOfMonth,

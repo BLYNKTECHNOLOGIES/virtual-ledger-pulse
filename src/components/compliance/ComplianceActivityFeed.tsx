@@ -227,6 +227,12 @@ export function ComplianceActivityFeed() {
                   const ActionIcon = meta.icon;
                   const link = buildComplianceLink(e.source, e.record_id);
                   const clickable = Boolean(link) && e.action !== "DELETE";
+                  // "OPEN · MEDIUM" style facts become pills; free-form notes stay as text.
+                  const rawParts = (e.subtitle ?? "").split("·").map((p) => p.trim()).filter(Boolean);
+                  const isFact = (p: string) => p.length <= 28 && !/\s{2,}/.test(p) && p.split(" ").length <= 3;
+                  const subtitleParts = rawParts.every(isFact) ? rawParts : [];
+                  const freeText = subtitleParts.length === 0 ? (e.subtitle ?? "") : "";
+
                   return (
                     <li
                       key={`${e.record_id}-${e.at}-${i}`}

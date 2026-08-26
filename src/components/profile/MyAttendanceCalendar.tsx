@@ -361,13 +361,17 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
                   LEGEND[selectedRec.key].text,
                 )}
               >
-                <span className={cn('w-1.5 h-1.5 rounded-full', LEGEND[selectedRec.key].dot)} />
+                {(() => { const I = LEGEND[selectedRec.key].icon; return <I className="h-3 w-3 shrink-0" />; })()}
                 {LEGEND[selectedRec.key].label}
               </span>
             </div>
+            {LEGEND[selectedRec.key].hint && (
+              <p className="text-[11px] text-muted-foreground">{LEGEND[selectedRec.key].hint}</p>
+            )}
             {selectedRec.meta?.name && (
               <p className="text-xs text-sky-600 dark:text-sky-300 font-medium">{selectedRec.meta.name}</p>
             )}
+
             {(selectedRec.meta?.first_in || selectedRec.meta?.check_in) && (
               <div className="grid grid-cols-3 gap-2 mt-2">
                 <div className="rounded-lg bg-background/60 border border-border/50 p-2">

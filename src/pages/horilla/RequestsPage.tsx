@@ -24,6 +24,7 @@ import {
 const STAGE_STYLE: Record<RequestStage, string> = {
   awaiting_manager: "bg-warning/10 text-warning border-warning/30",
   awaiting_hr: "bg-primary/10 text-primary border-primary/30",
+  awaiting_payroll: "bg-warning/10 text-warning border-warning/30",
   approved: "bg-success/10 text-success border-success/30",
   rejected: "bg-destructive/10 text-destructive border-destructive/30",
   cancelled: "bg-muted text-muted-foreground border-border",
@@ -39,7 +40,7 @@ function StageBadge({ stage }: { stage: RequestStage }) {
 }
 
 function TypeIcon({ type }: { type: string }) {
-  const Icon = type === "leave" ? CalendarDays : Clock;
+  const Icon = type === "leave" ? CalendarDays : type === "bank_change" ? Landmark : Clock;
   return <Icon className="h-4 w-4 text-muted-foreground shrink-0" />;
 }
 

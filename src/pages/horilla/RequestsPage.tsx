@@ -172,9 +172,10 @@ export default function RequestsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={stage} onValueChange={setStage}>
+        <Select value={stage} onValueChange={setStageFilter}>
           <SelectTrigger className="h-9 sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="all">All statuses</SelectItem>
             {(Object.keys(STAGE_LABEL) as RequestStage[]).map((s) => (
               <SelectItem key={s} value={s}>{STAGE_LABEL[s]}</SelectItem>

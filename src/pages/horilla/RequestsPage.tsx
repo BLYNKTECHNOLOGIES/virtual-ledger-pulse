@@ -80,6 +80,9 @@ export default function RequestsPage() {
     }
   }, [deepLinkId, requests]);
 
+  const isPendingStage = (s: RequestStage) =>
+    s === "awaiting_hr" || s === "awaiting_manager" || s === "awaiting_payroll";
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const days = RANGE_DAYS[range];

@@ -142,12 +142,22 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
     }
   };
 
-  const handleViewDocument = (fileUrl: string) => {
-    void openStorageFile(fileUrl, CASE_DOCUMENT_BUCKET);
+  const handleViewDocument = async (fileUrl: string) => {
+    const resolved = await resolveStorageUrl(fileUrl, CASE_UPDATE_ATTACHMENT_BUCKET);
+    if (!resolved) {
+      toast.error('Could not open this document');
+      return;
+    }
+    window.open(resolved, '_blank', 'noopener');
   };
 
-  const handleDownloadDocument = (fileUrl: string) => {
-    void downloadStorageFile(fileUrl, getCaseDocumentFileName(fileUrl), CASE_DOCUMENT_BUCKET);
+  const handleDownloadDocument = async (fileUrl: string) => {
+    const resolved = await resolveStorageUrl(fileUrl, CASE_UPDATE_ATTACHMENT_BUCKET);
+    if (!resolved) {
+      toast.error('Could not download this document');
+      return;
+    }
+    await downloadStorageFile(fileUrl, getCaseDocumentFileName(fileUrl), CASE_UPDATE_ATTACHMENT_BUCKET);
   };
 
   const MAX_FILE_BYTES = 25 * 1024 * 1024;

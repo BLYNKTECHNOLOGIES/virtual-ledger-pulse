@@ -90,7 +90,8 @@ export default function RequestsPage() {
 
     return requests.filter((r) => {
       if (type !== "all" && r.type !== type) return false;
-      if (stage !== "all" && r.stage !== stage) return false;
+      if (stage !== "all" && stage !== "pending" && r.stage !== stage) return false;
+      if (stage === "pending" && !isPendingStage(r.stage)) return false;
       if (cutoff && new Date(r.createdAt).getTime() < cutoff) return false;
       if (q) {
         const hay = `${r.employeeName} ${r.badgeId || ""} ${r.subject} ${r.detail || ""} ${r.typeLabel}`.toLowerCase();

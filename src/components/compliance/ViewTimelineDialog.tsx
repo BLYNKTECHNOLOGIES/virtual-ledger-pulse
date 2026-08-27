@@ -9,7 +9,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { downloadStorageFile, openStorageFile } from "@/lib/storage-url";
+import { downloadStorageFile, resolveStorageUrl } from "@/lib/storage-url";
 import { CASE_UPDATE_ATTACHMENT_BUCKET, getCaseDocumentFileName, uniqueCaseDocumentUrls } from "@/lib/compliance-case-documents";
 
 

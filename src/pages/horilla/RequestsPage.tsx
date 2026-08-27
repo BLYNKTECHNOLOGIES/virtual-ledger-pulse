@@ -59,7 +59,7 @@ export default function RequestsPage() {
   const [params, setParams] = useSearchParams();
 
   const [type, setType] = useState(params.get("type") || "all");
-  const [stage, setStage] = useState<string>(params.get("stage") || "all");
+  const [stage, setStage] = useState<string>(params.get("stage") || "pending");
   const [range, setRange] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<UnifiedRequest | null>(null);

@@ -16,6 +16,7 @@ import {
   istTime,
 } from "./DayTileTooltip";
 import type { AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 
 
 type Props = {
@@ -83,6 +84,7 @@ export function AttendanceDayDialog({ open, onOpenChange, employeeId, employeeNa
       qc.invalidateQueries({ queryKey: ["hr_attendance_calendar"] });
       qc.invalidateQueries({ queryKey: ["hr_attendance_month"] });
       qc.invalidateQueries({ queryKey: ["hr_attendance"] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Could not update status"),
   });

@@ -20,6 +20,7 @@ import { sendRegularizationEmail, regCategoryLabel, regStageLabel } from '@/util
 import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { ResponsiveDialog } from '@/components/horilla/primitives/ResponsiveDialog';
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 
 /**
  * Attendance Regularization requests (HR review).
@@ -205,6 +206,7 @@ export default function AttendanceRegularizationPage() {
       toast.success('Forwarded to the reporting manager');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e?.message || 'Could not forward the request'),
   });
@@ -292,6 +294,7 @@ export default function AttendanceRegularizationPage() {
       setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason('');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) =>
       toast.error(e?.message || 'Failed', {

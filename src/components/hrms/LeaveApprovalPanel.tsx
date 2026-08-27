@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { CheckCircle, XCircle } from "lucide-react";
 import { sendLeaveEmail } from "@/utils/leaveEmail";
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 
 /**
  * Inline leave approve/reject panel.
@@ -77,6 +78,7 @@ export function LeaveApprovalPanel({ request, onDone }: { request: any; onDone?:
       qc.invalidateQueries({ queryKey: ["hrms_unified_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_requests"] });
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
+      invalidateAttendanceCaches(qc);
       toast.success(res.status === "approved" ? "Leave approved" : "Leave rejected");
       if (res?.noEmail) toast.warning("No email on record for this employee — notification not sent");
       else if (res?.emailFailures?.length) toast.warning(`Email not delivered: ${res.emailFailures[0]}`);

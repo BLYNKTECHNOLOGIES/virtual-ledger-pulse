@@ -12,6 +12,7 @@ import {
 import { CheckCircle2, XCircle, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendRegularizationEmail, regCategoryLabel } from '@/utils/regularizationEmail';
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 
 interface Props {
   employeeId: string; // logged-in employee (potential reporting manager)
@@ -71,6 +72,7 @@ export default function TeamRegularizationApprovals({ employeeId }: Props) {
     onSuccess: (_d, v) => {
       toast.success(v.approve ? 'Recommended for approval — sent back to HR' : 'Rejected — sent back to HR');
       qc.invalidateQueries({ queryKey: ['ess_team_reg_approvals', employeeId] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to update request'),
   });

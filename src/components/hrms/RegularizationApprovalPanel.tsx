@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, AlertTriangle, UserCheck } from "lucide-react";
 import { sendRegularizationEmail, regCategoryLabel } from "@/utils/regularizationEmail";
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 
 const REASON_CODES = [
   { value: "missed_punch", label: "Missed punch" },
@@ -66,6 +67,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
     qc.invalidateQueries({ queryKey: ["hrms_unified_requests"] });
     qc.invalidateQueries({ queryKey: ["reg_requests_hr"] });
     qc.invalidateQueries({ queryKey: ["intervention_log_recent"] });
+    invalidateAttendanceCaches(qc);
   };
 
   const pushToManager = useMutation({

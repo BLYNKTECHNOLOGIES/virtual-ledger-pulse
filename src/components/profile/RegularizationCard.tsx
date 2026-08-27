@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Plus, Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
 import {
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
   buildRegularizationWindow,
   validateRegularizationWindow,
 } from '@/lib/regularizationWindow';
@@ -103,6 +104,7 @@ export default function RegularizationCard({ employeeId }: Props) {
         reason: '',
       });
       qc.invalidateQueries({ queryKey: ['reg_requests_self', employeeId] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e.message || 'Failed to submit request'),
   });
@@ -118,6 +120,7 @@ export default function RegularizationCard({ employeeId }: Props) {
     onSuccess: () => {
       toast.success('Request cancelled');
       qc.invalidateQueries({ queryKey: ['reg_requests_self', employeeId] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e.message || 'Failed to cancel'),
   });

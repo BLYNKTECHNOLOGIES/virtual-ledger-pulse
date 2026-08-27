@@ -168,6 +168,29 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     return Math.floor((Date.now() - refPriceUpdatedAt) / 1000);
   }, [refPriceUpdatedAt]);
 
+  // ─── Live floating index ─────────────────────────────────────
+  // Binance recomputes a floating ad's price from its own INR index continuously.
+  // The ad row in the list is a snapshot and goes stale within seconds, so the
+  // index back-calculated from it (price / ratio) drifts and the preview shows a
+  // different rate than the one Binance applies on update. Pull the ad live.
+  const {
+    data: adDetailData,
+    isFetching: isFetchingAdDetail,
+    refetch: refetchAdDetail,
+    dataUpdatedAt: adDetailUpdatedAt,
+  } = useBinanceAdDetail(
+    open && isEditing && Number(editingAd?.priceType) === 2 ? String(editingAd?.advNo || '') : null,
+  );
+
+  const liveFloatingIndex = useMemo(() => {
+    const detail: any = (adDetailData as any)?.data ?? adDetailData;
+    const price = Number(detail?.price);
+    const ratio = Number(detail?.priceFloatingRatio);
+    if (!(price > 0) || !(ratio > 0)) return null;
+    return { index: price / (ratio / 100), price, ratio, at: adDetailUpdatedAt };
+  }, [adDetailData, adDetailUpdatedAt]);
+
+
   useEffect(() => {
     if (editingAd) {
       // Parse buyerRegDaysLimit: Binance returns -1 for disabled

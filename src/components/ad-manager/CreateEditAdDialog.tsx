@@ -183,7 +183,8 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   );
 
   const liveFloatingIndex = useMemo(() => {
-    const detail: any = (adDetailData as any)?.data ?? adDetailData;
+    const raw: any = adDetailData as any;
+    const detail: any = raw?.data?.data ?? raw?.data ?? raw;
     const price = Number(detail?.price);
     const ratio = Number(detail?.priceFloatingRatio);
     if (!(price > 0) || !(ratio > 0)) return null;

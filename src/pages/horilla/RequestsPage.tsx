@@ -59,7 +59,7 @@ export default function RequestsPage() {
   const [params, setParams] = useSearchParams();
 
   const [type, setType] = useState(params.get("type") || "all");
-  const [stage, setStage] = useState<string>(params.get("stage") || "all");
+  const [stage, setStage] = useState<string>(params.get("stage") || "pending");
   const [range, setRange] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<UnifiedRequest | null>(null);
@@ -80,6 +80,9 @@ export default function RequestsPage() {
     }
   }, [deepLinkId, requests]);
 
+  const isPendingStage = (s: RequestStage) =>
+    s === "awaiting_hr" || s === "awaiting_manager" || s === "awaiting_payroll";
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const days = RANGE_DAYS[range];
@@ -87,7 +90,8 @@ export default function RequestsPage() {
 
     return requests.filter((r) => {
       if (type !== "all" && r.type !== type) return false;
-      if (stage !== "all" && r.stage !== stage) return false;
+      if (stage !== "all" && stage !== "pending" && r.stage !== stage) return false;
+      if (stage === "pending" && !isPendingStage(r.stage)) return false;
       if (cutoff && new Date(r.createdAt).getTime() < cutoff) return false;
       if (q) {
         const hay = `${r.employeeName} ${r.badgeId || ""} ${r.subject} ${r.detail || ""} ${r.typeLabel}`.toLowerCase();
@@ -98,9 +102,7 @@ export default function RequestsPage() {
   }, [requests, type, stage, range, search]);
 
   const counts = useMemo(() => {
-    const pending = requests.filter(
-      (r) => r.stage === "awaiting_hr" || r.stage === "awaiting_manager" || r.stage === "awaiting_payroll",
-    ).length;
+    const pending = requests.filter((r) => isPendingStage(r.stage)).length;
     return { total: requests.length, pending };
   }, [requests]);
 
@@ -109,6 +111,14 @@ export default function RequestsPage() {
     const next = new URLSearchParams(params);
     if (v === "all") next.delete("type");
     else next.set("type", v);
+    setParams(next, { replace: true });
+  };
+
+  const setStageFilter = (v: string) => {
+    setStage(v);
+    const next = new URLSearchParams(params);
+    if (v === "pending") next.delete("stage");
+    else next.set("stage", v);
     setParams(next, { replace: true });
   };
 
@@ -162,9 +172,10 @@ export default function RequestsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={stage} onValueChange={setStage}>
+        <Select value={stage} onValueChange={setStageFilter}>
           <SelectTrigger className="h-9 sm:w-44"><SelectValue /></SelectTrigger>
           <SelectContent>
+            <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="all">All statuses</SelectItem>
             {(Object.keys(STAGE_LABEL) as RequestStage[]).map((s) => (
               <SelectItem key={s} value={s}>{STAGE_LABEL[s]}</SelectItem>

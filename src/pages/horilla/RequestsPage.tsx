@@ -114,6 +114,14 @@ export default function RequestsPage() {
     setParams(next, { replace: true });
   };
 
+  const setStageFilter = (v: string) => {
+    setStage(v);
+    const next = new URLSearchParams(params);
+    if (v === "pending") next.delete("stage");
+    else next.set("stage", v);
+    setParams(next, { replace: true });
+  };
+
   const openDetail = (r: UnifiedRequest) => setSelected(r);
 
   return (

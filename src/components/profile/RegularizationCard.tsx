@@ -10,8 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { Plus, Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
-import {
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
+import {
   buildRegularizationWindow,
   validateRegularizationWindow,
 } from '@/lib/regularizationWindow';

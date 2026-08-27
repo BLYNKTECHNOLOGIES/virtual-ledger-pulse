@@ -2,6 +2,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const CASE_DOCUMENT_BUCKET = "investigation-documents";
 
+/** Timeline update attachments are uploaded to this bucket as bare object paths. */
+export const CASE_UPDATE_ATTACHMENT_BUCKET = "kyc-documents";
+
 export const CASE_DOCUMENT_FIELD_LABELS = {
   screenshots: "Screenshots",
   proof_of_debit: "Proof of Debit",

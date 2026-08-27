@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { AdZone, ZONE_LABEL, adZone, zoneClassify, parseAvailableZones } from '@/lib/adZone';
@@ -167,6 +167,30 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     if (!refPriceUpdatedAt) return null;
     return Math.floor((Date.now() - refPriceUpdatedAt) / 1000);
   }, [refPriceUpdatedAt]);
+
+  // ─── Live floating index ─────────────────────────────────────
+  // Binance recomputes a floating ad's price from its own INR index continuously.
+  // The ad row in the list is a snapshot and goes stale within seconds, so the
+  // index back-calculated from it (price / ratio) drifts and the preview shows a
+  // different rate than the one Binance applies on update. Pull the ad live.
+  const {
+    data: adDetailData,
+    isFetching: isFetchingAdDetail,
+    refetch: refetchAdDetail,
+    dataUpdatedAt: adDetailUpdatedAt,
+  } = useBinanceAdDetail(
+    open && isEditing && Number(editingAd?.priceType) === 2 ? String(editingAd?.advNo || '') : null,
+  );
+
+  const liveFloatingIndex = useMemo(() => {
+    const raw: any = adDetailData as any;
+    const detail: any = raw?.data?.data ?? raw?.data ?? raw;
+    const price = Number(detail?.price);
+    const ratio = Number(detail?.priceFloatingRatio);
+    if (!(price > 0) || !(ratio > 0)) return null;
+    return { index: price / (ratio / 100), price, ratio, at: adDetailUpdatedAt };
+  }, [adDetailData, adDetailUpdatedAt]);
+
 
   useEffect(() => {
     if (editingAd) {
@@ -669,20 +693,39 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 </div>
                 {(() => {
                   const ratio = Number(form.priceFloatingRatio);
-                  // Back-calculate the index price Binance uses for floating ads
-                  // Index price = current ad price / (current ratio / 100)
-                  const editPrice = editingAd ? Number(editingAd.price) : 0;
-                  const editRatio = editingAd ? Number(editingAd.priceFloatingRatio) : 0;
-                  const indexPrice = (editPrice > 0 && editRatio > 0)
-                    ? editPrice / (editRatio / 100)
-                    : null;
+                  // Index price = ad price / (ratio / 100). Use the LIVE ad detail;
+                  // the list snapshot drifts and produced a wrong preview rate.
+                  const snapPrice = editingAd ? Number(editingAd.price) : 0;
+                  const snapRatio = editingAd ? Number(editingAd.priceFloatingRatio) : 0;
+                  const indexPrice = liveFloatingIndex?.index
+                    ?? ((snapPrice > 0 && snapRatio > 0) ? snapPrice / (snapRatio / 100) : null);
+                  const isLive = !!liveFloatingIndex;
 
                   if (indexPrice && ratio > 0) {
                     const effectivePrice = indexPrice * ratio / 100;
                     return (
-                      <p className="text-[11px] mt-1 text-muted-foreground">
-                        Pricing formula: ₹{indexPrice.toFixed(2)} × {ratio}% = <span className="font-medium text-foreground">₹{effectivePrice.toFixed(2)}</span>
-                      </p>
+                      <div className="text-[11px] mt-1 space-y-0.5">
+                        <p className="text-muted-foreground flex items-center gap-1 flex-wrap">
+                          Pricing formula: ₹{indexPrice.toFixed(2)} × {ratio}% = <span className="font-medium text-foreground">₹{effectivePrice.toFixed(2)}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            type="button"
+                            aria-label="Refresh live index"
+                            className="h-4 w-4"
+                            onClick={() => refetchAdDetail()}
+                            title="Refresh live index price from Binance"
+                          >
+                            <RefreshCw className={cn('h-3 w-3', isFetchingAdDetail && 'animate-spin')} />
+                          </Button>
+                        </p>
+                        {!isLive && (
+                          <p className="text-warning flex items-center gap-1">
+                            <AlertTriangle className="h-3 w-3" />
+                            Index taken from the cached ad row — Binance may apply a slightly different rate. Refresh to load the live index.
+                          </p>
+                        )}
+                      </div>
                     );
                   }
                   if (priceRange) {

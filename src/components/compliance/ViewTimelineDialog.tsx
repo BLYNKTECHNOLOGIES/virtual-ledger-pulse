@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { downloadStorageFile, openStorageFile } from "@/lib/storage-url";
-import { CASE_DOCUMENT_BUCKET, getCaseDocumentFileName, uniqueCaseDocumentUrls } from "@/lib/compliance-case-documents";
+import { CASE_UPDATE_ATTACHMENT_BUCKET, getCaseDocumentFileName, uniqueCaseDocumentUrls } from "@/lib/compliance-case-documents";
 
 
 import { usersDirectory } from "@/lib/usersDirectory";

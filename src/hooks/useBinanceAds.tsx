@@ -192,11 +192,13 @@ export function useBinanceAdsList(filters: AdFilters, options?: { refetchInterva
   });
 }
 
-export function useBinanceAdDetail(adsNo: string | null) {
+export function useBinanceAdDetail(adsNo: string | null, options?: { enabled?: boolean; staleTime?: number }) {
   return useQuery({
     queryKey: ['binance-ad-detail', adsNo],
     queryFn: () => callBinanceAds('getAdDetail', { adsNo }),
-    enabled: !!adsNo,
+    enabled: !!adsNo && options?.enabled !== false,
+    staleTime: options?.staleTime ?? 0,
+    refetchOnMount: 'always',
   });
 }
 

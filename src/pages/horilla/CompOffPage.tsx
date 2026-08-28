@@ -95,7 +95,11 @@ export default function CompOffPage() {
               )}
             </div>
             <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-full sm:w-24 h-9" min="2020" max="2030" />
+            <Button className="w-full sm:w-auto h-9" onClick={() => setGrantOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" /> Credit comp-off
+            </Button>
           </div>
+        }
         }
 
       />

@@ -14,6 +14,7 @@ import { CASE_UPDATE_ATTACHMENT_BUCKET, getCaseDocumentFileName, uniqueCaseDocum
 
 
 import { usersDirectory } from "@/lib/usersDirectory";
+import { useUserNames } from "@/hooks/useUserNames";
 interface TimelineUpdate {
   id: string;
   update_text: string;
@@ -266,7 +267,7 @@ export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps
                 <div className="absolute -left-2 top-0 w-4 h-4 bg-info rounded-full"></div>
                 <div className="bg-muted/50 p-3 rounded-md">
                   <div className="text-sm text-muted-foreground mb-1">
-                    {format(new Date(update.created_at), 'PPpp')} - {update.created_by}
+                    {format(new Date(update.created_at), 'PPpp')} - {nameFor(update.created_by, 'System')}
                     {update.update_type && update.update_type !== 'NOTE' && (
                       <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide">
                         {update.update_type.replace(/_/g, ' ')}

@@ -334,9 +334,6 @@ export function PurchaseOrderDetailsDialog({ open, onOpenChange, order }: Purcha
                 </label>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-sm font-medium">{creatorUser?.username || 'Loading...'}</p>
-                  <span className="text-[10px] text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded" title={order.created_by}>
-                    ID: {order.created_by.slice(0, 8)}
-                  </span>
                 </div>
               </div>
             )}

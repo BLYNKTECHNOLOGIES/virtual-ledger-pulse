@@ -667,7 +667,7 @@ export function InvestigationDetailsDialog({
                     )}
                     
                     <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(update.created_at).toLocaleDateString()} by {update.created_by}
+                      {new Date(update.created_at).toLocaleDateString()} by {nameFor(update.created_by, 'System')}
                     </p>
                   </div>
                 ))}

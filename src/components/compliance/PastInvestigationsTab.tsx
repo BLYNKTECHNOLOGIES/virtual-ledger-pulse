@@ -444,7 +444,7 @@ export function PastInvestigationsTab() {
                             <div className="flex justify-between items-start mb-2">
                               <div className="text-sm text-muted-foreground">
                                 {format(new Date(update.created_at), 'PPpp')}
-                                {update.created_by && ` - ${update.created_by}`}
+                                {update.created_by && ` - ${nameFor(update.created_by, 'System')}`}
                               </div>
                               <Badge variant="outline" className="text-xs">
                                 {update.update_type || 'UPDATE'}

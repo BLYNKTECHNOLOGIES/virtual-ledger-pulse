@@ -1,3 +1,4 @@
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 import { useState } from "react";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

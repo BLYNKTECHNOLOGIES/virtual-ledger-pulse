@@ -556,13 +556,14 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Order Number *</Label>
+              <Label>Order Number</Label>
               <Input
                 value={formData.order_number}
-                onChange={(e) => handleInputChange('order_number', e.target.value)}
-                required
+                readOnly
+                className="bg-muted font-mono text-xs"
               />
             </div>
+
 
             <div>
               <Label>Order Date & Time *</Label>

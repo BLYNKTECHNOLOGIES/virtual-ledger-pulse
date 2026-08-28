@@ -5,15 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Gift, Calendar, CheckCircle, Clock, X } from "lucide-react";
+import { Gift, Calendar, CheckCircle, Clock, X, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { GrantCompOffDialog } from "@/components/hrms/GrantCompOffDialog";
 
 export default function CompOffPage() {
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [employeeFilter, setEmployeeFilter] = useState<string>("");
+  const [grantOpen, setGrantOpen] = useState(false);
 
   const { data: credits = [], isLoading } = useQuery({
     queryKey: ["hr_compoff_credits", yearFilter],
@@ -59,7 +61,7 @@ export default function CompOffPage() {
   const openDays = filteredCredits
     .filter((c: any) => !c.settled_period_month)
     .reduce((s: number, c: any) => s + Number(c.credit_days), 0);
-  const sundayCount = filteredCredits.filter((c: any) => c.credit_type === "sunday").length;
+  const sundayCount = filteredCredits.filter((c: any) => c.credit_type === "sunday" || c.credit_type === "sunday_work").length;
   const holidayCount = filteredCredits.filter((c: any) => c.credit_type === "holiday").length;
 
   const selectedEmployee = employees.find((e: any) => e.id === employeeFilter);
@@ -93,10 +95,14 @@ export default function CompOffPage() {
               )}
             </div>
             <Input type="number" value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} className="w-full sm:w-24 h-9" min="2020" max="2030" />
+            <Button className="w-full sm:w-auto h-9" onClick={() => setGrantOpen(true)}>
+              <Plus className="h-4 w-4 mr-1.5" /> Credit comp-off
+            </Button>
           </div>
         }
-
       />
+
+      <GrantCompOffDialog employees={employees} open={grantOpen} onOpenChange={setGrantOpen} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
@@ -160,9 +166,13 @@ export default function CompOffPage() {
                     <TableCell className="tabular-nums">{c.credit_date}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                        c.credit_type === "sunday" ? "bg-info/10 text-info border-info/20" : "bg-warning/10 text-warning border-warning/20"
+                        c.credit_type === "holiday"
+                          ? "bg-warning/10 text-warning border-warning/20"
+                          : c.credit_type === "manual"
+                            ? "bg-primary/10 text-primary border-primary/20"
+                            : "bg-info/10 text-info border-info/20"
                       }`}>
-                        {c.credit_type === "sunday" ? "Sunday" : "Holiday"}
+                        {c.credit_type === "holiday" ? "Holiday" : c.credit_type === "manual" ? "Manual (HR)" : "Weekly off"}
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-success tabular-nums">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>

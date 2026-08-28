@@ -61,7 +61,7 @@ export default function CompOffPage() {
   const openDays = filteredCredits
     .filter((c: any) => !c.settled_period_month)
     .reduce((s: number, c: any) => s + Number(c.credit_days), 0);
-  const sundayCount = filteredCredits.filter((c: any) => c.credit_type === "sunday").length;
+  const sundayCount = filteredCredits.filter((c: any) => c.credit_type === "sunday" || c.credit_type === "sunday_work").length;
   const holidayCount = filteredCredits.filter((c: any) => c.credit_type === "holiday").length;
 
   const selectedEmployee = employees.find((e: any) => e.id === employeeFilter);

@@ -84,14 +84,7 @@ export function GrantCompOffDialog({ employees, open, onOpenChange }: Props) {
       }));
 
       const { error } = await (supabase as any).from("hr_compoff_credits").insert(rows);
-      if (error) {
-        if (String(error.code) === "23505" || /duplicate key/i.test(error.message || "")) {
-          throw new Error(
-            "One or more selected employees already have a comp-off credit on that date. Comp-off is limited to one credit per employee per date.",
-          );
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       toast.success(
         `Credited ${days} day${days > 1 ? "s" : ""} comp-off to ${selected.length} employee${selected.length > 1 ? "s" : ""}`,

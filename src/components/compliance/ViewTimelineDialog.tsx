@@ -41,6 +41,7 @@ interface ViewTimelineDialogProps {
 export function ViewTimelineDialog({ caseId, caseType }: ViewTimelineDialogProps) {
   const [open, setOpen] = useState(false);
   const [updates, setUpdates] = useState<TimelineUpdate[]>([]);
+  const { nameFor } = useUserNames(updates.map((u) => u.created_by));
   const [loading, setLoading] = useState(false);
   const [newUpdate, setNewUpdate] = useState("");
   const [updateType, setUpdateType] = useState("NOTE");

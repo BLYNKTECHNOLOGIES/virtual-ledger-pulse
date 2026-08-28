@@ -124,6 +124,8 @@ export function BankAccountManagement() {
     }
   });
 
+  const closedByNames = useUserNames((closedAccounts || []).map((a: any) => a.closed_by));
+
   // Fetch pending approval accounts
   const { data: pendingAccounts, isLoading: isLoadingPending } = useQuery({
     queryKey: ['pending_approval_accounts'],

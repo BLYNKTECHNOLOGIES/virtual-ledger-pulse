@@ -9,6 +9,7 @@ import { Eye, CheckCircle, Archive, Clock, FileText, Download, Calendar, AlertTr
 import { generateCompleteInvestigationPDF } from "@/utils/investigationPdfGenerator";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useUserNames } from "@/hooks/useUserNames";
 
 export function PastInvestigationsTab() {
   const [selectedInvestigation, setSelectedInvestigation] = useState<any>(null);
@@ -71,6 +72,8 @@ export function PastInvestigationsTab() {
     },
     enabled: !!selectedInvestigation?.id,
   });
+
+  const { nameFor } = useUserNames((investigationUpdates || []).map((u: any) => u.created_by));
 
   const handleViewDocument = async (fileUrl: string) => {
     try {

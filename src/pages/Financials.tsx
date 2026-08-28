@@ -96,14 +96,16 @@ export default function Financials() {
           .order('order_date', { ascending: true }));
 
       // Get OPERATING expenses from bank_transactions (excluding Purchase/Sales which are COGS/Revenue)
-      const operatingExpenses = await fetchAllPaginated<any>(() =>
+      const operatingExpensesRaw = await fetchAllPaginated<any>(() =>
         supabase
           .from('bank_transactions')
-          .select('amount, transaction_date, category')
+          .select('amount, transaction_date, category, description, reference_number')
           .eq('transaction_type', 'EXPENSE')
           .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Payment Gateway Settlement","Settlement")')
           .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
           .lte('transaction_date', format(endDate, 'yyyy-MM-dd')));
+      // Reversal / contra entries (incl. settlement reversals) are ledger corrections, not expenses.
+      const operatingExpenses = (operatingExpensesRaw || []).filter((t: any) => !isReversalTransaction(t));
 
 
       // Get bank balances (exclude audit/adjustment buckets)

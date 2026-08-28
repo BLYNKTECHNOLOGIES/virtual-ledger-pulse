@@ -290,15 +290,17 @@ export default function ProfitLoss() {
       // Fetch operating expenses (excluding core trading operations like Purchase/Sales,
       // and settlement-related entries — settlements/settlement reversals are part of the
       // sales cycle and are excluded from income, so they must be excluded from expenses too) — paginated
-      const expenseData = await fetchAllPaginated<any>(
+      const expenseDataRaw = await fetchAllPaginated<any>(
         () => supabase
           .from('bank_transactions')
-          .select('id, amount, category, description, transaction_date')
+          .select('id, amount, category, description, transaction_date, reference_number')
           .eq('transaction_type', 'EXPENSE')
           .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Payment Gateway Settlement","Settlement")')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr)
       );
+      // Reversal / contra entries (incl. settlement reversals) are ledger corrections, not expenses.
+      const expenseData = (expenseDataRaw || []).filter((t: any) => !isReversalTransaction(t));
 
       // Fetch operating income (excluding core trading operations and settlements which are part of sales cycle) — paginated
       const incomeData = await fetchAllPaginated<any>(

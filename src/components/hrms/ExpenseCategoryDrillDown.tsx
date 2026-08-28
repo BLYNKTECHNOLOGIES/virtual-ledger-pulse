@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileBarChart } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { openTransaction } from "@/components/transaction-detail";
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 
@@ -57,8 +58,11 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
         return q.order('transaction_date', { ascending: false }).order('id', { ascending: true });
       };
 
-      return await fetchAllPaginated<any>(buildQuery);
+      const rows = await fetchAllPaginated<any>(buildQuery);
+      // Reversal / contra entries are ledger corrections, not expenses.
+      return rows.filter((t) => !isReversalTransaction(t));
     },
+
     enabled: !!category,
   });
 

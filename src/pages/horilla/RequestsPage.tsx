@@ -74,23 +74,18 @@ export default function RequestsPage() {
   useEffect(() => {
     if (!deepLinkId || requests.length === 0) return;
     const hit = requests.find((r) => r.id === deepLinkId);
-    if (hit) {
-      setSelected(hit);
-      setStage("all");
-    }
+    // Open the request in the detail dialog, but never widen the list filter —
+    // the inbox must stay in Pending mode by default.
+    if (hit) setSelected(hit);
   }, [deepLinkId, requests]);
 
-  // Default mode must be "Pending" (awaiting HR / manager). If the URL has no
-  // explicit stage filter and no deep-link id, reset the UI back to pending.
-  // This prevents a stale "All statuses" selection from persisting when the
-  // user re-opens the inbox from the sidebar or another page.
+  // Default mode is always "Pending" (awaiting HR / manager / payroll) unless
+  // the URL explicitly carries a stage filter chosen by the user.
   useEffect(() => {
     const urlStage = params.get("stage");
-    const id = params.get("id");
-    if (!urlStage && !id && stage !== "pending") {
-      setStage("pending");
-    }
+    if (!urlStage && stage !== "pending") setStage("pending");
   }, [params]);
+
 
   const isPendingStage = (s: RequestStage) =>
     s === "awaiting_hr" || s === "awaiting_manager" || s === "awaiting_payroll";

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -315,7 +315,7 @@ export default function LeaveRequestsPage() {
               <td className="px-4 py-3"><ClashBadge request={r} /></td>
               <td className="px-4 py-3"><LeaveStatusBadge status={r.status} /></td>
               <td className="px-4 py-3 text-muted-foreground text-xs max-w-[120px] truncate">{r.reason || "—"}</td>
-              <td className="px-4 py-3"><LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} /></td>
+              <td className="px-4 py-3"><LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} /></td>
             </>
           )}
           renderCard={(r: any) => (
@@ -337,7 +337,7 @@ export default function LeaveRequestsPage() {
                 <span>Clashes</span><span><ClashBadge request={r} /></span>
                 <span>Reason</span><span>{r.reason || "—"}</span>
               </div>
-              <LeaveActions request={r} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />
+              <LeaveActions request={r} managerName={managerMap[r.manager_id]} statusMutation={statusMutation} onApprove={(req: any) => { setApproveTarget(req); setApproveTypeId(req.leave_type_id || ""); }} mobile />
             </div>
           )}
         />
@@ -571,11 +571,11 @@ function LeaveStatusBadge({ status }: { status?: string }) {
   );
 }
 
-function LeaveActions({ request, statusMutation, onApprove, mobile = false }: { request: any; statusMutation: any; onApprove: (r: any) => void; mobile?: boolean }) {
+function LeaveActions({ request, statusMutation, onApprove, mobile = false, managerName }: { request: any; statusMutation: any; onApprove: (r: any) => void; mobile?: boolean; managerName?: string }) {
   if (request.status === "requested") {
     return (
       <div className={mobile ? "grid grid-cols-2 gap-2 items-center" : "flex gap-1 items-center"}>
-        <span className="text-[11px] text-muted-foreground">Awaiting reporting manager</span>
+        <span className="text-[11px] text-muted-foreground">{managerName ? `Awaiting ${managerName}` : "Awaiting reporting manager"}</span>
         <Button size="sm" variant="ghost" className="text-destructive h-8" onClick={() => statusMutation.mutate({ id: request.id, status: "rejected", request })}>
           <XCircle className="h-4 w-4" />{mobile ? <span className="ml-1">Reject</span> : null}
         </Button>

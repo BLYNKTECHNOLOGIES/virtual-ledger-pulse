@@ -28312,13 +28312,6 @@ export type Database = {
           total_amount: number
         }[]
       }
-      get_user_display_names: {
-        Args: { _ids: string[] }
-        Returns: {
-          display_name: string
-          id: string
-        }[]
-      }
       get_user_min_hierarchy_level: {
         Args: { p_user_id: string }
         Returns: number

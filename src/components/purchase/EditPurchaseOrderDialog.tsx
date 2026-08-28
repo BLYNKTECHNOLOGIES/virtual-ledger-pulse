@@ -110,24 +110,6 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
   const [quantityInput, setQuantityInput] = useState('');
   const [pricePerUnitInput, setPricePerUnitInput] = useState('');
 
-  // Fetch employees for assignment
-  const { data: employees } = useQuery({
-    queryKey: ['hr_employees_assignment'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('hr_employees')
-        .select('id, first_name, last_name, badge_id')
-        .eq('is_active', true)
-        .order('first_name');
-      if (error) throw error;
-      return data?.map(e => ({
-        id: e.id,
-        name: `${e.first_name} ${e.last_name || ''}`.trim(),
-        employee_id: e.badge_id
-      }));
-    },
-    enabled: open,
-  });
 
   // Fetch products
   const { data: products } = useQuery({

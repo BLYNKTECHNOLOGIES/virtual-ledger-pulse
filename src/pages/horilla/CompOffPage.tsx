@@ -34,16 +34,18 @@ export default function CompOffPage() {
   });
 
   const { data: employees = [] } = useQuery({
-    queryKey: ["hr_employees", "compoff-filter"],
+    queryKey: ["hr_employees", "compoff-filter", "active"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_employees")
         .select("id, first_name, last_name, badge_id")
+        .eq("is_active", true)
         .order("first_name", { ascending: true });
       if (error) throw error;
       return data || [];
     },
   });
+
 
   // NOTE: comp-off credits are allocated to the leave balance automatically by the
   // database trigger `fn_allocate_compoff_credit` at INSERT time. A manual "allocate"

@@ -44,6 +44,24 @@ export default function LeaveRequestsPage() {
     },
   });
 
+  // Reporting-manager names for the requests currently on screen (manager_id
+  // has no FK, so it cannot be embedded in the request select).
+  const managerIds = useMemo(
+    () => Array.from(new Set((requests as any[]).map((r) => r.manager_id).filter(Boolean))),
+    [requests]
+  );
+  const { data: managerMap = {} } = useQuery({
+    queryKey: ["hr_leave_request_managers", managerIds],
+    enabled: managerIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_employees").select("id, first_name, last_name").in("id", managerIds);
+      const map: Record<string, string> = {};
+      (data || []).forEach((m: any) => { map[m.id] = `${m.first_name || ""} ${m.last_name || ""}`.trim(); });
+      return map;
+    },
+  });
+
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
     queryFn: async () => {
@@ -51,6 +69,7 @@ export default function LeaveRequestsPage() {
       return data || [];
     },
   });
+
 
   const { data: leaveTypes = [] } = useQuery({
     queryKey: ["hr_leave_types"],

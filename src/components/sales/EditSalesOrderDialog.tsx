@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { WalletSelector } from "@/components/stock/WalletSelector";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Minus, CheckCircle2, AlertCircle } from "lucide-react";
@@ -65,16 +65,21 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     enabled: open,
   });
 
-  // Fetch wallets for matching
-  const { data: wallets } = useQuery<{ id: string; wallet_name: string }[]>({
-    queryKey: ['wallets-for-edit'],
-    queryFn: async (): Promise<{ id: string; wallet_name: string }[]> => {
-      const { data, error } = await (supabase as any).from('wallets').select('id, wallet_name').eq('is_active', true);
+  // Wallets — active wallets plus this order's wallet (even if deactivated)
+  const orderWalletId = order?.wallet_id || order?.wallet?.id || '';
+  const { data: wallets } = useQuery<{ id: string; wallet_name: string; is_active: boolean }[]>({
+    queryKey: ['edit_order_wallets', orderWalletId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('wallets')
+        .select('id, wallet_name, is_active')
+        .order('wallet_name');
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((w: any) => w.is_active || w.id === orderWalletId);
     },
     enabled: open,
   });
+
 
   // Fetch payment methods
   const { data: paymentMethods } = useQuery({
@@ -551,13 +556,14 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Order Number *</Label>
+              <Label>Order Number</Label>
               <Input
                 value={formData.order_number}
-                onChange={(e) => handleInputChange('order_number', e.target.value)}
-                required
+                readOnly
+                className="bg-muted font-mono text-xs"
               />
             </div>
+
 
             <div>
               <Label>Order Date & Time *</Label>
@@ -643,22 +649,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               />
             </div>
 
-            <div>
-              <Label>Risk Level</Label>
-              <Select 
-                value={formData.risk_level} 
-                onValueChange={(value) => handleInputChange('risk_level', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select risk level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+
 
             <div>
               <Label>Payment Status</Label>
@@ -678,13 +670,24 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             </div>
 
             <div>
-              <Label>Platform</Label>
-              <Input
-                value={formData.platform}
-                readOnly
-                className="bg-muted"
-              />
+              <Label>Wallet *</Label>
+              <Select
+                value={formData.warehouse_id}
+                onValueChange={(value) => handleInputChange('warehouse_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select wallet" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name}{wallet.is_active === false ? ' (Inactive)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
 
             <div>
               <Label>State</Label>

@@ -65,16 +65,21 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
     enabled: open,
   });
 
-  // Fetch wallets for matching
-  const { data: wallets } = useQuery<{ id: string; wallet_name: string }[]>({
-    queryKey: ['wallets-for-edit'],
-    queryFn: async (): Promise<{ id: string; wallet_name: string }[]> => {
-      const { data, error } = await (supabase as any).from('wallets').select('id, wallet_name').eq('is_active', true);
+  // Wallets — active wallets plus this order's wallet (even if deactivated)
+  const orderWalletId = order?.wallet_id || order?.wallet?.id || '';
+  const { data: wallets } = useQuery<{ id: string; wallet_name: string; is_active: boolean }[]>({
+    queryKey: ['edit_order_wallets', orderWalletId],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('wallets')
+        .select('id, wallet_name, is_active')
+        .order('wallet_name');
       if (error) throw error;
-      return data || [];
+      return (data || []).filter((w: any) => w.is_active || w.id === orderWalletId);
     },
     enabled: open,
   });
+
 
   // Fetch payment methods
   const { data: paymentMethods } = useQuery({

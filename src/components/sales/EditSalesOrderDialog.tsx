@@ -683,13 +683,24 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
             </div>
 
             <div>
-              <Label>Platform</Label>
-              <Input
-                value={formData.platform}
-                readOnly
-                className="bg-muted"
-              />
+              <Label>Wallet *</Label>
+              <Select
+                value={formData.warehouse_id}
+                onValueChange={(value) => handleInputChange('warehouse_id', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select wallet" />
+                </SelectTrigger>
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                  {wallets?.map((wallet) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name}{wallet.is_active === false ? ' (Inactive)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
 
             <div>
               <Label>State</Label>

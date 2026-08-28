@@ -5,15 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Gift, Calendar, CheckCircle, Clock, X } from "lucide-react";
+import { Gift, Calendar, CheckCircle, Clock, X, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { GrantCompOffDialog } from "@/components/hrms/GrantCompOffDialog";
 
 export default function CompOffPage() {
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   const [employeeFilter, setEmployeeFilter] = useState<string>("");
+  const [grantOpen, setGrantOpen] = useState(false);
 
   const { data: credits = [], isLoading } = useQuery({
     queryKey: ["hr_compoff_credits", yearFilter],

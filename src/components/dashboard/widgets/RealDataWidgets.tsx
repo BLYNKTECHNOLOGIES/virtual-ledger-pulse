@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { isReversalTransaction } from '@/lib/isReversalTransaction';
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { EXCLUDED_LEGACY_PURCHASE_ORDER_IDS, resolveCarriedPurchaseRate } from "@/lib/carryForwardPurchaseRate";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -241,7 +242,7 @@ export function ExpenseBreakdownWidget() {
       const monthEnd = format(endOfMonth(now), 'yyyy-MM-dd');
       const { data } = await supabase
         .from('bank_transactions')
-        .select('category, amount, description, transaction_date')
+        .select('category, amount, description, transaction_date, reference_number')
         .eq('transaction_type', 'EXPENSE')
         .gte('transaction_date', monthStart)
         .lte('transaction_date', monthEnd)
@@ -249,13 +250,14 @@ export function ExpenseBreakdownWidget() {
       const excludeCategories = ['Purchase', 'OPENING_BALANCE', 'ADJUSTMENT'];
       const catMap: Record<string, number> = {};
       (data || []).forEach((t: any) => {
+        if (isReversalTransaction(t)) return;
         const cat = normalizeExpenseCategory(t.category, t.description);
         if (excludeCategories.includes(cat)) return;
         catMap[cat] = (catMap[cat] || 0) + Math.abs(Number(t.amount));
       });
       const categories = Object.entries(catMap).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount).slice(0, 8);
       const totalExpense = Object.values(catMap).reduce((s, v) => s + v, 0);
-      const recentItems = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).slice(0, 5).map((t: any) => ({
+      const recentItems = (data || []).filter((t: any) => !isReversalTransaction(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).slice(0, 5).map((t: any) => ({
         desc: t.description || t.category || 'Expense',
         amount: Math.abs(Number(t.amount)),
         date: t.transaction_date,
@@ -887,7 +889,7 @@ export function CashFlowWidget() {
       // Fetch expenses from bank_transactions
       const { data: txns } = await supabase
         .from('bank_transactions')
-        .select('amount, transaction_type, transaction_date, category, description')
+        .select('amount, transaction_type, transaction_date, category, description, reference_number')
         .eq('transaction_type', 'EXPENSE')
         .gte('transaction_date', days[0].date)
         .lte('transaction_date', days[days.length - 1].date);
@@ -970,8 +972,8 @@ export function ExpenseTrendsWidget() {
           months.push({ label: format(d, 'MMM'), start: s, end: e });
         }
         const results = await Promise.all(months.map(async m => {
-          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end));
-          const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description, reference_number').eq('transaction_type', 'EXPENSE').gte('transaction_date', m.start).lte('transaction_date', m.end));
+          const total = (data || []).filter((t: any) => !isReversalTransaction(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: m.label, expense: total };
         }));
         const currentMonth = results[results.length - 1]?.expense || 0;
@@ -987,8 +989,8 @@ export function ExpenseTrendsWidget() {
           days.push({ label: format(d, 'dd MMM'), start: dateStr, end: dateStr });
         }
         const results = await Promise.all(days.map(async day => {
-          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start));
-          const total = (data || []).filter((t: any) => !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+          const data = await fetchAllPaginated<any>(() => supabase.from('bank_transactions').select('amount, category, description, reference_number').eq('transaction_type', 'EXPENSE').eq('transaction_date', day.start));
+          const total = (data || []).filter((t: any) => !isReversalTransaction(t) && !excludeCategories.includes(normalizeExpenseCategory(t.category, t.description))).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
           return { name: day.label, expense: total };
         }));
         const today = results[results.length - 1]?.expense || 0;

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { FileBarChart } from "lucide-react";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { openTransaction } from "@/components/transaction-detail";
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 
 const PAYOUT_GATEWAY_FEE_CATEGORY = 'Finance, Banking & Compliance > Payout Gateway Fee';
 

@@ -648,22 +648,8 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               />
             </div>
 
-            <div>
-              <Label>Risk Level</Label>
-              <Select 
-                value={formData.risk_level} 
-                onValueChange={(value) => handleInputChange('risk_level', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select risk level" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+
 
             <div>
               <Label>Payment Status</Label>

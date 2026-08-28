@@ -232,17 +232,21 @@ export function StatisticsTab() {
       }) || [];
 
       // Fetch operating expenses (paginated to avoid the silent 1000-row cap,
-      // which previously made category totals and drill-downs disagree)
-      const expenses = await fetchAllPaginated<any>(() =>
+      // which previously made category totals and drill-downs disagree).
+      // Reversal / contra entries (e.g. settlement reversals booked as EXPENSE)
+      // are ledger corrections, never real expenses.
+      const expensesRaw = await fetchAllPaginated<any>(() =>
         supabase
           .from('bank_transactions')
-          .select('id, amount, category, description, transaction_date')
+          .select('id, amount, category, description, transaction_date, reference_number')
           .eq('transaction_type', 'EXPENSE')
           .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","OPENING_BALANCE","ADJUSTMENT","Manual Baseline Reset")')
           .gte('transaction_date', startStr)
           .lte('transaction_date', endStr)
           .order('id', { ascending: true })
       );
+      const expenses = (expensesRaw || []).filter(e => !isReversalTransaction(e));
+
 
       // Fetch non-core incomes (same shape as expenses; settlement / adjustment
       // buckets excluded so they don't inflate the breakdown)

@@ -166,9 +166,13 @@ export default function CompOffPage() {
                     <TableCell className="tabular-nums">{c.credit_date}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                        c.credit_type === "sunday" ? "bg-info/10 text-info border-info/20" : "bg-warning/10 text-warning border-warning/20"
+                        c.credit_type === "holiday"
+                          ? "bg-warning/10 text-warning border-warning/20"
+                          : c.credit_type === "manual"
+                            ? "bg-primary/10 text-primary border-primary/20"
+                            : "bg-info/10 text-info border-info/20"
                       }`}>
-                        {c.credit_type === "sunday" ? "Sunday" : "Holiday"}
+                        {c.credit_type === "holiday" ? "Holiday" : c.credit_type === "manual" ? "Manual (HR)" : "Weekly off"}
                       </span>
                     </TableCell>
                     <TableCell className="font-medium text-success tabular-nums">{c.credit_days} day{c.credit_days > 1 ? "s" : ""}</TableCell>

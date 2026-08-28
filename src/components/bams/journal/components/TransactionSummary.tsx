@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isReversalTransaction } from "@/lib/isReversalTransaction";
 
 interface TransactionSummaryProps {
   transactions: any[];
@@ -13,11 +14,11 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
     EXCLUDED_INCOME_CATEGORIES.some(ex => t.category?.includes(ex));
 
   const totalIncomes = transactions
-    ?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t))
+    ?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t) && !isReversalTransaction(t))
     .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0;
 
   const totalExpenses = transactions
-    ?.filter(t => t.transaction_type === "EXPENSE")
+    ?.filter(t => t.transaction_type === "EXPENSE" && !isReversalTransaction(t))
     .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0) || 0;
 
   return (
@@ -50,7 +51,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
           <CardContent>
             <div className="text-2xl font-bold text-success">₹{totalIncomes.toLocaleString('en-IN')}</div>
             <p className="text-xs text-success">
-              {transactions?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t)).length || 0} transactions
+              {transactions?.filter(t => t.transaction_type === "INCOME" && !isExcludedIncome(t) && !isReversalTransaction(t)).length || 0} transactions
             </p>
           </CardContent>
         </Card>
@@ -63,7 +64,7 @@ export function TransactionSummary({ transactions }: TransactionSummaryProps) {
           <CardContent>
             <div className="text-2xl font-bold text-destructive">₹{totalExpenses.toLocaleString('en-IN')}</div>
             <p className="text-xs text-destructive">
-              {transactions?.filter(t => t.transaction_type === "EXPENSE").length || 0} transactions
+              {transactions?.filter(t => t.transaction_type === "EXPENSE" && !isReversalTransaction(t)).length || 0} transactions
             </p>
           </CardContent>
         </Card>

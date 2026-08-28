@@ -57,8 +57,11 @@ export function ExpenseCategoryDrillDown({ category, onClose, startDate, endDate
         return q.order('transaction_date', { ascending: false }).order('id', { ascending: true });
       };
 
-      return await fetchAllPaginated<any>(buildQuery);
+      const rows = await fetchAllPaginated<any>(buildQuery);
+      // Reversal / contra entries are ledger corrections, not expenses.
+      return rows.filter((t) => !isReversalTransaction(t));
     },
+
     enabled: !!category,
   });
 

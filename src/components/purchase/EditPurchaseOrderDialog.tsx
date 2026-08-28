@@ -140,6 +140,23 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
     enabled: open,
   });
 
+  // Wallets — active wallets plus this order's wallet (even if deactivated),
+  // so the saved wallet always resolves in the dropdown.
+  const orderWalletId = order?.wallet_id || order?.wallet?.id || order?.purchase_order_items?.[0]?.warehouse_id || '';
+  const { data: walletOptions } = useQuery({
+    queryKey: ['edit_order_wallets', orderWalletId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('id, wallet_name, is_active')
+        .order('wallet_name');
+      if (error) throw error;
+      return (data || []).filter((w: any) => w.is_active || w.id === orderWalletId);
+    },
+    enabled: open,
+  });
+
+
   // Fetch bank accounts
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank-accounts'],
@@ -194,7 +211,8 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
       const totalFromOrder = parseDecimalInput(order.total_amount ?? 0);
       const pricePerUnit = parseDecimalInput(firstItem?.unit_price ?? order.price_per_unit ?? (quantity > 0 ? totalFromOrder / quantity : 0));
       const warehouseId = order.wallet_id || order.wallet?.id || firstItem?.warehouse_id || existingWalletCredit || '';
-      const productId = firstItem?.product_id || '';
+      const productId = firstItem?.product_id || order.product_id || '';
+
 
       let tdsOption = 'NO_TDS';
       if (order.tds_applied) {
@@ -642,12 +660,13 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Order Number *</Label>
+              <Label>Order Number</Label>
               <Input
                 value={formData.order_number}
-                onChange={(e) => handleInputChange('order_number', e.target.value)}
-                required
+                readOnly
+                className="bg-muted font-mono text-xs"
               />
+
             </div>
 
             <div>
@@ -678,33 +697,24 @@ export function EditPurchaseOrderDialog({ open, onOpenChange, order }: EditPurch
             </div>
 
             <div>
-              <Label>Assigned To</Label>
+              <Label>Wallet *</Label>
               <Select
-                value={formData.assigned_to}
-                onValueChange={(value) => handleInputChange('assigned_to', value)}
+                value={formData.warehouse_id}
+                onValueChange={(value) => handleInputChange('warehouse_id', value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select employee" />
+                  <SelectValue placeholder="Select wallet" />
                 </SelectTrigger>
-                <SelectContent>
-                  {employees?.map((employee) => (
-                    <SelectItem key={employee.id} value={employee.name}>
-                      {employee.name} ({employee.employee_id})
+                <SelectContent className="bg-popover z-[100] max-h-60 overflow-y-auto">
+                  {walletOptions?.map((wallet: any) => (
+                    <SelectItem key={wallet.id} value={wallet.id}>
+                      {wallet.wallet_name}{wallet.is_active === false ? ' (Inactive)' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <WalletSelector
-                value={formData.warehouse_id}
-                onValueChange={(value) => handleInputChange('warehouse_id', value)}
-                label="Wallet/Platform"
-                placeholder="Select wallet..."
-                filterByType="USDT"
-              />
-            </div>
 
             <div>
               <Label>Product/Asset *</Label>

@@ -13,6 +13,7 @@ import { StepCompletionDialog } from "./StepCompletionDialog";
 import { getCurrentUserIdAsync } from "@/lib/system-action-logger";
 import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { cn } from "@/lib/utils";
+import { useUserNames } from "@/hooks/useUserNames";
 
 interface InvestigationDetailsDialogProps {
   investigation: any;
@@ -139,6 +140,8 @@ export function InvestigationDetailsDialog({
     },
     enabled: !!investigation?.id && open && !!steps?.length,
   });
+
+  const { nameFor } = useUserNames((updates || []).map((u: any) => u.created_by));
 
   // Fetch actual investigation status from account_investigations table
   const { data: investigationData, refetch: refetchInvestigation } = useQuery({
@@ -667,7 +670,7 @@ export function InvestigationDetailsDialog({
                     )}
                     
                     <p className="text-xs text-muted-foreground mt-2">
-                      {new Date(update.created_at).toLocaleDateString()} by {update.created_by}
+                      {new Date(update.created_at).toLocaleDateString()} by {nameFor(update.created_by, 'System')}
                     </p>
                   </div>
                 ))}

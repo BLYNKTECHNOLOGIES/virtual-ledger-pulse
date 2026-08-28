@@ -25,6 +25,7 @@ import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/l
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 import { CreditSubLedgerDialog } from "./subledger/CreditSubLedgerDialog";
 import { Layers } from "lucide-react";
+import { useUserNames } from "@/hooks/useUserNames";
 
 interface BankAccount {
   id: string;
@@ -122,6 +123,8 @@ export function BankAccountManagement() {
       return data as ClosedBankAccount[];
     }
   });
+
+  const closedByNames = useUserNames((closedAccounts || []).map((a: any) => a.closed_by));
 
   // Fetch pending approval accounts
   const { data: pendingAccounts, isLoading: isLoadingPending } = useQuery({
@@ -1015,7 +1018,7 @@ export function BankAccountManagement() {
                         <TableCell className="max-w-xs truncate" title={account.closure_reason}>
                           {account.closure_reason}
                         </TableCell>
-                        <TableCell>{account.closed_by || "-"}</TableCell>
+                        <TableCell>{closedByNames.nameFor(account.closed_by, "-")}</TableCell>
                         <TableCell>
                           {account.closure_documents?.length > 0 ? (
                             <Badge variant="outline">{account.closure_documents.length} files</Badge>

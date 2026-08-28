@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.recalculate_purchase_order_effective_usdt(uuid, text) TO authenticated;

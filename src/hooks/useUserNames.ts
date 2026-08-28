@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { usersDirectory } from "@/lib/usersDirectory";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -8,7 +8,7 @@ export const isUuid = (v?: string | null) => !!v && UUID_RE.test(v.trim());
 
 /**
  * Resolve raw user UUIDs to human-readable staff names.
- * Non-UUID values (already-stored names, "system-backfill", emails) pass through.
+ * Non-UUID values (already-stored names, "system-backfill", emails) pass through untouched.
  */
 export function useUserNames(rawIds: (string | null | undefined)[]) {
   const ids = Array.from(
@@ -18,14 +18,16 @@ export function useUserNames(rawIds: (string | null | undefined)[]) {
   const { data } = useQuery({
     queryKey: ["user-display-names", ids],
     queryFn: async () => {
-      if (ids.length === 0) return {} as Record<string, string>;
-      const { data, error } = await supabase.rpc("get_user_display_names", {
-        _ids: ids,
-      });
-      if (error) throw error;
       const map: Record<string, string> = {};
-      (data || []).forEach((row: any) => {
-        if (row?.id && row?.display_name) map[row.id] = row.display_name;
+      if (ids.length === 0) return map;
+      const { data, error } = await usersDirectory()
+        .select("id, username, first_name, last_name")
+        .in("id", ids);
+      if (error) throw error;
+      (data || []).forEach((u: any) => {
+        const full = `${u.first_name || ""} ${u.last_name || ""}`.trim();
+        const label = full || u.username || "";
+        if (u?.id && label) map[u.id] = label;
       });
       return map;
     },

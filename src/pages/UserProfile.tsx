@@ -676,10 +676,15 @@ export default function UserProfile() {
       if (data?.shift_id) {
         const { data: shiftData } = await supabase
           .from('hr_shifts')
-          .select('name')
+          .select('name, start_time, end_time')
           .eq('id', data.shift_id)
           .maybeSingle();
-        shiftName = shiftData?.name || null;
+        if (shiftData?.name) {
+          const fmt = (t?: string | null) => t?.slice(0, 5) || null;
+          const st = fmt(shiftData.start_time);
+          const et = fmt(shiftData.end_time);
+          shiftName = st && et ? `${shiftData.name} (${st} – ${et})` : shiftData.name;
+        }
       }
       return data ? { ...data, shift_name: shiftName } : null;
     },

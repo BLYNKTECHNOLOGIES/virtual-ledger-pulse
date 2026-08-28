@@ -1,0 +1,1 @@
+DROP INDEX IF EXISTS public.hr_compoff_credits_emp_date_type_uniq;

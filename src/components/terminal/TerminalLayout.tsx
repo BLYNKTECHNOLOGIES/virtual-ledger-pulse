@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { TerminalSidebar } from './TerminalSidebar';
 import { TerminalHeader } from './TerminalHeader';
@@ -19,14 +19,23 @@ interface TerminalLayoutProps {
 function TerminalAccessGate({ children }: { children: React.ReactNode }) {
   const { terminalRoles, isLoading, userId, isTerminalAdmin } = useTerminalAuth();
   const { hasPermission, isLoading: permsLoading } = usePermissions();
+  // Once the terminal has rendered, never unmount it for a background
+  // revalidation (e.g. tab-focus token refresh) — that would destroy open
+  // chat workspaces and page state. The full-screen spinner is first-load only.
+  const hasRenderedRef = useRef(false);
+  const loading = isLoading || permsLoading;
+  if (!loading) hasRenderedRef.current = true;
 
-  if (isLoading || permsLoading) {
+  if (loading && !hasRenderedRef.current) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
+
+  // Background revalidation after first render: keep the mounted tree as-is.
+  if (loading) return <>{children}</>;
 
   const hasTerminalRole = terminalRoles.length > 0 || isTerminalAdmin;
   const canEnterStandby = hasPermission('terminal_view');

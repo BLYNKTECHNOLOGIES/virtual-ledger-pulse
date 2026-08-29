@@ -19,8 +19,14 @@ interface TerminalLayoutProps {
 function TerminalAccessGate({ children }: { children: React.ReactNode }) {
   const { terminalRoles, isLoading, userId, isTerminalAdmin } = useTerminalAuth();
   const { hasPermission, isLoading: permsLoading } = usePermissions();
+  // Once the terminal has rendered, never unmount it for a background
+  // revalidation (e.g. tab-focus token refresh) — that would destroy open
+  // chat workspaces and page state. The full-screen spinner is first-load only.
+  const hasRenderedRef = useRef(false);
+  const loading = isLoading || permsLoading;
+  if (!loading) hasRenderedRef.current = true;
 
-  if (isLoading || permsLoading) {
+  if (loading && !hasRenderedRef.current) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />

@@ -130,6 +130,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
       setIsSuperAdmin(sessionIsSuperAdmin);
     } finally {
       hasLoadedRef.current = true;
+      lastKeyRef.current = key;
       setIsLoading(false);
     }
   }, [user?.id, user?.roles, parentLoading]);

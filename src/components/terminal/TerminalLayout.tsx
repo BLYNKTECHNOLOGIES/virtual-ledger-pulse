@@ -1,4 +1,4 @@
-import { Suspense } from 'react';
+import { Suspense, useRef } from 'react';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { TerminalSidebar } from './TerminalSidebar';
 import { TerminalHeader } from './TerminalHeader';

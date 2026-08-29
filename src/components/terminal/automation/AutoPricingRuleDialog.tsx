@@ -898,11 +898,29 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
           </Accordion>
         </ScrollArea>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || priorityMerchants.filter(m => m.trim()).length === 0 || selectedAssets.length === 0 || createRule.isPending || updateRule.isPending}>
-            {editingRule ? 'Update Rule' : 'Create Rule'}
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          {(() => {
+            const missing: string[] = [];
+            if (!name.trim()) missing.push('a rule name');
+            if (selectedAssets.length === 0) missing.push('at least one asset');
+            if (totalAds === 0) missing.push('at least one ad selected');
+            if (competitorMode === 'nickname' && priorityMerchants.filter(m => m.trim()).length === 0) missing.push('a target merchant (or switch to badge targeting)');
+            const blocked = missing.length > 0;
+            return (
+              <>
+                {blocked && (
+                  <p className="text-[11px] text-warning mr-auto flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3 shrink-0" />
+                    Add {missing.join(' · ')} to enable {editingRule ? 'updating' : 'creating'} this rule.
+                  </p>
+                )}
+                <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+                <Button onClick={handleSave} disabled={blocked || createRule.isPending || updateRule.isPending}>
+                  {editingRule ? 'Update Rule' : 'Create Rule'}
+                </Button>
+              </>
+            );
+          })()}
         </DialogFooter>
       </DialogContent>
     </Dialog>

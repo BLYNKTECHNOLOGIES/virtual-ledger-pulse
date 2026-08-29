@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -18,23 +19,32 @@ export function useSidebarAutoCollapse(
   options: { threshold?: number } = {},
 ) {
   const { threshold = 80 } = options;
-  const { open, setOpen, isMobile: ctxMobile, toggleSidebar } = useSidebar();
+  const { open, setOpen, isMobile: ctxMobile } = useSidebar();
   const isMobile = useIsMobile() || ctxMobile;
+  const location = useLocation();
 
   const modeRef = useRef<Mode>("auto");
   const openRef = useRef(open);
   openRef.current = open;
 
-  // Track manual trigger usage: wrap toggleSidebar is not possible from here,
-  // so we detect manual toggles by watching `open` changes we didn't cause.
+  // A change in `open` we didn't cause = manual toggle -> pin the sidebar.
   const causedByAutoRef = useRef(false);
+  const firstOpenSync = useRef(true);
   useEffect(() => {
+    if (firstOpenSync.current) {
+      firstOpenSync.current = false;
+      return;
+    }
     if (!causedByAutoRef.current) {
-      // A change in `open` not caused by us = manual toggle -> pin.
       modeRef.current = "pinned";
     }
     causedByAutoRef.current = false;
   }, [open]);
+
+  // Reset to auto mode on every route change.
+  useEffect(() => {
+    modeRef.current = "auto";
+  }, [location.pathname]);
 
   const autoSet = useCallback(
     (next: boolean) => {
@@ -45,11 +55,6 @@ export function useSidebarAutoCollapse(
     },
     [setOpen],
   );
-
-  // Reset to auto mode on every route change (work area remounts content).
-  useEffect(() => {
-    modeRef.current = "auto";
-  }, [typeof window !== "undefined" ? window.location.pathname : null]);
 
   // Collapse on interaction with the work area + on scroll down.
   useEffect(() => {
@@ -81,5 +86,5 @@ export function useSidebarAutoCollapse(
   const expandOnHover = useCallback(() => autoSet(true), [autoSet]);
   const collapseOnLeave = useCallback(() => autoSet(false), [autoSet]);
 
-  return { expandOnHover, collapseOnLeave, toggleSidebar };
+  return { expandOnHover, collapseOnLeave };
 }

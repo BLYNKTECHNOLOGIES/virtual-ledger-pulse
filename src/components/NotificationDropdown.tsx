@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +39,7 @@ function getNotificationIcon(type: GlobalNotification['type']) {
 }
 
 export function NotificationDropdown() {
+  const [tab, setTab] = useState<"requests" | "system">("requests");
   const { isMuted, toggleMute } = useNotificationMute();
   const { toast } = useToast();
   const queryClient = useQueryClient();

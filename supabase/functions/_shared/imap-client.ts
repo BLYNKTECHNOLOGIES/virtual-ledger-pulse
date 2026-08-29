@@ -96,24 +96,88 @@ export async function fetchMessages(cfg: ImapConfig, sinceUid: number, limit = 3
 
 // ---------- Very small RFC822 parser -------------------------------------
 
-function decodeMimeWord(s: string): string {
-  return s.replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_m, _cs, enc, txt) => {
-    try {
-      if (enc.toUpperCase() === "B") return atob(txt);
-      return txt.replace(/_/g, " ").replace(/=([0-9A-Fa-f]{2})/g, (_x: string, h: string) =>
-        String.fromCharCode(parseInt(h, 16)));
-    } catch { return txt; }
-  });
+/** Latin-1 string (raw bytes held in a JS string) -> Uint8Array. */
+function binaryToBytes(s: string): Uint8Array {
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff;
+  return out;
 }
 
-function decodeQuotedPrintable(s: string): string {
-  return s.replace(/=\r?\n/g, "").replace(/=([0-9A-Fa-f]{2})/g, (_m, h) => String.fromCharCode(parseInt(h, 16)));
+function decodeBytes(bytes: Uint8Array, charset?: string | null): string {
+  const cs = (charset || "utf-8").toLowerCase().replace(/^"|"$/g, "");
+  try {
+    return new TextDecoder(cs, { fatal: false }).decode(bytes);
+  } catch {
+    try {
+      return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    } catch {
+      return String.fromCharCode(...bytes);
+    }
+  }
+}
+
+function qpToBytes(s: string): Uint8Array {
+  const unfolded = s.replace(/=\r?\n/g, "");
+  return binaryToBytes(
+    unfolded.replace(/=([0-9A-Fa-f]{2})/g, (_m, h) => String.fromCharCode(parseInt(h, 16))),
+  );
+}
+
+function b64ToBytes(s: string): Uint8Array {
+  try {
+    return binaryToBytes(atob(s.replace(/\s+/g, "")));
+  } catch {
+    return binaryToBytes(s);
+  }
+}
+
+/** RFC 2047 encoded-word decoding, charset aware. */
+function decodeMimeWord(s: string): string {
+  return s
+    .replace(/(=\?[^?]+\?[BbQq]\?[^?]*\?=)(\s+)(?==\?)/g, "$1")
+    .replace(/=\?([^?]+)\?([BbQq])\?([^?]*)\?=/g, (_m, cs, enc, txt) => {
+      try {
+        const bytes = enc.toUpperCase() === "B"
+          ? b64ToBytes(txt)
+          : qpToBytes(String(txt).replace(/_/g, " "));
+        return decodeBytes(bytes, cs);
+      } catch {
+        return txt;
+      }
+    });
+}
+
+function charsetOf(headerBlock: string): string | null {
+  return headerBlock.match(/charset\s*=\s*"?([\w\-]+)"?/i)?.[1] || null;
+}
+
+function decodePart(head: string, rawBody: string): string {
+  const lower = head.toLowerCase();
+  const cs = charsetOf(head);
+  if (lower.includes("quoted-printable")) return decodeBytes(qpToBytes(rawBody), cs);
+  if (/content-transfer-encoding\s*:\s*base64/i.test(head)) return decodeBytes(b64ToBytes(rawBody), cs);
+  return decodeBytes(binaryToBytes(rawBody), cs);
+}
+
+function splitAddresses(v: string): string[] {
+  return decodeMimeWord(v || "")
+    .split(",")
+    .map((p) => (p.match(/<([^>]+)>/)?.[1] || p).trim())
+    .filter(Boolean);
+}
+
+export interface ParsedAttachment {
+  filename: string;
+  contentType: string;
+  size: number;
 }
 
 export interface ParsedMessage {
   fromAddress: string | null;
   fromName: string | null;
   to: string[];
+  cc: string[];
+  replyTo: string | null;
   subject: string | null;
   date: string | null;
   messageId: string | null;
@@ -122,6 +186,7 @@ export interface ParsedMessage {
   html: string | null;
   text: string | null;
   hasAttachments: boolean;
+  attachments: ParsedAttachment[];
 }
 
 export function parseMessage(raw: string): ParsedMessage {
@@ -141,16 +206,14 @@ export function parseMessage(raw: string): ParsedMessage {
   const fromAddress = (addrMatch ? addrMatch[1] : fromRaw.split(/\s+/).pop() || "").trim() || null;
   const fromName = addrMatch ? fromRaw.slice(0, addrMatch.index).replace(/"/g, "").trim() || null : null;
 
-  const to = decodeMimeWord(headers["to"] || "")
-    .split(",")
-    .map((p) => (p.match(/<([^>]+)>/)?.[1] || p).trim())
-    .filter(Boolean);
+  const to = splitAddresses(headers["to"] || "");
+  const cc = splitAddresses(headers["cc"] || "");
+  const replyTo = splitAddresses(headers["reply-to"] || "")[0] || null;
 
   const contentType = headers["content-type"] || "";
-  const encoding = (headers["content-transfer-encoding"] || "").toLowerCase();
   let html: string | null = null;
   let text: string | null = null;
-  let hasAttachments = false;
+  const attachments: ParsedAttachment[] = [];
 
   const boundaryMatch = contentType.match(/boundary="?([^";]+)"?/i);
   if (boundaryMatch) {
@@ -158,18 +221,38 @@ export function parseMessage(raw: string): ParsedMessage {
     for (const part of parts) {
       const pSplit = part.search(/\r?\n\r?\n/);
       if (pSplit === -1) continue;
-      const pHead = part.slice(0, pSplit).toLowerCase();
-      let pBody = part.slice(pSplit).replace(/^\r?\n\r?\n/, "");
-      if (pHead.includes("quoted-printable")) pBody = decodeQuotedPrintable(pBody);
-      else if (pHead.includes("base64")) { try { pBody = atob(pBody.replace(/\s+/g, "")); } catch { /* ignore */ } }
-      if (pHead.includes("attachment") || pHead.includes("filename=")) { hasAttachments = true; continue; }
-      if (pHead.includes("text/html") && !html) html = pBody;
-      else if (pHead.includes("text/plain") && !text) text = pBody;
+      const pHead = part.slice(0, pSplit);
+      const lower = pHead.toLowerCase();
+      const rawBody = part.slice(pSplit).replace(/^\r?\n\r?\n/, "");
+
+      // Nested multipart (e.g. multipart/alternative inside multipart/mixed)
+      const nested = pHead.match(/boundary="?([^";]+)"?/i);
+      if (lower.includes("content-type: multipart/") && nested) {
+        const inner = parseMessage(`Content-Type: multipart/mixed; boundary="${nested[1]}"\r\n\r\n${rawBody}`);
+        if (!html && inner.html) html = inner.html;
+        if (!text && inner.text) text = inner.text;
+        attachments.push(...inner.attachments);
+        continue;
+      }
+
+      const filename = pHead.match(/filename\*?=(?:"([^"]+)"|([^\s;]+))/i);
+      const isAttachment = lower.includes("content-disposition: attachment") || !!filename;
+      if (isAttachment) {
+        const bodyLen = rawBody.replace(/\s+/g, "").length;
+        const isB64 = /base64/i.test(lower);
+        attachments.push({
+          filename: decodeMimeWord(filename?.[1] || filename?.[2] || "attachment"),
+          contentType: (pHead.match(/content-type:\s*([\w.+\-\/]+)/i)?.[1] || "application/octet-stream").trim(),
+          size: isB64 ? Math.floor(bodyLen * 0.75) : bodyLen,
+        });
+        continue;
+      }
+
+      if (lower.includes("text/html") && !html) html = decodePart(pHead, rawBody);
+      else if (lower.includes("text/plain") && !text) text = decodePart(pHead, rawBody);
     }
   } else {
-    let decoded = body;
-    if (encoding === "quoted-printable") decoded = decodeQuotedPrintable(body);
-    else if (encoding === "base64") { try { decoded = atob(body.replace(/\s+/g, "")); } catch { /* ignore */ } }
+    const decoded = decodePart(headerBlock, body);
     if (contentType.toLowerCase().includes("text/html")) html = decoded;
     else text = decoded;
   }
@@ -184,6 +267,8 @@ export function parseMessage(raw: string): ParsedMessage {
     fromAddress,
     fromName,
     to,
+    cc,
+    replyTo,
     subject: headers["subject"] ? decodeMimeWord(headers["subject"]) : null,
     date,
     messageId: headers["message-id"] || null,
@@ -191,6 +276,8 @@ export function parseMessage(raw: string): ParsedMessage {
     references: headers["references"] || null,
     html,
     text,
-    hasAttachments,
+    hasAttachments: attachments.length > 0,
+    attachments,
   };
 }
+

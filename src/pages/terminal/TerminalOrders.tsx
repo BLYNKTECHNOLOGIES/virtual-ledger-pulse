@@ -166,7 +166,10 @@ function TerminalOrdersContent() {
     if (restoreHandledRef.current) return;
     restoreHandledRef.current = true;
     const saved = readOrdersSession().orderNumber;
-    if (!saved || searchParams.get('order')) return;
+    if (!saved || searchParams.get('order')) {
+      restoreSettledRef.current = true;
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set('order', saved);
     setSearchParams(next, { replace: true });

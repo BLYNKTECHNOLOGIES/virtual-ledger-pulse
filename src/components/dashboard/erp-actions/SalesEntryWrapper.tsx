@@ -860,7 +860,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={submitMutation.isPending}>
+            <Button type="submit" disabled={submitMutation.isPending || (isSplitPayment && !splitAllocation.isValid)}>
               {submitMutation.isPending ? "Creating..." : "Create Sales Entry"}
             </Button>
           </div>

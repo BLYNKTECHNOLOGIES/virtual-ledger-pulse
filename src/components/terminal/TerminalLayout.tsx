@@ -34,6 +34,9 @@ function TerminalAccessGate({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Background revalidation after first render: keep the mounted tree as-is.
+  if (loading) return <>{children}</>;
+
   const hasTerminalRole = terminalRoles.length > 0 || isTerminalAdmin;
   const canEnterStandby = hasPermission('terminal_view');
 

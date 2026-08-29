@@ -281,6 +281,10 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
       if (!formData.wallet_id) throw new Error("Wallet is required");
       if (!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0) throw new Error("Price is required");
       if (stockValidationError) throw new Error(stockValidationError);
+      if (isSplitPayment && !splitAllocation.isValid) {
+        throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`);
+      }
+
 
       const { data: orderNumber } = await supabase.rpc("generate_off_market_sales_order_number");
       const createdBy = await requireCurrentUserId();

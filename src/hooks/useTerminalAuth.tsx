@@ -117,6 +117,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
       setTerminalPermissions([]);
       setIsSuperAdmin(sessionIsSuperAdmin);
     } finally {
+      hasLoadedRef.current = true;
       setIsLoading(false);
     }
   }, [user?.id, user?.roles, parentLoading]);

@@ -64,7 +64,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setIsLoading(true);
+      if (!hasLoadedRef.current) setIsLoading(true);
 
       // Validate UUID format before RPC call
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

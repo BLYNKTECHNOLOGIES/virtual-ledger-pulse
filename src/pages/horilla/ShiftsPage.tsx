@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Clock, Coffee, Timer } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -32,18 +32,6 @@ export default function ShiftsPage() {
     },
   });
 
-  const { data: policyGrace } = useQuery({
-    queryKey: ["hr_default_policy_grace"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hr_attendance_policies")
-        .select("grace_period_minutes")
-        .eq("is_default", true)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.grace_period_minutes ?? 0;
-    },
-  });
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -131,8 +119,6 @@ export default function ShiftsPage() {
                 </div>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.start_time?.slice(0, 5)} — {s.end_time?.slice(0, 5)}</p>
-                  <p className="flex items-center gap-2"><Coffee className="h-3.5 w-3.5 text-muted-foreground" />Break: {s.break_duration_minutes} min</p>
-                  <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-muted-foreground" />Grace: {policyGrace ?? 0} min <span className="text-[10px] text-muted-foreground/70">(company policy)</span></p>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
@@ -157,14 +143,7 @@ export default function ShiftsPage() {
               <div><Label>Start Time</Label><Input type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className="h-9 mt-1" /></div>
               <div><Label>End Time</Label><Input type="time" value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className="h-9 mt-1" /></div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Break (min)</Label><Input type="number" value={form.break_duration_minutes} onChange={(e) => setForm({ ...form, break_duration_minutes: parseInt(e.target.value) || 0 })} className="h-9 mt-1" /></div>
-              <div>
-                <Label>Grace Period (min)</Label>
-                <Input value={`${policyGrace ?? 0} min`} disabled readOnly className="h-9 mt-1" />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Set once in the Default Attendance Policy — applies to every shift.</p>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">Break and grace period are set by the company-wide Default Attendance Policy and apply to every shift.</p>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_night_shift} onCheckedChange={(v) => setForm({ ...form, is_night_shift: v })} />
               <Label>Night Shift</Label>

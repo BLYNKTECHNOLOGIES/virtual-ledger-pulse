@@ -1085,6 +1085,7 @@ function TerminalOrdersContent() {
     );
     if (match) {
       deepLinkHandledRef.current = true;
+      restoreSettledRef.current = true;
       setSelectedOrder(match);
       // Strip the param so navigating back to the list doesn't re-open it.
       searchParams.delete('order');

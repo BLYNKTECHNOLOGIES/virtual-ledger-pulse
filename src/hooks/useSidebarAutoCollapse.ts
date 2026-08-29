@@ -83,8 +83,24 @@ export function useSidebarAutoCollapse(
     };
   }, [workAreaRef, isMobile, autoSet, threshold]);
 
-  const expandOnHover = useCallback(() => autoSet(true), [autoSet]);
-  const collapseOnLeave = useCallback(() => autoSet(false), [autoSet]);
+  // Hover intent: small delays stop the rail from flickering when the pointer
+  // just crosses the sidebar, and avoid an expand/collapse fight mid-animation.
+  const hoverTimer = useRef<number>();
+  const clearHoverTimer = () => {
+    if (hoverTimer.current) window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = undefined;
+  };
+  useEffect(() => clearHoverTimer, []);
+
+  const expandOnHover = useCallback(() => {
+    clearHoverTimer();
+    hoverTimer.current = window.setTimeout(() => autoSet(true), 90);
+  }, [autoSet]);
+
+  const collapseOnLeave = useCallback(() => {
+    clearHoverTimer();
+    hoverTimer.current = window.setTimeout(() => autoSet(false), 220);
+  }, [autoSet]);
 
   return { expandOnHover, collapseOnLeave };
 }

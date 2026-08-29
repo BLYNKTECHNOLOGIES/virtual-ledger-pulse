@@ -1327,13 +1327,17 @@ html {
   animation: tab-content-show 0.22s var(--ease-out-soft);
 }
 
-/* Page / module mount fade */
+/* Page / module mount fade — subtle, no layout thrash while the rail animates */
 @keyframes page-mount {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate3d(0, 4px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 .page-mount {
-  animation: page-mount 0.28s var(--ease-out-soft);
+  animation: page-mount 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-mount { animation: none; }
 }
 
 /* Reusable utility */
@@ -2341,4 +2345,36 @@ html {
 /* --- File upload / dropzones that relied on light dashed panels --- */
 .dark .border-dashed {
   border-color: hsl(var(--border));
+}
+
+/* --- Sidebar collapse/expand motion --------------------------------- */
+.sidebar-motion {
+  transition-duration: 280ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: width;
+  backface-visibility: hidden;
+}
+
+/* Keep labels from re-wrapping mid-animation (the main source of jerk) */
+[data-sidebar="sidebar"] span,
+[data-sidebar="sidebar"] p {
+  white-space: nowrap;
+}
+
+/* Fade labels/badges out while the rail narrows instead of hard-clipping */
+.group[data-state="collapsed"] [data-sidebar="sidebar"] [data-sidebar="group-label"],
+.group[data-state="collapsed"] [data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child {
+  opacity: 0;
+}
+[data-sidebar="sidebar"] [data-sidebar="group-label"],
+[data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child {
+  opacity: 1;
+  transition: opacity 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-motion,
+  [data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child {
+    transition-duration: 0ms !important;
+  }
 }

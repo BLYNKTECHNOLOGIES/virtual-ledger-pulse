@@ -943,6 +943,41 @@ export default function DepositManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {Number(deleteTarget?.collected_amount || 0) > 0 ? "Cancel remaining installments?" : "Delete this record?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {Number(deleteTarget?.collected_amount || 0) > 0 ? (
+                <>
+                  {inr(deleteTarget?.collected_amount)} has already been collected, so the record and its ledger are kept.
+                  Only the pending future installments are removed and no further deduction will be pushed to payroll.
+                  You can still pay the held amount back to the employee later.
+                </>
+              ) : (
+                <>
+                  Nothing has been collected yet, so this {TYPE_LABEL[(deleteTarget?.deposit_type || "security") as DepositType].toLowerCase()} record
+                  and its pending installments will be permanently removed. This cannot be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => { e.preventDefault(); deleteMutation.mutate(deleteTarget); }}
+            >
+              {Number(deleteTarget?.collected_amount || 0) > 0 ? "Cancel remaining" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }

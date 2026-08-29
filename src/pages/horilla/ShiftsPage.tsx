@@ -15,7 +15,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 
-const defaultForm = { name: "", start_time: "09:00", end_time: "18:00", break_duration_minutes: 60, grace_period_minutes: 15, is_night_shift: false };
+const defaultForm = { name: "", start_time: "09:00", end_time: "18:00", break_duration_minutes: 60, is_night_shift: false };
 
 export default function ShiftsPage() {
   const qc = useQueryClient();
@@ -29,6 +29,19 @@ export default function ShiftsPage() {
       const { data, error } = await supabase.from("hr_shifts").select("*").order("name");
       if (error) throw error;
       return data || [];
+    },
+  });
+
+  const { data: policyGrace } = useQuery({
+    queryKey: ["hr_default_policy_grace"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_attendance_policies")
+        .select("grace_period_minutes")
+        .eq("is_default", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.grace_period_minutes ?? 0;
     },
   });
 
@@ -74,7 +87,7 @@ export default function ShiftsPage() {
 
   const openEdit = (s: any) => {
     setEditId(s.id);
-    setForm({ name: s.name, start_time: s.start_time, end_time: s.end_time, break_duration_minutes: s.break_duration_minutes, grace_period_minutes: s.grace_period_minutes, is_night_shift: s.is_night_shift });
+    setForm({ name: s.name, start_time: s.start_time, end_time: s.end_time, break_duration_minutes: s.break_duration_minutes, is_night_shift: s.is_night_shift });
     setShowDialog(true);
   };
 
@@ -119,7 +132,7 @@ export default function ShiftsPage() {
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <p className="flex items-center gap-2"><Clock className="h-3.5 w-3.5 text-muted-foreground" />{s.start_time?.slice(0, 5)} — {s.end_time?.slice(0, 5)}</p>
                   <p className="flex items-center gap-2"><Coffee className="h-3.5 w-3.5 text-muted-foreground" />Break: {s.break_duration_minutes} min</p>
-                  <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-muted-foreground" />Grace: {s.grace_period_minutes} min</p>
+                  <p className="flex items-center gap-2"><Timer className="h-3.5 w-3.5 text-muted-foreground" />Grace: {policyGrace ?? 0} min <span className="text-[10px] text-muted-foreground/70">(company policy)</span></p>
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="outline" size="sm" className="h-8" onClick={() => openEdit(s)}><Pencil className="h-3 w-3 mr-1" /> Edit</Button>
@@ -146,7 +159,11 @@ export default function ShiftsPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Break (min)</Label><Input type="number" value={form.break_duration_minutes} onChange={(e) => setForm({ ...form, break_duration_minutes: parseInt(e.target.value) || 0 })} className="h-9 mt-1" /></div>
-              <div><Label>Grace Period (min)</Label><Input type="number" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} className="h-9 mt-1" /></div>
+              <div>
+                <Label>Grace Period (min)</Label>
+                <Input value={`${policyGrace ?? 0} min`} disabled readOnly className="h-9 mt-1" />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Set once in the Default Attendance Policy — applies to every shift.</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={form.is_night_shift} onCheckedChange={(v) => setForm({ ...form, is_night_shift: v })} />

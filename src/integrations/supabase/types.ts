@@ -28766,6 +28766,7 @@ export type Database = {
         }
         Returns: string
       }
+      hr_effective_grace_minutes: { Args: never; Returns: number }
       hr_email_dispatch_health: {
         Args: never
         Returns: {

@@ -173,13 +173,24 @@ function TerminalOrdersContent() {
     const next = new URLSearchParams(searchParams);
     next.set('order', saved);
     setSearchParams(next, { replace: true });
+    // Safety net: if the deep-link restore can't resolve the order (e.g. the
+    // Binance lookup failed), settle after a grace period so the stored key
+    // doesn't linger forever and normal open/close tracking resumes.
+    const settleTimer = setTimeout(() => { restoreSettledRef.current = true; }, 15000);
+    return () => clearTimeout(settleTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Remember the current open order / queue mode for this browser session.
   useEffect(() => {
+    const previous = readOrdersSession();
     writeOrdersSession({
-      orderNumber: selectedOrder ? String(selectedOrder.binance_order_number) : undefined,
+      orderNumber: selectedOrder
+        ? String(selectedOrder.binance_order_number)
+        // Before the restore settles, a null selection just means "freshly
+        // mounted" — keep the previously saved order so a double remount
+        // (tab-focus auth revalidation) doesn't erase it mid-restore.
+        : (restoreSettledRef.current ? undefined : previous.orderNumber),
       queueMode,
     });
   }, [selectedOrder, queueMode]);

@@ -383,7 +383,7 @@ export function AppSidebar() {
 
   if (isLoading) {
     return (
-      <Sidebar className="border-r border-sidebar-border bg-sidebar">
+      <Sidebar className="border-r border-sidebar-border bg-sidebar" collapsible="icon">
         <SidebarHeader className="relative overflow-hidden border-b border-sidebar-border bg-sidebar px-4 py-3">
           <div className="flex min-h-[52px] items-center">
             <Skeleton className="h-8 w-32 rounded-md" />

@@ -13,12 +13,11 @@ import { TransactionDetailDialog } from "./transaction-detail";
 import { ShortcutsProvider } from "@/contexts/ShortcutsProvider";
 import { useIsStandby } from "@/hooks/useIsStandby";
 import { useRef } from "react";
-import { useSidebarScrollCollapse } from "@/hooks/useSidebarScrollCollapse";
+import { useSidebarAutoCollapse } from "@/hooks/useSidebarAutoCollapse";
 
+const WorkAreaContext = React.createContext<React.RefObject<HTMLElement> | null>(null);
 
-function MainWorkArea({ children }: { children: React.ReactNode }) {
-  const scrollRef = useRef<HTMLElement>(null);
-  useSidebarScrollCollapse(scrollRef);
+function MainWorkArea({ children, scrollRef }: { children: React.ReactNode; scrollRef: React.RefObject<HTMLElement> }) {
   return (
     <main ref={scrollRef} className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
       {children}

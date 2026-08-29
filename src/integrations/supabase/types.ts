@@ -12090,13 +12090,16 @@ export type Database = {
         Row: {
           attachment_paths: string[]
           body_html: string
+          cc_addresses: string[]
           created_at: string
           failed_count: number
           from_address: string
           id: string
+          in_reply_to_header: string | null
           in_reply_to_message_id: string | null
           mailbox_id: string | null
           recipient_mode: string
+          references_header: string | null
           sent_by: string | null
           sent_by_name: string | null
           sent_count: number
@@ -12108,13 +12111,16 @@ export type Database = {
         Insert: {
           attachment_paths?: string[]
           body_html: string
+          cc_addresses?: string[]
           created_at?: string
           failed_count?: number
           from_address: string
           id?: string
+          in_reply_to_header?: string | null
           in_reply_to_message_id?: string | null
           mailbox_id?: string | null
           recipient_mode?: string
+          references_header?: string | null
           sent_by?: string | null
           sent_by_name?: string | null
           sent_count?: number
@@ -12126,13 +12132,16 @@ export type Database = {
         Update: {
           attachment_paths?: string[]
           body_html?: string
+          cc_addresses?: string[]
           created_at?: string
           failed_count?: number
           from_address?: string
           id?: string
+          in_reply_to_header?: string | null
           in_reply_to_message_id?: string | null
           mailbox_id?: string | null
           recipient_mode?: string
+          references_header?: string | null
           sent_by?: string | null
           sent_by_name?: string | null
           sent_count?: number
@@ -12153,8 +12162,10 @@ export type Database = {
       }
       hr_mail_messages: {
         Row: {
+          attachments: Json
           body_html: string | null
           body_text: string | null
+          cc_addresses: string[]
           created_at: string
           from_address: string | null
           from_name: string | null
@@ -12168,6 +12179,7 @@ export type Database = {
           message_id_header: string | null
           received_at: string | null
           references_header: string | null
+          reply_to: string | null
           snippet: string | null
           subject: string | null
           thread_key: string | null
@@ -12175,8 +12187,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachments?: Json
           body_html?: string | null
           body_text?: string | null
+          cc_addresses?: string[]
           created_at?: string
           from_address?: string | null
           from_name?: string | null
@@ -12190,6 +12204,7 @@ export type Database = {
           message_id_header?: string | null
           received_at?: string | null
           references_header?: string | null
+          reply_to?: string | null
           snippet?: string | null
           subject?: string | null
           thread_key?: string | null
@@ -12197,8 +12212,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachments?: Json
           body_html?: string | null
           body_text?: string | null
+          cc_addresses?: string[]
           created_at?: string
           from_address?: string | null
           from_name?: string | null
@@ -12212,6 +12229,7 @@ export type Database = {
           message_id_header?: string | null
           received_at?: string | null
           references_header?: string | null
+          reply_to?: string | null
           snippet?: string | null
           subject?: string | null
           thread_key?: string | null

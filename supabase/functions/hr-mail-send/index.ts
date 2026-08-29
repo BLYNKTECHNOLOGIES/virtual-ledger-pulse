@@ -117,6 +117,9 @@ Deno.serve(async (req) => {
         subject,
         body_html: bodyHtml,
         recipient_mode: recipientMode,
+        cc_addresses: Array.isArray(body.cc) ? body.cc.filter((x: any) => typeof x === 'string' && x.includes('@')) : [],
+        in_reply_to_header: body.inReplyToHeader || null,
+        references_header: body.referencesHeader || null,
         attachment_paths: Array.isArray(body.attachmentPaths) ? body.attachmentPaths : [],
         in_reply_to_message_id: body.inReplyToMessageId || null,
         total_count: recipients.length,
@@ -197,12 +200,20 @@ Deno.serve(async (req) => {
       await client.send({
         from: `${mailbox.from_name || 'HR'} <${mailbox.from_address || smtpUser}>`,
         to: r.email,
-        cc: (mailbox.cc_addresses || []).filter((a: string) => a.toLowerCase() !== r.email.toLowerCase()),
+        cc: [...(mailbox.cc_addresses || []), ...(campaign.cc_addresses || [])]
+          .filter((a: string, i: number, arr: string[]) =>
+            a && a.toLowerCase() !== r.email.toLowerCase() && arr.findIndex(x => x.toLowerCase() === a.toLowerCase()) === i),
         subject: fillPlaceholders(campaign.subject, vars),
         content: tidyMailText(hrSignatureText()),
         html: tidyMailHtml(appendHrSignatureHtml(fillPlaceholders(campaign.body_html, vars))),
 
         attachments: attachments.length ? (attachments as any) : undefined,
+        headers: (campaign.in_reply_to_header || campaign.references_header)
+          ? {
+              ...(campaign.in_reply_to_header ? { 'In-Reply-To': campaign.in_reply_to_header } : {}),
+              ...(campaign.references_header ? { References: campaign.references_header } : {}),
+            }
+          : undefined,
       })
       sent++
       await admin.from('hr_mail_campaign_recipients')

@@ -93,14 +93,18 @@ export async function syncHrMailboxes(admin: any, opts: SyncOptions = {}) {
           from_address: p.fromAddress,
           from_name: p.fromName,
           to_addresses: p.to,
+          cc_addresses: (p as any).cc || [],
+          reply_to: (p as any).replyTo || null,
           subject: p.subject,
           snippet: snippetSource.slice(0, 300),
           body_html: p.html,
           body_text: p.text,
           received_at: p.date,
           has_attachments: p.hasAttachments,
+          attachments: (p as any).attachments || [],
           matched_employee_id: matchedEmployeeId,
         }, { onConflict: 'mailbox_id,imap_uid', ignoreDuplicates: true })
+
 
         if (!error) { inserted++; routed[targetAddress] = (routed[targetAddress] || 0) + 1 }
         if (m.uid > maxUid) maxUid = m.uid

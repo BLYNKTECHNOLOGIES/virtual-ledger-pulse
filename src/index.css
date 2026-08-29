@@ -2361,13 +2361,16 @@ html {
   white-space: nowrap;
 }
 
-/* Fade labels/badges out while the rail narrows instead of hard-clipping */
+/* Fade labels/badges out while the rail narrows instead of hard-clipping.
+   NOTE: never target .ds-nav-icon — in collapsed mode the label unmounts and
+   the icon becomes the last-child span; fading it hides the rail icons. */
 .group[data-state="collapsed"] [data-sidebar="sidebar"] [data-sidebar="group-label"],
-.group[data-state="collapsed"] [data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child {
+.group[data-state="collapsed"] [data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child:not(.ds-nav-icon),
+.group[data-state="collapsed"] [data-sidebar="sidebar"] .ds-nav-row > span:last-child:not(.ds-nav-icon) {
   opacity: 0;
 }
 [data-sidebar="sidebar"] [data-sidebar="group-label"],
-[data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child {
+[data-sidebar="sidebar"] [data-sidebar="menu-button"] > span:last-child:not(.ds-nav-icon) {
   opacity: 1;
   transition: opacity 180ms cubic-bezier(0.32, 0.72, 0, 1);
 }

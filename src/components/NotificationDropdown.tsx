@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -6,16 +7,22 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX, CheckCheck, Trash2, AlertTriangle, Info, CheckCircle, BellOff } from "lucide-react";
+import { Bell, Settings, RefreshCw, User, LogOut, Volume2, VolumeX, CheckCheck, Trash2, AlertTriangle, Info, CheckCircle, BellOff, Inbox } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNotificationMute } from "@/hooks/useNotificationMute";
 import { useNotifications, GlobalNotification } from "@/contexts/NotificationContext";
+import {
+  useWorkflowNotifications,
+  useMarkWorkflowNotificationRead,
+  useMarkAllWorkflowNotificationsRead,
+} from "@/hooks/useWorkflowNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
+
 
 function getNotificationIcon(type: GlobalNotification['type']) {
   switch (type) {
@@ -34,13 +41,26 @@ export function NotificationDropdown() {
   const { isMuted, toggleMute } = useNotificationMute();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { 
-    notifications, 
-    unreadCount, 
-    markAllAsRead, 
+  const navigate = useNavigate();
+  const {
+    notifications,
+    unreadCount: liveUnread,
+    markAllAsRead,
     clearNotifications,
     handleNotificationClick 
   } = useNotifications();
+
+  const { data: workflow = [] } = useWorkflowNotifications();
+  const markWorkflowRead = useMarkWorkflowNotificationRead();
+  const markAllWorkflowRead = useMarkAllWorkflowNotificationsRead();
+  const workflowUnread = workflow.filter((n) => !n.is_read).length;
+  const unreadCount = liveUnread + workflowUnread;
+
+  const openWorkflow = (n: { id: string; link: string | null }) => {
+    markWorkflowRead.mutate(n.id);
+    if (n.link) navigate(n.link);
+  };
+
 
   const handleReload = () => {
     queryClient.invalidateQueries();
@@ -94,30 +114,70 @@ export function NotificationDropdown() {
             )}
           </div>
           <div className="flex gap-1">
-            {notifications.length > 0 && (
+            {(notifications.length > 0 || workflowUnread > 0) && (
               <>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   className="h-7 px-2 text-xs"
-                  onClick={markAllAsRead}
+                  onClick={() => { markAllAsRead(); if (workflowUnread) markAllWorkflowRead.mutate(); }}
                   title="Mark all as read"
                 >
                   <CheckCheck className="h-3 w-3" />
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                  onClick={clearNotifications}
-                  title="Clear all"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {notifications.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                    onClick={clearNotifications}
+                    title="Clear all"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </>
             )}
           </div>
         </div>
+
+        {workflow.length > 0 && (
+          <div className="border-b">
+            <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Requests &amp; approvals
+            </p>
+            <ScrollArea className={workflow.length > 4 ? "h-56" : ""}>
+              <div className="divide-y">
+                {workflow.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => openWorkflow(n)}
+                    className={cn(
+                      "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                      !n.is_read && "bg-primary/5 border-l-2 border-l-primary",
+                    )}
+                  >
+                    <div className="flex gap-3">
+                      <Inbox className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm", !n.is_read && "font-semibold")}>{n.title}</p>
+                        {n.message && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+        
+
         
         {notifications.length > 0 ? (
           <ScrollArea className="h-80">
@@ -157,12 +217,13 @@ export function NotificationDropdown() {
               ))}
             </div>
           </ScrollArea>
-        ) : (
+        ) : workflow.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
             <p>No notifications</p>
           </div>
-        )}
+        ) : null}
+
         
         <DropdownMenuSeparator />
         

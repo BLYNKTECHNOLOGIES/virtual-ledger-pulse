@@ -110,6 +110,34 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     }));
   };
 
+  // Raw string state for numeric config inputs — prevents parseFloat coercion
+  // from wiping intermediate text like "0." or ".05" while typing.
+  const [rawNumeric, setRawNumeric] = useState<Record<string, string>>({});
+  type NumericField = 'offset_amount' | 'offset_pct' | 'max_ceiling' | 'max_ratio_ceiling' | 'min_floor' | 'min_ratio_floor';
+  const rawKey = (asset: string, field: NumericField) => `${asset}.${field}`;
+  const numericDisplay = (asset: string, field: NumericField, cfgVal: number | null | undefined): string => {
+    const raw = rawNumeric[rawKey(asset, field)];
+    if (raw !== undefined) return raw;
+    if (cfgVal === null || cfgVal === undefined || cfgVal === 0) return '';
+    return String(cfgVal);
+  };
+  const handleNumericChange = (asset: string, field: NumericField, text: string) => {
+    setRawNumeric(prev => ({ ...prev, [rawKey(asset, field)]: text }));
+    const parsed = text.trim() === '' ? null : parseFloat(text);
+    const val = parsed !== null && isFinite(parsed) ? parsed : (field === 'offset_amount' || field === 'offset_pct' ? 0 : null);
+    updateConfig(asset, { [field]: val } as Partial<AssetConfig>);
+  };
+  // Resolve final numeric value at save time (raw text wins so trailing digits are kept)
+  const resolveNumeric = (asset: string, field: NumericField, cfgVal: number | null | undefined): number | null => {
+    const raw = rawNumeric[rawKey(asset, field)];
+    if (raw !== undefined) {
+      if (raw.trim() === '') return field === 'offset_amount' || field === 'offset_pct' ? 0 : null;
+      const n = parseFloat(raw);
+      return isFinite(n) ? n : (field === 'offset_amount' || field === 'offset_pct' ? 0 : null);
+    }
+    return cfgVal ?? (field === 'offset_amount' || field === 'offset_pct' ? 0 : null);
+  };
+
   // Filter ads for a specific asset
   const getFilteredAds = (asset: string) => {
     return allAds.filter(ad => {

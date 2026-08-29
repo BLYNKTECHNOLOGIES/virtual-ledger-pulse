@@ -692,14 +692,22 @@ async function processAttendance(
   let shiftStartTime = "09:00:00";
   let shiftEndTime = "18:00:00";
   let isNightShift = false;
-  let gracePeriodMinutes = 15;
   let shiftDurationHours = 9;
   let shiftId: string | null = null;
+
+  // Grace period is company-wide: it comes from the default attendance policy,
+  // never from the individual shift.
+  const { data: defaultPolicy } = await supabase
+    .from("hr_attendance_policies")
+    .select("grace_period_minutes")
+    .eq("is_default", true)
+    .maybeSingle();
+  let gracePeriodMinutes = defaultPolicy?.grace_period_minutes ?? 0;
 
   if (workInfo?.shift_id) {
     const { data: shift } = await supabase
       .from("hr_shifts")
-      .select("id, start_time, end_time, is_night_shift, grace_period_minutes, duration_hours")
+      .select("id, start_time, end_time, is_night_shift, duration_hours")
       .eq("id", workInfo.shift_id)
       .maybeSingle();
 
@@ -708,10 +716,10 @@ async function processAttendance(
       shiftStartTime = shift.start_time;
       shiftEndTime = shift.end_time;
       isNightShift = shift.is_night_shift ?? false;
-      gracePeriodMinutes = shift.grace_period_minutes ?? 15;
       shiftDurationHours = shift.duration_hours ?? 9;
     }
   }
+
 
   // 3. Compute shift window for punch date (handles overnight)
   const { windowStart, windowEnd, attendanceDate } = computeShiftWindow(

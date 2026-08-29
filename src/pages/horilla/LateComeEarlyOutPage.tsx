@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -306,6 +306,7 @@ export default function LateComeEarlyOutPage() {
                           <div className="rounded-md border bg-surface-subtle p-2" onClick={(e) => e.stopPropagation()}>
                             <IncidentBreakdown
                               rows={incidentsByEmployee[s.id] || []}
+                              dayMap={dayMap}
                               onOpenFull={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
                             />
                           </div>

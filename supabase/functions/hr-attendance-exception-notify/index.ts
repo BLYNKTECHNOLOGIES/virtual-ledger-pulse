@@ -8,6 +8,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { requireCaller } from "../_shared/require-caller.ts";
+import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -247,8 +248,8 @@ Deno.serve(async (req) => {
         from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`,
         to,
         subject: `[SAMPLE] ${subject}`,
-        content: text,
-        html,
+        content: tidyMailText(text),
+        html: tidyMailHtml(html),
       });
       try { await client.close(); } catch { /* ignore */ }
 
@@ -291,7 +292,7 @@ Deno.serve(async (req) => {
       const { subject, html, text } = renderNotice(notice);
       const { client, user } = makeClient(mailbox);
       try {
-        await client.send({ from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`, to, subject, content: text, html });
+        await client.send({ from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`, to, subject, content: tidyMailText(text), html: tidyMailHtml(html) });
         await admin.from("hr_attendance_notice_log").update({
           status: "sent", sent_at: new Date().toISOString(), error_message: null,
           attempts: (row.attempts || 0) + 1, last_attempt_at: new Date().toISOString(),
@@ -491,8 +492,8 @@ Deno.serve(async (req) => {
           from: `${mailbox.from_name || "HR"} <${mailbox.from_address || smtp.user}>`,
           to: emp.email,
           subject,
-          content: text,
-          html,
+          content: tidyMailText(text),
+          html: tidyMailHtml(html),
         });
         sent++;
         await admin.from("hr_attendance_notice_log")

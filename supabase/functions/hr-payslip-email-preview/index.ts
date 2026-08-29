@@ -1,4 +1,5 @@
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
+import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -133,7 +134,7 @@ Deno.serve(async (req) => {
       to: RECIPIENT,
       subject: '[SAMPLE] Your Payslip — July 2026 | Blynk Virtual Technologies',
       content: 'Please view this email in an HTML-compatible client.',
-      html: HTML,
+      html: tidyMailHtml(HTML),
       attachments: [{
         filename: 'Payslip_July_2026_Rahul_Sharma_SAMPLE.pdf',
         content: PDF_B64,

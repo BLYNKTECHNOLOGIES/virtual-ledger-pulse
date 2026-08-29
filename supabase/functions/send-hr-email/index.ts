@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { wrapHrEmail, hasHrSignature } from "../_shared/hrSignature.ts"
+import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -292,7 +293,7 @@ Deno.serve(async (req) => {
       replyTo: replyTo,
       subject,
       content: "Please view this email in an HTML-compatible client.",
-      html: htmlBody,
+      html: tidyMailHtml(htmlBody),
       attachments: mailAttachments.length ? mailAttachments as any : undefined,
     })
 

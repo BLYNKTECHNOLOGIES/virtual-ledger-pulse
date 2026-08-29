@@ -3,6 +3,7 @@ import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { TEMPLATES } from '../_shared/transactional-email-templates/registry.ts'
+import { tidyMailHtml, tidyMailText } from '../_shared/mailBody.ts'
 
 // Configuration baked in at scaffold time — do NOT change these manually.
 // To update, re-run the email domain setup flow.
@@ -336,8 +337,8 @@ Deno.serve(async (req) => {
       from: `${SITE_NAME} <${fromAddress}>`,
       to: effectiveRecipient,
       subject: resolvedSubject,
-      content: plainText,
-      html,
+      content: tidyMailText(plainText),
+      html: tidyMailHtml(html),
       // Gmail groups messages with similar subjects/identical boilerplate into a
       // single conversation and then "trims" the repeated parts behind a "•••"
       // expander — which made recurring reports (e.g. the daily business report)

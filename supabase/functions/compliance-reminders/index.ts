@@ -9,6 +9,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -214,7 +215,7 @@ function renderDigest(items: Item[], dateLabel: string) {
     subject: items.length
       ? `Compliance digest - ${counts.critical} critical / ${items.length} item(s) - ${dateLabel}`
       : `Compliance digest - all clear - ${dateLabel}`,
-    html: mailSafeHtml(html),
+    html: tidyMailHtml(mailSafeHtml(html)),
     text: toAsciiText(text),
   };
 }
@@ -425,7 +426,7 @@ Deno.serve(async (req) => {
       const { client, from } = makeClient();
       await client.send({
         from,
-        to, subject, content: text, html,
+        to, subject, content: tidyMailText(text), html: tidyMailHtml(html),
       });
       await client.close();
       return json({ ok: true, sent_to: to, items: all.length });
@@ -443,7 +444,7 @@ Deno.serve(async (req) => {
       const { client, from } = makeClient();
       await client.send({
         from,
-        to, subject, content: text, html,
+        to, subject, content: tidyMailText(text), html: tidyMailHtml(html),
       });
       await client.close();
       return json({ ok: true, sent_to: to, items: all.length });
@@ -469,7 +470,7 @@ Deno.serve(async (req) => {
     const { client, from } = makeClient();
     await client.send({
       from,
-      to, subject, content: text, html,
+      to, subject, content: tidyMailText(text), html: tidyMailHtml(html),
     });
     await client.close();
 

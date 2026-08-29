@@ -199,8 +199,9 @@ Deno.serve(async (req) => {
         to: r.email,
         cc: (mailbox.cc_addresses || []).filter((a: string) => a.toLowerCase() !== r.email.toLowerCase()),
         subject: fillPlaceholders(campaign.subject, vars),
-        content: hrSignatureText(),
-        html: appendHrSignatureHtml(fillPlaceholders(campaign.body_html, vars)),
+        content: tidyMailText(hrSignatureText()),
+        html: tidyMailHtml(appendHrSignatureHtml(fillPlaceholders(campaign.body_html, vars))),
+
         attachments: attachments.length ? (attachments as any) : undefined,
       })
       sent++

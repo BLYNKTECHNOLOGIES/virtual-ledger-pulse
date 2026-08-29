@@ -315,8 +315,74 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
       if (error) throw error;
 
+      // Handle split payments — mirrors the manual Sales Entry flow
+      if (isSplitPayment) {
+        const orderDate = formData.order_datetime
+          ? formData.order_datetime.split('T')[0]
+          : new Date().toISOString().split('T')[0];
+        let hasAnyGateway = false;
+
+        for (const split of paymentSplits) {
+          const splitAmount = parseFloat(split.amount);
+          if (!(splitAmount > 0) || !split.payment_method_id) continue;
+
+          const pm: any = paymentMethods?.find((m: any) => m.id === split.payment_method_id);
+          const resolvedBankAccountId = pm?.bank_account_id;
+          if (!resolvedBankAccountId) continue;
+
+          const splitIsGateway = Boolean(pm?.payment_gateway);
+
+          if (splitIsGateway) {
+            hasAnyGateway = true;
+            await supabase.from('pending_settlements').insert({
+              sales_order_id: result.id,
+              order_number: orderNumber,
+              client_name: formData.client_name,
+              total_amount: splitAmount,
+              settlement_amount: splitAmount,
+              order_date: orderDate,
+              payment_method_id: split.payment_method_id,
+              bank_account_id: resolvedBankAccountId,
+              settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
+              settlement_days: pm?.settlement_days || null,
+              expected_settlement_date: pm?.settlement_days
+                ? new Date(new Date(orderDate).getTime() + pm.settlement_days * 86400000).toISOString().split('T')[0]
+                : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0],
+              status: 'PENDING',
+              created_by: createdBy,
+            });
+          } else {
+            await supabase.from('bank_transactions').insert({
+              bank_account_id: resolvedBankAccountId,
+              transaction_type: 'INCOME',
+              amount: splitAmount,
+              transaction_date: orderDate,
+              description: `Sales Order - ${orderNumber} - ${formData.client_name} (Split)`,
+              reference_number: orderNumber,
+              category: 'Sales',
+              related_account_name: formData.client_name,
+              created_by: createdBy,
+            });
+          }
+
+          await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: result.id,
+            bank_account_id: resolvedBankAccountId,
+            amount: splitAmount,
+            payment_method_id: split.payment_method_id,
+            is_gateway: splitIsGateway,
+            created_by: createdBy,
+          });
+        }
+
+        await supabase
+          .from('sales_orders')
+          .update({ settlement_status: hasAnyGateway ? 'PENDING' : 'DIRECT' })
+          .eq('id', result.id);
+      }
+
       // Handle settlement status based on payment method
-      if (formData.sales_payment_method_id) {
+      if (!isSplitPayment && formData.sales_payment_method_id) {
         const { data: paymentMethod } = await supabase
           .from('sales_payment_methods')
           .select('bank_account_id, payment_gateway, current_usage, payment_limit')

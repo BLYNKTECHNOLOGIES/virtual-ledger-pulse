@@ -13,12 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2 } from "lucide-react";
+import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { SeedDepositsDialog } from "@/components/hr/payroll/SeedDepositsDialog";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type DepositType = "security" | "error_recovery";
 type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid";
@@ -72,6 +73,11 @@ export default function DepositManagementPage() {
   const [refundAmount, setRefundAmount] = useState("");
   const [refundMonth, setRefundMonth] = useState(format(new Date(), "yyyy-MM"));
   const [withheldReason, setWithheldReason] = useState("");
+
+  // Delete / cancel remaining EMIs
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+
+
 
   const emptyForm = {
     employee_id: "",
@@ -279,6 +285,64 @@ export default function DepositManagementPage() {
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
       toast.success(action === "pause" ? "Deposit paused" : "Deposit resumed");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  /**
+   * Delete a deposit / error recovery.
+   * - Nothing collected yet → the record and its (empty) schedule + audit rows are removed outright.
+   * - Money already collected → collections are never destroyed: only the pending future
+   *   installments are removed and the record is closed as cancelled, keeping the held amount
+   *   and its ledger intact so it can still be paid back later.
+   */
+  const deleteMutation = useMutation({
+    mutationFn: async (d: any) => {
+      const collected = Number(d.collected_amount || 0);
+
+      // Always drop only the not-yet-collected schedule rows.
+      const { error: schedErr } = await (supabase as any)
+        .from("hr_employee_deposit_schedule")
+        .delete()
+        .eq("deposit_id", d.id)
+        .neq("status", "collected");
+      if (schedErr) throw schedErr;
+
+      if (collected <= 0) {
+        await (supabase as any).from("hr_deposit_transactions").delete().eq("deposit_id", d.id);
+        const { error } = await (supabase as any).from("hr_employee_deposits").delete().eq("id", d.id);
+        if (error) throw error;
+        return { hardDeleted: true };
+      }
+
+      await (supabase as any).from("hr_deposit_transactions").insert({
+        employee_id: d.employee_id,
+        deposit_id: d.id,
+        deposit_type: d.deposit_type || "security",
+        transaction_type: "modified",
+        amount: 0,
+        balance_after: Number(d.current_balance || 0),
+        description: `Remaining installments cancelled by admin — ${inr(collected)} already collected retained`,
+        transaction_date: new Date().toISOString().slice(0, 10),
+      });
+
+      const { error } = await (supabase as any).from("hr_employee_deposits").update({
+        is_paused: true,
+        paused_at: new Date().toISOString(),
+        paused_reason: "Remaining installments cancelled",
+        is_fully_collected: true,
+        current_balance: collected,
+        settlement_notes: `Cancelled by admin — collected ${inr(collected)} of ${inr(d.total_deposit_amount)} retained`,
+        updated_at: new Date().toISOString(),
+      }).eq("id", d.id);
+      if (error) throw error;
+      return { hardDeleted: false };
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
+      setDeleteTarget(null);
+      toast.success(r.hardDeleted ? "Record deleted" : "Remaining installments cancelled — collected amount kept");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -599,6 +663,15 @@ export default function DepositManagementPage() {
                     <Undo2 className="h-3 w-3 mr-1" /> Pay back
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-destructive"
+                  onClick={() => setDeleteTarget(d)}
+                  title={Number(d.collected_amount || 0) > 0 ? "Cancel remaining installments" : "Delete record"}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </>
             )}
           </div>
@@ -870,6 +943,41 @@ export default function DepositManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {Number(deleteTarget?.collected_amount || 0) > 0 ? "Cancel remaining installments?" : "Delete this record?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {Number(deleteTarget?.collected_amount || 0) > 0 ? (
+                <>
+                  {inr(deleteTarget?.collected_amount)} has already been collected, so the record and its ledger are kept.
+                  Only the pending future installments are removed and no further deduction will be pushed to payroll.
+                  You can still pay the held amount back to the employee later.
+                </>
+              ) : (
+                <>
+                  Nothing has been collected yet, so this {TYPE_LABEL[(deleteTarget?.deposit_type || "security") as DepositType].toLowerCase()} record
+                  and its pending installments will be permanently removed. This cannot be undone.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={deleteMutation.isPending}
+              onClick={(e) => { e.preventDefault(); deleteMutation.mutate(deleteTarget); }}
+            >
+              {Number(deleteTarget?.collected_amount || 0) > 0 ? "Cancel remaining" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+
   );
 }

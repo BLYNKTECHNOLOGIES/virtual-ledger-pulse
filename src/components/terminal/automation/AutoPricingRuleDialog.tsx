@@ -309,12 +309,12 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       const cfg = getConfig(asset);
       cleanConfig[asset] = {
         ad_numbers: cfg.ad_numbers,
-        offset_amount: cfg.offset_amount || 0,
-        offset_pct: cfg.offset_pct || 0,
-        max_ceiling: cfg.max_ceiling,
-        min_floor: cfg.min_floor,
-        max_ratio_ceiling: cfg.max_ratio_ceiling,
-        min_ratio_floor: cfg.min_ratio_floor,
+        offset_amount: resolveNumeric(asset, 'offset_amount', cfg.offset_amount) || 0,
+        offset_pct: resolveNumeric(asset, 'offset_pct', cfg.offset_pct) || 0,
+        max_ceiling: resolveNumeric(asset, 'max_ceiling', cfg.max_ceiling),
+        min_floor: resolveNumeric(asset, 'min_floor', cfg.min_floor),
+        max_ratio_ceiling: resolveNumeric(asset, 'max_ratio_ceiling', cfg.max_ratio_ceiling),
+        min_ratio_floor: resolveNumeric(asset, 'min_ratio_floor', cfg.min_ratio_floor),
       };
     }
 

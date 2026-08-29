@@ -26,14 +26,58 @@ export default function PayrollDashboardPage() {
   const [reviewDialog, setReviewDialog] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
 
+  // RazorpayX is the payroll authority — mirror its runs (hr_razorpay_payroll_runs)
+  // and derive totals from the imported payslip records for each period.
   const { data: runs = [], isLoading } = useQuery({
-    queryKey: ["hr_payroll_runs"],
+    queryKey: ["hr_payroll_runs_mirror"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("hr_payroll_runs").select("*").order("run_date", { ascending: false });
-      if (error) throw error;
-      return data || [];
+      const [{ data: rzRuns, error: runErr }, { data: recs, error: recErr }] = await Promise.all([
+        (supabase as any).from("hr_razorpay_payroll_runs").select("*").order("period_month", { ascending: false }),
+        (supabase as any)
+          .from("hr_razorpay_payslip_records")
+          .select("period_month, gross_earnings, total_deductions, net_pay, reg_gross_salary, reg_net_pay"),
+      ]);
+      if (runErr) throw runErr;
+      if (recErr) throw recErr;
+
+      const agg = new Map<string, { emps: number; gross: number; ded: number; net: number }>();
+      for (const r of recs || []) {
+        const key = r.period_month as string;
+        const cur = agg.get(key) || { emps: 0, gross: 0, ded: 0, net: 0 };
+        cur.emps += 1;
+        cur.gross += Number(r.gross_earnings ?? r.reg_gross_salary ?? 0);
+        cur.ded += Number(r.total_deductions ?? 0);
+        cur.net += Number(r.net_pay ?? r.reg_net_pay ?? 0);
+        agg.set(key, cur);
+      }
+
+      const monthEnd = (m: string) => {
+        const d = new Date(m);
+        return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+      };
+      const monthLabel = (m: string) =>
+        new Date(m).toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+
+      return (rzRuns || []).map((r: any) => {
+        const a = agg.get(r.period_month) || { emps: 0, gross: 0, ded: 0, net: 0 };
+        return {
+          id: r.id,
+          title: `Payroll — ${monthLabel(r.period_month)}`,
+          pay_period_start: r.period_month,
+          pay_period_end: monthEnd(r.period_month),
+          run_date: (r.created_at || "").slice(0, 10),
+          employee_count: a.emps || r.headcount_included || 0,
+          total_gross: Number(r.totals_gross) || a.gross,
+          total_deductions: Number(r.totals_deductions) || a.ded,
+          total_net: Number(r.totals_net) || a.net,
+          status: r.status,
+          is_locked: !!r.locked_at,
+          rerun_count: 0,
+        };
+      });
     },
   });
+
 
   const createMutation = useMutation({
     mutationFn: async () => {

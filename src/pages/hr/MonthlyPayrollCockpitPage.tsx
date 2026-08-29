@@ -269,7 +269,6 @@ export default function MonthlyPayrollCockpitPage() {
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Monthly Payroll Cockpit"
-        description="The month-end ritual as a machine. Ten deterministic steps."
       />
 
       <Card className="border-primary/30">
@@ -315,7 +314,7 @@ export default function MonthlyPayrollCockpitPage() {
       {/* Payroll toolbox — every sub-tool opens inside the cockpit, not the sidebar. */}
       <Card>
         <CardContent className="p-3 md:p-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Payroll toolbox</div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Tools</div>
           <div className="flex flex-wrap gap-2">
             {EXTRA_TOOLS.map((t) => (
               <Button

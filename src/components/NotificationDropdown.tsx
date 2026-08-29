@@ -102,23 +102,27 @@ export function NotificationDropdown() {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-96">
-        <div className="p-4 border-b flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="font-semibold">Notifications</h3>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-[min(24rem,calc(100vw-1.5rem))] max-w-[calc(100vw-1.5rem)] p-0 overflow-hidden"
+      >
+        <div className="px-3 py-2.5 border-b flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="font-semibold text-sm truncate">Notifications</h3>
             {isMuted && (
-              <Badge variant="secondary" className="text-xs gap-1">
+              <Badge variant="secondary" className="text-[10px] gap-1 px-1.5 py-0">
                 <VolumeX className="h-3 w-3" />
                 Muted
               </Badge>
             )}
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 shrink-0">
             {(notifications.length > 0 || workflowUnread > 0) && (
               <>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-7 px-2 text-xs"
                   onClick={() => { markAllAsRead(); if (workflowUnread) markAllWorkflowRead.mutate(); }}
                   title="Mark all as read"
@@ -126,9 +130,9 @@ export function NotificationDropdown() {
                   <CheckCheck className="h-3 w-3" />
                 </Button>
                 {notifications.length > 0 && (
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-7 px-2 text-xs text-destructive hover:text-destructive"
                     onClick={clearNotifications}
                     title="Clear all"
@@ -141,12 +145,36 @@ export function NotificationDropdown() {
           </div>
         </div>
 
-        {workflow.length > 0 && (
-          <div className="border-b">
-            <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Requests &amp; approvals
-            </p>
-            <ScrollArea className={workflow.length > 4 ? "h-56" : ""}>
+        {/* Source tabs — HR/workflow approvals kept separate from ERP system alerts */}
+        <div className="grid grid-cols-2 border-b text-xs">
+          {([
+            { key: "requests" as const, label: "Requests", count: workflowUnread },
+            { key: "system" as const, label: "System", count: liveUnread },
+          ]).map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={(e) => { e.preventDefault(); setTab(t.key); }}
+              className={cn(
+                "flex items-center justify-center gap-1.5 py-2 font-medium transition-colors",
+                tab === t.key
+                  ? "text-primary border-b-2 border-primary -mb-px"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+              {t.count > 0 && (
+                <span className="rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] leading-none tabular-nums">
+                  {t.count > 99 ? "99+" : t.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <ScrollArea className="h-[min(22rem,50vh)]">
+          {tab === "requests" ? (
+            workflow.length > 0 ? (
               <div className="divide-y">
                 {workflow.map((n) => (
                   <div
@@ -160,31 +188,30 @@ export function NotificationDropdown() {
                     <div className="flex gap-3">
                       <Inbox className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className={cn("text-sm", !n.is_read && "font-semibold")}>{n.title}</p>
+                        <p className={cn("text-sm break-words", !n.is_read && "font-semibold")}>{n.title}</p>
                         {n.message && (
-                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 break-words">{n.message}</p>
                         )}
                         <p className="text-xs text-muted-foreground mt-1">
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                         </p>
                       </div>
-                      {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />}
+                      {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />}
                     </div>
                   </div>
                 ))}
               </div>
-            </ScrollArea>
-          </div>
-        )}
-        
-
-        
-        {notifications.length > 0 ? (
-          <ScrollArea className="h-80">
+            ) : (
+              <div className="p-8 text-center text-muted-foreground">
+                <Inbox className="h-8 w-8 mx-auto mb-2 opacity-30" />
+                <p className="text-sm">No pending requests</p>
+              </div>
+            )
+          ) : notifications.length > 0 ? (
             <div className="divide-y">
               {notifications.map((notification) => (
-                <div 
-                  key={notification.id} 
+                <div
+                  key={notification.id}
                   className={cn(
                     "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
                     !notification.read && "bg-primary/5 border-l-2 border-l-primary"
@@ -192,17 +219,14 @@ export function NotificationDropdown() {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-3">
-                    <div className="mt-0.5">
+                    <div className="mt-0.5 shrink-0">
                       {getNotificationIcon(notification.type)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "text-sm",
-                        !notification.read && "font-semibold"
-                      )}>
+                      <p className={cn("text-sm break-words", !notification.read && "font-semibold")}>
                         {notification.title}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 break-words">
                         {notification.description}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
@@ -210,22 +234,22 @@ export function NotificationDropdown() {
                       </p>
                     </div>
                     {!notification.read && (
-                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />
+                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
                     )}
                   </div>
                 </div>
               ))}
             </div>
-          </ScrollArea>
-        ) : workflow.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-            <p>No notifications</p>
-          </div>
-        ) : null}
+          ) : (
+            <div className="p-8 text-center text-muted-foreground">
+              <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">No notifications</p>
+            </div>
+          )}
+        </ScrollArea>
 
-        
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="my-0" />
+
         
         <div className="p-2">
           <DropdownMenuItem onClick={handleToggleMute}>

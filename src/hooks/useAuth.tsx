@@ -120,8 +120,8 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
   };
 
   const clearAllSessions = async () => {
-    // Sign out from Supabase Auth
-    try { await supabase.auth.signOut(); } catch { /* best effort */ }
+    // Sign out from Supabase Auth (this browser only — other devices stay signed in)
+    try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* best effort */ }
     // Clear legacy localStorage
     localStorage.removeItem('userSession');
     localStorage.removeItem('isLoggedIn');

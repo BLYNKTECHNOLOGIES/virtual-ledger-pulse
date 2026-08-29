@@ -2349,11 +2349,23 @@ html {
 
 /* --- Sidebar collapse/expand motion --------------------------------- */
 .sidebar-motion {
-  transition-duration: 280ms;
+  transition-duration: 240ms;
   transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-  will-change: width;
+  contain: layout paint style;
   backface-visibility: hidden;
 }
+
+/* Hover "peek": the floating panel expands OVER the page while the layout
+   spacer stays at rail width — so the main content never reflows and the
+   animation stays on a single, contained element (no layout thrash). */
+[data-sidebar-peek="true"] .group > div:first-child {
+  width: var(--sidebar-width-icon) !important;
+  transition: none !important;
+}
+[data-sidebar-peek="true"] .group > div:nth-child(2) {
+  box-shadow: 0 8px 32px -8px hsl(var(--foreground) / 0.18);
+}
+
 
 /* Keep labels from re-wrapping mid-animation (the main source of jerk) */
 [data-sidebar="sidebar"] span,

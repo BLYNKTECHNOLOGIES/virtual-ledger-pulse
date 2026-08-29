@@ -30,7 +30,7 @@ class ImapConnection {
     const buf = new Uint8Array(65536);
     const n = await this.conn.read(buf);
     if (n === null) return false;
-    this.buffer += this.decoder.decode(buf.subarray(0, n));
+    this.buffer += this.decoder.decode(buf.subarray(0, n), { stream: true });
     return true;
   }
 
@@ -156,7 +156,8 @@ function decodePart(head: string, rawBody: string): string {
   const cs = charsetOf(head);
   if (lower.includes("quoted-printable")) return decodeBytes(qpToBytes(rawBody), cs);
   if (/content-transfer-encoding\s*:\s*base64/i.test(head)) return decodeBytes(b64ToBytes(rawBody), cs);
-  return decodeBytes(binaryToBytes(rawBody), cs);
+  // 7bit/8bit: the transport string is already text-decoded upstream.
+  return rawBody;
 }
 
 function splitAddresses(v: string): string[] {

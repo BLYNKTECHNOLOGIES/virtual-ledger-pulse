@@ -21,10 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { MailBodyView } from "@/components/hrms/MailBodyView";
+import { ThreadList } from "@/components/hrms/mail/ThreadList";
+import { ThreadReader } from "@/components/hrms/mail/ThreadReader";
 import {
   useHrMailboxes, useHrMailMessages, useHrMailCampaigns, useHrMailRecipients,
-  useHrMailTemplates, useHrMailEmployees, useSendHrMail, useFetchHrMail, useMarkMailRead,
+  useHrMailTemplates, useHrMailEmployees, useSendHrMail, useFetchHrMail,
   useMarkThreadRead, groupMailThreads,
   useHrMailUnreadCounts, useHrMailRealtimeAlerts,
   getNotificationPermission, requestMailNotificationPermission,
@@ -129,7 +130,6 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const filters = useMemo(
     () => ({ search, from: fromFilter, subject: subjectFilter, dateFrom, dateTo, unreadOnly }),
@@ -141,7 +141,6 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
   const { data: messages = [], isLoading } = useHrMailMessages(mailboxId, filters);
   const { data: mailboxes = [] } = useHrMailboxes();
   const fetchMail = useFetchHrMail();
-  const markRead = useMarkMailRead();
   const markThreadRead = useMarkThreadRead();
 
   const threads = useMemo(() => groupMailThreads(messages), [messages]);

@@ -271,7 +271,7 @@ export default function PayrollDashboardPage() {
               <EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" />
             ) : (
               runs.map((r: any) => (
-                <div key={r.id} className="p-4 space-y-2">
+                <div key={r.id} className="p-4 space-y-2 cursor-pointer active:bg-muted/40" onClick={() => setDetailRun(r)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{r.title}</p>

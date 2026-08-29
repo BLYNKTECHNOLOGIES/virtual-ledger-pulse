@@ -232,14 +232,14 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
         <p className="text-xs text-destructive">Last sync error: {mailbox.imap_last_error}</p>
       )}
 
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,380px)_1fr]">
-        <Card className={selectedThread ? "hidden lg:block" : ""}>
+      <div className="grid gap-3 md:grid-cols-[minmax(0,320px)_1fr] xl:grid-cols-[minmax(0,380px)_1fr]">
+        <Card className={selectedThread ? "hidden md:block" : ""}>
           <CardContent className="p-0">
             <ThreadList
               threads={threads}
               isLoading={isLoading}
               selectedKey={selectedKey}
-              heightClass="h-[60vh] lg:h-[560px]"
+              heightClass="h-[60vh] md:h-[560px]"
               onSelect={(t) => {
                 setSelectedKey(t.key);
                 const unreadIds = t.messages.filter(m => !m.is_read).map(m => m.id);
@@ -249,15 +249,15 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
           </CardContent>
         </Card>
 
-        <Card className={selectedThread ? "" : "hidden lg:block"}>
-          <CardContent className="p-0 h-[70vh] lg:h-[560px]">
+        <Card className={selectedThread ? "" : "hidden md:block"}>
+          <CardContent className="p-0 h-[70vh] md:h-[560px]">
             {!selectedThread ? (
               <EmptyState icon={Mail} title="Select a conversation" description="Choose a conversation to read the full thread here." className="h-full" />
             ) : (
               <ThreadReader
                 thread={selectedThread}
                 mailbox={mailbox}
-                heightClass="h-[calc(70vh-64px)] lg:h-[calc(560px-64px)]"
+                heightClass="h-[calc(70vh-64px)] md:h-[calc(560px-64px)]"
                 onBack={() => setSelectedKey(null)}
               />
             )}

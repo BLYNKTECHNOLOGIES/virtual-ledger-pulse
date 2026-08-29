@@ -136,18 +136,16 @@ export function AttendancePoliciesPanel() {
             <div><Label>Policy Name *</Label><Input className="h-9" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Standard Office Policy" /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Late After (minutes)</Label><Input type="number" className="h-9" value={form.late_threshold_minutes} onChange={(e) => setForm({ ...form, late_threshold_minutes: parseInt(e.target.value) || 0 })} /></div>
-              <div><Label>Grace Period (minutes)</Label><Input type="number" className="h-9" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} /><p className="text-[10px] text-muted-foreground mt-0.5">Applies to every work shift — grace is not configurable per shift</p></div>
+              <div><Label>Grace Period (minutes)</Label><Input type="number" className="h-9" value={form.grace_period_minutes} onChange={(e) => setForm({ ...form, grace_period_minutes: parseInt(e.target.value) || 0 })} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+<div>
                 <Label>Half-Day Threshold (minutes)</Label>
                 <Input type="number" className="h-9" value={form.half_day_threshold_minutes} onChange={(e) => setForm({ ...form, half_day_threshold_minutes: parseInt(e.target.value) || 0 })} />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Minimum worked minutes (either half of the shift) to earn a half day — below this the day is Absent</p>
               </div>
               <div>
                 <Label>Full-Day Threshold (minutes)</Label>
                 <Input type="number" className="h-9" value={form.full_day_threshold_minutes} onChange={(e) => setForm({ ...form, full_day_threshold_minutes: parseInt(e.target.value) || 0 })} />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Worked minutes required for Present — between the two thresholds the day is Half Day</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -155,16 +153,14 @@ export function AttendancePoliciesPanel() {
               <div><Label>Min Overtime (minutes)</Label><Input type="number" className="h-9" value={form.min_overtime_minutes} onChange={(e) => setForm({ ...form, min_overtime_minutes: parseInt(e.target.value) || 0 })} /></div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+<div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Lates per 1 LOP day</Label>
                 <Input type="number" min={0} className="h-9" value={form.late_count_for_lop} onChange={(e) => setForm({ ...form, late_count_for_lop: parseInt(e.target.value) || 0 })} />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable LOP deduction for lateness</p>
               </div>
               <div>
                 <Label>Half-days per 1 LOP day</Label>
                 <Input type="number" min={0} className="h-9" value={form.half_day_count_for_lop} onChange={(e) => setForm({ ...form, half_day_count_for_lop: parseInt(e.target.value) || 0 })} />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable extra LOP from half-days</p>
               </div>
             </div>
             <div className="flex items-center gap-3"><Switch checked={form.absent_if_no_punch} onCheckedChange={(v) => setForm({ ...form, absent_if_no_punch: v })} /><Label>Mark absent if no punch recorded</Label></div>

@@ -217,7 +217,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setCheckInterval(String(editingRule.check_interval_seconds));
     } else {
       setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
-      setAssetConfigs({}); setTradeType('BUY'); setPriceType('FIXED');
+      setAssetConfigs({}); setRawNumeric({}); setTradeType('BUY'); setPriceType('FIXED');
       setPriorityMerchants(['']);
       setCompetitorZone('p2p'); setCompetitorMode('nickname');
       setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');

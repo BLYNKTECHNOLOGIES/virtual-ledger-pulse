@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck, ExternalLink } from "lucide-react";
 import { StatutoryReportsPanel } from "@/components/hrms/StatutoryReportsPanel";
+import { PayrollRunDetailDialog } from "@/components/hrms/payroll/PayrollRunDetailDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -25,6 +26,7 @@ export default function PayrollDashboardPage() {
   const [rerunReason, setRerunReason] = useState("");
   const [reviewDialog, setReviewDialog] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [detailRun, setDetailRun] = useState<any>(null);
 
   // RazorpayX is the payroll authority — mirror its runs (hr_razorpay_payroll_runs)
   // and derive totals from the imported payslip records for each period.
@@ -269,7 +271,7 @@ export default function PayrollDashboardPage() {
               <EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" />
             ) : (
               runs.map((r: any) => (
-                <div key={r.id} className="p-4 space-y-2">
+                <div key={r.id} className="p-4 space-y-2 cursor-pointer active:bg-muted/40" onClick={() => setDetailRun(r)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-medium text-sm truncate">{r.title}</p>
@@ -289,7 +291,7 @@ export default function PayrollDashboardPage() {
                     <div><p className="text-[10px] uppercase text-muted-foreground">Gross</p><p className="text-success tabular-nums">₹{(r.total_gross || 0).toLocaleString('en-IN')}</p></div>
                     <div><p className="text-[10px] uppercase text-muted-foreground">Net</p><p className="font-semibold tabular-nums">₹{(r.total_net || 0).toLocaleString('en-IN')}</p></div>
                   </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1" onClick={(e) => e.stopPropagation()}>
                     {r.status === "draft" && (
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded">
                         <Lock className="h-3 w-3" /> Compute on RazorpayX
@@ -338,8 +340,8 @@ export default function PayrollDashboardPage() {
                 <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" /></td></tr>
               ) : (
                 runs.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium">{r.title}</td>
+                  <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setDetailRun(r)}>
+                    <td className="px-4 py-3 font-medium">{r.title}<span className="block text-[11px] font-normal text-muted-foreground">Click for breakdown</span></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
                     <td className="px-4 py-3 tabular-nums">{r.run_date}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{r.employee_count || 0}</td>
@@ -361,7 +363,7 @@ export default function PayrollDashboardPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         {/* Draft: compute on RazorpayX (button retired) */}
                         {r.status === "draft" && (
@@ -521,6 +523,13 @@ export default function PayrollDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PayrollRunDetailDialog
+        open={!!detailRun}
+        onOpenChange={(o) => !o && setDetailRun(null)}
+        periodMonth={detailRun?.pay_period_start ?? null}
+        title={detailRun?.title ? `${detailRun.title} — breakdown` : undefined}
+      />
+
 
       {/* Statutory Reports */}
       <Card className="mt-6">

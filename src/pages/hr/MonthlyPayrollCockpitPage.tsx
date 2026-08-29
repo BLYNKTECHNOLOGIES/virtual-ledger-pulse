@@ -130,6 +130,10 @@ function StepIcon({ step }: { step: CockpitStep }) {
   return <Circle className="h-6 w-6 text-muted-foreground" />;
 }
 
+function plural(n: any, word: string): string {
+  return Number(n ?? 0) === 1 ? word : `${word}s`;
+}
+
 function DetailLine({ step }: { step: CockpitStep }) {
   const d = step.live_detail ?? {};
   switch (step.step_key) {
@@ -412,12 +416,12 @@ export default function MonthlyPayrollCockpitPage() {
                         <div className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 border-l-2 border-amber-500/40 pl-2 space-y-0.5">
                           <Lock className="h-3 w-3 mt-0.5 shrink-0" />
                           <div className="space-y-0.5">
-                            <div className="font-medium">Cannot acknowledge yet — the tool is still open, finish the work inside it.</div>
+                            <div className="font-medium">This step cannot be confirmed yet.</div>
                             {stepGate.lopReasons.map((r) => (
-                              <div key={r}>Upstream (Step 4): {r}.</div>
+                              <div key={r}>Pending in Step 4: {r}.</div>
                             ))}
                             {stepGate.recoveryReasons.map((r) => (
-                              <div key={r}>To do here: {r}. Open the tool below to push {stepGate.recPending === 1 ? "it" : "them"}.</div>
+                              <div key={r}>{r}. Open the tool below to push {stepGate.recPending === 1 ? "it" : "them"}.</div>
                             ))}
                           </div>
                         </div>

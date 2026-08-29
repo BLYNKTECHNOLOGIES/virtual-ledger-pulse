@@ -602,7 +602,8 @@ export default function UserProfile() {
     account_name: '', account_number: '', bank_name: '', ifsc_code: '', branch: ''
   });
   const [leaveRequest, setLeaveRequest] = useState({
-    leave_type_id: '', from_date: '', to_date: '', reason: ''
+    leave_type_id: '', from_date: '', to_date: '', reason: '',
+    is_half_day: false, half_day_period: 'morning' as 'morning' | 'afternoon'
   });
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
@@ -820,28 +821,29 @@ export default function UserProfile() {
       if (!req.leave_type_id || !req.from_date || !req.to_date) throw new Error('Please fill all required fields');
 
       const start = new Date(req.from_date);
-      const end = new Date(req.to_date);
+      const end = req.is_half_day ? start : new Date(req.to_date);
       if (end < start) throw new Error('End date must be after start date');
-      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const totalDays = req.is_half_day
+        ? 0.5
+        : Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const payload = {
+        leave_type_id: req.leave_type_id,
+        start_date: req.from_date,
+        end_date: req.is_half_day ? req.from_date : req.to_date,
+        total_days: totalDays,
+        is_half_day: req.is_half_day,
+        half_day_period: req.is_half_day ? req.half_day_period : null,
+        reason: req.reason || null,
+      };
 
       // If editing, update instead of insert
       if (editingLeaveId) {
-        const { error } = await (supabase as any).from('hr_leave_requests').update({
-          leave_type_id: req.leave_type_id,
-          start_date: req.from_date,
-          end_date: req.to_date,
-          total_days: totalDays,
-          reason: req.reason || null,
-        }).eq('id', editingLeaveId);
+        const { error } = await (supabase as any).from('hr_leave_requests').update(payload).eq('id', editingLeaveId);
         if (error) throw error;
       } else {
         const { error } = await (supabase as any).from('hr_leave_requests').insert({
+          ...payload,
           employee_id: hrEmployee.id,
-          leave_type_id: req.leave_type_id,
-          start_date: req.from_date,
-          end_date: req.to_date,
-          total_days: totalDays,
-          reason: req.reason || null,
           status: 'requested',
         });
         if (error) throw error;

@@ -7,12 +7,26 @@ const SUPABASE_URL = "https://vagiqbespusdxsbqpvbo.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZhZ2lxYmVzcHVzZHhzYnFwdmJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAwMzM2OTcsImV4cCI6MjA2NTYwOTY5N30.LTH1iLnl11H4KZ_qWekz-x7PGhD7UAgpw8EEifGKnrM";
 
 const SUPABASE_REQUEST_TIMEOUT_MS = 30000;
+// Auth (GoTrue) calls — especially token refresh — must never be aborted by our
+// generic timeout. auth-js treats a non-network error on refresh as fatal and
+// signs the user out, which surfaced as random "logged out again and again".
+const AUTH_REQUEST_TIMEOUT_MS = 60000;
+
+const isAuthRequest = (input: RequestInfo | URL) => {
+  const url =
+    typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  return typeof url === 'string' && url.includes('/auth/v1/');
+};
 
 const fetchWithTimeout: typeof fetch = async (input, init) => {
   const requestInit: RequestInit = init ?? {};
   const controller = new AbortController();
   const upstreamSignal = requestInit.signal;
-  const timeoutId = window.setTimeout(() => controller.abort(), SUPABASE_REQUEST_TIMEOUT_MS);
+  const authCall = isAuthRequest(input);
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    authCall ? AUTH_REQUEST_TIMEOUT_MS : SUPABASE_REQUEST_TIMEOUT_MS
+  );
 
   if (upstreamSignal) {
     if (upstreamSignal.aborted) controller.abort();
@@ -23,6 +37,9 @@ const fetchWithTimeout: typeof fetch = async (input, init) => {
     return await fetch(input, { ...requestInit, signal: controller.signal });
   } catch (error) {
     if (controller.signal.aborted && !upstreamSignal?.aborted) {
+      // For auth calls throw a TypeError so auth-js classifies it as a
+      // retryable network failure instead of invalidating the session.
+      if (authCall) throw new TypeError('Failed to fetch (auth request timed out)');
       throw new Error('Supabase request timed out. Please try again.');
     }
     throw error;
@@ -30,6 +47,7 @@ const fetchWithTimeout: typeof fetch = async (input, init) => {
     window.clearTimeout(timeoutId);
   }
 };
+
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";

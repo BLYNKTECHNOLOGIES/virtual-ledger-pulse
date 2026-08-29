@@ -29,6 +29,12 @@ export interface HrMailMessage {
   is_read: boolean;
   matched_employee_id: string | null;
   has_attachments: boolean;
+  to_addresses?: string[] | null;
+  cc_addresses?: string[] | null;
+  reply_to?: string | null;
+  attachments?: Array<{ filename: string; contentType?: string; size?: number }> | null;
+  in_reply_to?: string | null;
+  references_header?: string | null;
   message_id_header?: string | null;
   thread_key?: string | null;
 }
@@ -267,6 +273,50 @@ export function useSendHrMail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_mail_campaigns"] });
       qc.invalidateQueries({ queryKey: ["hr_mail_campaign_recipients"] });
+    },
+  });
+}
+
+/** Sends a threaded reply to an inbound message through the HR mailbox. */
+export function useReplyHrMail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      mailboxId: string;
+      to: string[];
+      cc?: string[];
+      subject: string;
+      bodyText: string;
+      attachmentPaths?: string[];
+      inReplyToMessageId?: string | null;
+      inReplyToHeader?: string | null;
+      referencesHeader?: string | null;
+    }) => {
+      const bodyHtml = input.bodyText
+        .split(/\n{2,}/)
+        .map(p => `<p>${p.replace(/\n/g, "<br />").replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string))}</p>`)
+        .join("");
+      const { data, error } = await supabase.functions.invoke("hr-mail-send", {
+        body: {
+          mailboxId: input.mailboxId,
+          recipientMode: "selected",
+          employeeIds: [],
+          extraEmails: input.to,
+          cc: input.cc || [],
+          subject: input.subject,
+          bodyHtml,
+          attachmentPaths: input.attachmentPaths || [],
+          inReplyToMessageId: input.inReplyToMessageId || null,
+          inReplyToHeader: input.inReplyToHeader || null,
+          referencesHeader: input.referencesHeader || null,
+        },
+      });
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as any;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["hr_mail_campaigns"] });
     },
   });
 }

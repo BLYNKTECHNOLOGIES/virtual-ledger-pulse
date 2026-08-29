@@ -23,21 +23,23 @@ interface LayoutProps {
 function Shell({ children, isStandby }: { children: React.ReactNode; isStandby: boolean }) {
   const location = useLocation();
   const workAreaRef = useRef<HTMLElement>(null);
-  const { expandOnHover, collapseOnLeave } = useSidebarAutoCollapse(workAreaRef);
+  const { expandOnHover, collapseOnLeave, isPeeking } = useSidebarAutoCollapse(workAreaRef);
 
   return (
     <div className="flex w-full min-h-screen bg-background">
       {/* Desktop sidebar - hidden on mobile, hidden entirely for standby users.
-          Hovering the rail expands; leaving re-collapses (auto mode only). */}
+          Hovering the rail expands it as an overlay (peek); leaving re-collapses. */}
       {!isStandby && (
         <div
           className="hidden md:block"
+          data-sidebar-peek={isPeeking ? "true" : undefined}
           onMouseEnter={expandOnHover}
           onMouseLeave={collapseOnLeave}
         >
           <AppSidebar />
         </div>
       )}
+
       <SidebarInset className="flex flex-col flex-1 min-w-0">
         <TopHeader />
 

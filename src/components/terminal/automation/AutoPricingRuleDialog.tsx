@@ -95,7 +95,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [isMultiSearching, setIsMultiSearching] = useState(false);
 
   // Fetch ads for ad selection
-  const { data: adsData } = useBinanceAdsList({ page: 1, rows: 100 });
+  // `fetchAll` is required: Binance's listWithPagination caps a page at ~20 ads
+  // regardless of `rows`, so without it Block-zone / later ads never appear here.
+  const { data: adsData } = useBinanceAdsList({ page: 1, rows: 50, fetchAll: true });
   const allAds: BinanceAd[] = adsData?.data || [];
 
   // Get current asset config

@@ -138,15 +138,35 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     return cfgVal ?? (field === 'offset_amount' || field === 'offset_pct' ? 0 : null);
   };
 
-  // Filter ads for a specific asset
+  // Filter ads for a specific asset — scoped to the selected market zone so a
+  // Block-zone rule only lists Block ads and a P2P rule only lists P2P ads.
   const getFilteredAds = (asset: string) => {
     return allAds.filter(ad => {
       if (ad.asset !== asset) return false;
       if (tradeType === 'BUY' && ad.tradeType !== 'BUY') return false;
       if (tradeType === 'SELL' && ad.tradeType !== 'SELL') return false;
+      if (adZone(ad) !== competitorZone) return false;
       return true;
     });
   };
+
+  // When the market zone changes, drop any previously selected ads that are
+  // no longer visible/selectable in the new zone.
+  useEffect(() => {
+    setAssetConfigs(prev => {
+      let changed = false;
+      const next: typeof prev = {};
+      for (const [asset, cfg] of Object.entries(prev)) {
+        const kept = cfg.ad_numbers.filter(no => {
+          const ad = allAds.find(a => a.advNo === no);
+          return ad ? adZone(ad) === competitorZone : false;
+        });
+        if (kept.length !== cfg.ad_numbers.length) changed = true;
+        next[asset] = kept.length === cfg.ad_numbers.length ? cfg : { ...cfg, ad_numbers: kept };
+      }
+      return changed ? next : prev;
+    });
+  }, [competitorZone, allAds]);
 
   // DnD sensors for priority merchants
   const sensors = useSensors(

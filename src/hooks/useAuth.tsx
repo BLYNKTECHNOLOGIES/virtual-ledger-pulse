@@ -136,9 +136,11 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
         throw new Error('Please use your email address to log in. Username login is no longer supported.');
       }
 
-      // Drop any stale local Supabase session before a fresh password login.
-      // Otherwise an in-flight refresh of an old token can race with the new login.
-      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      // NOTE: do NOT sign out before logging in. A local signOut broadcasts a
+      // SIGNED_OUT event to every other tab of this browser, which kicks them
+      // back to the login screen. signInWithPassword replaces the stored
+      // session atomically, so no pre-clearing is required.
+
 
       // ═══════════════════════════════════════════════════
       // Supabase Auth — single authentication path

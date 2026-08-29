@@ -373,6 +373,7 @@ export default function LateComeEarlyOutPage() {
                             <td colSpan={8} className="px-4 py-3">
                               <IncidentBreakdown
                                 rows={incidentsByEmployee[s.id] || []}
+                                dayMap={dayMap}
                                 onOpenFull={() => setSelectedEmp({ id: s.id, name: s.name, badge: s.badge })}
                               />
                             </td>
@@ -484,8 +485,25 @@ function FragmentRow({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function fmtPunchTime(ts: string | null | undefined) {
+  if (!ts) return "—";
+  try {
+    return format(new Date(ts), "HH:mm");
+  } catch {
+    return "—";
+  }
+}
+
 /** Inline per-employee incident breakdown shown when a summary row is expanded. */
-function IncidentBreakdown({ rows, onOpenFull }: { rows: any[]; onOpenFull: () => void }) {
+function IncidentBreakdown({
+  rows,
+  dayMap,
+  onOpenFull,
+}: {
+  rows: any[];
+  dayMap: Record<string, { first_in: string | null; last_out: string | null }>;
+  onOpenFull: () => void;
+}) {
   const sorted = [...rows].sort((a, b) => (a.attendance_date < b.attendance_date ? 1 : -1));
   if (sorted.length === 0) {
     return <p className="text-xs text-muted-foreground">No incidents recorded for this month.</p>;
@@ -504,18 +522,26 @@ function IncidentBreakdown({ rows, onOpenFull }: { rows: any[]; onOpenFull: () =
         {sorted.map((r: any) => {
           const late = r.type === "late_come";
           const mins = (late ? r.late_minutes : r.early_minutes) || 0;
+          const day = dayMap[`${r.employee_id}|${r.attendance_date}`];
           return (
             <div
               key={r.id}
-              className="flex items-center justify-between gap-2 rounded-md border bg-card px-2.5 py-1.5 text-xs"
+              className="flex flex-col gap-0.5 rounded-md border bg-card px-2.5 py-1.5 text-xs"
             >
-              <span className="tabular-nums text-muted-foreground">
-                {format(new Date(r.attendance_date), "dd MMM")}
-              </span>
-              <span className={`font-medium ${late ? "text-warning" : "text-destructive"}`}>
-                {late ? "Late come" : "Early out"}
-              </span>
-              <span className="tabular-nums font-semibold">{mins}m</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="tabular-nums text-muted-foreground">
+                  {format(new Date(r.attendance_date), "dd MMM")}
+                </span>
+                <span className={`font-medium ${late ? "text-warning" : "text-destructive"}`}>
+                  {late ? "Late come" : "Early out"}
+                </span>
+                <span className="tabular-nums font-semibold">{mins}m</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground tabular-nums">
+                <span>In <span className="font-medium text-foreground">{fmtPunchTime(day?.first_in)}</span></span>
+                <span aria-hidden="true">·</span>
+                <span>Out <span className="font-medium text-foreground">{fmtPunchTime(day?.last_out)}</span></span>
+              </div>
             </div>
           );
         })}

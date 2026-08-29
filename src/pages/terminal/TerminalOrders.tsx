@@ -108,13 +108,43 @@ function toSyncItem(o: any): C2COrderHistoryItem {
 
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
 
+/**
+ * Session-scoped memory of where the operator was on the Orders page.
+ * Navigating to another Terminal page unmounts this route, which previously
+ * closed the open order/chat. We remember the open order (and Queue Mode) for
+ * the browser session and restore it on the way back.
+ */
+const ORDERS_SESSION_KEY = 'terminal_orders_open_state';
+
+function readOrdersSession(): { orderNumber?: string; queueMode?: boolean } {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(window.sessionStorage.getItem(ORDERS_SESSION_KEY) || '{}') || {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOrdersSession(state: { orderNumber?: string; queueMode?: boolean }) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!state.orderNumber && !state.queueMode) {
+      window.sessionStorage.removeItem(ORDERS_SESSION_KEY);
+    } else {
+      window.sessionStorage.setItem(ORDERS_SESSION_KEY, JSON.stringify(state));
+    }
+  } catch {
+    // storage unavailable — persistence is best-effort
+  }
+}
+
 function TerminalOrdersContent() {
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
   const [showChatInbox, setShowChatInbox] = useState(false);
-  const [queueMode, setQueueMode] = useState(false);
+  const [queueMode, setQueueMode] = useState(() => !!readOrdersSession().queueMode);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
@@ -122,6 +152,29 @@ function TerminalOrdersContent() {
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandledRef = useRef(false);
+  const restoreHandledRef = useRef(false);
+
+  // Restore the previously-open order by reusing the existing ?order deep-link
+  // machinery (which also resolves orders outside the loaded window).
+  useEffect(() => {
+    if (restoreHandledRef.current) return;
+    restoreHandledRef.current = true;
+    const saved = readOrdersSession().orderNumber;
+    if (!saved || searchParams.get('order')) return;
+    const next = new URLSearchParams(searchParams);
+    next.set('order', saved);
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Remember the current open order / queue mode for this browser session.
+  useEffect(() => {
+    writeOrdersSession({
+      orderNumber: selectedOrder ? String(selectedOrder.binance_order_number) : undefined,
+      queueMode,
+    });
+  }, [selectedOrder, queueMode]);
+
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
   const { activeAccountId, isAllAccounts } = useExchangeAccount();

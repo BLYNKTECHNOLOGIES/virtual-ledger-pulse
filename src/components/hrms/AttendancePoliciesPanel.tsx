@@ -165,7 +165,6 @@ export function AttendancePoliciesPanel() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">Set to 0 to disable extra LOP from half-days</p>
               </div>
             </div>
-            <div><Label>Min Overtime (minutes)</Label><Input type="number" className="h-9" value={form.min_overtime_minutes} onChange={(e) => setForm({ ...form, min_overtime_minutes: parseInt(e.target.value) || 0 })} /></div>
             <div className="flex items-center gap-3"><Switch checked={form.absent_if_no_punch} onCheckedChange={(v) => setForm({ ...form, absent_if_no_punch: v })} /><Label>Mark absent if no punch recorded</Label></div>
             <div className="flex items-center gap-3"><Switch checked={form.is_default} onCheckedChange={(v) => setForm({ ...form, is_default: v })} /><Label>Set as default policy</Label></div>
           </div>

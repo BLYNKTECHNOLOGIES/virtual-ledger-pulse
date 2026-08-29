@@ -13,12 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2 } from "lucide-react";
+import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { SeedDepositsDialog } from "@/components/hr/payroll/SeedDepositsDialog";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type DepositType = "security" | "error_recovery";
 type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid";

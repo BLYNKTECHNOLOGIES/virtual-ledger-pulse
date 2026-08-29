@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, Clock, Coffee, Timer } from "lucide-react";
+import { Plus, Pencil, Trash2, Clock } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -32,18 +32,6 @@ export default function ShiftsPage() {
     },
   });
 
-  const { data: policyGrace } = useQuery({
-    queryKey: ["hr_default_policy_grace"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hr_attendance_policies")
-        .select("grace_period_minutes")
-        .eq("is_default", true)
-        .maybeSingle();
-      if (error) throw error;
-      return data?.grace_period_minutes ?? 0;
-    },
-  });
 
   const saveMutation = useMutation({
     mutationFn: async () => {

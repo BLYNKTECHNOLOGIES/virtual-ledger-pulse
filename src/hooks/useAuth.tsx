@@ -408,11 +408,24 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_OUT') {
-        setUser(null);
-        localStorage.removeItem('userSession');
-        localStorage.removeItem('isLoggedIn');
+        // Guard against spurious SIGNED_OUT emitted while a valid session is
+        // still stored (transient refresh hiccups / cross-tab races).
+        setTimeout(async () => {
+          try {
+            const { data } = await supabase.auth.getSession();
+            if (data.session?.user) {
+              console.warn('[useAuth] Ignoring SIGNED_OUT — a valid session is still present');
+              return;
+            }
+          } catch { /* fall through to clearing */ }
+          console.warn('[useAuth] SIGNED_OUT — clearing local session');
+          setUser(null);
+          localStorage.removeItem('userSession');
+          localStorage.removeItem('isLoggedIn');
+        }, 0);
         return;
       }
+
 
       if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
         setTimeout(() => {

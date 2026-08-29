@@ -74,6 +74,11 @@ export default function DepositManagementPage() {
   const [refundMonth, setRefundMonth] = useState(format(new Date(), "yyyy-MM"));
   const [withheldReason, setWithheldReason] = useState("");
 
+  // Delete / cancel remaining EMIs
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+
+
+
   const emptyForm = {
     employee_id: "",
     deposit_type: "security" as DepositType,

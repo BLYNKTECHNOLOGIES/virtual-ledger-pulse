@@ -16,8 +16,13 @@ import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { CustomerAutocomplete } from "@/components/sales/CustomerAutocomplete";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
+
+interface SalesPaymentSplit {
+  payment_method_id: string;
+  amount: string;
+}
 
 interface SalesEntryWrapperProps {
   item: ErpActionQueueItem;
@@ -38,6 +43,8 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
   const [binanceCommission, setBinanceCommission] = useState<number>(0);
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<SalesPaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
 
   // Auto-detect Binance commission from matching P2P sell order
   const { data: matchedSellCommission } = useQuery({
@@ -248,12 +255,36 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
   const quantity = parseFloat(formData.quantity) || 0;
 
+  // Split payment allocation
+  const splitAllocation = useMemo(() => {
+    const orderTotal = parseFloat(String(formData.total_amount)) || 0;
+    const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = orderTotal - totalAllocated;
+    const isValid =
+      Math.abs(remaining) <= 0.01 &&
+      paymentSplits.every((s) => s.payment_method_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid, orderTotal };
+  }, [paymentSplits, formData.total_amount]);
+
+  const addPaymentSplit = () => setPaymentSplits((prev) => [...prev, { payment_method_id: '', amount: '' }]);
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) setPaymentSplits((prev) => prev.filter((_, i) => i !== index));
+  };
+  const updatePaymentSplit = (index: number, field: keyof SalesPaymentSplit, value: string) => {
+    setPaymentSplits((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
+  };
+
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!formData.client_name.trim()) throw new Error("Customer name is required");
       if (!formData.wallet_id) throw new Error("Wallet is required");
       if (!formData.price_per_unit || parseFloat(formData.price_per_unit) <= 0) throw new Error("Price is required");
       if (stockValidationError) throw new Error(stockValidationError);
+      if (isSplitPayment && !splitAllocation.isValid) {
+        throw new Error(`Payment allocation mismatch. Remaining: ₹${splitAllocation.remaining.toFixed(2)}`);
+      }
+
 
       const { data: orderNumber } = await supabase.rpc("generate_off_market_sales_order_number");
       const createdBy = await requireCurrentUserId();
@@ -271,7 +302,8 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           quantity: parseFloat(formData.quantity),
           price_per_unit: parseFloat(formData.price_per_unit),
           total_amount: parseFloat(formData.total_amount) || 0,
-          sales_payment_method_id: formData.sales_payment_method_id || null,
+          sales_payment_method_id: isSplitPayment ? null : (formData.sales_payment_method_id || null),
+          is_split_payment: isSplitPayment,
           payment_status: "COMPLETED",
           order_date: formData.order_datetime ? `${formData.order_datetime}:00.000Z` : new Date().toISOString(),
           description: formData.description,
@@ -283,8 +315,74 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
       if (error) throw error;
 
+      // Handle split payments — mirrors the manual Sales Entry flow
+      if (isSplitPayment) {
+        const orderDate = formData.order_datetime
+          ? formData.order_datetime.split('T')[0]
+          : new Date().toISOString().split('T')[0];
+        let hasAnyGateway = false;
+
+        for (const split of paymentSplits) {
+          const splitAmount = parseFloat(split.amount);
+          if (!(splitAmount > 0) || !split.payment_method_id) continue;
+
+          const pm: any = paymentMethods?.find((m: any) => m.id === split.payment_method_id);
+          const resolvedBankAccountId = pm?.bank_account_id;
+          if (!resolvedBankAccountId) continue;
+
+          const splitIsGateway = Boolean(pm?.payment_gateway);
+
+          if (splitIsGateway) {
+            hasAnyGateway = true;
+            await supabase.from('pending_settlements').insert({
+              sales_order_id: result.id,
+              order_number: orderNumber,
+              client_name: formData.client_name,
+              total_amount: splitAmount,
+              settlement_amount: splitAmount,
+              order_date: orderDate,
+              payment_method_id: split.payment_method_id,
+              bank_account_id: resolvedBankAccountId,
+              settlement_cycle: pm?.settlement_cycle || 'T+1 Day',
+              settlement_days: pm?.settlement_days || null,
+              expected_settlement_date: pm?.settlement_days
+                ? new Date(new Date(orderDate).getTime() + pm.settlement_days * 86400000).toISOString().split('T')[0]
+                : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0],
+              status: 'PENDING',
+              created_by: createdBy,
+            });
+          } else {
+            await supabase.from('bank_transactions').insert({
+              bank_account_id: resolvedBankAccountId,
+              transaction_type: 'INCOME',
+              amount: splitAmount,
+              transaction_date: orderDate,
+              description: `Sales Order - ${orderNumber} - ${formData.client_name} (Split)`,
+              reference_number: orderNumber,
+              category: 'Sales',
+              related_account_name: formData.client_name,
+              created_by: createdBy,
+            });
+          }
+
+          await supabase.from('sales_order_payment_splits').insert({
+            sales_order_id: result.id,
+            bank_account_id: resolvedBankAccountId,
+            amount: splitAmount,
+            payment_method_id: split.payment_method_id,
+            is_gateway: splitIsGateway,
+            created_by: createdBy,
+          });
+        }
+
+        await supabase
+          .from('sales_orders')
+          .update({ settlement_status: hasAnyGateway ? 'PENDING' : 'DIRECT' })
+          .eq('id', result.id);
+      }
+
       // Handle settlement status based on payment method
-      if (formData.sales_payment_method_id) {
+      if (!isSplitPayment && formData.sales_payment_method_id) {
         const { data: paymentMethod } = await supabase
           .from('sales_payment_methods')
           .select('bank_account_id, payment_gateway, current_usage, payment_limit')
@@ -626,9 +724,35 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           {/* Payment Method + Date */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Payment Method</Label>
-              <Select value={formData.sales_payment_method_id} onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}>
-                <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
+              <div className="flex items-center justify-between gap-2">
+                <Label>Payment Method</Label>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="erp_sales_split_payment"
+                    checked={isSplitPayment}
+                    onCheckedChange={(checked) => {
+                      setIsSplitPayment(checked);
+                      if (checked) {
+                        setPaymentSplits([{
+                          payment_method_id: formData.sales_payment_method_id || '',
+                          amount: (parseFloat(String(formData.total_amount)) || 0).toFixed(2),
+                        }]);
+                      } else {
+                        setPaymentSplits([{ payment_method_id: '', amount: '' }]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="erp_sales_split_payment" className="text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                    Split Payment
+                  </Label>
+                </div>
+              </div>
+              <Select
+                value={formData.sales_payment_method_id}
+                onValueChange={(value) => handleInputChange('sales_payment_method_id', value)}
+                disabled={isSplitPayment}
+              >
+                <SelectTrigger><SelectValue placeholder={isSplitPayment ? "Using split payments" : "Select payment method"} /></SelectTrigger>
                 <SelectContent className="bg-background border shadow-sm z-50">
                   {paymentMethods?.map((method: any) => {
                     const displayLabel = method.nickname
@@ -657,6 +781,74 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
             </div>
           </div>
 
+          {/* Split Payments */}
+          {isSplitPayment && (
+            <Card>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {splitAllocation.isValid
+                      ? <CheckCircle2 className="h-4 w-4 text-success" />
+                      : <AlertCircle className="h-4 w-4 text-destructive" />}
+                    <Label className="font-medium">Payment Splits</Label>
+                  </div>
+                  <div className="text-xs text-right">
+                    <div className="text-muted-foreground">
+                      Allocated: ₹{splitAllocation.totalAllocated.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div className={splitAllocation.isValid ? "text-success font-semibold" : "text-destructive font-semibold"}>
+                      Remaining: ₹{splitAllocation.remaining.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {paymentSplits.map((split, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr_auto] gap-2 items-center">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={split.amount}
+                      onChange={(e) => updatePaymentSplit(index, 'amount', e.target.value)}
+                      placeholder="0.00"
+                    />
+                    <Select value={split.payment_method_id} onValueChange={(v) => updatePaymentSplit(index, 'payment_method_id', v)}>
+                      <SelectTrigger><SelectValue placeholder="Select payment method" /></SelectTrigger>
+                      <SelectContent className="bg-background border shadow-sm z-[100]">
+                        {paymentMethods?.map((method: any) => {
+                          const displayLabel = method.nickname
+                            ? method.nickname
+                            : method.type === 'UPI' && method.upi_id
+                              ? `${method.upi_id} (${method.risk_category})`
+                              : method.bank_accounts
+                                ? `${method.bank_accounts.account_name} (${method.risk_category})`
+                                : `${method.type} (${method.risk_category})`;
+                          return (
+                            <SelectItem key={method.id} value={method.id}>{displayLabel}</SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => removePaymentSplit(index)}
+                      disabled={paymentSplits.length === 1}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+
+                <Button type="button" variant="outline" size="sm" onClick={addPaymentSplit} className="w-full">
+                  <Plus className="h-4 w-4 mr-1" /> Add Payment Split
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <div>
             <Label>Description</Label>
             <Textarea
@@ -668,7 +860,7 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
           <div className="flex justify-end gap-2 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" disabled={submitMutation.isPending}>
+            <Button type="submit" disabled={submitMutation.isPending || (isSplitPayment && !splitAllocation.isValid)}>
               {submitMutation.isPending ? "Creating..." : "Create Sales Entry"}
             </Button>
           </div>

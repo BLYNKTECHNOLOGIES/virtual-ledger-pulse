@@ -14,6 +14,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 
 const defaultForm = {
   name: "", late_threshold_minutes: 15, half_day_threshold_minutes: 240,
+  full_day_threshold_minutes: 400,
   absent_if_no_punch: true, grace_period_minutes: 0, late_count_for_lop: 3,
   half_day_count_for_lop: 2, early_leave_threshold_minutes: 30,
   min_overtime_minutes: 30, is_default: false,

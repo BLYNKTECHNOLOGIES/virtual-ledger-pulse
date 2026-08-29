@@ -1327,13 +1327,17 @@ html {
   animation: tab-content-show 0.22s var(--ease-out-soft);
 }
 
-/* Page / module mount fade */
+/* Page / module mount fade — subtle, no layout thrash while the rail animates */
 @keyframes page-mount {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate3d(0, 4px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 .page-mount {
-  animation: page-mount 0.28s var(--ease-out-soft);
+  animation: page-mount 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: opacity, transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .page-mount { animation: none; }
 }
 
 /* Reusable utility */

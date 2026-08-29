@@ -234,9 +234,10 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
       )}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,380px)_1fr]">
-        <Card>
+        <Card className={selectedThread ? "hidden lg:block" : ""}>
           <CardContent className="p-0">
-            <ScrollArea className="h-[560px]">
+            <ScrollArea className="h-[60vh] lg:h-[560px]">
+
               {isLoading ? (
                 <div className="p-6 text-sm text-muted-foreground">Loading…</div>
               ) : threads.length === 0 ? (

@@ -703,11 +703,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             <div>
                               <Label className="text-xs">Offset Amount (₹) for {asset}</Label>
                               <Input
-                                type="number"
-                                value={cfg.offset_amount || ''}
-                                onChange={e => updateConfig(asset, { offset_amount: parseFloat(e.target.value) || 0 })}
+                                type="text"
+                                inputMode="decimal"
+                                value={numericDisplay(asset, 'offset_amount', cfg.offset_amount)}
+                                onChange={e => handleNumericChange(asset, 'offset_amount', e.target.value)}
                                 placeholder="e.g. 0.05"
-                                step="0.01"
                                 className="h-8 text-xs"
                               />
                             </div>
@@ -715,11 +715,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             <div>
                               <Label className="text-xs">Offset % for {asset}</Label>
                               <Input
-                                type="number"
-                                value={cfg.offset_pct || ''}
-                                onChange={e => updateConfig(asset, { offset_pct: parseFloat(e.target.value) || 0 })}
+                                type="text"
+                                inputMode="decimal"
+                                value={numericDisplay(asset, 'offset_pct', cfg.offset_pct)}
+                                onChange={e => handleNumericChange(asset, 'offset_pct', e.target.value)}
                                 placeholder="e.g. 0.05"
-                                step="0.01"
                                 className="h-8 text-xs"
                               />
                             </div>
@@ -729,9 +729,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                               <div>
                                 <Label className="text-xs">Max Ceiling (₹)</Label>
                                 <Input
-                                  type="number"
-                                  value={cfg.max_ceiling ?? ''}
-                                  onChange={e => updateConfig(asset, { max_ceiling: e.target.value ? parseFloat(e.target.value) : null })}
+                                  type="text"
+                                  inputMode="decimal"
+                                  value={numericDisplay(asset, 'max_ceiling', cfg.max_ceiling)}
+                                  onChange={e => handleNumericChange(asset, 'max_ceiling', e.target.value)}
                                   placeholder="No max"
                                   className="h-8 text-xs"
                                 />
@@ -741,11 +742,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             <div>
                               <Label className="text-xs">Max Ratio Ceiling (%)</Label>
                               <Input
-                                type="number"
-                                value={cfg.max_ratio_ceiling ?? ''}
-                                onChange={e => updateConfig(asset, { max_ratio_ceiling: e.target.value ? parseFloat(e.target.value) : null })}
+                                type="text"
+                                inputMode="decimal"
+                                value={numericDisplay(asset, 'max_ratio_ceiling', cfg.max_ratio_ceiling)}
+                                onChange={e => handleNumericChange(asset, 'max_ratio_ceiling', e.target.value)}
                                 placeholder="No max"
-                                step="0.01"
                                 className="h-8 text-xs"
                               />
                             </div>
@@ -756,9 +757,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             <div>
                               <Label className="text-xs">Min Floor (₹)</Label>
                               <Input
-                                type="number"
-                                value={cfg.min_floor ?? ''}
-                                onChange={e => updateConfig(asset, { min_floor: e.target.value ? parseFloat(e.target.value) : null })}
+                                type="text"
+                                inputMode="decimal"
+                                value={numericDisplay(asset, 'min_floor', cfg.min_floor)}
+                                onChange={e => handleNumericChange(asset, 'min_floor', e.target.value)}
                                 placeholder="No min"
                                 className="h-8 text-xs"
                               />
@@ -767,11 +769,11 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             <div>
                               <Label className="text-xs">Min Ratio Floor (%)</Label>
                               <Input
-                                type="number"
-                                value={cfg.min_ratio_floor ?? ''}
-                                onChange={e => updateConfig(asset, { min_ratio_floor: e.target.value ? parseFloat(e.target.value) : null })}
+                                type="text"
+                                inputMode="decimal"
+                                value={numericDisplay(asset, 'min_ratio_floor', cfg.min_ratio_floor)}
+                                onChange={e => handleNumericChange(asset, 'min_ratio_floor', e.target.value)}
                                 placeholder="No min"
-                                step="0.01"
                                 className="h-8 text-xs"
                               />
                             </div>

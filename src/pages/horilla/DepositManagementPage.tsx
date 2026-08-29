@@ -663,6 +663,15 @@ export default function DepositManagementPage() {
                     <Undo2 className="h-3 w-3 mr-1" /> Pay back
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-destructive"
+                  onClick={() => setDeleteTarget(d)}
+                  title={Number(d.collected_amount || 0) > 0 ? "Cancel remaining installments" : "Delete record"}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </>
             )}
           </div>

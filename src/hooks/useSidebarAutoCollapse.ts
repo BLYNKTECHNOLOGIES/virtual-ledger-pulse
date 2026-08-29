@@ -28,6 +28,10 @@ export function useSidebarAutoCollapse(
   const openRef = useRef(open);
   openRef.current = open;
 
+  // Hover "peek": sidebar overlays the page instead of pushing it, so the
+  // expand/collapse animation never reflows the (often heavy) work area.
+  const [isPeeking, setIsPeeking] = useState(false);
+
   // A change in `open` we didn't cause = manual toggle -> pin the sidebar.
   const causedByAutoRef = useRef(false);
   const firstOpenSync = useRef(true);
@@ -38,6 +42,7 @@ export function useSidebarAutoCollapse(
     }
     if (!causedByAutoRef.current) {
       modeRef.current = "pinned";
+      setIsPeeking(false);
     }
     causedByAutoRef.current = false;
   }, [open]);
@@ -62,7 +67,10 @@ export function useSidebarAutoCollapse(
     const el = workAreaRef.current;
     if (!el || isMobile) return;
 
-    const collapse = () => autoSet(false);
+    const collapse = () => {
+      setIsPeeking(false);
+      autoSet(false);
+    };
 
     let raf = 0;
     const onScroll = () => {
@@ -94,14 +102,26 @@ export function useSidebarAutoCollapse(
   useEffect(() => clearHoverTimer, []);
 
   const expandOnHover = useCallback(() => {
+    if (isMobile) return;
     clearHoverTimer();
-    hoverTimer.current = window.setTimeout(() => autoSet(true), 90);
-  }, [autoSet]);
+    hoverTimer.current = window.setTimeout(() => {
+      if (modeRef.current !== "auto" || openRef.current) return;
+      // Mark peek BEFORE opening so the spacer is already pinned to rail width
+      // in the same frame the panel starts widening.
+      setIsPeeking(true);
+      autoSet(true);
+    }, 90);
+  }, [autoSet, isMobile]);
 
   const collapseOnLeave = useCallback(() => {
+    if (isMobile) return;
     clearHoverTimer();
-    hoverTimer.current = window.setTimeout(() => autoSet(false), 220);
-  }, [autoSet]);
+    hoverTimer.current = window.setTimeout(() => {
+      autoSet(false);
+      setIsPeeking(false);
+    }, 200);
+  }, [autoSet, isMobile]);
 
-  return { expandOnHover, collapseOnLeave };
+  return { expandOnHover, collapseOnLeave, isPeeking };
 }
+

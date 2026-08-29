@@ -114,30 +114,70 @@ export function NotificationDropdown() {
             )}
           </div>
           <div className="flex gap-1">
-            {notifications.length > 0 && (
+            {(notifications.length > 0 || workflowUnread > 0) && (
               <>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   className="h-7 px-2 text-xs"
-                  onClick={markAllAsRead}
+                  onClick={() => { markAllAsRead(); if (workflowUnread) markAllWorkflowRead.mutate(); }}
                   title="Mark all as read"
                 >
                   <CheckCheck className="h-3 w-3" />
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="h-7 px-2 text-xs text-destructive hover:text-destructive"
-                  onClick={clearNotifications}
-                  title="Clear all"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                {notifications.length > 0 && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                    onClick={clearNotifications}
+                    title="Clear all"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                )}
               </>
             )}
           </div>
         </div>
+
+        {workflow.length > 0 && (
+          <div className="border-b">
+            <p className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Requests &amp; approvals
+            </p>
+            <ScrollArea className={workflow.length > 4 ? "h-56" : ""}>
+              <div className="divide-y">
+                {workflow.map((n) => (
+                  <div
+                    key={n.id}
+                    onClick={() => openWorkflow(n)}
+                    className={cn(
+                      "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                      !n.is_read && "bg-primary/5 border-l-2 border-l-primary",
+                    )}
+                  >
+                    <div className="flex gap-3">
+                      <Inbox className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm", !n.is_read && "font-semibold")}>{n.title}</p>
+                        {n.message && (
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary mt-1.5" />}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+        
+
         
         {notifications.length > 0 ? (
           <ScrollArea className="h-80">

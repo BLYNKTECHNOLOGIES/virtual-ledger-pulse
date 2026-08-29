@@ -150,9 +150,12 @@ function TerminalOrdersContent() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
   const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
-  const [showChatInbox, setShowChatInbox] = useState(false);
+  // Chat surfaces restore synchronously from session storage so a remount
+  // (tab-focus auth revalidation, internal navigation) re-opens the exact
+  // chat the operator was in — no spinner, no trip back to the order list.
+  const [showChatInbox, setShowChatInbox] = useState(() => !!readOrdersSession().showChatInbox);
   const [queueMode, setQueueMode] = useState(() => !!readOrdersSession().queueMode);
-  const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(null);
+  const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(() => readOrdersSession().activeChatConv || null);
   const [chatReadVersion, setChatReadVersion] = useState(0);
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
@@ -188,7 +191,8 @@ function TerminalOrdersContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Remember the current open order / queue mode for this browser session.
+  // Remember the current open order / queue mode / chat surfaces for this
+  // browser session.
   useEffect(() => {
     if (selectedOrder) restoreSettledRef.current = true;
     const previous = readOrdersSession();
@@ -200,8 +204,10 @@ function TerminalOrdersContent() {
         // (tab-focus auth revalidation) doesn't erase it mid-restore.
         : (restoreSettledRef.current ? undefined : previous.orderNumber),
       queueMode,
+      showChatInbox,
+      activeChatConv,
     });
-  }, [selectedOrder, queueMode]);
+  }, [selectedOrder, queueMode, showChatInbox, activeChatConv]);
 
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();

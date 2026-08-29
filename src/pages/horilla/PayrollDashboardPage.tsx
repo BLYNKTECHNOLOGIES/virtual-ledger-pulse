@@ -363,7 +363,7 @@ export default function PayrollDashboardPage() {
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-1">
                         {/* Draft: compute on RazorpayX (button retired) */}
                         {r.status === "draft" && (

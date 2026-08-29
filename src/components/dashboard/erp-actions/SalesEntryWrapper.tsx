@@ -255,6 +255,26 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
 
   const quantity = parseFloat(formData.quantity) || 0;
 
+  // Split payment allocation
+  const splitAllocation = useMemo(() => {
+    const orderTotal = parseFloat(String(formData.total_amount)) || 0;
+    const totalAllocated = paymentSplits.reduce((sum, s) => sum + (parseFloat(s.amount) || 0), 0);
+    const remaining = orderTotal - totalAllocated;
+    const isValid =
+      Math.abs(remaining) <= 0.01 &&
+      paymentSplits.every((s) => s.payment_method_id && parseFloat(s.amount) > 0);
+    return { totalAllocated, remaining, isValid, orderTotal };
+  }, [paymentSplits, formData.total_amount]);
+
+  const addPaymentSplit = () => setPaymentSplits((prev) => [...prev, { payment_method_id: '', amount: '' }]);
+  const removePaymentSplit = (index: number) => {
+    if (paymentSplits.length > 1) setPaymentSplits((prev) => prev.filter((_, i) => i !== index));
+  };
+  const updatePaymentSplit = (index: number, field: keyof SalesPaymentSplit, value: string) => {
+    setPaymentSplits((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
+  };
+
+
   const submitMutation = useMutation({
     mutationFn: async () => {
       if (!formData.client_name.trim()) throw new Error("Customer name is required");

@@ -167,21 +167,29 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
         .from('users')
         .select('force_logout_at, status')
         .eq('id', userId)
-        .single();
-      
+        .maybeSingle();
+
       if (error) {
-        if (error.code === 'PGRST116') {
-          console.warn('[useAuth] User not found in DB, forcing logout');
-          return true;
-        }
         console.warn('[useAuth] checkForceLogout query error (transient, skipping):', error.message);
+        missingUserStrikes = 0;
         return false;
       }
-      
-      if (!data) return false;
-      
+
+      if (!data) {
+        // A single empty read can be an RLS/replication hiccup — only log the
+        // user out after two consecutive misses.
+        missingUserStrikes += 1;
+        if (missingUserStrikes >= 2) {
+          console.warn('[useAuth] User row not readable twice in a row, forcing logout');
+          return true;
+        }
+        return false;
+      }
+
+      missingUserStrikes = 0;
+
       if (data.status === 'SUSPENDED' || data.status === 'INACTIVE') return true;
-      
+
       if (data.force_logout_at) {
         const forceLogoutTime = new Date(data.force_logout_at).getTime();
         if (sessionTimestamp < forceLogoutTime) {
@@ -191,9 +199,11 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
       return false;
     } catch (err) {
       console.warn('[useAuth] checkForceLogout exception (transient, skipping):', err);
+      missingUserStrikes = 0;
       return false;
     }
   };
+
 
   const applySupabaseSession = async (supaSession: Session): Promise<boolean> => {
     const builtUser = await buildUserFromUserId(supaSession.user.id, supaSession.user.email || '');

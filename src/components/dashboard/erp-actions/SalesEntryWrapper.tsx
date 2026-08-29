@@ -43,6 +43,8 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
   const [selectedClientId, setSelectedClientId] = useState<string | undefined>(undefined);
   const [isNewClient, setIsNewClient] = useState(false);
   const [binanceCommission, setBinanceCommission] = useState<number>(0);
+  const [isSplitPayment, setIsSplitPayment] = useState(false);
+  const [paymentSplits, setPaymentSplits] = useState<SalesPaymentSplit[]>([{ payment_method_id: '', amount: '' }]);
 
   // Auto-detect Binance commission from matching P2P sell order
   const { data: matchedSellCommission } = useQuery({

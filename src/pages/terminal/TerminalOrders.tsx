@@ -116,7 +116,14 @@ import { TerminalPermissionGate } from '@/components/terminal/TerminalPermission
  */
 const ORDERS_SESSION_KEY = 'terminal_orders_open_state';
 
-function readOrdersSession(): { orderNumber?: string; queueMode?: boolean } {
+interface OrdersSessionState {
+  orderNumber?: string;
+  queueMode?: boolean;
+  showChatInbox?: boolean;
+  activeChatConv?: ChatConversation | null;
+}
+
+function readOrdersSession(): OrdersSessionState {
   if (typeof window === 'undefined') return {};
   try {
     return JSON.parse(window.sessionStorage.getItem(ORDERS_SESSION_KEY) || '{}') || {};
@@ -125,10 +132,10 @@ function readOrdersSession(): { orderNumber?: string; queueMode?: boolean } {
   }
 }
 
-function writeOrdersSession(state: { orderNumber?: string; queueMode?: boolean }) {
+function writeOrdersSession(state: OrdersSessionState) {
   if (typeof window === 'undefined') return;
   try {
-    if (!state.orderNumber && !state.queueMode) {
+    if (!state.orderNumber && !state.queueMode && !state.showChatInbox && !state.activeChatConv) {
       window.sessionStorage.removeItem(ORDERS_SESSION_KEY);
     } else {
       window.sessionStorage.setItem(ORDERS_SESSION_KEY, JSON.stringify(state));

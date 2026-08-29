@@ -523,6 +523,13 @@ export default function PayrollDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PayrollRunDetailDialog
+        open={!!detailRun}
+        onOpenChange={(o) => !o && setDetailRun(null)}
+        periodMonth={detailRun?.pay_period_start ?? null}
+        title={detailRun?.title ? `${detailRun.title} — breakdown` : undefined}
+      />
+
 
       {/* Statutory Reports */}
       <Card className="mt-6">

@@ -136,79 +136,87 @@ function DetailLine({ step }: { step: CockpitStep }) {
     case "lock_attendance":
       if (d.has_system_lock) {
         const when = d.latest_locked_at ? new Date(d.latest_locked_at).toLocaleDateString("en-IN") : "—";
-        return <span>Auto-locked by system on {when} (grace 2d after month end).</span>;
+        return <span>Auto-locked by the system on {when}.</span>;
       }
-      return <span>{d.locked_ranges ?? 0} attendance period(s) locked overlapping this month.</span>;
+      return (d.locked_ranges ?? 0) > 0 ? (
+        <span>{d.locked_ranges} attendance {plural(d.locked_ranges, "period")} locked for this month.</span>
+      ) : (
+        <span>No attendance period locked yet.</span>
+      );
     case "watchdog_zero":
-      return <span>{d.stale_open ?? 0} stale sessions open for this month.</span>;
-    case "salary_revisions":
+      return (d.stale_open ?? 0) > 0 ? (
+        <span>{d.stale_open} stale {plural(d.stale_open, "session")} still open.</span>
+      ) : (
+        <span>No stale sessions.</span>
+      );
+    case "salary_revisions": {
+      const parts: string[] = [];
+      if ((d.rev_rows ?? 0) > 0) parts.push(`${d.rev_rows} ${plural(d.rev_rows, "revision")} effective this month`);
+      if ((d.rev_pending ?? 0) > 0) parts.push(`${d.rev_pending} pending`);
+      if ((d.rev_unsynced ?? 0) > 0) parts.push(`${d.rev_unsynced} not yet pushed to RazorpayX`);
+      if (Number(d.one_time_total ?? 0) > 0) parts.push(`one-time arrears ₹${Number(d.one_time_total).toLocaleString("en-IN")}`);
+      if (parts.length === 0) return <span>No salary revisions for this month.</span>;
+      return <span>{parts.join(" · ")}.</span>;
+    }
+    case "lop_push": {
+      const rows = d.lop_rows ?? 0;
+      if (rows === 0) return <span>No LOP deductions staged.</span>;
+      const parts: string[] = [`${rows} LOP ${plural(rows, "row")} staged`];
+      if ((d.auto_rows ?? 0) > 0) parts.push(`${d.auto_rows} auto-calculated (${Number(d.auto_lop_days ?? 0)} LOP days)`);
       return (
         <span>
-          {d.rev_rows ?? 0} revision(s) effective / payable this month
-          {(d.rev_pending ?? 0) > 0
-            ? ` · ${d.rev_pending} still pending or scheduled — finalise before LOP is calculated`
-            : " · none pending"}
-          {(d.rev_unsynced ?? 0) > 0
-            ? ` · ${d.rev_unsynced} not yet confirmed on RazorpayX — push before moving on`
-            : " · all synced to RazorpayX"}
-          {Number(d.one_time_total ?? 0) > 0
-            ? ` · one-time arrears ₹${Number(d.one_time_total).toLocaleString("en-IN")}`
-            : ""}
+          {parts.join(" · ")} · <strong>{d.verified_rows ?? 0}/{rows} verified in RazorpayX</strong>.
+        </span>
+      );
+    }
+    case "inputs_push": {
+      const parts: string[] = [];
+      if ((d.input_rows ?? 0) > 0)
+        parts.push(`${d.input_rows} ${plural(d.input_rows, "input")} staged`);
+      if ((d.rec_rows ?? 0) > 0)
+        parts.push(`${d.rec_rows} recovery ${plural(d.rec_rows, "installment")} of ₹${Number(d.rec_amount ?? 0).toLocaleString("en-IN")} — ${d.rec_pushed ?? 0} pushed${(d.rec_failed ?? 0) > 0 ? `, ${d.rec_failed} failed` : ""}`);
+      if (parts.length === 0) return <span>Nothing staged for this month.</span>;
+      return (
+        <span>
+          {parts.join(" · ")}
+          {(d.input_rows ?? 0) > 0 ? (
+            <> · <strong>{d.input_verified ?? 0}/{d.input_rows} verified in RazorpayX</strong></>
+          ) : null}
           .
         </span>
       );
-    case "lop_push":
-      return (
-        <span>
-          {d.lop_rows ?? 0} LOP row(s) staged
-          {(d.auto_rows ?? 0) > 0 ? ` · ${d.auto_rows} auto-calculated from attendance (${Number(d.auto_lop_days ?? 0)} LOP days)` : " · none auto-calculated yet"}
-          {" · "}
-          <strong>{d.verified_rows ?? 0}/{d.lop_rows ?? 0} verified in RazorpayX</strong>
-          {(d.pushed_rows ?? 0) > (d.verified_rows ?? 0)
-            ? ` (${(d.pushed_rows ?? 0) - (d.verified_rows ?? 0)} pushed but not read back)`
-            : ""}
-          .
-        </span>
-      );
-    case "inputs_push":
-      return (
-        <span>
-          {d.input_rows ?? 0} additions/deductions staged · <strong>{d.input_verified ?? 0}/{d.input_rows ?? 0} verified in RazorpayX</strong>
-          {(d.rec_rows ?? 0) > 0
-            ? ` · ${d.rec_rows} automatic recovery installment(s) (loan EMI / deposit / error recovery) worth ₹${Number(d.rec_amount ?? 0).toLocaleString("en-IN")} — ${d.rec_pushed ?? 0} pushed${(d.rec_failed ?? 0) > 0 ? `, ${d.rec_failed} failed` : ""}`
-            : " · no automatic recoveries due this month"}
-          .
-        </span>
-      );
-
+    }
     case "run_on_razorpay":
       return (
         <span className="text-amber-500">
-          RazorpayX API cannot confirm a payroll run — mark done here after running it on the dashboard.
-          {d.processed_on ? ` Credit date recorded: ${new Date(String(d.processed_on)).toLocaleDateString("en-IN")}.` : ""}
+          RazorpayX cannot confirm a payroll run via API — run payroll on the dashboard, then mark this step done.
+          {d.processed_on ? ` Credited on ${new Date(String(d.processed_on)).toLocaleDateString("en-IN")}.` : ""}
         </span>
       );
-    case "import_payslips":
+    case "import_payslips": {
+      const parts: string[] = [];
+      if ((d.imported ?? 0) > 0) parts.push(`${d.imported} ${plural(d.imported, "payslip")} imported`);
+      if ((d.register_rows ?? 0) > 0) parts.push(`${d.register_rows} register ${plural(d.register_rows, "row")}`);
+      if ((d.with_pdf ?? 0) > 0) parts.push(`${d.with_pdf} PDF ${plural(d.with_pdf, "file")} attached`);
+      if (parts.length === 0) return <span>No payslips imported yet.</span>;
       return (
         <span>
-          {d.imported ?? 0} payslip(s) imported · {d.register_rows ?? 0} register row(s) uploaded ·{" "}
-          {d.with_pdf ?? 0} payslip PDF(s) attached ·{" "}
-          <strong>{d.emails_sent ?? 0}/{d.payable ?? 0} payslip emails sent</strong>
-          {(d.register_rows ?? 0) === 0 ? " — register CSV required before emails can be sent" : ""}.
+          {parts.join(" · ")} · <strong>{d.emails_sent ?? 0}/{d.payable ?? 0} emailed</strong>
+          {(d.register_rows ?? 0) === 0 ? " — upload the register CSV before emailing" : ""}.
         </span>
       );
+    }
     case "shadow_compare":
       return d.run_id ? (
-        <span>Shadow run: <code className="text-xs">{String(d.run_id).slice(0, 8)}</code> · {d.status || "—"}</span>
+        <span>Shadow run {String(d.run_id).slice(0, 8)} · {d.status || "—"}</span>
       ) : (
-        <span>No shadow run for this month yet.</span>
+        <span>No shadow run yet.</span>
       );
     case "drift_review":
-      return (
-        <span>
-          {d.drift_open ?? 0} <strong>unexplained</strong> drift alert(s) for this month.{" "}
-          <span className="text-muted-foreground text-xs">(±₹5 & TDS rounding auto-tolerated)</span>
-        </span>
+      return (d.drift_open ?? 0) > 0 ? (
+        <span>{d.drift_open} unexplained drift {plural(d.drift_open, "alert")} need review.</span>
+      ) : (
+        <span>No unexplained drift.</span>
       );
     case "close_month":
       return <span>Closes the month and freezes acknowledgements.</span>;

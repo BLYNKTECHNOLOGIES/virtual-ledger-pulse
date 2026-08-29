@@ -26,6 +26,7 @@ export default function PayrollDashboardPage() {
   const [rerunReason, setRerunReason] = useState("");
   const [reviewDialog, setReviewDialog] = useState<any>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [detailRun, setDetailRun] = useState<any>(null);
 
   // RazorpayX is the payroll authority — mirror its runs (hr_razorpay_payroll_runs)
   // and derive totals from the imported payslip records for each period.

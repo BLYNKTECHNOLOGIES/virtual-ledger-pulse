@@ -273,7 +273,7 @@ export function ThreadReader({
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-start gap-2 border-b border-border px-3 py-2.5">
-        <Button size="icon" variant="ghost" className="h-8 w-8 lg:hidden shrink-0" onClick={onBack} aria-label="Back to inbox">
+        <Button size="icon" variant="ghost" className="h-8 w-8 md:hidden shrink-0" onClick={onBack} aria-label="Back to inbox">
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1">

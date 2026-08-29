@@ -851,7 +851,7 @@ export default function UserProfile() {
     },
     onSuccess: () => {
       sonnerToast.success(editingLeaveId ? 'Leave request updated' : 'Leave request submitted successfully');
-      setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '' });
+      setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '', is_half_day: false, half_day_period: 'morning' });
       setEditingLeaveId(null);
       setShowLeaveCreate(false);
       queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
@@ -1298,7 +1298,7 @@ export default function UserProfile() {
                         <Button variant="outline" onClick={() => setShowLeaveCreate(false)}>Cancel</Button>
                         <Button
                           onClick={() => applyLeaveMutation.mutate(leaveRequest)}
-                          disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
+                          disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || (!leaveRequest.is_half_day && !leaveRequest.to_date)}
                         >
                           {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
                         </Button>
@@ -1418,6 +1418,8 @@ export default function UserProfile() {
                                         from_date: req.start_date,
                                         to_date: req.end_date,
                                         reason: req.reason || '',
+                                        is_half_day: !!req.is_half_day,
+                                        half_day_period: req.half_day_period || 'morning',
                                       });
                                       setEditingLeaveId(req.id);
                                       setShowLeaveCreate(true);

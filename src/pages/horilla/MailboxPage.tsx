@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Mail, Send, Inbox, RefreshCw, Paperclip, Users, Search, FileText,
-  Loader2, CheckCircle2, AlertTriangle, X, Plus, Trash2, Settings, Bell, BellOff, Filter,
+  Loader2, CheckCircle2, AlertTriangle, X, Plus, Trash2, Settings, Bell, BellOff, Filter, ArrowLeft,
 } from "lucide-react";
 
 

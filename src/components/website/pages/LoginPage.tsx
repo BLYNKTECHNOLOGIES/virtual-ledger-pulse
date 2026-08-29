@@ -102,7 +102,7 @@ export function LoginPage() {
         .single();
 
       if (!userData || userData.status !== 'ACTIVE') {
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({ scope: 'local' });
         setError(userData ? `Your account is ${userData.status.toLowerCase()}. Please contact your administrator.` : 'Account not found. Please contact your administrator.');
         return;
       }

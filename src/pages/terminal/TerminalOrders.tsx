@@ -1271,7 +1271,7 @@ function TerminalOrdersContent() {
   // ---- View routing ----
   if (activeChatConv) {
     return (
-      <div className="h-[calc(100vh-48px)]">
+      <div className="h-[calc(100vh-48px)]" data-testid="terminal-chat-thread">
         <ChatThreadView conversation={activeChatConv} onBack={() => setActiveChatConv(null)} />
       </div>
     );
@@ -1279,7 +1279,7 @@ function TerminalOrdersContent() {
 
   if (showChatInbox) {
     return (
-      <div className="h-[calc(100vh-48px)]">
+      <div className="h-[calc(100vh-48px)]" data-testid="terminal-chat-inbox">
         <ChatInbox
           onClose={() => setShowChatInbox(false)}
           onOpenChat={(conv) => { setShowChatInbox(false); setActiveChatConv(conv); }}

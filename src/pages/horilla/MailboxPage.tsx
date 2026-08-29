@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import {
   Mail, Send, Inbox, RefreshCw, Paperclip, Users, Search, FileText,
-  Loader2, CheckCircle2, AlertTriangle, X, Plus, Trash2, Settings, Bell, BellOff, Filter,
+  Loader2, CheckCircle2, AlertTriangle, X, Plus, Trash2, Settings, Bell, BellOff, Filter, ArrowLeft,
 } from "lucide-react";
 
 
@@ -234,9 +234,10 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
       )}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,380px)_1fr]">
-        <Card>
+        <Card className={selectedThread ? "hidden lg:block" : ""}>
           <CardContent className="p-0">
-            <ScrollArea className="h-[560px]">
+            <ScrollArea className="h-[60vh] lg:h-[560px]">
+
               {isLoading ? (
                 <div className="p-6 text-sm text-muted-foreground">Loading…</div>
               ) : threads.length === 0 ? (
@@ -278,21 +279,30 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className={selectedThread ? "" : "hidden lg:block"}>
           <CardContent className="p-4">
             {!selectedThread ? (
               <EmptyState icon={Mail} title="Select a conversation" description="Choose a conversation to read the full thread here." />
             ) : (
               <div className="space-y-3">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="lg:hidden -ml-2 h-8 px-2"
+                  onClick={() => setSelectedKey(null)}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" /> Back to inbox
+                </Button>
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">{selectedThread.subject}</h3>
-                  <p className="text-xs text-muted-foreground">
+                  <h3 className="text-base font-semibold text-foreground break-words">{selectedThread.subject}</h3>
+                  <p className="text-xs text-muted-foreground break-words">
                     {selectedThread.messages.length} message{selectedThread.messages.length === 1 ? "" : "s"} ·{" "}
                     {selectedThread.participants.join(", ")}
                   </p>
                 </div>
 
-                <ScrollArea className="h-[470px] pr-2">
+                <ScrollArea className="h-[65vh] lg:h-[470px] pr-2">
+
                   <div className="space-y-2">
                     {selectedThread.messages.map((m, idx) => {
                       const isOpen = expandedIds.includes(m.id) || idx === selectedThread.messages.length - 1;

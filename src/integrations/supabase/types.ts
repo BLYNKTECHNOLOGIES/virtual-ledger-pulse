@@ -5760,6 +5760,7 @@ export type Database = {
           absent_if_no_punch: boolean | null
           created_at: string | null
           early_leave_threshold_minutes: number | null
+          full_day_threshold_minutes: number
           grace_period_minutes: number | null
           half_day_count_for_lop: number | null
           half_day_threshold_minutes: number | null
@@ -5776,6 +5777,7 @@ export type Database = {
           absent_if_no_punch?: boolean | null
           created_at?: string | null
           early_leave_threshold_minutes?: number | null
+          full_day_threshold_minutes?: number
           grace_period_minutes?: number | null
           half_day_count_for_lop?: number | null
           half_day_threshold_minutes?: number | null
@@ -5792,6 +5794,7 @@ export type Database = {
           absent_if_no_punch?: boolean | null
           created_at?: string | null
           early_leave_threshold_minutes?: number | null
+          full_day_threshold_minutes?: number
           grace_period_minutes?: number | null
           half_day_count_for_lop?: number | null
           half_day_threshold_minutes?: number | null
@@ -29276,6 +29279,8 @@ export type Database = {
           shift_source: string
         }[]
       }
+      hr_v4_full_day_minutes: { Args: never; Returns: number }
+      hr_v4_half_day_minutes: { Args: never; Returns: number }
       hr_v4_is_repaired_day: {
         Args: { p_date: string; p_employee_id: string }
         Returns: boolean

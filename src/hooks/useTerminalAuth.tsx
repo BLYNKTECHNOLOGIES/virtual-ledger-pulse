@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext, ReactNode, useCallback } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode, useCallback, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { ALL_TERMINAL_PERMISSIONS, type TerminalPermission } from '@/lib/permissions/terminalCatalog';
@@ -45,6 +45,12 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
   const [terminalPermissions, setTerminalPermissions] = useState<TerminalPermission[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // After the first successful load, keep the previous roles/permissions in
+  // place while revalidating. Tab focus triggers a Supabase TOKEN_REFRESHED
+  // event upstream, which re-runs this fetch — flipping isLoading back to true
+  // would unmount every TerminalPermissionGate child (e.g. the Orders page
+  // with an open chat workspace) and destroy its state.
+  const hasLoadedRef = useRef(false);
 
   const fetchTerminalAuth = useCallback(async () => {
     if (parentLoading) return;
@@ -58,7 +64,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      setIsLoading(true);
+      if (!hasLoadedRef.current) setIsLoading(true);
 
       // Validate UUID format before RPC call
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -111,6 +117,7 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
       setTerminalPermissions([]);
       setIsSuperAdmin(sessionIsSuperAdmin);
     } finally {
+      hasLoadedRef.current = true;
       setIsLoading(false);
     }
   }, [user?.id, user?.roles, parentLoading]);

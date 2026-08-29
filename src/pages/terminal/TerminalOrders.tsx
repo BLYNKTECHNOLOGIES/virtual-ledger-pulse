@@ -153,6 +153,12 @@ function TerminalOrdersContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandledRef = useRef(false);
   const restoreHandledRef = useRef(false);
+  // True once a session restore has either completed or there was nothing to
+  // restore. Until then, the write-effect must NOT wipe the saved order number
+  // — a remount (e.g. auth revalidation on tab focus) starts with
+  // selectedOrder=null, and clearing the key before the deep-link fetch
+  // finishes would permanently forget where the operator was.
+  const restoreSettledRef = useRef(false);
 
   // Restore the previously-open order by reusing the existing ?order deep-link
   // machinery (which also resolves orders outside the loaded window).
@@ -160,17 +166,32 @@ function TerminalOrdersContent() {
     if (restoreHandledRef.current) return;
     restoreHandledRef.current = true;
     const saved = readOrdersSession().orderNumber;
-    if (!saved || searchParams.get('order')) return;
+    if (!saved || searchParams.get('order')) {
+      restoreSettledRef.current = true;
+      return;
+    }
     const next = new URLSearchParams(searchParams);
     next.set('order', saved);
     setSearchParams(next, { replace: true });
+    // Safety net: if the deep-link restore can't resolve the order (e.g. the
+    // Binance lookup failed), settle after a grace period so the stored key
+    // doesn't linger forever and normal open/close tracking resumes.
+    const settleTimer = setTimeout(() => { restoreSettledRef.current = true; }, 15000);
+    return () => clearTimeout(settleTimer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Remember the current open order / queue mode for this browser session.
   useEffect(() => {
+    if (selectedOrder) restoreSettledRef.current = true;
+    const previous = readOrdersSession();
     writeOrdersSession({
-      orderNumber: selectedOrder ? String(selectedOrder.binance_order_number) : undefined,
+      orderNumber: selectedOrder
+        ? String(selectedOrder.binance_order_number)
+        // Before the restore settles, a null selection just means "freshly
+        // mounted" — keep the previously saved order so a double remount
+        // (tab-focus auth revalidation) doesn't erase it mid-restore.
+        : (restoreSettledRef.current ? undefined : previous.orderNumber),
       queueMode,
     });
   }, [selectedOrder, queueMode]);
@@ -1065,6 +1086,7 @@ function TerminalOrdersContent() {
     );
     if (match) {
       deepLinkHandledRef.current = true;
+      restoreSettledRef.current = true;
       setSelectedOrder(match);
       // Strip the param so navigating back to the list doesn't re-open it.
       searchParams.delete('order');

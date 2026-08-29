@@ -19,6 +19,11 @@ import { requireCurrentUserId } from "@/lib/system-action-logger";
 import { AlertTriangle, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
+interface SalesPaymentSplit {
+  payment_method_id: string;
+  amount: string;
+}
+
 interface SalesEntryWrapperProps {
   item: ErpActionQueueItem;
   open: boolean;

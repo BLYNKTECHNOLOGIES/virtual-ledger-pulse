@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Plus, Wallet, TrendingUp, TrendingDown, Users, PlayCircle, CheckCircle, FileText, Loader2, Lock, Unlock, RefreshCw, ShieldCheck, ExternalLink } from "lucide-react";
 import { StatutoryReportsPanel } from "@/components/hrms/StatutoryReportsPanel";
+import { PayrollRunDetailDialog } from "@/components/hrms/payroll/PayrollRunDetailDialog";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";

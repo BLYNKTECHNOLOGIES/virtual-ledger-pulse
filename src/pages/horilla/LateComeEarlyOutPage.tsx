@@ -61,6 +61,27 @@ export default function LateComeEarlyOutPage() {
   });
 
 
+  // Fetch daily attendance (first in / last out) for all employees with incidents
+  // so the inline incident expansion can show punch times.
+  const incidentEmpIds = [...new Set(records.map((r: any) => r.employee_id))].sort();
+  const { data: dayMap = {} } = useQuery({
+    queryKey: ["hr_late_early_day_times", monthFilter, incidentEmpIds.join(",")],
+    enabled: incidentEmpIds.length > 0,
+    queryFn: async () => {
+      const days = await fetchAllPaginated<any>(() =>
+        (supabase as any)
+          .from("hr_attendance_daily")
+          .select("employee_id, date, first_in, last_out")
+          .in("employee_id", incidentEmpIds)
+          .gte("date", monthStart)
+          .lte("date", monthEnd)
+      );
+      const m: Record<string, { first_in: string | null; last_out: string | null }> = {};
+      days.forEach((d: any) => { m[`${d.employee_id}|${d.date}`] = { first_in: d.first_in, last_out: d.last_out }; });
+      return m;
+    },
+  });
+
   const filtered = records.filter((r: any) => {
     if (!search) return true;
     const q = search.toLowerCase();

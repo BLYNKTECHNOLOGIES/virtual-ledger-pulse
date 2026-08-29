@@ -21,6 +21,8 @@ interface AuthProviderProps {
 }
 
 let pendingSessionRead: Promise<Session | null> | null = null;
+// Consecutive "user row not readable" strikes before we force a logout.
+let missingUserStrikes = 0;
 
 const PUBLIC_AUTH_ROUTES = new Set(['/', '/login', '/reset-password', '/unsubscribe', '/raci']);
 

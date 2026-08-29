@@ -51,9 +51,21 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
   // would unmount every TerminalPermissionGate child (e.g. the Orders page
   // with an open chat workspace) and destroy its state.
   const hasLoadedRef = useRef(false);
+  // Value-based identity of the last successful fetch. Tab focus fires a
+  // Supabase TOKEN_REFRESHED upstream which rebuilds the user object (new
+  // array identities) — without this guard every tab switch re-fetches all
+  // three RPCs for no reason.
+  const lastKeyRef = useRef<string | null>(null);
 
   const fetchTerminalAuth = useCallback(async () => {
     if (parentLoading) return;
+    const roleNames = (user?.roles || [])
+      .map((r: any) => (typeof r === 'string' ? r : r?.name))
+      .filter(Boolean)
+      .sort()
+      .join(',');
+    const key = user?.id ? `${user.id}::${roleNames}` : 'anon';
+    if (hasLoadedRef.current && lastKeyRef.current === key) return;
     const sessionIsSuperAdmin = user?.roles?.some(isSuperAdminRoleName) || false;
     if (!user?.id) {
       setTerminalRoles([]);

@@ -236,113 +236,36 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
       <div className="grid gap-3 lg:grid-cols-[minmax(0,380px)_1fr]">
         <Card className={selectedThread ? "hidden lg:block" : ""}>
           <CardContent className="p-0">
-            <ScrollArea className="h-[60vh] lg:h-[560px]">
-
-              {isLoading ? (
-                <div className="p-6 text-sm text-muted-foreground">Loading…</div>
-              ) : threads.length === 0 ? (
-                <EmptyState icon={Inbox} title="No messages" description="Sync the inbox to pull replies." />
-              ) : threads.map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => {
-                    setSelectedKey(t.key);
-                    const unreadIds = t.messages.filter(m => !m.is_read).map(m => m.id);
-                    if (unreadIds.length) markThreadRead.mutate(unreadIds);
-                  }}
-                  className={`w-full text-left px-3 py-2.5 border-b border-border hover:bg-muted/50 transition-colors ${selectedKey === t.key ? "bg-muted" : ""}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={`text-sm truncate ${t.unreadCount === 0 ? "text-muted-foreground" : "font-semibold text-foreground"}`}>
-                      {t.participants.slice(0, 2).join(", ")}
-                      {t.participants.length > 2 ? ` +${t.participants.length - 2}` : ""}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
-                      {t.latest.received_at ? format(new Date(t.latest.received_at), "dd MMM HH:mm") : "—"}
-                    </span>
-                  </div>
-                  <div className="text-sm truncate text-foreground flex items-center gap-1.5">
-                    <span className="truncate">{t.subject}</span>
-                    {t.messages.length > 1 && (
-                      <Badge variant="secondary" className="h-4 px-1.5 text-[10px] shrink-0">{t.messages.length}</Badge>
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground truncate">{t.latest.snippet || ""}</div>
-                  <div className="flex gap-1 mt-1 items-center">
-                    {t.messages.some(m => m.has_attachments) && <Paperclip className="h-3 w-3 text-muted-foreground" />}
-                    {t.messages.some(m => m.matched_employee_id) && <Badge variant="outline" className="text-[9px] py-0">Employee</Badge>}
-                    {t.unreadCount > 0 && <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">{t.unreadCount} new</Badge>}
-                  </div>
-                </button>
-              ))}
-            </ScrollArea>
+            <ThreadList
+              threads={threads}
+              isLoading={isLoading}
+              selectedKey={selectedKey}
+              heightClass="h-[60vh] lg:h-[560px]"
+              onSelect={(t) => {
+                setSelectedKey(t.key);
+                const unreadIds = t.messages.filter(m => !m.is_read).map(m => m.id);
+                if (unreadIds.length) markThreadRead.mutate(unreadIds);
+              }}
+            />
           </CardContent>
         </Card>
 
         <Card className={selectedThread ? "" : "hidden lg:block"}>
-          <CardContent className="p-4">
+          <CardContent className="p-0 h-[70vh] lg:h-[560px]">
             {!selectedThread ? (
-              <EmptyState icon={Mail} title="Select a conversation" description="Choose a conversation to read the full thread here." />
+              <EmptyState icon={Mail} title="Select a conversation" description="Choose a conversation to read the full thread here." className="h-full" />
             ) : (
-              <div className="space-y-3">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="lg:hidden -ml-2 h-8 px-2"
-                  onClick={() => setSelectedKey(null)}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Back to inbox
-                </Button>
-                <div>
-                  <h3 className="text-base font-semibold text-foreground break-words">{selectedThread.subject}</h3>
-                  <p className="text-xs text-muted-foreground break-words">
-                    {selectedThread.messages.length} message{selectedThread.messages.length === 1 ? "" : "s"} ·{" "}
-                    {selectedThread.participants.join(", ")}
-                  </p>
-                </div>
-
-                <ScrollArea className="h-[65vh] lg:h-[470px] pr-2">
-
-                  <div className="space-y-2">
-                    {selectedThread.messages.map((m, idx) => {
-                      const isOpen = expandedIds.includes(m.id) || idx === selectedThread.messages.length - 1;
-                      return (
-                        <div key={m.id} className="rounded-md border border-border">
-                          <button
-                            className="w-full text-left px-3 py-2 hover:bg-muted/40 transition-colors"
-                            onClick={() => setExpandedIds(prev =>
-                              prev.includes(m.id) ? prev.filter(x => x !== m.id) : [...prev, m.id])}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className={`text-sm truncate ${m.is_read ? "text-foreground" : "font-semibold text-foreground"}`}>
-                                {m.from_name ? `${m.from_name} <${m.from_address}>` : m.from_address || "Unknown sender"}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
-                                {m.received_at ? format(new Date(m.received_at), "dd MMM yyyy HH:mm") : "—"}
-                              </span>
-                            </div>
-                            {!isOpen && <div className="text-xs text-muted-foreground truncate">{m.snippet || ""}</div>}
-                          </button>
-                          {isOpen && (
-                            <div className="border-t border-border px-3 py-2">
-                              <MailBodyView html={m.body_html} text={m.body_text} />
-                              <div className="mt-2">
-                                <Button size="sm" variant="outline" onClick={() => markRead.mutate({ id: m.id, isRead: !m.is_read })}>
-                                  Mark as {m.is_read ? "unread" : "read"}
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </ScrollArea>
-              </div>
+              <ThreadReader
+                thread={selectedThread}
+                mailbox={mailbox}
+                heightClass="h-[calc(70vh-64px)] lg:h-[calc(560px-64px)]"
+                onBack={() => setSelectedKey(null)}
+              />
             )}
           </CardContent>
         </Card>
       </div>
+
 
     </div>
   );

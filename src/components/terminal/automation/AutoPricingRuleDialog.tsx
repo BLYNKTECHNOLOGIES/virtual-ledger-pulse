@@ -195,6 +195,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setPriorityMerchants(merchants.length > 0 ? merchants : ['']);
       setCompetitorZone((editingRule as any).competitor_zone || 'p2p');
       setCompetitorMode((editingRule as any).competitor_mode || 'nickname');
+      setRawNumeric({});
       setCompetitorBadges((editingRule as any).competitor_badges || ['Block', 'Shield']);
       setCompetitorIdentities((editingRule as any).competitor_identities || []);
       setMinVipLevel((editingRule as any).min_vip_level !== null && (editingRule as any).min_vip_level !== undefined ? String((editingRule as any).min_vip_level) : '');

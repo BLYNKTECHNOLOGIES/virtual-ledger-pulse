@@ -340,8 +340,8 @@ export default function PayrollDashboardPage() {
                 <tr><td colSpan={9}><EmptyState icon={Wallet} title="No payroll runs yet" description="Create a payroll run to get started" /></td></tr>
               ) : (
                 runs.map((r: any) => (
-                  <tr key={r.id} className="border-b hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium">{r.title}</td>
+                  <tr key={r.id} className="border-b hover:bg-muted/50 cursor-pointer" onClick={() => setDetailRun(r)}>
+                    <td className="px-4 py-3 font-medium">{r.title}<span className="block text-[11px] font-normal text-muted-foreground">Click for breakdown</span></td>
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{r.pay_period_start} — {r.pay_period_end}</td>
                     <td className="px-4 py-3 tabular-nums">{r.run_date}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{r.employee_count || 0}</td>

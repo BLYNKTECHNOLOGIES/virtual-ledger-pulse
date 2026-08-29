@@ -41,13 +41,26 @@ export function NotificationDropdown() {
   const { isMuted, toggleMute } = useNotificationMute();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { 
-    notifications, 
-    unreadCount, 
-    markAllAsRead, 
+  const navigate = useNavigate();
+  const {
+    notifications,
+    unreadCount: liveUnread,
+    markAllAsRead,
     clearNotifications,
     handleNotificationClick 
   } = useNotifications();
+
+  const { data: workflow = [] } = useWorkflowNotifications();
+  const markWorkflowRead = useMarkWorkflowNotificationRead();
+  const markAllWorkflowRead = useMarkAllWorkflowNotificationsRead();
+  const workflowUnread = workflow.filter((n) => !n.is_read).length;
+  const unreadCount = liveUnread + workflowUnread;
+
+  const openWorkflow = (n: { id: string; link: string | null }) => {
+    markWorkflowRead.mutate(n.id);
+    if (n.link) navigate(n.link);
+  };
+
 
   const handleReload = () => {
     queryClient.invalidateQueries();

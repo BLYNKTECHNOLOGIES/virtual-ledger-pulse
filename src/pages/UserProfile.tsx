@@ -1258,15 +1258,36 @@ export default function UserProfile() {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="profile-half-day"
+                            checked={leaveRequest.is_half_day}
+                            onCheckedChange={(c) => setLeaveRequest(prev => ({ ...prev, is_half_day: !!c }))}
+                          />
+                          <Label htmlFor="profile-half-day" className="cursor-pointer">Half day</Label>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label>Start Date *</Label>
+                            <Label>{leaveRequest.is_half_day ? 'Date *' : 'Start Date *'}</Label>
                             <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
                           </div>
-                          <div>
-                            <Label>End Date *</Label>
-                            <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
-                          </div>
+                          {leaveRequest.is_half_day ? (
+                            <div>
+                              <Label>Session *</Label>
+                              <Select value={leaveRequest.half_day_period} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, half_day_period: v as 'morning' | 'afternoon' }))}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="morning">First half (morning)</SelectItem>
+                                  <SelectItem value="afternoon">Second half (afternoon)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ) : (
+                            <div>
+                              <Label>End Date *</Label>
+                              <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <Label>Reason</Label>

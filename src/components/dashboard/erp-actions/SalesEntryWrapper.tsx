@@ -16,7 +16,7 @@ import { ErpActionQueueItem } from "@/hooks/useErpActionQueue";
 import { parseApprovalError } from "@/utils/approvalErrorParser";
 import { CustomerAutocomplete } from "@/components/sales/CustomerAutocomplete";
 import { requireCurrentUserId } from "@/lib/system-action-logger";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus, Trash2, CheckCircle2, AlertCircle } from "lucide-react";
 import { INDIAN_STATES_AND_UTS } from "@/data/indianStatesAndUTs";
 
 interface SalesEntryWrapperProps {

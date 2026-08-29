@@ -183,6 +183,7 @@ function TerminalOrdersContent() {
 
   // Remember the current open order / queue mode for this browser session.
   useEffect(() => {
+    if (selectedOrder) restoreSettledRef.current = true;
     const previous = readOrdersSession();
     writeOrdersSession({
       orderNumber: selectedOrder

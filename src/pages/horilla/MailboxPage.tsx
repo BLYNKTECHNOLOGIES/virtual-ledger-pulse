@@ -280,6 +280,7 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
   const [mode, setMode] = useState<"all" | "selected">("selected");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [extraEmails, setExtraEmails] = useState("");
+  const [ccEmails, setCcEmails] = useState("");
   const [subject, setSubject] = useState("");
   const [bodyText, setBodyText] = useState("");
   const [search, setSearch] = useState("");
@@ -331,6 +332,7 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
       recipientMode: mode,
       employeeIds: mode === "selected" ? selectedIds : [],
       extraEmails: mode === "selected" ? extraEmails.split(/[,\s]+/).filter(x => x.includes("@")) : [],
+      cc: ccEmails.split(/[,\s]+/).filter(x => x.includes("@")),
       attachmentPaths,
     }, {
       onSuccess: (res: any) => {
@@ -338,7 +340,7 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
           title: "Mail dispatched",
           description: `${res.sentTotal ?? 0} sent, ${res.failedTotal ?? 0} failed`,
         });
-        setSubject(""); setBodyText(""); setSelectedIds([]); setExtraEmails(""); setFiles([]);
+        setSubject(""); setBodyText(""); setSelectedIds([]); setExtraEmails(""); setCcEmails(""); setFiles([]);
         onSent();
       },
       onError: (e: any) => toast({ title: "Send failed", description: e.message, variant: "destructive" }),
@@ -388,6 +390,12 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
               </div>
             </>
           )}
+          <div className="space-y-1">
+            <Label className="text-xs">Cc (comma separated)</Label>
+            <Input value={ccEmails} onChange={e => setCcEmails(e.target.value)} placeholder="manager@blynkex.com" className="h-9 text-foreground" />
+            <p className="text-[11px] text-muted-foreground">Copied on every message in this send.</p>
+          </div>
+
           {mode === "all" && (
             <p className="text-xs text-muted-foreground">
               This mail goes to all {employees.length} active employees who have an email address on file.

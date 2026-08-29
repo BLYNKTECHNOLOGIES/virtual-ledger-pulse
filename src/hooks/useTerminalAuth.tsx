@@ -45,6 +45,12 @@ export function TerminalAuthProvider({ children }: { children: ReactNode }) {
   const [terminalPermissions, setTerminalPermissions] = useState<TerminalPermission[]>([]);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  // After the first successful load, keep the previous roles/permissions in
+  // place while revalidating. Tab focus triggers a Supabase TOKEN_REFRESHED
+  // event upstream, which re-runs this fetch — flipping isLoading back to true
+  // would unmount every TerminalPermissionGate child (e.g. the Orders page
+  // with an open chat workspace) and destroy its state.
+  const hasLoadedRef = useRef(false);
 
   const fetchTerminalAuth = useCallback(async () => {
     if (parentLoading) return;

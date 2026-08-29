@@ -153,6 +153,12 @@ function TerminalOrdersContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandledRef = useRef(false);
   const restoreHandledRef = useRef(false);
+  // True once a session restore has either completed or there was nothing to
+  // restore. Until then, the write-effect must NOT wipe the saved order number
+  // — a remount (e.g. auth revalidation on tab focus) starts with
+  // selectedOrder=null, and clearing the key before the deep-link fetch
+  // finishes would permanently forget where the operator was.
+  const restoreSettledRef = useRef(false);
 
   // Restore the previously-open order by reusing the existing ?order deep-link
   // machinery (which also resolves orders outside the loaded window).

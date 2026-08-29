@@ -19,8 +19,46 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
-export function Layout({ children }: LayoutProps) {
+/** Inner shell — lives inside SidebarProvider so it can drive sidebar state. */
+function Shell({ children, isStandby }: { children: React.ReactNode; isStandby: boolean }) {
   const location = useLocation();
+  const workAreaRef = useRef<HTMLElement>(null);
+  const { expandOnHover, collapseOnLeave } = useSidebarAutoCollapse(workAreaRef);
+
+  return (
+    <div className="flex w-full min-h-screen bg-background">
+      {/* Desktop sidebar - hidden on mobile, hidden entirely for standby users.
+          Hovering the rail expands; leaving re-collapses (auto mode only). */}
+      {!isStandby && (
+        <div
+          className="hidden md:block"
+          onMouseEnter={expandOnHover}
+          onMouseLeave={collapseOnLeave}
+        >
+          <AppSidebar />
+        </div>
+      )}
+      <SidebarInset className="flex flex-col flex-1 min-w-0">
+        <TopHeader />
+
+        <main ref={workAreaRef} className="flex-1 overflow-auto bg-background pb-16 md:pb-0">
+          <div key={location.pathname} className="page-mount">
+            {children}
+          </div>
+        </main>
+        {/* Mobile bottom navigation */}
+        {!isStandby && <MobileBottomNav />}
+
+        {/* Floating AI Help Assistant */}
+        <HelpAssistantFab />
+        {/* Global click-to-view transaction detail dialog */}
+        <TransactionDetailDialog />
+      </SidebarInset>
+    </div>
+  );
+}
+
+export function Layout({ children }: LayoutProps) {
   const { isStandby } = useIsStandby();
 
   // Persist sidebar expanded/collapsed (icon-rail) state across reloads.
@@ -38,30 +76,7 @@ export function Layout({ children }: LayoutProps) {
           <ExchangeAccountProvider>
             <SidebarProvider defaultOpen={defaultSidebarOpen}>
               <ShortcutsProvider>
-              <div className="flex w-full min-h-screen bg-background">
-                {/* Desktop sidebar - hidden on mobile, hidden entirely for standby users */}
-                {!isStandby && (
-                  <div className="hidden md:block">
-                    <AppSidebar />
-                  </div>
-                )}
-                <SidebarInset className="flex flex-col flex-1 min-w-0">
-                  <TopHeader />
-
-                  <MainWorkArea>
-                    <div key={location.pathname} className="page-mount">
-                      {children}
-                    </div>
-                  </MainWorkArea>
-                  {/* Mobile bottom navigation */}
-                  {!isStandby && <MobileBottomNav />}
-
-                  {/* Floating AI Help Assistant */}
-                  <HelpAssistantFab />
-                  {/* Global click-to-view transaction detail dialog */}
-                  <TransactionDetailDialog />
-                </SidebarInset>
-              </div>
+                <Shell isStandby={isStandby}>{children}</Shell>
               </ShortcutsProvider>
             </SidebarProvider>
           </ExchangeAccountProvider>

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
@@ -602,7 +603,8 @@ export default function UserProfile() {
     account_name: '', account_number: '', bank_name: '', ifsc_code: '', branch: ''
   });
   const [leaveRequest, setLeaveRequest] = useState({
-    leave_type_id: '', from_date: '', to_date: '', reason: ''
+    leave_type_id: '', from_date: '', to_date: '', reason: '',
+    is_half_day: false, half_day_period: 'morning' as 'morning' | 'afternoon'
   });
   const [settingsData, setSettingsData] = useState({
     newUsername: '', currentPassword: '', newPassword: '', confirmPassword: ''
@@ -820,28 +822,29 @@ export default function UserProfile() {
       if (!req.leave_type_id || !req.from_date || !req.to_date) throw new Error('Please fill all required fields');
 
       const start = new Date(req.from_date);
-      const end = new Date(req.to_date);
+      const end = req.is_half_day ? start : new Date(req.to_date);
       if (end < start) throw new Error('End date must be after start date');
-      const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const totalDays = req.is_half_day
+        ? 0.5
+        : Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      const payload = {
+        leave_type_id: req.leave_type_id,
+        start_date: req.from_date,
+        end_date: req.is_half_day ? req.from_date : req.to_date,
+        total_days: totalDays,
+        is_half_day: req.is_half_day,
+        half_day_period: req.is_half_day ? req.half_day_period : null,
+        reason: req.reason || null,
+      };
 
       // If editing, update instead of insert
       if (editingLeaveId) {
-        const { error } = await (supabase as any).from('hr_leave_requests').update({
-          leave_type_id: req.leave_type_id,
-          start_date: req.from_date,
-          end_date: req.to_date,
-          total_days: totalDays,
-          reason: req.reason || null,
-        }).eq('id', editingLeaveId);
+        const { error } = await (supabase as any).from('hr_leave_requests').update(payload).eq('id', editingLeaveId);
         if (error) throw error;
       } else {
         const { error } = await (supabase as any).from('hr_leave_requests').insert({
+          ...payload,
           employee_id: hrEmployee.id,
-          leave_type_id: req.leave_type_id,
-          start_date: req.from_date,
-          end_date: req.to_date,
-          total_days: totalDays,
-          reason: req.reason || null,
           status: 'requested',
         });
         if (error) throw error;
@@ -849,7 +852,7 @@ export default function UserProfile() {
     },
     onSuccess: () => {
       sonnerToast.success(editingLeaveId ? 'Leave request updated' : 'Leave request submitted successfully');
-      setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '' });
+      setLeaveRequest({ leave_type_id: '', from_date: '', to_date: '', reason: '', is_half_day: false, half_day_period: 'morning' });
       setEditingLeaveId(null);
       setShowLeaveCreate(false);
       queryClient.invalidateQueries({ queryKey: ['hr_leave_requests', hrEmployee?.id] });
@@ -1256,15 +1259,36 @@ export default function UserProfile() {
                             </SelectContent>
                           </Select>
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox
+                            id="profile-half-day"
+                            checked={leaveRequest.is_half_day}
+                            onCheckedChange={(c) => setLeaveRequest(prev => ({ ...prev, is_half_day: !!c }))}
+                          />
+                          <Label htmlFor="profile-half-day" className="cursor-pointer">Half day</Label>
+                        </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label>Start Date *</Label>
+                            <Label>{leaveRequest.is_half_day ? 'Date *' : 'Start Date *'}</Label>
                             <Input type="date" value={leaveRequest.from_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, from_date: e.target.value }))} />
                           </div>
-                          <div>
-                            <Label>End Date *</Label>
-                            <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
-                          </div>
+                          {leaveRequest.is_half_day ? (
+                            <div>
+                              <Label>Session *</Label>
+                              <Select value={leaveRequest.half_day_period} onValueChange={(v) => setLeaveRequest(prev => ({ ...prev, half_day_period: v as 'morning' | 'afternoon' }))}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="morning">First half (morning)</SelectItem>
+                                  <SelectItem value="afternoon">Second half (afternoon)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          ) : (
+                            <div>
+                              <Label>End Date *</Label>
+                              <Input type="date" value={leaveRequest.to_date} onChange={(e) => setLeaveRequest(prev => ({ ...prev, to_date: e.target.value }))} />
+                            </div>
+                          )}
                         </div>
                         <div>
                           <Label>Reason</Label>
@@ -1275,7 +1299,7 @@ export default function UserProfile() {
                         <Button variant="outline" onClick={() => setShowLeaveCreate(false)}>Cancel</Button>
                         <Button
                           onClick={() => applyLeaveMutation.mutate(leaveRequest)}
-                          disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || !leaveRequest.to_date}
+                          disabled={applyLeaveMutation.isPending || !leaveRequest.leave_type_id || !leaveRequest.from_date || (!leaveRequest.is_half_day && !leaveRequest.to_date)}
                         >
                           {applyLeaveMutation.isPending ? 'Submitting...' : 'Submit'}
                         </Button>
@@ -1395,6 +1419,8 @@ export default function UserProfile() {
                                         from_date: req.start_date,
                                         to_date: req.end_date,
                                         reason: req.reason || '',
+                                        is_half_day: !!req.is_half_day,
+                                        half_day_period: req.half_day_period || 'morning',
                                       });
                                       setEditingLeaveId(req.id);
                                       setShowLeaveCreate(true);

@@ -199,9 +199,11 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
   const updateAd = useUpdateAd();
   const { data: adjuster = 0 } = useHybridPriceAdjuster();
   const [value, setValue] = useState('');
+  const [mode, setMode] = useState<LadderMode>('fixed');
   const [anchorAsset, setAnchorAsset] = useState<string>('');
   const [step, setStep] = useState<'form' | 'confirm' | 'executing' | 'done'>('form');
   const [results, setResults] = useState<RungResult[]>([]);
+
 
   const assets = useMemo(() => [...new Set(ads.map((a) => a.asset))].sort(), [ads]);
   const defaultAnchor = useMemo(() => {

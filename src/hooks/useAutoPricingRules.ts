@@ -151,6 +151,10 @@ export function useAutoPricingRules() {
       if (error) throw error;
       return data as unknown as AutoPricingRule[];
     },
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+
   });
 }
 

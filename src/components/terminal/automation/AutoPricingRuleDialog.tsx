@@ -14,7 +14,7 @@ import { adZone, ZONE_LABEL, ZONE_SHORT } from '@/lib/adZone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, User, AlertTriangle, X, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { Search, User, AlertTriangle, X, GripVertical, Plus, Trash2, Info } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
@@ -31,6 +31,35 @@ import {
 } from '@/hooks/useAutoPricingRules';
 import { useBinanceAdsList, BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useExcludedAds } from '@/hooks/useAdAutomationExclusion';
+
+function FieldHelp({ children }: { children: React.ReactNode }) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Help">
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] text-[11px] leading-relaxed">{children}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function ToggleCard({
+  checked, onChange, label, description,
+}: { checked: boolean; onChange: (v: boolean) => void; label: string; description: string }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/20 p-2.5">
+      <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 space-y-0.5">
+        <Label className="text-xs font-medium leading-tight">{label}</Label>
+        <p className="text-[11px] leading-snug text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 const ASSETS = ['USDT', 'BTC', 'USDC', 'FDUSD', 'BNB', 'ETH', 'TRX', 'SHIB', 'XRP', 'SOL', 'TON'];
 
@@ -495,39 +524,45 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 1: Basic */}
             <AccordionItem value="basic">
               <AccordionTrigger className="text-sm font-semibold">Basic Settings</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div>
-                  <Label>Rule Name</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" />
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Rule Name</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" className="h-9 text-sm text-foreground" />
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Trade Type</Label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Trade Type</Label>
+                      <FieldHelp>Side of your own ads. A terminal BUY ad competes on Binance's SELL page, so that is the book the engine watches.</FieldHelp>
+                    </div>
                     <Select value={tradeType} onValueChange={setTradeType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="BUY">BUY (Terminal)</SelectItem>
                         <SelectItem value="SELL">SELL (Terminal)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      BUY = monitors Binance SELL page
-                    </p>
                   </div>
-                  <div>
-                    <Label>Price Type</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Price Type</Label>
+                      <FieldHelp>Fixed = an absolute ₹ price. Floating = a percentage of the Binance index price.</FieldHelp>
+                    </div>
                     <Select value={priceType} onValueChange={setPriceType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="FIXED">Fixed</SelectItem>
                         <SelectItem value="FLOATING">Floating</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Direction</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Direction</Label>
+                      <FieldHelp>Overcut places you above the target price, undercut below it, by the offset configured per asset.</FieldHelp>
+                    </div>
                     <Select value={offsetDirection} onValueChange={setOffsetDirection}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="OVERCUT">Overcut (+)</SelectItem>
                         <SelectItem value="UNDERCUT">Undercut (−)</SelectItem>
@@ -536,8 +571,8 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
                 </div>
                 {/* Asset Selection */}
-                <div>
-                  <Label className="mb-2 block">Assets ({selectedAssets.length} selected)</Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Assets ({selectedAssets.length} selected)</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {ASSETS.map(a => (
                       <Badge
@@ -559,22 +594,28 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
               <AccordionTrigger className="text-sm font-semibold">
                 Competitor Target ({competitorZone === 'block' ? 'Block zone' : 'P2P zone'} · {competitorMode === 'top_badged' ? `top ${competitorBadges.join('/') || 'any'}` : `${priorityMerchants.filter(m => m.trim()).length} merchants`})
               </AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Market Zone</Label>
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Market Zone</Label>
+                      <FieldHelp>Which Binance order book to read: the public P2P book or the block-trading book. They price very differently.</FieldHelp>
+                    </div>
                     <Select value={competitorZone} onValueChange={setCompetitorZone}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="p2p">P2P zone (mass + profession)</SelectItem>
                         <SelectItem value="block">Block zone (block ads)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-xs">Targeting Mode</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Targeting Mode</Label>
+                      <FieldHelp>Follow specific nicknames in priority order, or always follow whoever is top of the zone with the chosen badge.</FieldHelp>
+                    </div>
                     <Select value={competitorMode} onValueChange={setCompetitorMode}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="nickname">Named merchants (priority list)</SelectItem>
                         <SelectItem value="top_badged">Top badged merchant in zone</SelectItem>
@@ -583,27 +624,45 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
                 </div>
 
+
                 {competitorMode === 'top_badged' && (
-                  <div className="space-y-2 p-3 border rounded-md bg-muted/20">
-                    <Label className="text-xs">Trust badge on the advertiser</Label>
-                    <div className="flex flex-wrap gap-3">
-                      {['Block', 'Shield'].map(b => (
+                  <div className="space-y-3 p-3 border rounded-md bg-muted/20">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-medium">Trust badge on the advertiser</Label>
+                      <a
+                        href="https://www.binance.com/en/support/faq/how-to-become-a-p2p-merchant-on-binance-360033161811"
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Binance merchant reference ↗
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      {[
+                        { b: 'Block', d: 'Block-trading merchant badge (large-size OTC style ads)' },
+                        { b: 'Shield', d: 'Verified merchant shield — deposit-backed, higher trust tier' },
+                      ].map(({ b, d }) => (
                         <label key={b} className="flex items-center gap-1.5 text-xs">
                           <Checkbox
                             checked={competitorBadges.includes(b)}
                             onCheckedChange={(c) => setCompetitorBadges(prev => c ? [...new Set([...prev, b])] : prev.filter(x => x !== b))}
                           />
                           {b} badge
+                          <FieldHelp>{d}</FieldHelp>
                         </label>
                       ))}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                       The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
                     </p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <Label className="text-xs">Account class</Label>
-                        <div className="flex flex-col gap-1 pt-1">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-medium">Account class</Label>
+                          <FieldHelp>Binance advertiser account type, separate from the trust badge. Mass merchants are standard retail merchants; block merchants are approved for block/OTC-size trades.</FieldHelp>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
                           {[
                             { v: 'MASS_MERCHANT', l: 'Mass merchant' },
                             { v: 'BLOCK_MERCHANT', l: 'Block merchant' },
@@ -617,32 +676,37 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             </label>
                           ))}
                         </div>
-                        <p className="text-[10px] text-muted-foreground pt-1">Binance advertiser identity, separate from the badge. Leave both unchecked for any class.</p>
+                        <p className="text-[11px] text-muted-foreground">Leave both unchecked for any class.</p>
                       </div>
-                      <div>
-                        <Label className="text-xs">Minimum VIP level</Label>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-medium">Minimum VIP level</Label>
+                          <FieldHelp>Binance VIP tier of the advertiser. Advertisers below this level are ignored when picking the target.</FieldHelp>
+                        </div>
                         <Input
                           value={minVipLevel}
                           onChange={e => setMinVipLevel(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="any"
                           inputMode="numeric"
-                          className="h-8 text-xs text-foreground"
+                          className="h-9 text-sm text-foreground"
                         />
-                        <p className="text-[10px] text-muted-foreground pt-1">Skips advertisers whose Binance VIP level is lower.</p>
+                        <p className="text-[11px] text-muted-foreground">Empty = any VIP level.</p>
                       </div>
                     </div>
 
-                    <div>
-                      <Label className="text-xs">Exclude nicknames (comma separated)</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Exclude nicknames (comma separated)</Label>
                       <Input
                         value={excludeMerchants}
                         onChange={e => setExcludeMerchants(e.target.value)}
                         placeholder="BlynkEx, MyOtherAccount"
-                        className="h-8 text-xs"
+                        className="h-9 text-sm text-foreground"
                       />
+                      <p className="text-[11px] text-muted-foreground">Your own accounts are already skipped automatically.</p>
                     </div>
                   </div>
                 )}
+
 
                 {competitorMode === 'nickname' && (<>
                 <p className="text-[10px] text-muted-foreground">
@@ -729,21 +793,27 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
 
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch checked={onlyOnline} onCheckedChange={setOnlyOnline} />
-                    <Label className="text-xs">Only counter when online</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={enforceZoneMatch} onCheckedChange={setEnforceZoneMatch} />
-                    <Label className="text-xs">Only price ads in the targeted zone</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={pauseNoMerchant} onCheckedChange={setPauseNoMerchant} />
-                    <Label className="text-xs">Pause if no merchant found</Label>
-                  </div>
-
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <ToggleCard
+                    checked={onlyOnline}
+                    onChange={setOnlyOnline}
+                    label="Only counter when online"
+                    description="Ignore the target merchant while their ad is offline/hidden on Binance, instead of pricing against a stale listing."
+                  />
+                  <ToggleCard
+                    checked={enforceZoneMatch}
+                    onChange={setEnforceZoneMatch}
+                    label="Only price ads in the targeted zone"
+                    description={`Reprice only your ads that live in the ${competitorZone === 'block' ? 'Block' : 'P2P'} zone. Ads from the other zone are skipped and logged as zone_mismatch, so you never price a block ad against the retail book.`}
+                  />
+                  <ToggleCard
+                    checked={pauseNoMerchant}
+                    onChange={setPauseNoMerchant}
+                    label="Pause if no merchant found"
+                    description="If none of the targets can be found in the order book, pause the rule instead of leaving ads at their last price."
+                  />
                 </div>
+
 
               </AccordionContent>
             </AccordionItem>
@@ -963,81 +1033,113 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 4: Anti-Exploitation */}
             <AccordionItem value="anti-exploit">
               <AccordionTrigger className="text-sm font-semibold">Anti-Exploitation & Safety</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Max Deviation from Market (%)</Label>
-                    <Input type="number" value={maxDeviation} onChange={e => setMaxDeviation(e.target.value)} step="0.5" />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Skips update if competitor deviates more than this</p>
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Guard rails that stop the engine from chasing a manipulated or fake competitor price — e.g. a merchant who briefly posts a wild price to bait automated repricers.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Max Deviation from Market (%)</Label>
+                      <FieldHelp>If the target merchant's price sits further than this from the wider market reference, the cycle is skipped instead of followed.</FieldHelp>
+                    </div>
+                    <Input type="number" value={maxDeviation} onChange={e => setMaxDeviation(e.target.value)} step="0.5" className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">Skips the update when the competitor is an outlier.</p>
                   </div>
-                  <div>
-                    <Label>Auto-Pause After N Deviations</Label>
-                    <Input type="number" value={autoPauseDeviations} onChange={e => setAutoPauseDeviations(e.target.value)} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Auto-Pause After N Deviations</Label>
+                      <FieldHelp>Consecutive outlier readings before the rule pauses itself and waits for an operator.</FieldHelp>
+                    </div>
+                    <Input type="number" value={autoPauseDeviations} onChange={e => setAutoPauseDeviations(e.target.value)} className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">0 = never auto-pause.</p>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>{isFixed ? 'Max Price Change/Cycle (₹)' : 'Max Ratio Change/Cycle (%)'}</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">{isFixed ? 'Max Price Change/Cycle (₹)' : 'Max Ratio Change/Cycle (%)'}</Label>
+                      <FieldHelp>Caps how far a single cycle may move your ad, so one bad reading cannot swing your price violently.</FieldHelp>
+                    </div>
                     <Input
                       type="number"
                       value={isFixed ? maxPriceChange : maxRatioChange}
                       onChange={e => isFixed ? setMaxPriceChange(e.target.value) : setMaxRatioChange(e.target.value)}
                       placeholder="Unlimited"
                       step="0.01"
+                      className="h-9 text-sm text-foreground"
                     />
+                    <p className="text-[11px] text-muted-foreground">Empty = no per-cycle cap.</p>
                   </div>
-                  <div>
-                    <Label>Manual Override Cooldown (min)</Label>
-                    <Input type="number" value={cooldownMinutes} onChange={e => setCooldownMinutes(e.target.value)} />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">0 = disabled</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Manual Override Cooldown (min)</Label>
+                      <FieldHelp>After an operator edits a price by hand, the engine leaves that ad alone for this many minutes.</FieldHelp>
+                    </div>
+                    <Input type="number" value={cooldownMinutes} onChange={e => setCooldownMinutes(e.target.value)} className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">0 = disabled.</p>
                   </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
+
             {/* Section 5: Scheduling */}
             <AccordionItem value="scheduling">
-              <AccordionTrigger className="text-sm font-semibold">Scheduling</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Active Hours Start (IST)</Label>
-                    <Input type="time" value={activeStart} onChange={e => setActiveStart(e.target.value)} />
+              <AccordionTrigger className="text-sm font-semibold">Scheduling & Resting Price</AccordionTrigger>
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Active Hours Start (IST)</Label>
+                    <Input type="time" value={activeStart} onChange={e => setActiveStart(e.target.value)} className="h-9 text-sm text-foreground" />
                   </div>
-                  <div>
-                    <Label>Active Hours End (IST)</Label>
-                    <Input type="time" value={activeEnd} onChange={e => setActiveEnd(e.target.value)} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Active Hours End (IST)</Label>
+                    <Input type="time" value={activeEnd} onChange={e => setActiveEnd(e.target.value)} className="h-9 text-sm text-foreground" />
                   </div>
                 </div>
-                {(activeStart || activeEnd) && (
-                  <button
-                    type="button"
-                    className="text-xs text-destructive hover:underline"
-                    onClick={() => { setActiveStart(''); setActiveEnd(''); }}
-                  >
-                    Reset active hours (switch to 24/7)
-                  </button>
-                )}
-                <p className="text-[10px] text-muted-foreground">Leave empty for 24/7 operation</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-[11px] text-muted-foreground">Leave both empty for 24/7 operation.</p>
+                  {(activeStart || activeEnd) && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-destructive hover:underline"
+                      onClick={() => { setActiveStart(''); setActiveEnd(''); }}
+                    >
+                      Reset active hours (switch to 24/7)
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {isFixed ? (
-                    <div>
-                      <Label>Resting Price (₹)</Label>
-                      <Input type="number" value={restingPrice} onChange={e => setRestingPrice(e.target.value)} placeholder="No resting price" />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-medium">Resting Price (₹)</Label>
+                        <FieldHelp>Price the engine parks your ads at outside active hours, so you never sit at an aggressive market-chasing price while unattended.</FieldHelp>
+                      </div>
+                      <Input type="number" value={restingPrice} onChange={e => setRestingPrice(e.target.value)} placeholder="No resting price" className="h-9 text-sm text-foreground" />
+                      <p className="text-[11px] text-muted-foreground">Applied when the schedule window closes. Empty = ads keep their last live price.</p>
                     </div>
                   ) : (
-                    <div>
-                      <Label>Resting Ratio (%)</Label>
-                      <Input type="number" value={restingRatio} onChange={e => setRestingRatio(e.target.value)} placeholder="No resting ratio" step="0.01" />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-medium">Resting Ratio (%)</Label>
+                        <FieldHelp>Floating ratio the engine parks your ads at outside active hours (e.g. 101.5% = 1.5% above the Binance index), so unattended ads sit at a safe, non-competitive level.</FieldHelp>
+                      </div>
+                      <Input type="number" value={restingRatio} onChange={e => setRestingRatio(e.target.value)} placeholder="No resting ratio" step="0.01" className="h-9 text-sm text-foreground" />
+                      <p className="text-[11px] text-muted-foreground">Applied when the schedule window closes. Empty = ads keep their last live ratio.</p>
                     </div>
                   )}
-                  <div>
-                    <Label>Check Interval (seconds)</Label>
-                    <Input type="number" value={checkInterval} onChange={e => setCheckInterval(e.target.value)} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Check Interval (seconds)</Label>
+                      <FieldHelp>How often this rule is allowed to run. The scheduler ticks every minute and skips the rule until this many seconds have passed since its last check.</FieldHelp>
+                    </div>
+                    <Input type="number" value={checkInterval} onChange={e => setCheckInterval(e.target.value)} className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">Minimum 60s recommended to stay within Binance rate limits.</p>
                   </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
+
           </Accordion>
         </ScrollArea>
 

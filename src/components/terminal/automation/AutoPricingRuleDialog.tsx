@@ -182,6 +182,34 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     });
   };
 
+  // Assets added while the sync is on inherit the shared pricing bounds too.
+  useEffect(() => {
+    if (!syncPricingAcrossAssets) return;
+    setAssetConfigs(prev => {
+      const source = prev[activeAssetTab] || { ...DEFAULT_ASSET_CONFIG };
+      let changed = false;
+      const next = { ...prev };
+      selectedAssets.forEach(a => {
+        const base = prev[a] || { ...DEFAULT_ASSET_CONFIG };
+        const differs = PRICE_FIELDS.some(f => (base as any)[f] !== (source as any)[f]);
+        if (!differs && prev[a]) return;
+        changed = true;
+        next[a] = {
+          ...base,
+          offset_amount: source.offset_amount,
+          offset_pct: source.offset_pct,
+          max_ceiling: source.max_ceiling,
+          max_ratio_ceiling: source.max_ratio_ceiling,
+          min_floor: source.min_floor,
+          min_ratio_floor: source.min_ratio_floor,
+        } as AssetConfig;
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssets, syncPricingAcrossAssets]);
+
+
 
   // Resolve final numeric value at save time (raw text wins so trailing digits are kept)
   const resolveNumeric = (asset: string, field: NumericField, cfgVal: number | null | undefined): number | null => {

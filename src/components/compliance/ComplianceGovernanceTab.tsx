@@ -16,6 +16,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
 import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabsWrapperCls } from "./complianceTabStyles";
 import { toast } from "sonner";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
+
 import { format, parseISO } from "date-fns";
 
 const ts = (d: string | null) => {
@@ -94,16 +96,32 @@ function AuditPanel() {
               </SelectContent>
             </Select>
             <Button variant="outline" size="sm" disabled={!filtered.length}
-              onClick={() => exportRowsToCsv("compliance-audit-log", filtered, [
-                { key: "changed_at", label: "When" },
-                { key: "table_name", label: "Table" },
-                { key: "action", label: "Action" },
-                { key: "record_id", label: "Record" },
-                { key: "changed_by", label: "By (user id)" },
-                { key: "changed_fields", label: "Fields" },
-              ])}>
+              onClick={async () => {
+                try {
+                  // Export the FULL filtered audit trail, not just the 500 rows shown on screen
+                  const all = await fetchAllPaginated<AuditRow>(() => {
+                    let q = supabase
+                      .from("compliance_audit_log")
+                      .select("id, table_name, record_id, action, changed_by, changed_fields, changed_at")
+                      .order("changed_at", { ascending: false });
+                    if (tableFilter !== "all") q = q.eq("table_name", tableFilter);
+                    return q;
+                  });
+                  exportRowsToCsv("compliance-audit-log", all, [
+                    { key: "changed_at", label: "When" },
+                    { key: "table_name", label: "Table" },
+                    { key: "action", label: "Action" },
+                    { key: "record_id", label: "Record" },
+                    { key: "changed_by", label: "By (user id)" },
+                    { key: "changed_fields", label: "Fields" },
+                  ]);
+                } catch (e) {
+                  toast.error((e as Error).message);
+                }
+              }}>
               <Download className="h-4 w-4 mr-2" /> Export
             </Button>
+
           </div>
         </div>
       </CardHeader>

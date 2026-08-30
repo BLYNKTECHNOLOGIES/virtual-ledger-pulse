@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow, isToday, isYesterday, parseISO } from "date-fns";
 import { InlineAttachmentStrip } from "./InlineAttachmentStrip";
+import { toast } from "sonner";
+
 
 
 type ActivityEvent = {

@@ -54,7 +54,7 @@ function ToggleCard({
     <div className="flex items-center gap-2.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2">
       <Switch checked={checked} onCheckedChange={onChange} className="shrink-0" />
       <Label className="min-w-0 flex-1 text-xs font-medium leading-tight">{label}</Label>
-      <FieldTip>{description}</FieldTip>
+      <FieldHelp>{description}</FieldHelp>
     </div>
   );
 }

@@ -150,6 +150,21 @@ serve(async (req) => {
         continue;
       }
 
+      // Per-rule check interval (cron cycles only; manual/single-rule runs bypass it)
+      if (!singleRuleId) {
+        const intervalSec = Number(rule.check_interval_seconds) || 0;
+        if (intervalSec > 0 && rule.last_checked_at) {
+          const elapsedSec = (Date.now() - new Date(rule.last_checked_at).getTime()) / 1000;
+          // 5s tolerance so a 120s interval isn't pushed to the next minute tick
+          if (elapsedSec < intervalSec - 5) {
+            console.log(`[interval] Rule ${rule.id} skipped: ${elapsedSec.toFixed(0)}s < ${intervalSec}s`);
+            results.push({ ruleId: rule.id, status: "skipped", reason: "check_interval" });
+            continue;
+          }
+        }
+      }
+
+
       try {
         const logEntries = await processRule(rule, excludedSet, supabase);
         results.push({ ruleId: rule.id, results: logEntries });

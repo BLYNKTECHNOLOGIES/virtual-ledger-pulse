@@ -309,8 +309,96 @@ export function AccountSummary() {
     },
   });
 
+  // Pull EVERY row matching the current filters (ignores UI pagination) for exports
+  const fetchAllFilteredTransactions = async (): Promise<any[]> => {
+    const bankAccountId = selectedBankFilter === 'all' ? null : selectedBankFilter;
+    const transactionType = selectedTypeFilter === 'all' ? null : selectedTypeFilter;
+    const CHUNK = 500;
+    let offset = 0;
+    const all: any[] = [];
+    // Hard stop at 20k rows to avoid runaway loops
+    while (offset < 20000) {
+      const { data, error } = await supabase.rpc('get_transactions_with_closing_balance', {
+        p_bank_account_id: bankAccountId,
+        p_transaction_type: transactionType,
+        p_limit: CHUNK,
+        p_offset: offset,
+        p_start_date: dateRange?.from ? format(dateRange.from, 'yyyy-MM-dd') : null,
+        p_end_date: dateRange?.to ? format(dateRange.to, 'yyyy-MM-dd') : null,
+      });
+      if (error) throw error;
+      const rows = (data as any[]) || [];
+      all.push(...rows);
+      const total = rows[0]?.total_count ?? all.length;
+      offset += CHUNK;
+      if (rows.length < CHUNK || all.length >= total) break;
+    }
+    return all;
+  };
+
+  const escapeHtml = (v: any) =>
+    String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+
+  const buildTransactionsTableHtml = (rows: any[]) => {
+    const visible = showReversed
+      ? rows
+      : rows.filter((t: any) => !(t.is_reversed || t.reverses_transaction_id));
+    const inflow = (t: any) => ['INCOME', 'CREDIT', 'TRANSFER_IN'].includes(t.transaction_type);
+    const body = visible
+      .map((t: any) => `
+        <tr>
+          <td>${format(new Date(t.transaction_date), 'dd MMM yyyy')}<br/><small>${format(new Date(t.created_at), 'HH:mm:ss')}</small></td>
+          <td>${escapeHtml(t.account_name)}<br/><small>${escapeHtml(t.bank_name)}</small></td>
+          <td>${escapeHtml(t.transaction_type)}${t.is_reversed ? ' • REVERSED' : ''}${t.reverses_transaction_id ? ' • REVERSAL' : ''}</td>
+          <td style="text-align:right" class="${inflow(t) ? 'text-green' : 'text-red'}">${inflow(t) ? '+' : '-'}${escapeHtml(formatCurrency(t.amount))}</td>
+          <td style="text-align:right">${t.balance_before != null ? escapeHtml(formatCurrency(t.balance_before)) : '-'}</td>
+          <td style="text-align:right">${escapeHtml(formatCurrency(t.closing_balance))}</td>
+          <td>${escapeHtml(
+            (t.transaction_type === 'TRANSFER_OUT' || t.transaction_type === 'TRANSFER_IN') && t.related_account_name
+              ? `${t.transaction_type === 'TRANSFER_OUT' ? 'Transfer to' : 'Transfer from'} ${t.related_account_name}`
+              : t.description || '-'
+          )}</td>
+          <td>${escapeHtml(t.reference_number || '-')}</td>
+        </tr>`)
+      .join('');
+
+    const bankLabel =
+      selectedBankFilter === 'all'
+        ? 'All Bank Accounts'
+        : bankAccountOptions?.find((a) => a.id === selectedBankFilter)?.account_name || selectedBankFilter;
+    const periodLabel = dateRange?.from
+      ? `${format(dateRange.from, 'dd MMM yyyy')} – ${dateRange?.to ? format(dateRange.to, 'dd MMM yyyy') : 'today'}`
+      : 'All Time';
+
+    return `
+      <h2>Transaction History</h2>
+      <p><strong>Bank:</strong> ${escapeHtml(bankLabel)} &nbsp;|&nbsp; <strong>Type:</strong> ${escapeHtml(
+        selectedTypeFilter === 'all' ? 'All Types' : selectedTypeFilter
+      )} &nbsp;|&nbsp; <strong>Period:</strong> ${escapeHtml(periodLabel)} &nbsp;|&nbsp; <strong>Entries:</strong> ${visible.length}</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Date &amp; Time</th><th>Account</th><th>Type</th><th style="text-align:right">Amount</th>
+            <th style="text-align:right">Balance Before</th><th style="text-align:right">Closing Balance</th>
+            <th>Description</th><th>Reference</th>
+          </tr>
+        </thead>
+        <tbody>${body || '<tr><td colspan="8">No transactions found for the selected filter.</td></tr>'}</tbody>
+      </table>`;
+  };
+
   const handleExportPDF = async () => {
     try {
+      // For the Transactions tab, export EVERY filtered row (not just the current page)
+      let content = '';
+      if (activeReportTab === 'transactions') {
+        toast.info('Preparing full transaction export...');
+        const allRows = await fetchAllFilteredTransactions();
+        content = buildTransactionsTableHtml(allRows);
+      } else {
+        content = printRef.current?.innerHTML || '';
+      }
+
       // Create a new window with the content
       const printWindow = window.open('', '_blank');
       if (!printWindow) {
@@ -318,8 +406,6 @@ export function AccountSummary() {
         return;
       }
 
-      // Get the content to export
-      const content = printRef.current?.innerHTML || '';
       
       // Create a complete HTML document for PDF generation
       const htmlContent = `

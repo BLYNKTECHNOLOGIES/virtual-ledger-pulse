@@ -663,29 +663,54 @@ async function processAsset(
     if (minFloor && newPrice !== null && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
 
   } else {
-    // Try to infer Binance's actual index price from one of our own floating ads
-    let binanceIndex: number | null = null;
-    for (const adNo of adNumbers) {
-      binanceIndex = await inferBinanceIndex(adNo, supabase, rule.id);
-      if (binanceIndex && binanceIndex > 0) break;
-    }
+    // Index resolution order matters. The competitor price is LIVE (search payload),
+    // so the index it is divided by must be from the same instant. Our own ad-detail
+    // price refreshes lazily on Binance (it can sit frozen for a minute+), and a stale
+    // index silently eats the offset — the classic symptom is landing exactly ON the
+    // competitor's price instead of above it.
+    //   1. competitor's own priceFloatingRatio (index-free, always exact)
+    //   2. index derived from any floating ad in the SAME live search payload
+    //   3. index inferred from our own ad detail (may be stale)
+    //   4. coingecko market reference
+    let competitorRatio: number | null = null;
+    let indexSource = "";
+    let baseRef: number | null = null;
 
-    const baseRef = binanceIndex && binanceIndex > 0
-      ? binanceIndex
-      : (marketReferencePrice && marketReferencePrice > 0 ? marketReferencePrice : competitorPrice);
-    
-    const indexSource = binanceIndex && binanceIndex > 0 ? "binance_index" : (marketReferencePrice && marketReferencePrice > 0 ? "coingecko" : "competitor");
-    console.log(`[FLOATING] ${asset}: Using ${indexSource} as base reference: ₹${baseRef.toFixed(2)}${binanceIndex ? ` (Binance index inferred: ₹${binanceIndex.toFixed(2)})` : ''}`);
-    
-    const competitorRatio = (competitorPrice / baseRef) * 100;
-
-    if (rule.offset_direction === "OVERCUT") {
-      newRatio = competitorRatio + offsetPct;
+    if (matchedFloatingRatio && matchedFloatingRatio > 0) {
+      competitorRatio = matchedFloatingRatio;
+      indexSource = "competitor_floating_ratio";
     } else {
-      newRatio = competitorRatio - offsetPct;
+      const liveIndex = indexFromSearchPayload(searchResult);
+      if (liveIndex && liveIndex > 0) {
+        baseRef = liveIndex;
+        indexSource = "live_search_index";
+      } else {
+        let binanceIndex: number | null = null;
+        for (const adNo of adNumbers) {
+          binanceIndex = await inferBinanceIndex(adNo, supabase, rule.id);
+          if (binanceIndex && binanceIndex > 0) break;
+        }
+        baseRef = binanceIndex && binanceIndex > 0
+          ? binanceIndex
+          : (marketReferencePrice && marketReferencePrice > 0 ? marketReferencePrice : competitorPrice);
+        indexSource = binanceIndex && binanceIndex > 0
+          ? "ad_detail_index"
+          : (marketReferencePrice && marketReferencePrice > 0 ? "coingecko" : "competitor");
+      }
+      competitorRatio = (competitorPrice / (baseRef as number)) * 100;
     }
 
-    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, marketRef=₹${baseRef.toFixed(2)}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}%, newRatio=${newRatio !== null ? newRatio.toFixed(4) : 'null'}%`);
+    // Offset is a PERCENTAGE of the competitor's ratio, not percentage points:
+    // 0.05% overcut on a 103.85 competitor => 103.85 * 1.0005 = 103.9019.
+    const offsetFactor = 1 + (offsetPct / 100);
+    if (rule.offset_direction === "OVERCUT") {
+      newRatio = competitorRatio * offsetFactor;
+    } else {
+      newRatio = competitorRatio / offsetFactor;
+    }
+
+    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, source=${indexSource}${baseRef ? `, index=₹${baseRef.toFixed(2)}` : ""}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}% (x${offsetFactor}), newRatio=${newRatio !== null ? newRatio.toFixed(4) : 'null'}%`);
+
 
     if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio && newRatio !== null) {
       const delta = Math.abs(newRatio - rule.last_applied_ratio);

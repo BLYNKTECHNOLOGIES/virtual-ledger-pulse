@@ -418,9 +418,14 @@ async function processAsset(
   let matchedIdentity: string | null = null;
   let matchedVipLevel: number | null = null;
 
-  const excludedNicks = new Set(
-    (rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean)
-  );
+  // Never chase ourselves: our own advertiser nicknames are excluded from every
+  // competitor match, otherwise the engine ratchets its own price cycle after cycle.
+  const ownNicks = await getOwnNicknames(supabase);
+  const excludedNicks = new Set([
+    ...(rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean),
+    ...ownNicks,
+  ]);
+
 
   // Optional merchant-level + VIP gates (live Binance advertiser fields only)
   const wantedIdentities = ((rule.competitor_identities || []) as string[])
@@ -576,14 +581,18 @@ async function processAsset(
   // Zone integrity: P2P zone and Block zone are separate order books at different
   // price levels. Never write a competitor price scraped from one zone onto an ad
   // living in the other. Ads whose zone can't be read are left untouched by the gate.
+  // Offline ads (Binance advStatus != 1) are also skipped: repricing them changes
+  // nothing in the live book and hides the real reason we are not competing.
   const zoneMismatched: string[] = [];
+  const offlineAds: string[] = [];
   const liveAdZones = new Map<string, string | null>();
   if (rule.enforce_zone_match !== false && adNumbers.length > 0) {
     const kept: string[] = [];
     for (const adNo of adNumbers) {
-      const adZoneLive = await fetchAdZone(adNo);
-      liveAdZones.set(adNo, adZoneLive);
-      if (adZoneLive && adZoneLive !== zone) { zoneMismatched.push(adNo); continue; }
+      const meta = await fetchAdMeta(adNo);
+      liveAdZones.set(adNo, meta.zone);
+      if (meta.zone && meta.zone !== zone) { zoneMismatched.push(adNo); continue; }
+      if (meta.advStatus !== null && meta.advStatus !== 1) { offlineAds.push(adNo); continue; }
       kept.push(adNo);
     }
     if (zoneMismatched.length > 0) {
@@ -605,8 +614,28 @@ async function processAsset(
         });
       }
     }
+    if (offlineAds.length > 0) {
+      console.log(`[offline-guard] rule "${rule.name}" ${asset}: ${offlineAds.length} ad(s) are offline on Binance: ${offlineAds.join(",")}`);
+      for (const adNo of offlineAds) {
+        await supabase.from("ad_pricing_logs").insert({
+          rule_id: rule.id,
+          ad_number: adNo,
+          asset,
+          status: "skipped",
+          skipped_reason: "ad_offline",
+          ad_zone: liveAdZones.get(adNo) ?? zone,
+          competitor_merchant: matchedMerchant,
+          competitor_zone: zone,
+          competitor_badges: matchedBadges,
+          competitor_identity: matchedIdentity,
+          competitor_vip_level: matchedVipLevel,
+          competitor_price: competitorPrice,
+        });
+      }
+    }
     adNumbers = kept;
   }
+
 
   if (rule.price_type === "FIXED") {
     if (rule.offset_direction === "OVERCUT") {
@@ -683,14 +712,18 @@ async function processAsset(
 
   // 7. EXECUTE
   if (adNumbers.length === 0) {
+    const reason = offlineAds.length > 0
+      ? "ad_offline"
+      : zoneMismatched.length > 0 ? "zone_mismatch" : "no_ads";
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,
       asset,
       status: "skipped",
-      skipped_reason: zoneMismatched.length > 0 ? "zone_mismatch" : "no_ads",
+      skipped_reason: reason,
     });
-    return { asset, status: "skipped", reason: "no_ads" };
+    return { asset, status: "skipped", reason };
   }
+
 
   // ===== AP-ARCH-03: DRY-RUN MODE =====
   if (rule.is_dry_run) {
@@ -1063,7 +1096,30 @@ async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSou
  * Zone of one of OUR ads, read live from Binance (adv.classify).
  * 'block' when classify === 'block', otherwise 'p2p'. null when unknown.
  */
-async function fetchAdZone(adNo: string): Promise<string | null> {
+let ownNicknameCache: string[] | null = null;
+/** Our own Binance advertiser nicknames (live merchant snapshots), lowercased. */
+async function getOwnNicknames(supabase: any): Promise<string[]> {
+  if (ownNicknameCache) return ownNicknameCache;
+  try {
+    const { data } = await supabase
+      .from("binance_merchant_state_snapshots")
+      .select("nickname")
+      .not("nickname", "is", null)
+      .limit(500);
+    const set = new Set<string>();
+    for (const row of data || []) {
+      const n = String(row.nickname || "").trim().toLowerCase();
+      if (n) set.add(n);
+    }
+    ownNicknameCache = Array.from(set);
+  } catch (_e) {
+    ownNicknameCache = [];
+  }
+  return ownNicknameCache;
+}
+
+async function fetchAdMeta(adNo: string): Promise<{ zone: string | null; advStatus: number | null }> {
+
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
   try {
@@ -1074,13 +1130,19 @@ async function fetchAdZone(adNo: string): Promise<string | null> {
     });
     const result = await resp.json();
     const adData = result?.data?.data || result?.data;
-    const classify = adData?.classify ?? adData?.adDetailResp?.classify;
-    if (classify === undefined || classify === null || classify === "") return null;
-    return String(classify).toLowerCase() === "block" ? "block" : "p2p";
+    const detail = adData?.adDetailResp ?? adData;
+    const classify = adData?.classify ?? detail?.classify;
+    const zone = classify === undefined || classify === null || classify === ""
+      ? null
+      : String(classify).toLowerCase() === "block" ? "block" : "p2p";
+    const rawStatus = adData?.advStatus ?? detail?.advStatus;
+    const advStatus = rawStatus === undefined || rawStatus === null ? null : Number(rawStatus);
+    return { zone, advStatus: Number.isFinite(advStatus as number) ? (advStatus as number) : null };
   } catch (_e) {
-    return null;
+    return { zone: null, advStatus: null };
   }
 }
+
 
 async function inferBinanceIndex(adNo: string, supabase: any, ruleId?: string): Promise<number | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;

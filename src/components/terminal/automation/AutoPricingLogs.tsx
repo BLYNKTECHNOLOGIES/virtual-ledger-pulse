@@ -29,7 +29,9 @@ const REASON_LABELS: Record<string, string> = {
   no_merchant: 'Target merchant was not found',
   deviation_exceeded: 'Market deviation guard blocked the update',
   zone_mismatch: 'Selected ad does not match the rule zone',
+  ad_offline: 'Ad is offline on Binance — repricing would not affect the live book',
   no_ads: 'No eligible ads are assigned',
+
 };
 
 function getLogReason(log: AutoPricingLog): string {

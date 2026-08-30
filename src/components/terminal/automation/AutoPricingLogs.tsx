@@ -40,11 +40,11 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Auto-Pricing Logs</CardTitle>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-base sm:text-lg">Auto-Pricing Logs</CardTitle>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Select value={filterRuleId} onValueChange={setFilterRuleId}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[180px] h-8 text-xs">
                 <SelectValue placeholder="All Rules" />
               </SelectTrigger>
               <SelectContent>
@@ -55,7 +55,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
               </SelectContent>
             </Select>
             <Select value={filterZone} onValueChange={setFilterZone}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs">
                 <SelectValue placeholder="All Zones" />
               </SelectTrigger>
               <SelectContent>
@@ -65,7 +65,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs col-span-2 sm:col-span-1">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -88,6 +88,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
           <div className="text-center py-12 text-muted-foreground text-sm">No logs found</div>
         ) : (
           <ScrollArea className="max-h-[500px]">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -154,6 +155,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                 ))}
               </TableBody>
             </Table>
+            </div>
           </ScrollArea>
         )}
       </CardContent>

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { istTime } from "@/components/hrms/attendance/DayTileTooltip";
 
 /**
  * HRMS Request Registry

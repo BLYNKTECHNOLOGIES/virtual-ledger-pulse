@@ -68,7 +68,51 @@ function TerminalThemedShell({ children }: { children: React.ReactNode }) {
   return <div className={`terminal ${theme === 'light' ? 't-light' : 't-dark'}`}>{children}</div>;
 }
 
+/** Inner shell — lives inside SidebarProvider so it can drive sidebar state. */
+function TerminalShell({ children }: { children: React.ReactNode }) {
+  const workAreaRef = useRef<HTMLElement>(null);
+  const { expandOnHover, collapseOnLeave, isPeeking } = useSidebarAutoCollapse(workAreaRef);
+
+  return (
+    <div className="flex w-full min-h-screen bg-background">
+      <div
+        className="hidden md:block"
+        data-sidebar-peek={isPeeking ? 'true' : undefined}
+        onMouseEnter={expandOnHover}
+        onMouseLeave={collapseOnLeave}
+      >
+        <TerminalSidebar />
+      </div>
+      <SidebarInset className="flex flex-col flex-1 min-w-0">
+        <TerminalHeader />
+        <main ref={workAreaRef} className="flex-1 overflow-auto t-grid-bg">
+          <div className="t-mount">
+            <Suspense
+              fallback={
+                <div className="flex min-h-[50vh] items-center justify-center bg-background">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              }
+            >
+              {children}
+            </Suspense>
+          </div>
+        </main>
+      </SidebarInset>
+    </div>
+  );
+}
+
 export function TerminalLayout({ children }: TerminalLayoutProps) {
+  // Persist expanded/collapsed (icon-rail) state across reloads, like the ERP.
+  const defaultSidebarOpen =
+    typeof document !== 'undefined'
+      ? document.cookie
+          .split('; ')
+          .find((c) => c.startsWith('sidebar:state='))
+          ?.split('=')[1] !== 'false'
+      : true;
+
   return (
     <TerminalThemeProvider>
       <TerminalThemedShell>
@@ -79,29 +123,10 @@ export function TerminalLayout({ children }: TerminalLayoutProps) {
            <ExchangeAccountProvider>
              <TerminalShortcutsProvider>
                <TerminalPresenceAndAlerts />
-               <SidebarProvider>
-                  <div className="flex w-full min-h-screen bg-background">
-                    <div className="hidden md:block">
-                      <TerminalSidebar />
-                    </div>
-                    <SidebarInset className="flex flex-col flex-1 min-w-0">
-                      <TerminalHeader />
-                      <main className="flex-1 overflow-auto t-grid-bg">
-                        <div className="t-mount">
-                          <Suspense
-                            fallback={
-                              <div className="flex min-h-[50vh] items-center justify-center bg-background">
-                                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                              </div>
-                            }
-                          >
-                            {children}
-                          </Suspense>
-                        </div>
-                      </main>
-                    </SidebarInset>
-                  </div>
+               <SidebarProvider defaultOpen={defaultSidebarOpen}>
+                  <TerminalShell>{children}</TerminalShell>
                 </SidebarProvider>
+
              </TerminalShortcutsProvider>
            </ExchangeAccountProvider>
           </BiometricAuthGate>

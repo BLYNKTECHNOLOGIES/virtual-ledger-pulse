@@ -495,39 +495,45 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 1: Basic */}
             <AccordionItem value="basic">
               <AccordionTrigger className="text-sm font-semibold">Basic Settings</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div>
-                  <Label>Rule Name</Label>
-                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" />
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium">Rule Name</Label>
+                  <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" className="h-9 text-sm text-foreground" />
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <Label>Trade Type</Label>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Trade Type</Label>
+                      <FieldHelp>Side of your own ads. A terminal BUY ad competes on Binance's SELL page, so that is the book the engine watches.</FieldHelp>
+                    </div>
                     <Select value={tradeType} onValueChange={setTradeType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="BUY">BUY (Terminal)</SelectItem>
                         <SelectItem value="SELL">SELL (Terminal)</SelectItem>
                       </SelectContent>
                     </Select>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      BUY = monitors Binance SELL page
-                    </p>
                   </div>
-                  <div>
-                    <Label>Price Type</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Price Type</Label>
+                      <FieldHelp>Fixed = an absolute ₹ price. Floating = a percentage of the Binance index price.</FieldHelp>
+                    </div>
                     <Select value={priceType} onValueChange={setPriceType}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="FIXED">Fixed</SelectItem>
                         <SelectItem value="FLOATING">Floating</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label>Direction</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Direction</Label>
+                      <FieldHelp>Overcut places you above the target price, undercut below it, by the offset configured per asset.</FieldHelp>
+                    </div>
                     <Select value={offsetDirection} onValueChange={setOffsetDirection}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="OVERCUT">Overcut (+)</SelectItem>
                         <SelectItem value="UNDERCUT">Undercut (−)</SelectItem>
@@ -536,8 +542,8 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
                 </div>
                 {/* Asset Selection */}
-                <div>
-                  <Label className="mb-2 block">Assets ({selectedAssets.length} selected)</Label>
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium">Assets ({selectedAssets.length} selected)</Label>
                   <div className="flex flex-wrap gap-1.5">
                     {ASSETS.map(a => (
                       <Badge
@@ -559,22 +565,28 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
               <AccordionTrigger className="text-sm font-semibold">
                 Competitor Target ({competitorZone === 'block' ? 'Block zone' : 'P2P zone'} · {competitorMode === 'top_badged' ? `top ${competitorBadges.join('/') || 'any'}` : `${priorityMerchants.filter(m => m.trim()).length} merchants`})
               </AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-xs">Market Zone</Label>
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Market Zone</Label>
+                      <FieldHelp>Which Binance order book to read: the public P2P book or the block-trading book. They price very differently.</FieldHelp>
+                    </div>
                     <Select value={competitorZone} onValueChange={setCompetitorZone}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="p2p">P2P zone (mass + profession)</SelectItem>
                         <SelectItem value="block">Block zone (block ads)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-xs">Targeting Mode</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Targeting Mode</Label>
+                      <FieldHelp>Follow specific nicknames in priority order, or always follow whoever is top of the zone with the chosen badge.</FieldHelp>
+                    </div>
                     <Select value={competitorMode} onValueChange={setCompetitorMode}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="nickname">Named merchants (priority list)</SelectItem>
                         <SelectItem value="top_badged">Top badged merchant in zone</SelectItem>
@@ -582,6 +594,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     </Select>
                   </div>
                 </div>
+
 
                 {competitorMode === 'top_badged' && (
                   <div className="space-y-3 p-3 border rounded-md bg-muted/20">

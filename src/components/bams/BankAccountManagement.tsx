@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Edit, Eye, EyeOff, X, Search, Upload, Settings, AlertTriangle, Moon, RefreshCw } from "lucide-react";
+import { Plus, Edit, Eye, EyeOff, X, Search, Settings, AlertTriangle, Moon, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -19,7 +19,7 @@ import { CloseAccountDialog } from "./CloseAccountDialog";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PermissionGate } from "@/components/PermissionGate";
-import { ImportBankAccountsDialog } from "./ImportBankAccountsDialog";
+
 import { ManualBalanceAdjustmentDialog } from "./ManualBalanceAdjustmentDialog";
 import { logActionWithCurrentUser, ActionTypes, EntityTypes, Modules } from "@/lib/system-action-logger";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
@@ -540,12 +540,6 @@ export function BankAccountManagement() {
                 Adjust Balance
               </Button>
             </PermissionGate>
-          </ViewOnlyWrapper>
-          <ViewOnlyWrapper isViewOnly={isViewOnly}>
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
           </ViewOnlyWrapper>
           <ViewOnlyWrapper isViewOnly={isViewOnly}>
             <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
@@ -1123,11 +1117,6 @@ export function BankAccountManagement() {
         onAccountClosed={handleAccountClosed}
       />
 
-      {/* Import Dialog */}
-      <ImportBankAccountsDialog 
-        open={showImportDialog} 
-        onOpenChange={setShowImportDialog} 
-      />
 
       {/* Manual Balance Adjustment Dialog */}
       <ManualBalanceAdjustmentDialog 

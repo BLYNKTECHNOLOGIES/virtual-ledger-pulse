@@ -709,6 +709,23 @@ async function processAsset(
       newRatio = competitorRatio / offsetFactor;
     }
 
+    // Binance stores the floating ratio at 2 decimals. Rounding a 0.05% overcut to the
+    // nearest tick can land back ON the competitor, so snap AWAY from them and always
+    // keep at least one tick of separation.
+    const TICK = 0.01;
+    if (rule.offset_direction === "OVERCUT") {
+      newRatio = Math.max(
+        Math.ceil(newRatio * 100) / 100,
+        Math.round(competitorRatio * 100) / 100 + TICK,
+      );
+    } else {
+      newRatio = Math.min(
+        Math.floor(newRatio * 100) / 100,
+        Math.round(competitorRatio * 100) / 100 - TICK,
+      );
+    }
+    newRatio = Math.round(newRatio * 100) / 100;
+
     console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, source=${indexSource}${baseRef ? `, index=₹${baseRef.toFixed(2)}` : ""}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}% (x${offsetFactor}), newRatio=${newRatio !== null ? newRatio.toFixed(4) : 'null'}%`);
 
 

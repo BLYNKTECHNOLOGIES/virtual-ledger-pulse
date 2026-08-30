@@ -279,15 +279,16 @@ export default function AttendanceOverviewPage() {
       ) : (
         <ResponsiveList
           items={filtered}
-          columns={["Employee", "Badge ID", "Check In", "Check Out", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => ({ key: h, label: h }))}
+          columns={["Employee", "Badge ID", "Check In", "Check Out", "Work Hours", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => ({ key: h, label: h }))}
           keyFor={(a: any) => a.id}
           emptyState={<Card><CardContent className="p-0"><EmptyState icon={Clock} title={statusFilter !== "all" || search ? "No employees match the current filters" : "No attendance records for this date"} description={statusFilter !== "all" || search ? `${attendance.length} employee record(s) exist for this date — clear the status/search filter to see them.` : "Adjust the date filter or mark attendance."} /></CardContent></Card>}
           renderRow={(a: any) => (
             <>
-              <td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
+<td className="px-4 py-3 font-medium whitespace-nowrap">{a.hr_employees?.first_name} {a.hr_employees?.last_name}</td>
               <td className="px-4 py-3 text-muted-foreground tabular-nums">{a.hr_employees?.badge_id}</td>
               <td className="px-4 py-3 tabular-nums">{a.check_in ? format(new Date(a.check_in), "hh:mm a") : "—"}</td>
               <td className="px-4 py-3 tabular-nums">{a.check_out ? format(new Date(a.check_out), "hh:mm a") : "—"}</td>
+              <td className="px-4 py-3 tabular-nums font-medium">{fmtWorkHours(a.worked_minutes)}</td>
               <td className="px-4 py-3"><AttendanceStatusBadge status={a.attendance_status} /></td>
               <td className="px-4 py-3 tabular-nums">{a.late_minutes ? <span className="text-warning font-medium">{a.late_minutes}m</span> : "—"}</td>
               <td className="px-4 py-3 tabular-nums">{a.early_leave_minutes ? <span className="text-warning font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
@@ -304,9 +305,10 @@ export default function AttendanceOverviewPage() {
                 </div>
                 <AttendanceStatusBadge status={a.attendance_status} />
               </div>
-              <div className="hrms-mobile-kv">
+<div className="hrms-mobile-kv">
                 <span>Check In</span><span>{a.check_in ? format(new Date(a.check_in), "hh:mm a") : "—"}</span>
                 <span>Check Out</span><span>{a.check_out ? format(new Date(a.check_out), "hh:mm a") : "—"}</span>
+                <span>Work Hours</span><span className="font-medium">{fmtWorkHours(a.worked_minutes)}</span>
                 <span>Late</span><span>{a.late_minutes ? `${a.late_minutes}m` : "—"}</span>
                 <span>Early Leave</span><span>{a.early_leave_minutes ? `${a.early_leave_minutes}m` : "—"}</span>
                 <span>Work Type</span><span className="capitalize">{a.work_type || "—"}</span>

@@ -473,7 +473,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                       <p className="text-destructive mt-0.5">{g.skipped}</p>
                     ) : (
                       <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
-                        <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>
+                        {g.topPrice !== null && <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>}
                         {g.index !== null && <span>Index: <span className="text-foreground">₹{fmtINR(g.index)}</span></span>}
                         {g.topRatio !== null && (
                           <span className="col-span-2">Float top: <span className="text-foreground">{g.topRatio.toFixed(2)}%</span></span>

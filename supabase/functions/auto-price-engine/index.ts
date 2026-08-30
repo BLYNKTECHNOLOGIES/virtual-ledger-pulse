@@ -455,6 +455,8 @@ async function processAsset(
     matchedBadges = advertiserBadges(item);
     matchedIdentity = item.advertiser?.userIdentity || null;
     matchedVipLevel = item.advertiser?.vipLevel ?? null;
+    const r = parseFloat(item.adv?.priceFloatingRatio ?? "0");
+    matchedFloatingRatio = Number.isFinite(r) && r > 0 ? r : null;
   };
 
   if (rule.competitor_mode === "top_badged") {

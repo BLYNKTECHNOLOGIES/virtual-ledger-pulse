@@ -394,3 +394,11 @@ function AttendanceStatusBadge({ status }: { status: string }) {
     }`}>{label}</span>
   );
 }
+
+/** Net worked minutes → "8h 14m" (null/0 when no data). */
+function fmtWorkHours(min: number | null | undefined): string {
+  if (min === null || min === undefined || min <= 0) return "—";
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}

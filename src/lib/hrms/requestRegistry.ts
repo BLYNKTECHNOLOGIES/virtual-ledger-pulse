@@ -154,7 +154,7 @@ async function fetchRegularization(): Promise<UnifiedRequest[]> {
     const stage = regStage(r);
     const times = [r.requested_check_in, r.requested_check_out]
       .filter(Boolean)
-      .map((t: string) => String(t).slice(11, 16))
+      .map((t: string) => istTime(t) || String(t).slice(11, 16))
       .join(" → ");
     return {
       key: `regularization:${r.id}`,

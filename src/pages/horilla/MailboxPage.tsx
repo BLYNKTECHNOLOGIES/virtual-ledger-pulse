@@ -121,6 +121,10 @@ export default function MailboxPage() {
 
 /* ------------------------------- INBOX --------------------------------- */
 
+/** Module-level throttle so reopening the tab doesn't hammer IMAP. */
+let lastAutoSyncAt = 0;
+const AUTO_SYNC_MIN_INTERVAL_MS = 60_000;
+
 function InboxTab({ mailboxId }: { mailboxId?: string }) {
   const [search, setSearch] = useState("");
   const [fromFilter, setFromFilter] = useState("");

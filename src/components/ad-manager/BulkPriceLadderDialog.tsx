@@ -218,12 +218,21 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
 
   const assets = useMemo(() => [...new Set(ads.map((a) => a.asset))].sort(), [ads]);
+  const hasFixedAds = useMemo(() => ads.some((a) => a.priceType !== 2), [ads]);
   const defaultAnchor = useMemo(() => {
+    // Prefer a stablecoin anchor — an INR rate entered against BTC/BNB-sized
+    // indices is almost always a mistake.
+    const stable = ['USDT', 'USDC', 'FDUSD'].find((s) => assets.includes(s));
+    if (stable) return stable;
     const counts = new Map<string, number>();
     ads.forEach((a) => counts.set(a.asset, (counts.get(a.asset) || 0) + 1));
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || assets[0] || '';
   }, [ads, assets]);
   const anchor = anchorAsset && assets.includes(anchorAsset) ? anchorAsset : defaultAnchor;
+
+  // With no fixed ads in the selection there is no INR rate to anchor on —
+  // the ladder can only be driven by a floating ratio.
+  const effectiveMode: LadderMode = hasFixedAds ? mode : 'ratio';
 
   const {
     index: prices,
@@ -235,14 +244,15 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   const top = Number(value);
   const groups = useMemo(
-    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster, mode) : []),
-    [ads, value, top, anchor, prices, adjuster, mode],
+    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster, effectiveMode) : []),
+    [ads, value, top, anchor, prices, adjuster, effectiveMode],
   );
   const ladder = useMemo(() => groups.flatMap((g) => g.rungs), [groups]);
   const invalidRung = ladder.find((r) => r.next <= 0);
   const skippedGroups = groups.filter((g) => g.skipped);
 
   const reset = () => { setValue(''); setMode('fixed'); setStep('form'); setResults([]); };
+
 
 
   const handleClose = (v: boolean) => {

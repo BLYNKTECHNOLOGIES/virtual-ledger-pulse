@@ -152,16 +152,19 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     });
   };
 
-  // When the market zone changes, drop any previously selected ads that are
-  // no longer visible/selectable in the new zone.
+  // When the market zone changes, drop previously selected ads that are
+  // CONFIRMED to belong to a different zone. Ads not present in the loaded
+  // list are kept — the list loads asynchronously and may be incomplete, so
+  // an unknown advNo must never cause a stored selection to be wiped.
   useEffect(() => {
+    if (allAds.length === 0) return;
     setAssetConfigs(prev => {
       let changed = false;
       const next: typeof prev = {};
       for (const [asset, cfg] of Object.entries(prev)) {
         const kept = cfg.ad_numbers.filter(no => {
           const ad = allAds.find(a => a.advNo === no);
-          return ad ? adZone(ad) === competitorZone : false;
+          return ad ? adZone(ad) === competitorZone : true;
         });
         if (kept.length !== cfg.ad_numbers.length) changed = true;
         next[asset] = kept.length === cfg.ad_numbers.length ? cfg : { ...cfg, ad_numbers: kept };

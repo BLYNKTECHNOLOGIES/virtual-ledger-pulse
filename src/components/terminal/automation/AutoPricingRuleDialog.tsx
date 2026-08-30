@@ -62,6 +62,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [selectedAssets, setSelectedAssets] = useState<string[]>(['USDT']);
   const [assetConfigs, setAssetConfigs] = useState<Record<string, AssetConfig>>({});
   const [activeAssetTab, setActiveAssetTab] = useState('USDT');
+  // When on, offset / ceiling / floor entered on any asset tab applies to every selected asset.
+  const [syncPricingAcrossAssets, setSyncPricingAcrossAssets] = useState(false);
+
   const [fiat] = useState('INR');
   const [tradeType, setTradeType] = useState('BUY');
   const [priceType, setPriceType] = useState('FIXED');

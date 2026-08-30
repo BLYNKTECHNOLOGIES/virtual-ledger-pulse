@@ -362,7 +362,29 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             </p>
 
 
-            {assets.length > 1 && (
+            <div>
+              <Label>Ladder input</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  type="button"
+                  variant={mode === 'fixed' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMode('fixed')}
+                >
+                  Fixed rate (INR)
+                </Button>
+                <Button
+                  type="button"
+                  variant={mode === 'ratio' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMode('ratio')}
+                >
+                  Floating ratio (%)
+                </Button>
+              </div>
+            </div>
+
+            {mode === 'fixed' && assets.length > 1 && (
               <div>
                 <Label>Anchor asset</Label>
                 <Select value={anchor} onValueChange={setAnchorAsset}>
@@ -382,17 +404,23 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             )}
 
             <div>
-              <Label>Top fixed rate ({anchor})</Label>
+              <Label>{mode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder="e.g. 100"
+                placeholder={mode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
                 autoFocus
                 className="text-foreground"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                {mode === 'ratio'
+                  ? 'Applies as the top rung to every group; fixed ads get the equivalent price from their live index.'
+                  : 'Floating ads get the equivalent ratio derived from their live index.'}
+              </p>
             </div>
+
 
             <p className={`text-xs ${rateIsFallback ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
               Index base — USDT/INR ₹{usdtInr ? usdtInr.toFixed(2) : '—'}{rateSource ? ` (${rateSource})` : ''}

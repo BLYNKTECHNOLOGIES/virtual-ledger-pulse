@@ -116,6 +116,20 @@ export default function TerminalAutomation() {
   // Mobile gesture: swipe right opens the tab-selection menu; swipe left/right also
   // steps between tabs so the whole tab set is reachable on a phone.
   const onTouchStart = (e: React.TouchEvent) => {
+    // Don't hijack swipes that begin inside a horizontally scrollable region
+    // (e.g. the logs table) — those belong to the scroll container.
+    let el = e.target as HTMLElement | null;
+    while (el && el !== e.currentTarget) {
+      const style = window.getComputedStyle(el);
+      if (
+        el.scrollWidth > el.clientWidth + 4 &&
+        (style.overflowX === 'auto' || style.overflowX === 'scroll')
+      ) {
+        touchStart.current = null;
+        return;
+      }
+      el = el.parentElement;
+    }
     const t = e.touches[0];
     touchStart.current = { x: t.clientX, y: t.clientY };
   };

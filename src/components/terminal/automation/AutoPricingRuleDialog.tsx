@@ -124,11 +124,25 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     return String(cfgVal);
   };
   const handleNumericChange = (asset: string, field: NumericField, text: string) => {
-    setRawNumeric(prev => ({ ...prev, [rawKey(asset, field)]: text }));
+    // When "apply to all assets" is on, the offset / ceiling / floor entered on
+    // any tab is mirrored to every selected asset (raw text + parsed value).
+    const targets = syncPricingAcrossAssets ? selectedAssets : [asset];
+    setRawNumeric(prev => {
+      const next = { ...prev };
+      targets.forEach(a => { next[rawKey(a, field)] = text; });
+      return next;
+    });
     const parsed = text.trim() === '' ? null : parseFloat(text);
     const val = parsed !== null && isFinite(parsed) ? parsed : (field === 'offset_amount' || field === 'offset_pct' ? 0 : null);
-    updateConfig(asset, { [field]: val } as Partial<AssetConfig>);
+    setAssetConfigs(prev => {
+      const next = { ...prev };
+      targets.forEach(a => {
+        next[a] = { ...(prev[a] || { ...DEFAULT_ASSET_CONFIG }), [field]: val } as AssetConfig;
+      });
+      return next;
+    });
   };
+
   // Resolve final numeric value at save time (raw text wins so trailing digits are kept)
   const resolveNumeric = (asset: string, field: NumericField, cfgVal: number | null | undefined): number | null => {
     const raw = rawNumeric[rawKey(asset, field)];

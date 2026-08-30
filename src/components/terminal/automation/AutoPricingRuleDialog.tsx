@@ -584,26 +584,43 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                 </div>
 
                 {competitorMode === 'top_badged' && (
-                  <div className="space-y-2 p-3 border rounded-md bg-muted/20">
-                    <Label className="text-xs">Trust badge on the advertiser</Label>
-                    <div className="flex flex-wrap gap-3">
-                      {['Block', 'Shield'].map(b => (
+                  <div className="space-y-3 p-3 border rounded-md bg-muted/20">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs font-medium">Trust badge on the advertiser</Label>
+                      <a
+                        href="https://www.binance.com/en/support/faq/how-to-become-a-p2p-merchant-on-binance-360033161811"
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-[10px] text-primary hover:underline"
+                      >
+                        Binance merchant reference ↗
+                      </a>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                      {[
+                        { b: 'Block', d: 'Block-trading merchant badge (large-size OTC style ads)' },
+                        { b: 'Shield', d: 'Verified merchant shield — deposit-backed, higher trust tier' },
+                      ].map(({ b, d }) => (
                         <label key={b} className="flex items-center gap-1.5 text-xs">
                           <Checkbox
                             checked={competitorBadges.includes(b)}
                             onCheckedChange={(c) => setCompetitorBadges(prev => c ? [...new Set([...prev, b])] : prev.filter(x => x !== b))}
                           />
                           {b} badge
+                          <FieldHelp>{d}</FieldHelp>
                         </label>
                       ))}
                     </div>
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="text-[11px] text-muted-foreground">
                       The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
                     </p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <Label className="text-xs">Account class</Label>
-                        <div className="flex flex-col gap-1 pt-1">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-medium">Account class</Label>
+                          <FieldHelp>Binance advertiser account type, separate from the trust badge. Mass merchants are standard retail merchants; block merchants are approved for block/OTC-size trades.</FieldHelp>
+                        </div>
+                        <div className="flex flex-col gap-1.5">
                           {[
                             { v: 'MASS_MERCHANT', l: 'Mass merchant' },
                             { v: 'BLOCK_MERCHANT', l: 'Block merchant' },
@@ -617,32 +634,37 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             </label>
                           ))}
                         </div>
-                        <p className="text-[10px] text-muted-foreground pt-1">Binance advertiser identity, separate from the badge. Leave both unchecked for any class.</p>
+                        <p className="text-[11px] text-muted-foreground">Leave both unchecked for any class.</p>
                       </div>
-                      <div>
-                        <Label className="text-xs">Minimum VIP level</Label>
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-medium">Minimum VIP level</Label>
+                          <FieldHelp>Binance VIP tier of the advertiser. Advertisers below this level are ignored when picking the target.</FieldHelp>
+                        </div>
                         <Input
                           value={minVipLevel}
                           onChange={e => setMinVipLevel(e.target.value.replace(/[^0-9]/g, ''))}
                           placeholder="any"
                           inputMode="numeric"
-                          className="h-8 text-xs text-foreground"
+                          className="h-9 text-sm text-foreground"
                         />
-                        <p className="text-[10px] text-muted-foreground pt-1">Skips advertisers whose Binance VIP level is lower.</p>
+                        <p className="text-[11px] text-muted-foreground">Empty = any VIP level.</p>
                       </div>
                     </div>
 
-                    <div>
-                      <Label className="text-xs">Exclude nicknames (comma separated)</Label>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Exclude nicknames (comma separated)</Label>
                       <Input
                         value={excludeMerchants}
                         onChange={e => setExcludeMerchants(e.target.value)}
                         placeholder="BlynkEx, MyOtherAccount"
-                        className="h-8 text-xs"
+                        className="h-9 text-sm text-foreground"
                       />
+                      <p className="text-[11px] text-muted-foreground">Your own accounts are already skipped automatically.</p>
                     </div>
                   </div>
                 )}
+
 
                 {competitorMode === 'nickname' && (<>
                 <p className="text-[10px] text-muted-foreground">

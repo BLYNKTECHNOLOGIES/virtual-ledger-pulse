@@ -1091,7 +1091,7 @@ async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSou
  * Zone of one of OUR ads, read live from Binance (adv.classify).
  * 'block' when classify === 'block', otherwise 'p2p'. null when unknown.
  */
-async function fetchAdZone(adNo: string): Promise<string | null> {
+async function fetchAdMeta(adNo: string): Promise<{ zone: string | null; advStatus: number | null }> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
   try {
@@ -1102,13 +1102,19 @@ async function fetchAdZone(adNo: string): Promise<string | null> {
     });
     const result = await resp.json();
     const adData = result?.data?.data || result?.data;
-    const classify = adData?.classify ?? adData?.adDetailResp?.classify;
-    if (classify === undefined || classify === null || classify === "") return null;
-    return String(classify).toLowerCase() === "block" ? "block" : "p2p";
+    const detail = adData?.adDetailResp ?? adData;
+    const classify = adData?.classify ?? detail?.classify;
+    const zone = classify === undefined || classify === null || classify === ""
+      ? null
+      : String(classify).toLowerCase() === "block" ? "block" : "p2p";
+    const rawStatus = adData?.advStatus ?? detail?.advStatus;
+    const advStatus = rawStatus === undefined || rawStatus === null ? null : Number(rawStatus);
+    return { zone, advStatus: Number.isFinite(advStatus as number) ? (advStatus as number) : null };
   } catch (_e) {
-    return null;
+    return { zone: null, advStatus: null };
   }
 }
+
 
 async function inferBinanceIndex(adNo: string, supabase: any, ruleId?: string): Promise<number | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;

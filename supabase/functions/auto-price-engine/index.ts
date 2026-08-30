@@ -9,6 +9,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+function getInternalAuthKey(): string {
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!key) throw new Error("Missing internal Supabase service authentication");
+  return key;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -266,10 +272,10 @@ function getMerchantStatusDiagnostic(status: unknown): string {
 async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
   try {
     const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalAuthKey = getInternalAuthKey();
     const resp = await fetch(binanceAdsUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
       body: JSON.stringify({ action: "refreshMerchantState" }),
     });
     const payload = await resp.json();
@@ -718,7 +724,7 @@ async function processAsset(
   }
 
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const internalAuthKey = getInternalAuthKey();
 
   let successCount = 0;
   let skipCount = 0;
@@ -738,7 +744,7 @@ async function processAsset(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${anonKey}`,
+          "Authorization": `Bearer ${internalAuthKey}`,
         },
         body: JSON.stringify({ action: "updateAd", adData }),
       });
@@ -858,7 +864,7 @@ async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, 
   const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
   const assetConfig: Record<string, any> = rule.asset_config || {};
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const internalAuthKey = getInternalAuthKey();
 
   // Skip resting price application in dry-run mode
   if (rule.is_dry_run) {
@@ -883,7 +889,7 @@ async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, 
       try {
         await fetch(binanceAdsUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
           body: JSON.stringify({ action: "updateAd", adData }),
         });
       } catch (e) {
@@ -1042,10 +1048,10 @@ async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSou
     if (recent && recent.length > 0) return;
 
     const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const internalAuthKey = getInternalAuthKey();
     await fetch(binanceAdsUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
       body: JSON.stringify({ action: "getAdDetail", adsNo: adNo, ruleId, snapshotSource }),
     });
   } catch (e) {
@@ -1059,11 +1065,11 @@ async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSou
  */
 async function fetchAdZone(adNo: string): Promise<string | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const internalAuthKey = getInternalAuthKey();
   try {
     const resp = await fetch(binanceAdsUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${anonKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
       body: JSON.stringify({ action: "getAdDetail", adsNo: adNo }),
     });
     const result = await resp.json();
@@ -1078,13 +1084,13 @@ async function fetchAdZone(adNo: string): Promise<string | null> {
 
 async function inferBinanceIndex(adNo: string, supabase: any, ruleId?: string): Promise<number | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const internalAuthKey = getInternalAuthKey();
 
   const resp = await fetch(binanceAdsUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${anonKey}`,
+      "Authorization": `Bearer ${internalAuthKey}`,
     },
     body: JSON.stringify({ action: "getAdDetail", adsNo: adNo, ruleId: ruleId || null, snapshotSource: "auto_price_pre_update" }),
   });

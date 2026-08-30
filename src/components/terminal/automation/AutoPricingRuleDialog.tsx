@@ -14,7 +14,7 @@ import { adZone, ZONE_LABEL, ZONE_SHORT } from '@/lib/adZone';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Search, User, AlertTriangle, X, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { Search, User, AlertTriangle, X, GripVertical, Plus, Trash2, Info } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent,
 } from '@dnd-kit/core';
@@ -31,6 +31,35 @@ import {
 } from '@/hooks/useAutoPricingRules';
 import { useBinanceAdsList, BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useExcludedAds } from '@/hooks/useAdAutomationExclusion';
+
+function FieldHelp({ children }: { children: React.ReactNode }) {
+  return (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="Help">
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[260px] text-[11px] leading-relaxed">{children}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+function ToggleCard({
+  checked, onChange, label, description,
+}: { checked: boolean; onChange: (v: boolean) => void; label: string; description: string }) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/20 p-2.5">
+      <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 space-y-0.5">
+        <Label className="text-xs font-medium leading-tight">{label}</Label>
+        <p className="text-[11px] leading-snug text-muted-foreground">{description}</p>
+      </div>
+    </div>
+  );
+}
 
 const ASSETS = ['USDT', 'BTC', 'USDC', 'FDUSD', 'BNB', 'ETH', 'TRX', 'SHIB', 'XRP', 'SOL', 'TON'];
 

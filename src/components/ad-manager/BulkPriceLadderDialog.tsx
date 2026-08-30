@@ -71,6 +71,18 @@ export function priceToRatio(price: number, index: number, adjuster: number) {
   return round2(100 + rawPct - adjuster);
 }
 
+/** Exact inverse of priceToRatio: floating ratio → fixed price for a given index. */
+export function ratioToPrice(ratio: number, index: number, adjuster: number): number | null {
+  const rawPct = ratio + adjuster - 100;
+  const denom = 1 - rawPct / 100;
+  if (!isFinite(denom) || denom <= 0) return null;
+  const price = index / denom;
+  return isFinite(price) && price > 0 ? round2(price) : null;
+}
+
+export type LadderMode = 'fixed' | 'ratio';
+
+
 /**
  * Builds one ladder per asset + side + zone group.
  * Zone matters because the P2P zone and the Block zone are separate order books
@@ -85,6 +97,7 @@ export function buildLadderGroups(
   /** live INR index price per asset (spot × USDT/INR) */
   prices: Record<string, number | null>,
   adjuster: number,
+  mode: LadderMode = 'fixed',
 ): LadderGroup[] {
   const groups = new Map<string, BinanceAd[]>();
   ads.forEach((ad) => {
@@ -105,28 +118,53 @@ export function buildLadderGroups(
     const hasFixed = groupAds.some((a) => a.priceType !== 2);
 
     let topPrice: number | null = null;
-    if (asset === anchorAsset) {
-      topPrice = round2(anchorTop);
-    } else if (index && anchorIndex) {
-      topPrice = round2((anchorTop * index) / anchorIndex);
+    let topRatio: number | null = null;
+
+    if (mode === 'ratio') {
+      // The entered value is a market-relative ratio — it applies to every group as-is.
+      topRatio = hasFloating ? round2(anchorTop) : null;
+      if (hasFixed) {
+        if (!index) {
+          out.push({
+            asset, side, zone, index, topPrice: null, topRatio, rungs: [],
+            skipped: 'No live index price — fixed top price cannot be derived, group skipped',
+          });
+          continue;
+        }
+        topPrice = ratioToPrice(anchorTop, index, adjuster);
+        if (topPrice === null) {
+          out.push({
+            asset, side, zone, index, topPrice: null, topRatio, rungs: [],
+            skipped: 'Ratio is out of range for this index — no valid fixed price, group skipped',
+          });
+          continue;
+        }
+      }
+    } else {
+      if (asset === anchorAsset) {
+        topPrice = round2(anchorTop);
+      } else if (index && anchorIndex) {
+        topPrice = round2((anchorTop * index) / anchorIndex);
+      }
+
+      if (topPrice === null) {
+        out.push({
+          asset, side, zone, index, topPrice: null, topRatio: null, rungs: [],
+          skipped: 'No live index price for this asset — group skipped',
+        });
+        continue;
+      }
+      if (hasFloating && !index) {
+        out.push({
+          asset, side, zone, index, topPrice, topRatio: null, rungs: [],
+          skipped: 'No live index price — floating ratio cannot be derived, group skipped',
+        });
+        continue;
+      }
+
+      topRatio = hasFloating && index ? priceToRatio(topPrice, index, adjuster) : null;
     }
 
-    if (topPrice === null) {
-      out.push({
-        asset, side, zone, index, topPrice: null, topRatio: null, rungs: [],
-        skipped: 'No live index price for this asset — group skipped',
-      });
-      continue;
-    }
-    if (hasFloating && !index) {
-      out.push({
-        asset, side, zone, index, topPrice, topRatio: null, rungs: [],
-        skipped: 'No live index price — floating ratio cannot be derived, group skipped',
-      });
-      continue;
-    }
-
-    const topRatio = hasFloating && index ? priceToRatio(topPrice, index, adjuster) : null;
 
     const family = (floating: boolean, top: number) =>
       groupAds
@@ -143,9 +181,10 @@ export function buildLadderGroups(
         .map((r, i) => ({ ...r, next: round2(top - i * LADDER_STEP) }));
 
     const rungs = [
-      ...(hasFixed ? family(false, topPrice) : []),
+      ...(hasFixed && topPrice !== null ? family(false, topPrice) : []),
       ...(hasFloating && topRatio !== null ? family(true, topRatio) : []),
     ];
+
 
     out.push({ asset, side, zone, index, topPrice, topRatio, rungs });
   }
@@ -160,9 +199,11 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
   const updateAd = useUpdateAd();
   const { data: adjuster = 0 } = useHybridPriceAdjuster();
   const [value, setValue] = useState('');
+  const [mode, setMode] = useState<LadderMode>('fixed');
   const [anchorAsset, setAnchorAsset] = useState<string>('');
   const [step, setStep] = useState<'form' | 'confirm' | 'executing' | 'done'>('form');
   const [results, setResults] = useState<RungResult[]>([]);
+
 
   const assets = useMemo(() => [...new Set(ads.map((a) => a.asset))].sort(), [ads]);
   const defaultAnchor = useMemo(() => {
@@ -182,14 +223,15 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   const top = Number(value);
   const groups = useMemo(
-    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster) : []),
-    [ads, value, top, anchor, prices, adjuster],
+    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster, mode) : []),
+    [ads, value, top, anchor, prices, adjuster, mode],
   );
   const ladder = useMemo(() => groups.flatMap((g) => g.rungs), [groups]);
   const invalidRung = ladder.find((r) => r.next <= 0);
   const skippedGroups = groups.filter((g) => g.skipped);
 
-  const reset = () => { setValue(''); setStep('form'); setResults([]); };
+  const reset = () => { setValue(''); setMode('fixed'); setStep('form'); setResults([]); };
+
 
   const handleClose = (v: boolean) => {
     if (!v) { reset(); if (step === 'done') onComplete(); }
@@ -198,9 +240,14 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   const handleConfirm = () => {
     if (!value || isNaN(top) || top <= 0) {
-      toast({ title: 'Top rate required', description: `Enter the fixed top rate for ${anchor}`, variant: 'destructive' });
+      toast({
+        title: mode === 'ratio' ? 'Top ratio required' : 'Top rate required',
+        description: mode === 'ratio' ? 'Enter the top floating ratio (%)' : `Enter the fixed top rate for ${anchor}`,
+        variant: 'destructive',
+      });
       return;
     }
+
     if (invalidRung) {
       toast({
         title: 'Ladder goes below zero',
@@ -315,7 +362,29 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             </p>
 
 
-            {assets.length > 1 && (
+            <div>
+              <Label>Ladder input</Label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <Button
+                  type="button"
+                  variant={mode === 'fixed' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMode('fixed')}
+                >
+                  Fixed rate (INR)
+                </Button>
+                <Button
+                  type="button"
+                  variant={mode === 'ratio' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setMode('ratio')}
+                >
+                  Floating ratio (%)
+                </Button>
+              </div>
+            </div>
+
+            {mode === 'fixed' && assets.length > 1 && (
               <div>
                 <Label>Anchor asset</Label>
                 <Select value={anchor} onValueChange={setAnchorAsset}>
@@ -335,17 +404,23 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             )}
 
             <div>
-              <Label>Top fixed rate ({anchor})</Label>
+              <Label>{mode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder="e.g. 100"
+                placeholder={mode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
                 autoFocus
                 className="text-foreground"
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                {mode === 'ratio'
+                  ? 'Applies as the top rung to every group; fixed ads get the equivalent price from their live index.'
+                  : 'Floating ads get the equivalent ratio derived from their live index.'}
+              </p>
             </div>
+
 
             <p className={`text-xs ${rateIsFallback ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>
               Index base — USDT/INR ₹{usdtInr ? usdtInr.toFixed(2) : '—'}{rateSource ? ` (${rateSource})` : ''}

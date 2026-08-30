@@ -155,6 +155,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                 ))}
               </TableBody>
             </Table>
+            </div>
           </ScrollArea>
         )}
       </CardContent>

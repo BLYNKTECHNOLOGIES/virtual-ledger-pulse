@@ -417,6 +417,10 @@ async function processAsset(
   let matchedBadges: string[] | null = null;
   let matchedIdentity: string | null = null;
   let matchedVipLevel: number | null = null;
+  // Competitor's own floating ratio, read straight from the live listing when they
+  // are a floating-price advertiser. This is the only index-free way to compare
+  // ratios and it eliminates every stale-index error.
+  let matchedFloatingRatio: number | null = null;
 
   // Never chase ourselves: our own advertiser nicknames are excluded from every
   // competitor match, otherwise the engine ratchets its own price cycle after cycle.

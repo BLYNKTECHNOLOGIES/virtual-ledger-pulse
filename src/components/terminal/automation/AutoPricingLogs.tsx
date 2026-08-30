@@ -19,6 +19,33 @@ const STATUS_COLORS: Record<string, string> = {
   no_change: 'bg-muted text-muted-foreground',
 };
 
+const REASON_LABELS: Record<string, string> = {
+  rest_timer: 'Rest timer is active',
+  ad_conflict: 'Ad is assigned to multiple rules',
+  outside_hours: 'Outside configured active hours',
+  cooldown: 'Manual-edit cooldown is active',
+  auto_paused: 'Rule was automatically paused',
+  no_listings: 'No eligible competitor listings found',
+  no_merchant: 'Target merchant was not found',
+  deviation_exceeded: 'Market deviation guard blocked the update',
+  zone_mismatch: 'Selected ad does not match the rule zone',
+  no_ads: 'No eligible ads are assigned',
+};
+
+function getLogReason(log: AutoPricingLog): string {
+  if (log.error_message) {
+    if (log.error_message.toLowerCase() === 'unauthorized') {
+      return 'Internal authorization failed while updating the Binance ad';
+    }
+    return log.error_message;
+  }
+  if (log.skipped_reason) return REASON_LABELS[log.skipped_reason] || log.skipped_reason.replace(/_/g, ' ');
+  if (log.status === 'applied' || log.status === 'success') return 'Price update applied successfully';
+  if (log.status === 'dry_run') return 'Dry run only — no Binance update was sent';
+  if (log.status === 'no_change') return 'Calculated value matched the current value';
+  return '—';
+}
+
 export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLogsProps) {
   const [filterRuleId, setFilterRuleId] = useState(initialRuleId || 'all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -104,6 +131,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                   <TableHead>Dev%</TableHead>
                   <TableHead>Applied</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Reason</TableHead>
                   <TableHead>Guards</TableHead>
                 </TableRow>
               </TableHeader>
@@ -144,6 +172,9 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
                       <Badge variant="secondary" className={`text-[10px] ${STATUS_COLORS[log.status] || ''}`}>
                         {log.skipped_reason || log.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[280px] text-xs text-muted-foreground">
+                      <span className="block whitespace-normal" title={getLogReason(log)}>{getLogReason(log)}</span>
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">

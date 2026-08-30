@@ -16,6 +16,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { exportRowsToCsv } from "@/lib/complianceCsv";
 import { complianceSubTabsListCls, complianceSubTabTriggerCls, complianceSubTabsWrapperCls } from "./complianceTabStyles";
 import { toast } from "sonner";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
+
 import { format, parseISO } from "date-fns";
 
 const ts = (d: string | null) => {

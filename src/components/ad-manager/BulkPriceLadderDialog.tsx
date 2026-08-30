@@ -263,8 +263,8 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
   const handleConfirm = () => {
     if (!value || isNaN(top) || top <= 0) {
       toast({
-        title: mode === 'ratio' ? 'Top ratio required' : 'Top rate required',
-        description: mode === 'ratio' ? 'Enter the top floating ratio (%)' : `Enter the fixed top rate for ${anchor}`,
+        title: effectiveMode === 'ratio' ? 'Top ratio required' : 'Top rate required',
+        description: effectiveMode === 'ratio' ? 'Enter the top floating ratio (%)' : `Enter the fixed top rate for ${anchor}`,
         variant: 'destructive',
       });
       return;
@@ -389,7 +389,9 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <Button
                   type="button"
-                  variant={mode === 'fixed' ? 'default' : 'outline'}
+                  variant={effectiveMode === 'fixed' ? 'default' : 'outline'}
+                  disabled={!hasFixedAds}
+                  title={!hasFixedAds ? 'No fixed-price ads selected — enter a floating ratio instead' : undefined}
                   size="sm"
                   onClick={() => setMode('fixed')}
                 >
@@ -397,7 +399,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                 </Button>
                 <Button
                   type="button"
-                  variant={mode === 'ratio' ? 'default' : 'outline'}
+                  variant={effectiveMode === 'ratio' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setMode('ratio')}
                 >
@@ -406,7 +408,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
               </div>
             </div>
 
-            {mode === 'fixed' && assets.length > 1 && (
+            {effectiveMode === 'fixed' && assets.length > 1 && (
               <div>
                 <Label>Anchor asset</Label>
                 <Select value={anchor} onValueChange={setAnchorAsset}>
@@ -426,18 +428,18 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             )}
 
             <div>
-              <Label>{mode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
+              <Label>{effectiveMode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder={mode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
+                placeholder={effectiveMode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
                 autoFocus
                 className="text-foreground"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {mode === 'ratio'
+                {effectiveMode === 'ratio'
                   ? 'Applies as the top rung to every group; fixed ads get the equivalent price from their live index.'
                   : 'Floating ads get the equivalent ratio derived from their live index.'}
               </p>

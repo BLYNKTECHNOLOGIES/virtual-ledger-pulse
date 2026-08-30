@@ -136,35 +136,48 @@ export function ComplianceActivityFeed() {
               variant="outline"
               size="sm"
               disabled={events.length === 0}
-              onClick={() =>
-                exportRowsToCsv(
-                  "compliance-activity",
-                  events.map((e) => ({
-                    when: format(parseISO(e.at), "dd MMM yyyy HH:mm"),
-                    area: SOURCE_META[e.source]?.label ?? e.source,
-                    action: actionMeta(e.action).label,
-                    record: e.title,
-                    details: e.subtitle ?? "",
-                    changed: e.fields.map(prettyField).join(", "),
-                    docs: (e.attachments ?? []).length,
-                    by: e.actor,
-                  })),
-                  [
-                    { key: "when", label: "When" },
-                    { key: "area", label: "Area" },
-                    { key: "action", label: "Action" },
-                    { key: "record", label: "Record" },
-                    { key: "details", label: "Details" },
-                    { key: "changed", label: "Fields changed" },
-                    { key: "docs", label: "Documents" },
-                    { key: "by", label: "By" },
-                  ],
-                )
-
-              }
+              onClick={async () => {
+                try {
+                  // Export the FULL window (screen list is capped at 300 events)
+                  const { data: full, error: fullError } = await supabase.rpc("compliance_recent_activity", {
+                    p_days: days,
+                    p_limit: 100000,
+                  });
+                  if (fullError) throw fullError;
+                  const allEvents = ((full as unknown as FeedPayload)?.events ?? []).filter(
+                    (e) => source === "all" || e.source === source,
+                  );
+                  exportRowsToCsv(
+                    "compliance-activity",
+                    allEvents.map((e) => ({
+                      when: format(parseISO(e.at), "dd MMM yyyy HH:mm"),
+                      area: SOURCE_META[e.source]?.label ?? e.source,
+                      action: actionMeta(e.action).label,
+                      record: e.title,
+                      details: e.subtitle ?? "",
+                      changed: e.fields.map(prettyField).join(", "),
+                      docs: (e.attachments ?? []).length,
+                      by: e.actor,
+                    })),
+                    [
+                      { key: "when", label: "When" },
+                      { key: "area", label: "Area" },
+                      { key: "action", label: "Action" },
+                      { key: "record", label: "Record" },
+                      { key: "details", label: "Details" },
+                      { key: "changed", label: "Fields changed" },
+                      { key: "docs", label: "Documents" },
+                      { key: "by", label: "By" },
+                    ],
+                  );
+                } catch (e) {
+                  toast.error((e as Error).message);
+                }
+              }}
             >
               <Download className="h-4 w-4 mr-2" /> Export CSV
             </Button>
+
           </div>
         </div>
 

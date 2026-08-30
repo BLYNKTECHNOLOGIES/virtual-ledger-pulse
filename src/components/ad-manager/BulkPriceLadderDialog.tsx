@@ -163,7 +163,19 @@ export function buildLadderGroups(
       }
 
       topRatio = hasFloating && index ? priceToRatio(topPrice, index, adjuster) : null;
+
+      // Sanity guard: a fixed top that is wildly off this asset's own index produces
+      // absurd floating ratios (e.g. -64,656%). That is always an input mistake —
+      // usually a rate entered against the wrong anchor asset.
+      if (topRatio !== null && (topRatio < 50 || topRatio > 150)) {
+        out.push({
+          asset, side, zone, index, topPrice, topRatio, rungs: [],
+          skipped: `Top ₹${topPrice} is far off this asset's live index — the derived floating ratio would be ${topRatio.toFixed(2)}%. Check the anchor asset, or use Floating ratio (%) mode.`,
+        });
+        continue;
+      }
     }
+
 
 
     const family = (floating: boolean, top: number) =>

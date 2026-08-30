@@ -62,6 +62,9 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [selectedAssets, setSelectedAssets] = useState<string[]>(['USDT']);
   const [assetConfigs, setAssetConfigs] = useState<Record<string, AssetConfig>>({});
   const [activeAssetTab, setActiveAssetTab] = useState('USDT');
+  // When on, offset / ceiling / floor entered on any asset tab applies to every selected asset.
+  const [syncPricingAcrossAssets, setSyncPricingAcrossAssets] = useState(false);
+
   const [fiat] = useState('INR');
   const [tradeType, setTradeType] = useState('BUY');
   const [priceType, setPriceType] = useState('FIXED');
@@ -124,11 +127,90 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     return String(cfgVal);
   };
   const handleNumericChange = (asset: string, field: NumericField, text: string) => {
-    setRawNumeric(prev => ({ ...prev, [rawKey(asset, field)]: text }));
+    // When "apply to all assets" is on, the offset / ceiling / floor entered on
+    // any tab is mirrored to every selected asset (raw text + parsed value).
+    const targets = syncPricingAcrossAssets ? selectedAssets : [asset];
+    setRawNumeric(prev => {
+      const next = { ...prev };
+      targets.forEach(a => { next[rawKey(a, field)] = text; });
+      return next;
+    });
     const parsed = text.trim() === '' ? null : parseFloat(text);
     const val = parsed !== null && isFinite(parsed) ? parsed : (field === 'offset_amount' || field === 'offset_pct' ? 0 : null);
-    updateConfig(asset, { [field]: val } as Partial<AssetConfig>);
+    setAssetConfigs(prev => {
+      const next = { ...prev };
+      targets.forEach(a => {
+        next[a] = { ...(prev[a] || { ...DEFAULT_ASSET_CONFIG }), [field]: val } as AssetConfig;
+      });
+      return next;
+    });
   };
+
+  // Turning the sync on immediately pushes the active tab's pricing bounds to
+  // every selected asset, so what you see on one tab is what every asset gets.
+  const PRICE_FIELDS: NumericField[] = ['offset_amount', 'offset_pct', 'max_ceiling', 'max_ratio_ceiling', 'min_floor', 'min_ratio_floor'];
+  const handleSyncToggle = (checked: boolean) => {
+    setSyncPricingAcrossAssets(checked);
+    if (!checked) return;
+    const source = assetConfigs[activeAssetTab] || { ...DEFAULT_ASSET_CONFIG };
+    setRawNumeric(prev => {
+      const next = { ...prev };
+      PRICE_FIELDS.forEach(f => {
+        const raw = prev[rawKey(activeAssetTab, f)];
+        selectedAssets.forEach(a => {
+          if (raw === undefined) delete next[rawKey(a, f)];
+          else next[rawKey(a, f)] = raw;
+        });
+      });
+      return next;
+    });
+    setAssetConfigs(prev => {
+      const next = { ...prev };
+      selectedAssets.forEach(a => {
+        const base = prev[a] || { ...DEFAULT_ASSET_CONFIG };
+        next[a] = {
+          ...base,
+          offset_amount: source.offset_amount,
+          offset_pct: source.offset_pct,
+          max_ceiling: source.max_ceiling,
+          max_ratio_ceiling: source.max_ratio_ceiling,
+          min_floor: source.min_floor,
+          min_ratio_floor: source.min_ratio_floor,
+        } as AssetConfig;
+      });
+      return next;
+    });
+  };
+
+  // Assets added while the sync is on inherit the shared pricing bounds too.
+  useEffect(() => {
+    if (!syncPricingAcrossAssets) return;
+    setAssetConfigs(prev => {
+      const source = prev[activeAssetTab] || { ...DEFAULT_ASSET_CONFIG };
+      let changed = false;
+      const next = { ...prev };
+      selectedAssets.forEach(a => {
+        const base = prev[a] || { ...DEFAULT_ASSET_CONFIG };
+        const differs = PRICE_FIELDS.some(f => (base as any)[f] !== (source as any)[f]);
+        if (!differs && prev[a]) return;
+        changed = true;
+        next[a] = {
+          ...base,
+          offset_amount: source.offset_amount,
+          offset_pct: source.offset_pct,
+          max_ceiling: source.max_ceiling,
+          max_ratio_ceiling: source.max_ratio_ceiling,
+          min_floor: source.min_floor,
+          min_ratio_floor: source.min_ratio_floor,
+        } as AssetConfig;
+      });
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAssets, syncPricingAcrossAssets]);
+
+
+
   // Resolve final numeric value at save time (raw text wins so trailing digits are kept)
   const resolveNumeric = (asset: string, field: NumericField, cfgVal: number | null | undefined): number | null => {
     const raw = rawNumeric[rawKey(asset, field)];
@@ -243,6 +325,8 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     } else {
       setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setRawNumeric({}); setTradeType('BUY'); setPriceType('FIXED');
+      setSyncPricingAcrossAssets(false);
+
       setPriorityMerchants(['']);
       setCompetitorZone('p2p'); setCompetitorMode('nickname');
       setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');
@@ -697,6 +781,20 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     </p>
                   </div>
                 )}
+
+                {selectedAssets.length > 1 && (
+                  <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
+                    <Checkbox
+                      id="sync-pricing-all-assets"
+                      checked={syncPricingAcrossAssets}
+                      onCheckedChange={c => handleSyncToggle(c === true)}
+                    />
+                    <Label htmlFor="sync-pricing-all-assets" className="text-xs cursor-pointer">
+                      Apply the same offset, max ceiling and min floor to all {selectedAssets.length} assets
+                    </Label>
+                  </div>
+                )}
+
 
                 <Tabs value={activeAssetTab} onValueChange={setActiveAssetTab}>
                   <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 mb-3">

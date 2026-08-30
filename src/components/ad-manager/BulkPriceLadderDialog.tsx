@@ -181,9 +181,10 @@ export function buildLadderGroups(
         .map((r, i) => ({ ...r, next: round2(top - i * LADDER_STEP) }));
 
     const rungs = [
-      ...(hasFixed ? family(false, topPrice) : []),
+      ...(hasFixed && topPrice !== null ? family(false, topPrice) : []),
       ...(hasFloating && topRatio !== null ? family(true, topRatio) : []),
     ];
+
 
     out.push({ asset, side, zone, index, topPrice, topRatio, rungs });
   }

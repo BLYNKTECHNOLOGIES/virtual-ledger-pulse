@@ -17,7 +17,6 @@ export interface AutoPricingRule {
   id: string;
   name: string;
   is_active: boolean;
-  is_dry_run: boolean;
   asset: string;
   assets: string[];
   asset_config: Record<string, AssetConfig>;

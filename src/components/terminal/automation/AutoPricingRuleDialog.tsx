@@ -58,7 +58,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   // Form state
   const [name, setName] = useState('');
-  const [isDryRun, setIsDryRun] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<string[]>(['USDT']);
   const [assetConfigs, setAssetConfigs] = useState<Record<string, AssetConfig>>({});
   const [activeAssetTab, setActiveAssetTab] = useState('USDT');
@@ -290,7 +289,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   useEffect(() => {
     if (editingRule) {
       setName(editingRule.name);
-      setIsDryRun(editingRule.is_dry_run || false);
       const assets = editingRule.assets?.length > 0 ? editingRule.assets : [editingRule.asset];
       setSelectedAssets(assets);
       setActiveAssetTab(assets[0]);
@@ -323,7 +321,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setRestingRatio(editingRule.resting_ratio ? String(editingRule.resting_ratio) : '');
       setCheckInterval(String(editingRule.check_interval_seconds));
     } else {
-      setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
+      setName(''); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setRawNumeric({}); setTradeType('BUY'); setPriceType('FIXED');
       setSyncPricingAcrossAssets(false);
 
@@ -430,7 +428,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
     const payload: any = {
       name,
-      is_dry_run: isDryRun,
       asset: selectedAssets[0], // backward compat
       assets: selectedAssets,
       asset_config: cleanConfig,

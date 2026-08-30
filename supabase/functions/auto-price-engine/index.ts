@@ -933,12 +933,6 @@ async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, 
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
 
-  // Skip resting price application in dry-run mode
-  if (rule.is_dry_run) {
-    console.log(`[DRY-RUN] ${rule.name}: would apply resting price/ratio (skipped)`);
-    return;
-  }
-
   for (const asset of assetsToProcess) {
     const config = assetConfig[asset] || {};
     const adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));

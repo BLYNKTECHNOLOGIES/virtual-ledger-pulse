@@ -1192,6 +1192,25 @@ async function fetchAdMeta(adNo: string): Promise<{ zone: string | null; advStat
 }
 
 
+/**
+ * Binance's live index for this asset, derived from the SAME search payload the
+ * competitor price came from: any floating listing exposes price + priceFloatingRatio,
+ * and index = price / (ratio/100). Same instant, so no stale-index drift.
+ */
+function indexFromSearchPayload(searchResult: any): number | null {
+  const items = searchResult?.data || [];
+  const samples: number[] = [];
+  for (const item of items) {
+    const price = parseFloat(item?.adv?.price ?? "0");
+    const ratio = parseFloat(item?.adv?.priceFloatingRatio ?? "0");
+    if (price > 0 && ratio > 0) samples.push(price / (ratio / 100));
+    if (samples.length >= 5) break;
+  }
+  if (samples.length === 0) return null;
+  samples.sort((a, b) => a - b);
+  return samples[Math.floor(samples.length / 2)];
+}
+
 async function inferBinanceIndex(adNo: string, supabase: any, ruleId?: string): Promise<number | null> {
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();

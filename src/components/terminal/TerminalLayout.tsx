@@ -11,6 +11,8 @@ import { TerminalPresenceAndAlerts } from './TerminalPresenceAndAlerts';
 import { ExchangeAccountProvider } from '@/contexts/ExchangeAccountContext';
 import { TerminalShortcutsProvider } from '@/contexts/TerminalShortcutsProvider';
 import { TerminalThemeProvider, useTerminalTheme } from '@/contexts/TerminalThemeContext';
+import { useSidebarAutoCollapse } from '@/hooks/useSidebarAutoCollapse';
+
 
 interface TerminalLayoutProps {
   children: React.ReactNode;

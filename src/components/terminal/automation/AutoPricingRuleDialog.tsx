@@ -297,6 +297,8 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     } else {
       setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setRawNumeric({}); setTradeType('BUY'); setPriceType('FIXED');
+      setSyncPricingAcrossAssets(false);
+
       setPriorityMerchants(['']);
       setCompetitorZone('p2p'); setCompetitorMode('nickname');
       setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');

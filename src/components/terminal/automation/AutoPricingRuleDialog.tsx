@@ -51,12 +51,10 @@ function ToggleCard({
   checked, onChange, label, description,
 }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: string }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/20 p-2.5">
-      <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5 shrink-0" />
-      <div className="min-w-0 space-y-0.5">
-        <Label className="text-xs font-medium leading-tight">{label}</Label>
-        <p className="text-[11px] leading-snug text-muted-foreground">{description}</p>
-      </div>
+    <div className="flex items-center gap-2.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2">
+      <Switch checked={checked} onCheckedChange={onChange} className="shrink-0" />
+      <Label className="min-w-0 flex-1 text-xs font-medium leading-tight">{label}</Label>
+      <FieldTip>{description}</FieldTip>
     </div>
   );
 }

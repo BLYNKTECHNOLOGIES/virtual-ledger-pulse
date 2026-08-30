@@ -1096,7 +1096,30 @@ async function captureAdDetailSnapshot(adNo: string, ruleId: string, snapshotSou
  * Zone of one of OUR ads, read live from Binance (adv.classify).
  * 'block' when classify === 'block', otherwise 'p2p'. null when unknown.
  */
+let ownNicknameCache: string[] | null = null;
+/** Our own Binance advertiser nicknames (live merchant snapshots), lowercased. */
+async function getOwnNicknames(supabase: any): Promise<string[]> {
+  if (ownNicknameCache) return ownNicknameCache;
+  try {
+    const { data } = await supabase
+      .from("binance_merchant_state_snapshots")
+      .select("nickname")
+      .not("nickname", "is", null)
+      .limit(500);
+    const set = new Set<string>();
+    for (const row of data || []) {
+      const n = String(row.nickname || "").trim().toLowerCase();
+      if (n) set.add(n);
+    }
+    ownNicknameCache = Array.from(set);
+  } catch (_e) {
+    ownNicknameCache = [];
+  }
+  return ownNicknameCache;
+}
+
 async function fetchAdMeta(adNo: string): Promise<{ zone: string | null; advStatus: number | null }> {
+
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
   try {

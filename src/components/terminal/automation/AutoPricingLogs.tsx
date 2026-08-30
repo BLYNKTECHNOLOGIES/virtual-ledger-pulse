@@ -40,11 +40,11 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">Auto-Pricing Logs</CardTitle>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <CardTitle className="text-base sm:text-lg">Auto-Pricing Logs</CardTitle>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
             <Select value={filterRuleId} onValueChange={setFilterRuleId}>
-              <SelectTrigger className="w-[180px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[180px] h-8 text-xs">
                 <SelectValue placeholder="All Rules" />
               </SelectTrigger>
               <SelectContent>
@@ -55,7 +55,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
               </SelectContent>
             </Select>
             <Select value={filterZone} onValueChange={setFilterZone}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs">
                 <SelectValue placeholder="All Zones" />
               </SelectTrigger>
               <SelectContent>

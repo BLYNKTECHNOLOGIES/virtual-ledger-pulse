@@ -418,9 +418,14 @@ async function processAsset(
   let matchedIdentity: string | null = null;
   let matchedVipLevel: number | null = null;
 
-  const excludedNicks = new Set(
-    (rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean)
-  );
+  // Never chase ourselves: our own advertiser nicknames are excluded from every
+  // competitor match, otherwise the engine ratchets its own price cycle after cycle.
+  const ownNicks = await getOwnNicknames(supabase);
+  const excludedNicks = new Set([
+    ...(rule.exclude_merchants || []).map((n: string) => String(n).trim().toLowerCase()).filter(Boolean),
+    ...ownNicks,
+  ]);
+
 
   // Optional merchant-level + VIP gates (live Binance advertiser fields only)
   const wantedIdentities = ((rule.competitor_identities || []) as string[])

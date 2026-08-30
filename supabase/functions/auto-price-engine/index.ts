@@ -707,14 +707,18 @@ async function processAsset(
 
   // 7. EXECUTE
   if (adNumbers.length === 0) {
+    const reason = offlineAds.length > 0
+      ? "ad_offline"
+      : zoneMismatched.length > 0 ? "zone_mismatch" : "no_ads";
     await supabase.from("ad_pricing_logs").insert({
       rule_id: rule.id,
       asset,
       status: "skipped",
-      skipped_reason: zoneMismatched.length > 0 ? "zone_mismatch" : "no_ads",
+      skipped_reason: reason,
     });
-    return { asset, status: "skipped", reason: "no_ads" };
+    return { asset, status: "skipped", reason };
   }
+
 
   // ===== AP-ARCH-03: DRY-RUN MODE =====
   if (rule.is_dry_run) {

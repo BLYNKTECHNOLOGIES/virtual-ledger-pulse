@@ -576,14 +576,18 @@ async function processAsset(
   // Zone integrity: P2P zone and Block zone are separate order books at different
   // price levels. Never write a competitor price scraped from one zone onto an ad
   // living in the other. Ads whose zone can't be read are left untouched by the gate.
+  // Offline ads (Binance advStatus != 1) are also skipped: repricing them changes
+  // nothing in the live book and hides the real reason we are not competing.
   const zoneMismatched: string[] = [];
+  const offlineAds: string[] = [];
   const liveAdZones = new Map<string, string | null>();
   if (rule.enforce_zone_match !== false && adNumbers.length > 0) {
     const kept: string[] = [];
     for (const adNo of adNumbers) {
-      const adZoneLive = await fetchAdZone(adNo);
-      liveAdZones.set(adNo, adZoneLive);
-      if (adZoneLive && adZoneLive !== zone) { zoneMismatched.push(adNo); continue; }
+      const meta = await fetchAdMeta(adNo);
+      liveAdZones.set(adNo, meta.zone);
+      if (meta.zone && meta.zone !== zone) { zoneMismatched.push(adNo); continue; }
+      if (meta.advStatus !== null && meta.advStatus !== 1) { offlineAds.push(adNo); continue; }
       kept.push(adNo);
     }
     if (zoneMismatched.length > 0) {
@@ -605,8 +609,28 @@ async function processAsset(
         });
       }
     }
+    if (offlineAds.length > 0) {
+      console.log(`[offline-guard] rule "${rule.name}" ${asset}: ${offlineAds.length} ad(s) are offline on Binance: ${offlineAds.join(",")}`);
+      for (const adNo of offlineAds) {
+        await supabase.from("ad_pricing_logs").insert({
+          rule_id: rule.id,
+          ad_number: adNo,
+          asset,
+          status: "skipped",
+          skipped_reason: "ad_offline",
+          ad_zone: liveAdZones.get(adNo) ?? zone,
+          competitor_merchant: matchedMerchant,
+          competitor_zone: zone,
+          competitor_badges: matchedBadges,
+          competitor_identity: matchedIdentity,
+          competitor_vip_level: matchedVipLevel,
+          competitor_price: competitorPrice,
+        });
+      }
+    }
     adNumbers = kept;
   }
+
 
   if (rule.price_type === "FIXED") {
     if (rule.offset_direction === "OVERCUT") {

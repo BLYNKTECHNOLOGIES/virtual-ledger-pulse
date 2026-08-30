@@ -279,7 +279,7 @@ export default function AttendanceOverviewPage() {
       ) : (
         <ResponsiveList
           items={filtered}
-          columns={["Employee", "Badge ID", "Check In", "Check Out", "Work Hours", "Status", "Late (min)", "Early Leave", "Work Type", "Notes"].map((h) => ({ key: h, label: h }))}
+          columns={["Employee", "Badge ID", "Check In", "Check Out", "Work Hours", "Status", "Late (min)", "Early Leave"].map((h) => ({ key: h, label: h }))}
           keyFor={(a: any) => a.id}
           emptyState={<Card><CardContent className="p-0"><EmptyState icon={Clock} title={statusFilter !== "all" || search ? "No employees match the current filters" : "No attendance records for this date"} description={statusFilter !== "all" || search ? `${attendance.length} employee record(s) exist for this date — clear the status/search filter to see them.` : "Adjust the date filter or mark attendance."} /></CardContent></Card>}
           renderRow={(a: any) => (
@@ -292,8 +292,6 @@ export default function AttendanceOverviewPage() {
               <td className="px-4 py-3"><AttendanceStatusBadge status={a.attendance_status} /></td>
               <td className="px-4 py-3 tabular-nums">{a.late_minutes ? <span className="text-warning font-medium">{a.late_minutes}m</span> : "—"}</td>
               <td className="px-4 py-3 tabular-nums">{a.early_leave_minutes ? <span className="text-warning font-medium">{a.early_leave_minutes}m</span> : "—"}</td>
-              <td className="px-4 py-3 text-muted-foreground capitalize">{a.work_type || "—"}</td>
-              <td className="px-4 py-3 text-muted-foreground text-xs max-w-[150px] truncate">{a.notes || "—"}</td>
             </>
           )}
           renderCard={(a: any) => (
@@ -311,8 +309,6 @@ export default function AttendanceOverviewPage() {
                 <span>Work Hours</span><span className="font-medium">{fmtWorkHours(a.worked_minutes)}</span>
                 <span>Late</span><span>{a.late_minutes ? `${a.late_minutes}m` : "—"}</span>
                 <span>Early Leave</span><span>{a.early_leave_minutes ? `${a.early_leave_minutes}m` : "—"}</span>
-                <span>Work Type</span><span className="capitalize">{a.work_type || "—"}</span>
-                <span>Notes</span><span>{a.notes || "—"}</span>
               </div>
             </div>
           )}

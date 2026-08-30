@@ -143,9 +143,8 @@ export default function AttendanceStaleSessionsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader
+<PageHeader
         title="Stale Attendance Sessions"
-        description="Sessions open >12h — resolve to keep payroll fair."
         actions={
           <div className="flex gap-2">
             <Button
@@ -176,11 +175,7 @@ export default function AttendanceStaleSessionsPage() {
       {isLoading ? (
         <div className="text-sm text-muted-foreground p-6">Loading…</div>
       ) : rows.length === 0 ? (
-        <EmptyState
-          icon={Inbox}
-          title="No stale sessions"
-          description="All attendance sessions have closed within 12 hours."
-        />
+<EmptyState icon={Inbox} title="No stale sessions" />
       ) : (
         <div className="grid gap-3">
           {rows.map((r) => (
@@ -220,17 +215,8 @@ export default function AttendanceStaleSessionsPage() {
                 {r.resolution_note && (
                   <div className="text-xs text-muted-foreground border-l-2 pl-2">{r.resolution_note}</div>
                 )}
-                {r.status === "open" && (
+{r.status === "open" && (
                   <>
-                    <div className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2 space-y-0.5">
-                      <div>This day is currently <b>held harmless from LOP</b> while the session stays open.</div>
-                      <div>
-                        <b>Present — shift-standard out</b>: present, zero OT, no LOP ·{" "}
-                        <b>Set out-time</b>: uses your time, OT capped ·{" "}
-                        <b>Confirm long shift</b>: capped at the long-shift cap, no OT ·{" "}
-                        <b>Void</b>: day becomes unpaid unless regularized.
-                      </div>
-                    </div>
                     <div className="flex flex-wrap gap-2 pt-1">
                       <Button
                         size="sm"
@@ -274,19 +260,6 @@ export default function AttendanceStaleSessionsPage() {
             <div className="space-y-1">
               <Label>Out-time (IST)</Label>
               <Input type="datetime-local" value={outTime} onChange={(e) => setOutTime(e.target.value)} />
-            </div>
-          )}
-          {dlg?.resolution === "confirm_long_shift" && (
-            <div className="text-sm text-muted-foreground">
-              Confirms a genuine long shift. Out-time is capped at the configured{" "}
-              <b>long-shift cap</b> (default 14h) from the in-time, and the day earns <b>no overtime</b>.
-            </div>
-          )}
-          {dlg?.resolution === "void" && (
-            <div className="text-sm text-destructive">
-              This deletes the offending in-punch and rebuilds the day. The day will become{" "}
-              <b>unpaid (LOP)</b> unless an approved regularization exists. For a genuine forgotten
-              punch-out, use <b>Present — shift-standard out</b> instead.
             </div>
           )}
           <div className="space-y-1">

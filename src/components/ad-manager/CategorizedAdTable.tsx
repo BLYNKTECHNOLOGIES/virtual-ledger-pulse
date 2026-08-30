@@ -168,17 +168,35 @@ function categorizeAds(
     }
   }
 
-  // Keep same-coin ads together, and within each coin show the lower-priced ad on top.
-  const sortGroup = (list: BinanceAd[]) =>
+  // Asset ordering: Fixed groups use USDT → USDC → FDUSD; Floating groups use
+  // BTC → BNB → ETH → TRX → SOL → XRP → SHIB. Unknown assets fall to the end.
+  // Within each coin, higher-priced ads are placed on top (price descending).
+  const FIXED_ASSET_ORDER = ['USDT', 'USDC', 'FDUSD'];
+  const FLOATING_ASSET_ORDER = ['BTC', 'BNB', 'ETH', 'TRX', 'SOL', 'XRP', 'SHIB'];
+  const assetRank = (asset: string, isFixed: boolean) => {
+    const order = isFixed ? FIXED_ASSET_ORDER : FLOATING_ASSET_ORDER;
+    const idx = order.indexOf(String(asset || '').toUpperCase());
+    return idx === -1 ? order.length : idx;
+  };
+  const sortGroup = (list: BinanceAd[], isFixed: boolean) =>
     [...list].sort((a, b) => {
+      const rankCmp = assetRank(a.asset, isFixed) - assetRank(b.asset, isFixed);
+      if (rankCmp !== 0) return rankCmp;
       const assetCmp = String(a.asset || '').localeCompare(String(b.asset || ''));
       if (assetCmp !== 0) return assetCmp;
-      return Number(a.price || 0) - Number(b.price || 0);
+      return Number(b.price || 0) - Number(a.price || 0);
     });
 
-  for (const key of Object.keys(buckets) as (keyof typeof buckets)[]) {
-    buckets[key] = sortGroup(buckets[key]);
-  }
+  buckets.blockFixed = sortGroup(buckets.blockFixed, true);
+  buckets.blockFloating = sortGroup(buckets.blockFloating, false);
+  buckets.smallBuyFixed = sortGroup(buckets.smallBuyFixed, true);
+  buckets.smallBuyFloating = sortGroup(buckets.smallBuyFloating, false);
+  buckets.bigBuyFixed = sortGroup(buckets.bigBuyFixed, true);
+  buckets.bigBuyFloating = sortGroup(buckets.bigBuyFloating, false);
+  buckets.smallSellFixed = sortGroup(buckets.smallSellFixed, true);
+  buckets.smallSellFloating = sortGroup(buckets.smallSellFloating, false);
+  buckets.bigSellFixed = sortGroup(buckets.bigSellFixed, true);
+  buckets.bigSellFloating = sortGroup(buckets.bigSellFloating, false);
 
   return [
     {

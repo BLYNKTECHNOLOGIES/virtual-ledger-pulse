@@ -2401,22 +2401,30 @@ html {
    ============================================================ */
 .terminal .t-nav-icon {
   position: relative;
-  border: 1px solid transparent;
-  background: hsl(var(--sidebar-accent) / 0.6);
+  border: 1px solid hsl(var(--sidebar-border) / 0.7);
+  background: hsl(var(--sidebar-accent) / 0.45);
   color: hsl(var(--sidebar-foreground));
 }
-.terminal .t-nav-row:hover .t-nav-icon { border-color: currentColor; }
-.terminal .t-nav-row[data-active="true"] .t-nav-icon { border-color: currentColor; }
+.terminal .t-nav-row:hover .t-nav-icon {
+  color: hsl(var(--sidebar-accent-foreground));
+  border-color: hsl(var(--sidebar-foreground) / 0.35);
+}
+.terminal .t-nav-row[data-active="true"] .t-nav-icon {
+  color: hsl(var(--primary));
+  border-color: hsl(var(--primary) / 0.45);
+  background: hsl(var(--primary) / 0.1);
+}
 
-.terminal .t-nav-primary  { color: hsl(var(--primary));      background: hsl(var(--primary) / 0.12); }
-.terminal .t-nav-buy      { color: hsl(var(--trade-buy));    background: hsl(var(--trade-buy) / 0.12); }
-.terminal .t-nav-sell     { color: hsl(var(--trade-sell));   background: hsl(var(--trade-sell) / 0.12); }
-.terminal .t-nav-pending  { color: hsl(var(--trade-pending));background: hsl(var(--trade-pending) / 0.12); }
-.terminal .t-nav-success  { color: hsl(var(--success));      background: hsl(var(--success) / 0.12); }
-.terminal .t-nav-info     { color: hsl(var(--info));         background: hsl(var(--info) / 0.12); }
-.terminal .t-nav-warning  { color: hsl(var(--warning));      background: hsl(var(--warning) / 0.12); }
-.terminal .t-nav-muted    { color: hsl(var(--muted-foreground)); background: hsl(var(--muted-foreground) / 0.12); }
-.terminal .t-nav-neutral  { color: hsl(var(--sidebar-accent-foreground)); background: hsl(var(--sidebar-accent) / 0.7); }
+/* Monochrome rail: all tones collapse to one neutral treatment */
+.terminal .t-nav-primary,
+.terminal .t-nav-buy,
+.terminal .t-nav-sell,
+.terminal .t-nav-pending,
+.terminal .t-nav-success,
+.terminal .t-nav-info,
+.terminal .t-nav-warning,
+.terminal .t-nav-muted,
+.terminal .t-nav-neutral { color: inherit; background: transparent; }
 
 /* Pending-count dot on the collapsed rail (full badge is hidden there) */
 .terminal .t-nav-dot {

@@ -51,12 +51,10 @@ function ToggleCard({
   checked, onChange, label, description,
 }: { checked: boolean; onChange: (v: boolean) => void; label: string; description: string }) {
   return (
-    <div className="flex items-start gap-2.5 rounded-md border border-border/60 bg-muted/20 p-2.5">
-      <Switch checked={checked} onCheckedChange={onChange} className="mt-0.5 shrink-0" />
-      <div className="min-w-0 space-y-0.5">
-        <Label className="text-xs font-medium leading-tight">{label}</Label>
-        <p className="text-[11px] leading-snug text-muted-foreground">{description}</p>
-      </div>
+    <div className="flex items-center gap-2.5 rounded-md border border-border/60 bg-muted/20 px-2.5 py-2">
+      <Switch checked={checked} onCheckedChange={onChange} className="shrink-0" />
+      <Label className="min-w-0 flex-1 text-xs font-medium leading-tight">{label}</Label>
+      <FieldHelp>{description}</FieldHelp>
     </div>
   );
 }
@@ -653,9 +651,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                         </label>
                       ))}
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
-                    </p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
@@ -676,7 +671,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             </label>
                           ))}
                         </div>
-                        <p className="text-[11px] text-muted-foreground">Leave both unchecked for any class.</p>
                       </div>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
@@ -690,7 +684,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                           inputMode="numeric"
                           className="h-9 text-sm text-foreground"
                         />
-                        <p className="text-[11px] text-muted-foreground">Empty = any VIP level.</p>
                       </div>
                     </div>
 
@@ -702,7 +695,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                         placeholder="BlynkEx, MyOtherAccount"
                         className="h-9 text-sm text-foreground"
                       />
-                      <p className="text-[11px] text-muted-foreground">Your own accounts are already skipped automatically.</p>
+                      <p className="text-[11px] text-muted-foreground">Own accounts are auto-skipped.</p>
                     </div>
                   </div>
                 )}
@@ -803,14 +796,14 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   <ToggleCard
                     checked={enforceZoneMatch}
                     onChange={setEnforceZoneMatch}
-                    label="Only price ads in the targeted zone"
-                    description={`Reprice only your ads that live in the ${competitorZone === 'block' ? 'Block' : 'P2P'} zone. Ads from the other zone are skipped and logged as zone_mismatch, so you never price a block ad against the retail book.`}
+                    label="Enforce targeted zone"
+                    description={`Reprice only your ads in the ${competitorZone === 'block' ? 'Block' : 'P2P'} zone. Ads in the other zone are skipped (logged as zone_mismatch).`}
                   />
                   <ToggleCard
                     checked={pauseNoMerchant}
                     onChange={setPauseNoMerchant}
-                    label="Pause if no merchant found"
-                    description="If none of the targets can be found in the order book, pause the rule instead of leaving ads at their last price."
+                    label="Pause if target not found"
+                    description="Pause the rule when none of the target merchants appear in the order book, instead of leaving ads at their last price."
                   />
                 </div>
 

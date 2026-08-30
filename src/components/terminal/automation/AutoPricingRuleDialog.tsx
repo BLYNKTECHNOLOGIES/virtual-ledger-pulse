@@ -997,47 +997,62 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
             {/* Section 5: Scheduling */}
             <AccordionItem value="scheduling">
-              <AccordionTrigger className="text-sm font-semibold">Scheduling</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Active Hours Start (IST)</Label>
-                    <Input type="time" value={activeStart} onChange={e => setActiveStart(e.target.value)} />
+              <AccordionTrigger className="text-sm font-semibold">Scheduling & Resting Price</AccordionTrigger>
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Active Hours Start (IST)</Label>
+                    <Input type="time" value={activeStart} onChange={e => setActiveStart(e.target.value)} className="h-9 text-sm text-foreground" />
                   </div>
-                  <div>
-                    <Label>Active Hours End (IST)</Label>
-                    <Input type="time" value={activeEnd} onChange={e => setActiveEnd(e.target.value)} />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium">Active Hours End (IST)</Label>
+                    <Input type="time" value={activeEnd} onChange={e => setActiveEnd(e.target.value)} className="h-9 text-sm text-foreground" />
                   </div>
                 </div>
-                {(activeStart || activeEnd) && (
-                  <button
-                    type="button"
-                    className="text-xs text-destructive hover:underline"
-                    onClick={() => { setActiveStart(''); setActiveEnd(''); }}
-                  >
-                    Reset active hours (switch to 24/7)
-                  </button>
-                )}
-                <p className="text-[10px] text-muted-foreground">Leave empty for 24/7 operation</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-[11px] text-muted-foreground">Leave both empty for 24/7 operation.</p>
+                  {(activeStart || activeEnd) && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-destructive hover:underline"
+                      onClick={() => { setActiveStart(''); setActiveEnd(''); }}
+                    >
+                      Reset active hours (switch to 24/7)
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {isFixed ? (
-                    <div>
-                      <Label>Resting Price (₹)</Label>
-                      <Input type="number" value={restingPrice} onChange={e => setRestingPrice(e.target.value)} placeholder="No resting price" />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-medium">Resting Price (₹)</Label>
+                        <FieldHelp>Price the engine parks your ads at outside active hours, so you never sit at an aggressive market-chasing price while unattended.</FieldHelp>
+                      </div>
+                      <Input type="number" value={restingPrice} onChange={e => setRestingPrice(e.target.value)} placeholder="No resting price" className="h-9 text-sm text-foreground" />
+                      <p className="text-[11px] text-muted-foreground">Applied when the schedule window closes. Empty = ads keep their last live price.</p>
                     </div>
                   ) : (
-                    <div>
-                      <Label>Resting Ratio (%)</Label>
-                      <Input type="number" value={restingRatio} onChange={e => setRestingRatio(e.target.value)} placeholder="No resting ratio" step="0.01" />
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Label className="text-xs font-medium">Resting Ratio (%)</Label>
+                        <FieldHelp>Floating ratio the engine parks your ads at outside active hours (e.g. 101.5% = 1.5% above the Binance index), so unattended ads sit at a safe, non-competitive level.</FieldHelp>
+                      </div>
+                      <Input type="number" value={restingRatio} onChange={e => setRestingRatio(e.target.value)} placeholder="No resting ratio" step="0.01" className="h-9 text-sm text-foreground" />
+                      <p className="text-[11px] text-muted-foreground">Applied when the schedule window closes. Empty = ads keep their last live ratio.</p>
                     </div>
                   )}
-                  <div>
-                    <Label>Check Interval (seconds)</Label>
-                    <Input type="number" value={checkInterval} onChange={e => setCheckInterval(e.target.value)} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Check Interval (seconds)</Label>
+                      <FieldHelp>How often this rule is allowed to run. The scheduler ticks every minute and skips the rule until this many seconds have passed since its last check.</FieldHelp>
+                    </div>
+                    <Input type="number" value={checkInterval} onChange={e => setCheckInterval(e.target.value)} className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">Minimum 60s recommended to stay within Binance rate limits.</p>
                   </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
+
           </Accordion>
         </ScrollArea>
 

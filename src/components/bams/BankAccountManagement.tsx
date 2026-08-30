@@ -74,7 +74,7 @@ export function BankAccountManagement() {
   const [subLedgerAccount, setSubLedgerAccount] = useState<BankAccount | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showActiveOnly, setShowActiveOnly] = useState(false);
-  const [showImportDialog, setShowImportDialog] = useState(false);
+  
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [formData, setFormData] = useState({
     account_name: "",

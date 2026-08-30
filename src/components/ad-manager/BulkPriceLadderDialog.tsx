@@ -240,9 +240,14 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   const handleConfirm = () => {
     if (!value || isNaN(top) || top <= 0) {
-      toast({ title: 'Top rate required', description: `Enter the fixed top rate for ${anchor}`, variant: 'destructive' });
+      toast({
+        title: mode === 'ratio' ? 'Top ratio required' : 'Top rate required',
+        description: mode === 'ratio' ? 'Enter the top floating ratio (%)' : `Enter the fixed top rate for ${anchor}`,
+        variant: 'destructive',
+      });
       return;
     }
+
     if (invalidRung) {
       toast({
         title: 'Ladder goes below zero',

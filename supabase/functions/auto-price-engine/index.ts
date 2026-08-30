@@ -788,36 +788,7 @@ async function processAsset(
   }
 
 
-  // ===== AP-ARCH-03: DRY-RUN MODE =====
-  if (rule.is_dry_run) {
-    await supabase.from("ad_pricing_logs").insert({
-      rule_id: rule.id,
-      asset,
-      ad_zone: zone,
-      competitor_merchant: matchedMerchant,
-        competitor_zone: zone,
-        competitor_badges: matchedBadges,
-        competitor_identity: matchedIdentity,
-        competitor_vip_level: matchedVipLevel,
-      competitor_price: competitorPrice,
-      market_reference_price: marketReferencePrice,
-      deviation_from_market_pct: deviationPct,
-      calculated_price: rule.price_type === "FIXED" ? newPrice : null,
-      calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
-      applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : null,
-      applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
-      was_capped: wasCapped,
-      was_rate_limited: wasRateLimited,
-      status: "dry_run",
-    });
-    console.log(`[DRY-RUN] ${rule.name}/${asset}: would apply ${rule.price_type === "FIXED" ? `₹${newPrice?.toFixed(2)}` : `${newRatio?.toFixed(4)}%`}`);
-    return {
-      asset, status: "dry_run",
-      competitor: matchedMerchant, competitorPrice,
-      newPrice: rule.price_type === "FIXED" ? newPrice : undefined,
-      newRatio: rule.price_type === "FLOATING" ? newRatio : undefined,
-    };
-  }
+
 
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
@@ -961,12 +932,6 @@ async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, 
   const assetConfig: Record<string, any> = rule.asset_config || {};
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
-
-  // Skip resting price application in dry-run mode
-  if (rule.is_dry_run) {
-    console.log(`[DRY-RUN] ${rule.name}: would apply resting price/ratio (skipped)`);
-    return;
-  }
 
   for (const asset of assetsToProcess) {
     const config = assetConfig[asset] || {};

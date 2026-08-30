@@ -390,7 +390,6 @@ export type Database = {
           fiat: string
           id: string
           is_active: boolean
-          is_dry_run: boolean
           last_applied_price: number | null
           last_applied_ratio: number | null
           last_checked_at: string | null
@@ -443,7 +442,6 @@ export type Database = {
           fiat?: string
           id?: string
           is_active?: boolean
-          is_dry_run?: boolean
           last_applied_price?: number | null
           last_applied_ratio?: number | null
           last_checked_at?: string | null
@@ -496,7 +494,6 @@ export type Database = {
           fiat?: string
           id?: string
           is_active?: boolean
-          is_dry_run?: boolean
           last_applied_price?: number | null
           last_applied_ratio?: number | null
           last_checked_at?: string | null

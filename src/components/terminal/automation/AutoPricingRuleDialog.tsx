@@ -58,7 +58,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
   // Form state
   const [name, setName] = useState('');
-  const [isDryRun, setIsDryRun] = useState(false);
   const [selectedAssets, setSelectedAssets] = useState<string[]>(['USDT']);
   const [assetConfigs, setAssetConfigs] = useState<Record<string, AssetConfig>>({});
   const [activeAssetTab, setActiveAssetTab] = useState('USDT');
@@ -290,7 +289,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   useEffect(() => {
     if (editingRule) {
       setName(editingRule.name);
-      setIsDryRun(editingRule.is_dry_run || false);
       const assets = editingRule.assets?.length > 0 ? editingRule.assets : [editingRule.asset];
       setSelectedAssets(assets);
       setActiveAssetTab(assets[0]);
@@ -323,7 +321,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setRestingRatio(editingRule.resting_ratio ? String(editingRule.resting_ratio) : '');
       setCheckInterval(String(editingRule.check_interval_seconds));
     } else {
-      setName(''); setIsDryRun(false); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
+      setName(''); setSelectedAssets(['USDT']); setActiveAssetTab('USDT');
       setAssetConfigs({}); setRawNumeric({}); setTradeType('BUY'); setPriceType('FIXED');
       setSyncPricingAcrossAssets(false);
 
@@ -430,7 +428,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
     const payload: any = {
       name,
-      is_dry_run: isDryRun,
       asset: selectedAssets[0], // backward compat
       assets: selectedAssets,
       asset_config: cleanConfig,
@@ -502,14 +499,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                 <div>
                   <Label>Rule Name</Label>
                   <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Altcoin Buy Undercut" />
-                </div>
-                <div className="flex items-center gap-2 p-2 rounded-md border border-warning/30 bg-warning/5">
-                  <Switch checked={isDryRun} onCheckedChange={setIsDryRun} />
-                  <div>
-                    <Label className="text-xs font-medium">Dry-Run Mode</Label>
-                    <p className="text-[10px] text-muted-foreground">Calculates & logs prices without calling Binance API. Use to test rules safely.</p>
-                  </div>
-                  {isDryRun && <Badge className="bg-warning/20 text-warning border-warning/40 text-[10px]">DRY RUN</Badge>}
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>

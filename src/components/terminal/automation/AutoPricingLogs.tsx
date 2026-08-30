@@ -65,7 +65,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
               </SelectContent>
             </Select>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[120px] h-8 text-xs">
+              <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs col-span-2 sm:col-span-1">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
@@ -88,6 +88,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
           <div className="text-center py-12 text-muted-foreground text-sm">No logs found</div>
         ) : (
           <ScrollArea className="max-h-[500px]">
+            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
             <Table>
               <TableHeader>
                 <TableRow>

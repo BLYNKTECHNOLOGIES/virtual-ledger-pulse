@@ -146,6 +146,43 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     });
   };
 
+  // Turning the sync on immediately pushes the active tab's pricing bounds to
+  // every selected asset, so what you see on one tab is what every asset gets.
+  const PRICE_FIELDS: NumericField[] = ['offset_amount', 'offset_pct', 'max_ceiling', 'max_ratio_ceiling', 'min_floor', 'min_ratio_floor'];
+  const handleSyncToggle = (checked: boolean) => {
+    setSyncPricingAcrossAssets(checked);
+    if (!checked) return;
+    const source = assetConfigs[activeAssetTab] || { ...DEFAULT_ASSET_CONFIG };
+    setRawNumeric(prev => {
+      const next = { ...prev };
+      PRICE_FIELDS.forEach(f => {
+        const raw = prev[rawKey(activeAssetTab, f)];
+        selectedAssets.forEach(a => {
+          if (raw === undefined) delete next[rawKey(a, f)];
+          else next[rawKey(a, f)] = raw;
+        });
+      });
+      return next;
+    });
+    setAssetConfigs(prev => {
+      const next = { ...prev };
+      selectedAssets.forEach(a => {
+        const base = prev[a] || { ...DEFAULT_ASSET_CONFIG };
+        next[a] = {
+          ...base,
+          offset_amount: source.offset_amount,
+          offset_pct: source.offset_pct,
+          max_ceiling: source.max_ceiling,
+          max_ratio_ceiling: source.max_ratio_ceiling,
+          min_floor: source.min_floor,
+          min_ratio_floor: source.min_ratio_floor,
+        } as AssetConfig;
+      });
+      return next;
+    });
+  };
+
+
   // Resolve final numeric value at save time (raw text wins so trailing digits are kept)
   const resolveNumeric = (asset: string, field: NumericField, cfgVal: number | null | undefined): number | null => {
     const raw = rawNumeric[rawKey(asset, field)];

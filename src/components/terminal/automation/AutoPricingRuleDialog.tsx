@@ -729,21 +729,27 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
 
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-                  <div className="flex items-center gap-2">
-                    <Switch checked={onlyOnline} onCheckedChange={setOnlyOnline} />
-                    <Label className="text-xs">Only counter when online</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={enforceZoneMatch} onCheckedChange={setEnforceZoneMatch} />
-                    <Label className="text-xs">Only price ads in the targeted zone</Label>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Switch checked={pauseNoMerchant} onCheckedChange={setPauseNoMerchant} />
-                    <Label className="text-xs">Pause if no merchant found</Label>
-                  </div>
-
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <ToggleCard
+                    checked={onlyOnline}
+                    onChange={setOnlyOnline}
+                    label="Only counter when online"
+                    description="Ignore the target merchant while their ad is offline/hidden on Binance, instead of pricing against a stale listing."
+                  />
+                  <ToggleCard
+                    checked={enforceZoneMatch}
+                    onChange={setEnforceZoneMatch}
+                    label="Only price ads in the targeted zone"
+                    description={`Reprice only your ads that live in the ${competitorZone === 'block' ? 'Block' : 'P2P'} zone. Ads from the other zone are skipped and logged as zone_mismatch, so you never price a block ad against the retail book.`}
+                  />
+                  <ToggleCard
+                    checked={pauseNoMerchant}
+                    onChange={setPauseNoMerchant}
+                    label="Pause if no merchant found"
+                    description="If none of the targets can be found in the order book, pause the rule instead of leaving ads at their last price."
+                  />
                 </div>
+
 
               </AccordionContent>
             </AccordionItem>

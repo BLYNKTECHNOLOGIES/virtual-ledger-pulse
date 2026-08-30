@@ -163,7 +163,19 @@ export function buildLadderGroups(
       }
 
       topRatio = hasFloating && index ? priceToRatio(topPrice, index, adjuster) : null;
+
+      // Sanity guard: a fixed top that is wildly off this asset's own index produces
+      // absurd floating ratios (e.g. -64,656%). That is always an input mistake —
+      // usually a rate entered against the wrong anchor asset.
+      if (topRatio !== null && (topRatio < 50 || topRatio > 150)) {
+        out.push({
+          asset, side, zone, index, topPrice, topRatio, rungs: [],
+          skipped: `Top ₹${topPrice} is far off this asset's live index — the derived floating ratio would be ${topRatio.toFixed(2)}%. Check the anchor asset, or use Floating ratio (%) mode.`,
+        });
+        continue;
+      }
     }
+
 
 
     const family = (floating: boolean, top: number) =>
@@ -206,12 +218,21 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
 
   const assets = useMemo(() => [...new Set(ads.map((a) => a.asset))].sort(), [ads]);
+  const hasFixedAds = useMemo(() => ads.some((a) => a.priceType !== 2), [ads]);
   const defaultAnchor = useMemo(() => {
+    // Prefer a stablecoin anchor — an INR rate entered against BTC/BNB-sized
+    // indices is almost always a mistake.
+    const stable = ['USDT', 'USDC', 'FDUSD'].find((s) => assets.includes(s));
+    if (stable) return stable;
     const counts = new Map<string, number>();
     ads.forEach((a) => counts.set(a.asset, (counts.get(a.asset) || 0) + 1));
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || assets[0] || '';
   }, [ads, assets]);
   const anchor = anchorAsset && assets.includes(anchorAsset) ? anchorAsset : defaultAnchor;
+
+  // With no fixed ads in the selection there is no INR rate to anchor on —
+  // the ladder can only be driven by a floating ratio.
+  const effectiveMode: LadderMode = hasFixedAds ? mode : 'ratio';
 
   const {
     index: prices,
@@ -223,14 +244,15 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   const top = Number(value);
   const groups = useMemo(
-    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster, mode) : []),
-    [ads, value, top, anchor, prices, adjuster, mode],
+    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster, effectiveMode) : []),
+    [ads, value, top, anchor, prices, adjuster, effectiveMode],
   );
   const ladder = useMemo(() => groups.flatMap((g) => g.rungs), [groups]);
   const invalidRung = ladder.find((r) => r.next <= 0);
   const skippedGroups = groups.filter((g) => g.skipped);
 
   const reset = () => { setValue(''); setMode('fixed'); setStep('form'); setResults([]); };
+
 
 
   const handleClose = (v: boolean) => {
@@ -241,8 +263,8 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
   const handleConfirm = () => {
     if (!value || isNaN(top) || top <= 0) {
       toast({
-        title: mode === 'ratio' ? 'Top ratio required' : 'Top rate required',
-        description: mode === 'ratio' ? 'Enter the top floating ratio (%)' : `Enter the fixed top rate for ${anchor}`,
+        title: effectiveMode === 'ratio' ? 'Top ratio required' : 'Top rate required',
+        description: effectiveMode === 'ratio' ? 'Enter the top floating ratio (%)' : `Enter the fixed top rate for ${anchor}`,
         variant: 'destructive',
       });
       return;
@@ -367,7 +389,9 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <Button
                   type="button"
-                  variant={mode === 'fixed' ? 'default' : 'outline'}
+                  variant={effectiveMode === 'fixed' ? 'default' : 'outline'}
+                  disabled={!hasFixedAds}
+                  title={!hasFixedAds ? 'No fixed-price ads selected — enter a floating ratio instead' : undefined}
                   size="sm"
                   onClick={() => setMode('fixed')}
                 >
@@ -375,7 +399,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                 </Button>
                 <Button
                   type="button"
-                  variant={mode === 'ratio' ? 'default' : 'outline'}
+                  variant={effectiveMode === 'ratio' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setMode('ratio')}
                 >
@@ -384,7 +408,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
               </div>
             </div>
 
-            {mode === 'fixed' && assets.length > 1 && (
+            {effectiveMode === 'fixed' && assets.length > 1 && (
               <div>
                 <Label>Anchor asset</Label>
                 <Select value={anchor} onValueChange={setAnchorAsset}>
@@ -404,18 +428,18 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
             )}
 
             <div>
-              <Label>{mode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
+              <Label>{effectiveMode === 'ratio' ? 'Top floating ratio (%)' : `Top fixed rate (${anchor})`}</Label>
               <Input
                 type="number"
                 step="0.01"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder={mode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
+                placeholder={effectiveMode === 'ratio' ? 'e.g. 103.20' : 'e.g. 100'}
                 autoFocus
                 className="text-foreground"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {mode === 'ratio'
+                {effectiveMode === 'ratio'
                   ? 'Applies as the top rung to every group; fixed ads get the equivalent price from their live index.'
                   : 'Floating ads get the equivalent ratio derived from their live index.'}
               </p>
@@ -449,7 +473,7 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
                       <p className="text-destructive mt-0.5">{g.skipped}</p>
                     ) : (
                       <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground tabular-nums">
-                        <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>
+                        {g.topPrice !== null && <span>Top: <span className="text-foreground">₹{fmtINR(g.topPrice)}</span></span>}
                         {g.index !== null && <span>Index: <span className="text-foreground">₹{fmtINR(g.index)}</span></span>}
                         {g.topRatio !== null && (
                           <span className="col-span-2">Float top: <span className="text-foreground">{g.topRatio.toFixed(2)}%</span></span>

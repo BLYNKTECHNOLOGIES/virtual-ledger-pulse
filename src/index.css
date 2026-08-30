@@ -2393,3 +2393,46 @@ html {
     transition-duration: 0ms !important;
   }
 }
+
+/* ============================================================
+   TERMINAL — sidebar nav icon chips (identifiable icon rail)
+   Colour-coded chips so each module stays recognisable when the
+   sidebar is collapsed to the 3rem icon rail.
+   ============================================================ */
+.terminal .t-nav-icon {
+  position: relative;
+  border: 1px solid transparent;
+  background: hsl(var(--sidebar-accent) / 0.6);
+  color: hsl(var(--sidebar-foreground));
+}
+.terminal .t-nav-row:hover .t-nav-icon { border-color: currentColor; }
+.terminal .t-nav-row[data-active="true"] .t-nav-icon { border-color: currentColor; }
+
+.terminal .t-nav-primary  { color: hsl(var(--primary));      background: hsl(var(--primary) / 0.12); }
+.terminal .t-nav-buy      { color: hsl(var(--trade-buy));    background: hsl(var(--trade-buy) / 0.12); }
+.terminal .t-nav-sell     { color: hsl(var(--trade-sell));   background: hsl(var(--trade-sell) / 0.12); }
+.terminal .t-nav-pending  { color: hsl(var(--trade-pending));background: hsl(var(--trade-pending) / 0.12); }
+.terminal .t-nav-success  { color: hsl(var(--success));      background: hsl(var(--success) / 0.12); }
+.terminal .t-nav-info     { color: hsl(var(--info));         background: hsl(var(--info) / 0.12); }
+.terminal .t-nav-warning  { color: hsl(var(--warning));      background: hsl(var(--warning) / 0.12); }
+.terminal .t-nav-muted    { color: hsl(var(--muted-foreground)); background: hsl(var(--muted-foreground) / 0.12); }
+.terminal .t-nav-neutral  { color: hsl(var(--sidebar-accent-foreground)); background: hsl(var(--sidebar-accent) / 0.7); }
+
+/* Pending-count dot on the collapsed rail (full badge is hidden there) */
+.terminal .t-nav-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: hsl(var(--trade-pending));
+  box-shadow: 0 0 0 2px hsl(var(--sidebar-background));
+}
+
+/* Keep the label text colour readable; the chip carries the hue */
+.terminal .t-nav-row { color: hsl(var(--sidebar-foreground)); }
+.terminal .t-nav-row[data-active="true"] {
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--sidebar-accent-foreground));
+}

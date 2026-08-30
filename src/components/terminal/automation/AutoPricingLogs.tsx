@@ -43,7 +43,7 @@ function getLogReason(log: AutoPricingLog): string {
   }
   if (log.skipped_reason) return REASON_LABELS[log.skipped_reason] || log.skipped_reason.replace(/_/g, ' ');
   if (log.status === 'applied' || log.status === 'success') return 'Price update applied successfully';
-  if (log.status === 'dry_run') return 'Dry run only — no Binance update was sent';
+  
   if (log.status === 'no_change') return 'Calculated value matched the current value';
   return '—';
 }

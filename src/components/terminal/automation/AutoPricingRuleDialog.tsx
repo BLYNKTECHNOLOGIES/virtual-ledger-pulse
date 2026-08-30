@@ -963,37 +963,54 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 4: Anti-Exploitation */}
             <AccordionItem value="anti-exploit">
               <AccordionTrigger className="text-sm font-semibold">Anti-Exploitation & Safety</AccordionTrigger>
-              <AccordionContent className="space-y-3 px-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>Max Deviation from Market (%)</Label>
-                    <Input type="number" value={maxDeviation} onChange={e => setMaxDeviation(e.target.value)} step="0.5" />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Skips update if competitor deviates more than this</p>
+              <AccordionContent className="space-y-4 px-1 pb-2">
+                <p className="text-[11px] text-muted-foreground">
+                  Guard rails that stop the engine from chasing a manipulated or fake competitor price — e.g. a merchant who briefly posts a wild price to bait automated repricers.
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Max Deviation from Market (%)</Label>
+                      <FieldHelp>If the target merchant's price sits further than this from the wider market reference, the cycle is skipped instead of followed.</FieldHelp>
+                    </div>
+                    <Input type="number" value={maxDeviation} onChange={e => setMaxDeviation(e.target.value)} step="0.5" className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">Skips the update when the competitor is an outlier.</p>
                   </div>
-                  <div>
-                    <Label>Auto-Pause After N Deviations</Label>
-                    <Input type="number" value={autoPauseDeviations} onChange={e => setAutoPauseDeviations(e.target.value)} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Auto-Pause After N Deviations</Label>
+                      <FieldHelp>Consecutive outlier readings before the rule pauses itself and waits for an operator.</FieldHelp>
+                    </div>
+                    <Input type="number" value={autoPauseDeviations} onChange={e => setAutoPauseDeviations(e.target.value)} className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">0 = never auto-pause.</p>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label>{isFixed ? 'Max Price Change/Cycle (₹)' : 'Max Ratio Change/Cycle (%)'}</Label>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">{isFixed ? 'Max Price Change/Cycle (₹)' : 'Max Ratio Change/Cycle (%)'}</Label>
+                      <FieldHelp>Caps how far a single cycle may move your ad, so one bad reading cannot swing your price violently.</FieldHelp>
+                    </div>
                     <Input
                       type="number"
                       value={isFixed ? maxPriceChange : maxRatioChange}
                       onChange={e => isFixed ? setMaxPriceChange(e.target.value) : setMaxRatioChange(e.target.value)}
                       placeholder="Unlimited"
                       step="0.01"
+                      className="h-9 text-sm text-foreground"
                     />
+                    <p className="text-[11px] text-muted-foreground">Empty = no per-cycle cap.</p>
                   </div>
-                  <div>
-                    <Label>Manual Override Cooldown (min)</Label>
-                    <Input type="number" value={cooldownMinutes} onChange={e => setCooldownMinutes(e.target.value)} />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">0 = disabled</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-xs font-medium">Manual Override Cooldown (min)</Label>
+                      <FieldHelp>After an operator edits a price by hand, the engine leaves that ad alone for this many minutes.</FieldHelp>
+                    </div>
+                    <Input type="number" value={cooldownMinutes} onChange={e => setCooldownMinutes(e.target.value)} className="h-9 text-sm text-foreground" />
+                    <p className="text-[11px] text-muted-foreground">0 = disabled.</p>
                   </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
+
 
             {/* Section 5: Scheduling */}
             <AccordionItem value="scheduling">

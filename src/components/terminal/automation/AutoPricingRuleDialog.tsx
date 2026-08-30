@@ -801,14 +801,14 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   <ToggleCard
                     checked={enforceZoneMatch}
                     onChange={setEnforceZoneMatch}
-                    label="Only price ads in the targeted zone"
-                    description={`Reprice only your ads that live in the ${competitorZone === 'block' ? 'Block' : 'P2P'} zone. Ads from the other zone are skipped and logged as zone_mismatch, so you never price a block ad against the retail book.`}
+                    label="Enforce targeted zone"
+                    description={`Reprice only your ads in the ${competitorZone === 'block' ? 'Block' : 'P2P'} zone. Ads in the other zone are skipped (logged as zone_mismatch).`}
                   />
                   <ToggleCard
                     checked={pauseNoMerchant}
                     onChange={setPauseNoMerchant}
-                    label="Pause if no merchant found"
-                    description="If none of the targets can be found in the order book, pause the rule instead of leaving ads at their last price."
+                    label="Pause if target not found"
+                    description="Pause the rule when none of the target merchants appear in the order book, instead of leaving ads at their last price."
                   />
                 </div>
 

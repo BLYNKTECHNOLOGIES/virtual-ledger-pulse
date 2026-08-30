@@ -71,6 +71,18 @@ export function priceToRatio(price: number, index: number, adjuster: number) {
   return round2(100 + rawPct - adjuster);
 }
 
+/** Exact inverse of priceToRatio: floating ratio → fixed price for a given index. */
+export function ratioToPrice(ratio: number, index: number, adjuster: number): number | null {
+  const rawPct = ratio + adjuster - 100;
+  const denom = 1 - rawPct / 100;
+  if (!isFinite(denom) || denom <= 0) return null;
+  const price = index / denom;
+  return isFinite(price) && price > 0 ? round2(price) : null;
+}
+
+export type LadderMode = 'fixed' | 'ratio';
+
+
 /**
  * Builds one ladder per asset + side + zone group.
  * Zone matters because the P2P zone and the Block zone are separate order books

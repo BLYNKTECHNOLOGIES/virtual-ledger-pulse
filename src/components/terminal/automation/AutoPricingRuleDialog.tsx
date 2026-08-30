@@ -752,6 +752,20 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                   </div>
                 )}
 
+                {selectedAssets.length > 1 && (
+                  <div className="mb-3 flex items-center gap-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
+                    <Checkbox
+                      id="sync-pricing-all-assets"
+                      checked={syncPricingAcrossAssets}
+                      onCheckedChange={c => handleSyncToggle(c === true)}
+                    />
+                    <Label htmlFor="sync-pricing-all-assets" className="text-xs cursor-pointer">
+                      Apply the same offset, max ceiling and min floor to all {selectedAssets.length} assets
+                    </Label>
+                  </div>
+                )}
+
+
                 <Tabs value={activeAssetTab} onValueChange={setActiveAssetTab}>
                   <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent p-0 mb-3">
                     {selectedAssets.map(asset => {

@@ -651,9 +651,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                         </label>
                       ))}
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      The engine follows the highest-placed advertiser in the selected zone carrying any checked badge. Leave both unchecked to follow the plain top advertiser.
-                    </p>
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
@@ -674,7 +671,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                             </label>
                           ))}
                         </div>
-                        <p className="text-[11px] text-muted-foreground">Leave both unchecked for any class.</p>
                       </div>
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">
@@ -688,7 +684,6 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                           inputMode="numeric"
                           className="h-9 text-sm text-foreground"
                         />
-                        <p className="text-[11px] text-muted-foreground">Empty = any VIP level.</p>
                       </div>
                     </div>
 
@@ -700,7 +695,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                         placeholder="BlynkEx, MyOtherAccount"
                         className="h-9 text-sm text-foreground"
                       />
-                      <p className="text-[11px] text-muted-foreground">Your own accounts are already skipped automatically.</p>
+                      <p className="text-[11px] text-muted-foreground">Own accounts are auto-skipped.</p>
                     </div>
                   </div>
                 )}

@@ -223,14 +223,15 @@ export function BulkPriceLadderDialog({ open, onOpenChange, ads, onComplete }: P
 
   const top = Number(value);
   const groups = useMemo(
-    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster) : []),
-    [ads, value, top, anchor, prices, adjuster],
+    () => (value && !isNaN(top) && top > 0 ? buildLadderGroups(ads, anchor, top, prices, adjuster, mode) : []),
+    [ads, value, top, anchor, prices, adjuster, mode],
   );
   const ladder = useMemo(() => groups.flatMap((g) => g.rungs), [groups]);
   const invalidRung = ladder.find((r) => r.next <= 0);
   const skippedGroups = groups.filter((g) => g.skipped);
 
-  const reset = () => { setValue(''); setStep('form'); setResults([]); };
+  const reset = () => { setValue(''); setMode('fixed'); setStep('form'); setResults([]); };
+
 
   const handleClose = (v: boolean) => {
     if (!v) { reset(); if (step === 'done') onComplete(); }

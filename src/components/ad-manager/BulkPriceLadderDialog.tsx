@@ -97,6 +97,7 @@ export function buildLadderGroups(
   /** live INR index price per asset (spot × USDT/INR) */
   prices: Record<string, number | null>,
   adjuster: number,
+  mode: LadderMode = 'fixed',
 ): LadderGroup[] {
   const groups = new Map<string, BinanceAd[]>();
   ads.forEach((ad) => {
@@ -117,28 +118,53 @@ export function buildLadderGroups(
     const hasFixed = groupAds.some((a) => a.priceType !== 2);
 
     let topPrice: number | null = null;
-    if (asset === anchorAsset) {
-      topPrice = round2(anchorTop);
-    } else if (index && anchorIndex) {
-      topPrice = round2((anchorTop * index) / anchorIndex);
+    let topRatio: number | null = null;
+
+    if (mode === 'ratio') {
+      // The entered value is a market-relative ratio — it applies to every group as-is.
+      topRatio = hasFloating ? round2(anchorTop) : null;
+      if (hasFixed) {
+        if (!index) {
+          out.push({
+            asset, side, zone, index, topPrice: null, topRatio, rungs: [],
+            skipped: 'No live index price — fixed top price cannot be derived, group skipped',
+          });
+          continue;
+        }
+        topPrice = ratioToPrice(anchorTop, index, adjuster);
+        if (topPrice === null) {
+          out.push({
+            asset, side, zone, index, topPrice: null, topRatio, rungs: [],
+            skipped: 'Ratio is out of range for this index — no valid fixed price, group skipped',
+          });
+          continue;
+        }
+      }
+    } else {
+      if (asset === anchorAsset) {
+        topPrice = round2(anchorTop);
+      } else if (index && anchorIndex) {
+        topPrice = round2((anchorTop * index) / anchorIndex);
+      }
+
+      if (topPrice === null) {
+        out.push({
+          asset, side, zone, index, topPrice: null, topRatio: null, rungs: [],
+          skipped: 'No live index price for this asset — group skipped',
+        });
+        continue;
+      }
+      if (hasFloating && !index) {
+        out.push({
+          asset, side, zone, index, topPrice, topRatio: null, rungs: [],
+          skipped: 'No live index price — floating ratio cannot be derived, group skipped',
+        });
+        continue;
+      }
+
+      topRatio = hasFloating && index ? priceToRatio(topPrice, index, adjuster) : null;
     }
 
-    if (topPrice === null) {
-      out.push({
-        asset, side, zone, index, topPrice: null, topRatio: null, rungs: [],
-        skipped: 'No live index price for this asset — group skipped',
-      });
-      continue;
-    }
-    if (hasFloating && !index) {
-      out.push({
-        asset, side, zone, index, topPrice, topRatio: null, rungs: [],
-        skipped: 'No live index price — floating ratio cannot be derived, group skipped',
-      });
-      continue;
-    }
-
-    const topRatio = hasFloating && index ? priceToRatio(topPrice, index, adjuster) : null;
 
     const family = (floating: boolean, top: number) =>
       groupAds

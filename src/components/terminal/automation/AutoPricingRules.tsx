@@ -102,8 +102,8 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
   return (
     <div className="space-y-4">
       {/* Summary Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{rules.length} Rules</Badge>
           <Badge className="bg-success/20 text-success">{activeCount} Active</Badge>
           {pausedCount > 0 && <Badge variant="destructive">{pausedCount} Paused</Badge>}
@@ -113,7 +113,8 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
             </Badge>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+
           <Button variant="outline" size="sm" onClick={() => { setLogRuleId(undefined); setShowLogs(true); }}>
             <Clock className="h-3.5 w-3.5 mr-1.5" /> View Logs
           </Button>
@@ -148,14 +149,15 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
             const hasAssetIssues = assetLogs.some(l => l.status === 'skipped' || l.status === 'error');
 
             return (
-              <Card key={rule.id} className={`transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
-                <CardContent className="p-4">
+              <Card key={rule.id} className={`overflow-hidden transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
+                <CardContent className="p-3 sm:p-4 min-w-0">
                   {/* Alert Banner with per-asset breakdown */}
                   {alertState.hasAlert && (
                     <div className="mb-3 px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
                           <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+
                           <span className="text-xs font-medium text-foreground">{alertState.alertMessage}</span>
                           <Badge variant="outline" className={`text-[10px] ${alertBadgeStyle}`}>
                             {alertState.alertType?.replace('_', ' ')}
@@ -172,22 +174,24 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                       </div>
                       {/* Per-asset issue details inside the alert */}
                       {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').length > 0 && (
-                        <div className="flex flex-col gap-1 pl-6">
+                        <div className="flex flex-col gap-1 sm:pl-6">
                           {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').map(l => (
-                            <div key={l.asset} className="flex items-center gap-2 text-[11px]">
+                            <div key={l.asset} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] min-w-0">
+
                               <span className={`font-semibold ${l.status === 'error' ? 'text-destructive' : 'text-warning'}`}>
                                 {l.asset}
                               </span>
                               <span className="text-muted-foreground">→</span>
-                              <span className="text-muted-foreground">
+                              <span className="text-muted-foreground break-words min-w-0">
                                 {l.status === 'skipped'
                                   ? (l.reason === 'no_merchant' ? `Merchant not found in top listings` : l.reason === 'no_listings' ? 'No P2P listings available' : l.reason === 'deviation' ? `Price deviation exceeded limit` : l.reason || 'Skipped')
                                   : (l.error || 'Unknown error')
                                 }
                               </span>
                               {l.competitor_merchant && (
-                                <span className="text-muted-foreground/60">({l.competitor_merchant})</span>
+                                <span className="text-muted-foreground/60 break-words">({l.competitor_merchant})</span>
                               )}
+
                             </div>
                           ))}
                         </div>
@@ -195,17 +199,19 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                     </div>
                   )}
 
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-2 sm:gap-4 min-w-0">
                     {/* Left: Info */}
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                       <Switch
+                        className="shrink-0"
                         checked={rule.is_active}
                         onCheckedChange={(v) => updateRule.mutate({ id: rule.id, is_active: v })}
                         disabled={!canToggle}
                       />
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{rule.name}</span>
+                          <span className="font-medium text-sm break-words min-w-0">{rule.name}</span>
                           <Badge variant={rule.trade_type === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">
                             {rule.trade_type}
                           </Badge>
@@ -363,7 +369,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                     </div>
 
                     {/* Right: Health + Actions */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap justify-end shrink-0 border-t sm:border-t-0 border-border/40 pt-2 sm:pt-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

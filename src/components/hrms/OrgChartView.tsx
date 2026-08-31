@@ -826,9 +826,13 @@ export function OrgChartView() {
       <Dialog open={!!assignTarget} onOpenChange={open => { if (!open) setAssignTarget(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign reporting manager</DialogTitle>
+            <DialogTitle>{assignTarget?.unassigned ? "Assign reporting manager" : "Remap reporting manager"}</DialogTitle>
             <DialogDescription>
-              {assignTarget ? `${assignTarget.name} is currently outside the reporting chain. Choose who they report to.` : ""}
+              {assignTarget
+                ? assignTarget.unassigned
+                  ? `${assignTarget.name} is currently outside the reporting chain. Choose who they report to.`
+                  : `Choose a new reporting manager for ${assignTarget.name}. Their own reportees stay attached to them.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">

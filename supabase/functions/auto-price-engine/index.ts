@@ -878,26 +878,31 @@ async function processAsset(
     ? Math.round((newPrice!) * 100) / 100
     : Math.round((newRatio!) * 100) / 100;
 
-  // ===== PROACTIVE 0.5% PRICE LADDER =====
-  // Binance keeps our own ads of the same asset at least 0.5% apart, and stacking two
-  // of our ads inside that band makes the lower one invisible. When the rule opts in,
-  // every ad this rule manages for the asset gets its OWN rung (target, -0.51%, -1.02%…)
-  // and any of our other live ads sitting inside the band are pushed onto rungs below,
-  // BEFORE we write anything — instead of waiting for Binance to reject an update.
+  // ===== 0.5% PRICE LADDER (CONFLICT-ONLY) =====
+  // Binance keeps our own ads of the same asset at least 0.5% apart. The ladder is a
+  // conflict resolver, NOT a default spacing scheme: an ad is only demoted to a lower
+  // rung when it would otherwise land inside the 0.5% band of another of our ads.
+  //  - one managed ad for this asset/side/zone  -> it goes straight to the target price
+  //  - several managed ads                      -> they'd collide at the same price, so
+  //                                                they get consecutive rungs
+  //  - other live ads of ours inside the band   -> pushed below (pre-space), and only
+  //                                                those that actually clash.
+  const laddering = rule.ladder_conflict_resolution && adNumbers.length > 1;
   const adTargets = new Map<string, number>();
   adNumbers.forEach((adNo: string, i: number) => {
-    adTargets.set(adNo, rule.ladder_conflict_resolution ? ladderRung(baseTarget, i) : baseTarget);
+    adTargets.set(adNo, laddering ? ladderRung(baseTarget, i) : baseTarget);
   });
 
   if (rule.ladder_conflict_resolution) {
-    const lowestManagedRung = ladderRung(baseTarget, Math.max(adNumbers.length - 1, 0));
+    const managedTargets = adNumbers.map((adNo: string) => adTargets.get(adNo)!);
+    const lowestManagedRung = Math.min(...managedTargets, baseTarget);
     await preSpaceSiblingAds({
       supabase,
       rule,
       asset,
       zone,
       managedAdNos: adNumbers,
-      managedTargets: adNumbers.map((_: string, i: number) => ladderRung(baseTarget, i)),
+      managedTargets,
       lowestManagedRung,
       binanceTradeType,
       isFixed: isFixedMode,
@@ -905,6 +910,7 @@ async function processAsset(
       internalAuthKey,
     });
   }
+
 
   // Lowest rung first, so moving the bottom ads down frees the band above them.
   const orderedAdNumbers = [...adNumbers].sort(

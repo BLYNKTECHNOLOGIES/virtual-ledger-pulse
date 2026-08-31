@@ -25,6 +25,8 @@ import { BulkPriceLadderDialog } from '@/components/ad-manager/BulkPriceLadderDi
 import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjustDialog';
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog';
+import { BulkMaxQuantityDialog } from '@/components/ad-manager/BulkMaxQuantityDialog';
+import { AdCapacityCalibrationDialog } from '@/components/ad-manager/AdCapacityCalibrationDialog';
 import { AdCommandStrip } from '@/components/ad-manager/AdCommandStrip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -95,6 +97,8 @@ export default function AdManager() {
   const [bulkHybridOpen, setBulkHybridOpen] = useState(false);
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
+  const [bulkMaxQtyOpen, setBulkMaxQtyOpen] = useState(false);
+  const [capacityCalOpen, setCapacityCalOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
@@ -360,6 +364,7 @@ export default function AdManager() {
           onBulkPriceLadder={() => setBulkLadderOpen(true)}
           onBulkHybridAdjust={() => setBulkHybridOpen(true)}
           onBulkRiskGuard={() => setBulkRiskGuardOpen(true)}
+          onBulkMaxQuantity={() => setBulkMaxQtyOpen(true)}
           onBulkActivate={handleBulkActivate}
           onBulkDeactivate={handleBulkDeactivate}
           totalAds={displayAds.length}
@@ -501,6 +506,8 @@ export default function AdManager() {
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkPriceLadderDialog open={bulkLadderOpen} onOpenChange={setBulkLadderOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
+      <BulkMaxQuantityDialog open={bulkMaxQtyOpen} onOpenChange={setBulkMaxQtyOpen} ads={selectedAds} onComplete={handleBulkComplete} />
+      <AdCapacityCalibrationDialog open={capacityCalOpen} onOpenChange={setCapacityCalOpen} ads={displayAds} />
       <BulkRiskGuardDialog open={bulkRiskGuardOpen} onOpenChange={setBulkRiskGuardOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>

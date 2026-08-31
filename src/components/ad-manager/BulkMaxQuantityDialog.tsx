@@ -23,7 +23,6 @@ interface PlanRow {
   current: number;
   remaining: number;
   target: number | null;
-  submittedTotal: number | null;
   cap: number | null;
   available: number | null;
   bound: Bound;
@@ -55,21 +54,20 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
       const available = ad.tradeType === 'SELL' ? balanceOf(ad.asset) : null;
 
       if (cap === null) {
-        return { ad, current, remaining, target: null, submittedTotal: null, cap, available, bound: 'none' as Bound, skipReason: 'No saved maximum quantity for this asset/zone/side' };
+        return { ad, current, remaining, target: null, cap, available, bound: 'none' as Bound, skipReason: 'No saved maximum quantity for this asset/zone/side' };
       }
       let target = cap;
       let bound: Bound = 'cap';
       if (ad.tradeType === 'SELL') {
         if (available === null) {
-          return { ad, current, remaining, target: null, submittedTotal: null, cap, available, bound: 'none' as Bound, skipReason: 'Available balance unavailable — cannot clamp safely' };
+          return { ad, current, remaining, target: null, cap, available, bound: 'none' as Bound, skipReason: 'Available balance unavailable — cannot clamp safely' };
         }
         if (available < cap) { target = available; bound = 'balance'; }
       }
       if (target <= 0) {
-        return { ad, current, remaining, target: null, submittedTotal: null, cap, available, bound, skipReason: 'Target quantity is zero' };
+        return { ad, current, remaining, target: null, cap, available, bound, skipReason: 'Target quantity is zero' };
       }
-      const submittedTotal = Number((current + target - remaining).toFixed(8));
-      return { ad, current, remaining, target, submittedTotal, cap, available, bound };
+      return { ad, current, remaining, target, cap, available, bound };
     });
   }, [ads, map, balances]);
 
@@ -175,7 +173,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
                         ) : (
                           <>
                             remaining {fmtQty(p.remaining)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
-                            {p.submittedTotal !== null && p.submittedTotal !== p.current ? ` · cumulative total ${fmtQty(p.current)} → ${fmtQty(p.submittedTotal)}` : ''}
+                            {' · '}total ceiling {fmtQty(p.target)}
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`

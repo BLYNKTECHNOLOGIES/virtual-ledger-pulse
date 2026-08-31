@@ -982,11 +982,11 @@ serve(async (req) => {
         delete requestedAdData.desiredRemainingAmount;
         const { accepted: adUpdateBody, skipped: skippedFields } = sanitizeAdUpdatePayload(requestedAdData);
 
-        // Binance's initAmount is the ad's cumulative published quantity, while
-        // surplusAmount is what remains tradable. Re-sending the same initAmount
-        // returns success but does not replenish a partially consumed ad. For the
-        // Max Quantity action, calculate the new cumulative total from fresh
-        // Binance detail so the requested *remaining* quantity is restored.
+        // Re-sending an unchanged initAmount returns success but Binance treats it
+        // as a no-op, leaving a partially consumed surplusAmount untouched. For
+        // the Max Quantity action, force a real quantity transition just below
+        // the ceiling before restoring the exact requested ceiling. This never
+        // submits a value above the saved Binance maximum.
         let desiredRemaining: number | null = null;
         if (desiredRemainingRaw !== undefined) {
           desiredRemaining = Number(desiredRemainingRaw);
@@ -1009,14 +1009,36 @@ serve(async (req) => {
           if (!Number.isFinite(currentTotal) || !Number.isFinite(currentRemaining)) {
             throw new Error("Binance did not return the current total and remaining quantity");
           }
-          const replenishment = desiredRemaining - currentRemaining;
-          adUpdateBody.initAmount = Number((currentTotal + replenishment).toFixed(8));
-          console.log("updateAd replenishment:", JSON.stringify({
+          const quantityStep = ["USDC", "FDUSD"].includes(String(detail?.asset || adUpdateBody.asset || "").toUpperCase()) ? 1 : 0.00000001;
+          const sameTotal = Math.abs(currentTotal - desiredRemaining) <= quantityStep / 2;
+          if (sameTotal && currentRemaining < desiredRemaining - quantityStep / 2) {
+            const nudgeBody = {
+              ...adUpdateBody,
+              initAmount: Number(Math.max(quantityStep, desiredRemaining - quantityStep).toFixed(8)),
+            };
+            console.log("updateAd quantity nudge:", JSON.stringify({
+              advNo: adUpdateBody.advNo,
+              currentTotal,
+              currentRemaining,
+              desiredRemaining,
+              nudgeTotal: nudgeBody.initAmount,
+            }));
+            const nudgeResponse = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(nudgeBody) });
+            const nudgeText = await nudgeResponse.text();
+            let nudgeResult: any;
+            try { nudgeResult = JSON.parse(nudgeText); } catch { nudgeResult = { raw: nudgeText, status: nudgeResponse.status }; }
+            if (!isSuccessfulBinancePayload(nudgeResult, nudgeResponse.status)) {
+              throw new Error(nudgeResult?.message || nudgeResult?.msg || "Binance rejected the quantity reset step");
+            }
+            await new Promise((resolve) => setTimeout(resolve, 350));
+          }
+          adUpdateBody.initAmount = desiredRemaining;
+          console.log("updateAd quantity restore:", JSON.stringify({
             advNo: adUpdateBody.advNo,
             currentTotal,
             currentRemaining,
             desiredRemaining,
-            submittedTotal: adUpdateBody.initAmount,
+            submittedTotal: desiredRemaining,
           }));
         }
         console.log("updateAd request body:", JSON.stringify(adUpdateBody).substring(0, 1000), "skipped:", skippedFields);

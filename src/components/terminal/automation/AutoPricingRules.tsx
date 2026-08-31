@@ -174,9 +174,10 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                       </div>
                       {/* Per-asset issue details inside the alert */}
                       {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').length > 0 && (
-                        <div className="flex flex-col gap-1 pl-6">
+                        <div className="flex flex-col gap-1 sm:pl-6">
                           {assetLogs.filter(l => l.status === 'error' || l.status === 'skipped').map(l => (
-                            <div key={l.asset} className="flex items-center gap-2 text-[11px]">
+                            <div key={l.asset} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] min-w-0">
+
                               <span className={`font-semibold ${l.status === 'error' ? 'text-destructive' : 'text-warning'}`}>
                                 {l.asset}
                               </span>

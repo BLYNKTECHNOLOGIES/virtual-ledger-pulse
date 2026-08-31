@@ -67,6 +67,9 @@ function SortHeader({ label, active, dir, onClick, className }: { label: string;
 export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate, isTogglingStatus, selectedAdvNos, onSelectionChange, sortMode = 'current', onSortModeChange, compact = false }: DeskTableProps) {
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
+  const automationMap = useAdAutomationMap();
+  const { user } = useAuth();
+  const isSuperAdmin = !!user?.roles?.some(isSuperAdminRoleName);
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);
   const [visible, setVisible] = useState(PAGE);
   const lastClickedRef = useRef<string | null>(null);

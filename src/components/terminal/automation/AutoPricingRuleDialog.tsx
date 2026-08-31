@@ -369,7 +369,10 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
     setMultiAssetSearchResults({});
     setIsMultiSearching(false);
     setNewMerchantInput('');
-  }, [editingRule, open]);
+    // Depend on the rule *id*, not the object: the rules list is polled, so a new object
+    // identity every refetch would re-seed the form and wipe whatever is being typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingRule?.id, open]);
 
   const handleSearchMerchant = async (nickname: string) => {
     if (!nickname.trim()) return;

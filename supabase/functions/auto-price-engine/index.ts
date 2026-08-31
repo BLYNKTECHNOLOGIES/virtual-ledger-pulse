@@ -873,16 +873,54 @@ async function processAsset(
   let successCount = 0;
   let skipCount = 0;
 
-  for (const adNo of adNumbers) {
+  const isFixedMode = rule.price_type === "FIXED";
+  const baseTarget = isFixedMode
+    ? Math.round((newPrice!) * 100) / 100
+    : Math.round((newRatio!) * 100) / 100;
+
+  // ===== PROACTIVE 0.5% PRICE LADDER =====
+  // Binance keeps our own ads of the same asset at least 0.5% apart, and stacking two
+  // of our ads inside that band makes the lower one invisible. When the rule opts in,
+  // every ad this rule manages for the asset gets its OWN rung (target, -0.51%, -1.02%…)
+  // and any of our other live ads sitting inside the band are pushed onto rungs below,
+  // BEFORE we write anything — instead of waiting for Binance to reject an update.
+  const adTargets = new Map<string, number>();
+  adNumbers.forEach((adNo: string, i: number) => {
+    adTargets.set(adNo, rule.ladder_conflict_resolution ? ladderRung(baseTarget, i) : baseTarget);
+  });
+
+  if (rule.ladder_conflict_resolution) {
+    const lowestManagedRung = ladderRung(baseTarget, Math.max(adNumbers.length - 1, 0));
+    await preSpaceSiblingAds({
+      supabase,
+      rule,
+      asset,
+      zone,
+      managedAdNos: adNumbers,
+      managedTargets: adNumbers.map((_: string, i: number) => ladderRung(baseTarget, i)),
+      lowestManagedRung,
+      binanceTradeType,
+      isFixed: isFixedMode,
+      binanceAdsUrl,
+      internalAuthKey,
+    });
+  }
+
+  // Lowest rung first, so moving the bottom ads down frees the band above them.
+  const orderedAdNumbers = [...adNumbers].sort(
+    (a: string, b: string) => (adTargets.get(a) || 0) - (adTargets.get(b) || 0),
+  );
+
+  for (const adNo of orderedAdNumbers) {
+    const adTarget = adTargets.get(adNo)!;
     try {
       const adData: any = { advNo: adNo };
-      if (rule.price_type === "FIXED") {
-        const roundedPrice = Math.round((newPrice!) * 100) / 100;
-        adData.price = roundedPrice;
+      if (isFixedMode) {
+        adData.price = adTarget;
       } else {
-        const roundedRatio = Math.round((newRatio!) * 10000) / 10000;
-        adData.priceFloatingRatio = roundedRatio;
+        adData.priceFloatingRatio = adTarget;
       }
+
 
       const resp = await fetch(binanceAdsUrl, {
         method: "POST",
@@ -911,8 +949,9 @@ async function processAsset(
           deviation_from_market_pct: deviationPct,
           calculated_price: rule.price_type === "FIXED" ? newPrice : null,
           calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
-          applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : null,
-          applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
+          applied_price: isFixedMode ? adTarget : null,
+          applied_ratio: !isFixedMode ? adTarget : null,
+
           was_capped: wasCapped,
           was_rate_limited: wasRateLimited,
           status: "applied",
@@ -935,10 +974,9 @@ async function processAsset(
             adNo,
             zone: liveAdZones.get(adNo) ?? zone,
             binanceTradeType,
-            isFixed: rule.price_type === "FIXED",
-            targetValue: rule.price_type === "FIXED"
-              ? Math.round((newPrice!) * 100) / 100
-              : Math.round((newRatio!) * 10000) / 10000,
+            isFixed: isFixedMode,
+            targetValue: adTarget,
+
             failMessage,
             binanceAdsUrl,
             internalAuthKey,
@@ -962,8 +1000,9 @@ async function processAsset(
             deviation_from_market_pct: deviationPct,
             calculated_price: rule.price_type === "FIXED" ? newPrice : null,
             calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
-            applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : null,
-            applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
+            applied_price: isFixedMode ? adTarget : null,
+            applied_ratio: !isFixedMode ? adTarget : null,
+
             was_capped: wasCapped,
             was_rate_limited: wasRateLimited,
             status: "applied",
@@ -1041,6 +1080,113 @@ async function processAsset(
 const LADDER_STEP_PCT = 0.51;
 const CONFLICT_BAND_PCT = 0.5;
 
+// Rung i below a top value: i=0 is the top itself, each further rung is 0.51% lower.
+// Both Binance price and floating ratio are stored at 2 decimals.
+export function ladderRung(topValue: number, index: number): number {
+  return Math.round(topValue * (1 - (LADDER_STEP_PCT / 100) * index) * 100) / 100;
+}
+
+// Proactive pass: push any of OUR other live ads (same asset + side + zone + price mode)
+// that sit inside the 0.5% band of a rung this rule is about to write onto rungs below
+// the rule's lowest rung. Runs before the rule writes its own prices.
+async function preSpaceSiblingAds(params: {
+  supabase: any;
+  rule: any;
+  asset: string;
+  zone: string;
+  managedAdNos: string[];
+  managedTargets: number[];
+  lowestManagedRung: number;
+  binanceTradeType: string;
+  isFixed: boolean;
+  binanceAdsUrl: string;
+  internalAuthKey: string;
+}): Promise<number> {
+  const {
+    supabase, rule, asset, zone, managedAdNos, managedTargets, lowestManagedRung,
+    binanceTradeType, isFixed, binanceAdsUrl, internalAuthKey,
+  } = params;
+
+  try {
+    console.log(`[ladder] ${asset}: pre-space check, zone=${zone}, targets=${managedTargets.join("/")}`);
+    // NOTE: Binance's listWithPagination returns an empty page for some asset filters,
+    // so we list every online ad and filter by asset ourselves below.
+    const listResult = await callBinanceAds(binanceAdsUrl, internalAuthKey, {
+      action: "listAds", advStatus: 1, fetchAll: true, rows: 20,
+    });
+    const rawAds: any[] = listResult?.data?.data || listResult?.data || [];
+    console.log(`[ladder] ${asset}: listAds returned ${Array.isArray(rawAds) ? rawAds.length : "non-array"}`);
+    if (!Array.isArray(rawAds) || rawAds.length === 0) return 0;
+
+    const managed = new Set(managedAdNos.map(String));
+    const ownTradeType = String(rule.trade_type || "").toUpperCase();
+    const wantFloating = !isFixed;
+    const siblings: { advNo: string; value: number }[] = [];
+    for (const a of rawAds) {
+      if (String(a.asset || "").toUpperCase() !== asset.toUpperCase()) continue;
+      const why = (r: string) => console.log(`[ladder] ${asset}: reject ${a.advNo} (${r}) tt=${a.tradeType} pt=${a.priceType} st=${a.advStatus} cl=${a.classify}`);
+      // Our OWN ads carry the rule's side; binanceTradeType is the counterparty search side.
+      if (String(a.tradeType || "").toUpperCase() !== ownTradeType) { why("tradeType"); continue; }
+      if (managed.has(String(a.advNo))) { why("managed"); continue; }
+      if ((Number(a.priceType) === 2) !== wantFloating) { why("priceType"); continue; }
+      const meta = await fetchAdMeta(String(a.advNo));
+      if ((meta.zone ?? "p2p") !== zone) { why(`zone=${meta.zone}`); continue; }
+      const value = wantFloating ? Number(a.priceFloatingRatio || 0) : Number(a.price || 0);
+      if (!Number.isFinite(value) || value <= 0) { why("value"); continue; }
+      siblings.push({ advNo: String(a.advNo), value });
+    }
+
+    console.log(`[ladder] ${asset}: ${siblings.length} sibling(s) in zone ${zone}: ${siblings.map((s) => `${s.advNo}@${s.value}`).join(", ")}`);
+    if (siblings.length === 0) return 0;
+
+    // Only ads that actually clash with one of our rungs need to move.
+    const clashing = siblings.filter((s) =>
+      managedTargets.some((t) => Math.abs(s.value - t) / t * 100 < CONFLICT_BAND_PCT),
+    ).sort((a, b) => b.value - a.value);
+    console.log(`[ladder] ${asset}: ${clashing.length} clashing sibling(s)`);
+    if (clashing.length === 0) return 0;
+
+
+    let moved = 0;
+    // Lowest rung first — moving the bottom ads down frees the band above them.
+    const plan = clashing.map((s, i) => ({
+      advNo: s.advNo,
+      from: s.value,
+      to: ladderRung(lowestManagedRung, i + 1),
+    })).filter((p) => p.to > 0).reverse();
+
+    for (const p of plan) {
+      if (Math.abs(p.to - p.from) < 0.01) continue;
+      const adData: any = { advNo: p.advNo };
+      if (isFixed) adData.price = p.to; else adData.priceFloatingRatio = p.to;
+      const res = await callBinanceAds(binanceAdsUrl, internalAuthKey, { action: "updateAd", adData });
+      await supabase.from("ad_pricing_logs").insert({
+        rule_id: rule.id,
+        ad_number: p.advNo,
+        asset,
+        ad_zone: zone,
+        status: res?.success ? "applied" : "error",
+        skipped_reason: "ladder_prespace",
+        applied_price: res?.success && isFixed ? p.to : null,
+        applied_ratio: res?.success && !isFixed ? p.to : null,
+        error_message: res?.success
+          ? `Ladder pre-space ${p.from} → ${p.to} (${LADDER_STEP_PCT}% below our own rung)`
+          : (res?.error || "ladder pre-space rejected by Binance").toString().substring(0, 200),
+      });
+      if (res?.success) moved++;
+      await new Promise((x) => setTimeout(x, 300));
+    }
+    if (moved > 0) {
+      console.log(`[ladder] ${asset}: pre-spaced ${moved} sibling ad(s) below rung ${lowestManagedRung}`);
+    }
+    return moved;
+  } catch (e) {
+    console.warn(`[ladder] pre-space failed for ${asset}: ${(e as Error).message}`);
+    return 0;
+  }
+}
+
+
 function looksLikeSelfPriceConflict(message: string): boolean {
   const m = String(message || "").toLowerCase();
   return (
@@ -1084,7 +1230,7 @@ async function resolveSelfPriceConflict(params: {
 
   try {
     const listResult = await callBinanceAds(binanceAdsUrl, internalAuthKey, {
-      action: "listAds", asset, tradeType: binanceTradeType, advStatus: 1, fetchAll: true, rows: 20,
+      action: "listAds", advStatus: 1, fetchAll: true, rows: 20,
     });
     const rawAds: any[] = listResult?.data?.data || listResult?.data || [];
     if (!Array.isArray(rawAds) || rawAds.length === 0) {
@@ -1094,7 +1240,7 @@ async function resolveSelfPriceConflict(params: {
     const wantFloating = !isFixed;
     const candidates = rawAds.filter((a: any) =>
       String(a.asset || "").toUpperCase() === asset.toUpperCase() &&
-      String(a.tradeType || "").toUpperCase() === binanceTradeType.toUpperCase() &&
+      String(a.tradeType || "").toUpperCase() === String(rule.trade_type || "").toUpperCase() &&
       String(a.advNo) !== String(adNo) &&
       ((Number(a.priceType) === 2) === wantFloating)
     );

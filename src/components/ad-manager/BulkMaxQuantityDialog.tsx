@@ -172,12 +172,13 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
                           <span className="text-warning">{p.skipReason}</span>
                         ) : (
                           <>
-                            {fmtQty(p.current)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
+                            remaining {fmtQty(p.remaining)} / total {fmtQty(p.current)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`
                               : `saved maximum${p.available !== null ? ` · balance ${fmtQty(p.available)}` : ''}`}
                           </>
+
                         )}
                         {res?.message && res.status === 'error' && <div className="text-destructive mt-1">{res.message}</div>}
                       </div>

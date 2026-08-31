@@ -21,6 +21,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-09-01: Attendance calendar missing-date root cause repaired — calendar range RPC now returns explicit holiday/no-data dates, and absent marking reconciles a rolling 7-day closed window so missed cron runs self-heal without overwriting leave, weekly offs, holidays, or meaningful attendance.
 - 2026-08-31: Auto-pricing safety ceilings made truthful — when a configured asset limit prevents countering the selected merchant, the engine now preserves the ad, records `safety_limit_blocked`, and raises an operator alert instead of logging a misleading capped application.
 - 2026-08-31: Binance bulk max-quantity replenishment repaired — unchanged totals are safely nudged below and restored to the saved ceiling, with fresh Binance detail read-back required before success.
 - 2026-08-31: Binance ad-capacity calibration authentication hardened — client now sends the live access token explicitly, both functions use in-code JWT validation with direct Super Admin role resolution, and deployed gateway/CORS paths were verified.

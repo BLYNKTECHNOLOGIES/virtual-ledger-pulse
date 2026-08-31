@@ -1,51 +1,33 @@
 // Auto-absent marking — v4 window-aware.
 //
 // Runs daily after the v4 attendance window closes (05:00 IST → 05:00 IST).
-// Marks employees as 'absent' in hr_attendance_daily for the previous
-// window-date when: no daily row (or status='no_data'), no approved leave,
-// no weekly-off, no holiday. Writes an audit row to
+// Reconciles the last seven fully closed window-dates so a missed scheduler
+// invocation self-heals. Marks employees as 'absent' only when there is no
+// meaningful daily row, approved leave, weekly-off, or holiday. Writes an audit row to
 // hr_attendance_absent_marker_runs so we can prove it ran.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { fetchAllRows } from "../_shared/paginate.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-// v4 "yesterday" in IST — the window-date that JUST closed at 05:00 IST today.
-function v4YesterdayIST(): { dateStr: string; dow: number } {
-  const nowUtcMs = Date.now();
-  const istMs = nowUtcMs + 5.5 * 60 * 60 * 1000;
-  const ist = new Date(istMs);
-  // If it's IST 00:00–04:59, we're still inside "yesterday"'s window;
-  // shift back an extra day so we always mark the window that fully closed.
-  const shiftDays = ist.getUTCHours() < 5 ? 2 : 1;
-  ist.setUTCDate(ist.getUTCDate() - shiftDays);
-  const y = ist.getUTCFullYear();
-  const m = String(ist.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(ist.getUTCDate()).padStart(2, "0");
-  return { dateStr: `${y}-${m}-${d}`, dow: ist.getUTCDay() };
-}
+import { dayOfWeek, rollingClosedDates } from "./dates.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const caller = await requireCaller(req, corsHeaders);
   if (!caller.ok) return caller.response;
 
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = caller.admin;
 
-    const { dateStr, dow } = v4YesterdayIST();
+    // Reconcile a rolling window on every invocation. A failed cron/deploy can
+    // therefore delay classification, but can no longer create a permanent
+    // blank date in employee calendars.
+    const dates = rollingClosedDates(new Date(), 7);
+    const firstDate = dates[0];
+    const lastDate = dates[dates.length - 1];
     const dowNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-    const dowName = dowNames[dow];
 
     // Gate: require at least one active policy with absent_if_no_punch=true.
     const { data: policies } = await supabase
@@ -55,20 +37,8 @@ Deno.serve(async (req) => {
       .eq("absent_if_no_punch", true)
       .limit(1);
     if (!policies || policies.length === 0) {
-      await audit(supabase, dateStr, 0, 0, 0, false, "absent_if_no_punch disabled");
-      return json({ message: "absent_if_no_punch disabled", date: dateStr, marked: 0 });
-    }
-
-    // Holiday? skip whole window and log it.
-    const { data: holiday } = await supabase
-      .from("hr_holidays")
-      .select("id")
-      .eq("date", dateStr)
-      .eq("is_active", true)
-      .limit(1);
-    if (holiday && holiday.length > 0) {
-      await audit(supabase, dateStr, 0, 0, 0, true, "public holiday, skipped");
-      return json({ message: "public holiday, skipping", date: dateStr, marked: 0 });
+      await audit(supabase, lastDate, 0, 0, 0, false, "absent_if_no_punch disabled");
+      return json({ message: "absent_if_no_punch disabled", dates, marked: 0 });
     }
 
     // Active employees.
@@ -76,41 +46,42 @@ Deno.serve(async (req) => {
       supabase.from("hr_employees").select("id").eq("is_active", true).range(from, to)
     );
     if (!employees.length) {
-      await audit(supabase, dateStr, 0, 0, 0, false, "no active employees");
-      return json({ message: "no active employees", date: dateStr, marked: 0 });
+      await audit(supabase, lastDate, 0, 0, 0, false, "no active employees");
+      return json({ message: "no active employees", dates, marked: 0 });
     }
     const employeeIds = employees.map((e: any) => e.id);
 
-    // Employees whose v4 daily row is already meaningful (anything other
-    // than 'no_data' / 'absent' / NULL means they were seen or handled).
+    const holidays = await fetchAllRows((from, to) =>
+      supabase.from("hr_holidays").select("date")
+        .eq("is_active", true).gte("date", firstDate).lte("date", lastDate).range(from, to)
+    );
+    const holidayDates = new Set((holidays || []).map((h: any) => h.date));
+
     const dailyRows = await fetchAllRows((from, to) =>
       supabase
         .from("hr_attendance_daily")
-        .select("employee_id, status")
-        .eq("attendance_date", dateStr)
+        .select("employee_id, attendance_date, status")
+        .gte("attendance_date", firstDate)
+        .lte("attendance_date", lastDate)
         .in("employee_id", employeeIds)
         .range(from, to)
     );
-    const alreadyHandled = new Set(
-      (dailyRows || [])
-        .filter((r: any) => r.status && r.status !== "no_data" && r.status !== "absent")
-        .map((r: any) => r.employee_id)
+    const alreadyHandled = new Set<string>(
+      (dailyRows || []).filter((r: any) => r.status && r.status !== "no_data")
+        .map((r: any) => `${r.employee_id}|${r.attendance_date}`)
     );
 
-    // Approved leave overlapping the window.
     const leaves = await fetchAllRows((from, to) =>
       supabase
         .from("hr_leave_requests")
-        .select("employee_id")
+        .select("employee_id, start_date, end_date")
         .eq("status", "approved")
-        .lte("start_date", dateStr)
-        .gte("end_date", dateStr)
+        .lte("start_date", lastDate)
+        .gte("end_date", firstDate)
         .in("employee_id", employeeIds)
         .range(from, to)
     );
-    const onLeave = new Set((leaves || []).map((r: any) => r.employee_id));
 
-    // Weekly-off for the window's weekday.
     const weeklyOffLinks = await fetchAllRows((from, to) =>
       supabase
         .from("hr_employee_weekly_off")
@@ -120,7 +91,7 @@ Deno.serve(async (req) => {
         .range(from, to)
     );
     const patternIds = [...new Set((weeklyOffLinks || []).map((r: any) => r.pattern_id).filter(Boolean))];
-    const offPatternIds = new Set<string>();
+    const patternDays = new Map<string, Set<number>>();
     if (patternIds.length) {
       const { data: patterns } = await supabase
         .from("hr_weekly_off_patterns")
@@ -128,29 +99,46 @@ Deno.serve(async (req) => {
         .in("id", patternIds);
       for (const p of patterns || []) {
         const offs = Array.isArray((p as any).weekly_offs) ? (p as any).weekly_offs : [];
-        if (offs.some((v: any) =>
-          typeof v === "string" ? v.toLowerCase() === dowName : typeof v === "number" && v === dow
-        )) offPatternIds.add((p as any).id);
+        const normalized = new Set<number>();
+        for (const value of offs) {
+          if (typeof value === "number" && value >= 0 && value <= 6) normalized.add(value);
+          if (typeof value === "string") {
+            const index = dowNames.indexOf(value.toLowerCase());
+            if (index >= 0) normalized.add(index);
+          }
+        }
+        patternDays.set((p as any).id, normalized);
       }
     }
-    const onWeeklyOff = new Set(
-      (weeklyOffLinks || [])
-        .filter((r: any) => offPatternIds.has(r.pattern_id))
-        .map((r: any) => r.employee_id)
-    );
-
-    const toMark = employeeIds.filter(
-      (id: string) => !alreadyHandled.has(id) && !onLeave.has(id) && !onWeeklyOff.has(id)
-    );
-    if (!toMark.length) {
-      await audit(supabase, dateStr, 0, onLeave.size, onWeeklyOff.size, false, "nothing to mark");
-      return json({ message: "nothing to mark", date: dateStr, marked: 0 });
+    const employeeOffDays = new Map<string, Set<number>>();
+    for (const link of weeklyOffLinks || []) {
+      employeeOffDays.set((link as any).employee_id, patternDays.get((link as any).pattern_id) || new Set());
     }
 
-    // Upsert into hr_attendance_daily as 'absent' (v4 is the source of truth).
-    const rows = toMark.map((employee_id: string) => ({
+    const isOnLeave = (employeeId: string, date: string) =>
+      (leaves || []).some((leave: any) =>
+        leave.employee_id === employeeId && leave.start_date <= date && leave.end_date >= date
+      );
+
+    const rows: any[] = [];
+    const auditByDate = new Map<string, { leave: number; weeklyOff: number; holiday: boolean; marked: number }>();
+    for (const date of dates) {
+      const stats = { leave: 0, weeklyOff: 0, holiday: holidayDates.has(date), marked: 0 };
+      auditByDate.set(date, stats);
+      if (stats.holiday) continue;
+      const dow = dayOfWeek(date);
+      for (const employeeId of employeeIds) {
+        if (alreadyHandled.has(`${employeeId}|${date}`)) continue;
+        if (isOnLeave(employeeId, date)) { stats.leave += 1; continue; }
+        if (employeeOffDays.get(employeeId)?.has(dow)) { stats.weeklyOff += 1; continue; }
+        rows.push({ employee_id: employeeId, attendance_date: date });
+        stats.marked += 1;
+      }
+    }
+
+    const dailyPayload = rows.map(({ employee_id, attendance_date }) => ({
       employee_id,
-      attendance_date: dateStr,
+      attendance_date,
       status: "absent",
       first_in: null,
       last_out: null,
@@ -159,38 +147,44 @@ Deno.serve(async (req) => {
       session_count: 0,
       suppressed_count: 0,
       engine_version: "v4",
-      flags: { auto_absent: true, marked_at: new Date().toISOString() },
+      flags: { auto_absent: true, reconciled_at: new Date().toISOString() },
     }));
 
-    const { error, count } = await supabase
-      .from("hr_attendance_daily")
-      .upsert(rows, { onConflict: "employee_id,attendance_date", count: "exact" });
-    if (error) throw error;
+    if (dailyPayload.length) {
+      const { error } = await supabase.from("hr_attendance_daily")
+        .upsert(dailyPayload, { onConflict: "employee_id,attendance_date" });
+      if (error) throw error;
+    }
 
-    // Mirror to the legacy hr_attendance table so downstream reports still see it.
-    const legacyRows = toMark.map((employee_id: string) => ({
+    const legacyRows = rows.map(({ employee_id, attendance_date }) => ({
       employee_id,
-      attendance_date: dateStr,
+      attendance_date,
       attendance_status: "absent",
       check_in: null,
       check_out: null,
       overtime_hours: 0,
       late_minutes: 0,
       early_leave_minutes: 0,
-      notes: "auto-marked absent (v4 window)",
+      notes: "auto-marked absent (v4 rolling reconciliation)",
     }));
-    await supabase
-      .from("hr_attendance")
-      .upsert(legacyRows, { onConflict: "employee_id,attendance_date", ignoreDuplicates: true });
+    if (legacyRows.length) {
+      const { error } = await supabase.from("hr_attendance")
+        .upsert(legacyRows, { onConflict: "employee_id,attendance_date", ignoreDuplicates: true });
+      if (error) throw error;
+    }
 
-    const marked = count ?? rows.length;
-    await audit(supabase, dateStr, marked, onLeave.size, onWeeklyOff.size, false, `marked ${marked}`);
-    console.log(`[auto-absent v4] ${dateStr}: marked ${marked}, leave=${onLeave.size}, weeklyOff=${onWeeklyOff.size}`);
+    for (const date of dates) {
+      const stats = auditByDate.get(date);
+      if (!stats) continue;
+      const notes = stats.holiday ? "public holiday, skipped" : stats.marked ? `reconciled ${stats.marked}` : "reconciled, nothing to mark";
+      await audit(supabase, date, stats.marked, stats.leave, stats.weeklyOff, stats.holiday, notes);
+    }
+    console.log(`[auto-absent v4] reconciled ${firstDate}..${lastDate}: marked ${rows.length}`);
     return json({
       message: "ok",
-      date: dateStr,
-      marked,
-      skipped: { onLeave: onLeave.size, weeklyOff: onWeeklyOff.size, alreadyHandled: alreadyHandled.size },
+      dates,
+      marked: rows.length,
+      reconciled: dates.length,
     });
   } catch (e) {
     console.error("[auto-absent] error", e);

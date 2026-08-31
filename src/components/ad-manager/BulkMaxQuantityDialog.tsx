@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2, Gauge } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { adZone, ZONE_SHORT } from '@/lib/adZone';
 import { useAdCapacityMap, capacityKey, useUpsertCapacityLimit } from '@/hooks/useAdCapacityLimits';

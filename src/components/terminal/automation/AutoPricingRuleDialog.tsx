@@ -106,6 +106,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [minVipLevel, setMinVipLevel] = useState('');
   const [enforceZoneMatch, setEnforceZoneMatch] = useState(true);
   const [pauseNoMerchant, setPauseNoMerchant] = useState(false);
+  const [ladderOnConflict, setLadderOnConflict] = useState(false);
   const [offsetDirection, setOffsetDirection] = useState('UNDERCUT');
   const [maxDeviation, setMaxDeviation] = useState('5');
   const [maxPriceChange, setMaxPriceChange] = useState('');
@@ -336,6 +337,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setOnlyOnline(editingRule.only_counter_when_online);
 
       setPauseNoMerchant(editingRule.pause_if_no_merchant_found);
+      setLadderOnConflict((editingRule as any).ladder_conflict_resolution === true);
       setOffsetDirection(editingRule.offset_direction);
       setMaxDeviation(String(editingRule.max_deviation_from_market_pct));
       setMaxPriceChange(editingRule.max_price_change_per_cycle ? String(editingRule.max_price_change_per_cycle) : '');
@@ -486,6 +488,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       min_vip_level: competitorMode === 'top_badged' && minVipLevel !== '' ? Number(minVipLevel) : null,
       enforce_zone_match: enforceZoneMatch,
       pause_if_no_merchant_found: pauseNoMerchant,
+      ladder_conflict_resolution: ladderOnConflict,
       active_hours_start: activeStart || null,
       active_hours_end: activeEnd || null,
       resting_price: restingPrice ? parseFloat(restingPrice) : null,
@@ -804,6 +807,12 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                     onChange={setPauseNoMerchant}
                     label="Pause if target not found"
                     description="Pause the rule when none of the target merchants appear in the order book, instead of leaving ads at their last price."
+                  />
+                  <ToggleCard
+                    checked={ladderOnConflict}
+                    onChange={setLadderOnConflict}
+                    label="Auto price-ladder on 0.5% conflict"
+                    description="When Binance rejects the new price because another of your own ads of the same asset sits within 0.5%, re-space every ad of that asset in this zone into a 0.51% ladder (lowest first), then retry this ad."
                   />
                 </div>
 

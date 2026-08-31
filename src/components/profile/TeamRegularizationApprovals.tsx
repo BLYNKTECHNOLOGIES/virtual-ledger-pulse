@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { sendRegularizationEmail, regCategoryLabel } from '@/utils/regularizationEmail';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 import { cn } from '@/lib/utils';
+import { useDirectReports } from '@/hooks/useDirectReports';
+
 
 interface Props {
   employeeId: string; // logged-in employee (potential reporting manager)

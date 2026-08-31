@@ -252,6 +252,8 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
+  const automationMap = useAdAutomationMap();
+  const isSuperAdmin = !!user?.roles?.some(isSuperAdminRoleName);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);

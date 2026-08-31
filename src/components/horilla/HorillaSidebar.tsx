@@ -332,7 +332,7 @@ export function HorillaSidebar({
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             )
           : cn(
-              "absolute inset-y-0 left-0 z-40 overflow-hidden",
+              "absolute inset-y-0 left-0 z-40",
               collapsed ? "w-[68px]" : "w-[240px]",
               peek && "shadow-2xl shadow-black/40"
             )

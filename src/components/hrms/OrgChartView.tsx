@@ -14,7 +14,7 @@ import {
 import {
   Building2, Briefcase, ChevronDown, ChevronRight, Users,
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
-  Maximize2, Minimize2, UserPlus, AlertTriangle,
+  Maximize2, Minimize2, UserPlus, AlertTriangle, UserCog,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
@@ -137,6 +137,18 @@ function OrgChartNode({
               : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
       >
+        {/* Remap reporting manager */}
+        <button
+          type="button"
+          title="Remap reporting manager"
+          aria-label={`Remap reporting manager for ${node.name}`}
+          onClick={(e) => { e.stopPropagation(); onAssign?.(node); }}
+          className="absolute top-1 left-1 z-10 h-5 w-5 rounded-full bg-background/80 border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+        >
+          <UserCog className="h-3 w-3" />
+        </button>
+
+
 
         {/* Avatar */}
         <div className="flex justify-center mb-1.5">
@@ -519,8 +531,9 @@ export function OrgChartView() {
 
   const openAssign = useCallback((node: EmpChartNode) => {
     setAssignTarget(node);
-    setAssignManagerId("");
-  }, []);
+    const current = rawWorkInfos.find(w => w.employee_id === node.id)?.reporting_manager_id || "";
+    setAssignManagerId(current);
+  }, [rawWorkInfos]);
 
   const saveManager = async () => {
     if (!assignTarget || !assignManagerId) return;
@@ -813,9 +826,13 @@ export function OrgChartView() {
       <Dialog open={!!assignTarget} onOpenChange={open => { if (!open) setAssignTarget(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Assign reporting manager</DialogTitle>
+            <DialogTitle>{assignTarget?.unassigned ? "Assign reporting manager" : "Remap reporting manager"}</DialogTitle>
             <DialogDescription>
-              {assignTarget ? `${assignTarget.name} is currently outside the reporting chain. Choose who they report to.` : ""}
+              {assignTarget
+                ? assignTarget.unassigned
+                  ? `${assignTarget.name} is currently outside the reporting chain. Choose who they report to.`
+                  : `Choose a new reporting manager for ${assignTarget.name}. Their own reportees stay attached to them.`
+                : ""}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -835,7 +852,7 @@ export function OrgChartView() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignTarget(null)} disabled={saving}>Cancel</Button>
             <Button onClick={saveManager} disabled={!assignManagerId || saving}>
-              {saving ? "Saving…" : "Assign"}
+              {saving ? "Saving…" : assignTarget?.unassigned ? "Assign" : "Remap"}
             </Button>
           </DialogFooter>
         </DialogContent>

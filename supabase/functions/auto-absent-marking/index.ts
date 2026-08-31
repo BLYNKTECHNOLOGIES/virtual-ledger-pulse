@@ -52,10 +52,15 @@ Deno.serve(async (req) => {
     const employeeIds = employees.map((e: any) => e.id);
 
     const holidays = await fetchAllRows((from, to) =>
-      supabase.from("hr_holidays").select("date")
-        .eq("is_active", true).gte("date", firstDate).lte("date", lastDate).range(from, to)
+      supabase.from("hr_holidays").select("date, recurring")
+        .eq("is_active", true).range(from, to)
     );
-    const holidayDates = new Set((holidays || []).map((h: any) => h.date));
+    const holidayDates = new Set(
+      dates.filter((date) => (holidays || []).some((holiday: any) => {
+        if (holiday.date === date) return true;
+        return holiday.recurring === true && holiday.date?.slice(5) === date.slice(5);
+      }))
+    );
 
     const dailyRows = await fetchAllRows((from, to) =>
       supabase

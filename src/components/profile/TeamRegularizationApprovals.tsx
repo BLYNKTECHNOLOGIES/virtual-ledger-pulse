@@ -166,6 +166,8 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
                   </Badge>
                 </div>
 
+                <CurrentAttendanceSnapshot employeeId={r.employee_id} date={r.attendance_date} />
+
                 {actionable && (
                   <>
                     <Textarea

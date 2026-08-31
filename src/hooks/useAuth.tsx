@@ -157,6 +157,17 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
 
       if (!authData?.user) return null;
 
+      // Drop any legacy session left behind by a different user on this
+      // browser so the fresh login is never judged by someone else's clock.
+      try {
+        const stale = localStorage.getItem('userSession');
+        if (stale && JSON.parse(stale)?.user?.id !== authData.user.id) {
+          localStorage.removeItem('userSession');
+        }
+      } catch {
+        localStorage.removeItem('userSession');
+      }
+
       const builtUser = await buildUserFromUserId(authData.user.id, normalizedEmail);
       return builtUser;
     } catch (error: any) {
@@ -209,12 +220,32 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
   };
 
 
+  // The age of the *live* Supabase session, derived from the JWT itself.
+  // Never trust a stale `userSession` timestamp left behind by an earlier
+  // (possibly different) user on this browser — doing so makes a brand-new
+  // login look older than force_logout_at and logs the user straight back out.
+  const supabaseSessionIssuedAt = (supaSession: Session): number => {
+    const expiresAt = (supaSession as any).expires_at as number | undefined;
+    const expiresIn = (supaSession as any).expires_in as number | undefined;
+    if (expiresAt && expiresIn) return (expiresAt - expiresIn) * 1000;
+    return Date.now();
+  };
+
   const applySupabaseSession = async (supaSession: Session): Promise<boolean> => {
     const builtUser = await buildUserFromUserId(supaSession.user.id, supaSession.user.email || '');
     if (!builtUser) return false;
 
     const savedSession = localStorage.getItem('userSession');
-    const sessionTimestamp = savedSession ? JSON.parse(savedSession).timestamp || Date.now() : Date.now();
+    let storedTimestamp = 0;
+    try {
+      const parsed = savedSession ? JSON.parse(savedSession) : null;
+      // Only honour the stored timestamp if it belongs to THIS user.
+      if (parsed?.user?.id === builtUser.id && typeof parsed.timestamp === 'number') {
+        storedTimestamp = parsed.timestamp;
+      }
+    } catch { /* ignore malformed session */ }
+
+    const sessionTimestamp = Math.max(storedTimestamp, supabaseSessionIssuedAt(supaSession));
     const shouldLogout = await checkForceLogout(builtUser.id, sessionTimestamp);
     if (shouldLogout) {
       await clearAllSessions();

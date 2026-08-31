@@ -96,6 +96,8 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
         }
         setSweepCount({ completed: index + 1, total: eligible.length });
         await refetch();
+        // Pace requests so Binance does not rate-limit the next combination.
+        if (index < eligible.length - 1) await new Promise((r) => setTimeout(r, 3000));
       }
       toast({
         title: `Calibrated ${saved} of ${eligible.length} combinations`,

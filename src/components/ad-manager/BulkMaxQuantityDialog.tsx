@@ -33,7 +33,7 @@ type ResultStatus = 'pending' | 'success' | 'error' | 'skipped';
 
 const fmtQty = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: Props) {
+export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onCalibrate }: Props) {
   const { toast } = useToast();
   const updateAd = useUpdateAd();
   const { map, isLoading } = useAdCapacityMap();

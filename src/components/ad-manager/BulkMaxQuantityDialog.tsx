@@ -23,6 +23,7 @@ interface PlanRow {
   current: number;
   remaining: number;
   target: number | null;
+  submittedTotal: number | null;
   cap: number | null;
   available: number | null;
   bound: Bound;
@@ -54,26 +55,27 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
       const available = ad.tradeType === 'SELL' ? balanceOf(ad.asset) : null;
 
       if (cap === null) {
-        return { ad, current, remaining, target: null, cap, available, bound: 'none' as Bound, skipReason: 'No saved maximum quantity for this asset/zone/side' };
+        return { ad, current, remaining, target: null, submittedTotal: null, cap, available, bound: 'none' as Bound, skipReason: 'No saved maximum quantity for this asset/zone/side' };
       }
       let target = cap;
       let bound: Bound = 'cap';
       if (ad.tradeType === 'SELL') {
         if (available === null) {
-          return { ad, current, remaining, target: null, cap, available, bound: 'none' as Bound, skipReason: 'Available balance unavailable — cannot clamp safely' };
+          return { ad, current, remaining, target: null, submittedTotal: null, cap, available, bound: 'none' as Bound, skipReason: 'Available balance unavailable — cannot clamp safely' };
         }
         if (available < cap) { target = available; bound = 'balance'; }
       }
       if (target <= 0) {
-        return { ad, current, remaining, target: null, cap, available, bound, skipReason: 'Target quantity is zero' };
+        return { ad, current, remaining, target: null, submittedTotal: null, cap, available, bound, skipReason: 'Target quantity is zero' };
       }
-      return { ad, current, remaining, target, cap, available, bound };
+      const submittedTotal = Number((current + target - remaining).toFixed(8));
+      return { ad, current, remaining, target, submittedTotal, cap, available, bound };
     });
   }, [ads, map, balances]);
 
-  // An ad needs a push when its *remaining* quantity is below the target — the
-  // total (initAmount) can already equal the cap while the tradable remainder
-  // has been consumed by filled orders. Re-sending the target republishes it.
+  // An ad needs a push when its *remaining* quantity is below the target. The
+  // server converts the desired remainder into Binance's cumulative initAmount
+  // using a fresh detail read, then verifies the resulting surplusAmount.
   const EPS = 0.00000001;
   const needsPush = (p: PlanRow) => p.target !== null && (p.remaining < (p.target as number) - EPS || Math.abs((p.target as number) - p.current) > EPS);
   const actionable = plan.filter(needsPush);
@@ -111,7 +113,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
             fiatUnit: ad.fiatUnit,
             tradeType: ad.tradeType,
             priceType: ad.priceType,
-            initAmount: row.target as number,
+            desiredRemainingAmount: row.target as number,
             minSingleTransAmount: Number(ad.minSingleTransAmount),
             maxSingleTransAmount: Number(ad.maxSingleTransAmount),
             tradeMethods,
@@ -172,7 +174,8 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
                           <span className="text-warning">{p.skipReason}</span>
                         ) : (
                           <>
-                            remaining {fmtQty(p.remaining)} / total {fmtQty(p.current)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
+                            remaining {fmtQty(p.remaining)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
+                            {p.submittedTotal !== null && p.submittedTotal !== p.current ? ` · cumulative total ${fmtQty(p.current)} → ${fmtQty(p.submittedTotal)}` : ''}
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`

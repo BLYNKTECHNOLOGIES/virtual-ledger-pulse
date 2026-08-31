@@ -639,6 +639,8 @@ async function processAsset(
   let newRatio: number | null = null;
   let wasCapped = false;
   let wasRateLimited = false;
+  let uncappedTarget: number | null = null;
+  let blockingSafetyLimit: string | null = null;
 
   let adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
 
@@ -717,8 +719,17 @@ async function processAsset(
       }
     }
 
-    if (maxCeiling && newPrice !== null && newPrice > maxCeiling) { newPrice = maxCeiling; wasCapped = true; }
-    if (minFloor && newPrice !== null && newPrice < minFloor) { newPrice = minFloor; wasCapped = true; }
+    uncappedTarget = newPrice;
+    if (maxCeiling && newPrice !== null && newPrice > maxCeiling) {
+      blockingSafetyLimit = `maximum price ₹${Number(maxCeiling).toFixed(2)}`;
+      newPrice = maxCeiling;
+      wasCapped = true;
+    }
+    if (minFloor && newPrice !== null && newPrice < minFloor) {
+      blockingSafetyLimit = `minimum price ₹${Number(minFloor).toFixed(2)}`;
+      newPrice = minFloor;
+      wasCapped = true;
+    }
 
   } else {
     // Index resolution order matters. The competitor price is LIVE (search payload),
@@ -830,8 +841,57 @@ async function processAsset(
       }
     }
 
-    if (maxRatioCeiling && newRatio !== null && newRatio > maxRatioCeiling) { newRatio = maxRatioCeiling; wasCapped = true; }
-    if (minRatioFloor && newRatio !== null && newRatio < minRatioFloor) { newRatio = minRatioFloor; wasCapped = true; }
+    uncappedTarget = newRatio;
+    if (maxRatioCeiling && newRatio !== null && newRatio > maxRatioCeiling) {
+      blockingSafetyLimit = `maximum ratio ${Number(maxRatioCeiling).toFixed(2)}%`;
+      newRatio = maxRatioCeiling;
+      wasCapped = true;
+    }
+    if (minRatioFloor && newRatio !== null && newRatio < minRatioFloor) {
+      blockingSafetyLimit = `minimum ratio ${Number(minRatioFloor).toFixed(2)}%`;
+      newRatio = minRatioFloor;
+      wasCapped = true;
+    }
+  }
+
+  // A safety limit must remain absolute. If it prevents the requested competitive
+  // target, do not report a capped write as "applied": that leaves our ad behind the
+  // selected merchant while making the automation look healthy. Keep the current ad
+  // unchanged and surface an operator-visible alert with the exact limiting value.
+  if (blockingSafetyLimit && uncappedTarget !== null) {
+    const requestedTarget = rule.price_type === "FIXED"
+      ? `₹${uncappedTarget.toFixed(2)}`
+      : `${uncappedTarget.toFixed(2)}%`;
+    const message = `${asset}: ${blockingSafetyLimit} blocked the required ${requestedTarget} target needed to counter ${matchedMerchant} at ₹${competitorPrice}. The ad was not changed.`;
+    console.warn(`[safety-limit] ${message}`);
+    await insertPricingAlert(supabase, rule, "safety_limit_blocked", message);
+    await supabase.from("ad_pricing_logs").insert({
+      rule_id: rule.id,
+      asset,
+      status: "skipped",
+      skipped_reason: "safety_limit_blocked",
+      competitor_merchant: matchedMerchant,
+      competitor_zone: zone,
+      competitor_badges: matchedBadges,
+      competitor_identity: matchedIdentity,
+      competitor_vip_level: matchedVipLevel,
+      competitor_price: competitorPrice,
+      market_reference_price: marketReferencePrice,
+      deviation_from_market_pct: deviationPct,
+      calculated_price: rule.price_type === "FIXED" ? uncappedTarget : null,
+      calculated_ratio: rule.price_type === "FLOATING" ? uncappedTarget : null,
+      was_capped: true,
+      error_message: message,
+    });
+    return {
+      asset,
+      status: "skipped",
+      reason: "safety_limit_blocked",
+      competitor: matchedMerchant,
+      competitorPrice,
+      requestedTarget,
+      blockingSafetyLimit,
+    };
   }
 
   // AP-MISS-03: Anomaly alert if price changed >3% from last applied
@@ -1337,13 +1397,18 @@ async function insertPricingAlert(supabase: any, rule: any, alertType: string, m
 
     if (recentAlerts && recentAlerts.length > 0) return;
 
-    await supabase.from("terminal_notifications").insert({
+    const { error: alertError } = await supabase.from("terminal_notifications").insert({
       notification_type: "pricing_anomaly",
       title: `Pricing Alert: ${alertType.replace(/_/g, " ")}`,
       message: `[${rule.id}] ${message}`,
-      severity: alertType === "auto_paused" ? "critical" : "warning",
       is_active: true,
+      metadata: {
+        severity: alertType === "auto_paused" ? "critical" : "warning",
+        alert_type: alertType,
+        rule_id: rule.id,
+      },
     });
+    if (alertError) throw alertError;
   } catch (e) {
     console.error("[alert] Failed to insert pricing alert:", e);
   }

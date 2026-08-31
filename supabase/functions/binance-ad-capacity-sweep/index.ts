@@ -28,7 +28,7 @@ const MAX_ESCALATIONS = 12;
 const MAX_BISECTIONS = 14;
 // Edge functions have a hard wall-clock limit; stop cleanly before it and let
 // the caller resume with another invocation.
-const DEADLINE_MS = 100_000;
+const DEADLINE_MS = 50_000;
 
 function isQuantityCapError(code: string, message: string): boolean {
   const m = `${code} ${message}`.toLowerCase();

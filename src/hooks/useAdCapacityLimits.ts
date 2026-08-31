@@ -114,20 +114,11 @@ export function useRunCapacitySweep() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { exchange_account_id?: string | null; force?: boolean; asset?: string; zone?: AdZone; tradeType?: 'BUY' | 'SELL' } = {}): Promise<SweepResult> => {
-      const merged: SweepResult = { success: true, combinations: 0, deferred: 0, results: [] };
-      for (let round = 0; round < 10; round++) {
-        const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args });
-        if (error) throw new Error(error.message);
-        const res = data as SweepResult;
-        if (res && res.success === false && res.error) throw new Error(res.error);
-        const done = (res.results || []).filter((r) => r.skipped !== 'deferred to next run (time budget)');
-        merged.results!.push(...done);
-        merged.combinations = merged.results!.length;
-        merged.deferred = res.deferred || 0;
-        if (!res.deferred) break;
-        qc.invalidateQueries({ queryKey: ['ad_capacity_limits'] });
-      }
-      return merged;
+      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args });
+      if (error) throw new Error(error.message);
+      const res = data as SweepResult;
+      if (res && res.success === false && res.error) throw new Error(res.error);
+      return res;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ad_capacity_limits'] }); },
   });

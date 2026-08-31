@@ -84,6 +84,42 @@ export function useRunCapacityProbe() {
   });
 }
 
+export interface SweepResult {
+  success: boolean;
+  combinations?: number;
+  results?: Array<{
+    key: string;
+    asset?: string;
+    maxAccepted?: number | null;
+    minRejected?: number | null;
+    saved?: boolean;
+    abortReason?: string | null;
+    restored?: boolean;
+    restoreError?: string | null;
+    skipped?: string;
+    error?: string;
+  }>;
+  error?: string;
+}
+
+/**
+ * Account-wide auto-calibration: finds a carrier ad for every asset/zone/side we
+ * run, escalates then bisects the quantity ceiling, restores the carrier and
+ * stores the discovered maximum.
+ */
+export function useRunCapacitySweep() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { exchange_account_id?: string | null; force?: boolean; asset?: string; zone?: AdZone; tradeType?: 'BUY' | 'SELL' } = {}): Promise<SweepResult> => {
+      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args });
+      if (error) throw new Error(error.message);
+      if (data && data.success === false && data.error) throw new Error(data.error);
+      return data as SweepResult;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['ad_capacity_limits'] }); },
+  });
+}
+
 /** Manual override / learned-from-rejection write. */
 export function useUpsertCapacityLimit() {
   const qc = useQueryClient();

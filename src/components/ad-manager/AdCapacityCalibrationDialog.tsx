@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, Gauge, AlertTriangle, RefreshCw } from 'lucide-react';
 import { BinanceAd } from '@/hooks/useBinanceAds';
 import { adZone, AdZone, ZONE_SHORT } from '@/lib/adZone';
-import { useAdCapacityMap, capacityKey, useRunCapacityProbe } from '@/hooks/useAdCapacityLimits';
+import { useAdCapacityMap, capacityKey, useRunCapacityProbe, useRunCapacitySweep } from '@/hooks/useAdCapacityLimits';
 import { useToast } from '@/hooks/use-toast';
 
 interface Props {
@@ -35,6 +35,27 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
   const probe = useRunCapacityProbe();
   const [upperBounds, setUpperBounds] = useState<Record<string, string>>({});
   const [running, setRunning] = useState<string | null>(null);
+  const sweep = useRunCapacitySweep();
+  const [sweeping, setSweeping] = useState(false);
+
+  const runSweep = async () => {
+    setSweeping(true);
+    try {
+      const res = await sweep.mutateAsync({ exchange_account_id: combos[0]?.accountId || undefined });
+      const saved = (res.results || []).filter((r) => r.saved).length;
+      const failed = (res.results || []).filter((r) => r.error || r.abortReason);
+      toast({
+        title: `Calibrated ${saved} of ${res.combinations ?? 0} combinations`,
+        description: failed.length ? `${failed.length} could not be established: ${failed.map((f) => f.key).join(', ')}` : 'Carrier ad quantities restored.',
+        variant: failed.length ? 'destructive' : undefined,
+      });
+      refetch();
+    } catch (e: any) {
+      toast({ title: 'Auto-calibration failed', description: e?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setSweeping(false);
+    }
+  };
 
   const combos: Combo[] = useMemo(() => {
     const byKey = new Map<string, Combo>();
@@ -157,7 +178,11 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
           </ScrollArea>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="secondary" onClick={runSweep} disabled={sweeping}>
+            {sweeping ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gauge className="h-4 w-4 mr-2" />}
+            {sweeping ? 'Calibrating…' : 'Auto-calibrate all'}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>

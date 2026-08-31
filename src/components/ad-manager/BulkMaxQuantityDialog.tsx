@@ -3,10 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2, Gauge } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2 } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { adZone, ZONE_SHORT } from '@/lib/adZone';
-import { useAdCapacityMap, capacityKey, useUpsertCapacityLimit } from '@/hooks/useAdCapacityLimits';
+import { useAdCapacityMap, capacityKey } from '@/hooks/useAdCapacityLimits';
 import { useBinanceBalances } from '@/hooks/useBinanceAssets';
 import { useToast } from '@/hooks/use-toast';
 
@@ -15,8 +15,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   ads: BinanceAd[];
   onComplete: () => void;
-  /** Opens the capacity calibration dialog. */
-  onCalibrate?: () => void;
 }
 
 type Bound = 'cap' | 'balance' | 'none';
@@ -33,12 +31,11 @@ type ResultStatus = 'pending' | 'success' | 'error' | 'skipped';
 
 const fmtQty = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onCalibrate }: Props) {
+export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: Props) {
   const { toast } = useToast();
   const updateAd = useUpdateAd();
   const { map, isLoading } = useAdCapacityMap();
   const { data: balances } = useBinanceBalances();
-  const upsertCap = useUpsertCapacityLimit();
   const [step, setStep] = useState<'preview' | 'executing' | 'done'>('preview');
   const [results, setResults] = useState<Record<string, { status: ResultStatus; message?: string }>>({});
 
@@ -54,7 +51,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onC
       const available = ad.tradeType === 'SELL' ? balanceOf(ad.asset) : null;
 
       if (cap === null) {
-        return { ad, current, target: null, cap, available, bound: 'none' as Bound, skipReason: 'Not calibrated — run Calibrate limits for this asset/zone/side' };
+        return { ad, current, target: null, cap, available, bound: 'none' as Bound, skipReason: 'No saved maximum quantity for this asset/zone/side' };
       }
       let target = cap;
       let bound: Bound = 'cap';
@@ -117,23 +114,6 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onC
       } catch (e: any) {
         const message = e?.message || 'Failed';
         setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'error', message } }));
-        // Binance rejected a value our table said was fine → lower the ceiling
-        // to just under the rejected value and flag it for re-calibration.
-        if (row.bound === 'cap' && row.cap !== null && ad._exchangeAccountId) {
-          try {
-            await upsertCap.mutateAsync({
-              exchange_account_id: ad._exchangeAccountId,
-              asset: ad.asset,
-              zone: adZone(ad),
-              trade_type: ad.tradeType as 'BUY' | 'SELL',
-              max_accepted_qty: Math.max(0, Math.floor((row.target as number) * 0.99)),
-              min_rejected_qty: row.target as number,
-              source: 'learned',
-              binance_error_message: String(message).slice(0, 500),
-              needs_recalibration: true,
-            });
-          } catch { /* surfaced through the row error already */ }
-        }
       }
     }
     setStep('done');
@@ -187,7 +167,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onC
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`
-                              : `calibrated ceiling${p.available !== null ? ` · balance ${fmtQty(p.available)}` : ''}`}
+                              : `saved maximum${p.available !== null ? ` · balance ${fmtQty(p.available)}` : ''}`}
                           </>
                         )}
                         {res?.message && res.status === 'error' && <div className="text-destructive mt-1">{res.message}</div>}
@@ -216,16 +196,6 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onC
         <DialogFooter className="gap-2 sm:justify-between">
           {step === 'preview' && (
             <>
-              {onCalibrate && (
-                <Button
-                  variant="secondary"
-                  onClick={() => { handleClose(false); onCalibrate(); }}
-                  className="sm:mr-auto"
-                >
-                  <Gauge className="h-4 w-4 mr-2" />
-                  Calibrate limits
-                </Button>
-              )}
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button onClick={execute} disabled={actionable.length === 0}>
                 Apply to {actionable.length} ad{actionable.length !== 1 ? 's' : ''}

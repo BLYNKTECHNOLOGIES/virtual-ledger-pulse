@@ -1685,15 +1685,10 @@ export type Database = {
       binance_ad_capacity_limits: {
         Row: {
           asset: string
-          binance_error_code: string | null
-          binance_error_message: string | null
           created_at: string
           exchange_account_id: string
           id: string
-          last_probed_at: string | null
           max_accepted_qty: number | null
-          min_rejected_qty: number | null
-          needs_recalibration: boolean
           source: string
           trade_type: string
           updated_at: string
@@ -1702,15 +1697,10 @@ export type Database = {
         }
         Insert: {
           asset: string
-          binance_error_code?: string | null
-          binance_error_message?: string | null
           created_at?: string
           exchange_account_id: string
           id?: string
-          last_probed_at?: string | null
           max_accepted_qty?: number | null
-          min_rejected_qty?: number | null
-          needs_recalibration?: boolean
           source?: string
           trade_type: string
           updated_at?: string
@@ -1719,67 +1709,14 @@ export type Database = {
         }
         Update: {
           asset?: string
-          binance_error_code?: string | null
-          binance_error_message?: string | null
           created_at?: string
           exchange_account_id?: string
           id?: string
-          last_probed_at?: string | null
           max_accepted_qty?: number | null
-          min_rejected_qty?: number | null
-          needs_recalibration?: boolean
           source?: string
           trade_type?: string
           updated_at?: string
           updated_by?: string | null
-          zone?: string
-        }
-        Relationships: []
-      }
-      binance_ad_capacity_probe_log: {
-        Row: {
-          accepted: boolean
-          asset: string
-          attempted_qty: number
-          carrier_adv_no: string | null
-          created_at: string
-          created_by: string | null
-          exchange_account_id: string
-          id: string
-          response_code: string | null
-          response_message: string | null
-          run_id: string | null
-          trade_type: string
-          zone: string
-        }
-        Insert: {
-          accepted: boolean
-          asset: string
-          attempted_qty: number
-          carrier_adv_no?: string | null
-          created_at?: string
-          created_by?: string | null
-          exchange_account_id: string
-          id?: string
-          response_code?: string | null
-          response_message?: string | null
-          run_id?: string | null
-          trade_type: string
-          zone: string
-        }
-        Update: {
-          accepted?: boolean
-          asset?: string
-          attempted_qty?: number
-          carrier_adv_no?: string | null
-          created_at?: string
-          created_by?: string | null
-          exchange_account_id?: string
-          id?: string
-          response_code?: string | null
-          response_message?: string | null
-          run_id?: string | null
-          trade_type?: string
           zone?: string
         }
         Relationships: []

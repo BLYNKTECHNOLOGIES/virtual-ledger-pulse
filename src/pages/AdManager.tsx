@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Megaphone, RefreshCw, ArrowDownUp, Link2, Layers, Gauge } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, ArrowDownUp, Link2, Layers } from 'lucide-react';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { AdManagerFilters } from '@/components/ad-manager/AdManagerFilters';
 import { AdSummaryStrip } from '@/components/ad-manager/AdSummaryStrip';
@@ -26,7 +26,6 @@ import { BulkHybridAdjustDialog } from '@/components/ad-manager/BulkHybridAdjust
 import { BulkStatusDialog } from '@/components/ad-manager/BulkStatusDialog';
 import { BulkRiskGuardDialog } from '@/components/ad-manager/BulkRiskGuardDialog';
 import { BulkMaxQuantityDialog } from '@/components/ad-manager/BulkMaxQuantityDialog';
-import { AdCapacityCalibrationDialog } from '@/components/ad-manager/AdCapacityCalibrationDialog';
 import { AdCommandStrip } from '@/components/ad-manager/AdCommandStrip';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -98,7 +97,6 @@ export default function AdManager() {
   const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
   const [bulkRiskGuardOpen, setBulkRiskGuardOpen] = useState(false);
   const [bulkMaxQtyOpen, setBulkMaxQtyOpen] = useState(false);
-  const [capacityCalOpen, setCapacityCalOpen] = useState(false);
   const [bulkTargetStatus, setBulkTargetStatus] = useState<number>(BINANCE_AD_STATUS.ONLINE);
 
   // Sort + auto-refresh + view + density + status-chip prefs (persisted in localStorage).
@@ -285,16 +283,6 @@ export default function AdManager() {
                   title="Sync ads from Binance"
                 >
                   <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 px-2 text-xs text-foreground border-border"
-                  onClick={() => setCapacityCalOpen(true)}
-                  title="Ad quantity capacity (calibrate max quantity)"
-                >
-                  <Gauge className="h-4 w-4 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Calibrate</span>
                 </Button>
                 <Button
                   variant="ghost"
@@ -516,8 +504,7 @@ export default function AdManager() {
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkPriceLadderDialog open={bulkLadderOpen} onOpenChange={setBulkLadderOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
-      <BulkMaxQuantityDialog open={bulkMaxQtyOpen} onOpenChange={setBulkMaxQtyOpen} ads={selectedAds} onComplete={handleBulkComplete} onCalibrate={() => setCapacityCalOpen(true)} />
-      <AdCapacityCalibrationDialog open={capacityCalOpen} onOpenChange={setCapacityCalOpen} ads={displayAds} />
+      <BulkMaxQuantityDialog open={bulkMaxQtyOpen} onOpenChange={setBulkMaxQtyOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkRiskGuardDialog open={bulkRiskGuardOpen} onOpenChange={setBulkRiskGuardOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />
     </div>

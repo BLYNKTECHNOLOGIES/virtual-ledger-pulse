@@ -281,31 +281,17 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
       }
 
       // ═══════════════════════════════════════════════════
-      // PATH B: Fallback to legacy localStorage session
+      // PATH B: No live Supabase session.
+      // A legacy localStorage entry is NOT proof of a session — it can be
+      // months old (e.g. left behind before a password reset). Never judge it
+      // against force_logout_at and never claim the account was removed:
+      // simply drop it and let the user sign in again.
       // ═══════════════════════════════════════════════════
-      const savedSession = localStorage.getItem('userSession');
-      
-      if (savedSession) {
-        const sessionData = JSON.parse(savedSession);
-        const now = Date.now();
-        
-        if (sessionData.timestamp && (now - sessionData.timestamp) < sessionData.expiresIn) {
-          const shouldLogout = await checkForceLogout(sessionData.user?.id, sessionData.timestamp);
-          if (shouldLogout) {
-            await clearAllSessions();
-            toast({
-              title: "Session Expired",
-              description: "Your account has been updated or removed. Please log in again.",
-              variant: "destructive",
-            });
-            setIsLoading(false);
-            return;
-          }
-          setUser(sessionData.user);
-          setIsLoading(false);
-          return;
-        }
+      if (localStorage.getItem('userSession')) {
+        localStorage.removeItem('userSession');
+        localStorage.removeItem('isLoggedIn');
       }
+
     } catch (error) {
       console.error('Session restoration error:', error);
       localStorage.removeItem('userSession');

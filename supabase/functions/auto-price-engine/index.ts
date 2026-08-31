@@ -649,8 +649,44 @@ async function processAsset(
   }
 
   // 6. CALCULATE PRICE
-  const offsetAmount = config.offset_amount ?? rule.offset_amount ?? 0;
-  const offsetPct = config.offset_pct ?? rule.offset_pct ?? 0;
+  // A per-asset offset of 0 is NOT a deliberate "match the competitor" instruction — it is
+  // an asset that was added to the rule without inheriting the rule's offset. Fall back to
+  // the rule-level value so a newly added asset behaves like the ones already configured.
+  const offsetAmount = (config.offset_amount && config.offset_amount > 0)
+    ? config.offset_amount
+    : (rule.offset_amount ?? 0);
+  const offsetPct = (config.offset_pct && config.offset_pct > 0)
+    ? config.offset_pct
+    : (rule.offset_pct ?? 0);
+
+  // With no offset at all, an OVERCUT/UNDERCUT rule would silently write the competitor's
+  // exact price and report it as "applied". Refuse instead of lying about the outcome.
+  const effectiveOffset = rule.price_type === "FIXED" ? offsetAmount : offsetPct;
+  if (!effectiveOffset || effectiveOffset <= 0) {
+    console.log(`[offset-guard] rule "${rule.name}" ${asset}: no ${rule.price_type === "FIXED" ? "amount" : "percentage"} offset configured — skipping to avoid matching the competitor's price`);
+    for (const adNo of adNumbers) {
+      await supabase.from("ad_pricing_logs").insert({
+        rule_id: rule.id,
+        ad_number: adNo,
+        asset,
+        status: "skipped",
+        skipped_reason: "offset_not_configured",
+        ad_zone: zone,
+        competitor_merchant: matchedMerchant,
+        competitor_zone: zone,
+        competitor_price: competitorPrice,
+      });
+    }
+    await insertPricingAlert(
+      supabase,
+      rule,
+      "offset_not_configured",
+      `${asset}: no ${rule.price_type === "FIXED" ? "₹ amount" : "%"} offset is set on rule "${rule.name}", so pricing would have matched the competitor exactly. ${asset} was skipped — set the offset in the rule.`,
+    );
+
+    return { asset, status: "skipped", reason: "offset_not_configured" };
+  }
+
   const maxCeiling = config.max_ceiling ?? rule.max_ceiling;
   const minFloor = config.min_floor ?? rule.min_floor;
   const maxRatioCeiling = config.max_ratio_ceiling ?? rule.max_ratio_ceiling;

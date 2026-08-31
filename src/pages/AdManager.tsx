@@ -427,7 +427,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
-                  onHistory={handleHistory}
+                  onHistory={isSuperAdmin ? handleHistory : undefined}
                   onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
@@ -440,7 +440,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
-                  onHistory={handleHistory}
+                  onHistory={isSuperAdmin ? handleHistory : undefined}
                   onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
@@ -454,7 +454,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
-                  onHistory={handleHistory}
+                  onHistory={isSuperAdmin ? handleHistory : undefined}
                   onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}

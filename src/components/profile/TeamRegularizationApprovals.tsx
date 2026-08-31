@@ -15,6 +15,7 @@ import { sendRegularizationEmail, regCategoryLabel } from '@/utils/regularizatio
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 import { cn } from '@/lib/utils';
 import { useDirectReports } from '@/hooks/useDirectReports';
+import { CurrentAttendanceSnapshot } from '@/components/hrms/CurrentAttendanceSnapshot';
 
 
 interface Props {

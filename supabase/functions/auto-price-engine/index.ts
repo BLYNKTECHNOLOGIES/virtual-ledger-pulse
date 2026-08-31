@@ -53,7 +53,7 @@ serve(async (req) => {
 });
 
 async function runCycle(supabase: any, singleRuleId: string | null): Promise<Response> {
-  {
+  try {
 
     // ===== AP-ARCH-01: CIRCUIT BREAKER CHECK =====
     let { data: engineState } = await supabase
@@ -242,7 +242,7 @@ async function runCycle(supabase: any, singleRuleId: string | null): Promise<Res
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}
 
 function getAllAdNumbers(rule: any): string[] {
   const assetConfig: Record<string, any> = rule.asset_config || {};

@@ -155,9 +155,10 @@ function AdCard({
           </span>
         </div>
         <div className="flex items-center gap-0.5">
+          <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
           <QuickEditPopover ad={ad}>
-            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Quick edit" title="Quick Edit">
-              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Quick edit price and limits" title="Quick edit — price & limits">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           </QuickEditPopover>
           <DropdownMenu>

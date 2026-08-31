@@ -129,7 +129,7 @@ serve(async (req) => {
       ...(m.payId ? { payId: m.payId } : {}),
     }));
 
-    const attempt = async (qty: number) => {
+    const attemptOnce = async (qty: number) => {
       const payload: Record<string, unknown> = {
         advNo: ad.advNo,
         asset: ad.asset,
@@ -168,6 +168,16 @@ serve(async (req) => {
         created_by: userId,
       });
       return { accepted, code, message };
+    };
+
+    /** Rate limits are transient: wait them out and retry the same value. */
+    const attempt = async (qty: number) => {
+      let r = await attemptOnce(qty);
+      for (let i = 0; i < RATE_LIMIT_RETRIES && !r.accepted && isRateLimitError(r.code, r.message); i++) {
+        await sleep(RATE_LIMIT_BACKOFF_MS[Math.min(i, RATE_LIMIT_BACKOFF_MS.length - 1)]);
+        r = await attemptOnce(qty);
+      }
+      return r;
     };
 
     // 2. Binary search between the ad's current quantity and the upper bound.

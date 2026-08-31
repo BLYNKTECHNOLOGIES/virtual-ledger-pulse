@@ -11,12 +11,7 @@ export interface AdCapacityLimit {
   zone: AdZone;
   trade_type: 'BUY' | 'SELL';
   max_accepted_qty: number | null;
-  min_rejected_qty: number | null;
   source: CapacitySource;
-  binance_error_code: string | null;
-  binance_error_message: string | null;
-  needs_recalibration: boolean;
-  last_probed_at: string | null;
   updated_at: string;
 }
 
@@ -33,7 +28,7 @@ export function useAdCapacityLimits() {
         .select('*')
         .order('asset', { ascending: true });
       if (error) throw error;
-      return (data || []).map((r: any) => ({ ...r, max_accepted_qty: r.max_accepted_qty === null ? null : Number(r.max_accepted_qty), min_rejected_qty: r.min_rejected_qty === null ? null : Number(r.min_rejected_qty) })) as AdCapacityLimit[];
+      return (data || []).map((r: any) => ({ ...r, max_accepted_qty: r.max_accepted_qty === null ? null : Number(r.max_accepted_qty) })) as AdCapacityLimit[];
     },
     staleTime: 60_000,
   });
@@ -59,10 +54,7 @@ export function useUpsertCapacityLimit() {
       zone: AdZone;
       trade_type: 'BUY' | 'SELL';
       max_accepted_qty: number;
-      min_rejected_qty?: number | null;
-      source: CapacitySource;
-      binance_error_message?: string | null;
-      needs_recalibration?: boolean;
+      source?: CapacitySource;
     }) => {
       const { data: auth } = await supabase.auth.getUser();
       const { error } = await supabase

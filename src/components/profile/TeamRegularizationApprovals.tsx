@@ -31,7 +31,7 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
   const qc = useQueryClient();
   const [remarks, setRemarks] = useState<Record<string, string>>({});
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, isError, error } = useQuery({
     queryKey: ['ess_team_reg_approvals', employeeId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
@@ -81,6 +81,16 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to update request'),
   });
+
+  if (isError) {
+    return (
+      <Card className="border-destructive/40">
+        <CardContent className="py-4 text-sm text-destructive">
+          Attendance approvals could not be loaded. {error instanceof Error ? error.message : 'Please refresh and try again.'}
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!isLoading && requests.length === 0) return null;
 

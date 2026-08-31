@@ -211,7 +211,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-medium text-sm">{rule.name}</span>
+                          <span className="font-medium text-sm break-words min-w-0">{rule.name}</span>
                           <Badge variant={rule.trade_type === 'BUY' ? 'default' : 'secondary'} className="text-[10px]">
                             {rule.trade_type}
                           </Badge>

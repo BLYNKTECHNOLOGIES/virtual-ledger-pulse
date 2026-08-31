@@ -23,7 +23,10 @@ const corsHeaders = {
 };
 
 const OK = "000000";
-const THROTTLE_MS = 600;
+const THROTTLE_MS = 1500;
+// Binance rate limits are transient — wait them out instead of aborting.
+const RATE_LIMIT_RETRIES = 4;
+const RATE_LIMIT_BACKOFF_MS = [4000, 8000, 16000, 24000];
 const MAX_ESCALATIONS = 12;
 const MAX_BISECTIONS = 14;
 // Edge functions have a hard wall-clock limit; stop cleanly before it and let

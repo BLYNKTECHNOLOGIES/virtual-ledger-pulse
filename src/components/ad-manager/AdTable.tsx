@@ -202,17 +202,29 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
-                      : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
-                      : 'bg-muted text-muted-foreground border-border'
-                    }
-                  >
-                    {getAdStatusLabel(ad.advStatus)}
-                  </Badge>
+                  <div className="flex flex-col items-start gap-1">
+                    <Badge
+                      variant="outline"
+                      className={
+                        ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
+                        : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
+                        : 'bg-muted text-muted-foreground border-border'
+                      }
+                    >
+                      {getAdStatusLabel(ad.advStatus)}
+                    </Badge>
+                    {getAdHiddenReason(ad) && (
+                      <Badge
+                        variant="outline"
+                        title={getAdHiddenReason(ad)!}
+                        className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
+                      >
+                        Not visible
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
+
                 <TableCell className="text-xs text-muted-foreground">
                   {ad.updateTime ? (
                     <div className="flex flex-col">

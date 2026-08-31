@@ -157,7 +157,11 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
           </ScrollArea>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="secondary" onClick={runSweep} disabled={sweeping}>
+            {sweeping ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gauge className="h-4 w-4 mr-2" />}
+            {sweeping ? 'Calibrating…' : 'Auto-calibrate all'}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>

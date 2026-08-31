@@ -466,7 +466,14 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
       const savedSession = localStorage.getItem('userSession');
       if (!savedSession) return;
       const sessionData = JSON.parse(savedSession);
-      const shouldLogout = await checkForceLogout(user.id, sessionData.timestamp);
+      // Judge against the LIVE Supabase token, never a stale stored timestamp.
+      const { data: live } = await supabase.auth.getSession();
+      if (!live.session?.user) return;
+      const sessionTimestamp = Math.max(
+        typeof sessionData.timestamp === 'number' ? sessionData.timestamp : 0,
+        supabaseSessionIssuedAt(live.session),
+      );
+      const shouldLogout = await checkForceLogout(user.id, sessionTimestamp);
       if (shouldLogout) {
         setUser(null);
         await clearAllSessions();

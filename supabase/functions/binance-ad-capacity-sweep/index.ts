@@ -324,8 +324,9 @@ serve(async (req) => {
       results,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    console.error("[capacity-sweep] failed:", e?.message || String(e), e?.stack || "");
     return new Response(JSON.stringify({ success: false, error: e?.message || String(e) }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

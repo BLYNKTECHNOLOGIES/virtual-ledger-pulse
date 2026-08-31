@@ -164,6 +164,22 @@ serve(async (req) => {
         }
       }
 
+      // Overlap guard: claim the rule atomically. If another invocation is still
+      // walking this rule's assets, skip instead of running a second interleaved
+      // pass (that is what produced duplicated/shuffled asset logs in one window).
+      const staleLockCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      const { data: claimed } = await supabase
+        .from("ad_pricing_rules")
+        .update({ run_lock_at: new Date().toISOString() })
+        .eq("id", rule.id)
+        .or(`run_lock_at.is.null,run_lock_at.lt.${staleLockCutoff}`)
+        .select("id");
+
+      if (!claimed || claimed.length === 0) {
+        console.log(`[lock] Rule ${rule.id} skipped: already running`);
+        results.push({ ruleId: rule.id, status: "skipped", reason: "already_running" });
+        continue;
+      }
 
       try {
         const logEntries = await processRule(rule, excludedSet, supabase);
@@ -178,8 +194,11 @@ serve(async (req) => {
         }).eq("id", rule.id);
         results.push({ ruleId: rule.id, status: "error", error: (err as Error).message });
         cycleErrorCount++;
+      } finally {
+        await supabase.from("ad_pricing_rules").update({ run_lock_at: null }).eq("id", rule.id);
       }
     }
+
 
     // ===== CIRCUIT BREAKER STATE TRANSITION =====
     await updateCircuitBreaker(supabase, engineState, cycleSuccessCount, cycleErrorCount);

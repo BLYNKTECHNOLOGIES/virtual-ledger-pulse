@@ -1747,12 +1747,8 @@ async function fetchAdMeta(adNo: string): Promise<{ zone: string | null; advStat
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
   try {
-    const resp = await fetch(binanceAdsUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
-      body: JSON.stringify({ action: "getAdDetail", adsNo: adNo }),
-    });
-    const result = await resp.json();
+    const result = await callBinanceAds(binanceAdsUrl, internalAuthKey, { action: "getAdDetail", adsNo: adNo });
+
     const adData = result?.data?.data || result?.data;
     const detail = adData?.adDetailResp ?? adData;
     const classify = adData?.classify ?? detail?.classify;

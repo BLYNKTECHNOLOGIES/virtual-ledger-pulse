@@ -23,7 +23,10 @@ const corsHeaders = {
 };
 
 const OK = "000000";
-const THROTTLE_MS = 600;
+const THROTTLE_MS = 1500;
+// Binance rate limits are transient — wait them out instead of aborting.
+const RATE_LIMIT_RETRIES = 4;
+const RATE_LIMIT_BACKOFF_MS = [4000, 8000, 16000, 24000];
 const MAX_ESCALATIONS = 12;
 const MAX_BISECTIONS = 14;
 // Edge functions have a hard wall-clock limit; stop cleanly before it and let
@@ -50,12 +53,15 @@ function isBalanceError(code: string, message: string): boolean {
   return m.includes("insufficient") || m.includes("balance") || m.includes("not enough");
 }
 
+function isRateLimitError(code: string, message: string): boolean {
+  const m = `${code} ${message}`.toLowerCase();
+  return m.includes("too many request") || m.includes("rate limit") || m.includes("frequen") || m.includes("429");
+}
+
 function isHardAbortError(code: string, message: string): boolean {
   const m = `${code} ${message}`.toLowerCase();
   return (
-    m.includes("too many request") ||
-    m.includes("rate limit") ||
-    m.includes("frequen") ||
+    isRateLimitError(code, message) ||
     m.includes("signature") ||
     m.includes("api-key") ||
     m.includes("unauthor") ||
@@ -218,7 +224,7 @@ serve(async (req) => {
         ...(m.payId ? { payId: m.payId } : {}),
       }));
 
-      const attempt = async (qty: number) => {
+      const attemptOnce = async (qty: number) => {
         const payload: Record<string, unknown> = {
           advNo: ad.advNo,
           asset: ad.asset,
@@ -254,8 +260,18 @@ serve(async (req) => {
           run_id: runId,
           created_by: userId,
         });
-        await sleep(THROTTLE_MS);
         return { accepted, code, message };
+      };
+
+      /** Rate limits are transient: wait them out and retry the same value. */
+      const attempt = async (qty: number) => {
+        let r = await attemptOnce(qty);
+        for (let i = 0; i < RATE_LIMIT_RETRIES && !r.accepted && isRateLimitError(r.code, r.message); i++) {
+          await sleep(RATE_LIMIT_BACKOFF_MS[Math.min(i, RATE_LIMIT_BACKOFF_MS.length - 1)]);
+          r = await attemptOnce(qty);
+        }
+        await sleep(THROTTLE_MS);
+        return r;
       };
 
       let maxAccepted: number | null = null;

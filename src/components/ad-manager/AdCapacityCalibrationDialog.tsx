@@ -96,6 +96,8 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
         }
         setSweepCount({ completed: index + 1, total: eligible.length });
         await refetch();
+        // Pace requests so Binance does not rate-limit the next combination.
+        if (index < eligible.length - 1) await new Promise((r) => setTimeout(r, 3000));
       }
       toast({
         title: `Calibrated ${saved} of ${eligible.length} combinations`,
@@ -165,13 +167,17 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
                         <Badge variant="outline" className="text-[10px]">{ZONE_SHORT[combo.zone]}</Badge>
                         {row?.needs_recalibration && <Badge variant="outline" className="border-warning/40 text-[10px] text-warning">Needs re-calibration</Badge>}
                       </div>
-                      <div className="text-sm">
+                      <div className="flex items-center gap-3 text-sm">
+                        <span>
+                          {row?.max_accepted_qty != null
+                            ? <span className="font-medium">Max {fmtQty(row.max_accepted_qty)} <span className="text-xs text-muted-foreground">({row.source})</span></span>
+                            : <span className="text-xs text-muted-foreground">Not calibrated</span>}
+                        </span>
                         {progress?.state === 'running' ? <span className="flex items-center gap-1.5 text-xs text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing…</span>
                           : progress?.state === 'success' ? <span className="flex items-center gap-1.5 text-xs text-success"><CheckCircle2 className="h-3.5 w-3.5" /> Done</span>
                           : progress?.state === 'error' ? <span className="flex items-center gap-1.5 text-xs text-destructive"><XCircle className="h-3.5 w-3.5" /> Failed</span>
                           : progress?.state === 'waiting' ? <span className="text-xs text-muted-foreground">Waiting…</span>
-                          : row?.max_accepted_qty != null ? <span className="font-medium">{fmtQty(row.max_accepted_qty)} <span className="text-xs text-muted-foreground">({row.source})</span></span>
-                          : <span className="text-xs text-muted-foreground">Not calibrated</span>}
+                          : null}
                       </div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-2">

@@ -381,6 +381,7 @@ export function HorillaSidebar({
                   >
                     <button
                       onFocus={() => prefetch(item.path)}
+                      title={collapsed ? item.label : undefined}
                       onClick={() => {
                         if (hasChildren && !collapsed) {
                           toggleExpand(item.label);
@@ -389,7 +390,7 @@ export function HorillaSidebar({
                         }
                       }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150",
+                        "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150",
                         active
                           ? "bg-[#6C63FF] text-white"
                           : "text-muted-foreground hover:text-gray-200 hover:bg-[#252540]",
@@ -399,7 +400,8 @@ export function HorillaSidebar({
                       <item.icon className="h-[17px] w-[17px] shrink-0" />
                       {!collapsed && (
                         <>
-                          <span className="flex-1 text-left">{item.label}</span>
+                          <span className="flex-1 text-left whitespace-nowrap animate-fade-in">{item.label}</span>
+
                           {hasChildren && (
                             <ChevronDown
                               className={cn(

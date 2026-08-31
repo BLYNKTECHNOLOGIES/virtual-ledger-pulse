@@ -547,6 +547,7 @@ export default function AttendanceRegularizationPage() {
                 <div className="text-xs text-muted-foreground mt-1">Reason: {reviewing.reason}</div>
                 <div className="text-xs mt-1">In: {fmtTime(reviewing.requested_check_in)} · Out: {fmtTime(reviewing.requested_check_out)}</div>
               </div>
+              <CurrentAttendanceSnapshot employeeId={reviewing.employee_id} date={reviewing.attendance_date} />
               {decision === 'approved' && (
                 <>
                   {/* F4 · propose-and-validate evidence panel */}

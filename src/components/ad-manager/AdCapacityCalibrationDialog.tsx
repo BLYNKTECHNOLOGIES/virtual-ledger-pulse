@@ -38,22 +38,44 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
   const sweep = useRunCapacitySweep();
   const [sweeping, setSweeping] = useState(false);
 
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+
   const runSweep = async () => {
     setSweeping(true);
+    setProgress({ current: 0, total: combos.length });
     try {
-      const res = await sweep.mutateAsync({ exchange_account_id: combos[0]?.accountId || undefined });
-      const saved = (res.results || []).filter((r) => r.saved).length;
-      const failed = (res.results || []).filter((r) => r.error || r.abortReason);
+      let currentDeferred = 0;
+      let totalSaved = 0;
+      let allFailed: any[] = [];
+      const accountId = combos[0]?.accountId || undefined;
+
+      for (let round = 0; round < 10; round++) {
+        const res = await sweep.mutateAsync({ exchange_account_id: accountId });
+        const saved = (res.results || []).filter((r) => r.saved).length;
+        const failed = (res.results || []).filter((r) => r.error || r.abortReason);
+        
+        totalSaved += saved;
+        allFailed.push(...failed);
+        
+        const doneCount = (res.results || []).filter(r => !r.skipped || r.skipped !== "deferred to next run (time budget)").length;
+        setProgress(prev => prev ? { ...prev, current: Math.min(prev.current + doneCount, combos.length) } : null);
+
+        if (!res.deferred) break;
+        refetch(); // Refresh background data between rounds
+      }
+
       toast({
-        title: `Calibrated ${saved} of ${res.combinations ?? 0} combinations`,
-        description: failed.length ? `${failed.length} could not be established: ${failed.map((f) => f.key).join(', ')}` : 'Carrier ad quantities restored.',
-        variant: failed.length ? 'destructive' : undefined,
+        title: `Calibrated ${totalSaved} of ${combos.length} combinations`,
+        description: allFailed.length ? `${allFailed.length} could not be established.` : 'Carrier ad quantities restored.',
+        variant: allFailed.length ? 'destructive' : undefined,
       });
       refetch();
     } catch (e: any) {
+      console.error('Sweep failed:', e);
       toast({ title: 'Auto-calibration failed', description: e?.message || 'Unknown error', variant: 'destructive' });
     } finally {
       setSweeping(false);
+      setProgress(null);
     }
   };
 
@@ -157,10 +179,17 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
                       />
                       <Button size="sm" variant="outline" onClick={() => runProbe(c)} disabled={!c.carrier || busy}>
                         {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
-                        {row ? 'Re-probe' : 'Probe'}
-                      </Button>
-                      {!c.carrier && (
-                        <span className="flex items-center gap-1 text-xs text-warning">
+          <div className="flex flex-col gap-1">
+            <Button variant="secondary" onClick={runSweep} disabled={sweeping}>
+              {sweeping ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gauge className="h-4 w-4 mr-2" />}
+              {sweeping ? 'Calibrating…' : 'Auto-calibrate all'}
+            </Button>
+            {sweeping && progress && (
+              <div className="text-[10px] text-muted-foreground text-center">
+                {progress.current} / {progress.total} processed
+              </div>
+            )}
+          </div>
                           <AlertTriangle className="h-3.5 w-3.5" /> Needs an offline ad for this combo to probe with
                         </span>
                       )}
@@ -179,10 +208,17 @@ export function AdCapacityCalibrationDialog({ open, onOpenChange, ads }: Props) 
         )}
 
         <DialogFooter className="gap-2 sm:justify-between">
-          <Button variant="secondary" onClick={runSweep} disabled={sweeping}>
-            {sweeping ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gauge className="h-4 w-4 mr-2" />}
-            {sweeping ? 'Calibrating…' : 'Auto-calibrate all'}
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button variant="secondary" onClick={runSweep} disabled={sweeping}>
+              {sweeping ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Gauge className="h-4 w-4 mr-2" />}
+              {sweeping ? 'Calibrating…' : 'Auto-calibrate all'}
+            </Button>
+            {sweeping && progress && (
+              <div className="text-[10px] text-muted-foreground text-center">
+                {progress.current} / {progress.total} processed
+              </div>
+            )}
+          </div>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>

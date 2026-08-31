@@ -369,7 +369,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                     </div>
 
                     {/* Right: Health + Actions */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap justify-end shrink-0 border-t sm:border-t-0 border-border/40 pt-2 sm:pt-0">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>

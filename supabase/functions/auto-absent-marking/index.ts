@@ -1,33 +1,25 @@
 // Auto-absent marking — v4 window-aware.
 //
 // Runs daily after the v4 attendance window closes (05:00 IST → 05:00 IST).
-// Marks employees as 'absent' in hr_attendance_daily for the previous
-// window-date when: no daily row (or status='no_data'), no approved leave,
-// no weekly-off, no holiday. Writes an audit row to
+// Reconciles the last seven fully closed window-dates so a missed scheduler
+// invocation self-heals. Marks employees as 'absent' only when there is no
+// meaningful daily row, approved leave, weekly-off, or holiday. Writes an audit row to
 // hr_attendance_absent_marker_runs so we can prove it ran.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { fetchAllRows } from "../_shared/paginate.ts";
 import { dayOfWeek, rollingClosedDates } from "./dates.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   const caller = await requireCaller(req, corsHeaders);
   if (!caller.ok) return caller.response;
 
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabase = caller.admin;
 
     // Reconcile a rolling window on every invocation. A failed cron/deploy can
     // therefore delay classification, but can no longer create a permanent

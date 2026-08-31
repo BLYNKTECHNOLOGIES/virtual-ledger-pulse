@@ -240,7 +240,7 @@ export default function AttendanceCalendarPage() {
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="rounded-md bg-success/10 text-success text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empPresent} P</span>
-                      {empHalf > 0 && <span className="rounded-md bg-info/10 text-info text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empHalf} H</span>}
+                      {empHalf > 0 && <span className="rounded-md bg-info/10 text-info text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empHalf} ½D</span>}
                       {empAbsent > 0 && <span className="rounded-md bg-destructive/10 text-destructive text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empAbsent} A</span>}
                       {empLate > 0 && <span className="rounded-md bg-warning/15 text-warning text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{empLate} L</span>}
                       <span className="rounded-md bg-muted text-foreground text-[10px] font-semibold px-1.5 py-0.5 tabular-nums">{rate}%</span>

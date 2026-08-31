@@ -30,6 +30,9 @@ const fmtTime = (ts: string | null) =>
 export default function TeamRegularizationApprovals({ employeeId, highlightedRequestId }: Props) {
   const qc = useQueryClient();
   const [remarks, setRemarks] = useState<Record<string, string>>({});
+  const { data: reports = [] } = useDirectReports(!!employeeId);
+  const regsWithHr = (reports || []).reduce((s, r) => s + (r.pending_reg_with_hr || 0), 0);
+
 
   const { data: requests = [], isLoading, isError, error } = useQuery({
     queryKey: ['ess_team_reg_approvals', employeeId],

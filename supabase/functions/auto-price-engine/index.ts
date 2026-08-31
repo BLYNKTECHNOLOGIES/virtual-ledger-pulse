@@ -1791,15 +1791,10 @@ async function inferBinanceIndex(adNo: string, supabase: any, ruleId?: string): 
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();
 
-  const resp = await fetch(binanceAdsUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${internalAuthKey}`,
-    },
-    body: JSON.stringify({ action: "getAdDetail", adsNo: adNo, ruleId: ruleId || null, snapshotSource: "auto_price_pre_update" }),
+  const result = await callBinanceAds(binanceAdsUrl, internalAuthKey, {
+    action: "getAdDetail", adsNo: adNo, ruleId: ruleId || null, snapshotSource: "auto_price_pre_update",
   });
-  const result = await resp.json();
+
 
   const adData = result?.data?.data || result?.data;
   if (!adData) return null;

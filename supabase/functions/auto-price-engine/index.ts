@@ -28,12 +28,33 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   let singleRuleId: string | null = null;
+  let background = false;
   try {
     const body = await req.json();
     singleRuleId = body?.ruleId || null;
+    background = body?.background === true;
   } catch { /* empty body for cron */ }
 
-  try {
+  // A full cycle walks every asset through several sequential Binance calls, so it can
+  // easily outlive the caller's HTTP connection. Manual triggers ask for background mode:
+  // we acknowledge immediately and let the cycle finish server-side.
+  if (background) {
+    // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
+    EdgeRuntime.waitUntil(
+      runCycle(supabase, singleRuleId).catch((e) => console.error("[background] cycle failed:", e)),
+    );
+    return new Response(JSON.stringify({ success: true, started: true, message: "Run started" }), {
+      status: 202,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return await runCycle(supabase, singleRuleId);
+});
+
+async function runCycle(supabase: any, singleRuleId: string | null): Promise<Response> {
+  {
+
     // ===== AP-ARCH-01: CIRCUIT BREAKER CHECK =====
     let { data: engineState } = await supabase
       .from("ad_pricing_engine_state")

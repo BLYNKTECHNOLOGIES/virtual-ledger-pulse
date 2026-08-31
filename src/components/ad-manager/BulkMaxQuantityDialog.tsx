@@ -71,9 +71,9 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
     });
   }, [ads, map, balances]);
 
-  // An ad needs a push when its *remaining* quantity is below the target — the
-  // total (initAmount) can already equal the cap while the tradable remainder
-  // has been consumed by filled orders. Re-sending the target republishes it.
+  // An ad needs a push when its *remaining* quantity is below the target. The
+  // server converts the desired remainder into Binance's cumulative initAmount
+  // using a fresh detail read, then verifies the resulting surplusAmount.
   const EPS = 0.00000001;
   const needsPush = (p: PlanRow) => p.target !== null && (p.remaining < (p.target as number) - EPS || Math.abs((p.target as number) - p.current) > EPS);
   const actionable = plan.filter(needsPush);
@@ -111,7 +111,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
             fiatUnit: ad.fiatUnit,
             tradeType: ad.tradeType,
             priceType: ad.priceType,
-            initAmount: row.target as number,
+            desiredRemainingAmount: row.target as number,
             minSingleTransAmount: Number(ad.minSingleTransAmount),
             maxSingleTransAmount: Number(ad.maxSingleTransAmount),
             tradeMethods,
@@ -172,7 +172,8 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
                           <span className="text-warning">{p.skipReason}</span>
                         ) : (
                           <>
-                            remaining {fmtQty(p.remaining)} / total {fmtQty(p.current)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
+                            remaining {fmtQty(p.remaining)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
+                            {' · '}total ceiling {fmtQty(p.target)}
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`

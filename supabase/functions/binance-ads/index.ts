@@ -977,12 +977,111 @@ serve(async (req) => {
 
       case "updateAd": {
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/update`;
-        const { accepted: adUpdateBody, skipped: skippedFields } = sanitizeAdUpdatePayload(payload.adData || {});
+        const requestedAdData = { ...(payload.adData || {}) };
+        const desiredRemainingRaw = requestedAdData.desiredRemainingAmount;
+        delete requestedAdData.desiredRemainingAmount;
+        const { accepted: adUpdateBody, skipped: skippedFields } = sanitizeAdUpdatePayload(requestedAdData);
+
+        // Re-sending an unchanged initAmount returns success but Binance treats it
+        // as a no-op, leaving a partially consumed surplusAmount untouched. For
+        // the Max Quantity action, force a real quantity transition just below
+        // the ceiling before restoring the exact requested ceiling. This never
+        // submits a value above the saved Binance maximum.
+        let desiredRemaining: number | null = null;
+        if (desiredRemainingRaw !== undefined) {
+          desiredRemaining = Number(desiredRemainingRaw);
+          if (!Number.isFinite(desiredRemaining) || desiredRemaining <= 0) {
+            throw new Error("desiredRemainingAmount must be greater than zero");
+          }
+          const detailResponse = await fetch(
+            `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(String(adUpdateBody.advNo))}`,
+            { method: "POST", headers: proxyHeaders },
+          );
+          const detailText = await detailResponse.text();
+          let detailResult: any;
+          try { detailResult = JSON.parse(detailText); } catch { detailResult = { raw: detailText, status: detailResponse.status }; }
+          if (!isSuccessfulBinancePayload(detailResult, detailResponse.status)) {
+            throw new Error(detailResult?.message || detailResult?.msg || "Unable to read current ad quantity from Binance");
+          }
+          const detail = detailResult?.data?.data || detailResult?.data || detailResult;
+          const currentTotal = Number(detail?.initAmount);
+          const currentRemaining = Number(detail?.surplusAmount);
+          if (!Number.isFinite(currentTotal) || !Number.isFinite(currentRemaining)) {
+            throw new Error("Binance did not return the current total and remaining quantity");
+          }
+          const quantityStep = ["USDC", "FDUSD"].includes(String(detail?.asset || adUpdateBody.asset || "").toUpperCase()) ? 1 : 0.00000001;
+          const sameTotal = Math.abs(currentTotal - desiredRemaining) <= quantityStep / 2;
+          if (sameTotal && currentRemaining < desiredRemaining - quantityStep / 2) {
+            const nudgeBody = {
+              ...adUpdateBody,
+              initAmount: Number(Math.max(quantityStep, desiredRemaining - quantityStep).toFixed(8)),
+            };
+            console.log("updateAd quantity nudge:", JSON.stringify({
+              advNo: adUpdateBody.advNo,
+              currentTotal,
+              currentRemaining,
+              desiredRemaining,
+              nudgeTotal: nudgeBody.initAmount,
+            }));
+            const nudgeResponse = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(nudgeBody) });
+            const nudgeText = await nudgeResponse.text();
+            let nudgeResult: any;
+            try { nudgeResult = JSON.parse(nudgeText); } catch { nudgeResult = { raw: nudgeText, status: nudgeResponse.status }; }
+            if (!isSuccessfulBinancePayload(nudgeResult, nudgeResponse.status)) {
+              throw new Error(nudgeResult?.message || nudgeResult?.msg || "Binance rejected the quantity reset step");
+            }
+            await new Promise((resolve) => setTimeout(resolve, 350));
+          }
+          adUpdateBody.initAmount = desiredRemaining;
+          console.log("updateAd quantity restore:", JSON.stringify({
+            advNo: adUpdateBody.advNo,
+            currentTotal,
+            currentRemaining,
+            desiredRemaining,
+            submittedTotal: desiredRemaining,
+          }));
+        }
         console.log("updateAd request body:", JSON.stringify(adUpdateBody).substring(0, 1000), "skipped:", skippedFields);
         const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(adUpdateBody) });
         const text = await response.text();
         console.log("updateAd response:", response.status, text.substring(0, 500));
         try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+        if (desiredRemaining !== null && isSuccessfulBinancePayload(result, response.status)) {
+          let verifiedDetail: any = null;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+            const verifyResponse = await fetch(
+              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(String(adUpdateBody.advNo))}`,
+              { method: "POST", headers: proxyHeaders },
+            );
+            const verifyText = await verifyResponse.text();
+            let verifyResult: any;
+            try { verifyResult = JSON.parse(verifyText); } catch { verifyResult = null; }
+            const detail = verifyResult?.data?.data || verifyResult?.data || verifyResult;
+            if (detail && Number.isFinite(Number(detail.surplusAmount))) {
+              verifiedDetail = detail;
+              const tolerance = Math.max(0.00000001, desiredRemaining * 1e-10);
+              if (Number(detail.surplusAmount) >= desiredRemaining - tolerance) break;
+            }
+          }
+          const verifiedRemaining = Number(verifiedDetail?.surplusAmount);
+          const tolerance = Math.max(0.00000001, desiredRemaining * 1e-10);
+          if (!Number.isFinite(verifiedRemaining) || verifiedRemaining < desiredRemaining - tolerance) {
+            result = {
+              code: "QUANTITY_VERIFICATION_FAILED",
+              message: `Binance accepted the update but remaining quantity is ${Number.isFinite(verifiedRemaining) ? verifiedRemaining : "unavailable"}, expected ${desiredRemaining}`,
+            };
+          } else {
+            result = {
+              ...result,
+              data: {
+                ...(result?.data && typeof result.data === "object" ? result.data : {}),
+                verifiedInitAmount: Number(verifiedDetail.initAmount),
+                verifiedSurplusAmount: verifiedRemaining,
+              },
+            };
+          }
+        }
         if (skippedFields.length) result = { ...result, skippedFields };
         break;
       }

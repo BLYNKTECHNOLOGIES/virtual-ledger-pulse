@@ -515,7 +515,7 @@ export default function AdManager() {
       <BulkFloatingPriceDialog open={bulkFloatingOpen} onOpenChange={setBulkFloatingOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkPriceLadderDialog open={bulkLadderOpen} onOpenChange={setBulkLadderOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkHybridAdjustDialog open={bulkHybridOpen} onOpenChange={setBulkHybridOpen} ads={selectedAds} onComplete={handleBulkComplete} />
-      <BulkMaxQuantityDialog open={bulkMaxQtyOpen} onOpenChange={setBulkMaxQtyOpen} ads={selectedAds} onComplete={handleBulkComplete} />
+      <BulkMaxQuantityDialog open={bulkMaxQtyOpen} onOpenChange={setBulkMaxQtyOpen} ads={selectedAds} onComplete={handleBulkComplete} onCalibrate={() => setCapacityCalOpen(true)} />
       <AdCapacityCalibrationDialog open={capacityCalOpen} onOpenChange={setCapacityCalOpen} ads={displayAds} />
       <BulkRiskGuardDialog open={bulkRiskGuardOpen} onOpenChange={setBulkRiskGuardOpen} ads={selectedAds} onComplete={handleBulkComplete} />
       <BulkStatusDialog open={bulkStatusOpen} onOpenChange={setBulkStatusOpen} ads={selectedAds} targetStatus={bulkTargetStatus} onComplete={handleBulkComplete} />

@@ -31,6 +31,7 @@ export function BulkActionToolbar({
   onBulkPriceLadder,
   onBulkHybridAdjust,
   onBulkRiskGuard,
+  onBulkMaxQuantity,
   onBulkActivate,
   onBulkDeactivate,
   totalAds,

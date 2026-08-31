@@ -18,8 +18,16 @@ const corsHeaders = {
 };
 
 const OK = "000000";
-const THROTTLE_MS = 500;
+const THROTTLE_MS = 1500;
 const MAX_STEPS = 16;
+// Binance rate limits are transient — wait them out instead of aborting.
+const RATE_LIMIT_RETRIES = 4;
+const RATE_LIMIT_BACKOFF_MS = [4000, 8000, 16000, 24000];
+
+function isRateLimitError(code: string, message: string): boolean {
+  const m = `${code} ${message}`.toLowerCase();
+  return m.includes("too many request") || m.includes("rate limit") || m.includes("frequen") || m.includes("429");
+}
 
 /** Binance error text that means "the quantity you asked for is too large". */
 function isQuantityCapError(code: string, message: string): boolean {

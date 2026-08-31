@@ -48,6 +48,7 @@ export interface AutoPricingRule {
   manual_override_cooldown_minutes: number;
   only_counter_when_online: boolean;
   pause_if_no_merchant_found: boolean;
+  ladder_conflict_resolution?: boolean;
   active_hours_start: string | null;
   active_hours_end: string | null;
   resting_price: number | null;

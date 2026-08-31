@@ -358,7 +358,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setCompetitorZone('p2p'); setCompetitorMode('nickname');
       setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');
 
-      setOnlyOnline(false); setPauseNoMerchant(false);
+      setOnlyOnline(false); setPauseNoMerchant(false); setLadderOnConflict(false);
       setOffsetDirection('UNDERCUT');
       setMaxDeviation('5'); setMaxPriceChange(''); setMaxRatioChange('');
       setAutoPauseDeviations('5'); setCooldownMinutes('0');

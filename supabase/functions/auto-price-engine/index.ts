@@ -677,12 +677,13 @@ async function processAsset(
         competitor_price: competitorPrice,
       });
     }
-    await supabase.from("terminal_alerts").insert({
-      alert_type: "auto_pricing_config",
-      title: `${asset}: no overcut configured`,
-      message: `Rule "${rule.name}" has no ${rule.price_type === "FIXED" ? "₹ amount" : "%"} offset set for ${asset}, so the engine would have matched the competitor's price. ${asset} was skipped — set the offset in the rule.`,
-      metadata: { rule_id: rule.id, asset, severity: "warning" },
-    });
+    await insertPricingAlert(
+      supabase,
+      rule,
+      "offset_not_configured",
+      `${asset}: no ${rule.price_type === "FIXED" ? "₹ amount" : "%"} offset is set on rule "${rule.name}", so pricing would have matched the competitor exactly. ${asset} was skipped — set the offset in the rule.`,
+    );
+
     return { asset, status: "skipped", reason: "offset_not_configured" };
   }
 

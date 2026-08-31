@@ -371,16 +371,23 @@ export function useManualTriggerRule() {
   const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, ruleName }: { id: string; ruleName: string }) => {
+      // A full pass walks every asset through several sequential Binance calls, which
+      // outlives the browser request. Ask the engine to run in the background so the
+      // trigger is acknowledged immediately instead of failing with a network error.
       const { data, error } = await supabase.functions.invoke('auto-price-engine', {
-        body: { ruleId: id },
+        body: { ruleId: id, background: true },
       });
       if (error) throw new Error(error.message);
       return { data, id, ruleName };
     },
     onSuccess: ({ id, ruleName }) => {
-      qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ['auto-pricing-rules'] });
+        qc.invalidateQueries({ queryKey: ['auto-pricing-logs'] });
+      }, 15000);
       qc.invalidateQueries({ queryKey: ['auto-pricing-logs'] });
-      toast({ title: 'Rule Triggered', description: 'Manual execution completed.' });
+      toast({ title: 'Rule Triggered', description: 'Run started — results appear in the logs shortly.' });
+
       logAdAction({
         actionType: AdActionTypes.PRICING_RULE_MANUAL_TRIGGER,
         metadata: {

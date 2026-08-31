@@ -842,25 +842,80 @@ async function processAsset(
         });
         await captureAdDetailSnapshot(adNo, rule.id, "auto_price_post_update", supabase);
       } else {
-        await supabase.from("ad_pricing_logs").insert({
-          rule_id: rule.id,
-          ad_number: adNo,
-          asset,
-          ad_zone: liveAdZones.get(adNo) ?? zone,
-          competitor_merchant: matchedMerchant,
-        competitor_zone: zone,
-        competitor_badges: matchedBadges,
-        competitor_identity: matchedIdentity,
-        competitor_vip_level: matchedVipLevel,
-          competitor_price: competitorPrice,
-          market_reference_price: marketReferencePrice,
-          deviation_from_market_pct: deviationPct,
-          calculated_price: rule.price_type === "FIXED" ? newPrice : null,
-          calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
-          status: "error",
-          error_message: respData.error || JSON.stringify(respData).substring(0, 200),
-        });
+        const failMessage = respData.error || JSON.stringify(respData).substring(0, 200);
+
+        // ===== SELF-CONFLICT LADDER RESOLUTION =====
+        // Binance rejects a price that sits within 0.5% of one of OUR OWN ads of the
+        // same asset. When the rule opts in, re-space every one of our ads in the same
+        // asset + side + zone into a 0.51% ladder (lowest rung first so room is freed
+        // upwards) and then retry this ad at its intended price.
+        let ladderOutcome: { applied: boolean; moved: number; note: string } | null = null;
+        if (rule.ladder_conflict_resolution) {
+          ladderOutcome = await resolveSelfPriceConflict({
+            supabase,
+            rule,
+            asset,
+            adNo,
+            zone: liveAdZones.get(adNo) ?? zone,
+            binanceTradeType,
+            isFixed: rule.price_type === "FIXED",
+            targetValue: rule.price_type === "FIXED"
+              ? Math.round((newPrice!) * 100) / 100
+              : Math.round((newRatio!) * 10000) / 10000,
+            failMessage,
+            binanceAdsUrl,
+            internalAuthKey,
+          });
+        }
+
+        if (ladderOutcome?.applied) {
+          successCount++;
+          await supabase.from("ad_pricing_logs").insert({
+            rule_id: rule.id,
+            ad_number: adNo,
+            asset,
+            ad_zone: liveAdZones.get(adNo) ?? zone,
+            competitor_merchant: matchedMerchant,
+            competitor_zone: zone,
+            competitor_badges: matchedBadges,
+            competitor_identity: matchedIdentity,
+            competitor_vip_level: matchedVipLevel,
+            competitor_price: competitorPrice,
+            market_reference_price: marketReferencePrice,
+            deviation_from_market_pct: deviationPct,
+            calculated_price: rule.price_type === "FIXED" ? newPrice : null,
+            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+            applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : null,
+            applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
+            was_capped: wasCapped,
+            was_rate_limited: wasRateLimited,
+            status: "applied",
+            skipped_reason: "ladder_resolved",
+            error_message: ladderOutcome.note,
+          });
+          await captureAdDetailSnapshot(adNo, rule.id, "auto_price_post_update", supabase);
+        } else {
+          await supabase.from("ad_pricing_logs").insert({
+            rule_id: rule.id,
+            ad_number: adNo,
+            asset,
+            ad_zone: liveAdZones.get(adNo) ?? zone,
+            competitor_merchant: matchedMerchant,
+            competitor_zone: zone,
+            competitor_badges: matchedBadges,
+            competitor_identity: matchedIdentity,
+            competitor_vip_level: matchedVipLevel,
+            competitor_price: competitorPrice,
+            market_reference_price: marketReferencePrice,
+            deviation_from_market_pct: deviationPct,
+            calculated_price: rule.price_type === "FIXED" ? newPrice : null,
+            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+            status: "error",
+            error_message: ladderOutcome ? `${failMessage} — ${ladderOutcome.note}` : failMessage,
+          });
+        }
       }
+
 
       await new Promise((r) => setTimeout(r, 300));
     } catch (adErr) {

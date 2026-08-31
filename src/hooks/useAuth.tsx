@@ -157,6 +157,17 @@ function AuthProviderRoot({ children }: AuthProviderProps) {
 
       if (!authData?.user) return null;
 
+      // Drop any legacy session left behind by a different user on this
+      // browser so the fresh login is never judged by someone else's clock.
+      try {
+        const stale = localStorage.getItem('userSession');
+        if (stale && JSON.parse(stale)?.user?.id !== authData.user.id) {
+          localStorage.removeItem('userSession');
+        }
+      } catch {
+        localStorage.removeItem('userSession');
+      }
+
       const builtUser = await buildUserFromUserId(authData.user.id, normalizedEmail);
       return builtUser;
     } catch (error: any) {

@@ -17,6 +17,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 
 export type AttendanceDayStatus =
   | "present"
@@ -68,13 +69,19 @@ export function useAttendanceDayRange(
     enabled,
     refetchInterval: opts?.refetchInterval,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("hr_attendance_day_range", {
-        p_employee_ids: employeeIds,
-        p_from: from,
-        p_to: to,
-      });
-      if (error) throw error;
-      return (data as AttendanceDay[]) || [];
+      // A full month across the active roster can exceed PostgREST's 1,000-row
+      // response cap. Fetch every ordered page so employees after that cutoff
+      // do not appear to have an entirely blank calendar.
+      return fetchAllPaginated<AttendanceDay>(() =>
+        (supabase as any)
+          .rpc("hr_attendance_day_range", {
+            p_employee_ids: employeeIds,
+            p_from: from,
+            p_to: to,
+          })
+          .order("employee_id", { ascending: true })
+          .order("date", { ascending: true }),
+      );
     },
   });
 }

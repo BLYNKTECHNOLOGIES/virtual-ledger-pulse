@@ -224,6 +224,8 @@ interface HorillaSidebarProps {
   isMobile?: boolean;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
+  /** Hover-peek: panel floats above the content instead of pushing it. */
+  peek?: boolean;
 }
 
 export function HorillaSidebar({
@@ -232,6 +234,7 @@ export function HorillaSidebar({
   isMobile = false,
   mobileOpen = false,
   onCloseMobile,
+  peek = false,
 }: HorillaSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -319,16 +322,20 @@ export function HorillaSidebar({
 
   return (
     <aside
+      data-hrms-sidebar-peek={peek ? "true" : undefined}
       className={cn(
-        "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 transition-all duration-300 shrink-0",
+        "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 shrink-0",
+        "transition-[width,box-shadow] duration-200 ease-out will-change-[width]",
         isMobile
           ? cn(
-              "fixed inset-y-0 left-0 z-50 w-[240px]",
+              "fixed inset-y-0 left-0 z-50 w-[240px] transition-transform",
               mobileOpen ? "translate-x-0" : "-translate-x-full"
             )
-          : collapsed
-          ? "w-[68px]"
-          : "w-[240px]"
+          : cn(
+              "absolute inset-y-0 left-0 z-40",
+              collapsed ? "w-[68px]" : "w-[240px]",
+              peek && "shadow-2xl shadow-black/40"
+            )
       )}
     >
       <div className="h-14 flex items-center px-4 shrink-0">
@@ -337,15 +344,16 @@ export function HorillaSidebar({
             <img src={blynkIcon} alt="BLYNK" className="w-6 h-6" />
           </div>
           {!collapsed && (
-            <div className="flex flex-col leading-tight">
-              <span className="text-white font-semibold text-xs tracking-tight">BLYNK VIRTUAL</span>
-              <span className="text-white font-semibold text-xs tracking-tight">TECHNOLOGIES</span>
+            <div className="flex flex-col leading-tight animate-fade-in">
+              <span className="text-white font-semibold text-xs tracking-tight whitespace-nowrap">BLYNK VIRTUAL</span>
+              <span className="text-white font-semibold text-xs tracking-tight whitespace-nowrap">TECHNOLOGIES</span>
             </div>
           )}
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 sidebar-scroll">
+      <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 ds-nav-scroll">
+
         {visibleNavGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
@@ -373,6 +381,7 @@ export function HorillaSidebar({
                   >
                     <button
                       onFocus={() => prefetch(item.path)}
+                      title={collapsed ? item.label : undefined}
                       onClick={() => {
                         if (hasChildren && !collapsed) {
                           toggleExpand(item.label);
@@ -381,7 +390,7 @@ export function HorillaSidebar({
                         }
                       }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-all duration-150",
+                        "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150",
                         active
                           ? "bg-[#6C63FF] text-white"
                           : "text-muted-foreground hover:text-gray-200 hover:bg-[#252540]",
@@ -391,7 +400,8 @@ export function HorillaSidebar({
                       <item.icon className="h-[17px] w-[17px] shrink-0" />
                       {!collapsed && (
                         <>
-                          <span className="flex-1 text-left">{item.label}</span>
+                          <span className="flex-1 text-left whitespace-nowrap animate-fade-in">{item.label}</span>
+
                           {hasChildren && (
                             <ChevronDown
                               className={cn(

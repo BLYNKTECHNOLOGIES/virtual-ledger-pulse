@@ -28964,6 +28964,44 @@ export type Database = {
         Args: { p_subject: string }
         Returns: string
       }
+      hr_manager_leave_queue: {
+        Args: never
+        Returns: {
+          badge_id: string
+          created_at: string
+          employee_id: string
+          employee_name: string
+          end_date: string
+          half_day_period: string
+          id: string
+          is_half_day: boolean
+          leave_type_name: string
+          manager_remarks: string
+          manager_status: string
+          reason: string
+          start_date: string
+          status: string
+          total_days: number
+        }[]
+      }
+      hr_manager_regularization_queue: {
+        Args: never
+        Returns: {
+          attendance_date: string
+          badge_id: string
+          created_at: string
+          employee_id: string
+          employee_name: string
+          id: string
+          manager_remarks: string
+          manager_status: string
+          reason: string
+          reason_category: string
+          requested_check_in: string
+          requested_check_out: string
+          status: string
+        }[]
+      }
       hr_mark_all_notifications_read: { Args: never; Returns: number }
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }

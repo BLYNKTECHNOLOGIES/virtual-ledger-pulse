@@ -701,7 +701,8 @@ async function processAsset(
   let uncappedTarget: number | null = null;
   let blockingSafetyLimit: string | null = null;
 
-  let adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+
+
 
   // Zone integrity: P2P zone and Block zone are separate order books at different
   // price levels. Never write a competitor price scraped from one zone onto an ad

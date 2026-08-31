@@ -5,7 +5,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone, History, Copy, Zap } from 'lucide-react';
+import { Edit, Power, PowerOff, Lock, ChevronDown, ChevronRight, ShieldBan, ShieldCheck, Megaphone, History, Copy, SlidersHorizontal } from 'lucide-react';
+import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
+import { isSuperAdminRoleName } from '@/lib/auth/roles';
 import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
@@ -252,6 +254,8 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
   const { buyConfig, sellConfig } = useSmallConfigs();
   const { data: excludedAds } = useExcludedAds();
   const toggleExclusion = useToggleAdExclusion();
+  const automationMap = useAdAutomationMap();
+  const isSuperAdmin = !!user?.roles?.some(isSuperAdminRoleName);
   const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [editingPriceAdvNo, setEditingPriceAdvNo] = useState<string | null>(null);
@@ -548,6 +552,7 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -574,8 +579,8 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
                           <Edit className="h-3.5 w-3.5" />
                         </Button>
                         <QuickEditPopover ad={ad}>
-                          <Button variant="ghost" size="icon" aria-label="Quick edit" className="h-8 w-8" title="Quick Edit">
-                            <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-8 w-8" title="Quick edit — price & limits">
+                            <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
                         </QuickEditPopover>
                         {onDuplicate && (
@@ -583,11 +588,12 @@ export function CategorizedAdTable({ ads, onEdit, onToggleStatus, onHistory, onD
                             <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
                         )}
-                        {onHistory && (
+                        {onHistory && isSuperAdmin && (
                           <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
                             <History className="h-3.5 w-3.5 text-muted-foreground" />
                           </Button>
                         )}
+
                         <Button
                           variant="ghost"
                           size="icon" aria-label="Disable / Locked"

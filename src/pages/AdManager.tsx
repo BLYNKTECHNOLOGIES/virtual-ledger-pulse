@@ -1,3 +1,5 @@
+import { useAuth } from "@/hooks/useAuth";
+import { isSuperAdminRoleName } from "@/lib/auth/roles";
 import { useState, useMemo, useEffect } from 'react';
 import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -141,6 +143,8 @@ export default function AdManager() {
 
   // Per-ad history → pre-filtered logs page (reuses TerminalLogs search).
   const handleHistory = (advNo: string) => navigate(`/terminal/logs?adv=${encodeURIComponent(advNo)}`);
+  const { user: currentAuthUser } = useAuth();
+  const isSuperAdmin = !!currentAuthUser?.roles?.some(isSuperAdminRoleName);
 
 
   // Status and zone are client-side dimensions, so they never go to the API.
@@ -427,7 +431,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
-                  onHistory={handleHistory}
+                  onHistory={isSuperAdmin ? handleHistory : undefined}
                   onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
@@ -440,7 +444,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
-                  onHistory={handleHistory}
+                  onHistory={isSuperAdmin ? handleHistory : undefined}
                   onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}
@@ -454,7 +458,7 @@ export default function AdManager() {
                   ads={displayAds}
                   onEdit={handleEdit}
                   onToggleStatus={handleToggleStatus}
-                  onHistory={handleHistory}
+                  onHistory={isSuperAdmin ? handleHistory : undefined}
                   onDuplicate={handleDuplicate}
                   isTogglingStatus={updateStatus.isPending}
                   selectedAdvNos={selectedAdvNos}

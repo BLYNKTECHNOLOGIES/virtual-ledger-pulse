@@ -9,8 +9,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
-  MoreVertical, Edit, Copy, History, Lock, ShieldBan, ShieldCheck, ChevronDown, ChevronRight, Zap,
+  MoreVertical, Edit, Copy, History, Lock, ShieldBan, ShieldCheck, ChevronDown, ChevronRight, SlidersHorizontal,
 } from 'lucide-react';
+import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
 import { BinanceAd, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
@@ -54,6 +55,7 @@ function AdCard({
   compact?: boolean;
 }) {
   const [editingPrice, setEditingPrice] = useState(false);
+  const automationMap = useAdAutomationMap();
   const isBuy = ad.tradeType === 'BUY';
   const isOnline = ad.advStatus === BINANCE_AD_STATUS.ONLINE;
   const isPrivate = ad.advStatus === BINANCE_AD_STATUS.PRIVATE;
@@ -155,9 +157,10 @@ function AdCard({
           </span>
         </div>
         <div className="flex items-center gap-0.5">
+          <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
           <QuickEditPopover ad={ad}>
-            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Quick edit" title="Quick Edit">
-              <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+            <Button variant="ghost" size="icon" className="h-7 w-7" aria-label="Quick edit price and limits" title="Quick edit — price & limits">
+              <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
             </Button>
           </QuickEditPopover>
           <DropdownMenu>

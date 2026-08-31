@@ -195,7 +195,11 @@ export function useTerminalJurisdiction() {
         supabase.from('p2p_terminal_user_roles').select('user_id, role_id'),
       ]);
 
-      const visibleIds = new Set((visibleRes.data || []).map((r: any) => r.visible_user_id));
+      const visibleIds = new Set(
+        ((visibleRes.data || []) as any[])
+          .map((r: any) => (typeof r === 'string' ? r : r?.visible_user_id))
+          .filter(Boolean) as string[]
+      );
       const usersMap = new Map<string, any>();
       (usersRes.data || []).forEach(u => usersMap.set(u.id, u));
 

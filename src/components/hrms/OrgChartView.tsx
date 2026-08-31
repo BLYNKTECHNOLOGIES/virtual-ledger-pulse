@@ -531,8 +531,9 @@ export function OrgChartView() {
 
   const openAssign = useCallback((node: EmpChartNode) => {
     setAssignTarget(node);
-    setAssignManagerId("");
-  }, []);
+    const current = rawWorkInfos.find(w => w.employee_id === node.id)?.reporting_manager_id || "";
+    setAssignManagerId(current);
+  }, [rawWorkInfos]);
 
   const saveManager = async () => {
     if (!assignTarget || !assignManagerId) return;

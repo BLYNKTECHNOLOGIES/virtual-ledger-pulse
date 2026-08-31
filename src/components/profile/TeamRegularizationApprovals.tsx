@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,9 +13,11 @@ import { CheckCircle2, XCircle, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendRegularizationEmail, regCategoryLabel } from '@/utils/regularizationEmail';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
+import { cn } from '@/lib/utils';
 
 interface Props {
   employeeId: string; // logged-in employee (potential reporting manager)
+  highlightedRequestId?: string | null;
 }
 
 const fmtTime = (ts: string | null) =>
@@ -25,7 +27,7 @@ const fmtTime = (ts: string | null) =>
  * ESS — regularization requests HR pushed to this reporting manager.
  * The manager records a recommendation; HR still gives the final approval.
  */
-export default function TeamRegularizationApprovals({ employeeId }: Props) {
+export default function TeamRegularizationApprovals({ employeeId, highlightedRequestId }: Props) {
   const qc = useQueryClient();
   const [remarks, setRemarks] = useState<Record<string, string>>({});
 
@@ -33,16 +35,20 @@ export default function TeamRegularizationApprovals({ employeeId }: Props) {
     queryKey: ['ess_team_reg_approvals', employeeId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('hr_attendance_regularization_requests')
-        .select('*, hr_employees!hr_attendance_regularization_requests_employee_id_fkey(first_name, last_name, badge_id, email)')
-        .eq('manager_id', employeeId)
-        .in('status', ['manager_review', 'manager_reviewed'])
-        .order('created_at', { ascending: false });
+        .rpc('hr_manager_regularization_queue');
       if (error) throw error;
       return data || [];
     },
     enabled: !!employeeId,
   });
+
+  useEffect(() => {
+    if (!highlightedRequestId || requests.length === 0) return;
+    document.getElementById(`regularization-request-${highlightedRequestId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }, [highlightedRequestId, requests]);
 
   const decide = useMutation({
     mutationFn: async ({ req, approve }: { req: any; approve: boolean }) => {
@@ -55,11 +61,10 @@ export default function TeamRegularizationApprovals({ employeeId }: Props) {
         .eq('id', req.id);
       if (error) throw error;
 
-      const employeeName = `${req.hr_employees?.first_name || ''} ${req.hr_employees?.last_name || ''}`.trim();
       sendRegularizationEmail({
         eventType: 'reg_manager_decided',
         requestId: req.id,
-        employeeName: employeeName || 'Employee',
+        employeeName: req.employee_name || 'Employee',
         attendanceDate: req.attendance_date,
         requestedIn: fmtTime(req.requested_check_in),
         requestedOut: fmtTime(req.requested_check_out),
@@ -94,15 +99,22 @@ export default function TeamRegularizationApprovals({ employeeId }: Props) {
           <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
         ) : (
           (requests as any[]).map((r) => {
-            const name = `${r.hr_employees?.first_name || ''} ${r.hr_employees?.last_name || ''}`.trim();
+            const name = r.employee_name || '';
             const actionable = r.status === 'manager_review';
             return (
-              <div key={r.id} className="border border-border rounded-lg p-3 space-y-2">
+              <div
+                key={r.id}
+                id={`regularization-request-${r.id}`}
+                className={cn(
+                  "border border-border rounded-lg p-3 space-y-2",
+                  highlightedRequestId === r.id && "border-primary ring-2 ring-primary/20 bg-primary/5",
+                )}
+              >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
                       {name || 'Employee'}{' '}
-                      <span className="text-muted-foreground text-xs">{r.hr_employees?.badge_id}</span>
+                       <span className="text-muted-foreground text-xs">{r.badge_id}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {r.attendance_date} · In {fmtTime(r.requested_check_in)} · Out {fmtTime(r.requested_check_out)}

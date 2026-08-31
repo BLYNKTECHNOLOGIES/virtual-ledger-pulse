@@ -1470,8 +1470,14 @@ export default function UserProfile() {
             <NoEmployeeProfile />
           ) : (
             <>
-              <TeamLeaveApprovals employeeId={hrEmployee.id} />
-              <TeamRegularizationApprovals employeeId={hrEmployee.id} />
+              <TeamLeaveApprovals
+                employeeId={hrEmployee.id}
+                highlightedRequestId={searchParams.get('leaveId')}
+              />
+              <TeamRegularizationApprovals
+                employeeId={hrEmployee.id}
+                highlightedRequestId={searchParams.get('regId')}
+              />
               <MyRequestsHub employeeId={hrEmployee.id} />
             </>
           )}

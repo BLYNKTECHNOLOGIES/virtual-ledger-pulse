@@ -149,14 +149,15 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
             const hasAssetIssues = assetLogs.some(l => l.status === 'skipped' || l.status === 'error');
 
             return (
-              <Card key={rule.id} className={`transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
-                <CardContent className="p-4">
+              <Card key={rule.id} className={`overflow-hidden transition-all ${!rule.is_active && !alertState.hasAlert ? 'opacity-60' : ''} ${alertStyle}`}>
+                <CardContent className="p-3 sm:p-4 min-w-0">
                   {/* Alert Banner with per-asset breakdown */}
                   {alertState.hasAlert && (
                     <div className="mb-3 px-3 py-2 rounded-md bg-destructive/5 border border-destructive/20 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 flex-wrap min-w-0">
                           <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+
                           <span className="text-xs font-medium text-foreground">{alertState.alertMessage}</span>
                           <Badge variant="outline" className={`text-[10px] ${alertBadgeStyle}`}>
                             {alertState.alertType?.replace('_', ' ')}

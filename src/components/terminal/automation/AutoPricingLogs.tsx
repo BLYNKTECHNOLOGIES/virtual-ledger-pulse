@@ -20,31 +20,28 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const REASON_LABELS: Record<string, string> = {
-  rest_timer: 'Rest timer is active',
-  ad_conflict: 'Ad is assigned to multiple rules',
-  outside_hours: 'Outside configured active hours',
-  cooldown: 'Manual-edit cooldown is active',
-  auto_paused: 'Rule was automatically paused',
-  no_listings: 'No eligible competitor listings found',
-  no_merchant: 'Target merchant was not found',
-  deviation_exceeded: 'Market deviation guard blocked the update',
-  zone_mismatch: 'Selected ad does not match the rule zone',
-  ad_offline: 'Ad is offline on Binance — repricing would not affect the live book',
-  no_ads: 'No eligible ads are assigned',
-
+  rest_timer: 'Rest timer active',
+  ad_conflict: 'Ad used by another rule',
+  outside_hours: 'Outside active hours',
+  cooldown: 'Manual-edit cooldown',
+  auto_paused: 'Rule auto-paused',
+  no_listings: 'No competitor found',
+  no_merchant: 'Target merchant not found',
+  deviation_exceeded: 'Blocked: too far from market',
+  zone_mismatch: 'Ad zone ≠ rule zone',
+  ad_offline: 'Ad offline on Binance',
+  no_ads: 'No ads assigned',
+  interval_not_elapsed: 'Waiting for next interval',
 };
 
 function getLogReason(log: AutoPricingLog): string {
   if (log.error_message) {
-    if (log.error_message.toLowerCase() === 'unauthorized') {
-      return 'Internal authorization failed while updating the Binance ad';
-    }
-    return log.error_message;
+    if (log.error_message.toLowerCase() === 'unauthorized') return 'Binance update rejected (auth)';
+    return log.error_message.length > 90 ? `${log.error_message.slice(0, 90)}…` : log.error_message;
   }
   if (log.skipped_reason) return REASON_LABELS[log.skipped_reason] || log.skipped_reason.replace(/_/g, ' ');
-  if (log.status === 'applied' || log.status === 'success') return 'Price update applied successfully';
-  
-  if (log.status === 'no_change') return 'Calculated value matched the current value';
+  if (log.status === 'applied' || log.status === 'success') return 'Price updated';
+  if (log.status === 'no_change') return 'Already at target price';
   return '—';
 }
 
@@ -53,7 +50,16 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterZone, setFilterZone] = useState('all');
   const activeRuleId = filterRuleId === 'all' ? undefined : filterRuleId;
-  const { data: logs = [], isLoading } = useAutoPricingLogs(activeRuleId, 200);
+  const { data: logs = [], isLoading } = useAutoPricingLogs(activeRuleId, 500);
+
+  // Last two runs per rule, always visible regardless of filters.
+  const latestPerRule = rules
+    .map(rule => ({
+      rule,
+      runs: logs.filter(l => l.rule_id === rule.id).slice(0, 2),
+    }))
+    .filter(r => r.runs.length > 0);
+
 
   const filteredLogs = logs.filter(l => {
     if (filterStatus !== 'all' && l.status !== filterStatus) return false;

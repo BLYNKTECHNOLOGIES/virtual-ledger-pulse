@@ -142,6 +142,12 @@ export function BulkActionToolbar({
         Risk Guard
       </Button>
 
+      <Button variant="outline" size="sm" onClick={onBulkMaxQuantity} className="text-foreground border-border">
+        <Maximize2 className="h-3.5 w-3.5 mr-1.5" />
+        Max Qty
+      </Button>
+
+
       {hasOffline && (
         <Button variant="outline" size="sm" onClick={onBulkActivate} className="text-success border-success/30">
           <Power className="h-3.5 w-3.5 mr-1.5" />

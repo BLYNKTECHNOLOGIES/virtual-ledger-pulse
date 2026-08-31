@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
 import { LeaveApprovalPanel } from "@/components/hrms/LeaveApprovalPanel";
 import { RegularizationApprovalPanel } from "@/components/hrms/RegularizationApprovalPanel";
+import { CurrentAttendanceSnapshot } from "@/components/hrms/CurrentAttendanceSnapshot";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,

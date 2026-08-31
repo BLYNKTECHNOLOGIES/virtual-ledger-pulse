@@ -102,8 +102,8 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
   return (
     <div className="space-y-4">
       {/* Summary Bar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{rules.length} Rules</Badge>
           <Badge className="bg-success/20 text-success">{activeCount} Active</Badge>
           {pausedCount > 0 && <Badge variant="destructive">{pausedCount} Paused</Badge>}
@@ -113,7 +113,8 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
             </Badge>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+
           <Button variant="outline" size="sm" onClick={() => { setLogRuleId(undefined); setShowLogs(true); }}>
             <Clock className="h-3.5 w-3.5 mr-1.5" /> View Logs
           </Button>

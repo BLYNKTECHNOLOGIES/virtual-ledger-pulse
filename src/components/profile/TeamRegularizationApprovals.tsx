@@ -93,7 +93,26 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
     );
   }
 
-  if (!isLoading && requests.length === 0) return null;
+  if (!isLoading && requests.length === 0) {
+    if (regsWithHr > 0) {
+      return (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardCheck className="h-4 w-4 text-primary" /> Team Attendance Regularizations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Nothing needs your review right now. {regsWithHr} request{regsWithHr > 1 ? 's' : ''} from your
+            team {regsWithHr > 1 ? 'are' : 'is'} still with HR — {regsWithHr > 1 ? 'they' : 'it'} will appear
+            here once HR forwards {regsWithHr > 1 ? 'them' : 'it'} to you.
+          </CardContent>
+        </Card>
+      );
+    }
+    return null;
+  }
+
 
   const pendingCount = (requests as any[]).filter((r) => r.status === 'manager_review').length;
 

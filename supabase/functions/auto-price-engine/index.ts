@@ -1548,12 +1548,22 @@ function isAdvertiserOnline(item: any): boolean {
 }
 
 
+const coinRateCache = new Map<string, { price: number; at: number }>();
+const COIN_RATE_TTL_MS = 60_000;
+
 async function fetchCoinUsdtRate(asset: string): Promise<number> {
+  const cached = coinRateCache.get(asset);
+  if (cached && Date.now() - cached.at < COIN_RATE_TTL_MS) return cached.price;
+
   const BINANCE_PROXY_URL = Deno.env.get("BINANCE_PROXY_URL");
+  const BINANCE_PROXY_TOKEN = Deno.env.get("BINANCE_PROXY_TOKEN");
   const BINANCE_API_KEY = Deno.env.get("BINANCE_API_KEY");
-  if (BINANCE_PROXY_URL) {
+  if (BINANCE_PROXY_URL && BINANCE_PROXY_TOKEN) {
     try {
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = {
+        "x-proxy-token": BINANCE_PROXY_TOKEN,
+        clientType: "web",
+      };
       if (BINANCE_API_KEY) headers["X-MBX-APIKEY"] = BINANCE_API_KEY;
       const resp = await fetch(`${BINANCE_PROXY_URL}/api/v3/ticker/price?symbol=${asset}USDT`, { headers });
       const text = await resp.text();
@@ -1562,12 +1572,14 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
       const price = parseFloat(data.price || "0");
       if (price > 0) {
         console.log(`[fetchCoinUsdtRate] ${asset}USDT = ${price} (proxy)`);
+        coinRateCache.set(asset, { price, at: Date.now() });
         return price;
       }
     } catch (e) {
       console.error(`[fetchCoinUsdtRate] Proxy failed for ${asset}:`, e);
     }
   }
+
 
   try {
     const resp = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${asset}USDT`);

@@ -28,7 +28,7 @@ const MAX_ESCALATIONS = 12;
 const MAX_BISECTIONS = 14;
 // Edge functions have a hard wall-clock limit; stop cleanly before it and let
 // the caller resume with another invocation.
-const DEADLINE_MS = 100_000;
+const DEADLINE_MS = 50_000;
 
 function isQuantityCapError(code: string, message: string): boolean {
   const m = `${code} ${message}`.toLowerCase();
@@ -100,11 +100,14 @@ serve(async (req) => {
       const { data: authData, error: authErr } = await supabase.auth.getUser(token);
       if (authErr || !authData?.user?.id) throw new Error("Authentication required");
       userId = authData.user.id;
-      const { data: allowed } = await supabase.rpc("has_terminal_permission", {
-        _user_id: userId,
-        _permission: "terminal_ads_manage",
-      });
-      if (!allowed) throw new Error("Permission denied: terminal_ads_manage required");
+      const [{ data: allowed }, { data: isSuperAdmin }] = await Promise.all([
+        supabase.rpc("has_terminal_permission", {
+          _user_id: userId,
+          _permission: "terminal_ads_manage",
+        }),
+        supabase.rpc("has_role", { _user_id: userId, _role: "Super Admin" }),
+      ]);
+      if (!allowed && !isSuperAdmin) throw new Error("Permission denied: terminal_ads_manage required");
       authorized = true;
     }
     if (!authorized) throw new Error("Unauthorized");

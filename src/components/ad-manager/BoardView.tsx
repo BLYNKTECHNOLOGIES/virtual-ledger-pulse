@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   MoreVertical, Edit, Copy, History, Lock, ShieldBan, ShieldCheck, ChevronDown, ChevronRight, Zap,
 } from 'lucide-react';
-import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
 import { QuickEditPopover } from './QuickEditPopover';

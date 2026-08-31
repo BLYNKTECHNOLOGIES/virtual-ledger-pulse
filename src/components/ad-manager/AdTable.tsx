@@ -3,7 +3,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Edit, Power, PowerOff, Lock, ShieldBan, ShieldCheck, Megaphone, ArrowUp, ArrowDown, History, Copy, Zap } from 'lucide-react';
+import { Edit, Power, PowerOff, Lock, ShieldBan, ShieldCheck, Megaphone, ArrowUp, ArrowDown, History, Copy, SlidersHorizontal } from 'lucide-react';
+import { AdAutomationIndicator, useAdAutomationMap } from './AdAutomationIndicator';
+import { useAuth } from '@/hooks/useAuth';
+import { isSuperAdminRoleName } from '@/lib/auth/roles';
 import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';

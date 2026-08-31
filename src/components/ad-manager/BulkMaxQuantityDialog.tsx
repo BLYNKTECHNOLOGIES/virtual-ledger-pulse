@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Loader2, Maximize2, Gauge } from 'lucide-react';
 import { BinanceAd, useUpdateAd } from '@/hooks/useBinanceAds';
 import { adZone, ZONE_SHORT } from '@/lib/adZone';
 import { useAdCapacityMap, capacityKey, useUpsertCapacityLimit } from '@/hooks/useAdCapacityLimits';
@@ -15,6 +15,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   ads: BinanceAd[];
   onComplete: () => void;
+  /** Opens the capacity calibration dialog. */
+  onCalibrate?: () => void;
 }
 
 type Bound = 'cap' | 'balance' | 'none';
@@ -31,7 +33,7 @@ type ResultStatus = 'pending' | 'success' | 'error' | 'skipped';
 
 const fmtQty = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });
 
-export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: Props) {
+export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onCalibrate }: Props) {
   const { toast } = useToast();
   const updateAd = useUpdateAd();
   const { map, isLoading } = useAdCapacityMap();
@@ -211,9 +213,19 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
           </>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-between">
           {step === 'preview' && (
             <>
+              {onCalibrate && (
+                <Button
+                  variant="secondary"
+                  onClick={() => { handleClose(false); onCalibrate(); }}
+                  className="sm:mr-auto"
+                >
+                  <Gauge className="h-4 w-4 mr-2" />
+                  Calibrate limits
+                </Button>
+              )}
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button onClick={execute} disabled={actionable.length === 0}>
                 Apply to {actionable.length} ad{actionable.length !== 1 ? 's' : ''}

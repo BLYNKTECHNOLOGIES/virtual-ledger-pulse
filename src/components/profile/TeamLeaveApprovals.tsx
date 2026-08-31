@@ -73,6 +73,7 @@ export default function TeamLeaveApprovals({ employeeId, highlightedRequestId }:
         endDate: req.end_date,
         totalDays: req.total_days,
         reason: req.reason,
+        employeeEmail: req.employee_email || null,
         decidedBy: 'Reporting manager',
       });
     },

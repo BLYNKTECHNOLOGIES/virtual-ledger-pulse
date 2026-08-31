@@ -72,6 +72,7 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
         reason: req.reason,
         managerRecommendation: approve ? 'Approved' : 'Rejected',
         managerRemarks: remarks[req.id]?.trim() || null,
+        employeeEmail: req.employee_email || null,
       });
     },
     onSuccess: (_d, v) => {

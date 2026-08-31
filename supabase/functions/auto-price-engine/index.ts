@@ -1587,8 +1587,10 @@ async function fetchCoinUsdtRate(asset: string): Promise<number> {
     const price = parseFloat(data.price || "0");
     if (price > 0) {
       console.log(`[fetchCoinUsdtRate] ${asset}USDT = ${price} (direct)`);
+      coinRateCache.set(asset, { price, at: Date.now() });
       return price;
     }
+
     console.warn(`[fetchCoinUsdtRate] Direct API returned no price for ${asset}:`, JSON.stringify(data).substring(0, 200));
   } catch (e) {
     console.error(`[fetchCoinUsdtRate] Direct API failed for ${asset}:`, e);

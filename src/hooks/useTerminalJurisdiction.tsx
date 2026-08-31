@@ -42,7 +42,15 @@ export function useTerminalJurisdiction() {
         console.error('Error fetching visible users:', error);
         return;
       }
-      setVisibleUserIds(new Set((data || []).map((r: any) => r.visible_user_id)));
+      // The RPC returns SETOF uuid → PostgREST sends a plain string[].
+      // (Older shape returned rows with a visible_user_id column.)
+      setVisibleUserIds(
+        new Set(
+          (data || [])
+            .map((r: any) => (typeof r === 'string' ? r : r?.visible_user_id))
+            .filter(Boolean) as string[]
+        )
+      );
     } catch (err) {
       console.error('Error in fetchVisibleUsers:', err);
     }

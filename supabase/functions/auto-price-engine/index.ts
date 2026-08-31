@@ -164,6 +164,22 @@ serve(async (req) => {
         }
       }
 
+      // Overlap guard: claim the rule atomically. If another invocation is still
+      // walking this rule's assets, skip instead of running a second interleaved
+      // pass (that is what produced duplicated/shuffled asset logs in one window).
+      const staleLockCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      const { data: claimed } = await supabase
+        .from("ad_pricing_rules")
+        .update({ run_lock_at: new Date().toISOString() })
+        .eq("id", rule.id)
+        .or(`run_lock_at.is.null,run_lock_at.lt.${staleLockCutoff}`)
+        .select("id");
+
+      if (!claimed || claimed.length === 0) {
+        console.log(`[lock] Rule ${rule.id} skipped: already running`);
+        results.push({ ruleId: rule.id, status: "skipped", reason: "already_running" });
+        continue;
+      }
 
       try {
         const logEntries = await processRule(rule, excludedSet, supabase);
@@ -178,8 +194,11 @@ serve(async (req) => {
         }).eq("id", rule.id);
         results.push({ ruleId: rule.id, status: "error", error: (err as Error).message });
         cycleErrorCount++;
+      } finally {
+        await supabase.from("ad_pricing_rules").update({ run_lock_at: null }).eq("id", rule.id);
       }
     }
+
 
     // ===== CIRCUIT BREAKER STATE TRANSITION =====
     await updateCircuitBreaker(supabase, engineState, cycleSuccessCount, cycleErrorCount);
@@ -318,7 +337,26 @@ async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
   }
 }
 
+// Fixed, stable processing order for assets. Anything not in the list keeps a
+// stable alphabetical position after the known majors, so the sequence is
+// identical on every run regardless of how the rule's array happens to be stored.
+const ASSET_ORDER = [
+  "USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB", "SOL", "XRP", "TRX", "DOGE", "SHIB",
+];
+export function sortAssetsDeterministically(assets: string[]): string[] {
+  const unique = Array.from(new Set(assets.filter(Boolean)));
+  return unique.sort((a, b) => {
+    const ia = ASSET_ORDER.indexOf(a);
+    const ib = ASSET_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+}
+
 async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
+
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;
   const istNow = new Date(now.getTime() + istOffset);
@@ -355,9 +393,14 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
     return [{ status: "skipped", reason: "auto_paused" }];
   }
 
-  // Determine assets to process
-  const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  // Determine assets to process — ALWAYS in a deterministic order so every cycle
+  // walks the same sequence (otherwise logs interleave differently run to run and
+  // a later asset can race a price it saw earlier in the previous ordering).
+  const assetsToProcess: string[] = sortAssetsDeterministically(
+    (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset],
+  );
   const assetConfig: Record<string, any> = rule.asset_config || {};
+
 
   const binanceTradeType = rule.trade_type === "BUY" ? "SELL" : "BUY";
   const usdtInr = await fetchUsdtInr(supabase);
@@ -1155,7 +1198,7 @@ async function insertPricingAlert(supabase: any, rule: any, alertType: string, m
 }
 
 async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, supabase: any) {
-  const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  const assetsToProcess: string[] = sortAssetsDeterministically((rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset]);
   const assetConfig: Record<string, any> = rule.asset_config || {};
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();

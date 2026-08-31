@@ -416,6 +416,7 @@ export type Database = {
           price_type: string
           resting_price: number | null
           resting_ratio: number | null
+          run_lock_at: string | null
           target_merchant: string
           trade_type: string
           updated_at: string | null
@@ -469,6 +470,7 @@ export type Database = {
           price_type: string
           resting_price?: number | null
           resting_ratio?: number | null
+          run_lock_at?: string | null
           target_merchant: string
           trade_type: string
           updated_at?: string | null
@@ -522,6 +524,7 @@ export type Database = {
           price_type?: string
           resting_price?: number | null
           resting_ratio?: number | null
+          run_lock_at?: string | null
           target_merchant?: string
           trade_type?: string
           updated_at?: string | null

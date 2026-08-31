@@ -1328,13 +1328,48 @@ function looksLikeSelfPriceConflict(message: string): boolean {
 }
 
 async function callBinanceAds(binanceAdsUrl: string, internalAuthKey: string, body: any): Promise<any> {
-  const resp = await fetch(binanceAdsUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
-    body: JSON.stringify(body),
-  });
-  return await resp.json();
+  const maxAttempts = 4;
+  let lastErr = "unknown error";
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let resp: Response;
+    try {
+      resp = await fetch(binanceAdsUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      lastErr = (e as Error).message;
+      if (attempt < maxAttempts) { await new Promise((r) => setTimeout(r, 800 * attempt)); continue; }
+      return { success: false, error: lastErr };
+    }
+
+    const raw = await resp.text();
+    let parsed: any = null;
+    try { parsed = raw ? JSON.parse(raw) : null; } catch { /* non-JSON body */ }
+
+    const message = (parsed?.error || parsed?.message || raw || "").toString();
+    const rateLimited = resp.status === 429 || /rate limit exceeded/i.test(message);
+
+    if (rateLimited && attempt < maxAttempts) {
+      // Honour "Retry after 5712ms." hints from the platform, else exponential backoff.
+      const hinted = Number(message.match(/retry after\s+(\d+)\s*ms/i)?.[1] ?? 0);
+      const headerHint = Number(resp.headers.get("retry-after") ?? 0) * 1000;
+      const waitMs = Math.min(Math.max(hinted || headerHint || 1000 * attempt, 500) + 250, 10000);
+      console.log(`callBinanceAds rate limited (attempt ${attempt}/${maxAttempts}) — waiting ${waitMs}ms`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      lastErr = message;
+      continue;
+    }
+
+    if (parsed) return parsed;
+    return { success: false, error: message.substring(0, 300) || `HTTP ${resp.status}` };
+  }
+
+  return { success: false, error: lastErr };
 }
+
 
 async function resolveSelfPriceConflict(params: {
   supabase: any;

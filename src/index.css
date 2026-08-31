@@ -1207,16 +1207,10 @@ html {
     overflow-x: hidden;
   }
 
-  .horilla-root .hrms-toolbar {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
+  /* Toolbar stacking for phones is handled in the <640px block below,
+     so the 640–767px range still gets a proper horizontal toolbar. */
 
-  .horilla-root .hrms-toolbar > * {
-    width: 100% !important;
-    min-width: 0 !important;
-  }
+
 
   .horilla-root .hrms-mobile-stack {
     display: flex;
@@ -1287,15 +1281,29 @@ html {
   }
 }
 
-@media (min-width: 640px) {
+/* ── HRMS toolbar: horizontal filter bar (base, all viewports) ── */
+.horilla-root .hrms-toolbar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.horilla-root .hrms-toolbar > * {
+  min-width: 0;
+}
+
+/* Phones: stack the toolbar controls full width */
+@media (max-width: 639px) {
   .horilla-root .hrms-toolbar {
-    flex-direction: row;
-    align-items: center;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .horilla-root .hrms-toolbar > * {
-    width: auto !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }
 }
 

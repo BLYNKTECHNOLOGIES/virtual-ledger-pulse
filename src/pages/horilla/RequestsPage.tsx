@@ -291,6 +291,12 @@ export default function RequestsPage() {
               />
             )}
             <Row label="Reason" value={selected.detail || "—"} />
+            {selected.type === "regularization" && selected.raw?.employee_id && selected.raw?.attendance_date && (
+              <CurrentAttendanceSnapshot
+                employeeId={selected.raw.employee_id}
+                date={selected.raw.attendance_date}
+              />
+            )}
             <Row label="Submitted" value={format(new Date(selected.createdAt), "dd MMM yyyy, HH:mm")} />
             {selected.updatedAt && (
               <Row label="Last updated" value={format(new Date(selected.updatedAt), "dd MMM yyyy, HH:mm")} />

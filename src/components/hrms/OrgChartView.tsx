@@ -137,6 +137,18 @@ function OrgChartNode({
               : "border-[hsl(20,60%,85%)] bg-[hsl(20,80%,95%)] dark:border-accent dark:bg-accent/30 hover:shadow-md"
           }`}
       >
+        {/* Remap reporting manager */}
+        <button
+          type="button"
+          title="Remap reporting manager"
+          aria-label={`Remap reporting manager for ${node.name}`}
+          onClick={(e) => { e.stopPropagation(); onAssign?.(node); }}
+          className="absolute top-1 left-1 z-10 h-5 w-5 rounded-full bg-background/80 border border-border flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+        >
+          <UserCog className="h-3 w-3" />
+        </button>
+
+
 
         {/* Avatar */}
         <div className="flex justify-center mb-1.5">

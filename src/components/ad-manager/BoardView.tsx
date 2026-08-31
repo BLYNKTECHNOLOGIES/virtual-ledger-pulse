@@ -11,7 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import {
   MoreVertical, Edit, Copy, History, Lock, ShieldBan, ShieldCheck, ChevronDown, ChevronRight, Zap,
 } from 'lucide-react';
-import { BinanceAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
 import { QuickEditPopover } from './QuickEditPopover';
@@ -86,6 +86,15 @@ function AdCard({
         <Badge variant="outline" className={cn('text-[10px] font-semibold', tint)}>{ad.tradeType}</Badge>
         <span className="font-semibold text-sm text-foreground">{ad.asset}</span>
         {isPrivate && <Lock className="h-3 w-3 text-warning" />}
+        {getAdHiddenReason(ad) && (
+          <Badge
+            variant="outline"
+            title={getAdHiddenReason(ad)!}
+            className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
+          >
+            Not visible
+          </Badge>
+        )}
         <AccountBadge accountId={ad._exchangeAccountId} showName={false} />
         <div className="ml-auto flex items-center gap-0.5">
           <TooltipProvider>

@@ -79,9 +79,35 @@ export interface BinanceAd {
   payTimeLimit?: number;
   onlineNow?: boolean;
   tags?: string[];
+  /**
+   * Binance visibility flags returned by getDetailByNo. Any flag set to 1 means
+   * Binance is HIDING the ad from the public book even though advStatus is 1.
+   */
+  advVisibleRet?: {
+    userSetVisible?: number;
+    surplusAmountVisible?: number;
+    freeAmountVisible?: number;
+    orderFlowVisible?: number;
+  } | null;
   /** Which exchange account this ad belongs to (set by the merged fetch). */
   _exchangeAccountId?: string;
 }
+
+/**
+ * An ad can carry advStatus=1 ("Active") and still be invisible on Binance.
+ * `advVisibleRet` reports why: not enough remaining amount, not enough free
+ * balance, or order-flow control. Returns null when the ad is publicly visible.
+ */
+export function getAdHiddenReason(ad: BinanceAd): string | null {
+  if (ad.advStatus !== BINANCE_AD_STATUS.ONLINE) return null;
+  const v = ad.advVisibleRet;
+  if (!v) return null;
+  if (Number(v.surplusAmountVisible) === 1) return 'Hidden by Binance — remaining amount is below your minimum order limit';
+  if (Number(v.freeAmountVisible) === 1) return 'Hidden by Binance — insufficient free balance to back this ad';
+  if (Number(v.orderFlowVisible) === 1) return 'Hidden by Binance — order-flow control (too many open orders on this ad)';
+  return null;
+}
+
 
 export interface AdFilters {
   asset?: string;

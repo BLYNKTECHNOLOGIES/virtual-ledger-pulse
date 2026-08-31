@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Edit, Power, PowerOff, Lock, ShieldBan, ShieldCheck, Megaphone, ArrowUp, ArrowDown, History, Copy, Zap } from 'lucide-react';
-import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, getAdStatusLabel, BINANCE_AD_STATUS, getAdHiddenReason } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from './PaymentMethodBadge';
 import { InlinePriceEditor } from './InlinePriceEditor';
 import { QuickEditPopover } from './QuickEditPopover';
@@ -202,17 +202,29 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
-                      : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
-                      : 'bg-muted text-muted-foreground border-border'
-                    }
-                  >
-                    {getAdStatusLabel(ad.advStatus)}
-                  </Badge>
+                  <div className="flex flex-col items-start gap-1">
+                    <Badge
+                      variant="outline"
+                      className={
+                        ad.advStatus === BINANCE_AD_STATUS.ONLINE ? 'bg-success/10 text-success border-success/20'
+                        : ad.advStatus === BINANCE_AD_STATUS.PRIVATE ? 'bg-warning/10 text-warning border-warning/20'
+                        : 'bg-muted text-muted-foreground border-border'
+                      }
+                    >
+                      {getAdStatusLabel(ad.advStatus)}
+                    </Badge>
+                    {getAdHiddenReason(ad) && (
+                      <Badge
+                        variant="outline"
+                        title={getAdHiddenReason(ad)!}
+                        className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] px-1.5 py-0"
+                      >
+                        Not visible
+                      </Badge>
+                    )}
+                  </div>
                 </TableCell>
+
                 <TableCell className="text-xs text-muted-foreground">
                   {ad.updateTime ? (
                     <div className="flex flex-col">

@@ -21,6 +21,7 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ---
 
+- 2026-08-31: Binance ad-capacity calibration repaired — Super Admin authorization bypass aligned with ERP permissions, Edge Functions shortened below gateway timeout, and calibration now reports per-combination progress and exact row-level failures.
 - 2026-08-30: Terminal auto-pricing authorization repaired — all internal `binance-ads` calls now use service authentication; live verification recorded six applied ratios after prior Unauthorized failures, with the circuit breaker CLOSED and human-readable log reasons visible.
 - 2026-08-25: Super Admin UI access repaired — frontend permission caches/gates/sidebar/Terminal auth now treat Admin/Super Admin as full-access bypasses, matching database `admin_access`/`super_admin_access` semantics.
 - 2026-08-25: ERP permission library Phase 4 shipped — Terminal permissions moved into a shared catalog for auth/role-editor/verification parity while Terminal database grants and role behaviour remain unchanged.

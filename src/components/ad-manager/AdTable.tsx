@@ -235,6 +235,7 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
+                    <AdAutomationIndicator info={automationMap.get(ad.advNo)} />
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -257,8 +258,8 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
                       <Edit className="h-3.5 w-3.5" />
                     </Button>
                     <QuickEditPopover ad={ad}>
-                      <Button variant="ghost" size="icon" aria-label="Quick edit" className="h-8 w-8" title="Quick Edit">
-                        <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                      <Button variant="ghost" size="icon" aria-label="Quick edit price and limits" className="h-8 w-8" title="Quick edit — price & limits">
+                        <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                     </QuickEditPopover>
                     {onDuplicate && (
@@ -266,11 +267,12 @@ export function DeskTable({ ads, onEdit, onToggleStatus, onHistory, onDuplicate,
                         <Copy className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                     )}
-                    {onHistory && (
+                    {onHistory && isSuperAdmin && (
                       <Button variant="ghost" size="icon" aria-label="History" className="h-8 w-8" onClick={() => onHistory(ad.advNo)} title="View change history">
                         <History className="h-3.5 w-3.5 text-muted-foreground" />
                       </Button>
                     )}
+
                     <Button
                       variant="ghost"
                       size="icon" aria-label="Disable / Locked"

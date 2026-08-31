@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, Phone } from 'lucide-react';
+import { Users, UserCheck, Phone, Network } from 'lucide-react';
+import { useDirectReports } from '@/hooks/useDirectReports';
+
 
 interface Props {
   employeeId: string;
@@ -66,8 +68,13 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
     enabled: !!departmentId,
   });
 
+  const { data: reports = [] } = useDirectReports(!!employeeId);
+  const activeReports = (reports || []).filter((r) => r.is_active !== false);
+  const regsWithHr = activeReports.reduce((s, r) => s + (r.pending_reg_with_hr || 0), 0);
+
   const initials = (f?: string | null, l?: string | null) =>
     `${(f || '').charAt(0)}${(l || '').charAt(0)}`.toUpperCase() || '?';
+
 
   return (
     <Card>
@@ -107,6 +114,66 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
             </p>
           )}
         </div>
+
+        {/* Direct reports (only for reporting managers) */}
+        {activeReports.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Network className="h-3.5 w-3.5" /> Reports to you
+              </p>
+              <Badge variant="secondary" className="text-[10px]">{activeReports.length}</Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {activeReports.map((r) => {
+                const [f, ...rest] = (r.full_name || '').split(' ');
+                const waiting = (r.pending_leave_with_me || 0) + (r.pending_reg_with_me || 0);
+                return (
+                  <div
+                    key={r.employee_id}
+                    className="flex items-center gap-3 p-2.5 rounded-lg border border-border/60 bg-card"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {initials(f, rest.join(' '))}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {r.full_name || `Badge ${r.badge_id || '—'}`}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {r.designation || `Badge ${r.badge_id || '—'}`}
+                      </p>
+                    </div>
+                    {waiting > 0 && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {waiting} pending
+                      </Badge>
+                    )}
+                    {r.phone && (
+                      <a
+                        href={`tel:${r.phone}`}
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                        aria-label={`Call ${r.full_name || 'report'}`}
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {regsWithHr > 0 && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                {regsWithHr} attendance correction request{regsWithHr > 1 ? 's' : ''} from your team
+                {regsWithHr > 1 ? ' are' : ' is'} still with HR and will reach you once forwarded.
+              </p>
+            )}
+          </div>
+        )}
+
+
 
         {/* Teammates */}
         <div>

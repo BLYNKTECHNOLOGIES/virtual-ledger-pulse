@@ -14,6 +14,8 @@ import { toast } from 'sonner';
 import { sendRegularizationEmail, regCategoryLabel } from '@/utils/regularizationEmail';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 import { cn } from '@/lib/utils';
+import { useDirectReports } from '@/hooks/useDirectReports';
+
 
 interface Props {
   employeeId: string; // logged-in employee (potential reporting manager)
@@ -30,6 +32,9 @@ const fmtTime = (ts: string | null) =>
 export default function TeamRegularizationApprovals({ employeeId, highlightedRequestId }: Props) {
   const qc = useQueryClient();
   const [remarks, setRemarks] = useState<Record<string, string>>({});
+  const { data: reports = [] } = useDirectReports(!!employeeId);
+  const regsWithHr = (reports || []).reduce((s, r) => s + (r.pending_reg_with_hr || 0), 0);
+
 
   const { data: requests = [], isLoading, isError, error } = useQuery({
     queryKey: ['ess_team_reg_approvals', employeeId],
@@ -93,7 +98,26 @@ export default function TeamRegularizationApprovals({ employeeId, highlightedReq
     );
   }
 
-  if (!isLoading && requests.length === 0) return null;
+  if (!isLoading && requests.length === 0) {
+    if (regsWithHr > 0) {
+      return (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardCheck className="h-4 w-4 text-primary" /> Team Attendance Regularizations
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            Nothing needs your review right now. {regsWithHr} request{regsWithHr > 1 ? 's' : ''} from your
+            team {regsWithHr > 1 ? 'are' : 'is'} still with HR — {regsWithHr > 1 ? 'they' : 'it'} will appear
+            here once HR forwards {regsWithHr > 1 ? 'them' : 'it'} to you.
+          </CardContent>
+        </Card>
+      );
+    }
+    return null;
+  }
+
 
   const pendingCount = (requests as any[]).filter((r) => r.status === 'manager_review').length;
 

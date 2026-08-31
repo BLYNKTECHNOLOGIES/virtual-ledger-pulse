@@ -28967,6 +28967,20 @@ export type Database = {
         Args: { p_subject: string }
         Returns: string
       }
+      hr_manager_direct_reports: {
+        Args: never
+        Returns: {
+          badge_id: string
+          designation: string
+          employee_id: string
+          full_name: string
+          is_active: boolean
+          pending_leave_with_me: number
+          pending_reg_with_hr: number
+          pending_reg_with_me: number
+          phone: string
+        }[]
+      }
       hr_manager_leave_queue: {
         Args: never
         Returns: {

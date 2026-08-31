@@ -14,6 +14,7 @@ interface BulkActionToolbarProps {
   onBulkPriceLadder: () => void;
   onBulkHybridAdjust: () => void;
   onBulkRiskGuard: () => void;
+  onBulkMaxQuantity: () => void;
   onBulkActivate: () => void;
   onBulkDeactivate: () => void;
   totalAds?: number;

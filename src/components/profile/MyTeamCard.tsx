@@ -115,6 +115,66 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
           )}
         </div>
 
+        {/* Direct reports (only for reporting managers) */}
+        {activeReports.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Network className="h-3.5 w-3.5" /> Reports to you
+              </p>
+              <Badge variant="secondary" className="text-[10px]">{activeReports.length}</Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {activeReports.map((r) => {
+                const [f, ...rest] = (r.full_name || '').split(' ');
+                const waiting = (r.pending_leave_with_me || 0) + (r.pending_reg_with_me || 0);
+                return (
+                  <div
+                    key={r.employee_id}
+                    className="flex items-center gap-3 p-2.5 rounded-lg border border-border/60 bg-card"
+                  >
+                    <Avatar className="h-9 w-9">
+                      <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                        {initials(f, rest.join(' '))}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {r.full_name || `Badge ${r.badge_id || '—'}`}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {r.designation || `Badge ${r.badge_id || '—'}`}
+                      </p>
+                    </div>
+                    {waiting > 0 && (
+                      <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">
+                        {waiting} pending
+                      </Badge>
+                    )}
+                    {r.phone && (
+                      <a
+                        href={`tel:${r.phone}`}
+                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                        aria-label={`Call ${r.full_name || 'report'}`}
+                      >
+                        <Phone className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {regsWithHr > 0 && (
+              <p className="text-[11px] text-muted-foreground mt-2">
+                {regsWithHr} attendance correction request{regsWithHr > 1 ? 's' : ''} from your team
+                {regsWithHr > 1 ? ' are' : ' is'} still with HR and will reach you once forwarded.
+              </p>
+            )}
+          </div>
+        )}
+
+
+
         {/* Teammates */}
         <div>
           <div className="flex items-center justify-between mb-2">

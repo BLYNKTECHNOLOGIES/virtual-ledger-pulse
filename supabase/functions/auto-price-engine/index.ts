@@ -715,13 +715,23 @@ async function processAsset(
       competitorRatio = (competitorPrice / (baseRef as number)) * 100;
     }
 
+    // A FIXED-price competitor has no ratio of its own, so we convert their price with
+    // an index we derived (search payload / our ad detail / market ref). That derivation
+    // carries rounding + a few seconds of drift — on a fast asset like BTC it is worth
+    // ~0.02%, which is MORE than one 0.01 ratio tick. Without a guard we compute a ratio
+    // that looks like an overcut but renders just BELOW the competitor on Binance.
+    // So when the ratio is index-derived, demand a real margin, not just a tick.
+    const DERIVED_INDEX_GUARD_PCT = 0.03;
+    const derivedIndexGuard = indexSource === "competitor_floating_ratio" ? 0 : DERIVED_INDEX_GUARD_PCT;
+
     // Offset is a PERCENTAGE of the competitor's ratio, not percentage points:
     // 0.05% overcut on a 103.85 competitor => 103.85 * 1.0005 = 103.9019.
     const offsetFactor = 1 + (offsetPct / 100);
+    const guardFactor = 1 + (derivedIndexGuard / 100);
     if (rule.offset_direction === "OVERCUT") {
-      newRatio = competitorRatio * offsetFactor;
+      newRatio = competitorRatio * Math.max(offsetFactor, guardFactor);
     } else {
-      newRatio = competitorRatio / offsetFactor;
+      newRatio = competitorRatio / Math.max(offsetFactor, guardFactor);
     }
 
     // Binance stores the floating ratio at 2 decimals. Rounding a 0.05% overcut to the
@@ -741,7 +751,31 @@ async function processAsset(
     }
     newRatio = Math.round(newRatio * 100) / 100;
 
-    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, source=${indexSource}${baseRef ? `, index=₹${baseRef.toFixed(2)}` : ""}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}% (x${offsetFactor}), newRatio=${newRatio !== null ? newRatio.toFixed(4) : 'null'}%`);
+    console.log(`[FLOATING] ${asset}: competitorPrice=₹${competitorPrice}, source=${indexSource}${baseRef ? `, index=₹${baseRef.toFixed(2)}` : ""}, competitorRatio=${competitorRatio.toFixed(4)}%, offset=${rule.offset_direction} ${offsetPct}% (x${offsetFactor}), guard=${derivedIndexGuard}%, newRatio=${newRatio !== null ? newRatio.toFixed(4) : 'null'}%`);
+
+    // Truth check against the index Binance actually renders OUR ad with. Our own ad
+    // detail exposes price + ratio, so index = price / (ratio/100) is exactly the
+    // denominator our displayed price uses. For an index-derived competitor ratio this
+    // is the only way to guarantee the rendered price really sits above/below theirs.
+    if (indexSource !== "competitor_floating_ratio" && adNumbers.length > 0 && newRatio !== null) {
+      const ownIndex = await inferBinanceIndex(adNumbers[0], supabase, rule.id);
+      if (ownIndex && ownIndex > 0) {
+        const requiredRatio = (competitorPrice / ownIndex) * 100 * Math.max(offsetFactor, guardFactor);
+        const snapped = rule.offset_direction === "OVERCUT"
+          ? Math.ceil(requiredRatio * 100) / 100
+          : Math.floor(requiredRatio * 100) / 100;
+        const corrected = rule.offset_direction === "OVERCUT"
+          ? Math.max(newRatio, snapped)
+          : Math.min(newRatio, snapped);
+        if (corrected !== newRatio) {
+          console.log(`[own-index-guard] ${asset}: ratio ${newRatio} -> ${corrected} (ourIndex=₹${ownIndex.toFixed(2)})`);
+          newRatio = corrected;
+        }
+      }
+    }
+
+
+
 
 
     if (rule.max_ratio_change_per_cycle && rule.last_applied_ratio && newRatio !== null) {

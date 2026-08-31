@@ -53,12 +53,15 @@ function isBalanceError(code: string, message: string): boolean {
   return m.includes("insufficient") || m.includes("balance") || m.includes("not enough");
 }
 
+function isRateLimitError(code: string, message: string): boolean {
+  const m = `${code} ${message}`.toLowerCase();
+  return m.includes("too many request") || m.includes("rate limit") || m.includes("frequen") || m.includes("429");
+}
+
 function isHardAbortError(code: string, message: string): boolean {
   const m = `${code} ${message}`.toLowerCase();
   return (
-    m.includes("too many request") ||
-    m.includes("rate limit") ||
-    m.includes("frequen") ||
+    isRateLimitError(code, message) ||
     m.includes("signature") ||
     m.includes("api-key") ||
     m.includes("unauthor") ||

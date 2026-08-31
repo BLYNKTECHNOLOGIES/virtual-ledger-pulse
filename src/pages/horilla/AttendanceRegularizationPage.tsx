@@ -21,6 +21,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { ResponsiveDialog } from '@/components/horilla/primitives/ResponsiveDialog';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
+import { CurrentAttendanceSnapshot } from "@/components/hrms/CurrentAttendanceSnapshot";
 
 /**
  * Attendance Regularization requests (HR review).

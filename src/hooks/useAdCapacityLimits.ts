@@ -84,11 +84,21 @@ async function edgeFunctionErrorMessage(error: unknown, fallback: string): Promi
   return error instanceof Error && error.message ? error.message : fallback;
 }
 
+async function calibrationHeaders(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (error || !accessToken) {
+    throw new Error('Your session is unavailable. Refresh the page and sign in again.');
+  }
+  return { Authorization: `Bearer ${accessToken}` };
+}
+
 export function useRunCapacityProbe() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: ProbeArgs): Promise<ProbeResult> => {
-      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-probe', { body: args });
+      const headers = await calibrationHeaders();
+      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-probe', { body: args, headers });
       if (error) throw new Error(await edgeFunctionErrorMessage(error, 'Calibration request failed'));
       if (data && data.success === false && data.error) throw new Error(data.error);
       return data as ProbeResult;
@@ -124,7 +134,8 @@ export function useRunCapacitySweep() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { exchange_account_id?: string | null; force?: boolean; asset?: string; zone?: AdZone; tradeType?: 'BUY' | 'SELL' } = {}): Promise<SweepResult> => {
-      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args });
+      const headers = await calibrationHeaders();
+      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args, headers });
       if (error) throw new Error(await edgeFunctionErrorMessage(error, 'Calibration request failed'));
       const res = data as SweepResult;
       if (res && res.success === false && res.error) throw new Error(res.error);

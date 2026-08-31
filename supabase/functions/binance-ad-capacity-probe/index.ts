@@ -68,13 +68,19 @@ serve(async (req) => {
     if (authErr || !authData?.user?.id) throw new Error("Authentication required");
     const userId = authData.user.id;
 
-    const [{ data: allowed }, { data: isSuperAdmin }] = await Promise.all([
+    const [{ data: allowed, error: permissionError }, { data: roleRows, error: roleError }] = await Promise.all([
       supabase.rpc("has_terminal_permission", {
         _user_id: userId,
         _permission: "terminal_ads_manage",
       }),
-      supabase.rpc("has_role", { _user_id: userId, _role: "Super Admin" }),
+      supabase.from("user_roles").select("roles!inner(name, hierarchy_level)").eq("user_id", userId),
     ]);
+    const isSuperAdmin = (roleRows || []).some((row: any) =>
+      row.roles?.hierarchy_level === -1 || String(row.roles?.name || "").trim().toLowerCase() === "super admin"
+    );
+    if (permissionError && roleError) {
+      console.error("[capacity-probe] authorization checks failed", permissionError.message, roleError.message);
+    }
     if (!allowed && !isSuperAdmin) throw new Error("Permission denied: terminal_ads_manage required");
 
     const body = await req.json().catch(() => ({}));

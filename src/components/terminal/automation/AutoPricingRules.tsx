@@ -199,14 +199,16 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                     </div>
                   )}
 
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-2 sm:gap-4 min-w-0">
                     {/* Left: Info */}
                     <div className="flex items-start gap-3 flex-1 min-w-0">
                       <Switch
+                        className="shrink-0"
                         checked={rule.is_active}
                         onCheckedChange={(v) => updateRule.mutate({ id: rule.id, is_active: v })}
                         disabled={!canToggle}
                       />
+
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-sm">{rule.name}</span>

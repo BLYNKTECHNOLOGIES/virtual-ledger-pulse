@@ -852,7 +852,7 @@ export function OrgChartView() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setAssignTarget(null)} disabled={saving}>Cancel</Button>
             <Button onClick={saveManager} disabled={!assignManagerId || saving}>
-              {saving ? "Saving…" : "Assign"}
+              {saving ? "Saving…" : assignTarget?.unassigned ? "Assign" : "Remap"}
             </Button>
           </DialogFooter>
         </DialogContent>

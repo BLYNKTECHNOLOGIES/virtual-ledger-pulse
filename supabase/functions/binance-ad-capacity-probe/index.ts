@@ -68,11 +68,14 @@ serve(async (req) => {
     if (authErr || !authData?.user?.id) throw new Error("Authentication required");
     const userId = authData.user.id;
 
-    const { data: allowed } = await supabase.rpc("has_terminal_permission", {
-      _user_id: userId,
-      _permission: "terminal_ads_manage",
-    });
-    if (!allowed) throw new Error("Permission denied: terminal_ads_manage required");
+    const [{ data: allowed }, { data: isSuperAdmin }] = await Promise.all([
+      supabase.rpc("has_terminal_permission", {
+        _user_id: userId,
+        _permission: "terminal_ads_manage",
+      }),
+      supabase.rpc("has_role", { _user_id: userId, _role: "Super Admin" }),
+    ]);
+    if (!allowed && !isSuperAdmin) throw new Error("Permission denied: terminal_ads_manage required");
 
     const body = await req.json().catch(() => ({}));
     const asset = String(body.asset || "").toUpperCase();

@@ -3,7 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Users, UserCheck, Phone } from 'lucide-react';
+import { Users, UserCheck, Phone, Network } from 'lucide-react';
+import { useDirectReports } from '@/hooks/useDirectReports';
+
 
 interface Props {
   employeeId: string;

@@ -346,7 +346,7 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
   }
 
   // 3. CHECK AUTO-PAUSE
-  if (rule.consecutive_deviations >= rule.auto_pause_after_deviations) {
+  if ((rule.auto_pause_after_deviations ?? 0) > 0 && rule.consecutive_deviations >= rule.auto_pause_after_deviations) {
     await supabase.from("ad_pricing_rules").update({ is_active: false }).eq("id", rule.id);
     await logAndUpdate(rule, supabase, { status: "skipped", skipped_reason: "auto_paused" });
     // AP-MISS-03: Alert on auto-pause

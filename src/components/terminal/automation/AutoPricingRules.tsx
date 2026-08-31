@@ -79,7 +79,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
 
   const getHealthColor = (rule: AutoPricingRule) => {
     if (!rule.is_active) return 'text-muted-foreground';
-    if (rule.consecutive_errors > 10 || rule.consecutive_deviations >= rule.auto_pause_after_deviations) return 'text-destructive';
+    if (rule.consecutive_errors > 10 || ((rule.auto_pause_after_deviations ?? 0) > 0 && rule.consecutive_deviations >= rule.auto_pause_after_deviations)) return 'text-destructive';
     if (rule.consecutive_errors > 3 || rule.consecutive_deviations > 2) return 'text-warning';
     return 'text-success';
   };

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
 import { LeaveApprovalPanel } from "@/components/hrms/LeaveApprovalPanel";
 import { RegularizationApprovalPanel } from "@/components/hrms/RegularizationApprovalPanel";
+import { CurrentAttendanceSnapshot } from "@/components/hrms/CurrentAttendanceSnapshot";
 import {
   REQUEST_SOURCES,
   STAGE_LABEL,
@@ -291,6 +292,12 @@ export default function RequestsPage() {
               />
             )}
             <Row label="Reason" value={selected.detail || "—"} />
+            {selected.type === "regularization" && selected.raw?.employee_id && selected.raw?.attendance_date && (
+              <CurrentAttendanceSnapshot
+                employeeId={selected.raw.employee_id}
+                date={selected.raw.attendance_date}
+              />
+            )}
             <Row label="Submitted" value={format(new Date(selected.createdAt), "dd MMM yyyy, HH:mm")} />
             {selected.updatedAt && (
               <Row label="Last updated" value={format(new Date(selected.updatedAt), "dd MMM yyyy, HH:mm")} />

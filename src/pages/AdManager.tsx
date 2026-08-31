@@ -287,13 +287,14 @@ export default function AdManager() {
                   <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
                 </Button>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-2 text-xs text-foreground border-border"
                   onClick={() => setCapacityCalOpen(true)}
                   title="Ad quantity capacity (calibrate max quantity)"
                 >
-                  <Gauge className="h-4 w-4" />
+                  <Gauge className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Calibrate</span>
                 </Button>
                 <Button
                   variant="ghost"

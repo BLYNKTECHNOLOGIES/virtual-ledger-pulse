@@ -1,0 +1,1 @@
+ALTER TABLE public.ad_pricing_rules ADD COLUMN IF NOT EXISTS run_lock_at timestamptz;

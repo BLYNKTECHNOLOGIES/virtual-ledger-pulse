@@ -1198,7 +1198,7 @@ async function insertPricingAlert(supabase: any, rule: any, alertType: string, m
 }
 
 async function applyRestingPriceMultiAsset(rule: any, excludedSet: Set<string>, supabase: any) {
-  const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  const assetsToProcess: string[] = sortAssetsDeterministically((rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset]);
   const assetConfig: Record<string, any> = rule.asset_config || {};
   const binanceAdsUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/binance-ads`;
   const internalAuthKey = getInternalAuthKey();

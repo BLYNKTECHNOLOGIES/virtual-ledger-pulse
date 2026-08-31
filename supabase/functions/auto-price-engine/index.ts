@@ -842,25 +842,80 @@ async function processAsset(
         });
         await captureAdDetailSnapshot(adNo, rule.id, "auto_price_post_update", supabase);
       } else {
-        await supabase.from("ad_pricing_logs").insert({
-          rule_id: rule.id,
-          ad_number: adNo,
-          asset,
-          ad_zone: liveAdZones.get(adNo) ?? zone,
-          competitor_merchant: matchedMerchant,
-        competitor_zone: zone,
-        competitor_badges: matchedBadges,
-        competitor_identity: matchedIdentity,
-        competitor_vip_level: matchedVipLevel,
-          competitor_price: competitorPrice,
-          market_reference_price: marketReferencePrice,
-          deviation_from_market_pct: deviationPct,
-          calculated_price: rule.price_type === "FIXED" ? newPrice : null,
-          calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
-          status: "error",
-          error_message: respData.error || JSON.stringify(respData).substring(0, 200),
-        });
+        const failMessage = respData.error || JSON.stringify(respData).substring(0, 200);
+
+        // ===== SELF-CONFLICT LADDER RESOLUTION =====
+        // Binance rejects a price that sits within 0.5% of one of OUR OWN ads of the
+        // same asset. When the rule opts in, re-space every one of our ads in the same
+        // asset + side + zone into a 0.51% ladder (lowest rung first so room is freed
+        // upwards) and then retry this ad at its intended price.
+        let ladderOutcome: { applied: boolean; moved: number; note: string } | null = null;
+        if (rule.ladder_conflict_resolution) {
+          ladderOutcome = await resolveSelfPriceConflict({
+            supabase,
+            rule,
+            asset,
+            adNo,
+            zone: liveAdZones.get(adNo) ?? zone,
+            binanceTradeType,
+            isFixed: rule.price_type === "FIXED",
+            targetValue: rule.price_type === "FIXED"
+              ? Math.round((newPrice!) * 100) / 100
+              : Math.round((newRatio!) * 10000) / 10000,
+            failMessage,
+            binanceAdsUrl,
+            internalAuthKey,
+          });
+        }
+
+        if (ladderOutcome?.applied) {
+          successCount++;
+          await supabase.from("ad_pricing_logs").insert({
+            rule_id: rule.id,
+            ad_number: adNo,
+            asset,
+            ad_zone: liveAdZones.get(adNo) ?? zone,
+            competitor_merchant: matchedMerchant,
+            competitor_zone: zone,
+            competitor_badges: matchedBadges,
+            competitor_identity: matchedIdentity,
+            competitor_vip_level: matchedVipLevel,
+            competitor_price: competitorPrice,
+            market_reference_price: marketReferencePrice,
+            deviation_from_market_pct: deviationPct,
+            calculated_price: rule.price_type === "FIXED" ? newPrice : null,
+            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+            applied_price: rule.price_type === "FIXED" ? Math.round((newPrice!) * 100) / 100 : null,
+            applied_ratio: rule.price_type === "FLOATING" ? Math.round((newRatio!) * 10000) / 10000 : null,
+            was_capped: wasCapped,
+            was_rate_limited: wasRateLimited,
+            status: "applied",
+            skipped_reason: "ladder_resolved",
+            error_message: ladderOutcome.note,
+          });
+          await captureAdDetailSnapshot(adNo, rule.id, "auto_price_post_update", supabase);
+        } else {
+          await supabase.from("ad_pricing_logs").insert({
+            rule_id: rule.id,
+            ad_number: adNo,
+            asset,
+            ad_zone: liveAdZones.get(adNo) ?? zone,
+            competitor_merchant: matchedMerchant,
+            competitor_zone: zone,
+            competitor_badges: matchedBadges,
+            competitor_identity: matchedIdentity,
+            competitor_vip_level: matchedVipLevel,
+            competitor_price: competitorPrice,
+            market_reference_price: marketReferencePrice,
+            deviation_from_market_pct: deviationPct,
+            calculated_price: rule.price_type === "FIXED" ? newPrice : null,
+            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+            status: "error",
+            error_message: ladderOutcome ? `${failMessage} — ${ladderOutcome.note}` : failMessage,
+          });
+        }
       }
+
 
       await new Promise((r) => setTimeout(r, 300));
     } catch (adErr) {
@@ -900,6 +955,144 @@ async function processAsset(
     newRatio: rule.price_type === "FLOATING" ? newRatio : undefined,
   };
 }
+
+// ===== SELF-CONFLICT PRICE LADDER =====
+// Binance refuses a price that lands within 0.5% of another of our own ads for the
+// same asset. The ladder re-spaces the whole family (same asset + side + market zone
+// + price mode) at 0.51% rungs below the intended top price, applying the lowest rung
+// first so the room is freed upward, then retries the ad that originally failed.
+const LADDER_STEP_PCT = 0.51;
+const CONFLICT_BAND_PCT = 0.5;
+
+function looksLikeSelfPriceConflict(message: string): boolean {
+  const m = String(message || "").toLowerCase();
+  return (
+    m.includes("0.5%") ||
+    m.includes("same asset") ||
+    m.includes("same coin") ||
+    m.includes("another ad") ||
+    m.includes("other ads") ||
+    m.includes("existing ad") ||
+    m.includes("price difference") ||
+    (m.includes("price") && m.includes("similar"))
+  );
+}
+
+async function callBinanceAds(binanceAdsUrl: string, internalAuthKey: string, body: any): Promise<any> {
+  const resp = await fetch(binanceAdsUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${internalAuthKey}` },
+    body: JSON.stringify(body),
+  });
+  return await resp.json();
+}
+
+async function resolveSelfPriceConflict(params: {
+  supabase: any;
+  rule: any;
+  asset: string;
+  adNo: string;
+  zone: string;
+  binanceTradeType: string;
+  isFixed: boolean;
+  targetValue: number;
+  failMessage: string;
+  binanceAdsUrl: string;
+  internalAuthKey: string;
+}): Promise<{ applied: boolean; moved: number; note: string }> {
+  const {
+    supabase, rule, asset, adNo, zone, binanceTradeType,
+    isFixed, targetValue, failMessage, binanceAdsUrl, internalAuthKey,
+  } = params;
+
+  try {
+    const listResult = await callBinanceAds(binanceAdsUrl, internalAuthKey, {
+      action: "listAds", asset, tradeType: binanceTradeType, advStatus: 1, fetchAll: true, rows: 20,
+    });
+    const rawAds: any[] = listResult?.data?.data || listResult?.data || [];
+    if (!Array.isArray(rawAds) || rawAds.length === 0) {
+      return { applied: false, moved: 0, note: "ladder skipped: no own ads returned by Binance" };
+    }
+
+    const wantFloating = !isFixed;
+    const candidates = rawAds.filter((a: any) =>
+      String(a.asset || "").toUpperCase() === asset.toUpperCase() &&
+      String(a.tradeType || "").toUpperCase() === binanceTradeType.toUpperCase() &&
+      String(a.advNo) !== String(adNo) &&
+      ((Number(a.priceType) === 2) === wantFloating)
+    );
+
+    // Zone must match — P2P and Block are separate books with their own price levels.
+    const siblings: { advNo: string; value: number }[] = [];
+    for (const a of candidates) {
+      const meta = await fetchAdMeta(String(a.advNo));
+      const adZoneValue = meta.zone ?? "p2p";
+      if (adZoneValue !== zone) continue;
+      const value = wantFloating ? Number(a.priceFloatingRatio || 0) : Number(a.price || 0);
+      if (!Number.isFinite(value) || value <= 0) continue;
+      siblings.push({ advNo: String(a.advNo), value });
+    }
+
+    const conflicting = siblings.filter(
+      (s) => Math.abs(s.value - targetValue) / targetValue * 100 < CONFLICT_BAND_PCT,
+    );
+    if (conflicting.length === 0 && !looksLikeSelfPriceConflict(failMessage)) {
+      return { applied: false, moved: 0, note: "ladder skipped: no own ad within 0.5% of the target price" };
+    }
+    if (siblings.length === 0) {
+      return { applied: false, moved: 0, note: "ladder skipped: no sibling ad in this zone to re-space" };
+    }
+
+    // Rung 1..n below the target, highest-priced sibling nearest the top.
+    const ordered = [...siblings].sort((a, b) => b.value - a.value);
+    const rungs = ordered.map((s, i) => ({
+      advNo: s.advNo,
+      from: s.value,
+      to: Math.round(targetValue * (1 - (LADDER_STEP_PCT / 100) * (i + 1)) * 100) / 100,
+    })).filter((r) => r.to > 0);
+
+    // Lowest rung first — moving the bottom ads down frees the band above them.
+    let moved = 0;
+    for (const r of [...rungs].reverse()) {
+      if (Math.abs(r.to - r.from) < 0.01) continue;
+      const adData: any = { advNo: r.advNo };
+      if (isFixed) adData.price = r.to; else adData.priceFloatingRatio = r.to;
+      const res = await callBinanceAds(binanceAdsUrl, internalAuthKey, { action: "updateAd", adData });
+      await supabase.from("ad_pricing_logs").insert({
+        rule_id: rule.id,
+        ad_number: r.advNo,
+        asset,
+        ad_zone: zone,
+        status: res?.success ? "applied" : "error",
+        skipped_reason: "ladder_realign",
+        applied_price: res?.success && isFixed ? r.to : null,
+        applied_ratio: res?.success && !isFixed ? r.to : null,
+        error_message: res?.success
+          ? `Ladder re-space ${r.from} → ${r.to} to clear the 0.5% conflict`
+          : (res?.error || "ladder re-space rejected by Binance").toString().substring(0, 200),
+      });
+      if (res?.success) moved++;
+      await new Promise((x) => setTimeout(x, 300));
+    }
+
+    if (moved === 0) {
+      return { applied: false, moved: 0, note: "ladder could not move any sibling ad" };
+    }
+
+    // Come back and retry the ad that failed.
+    const retryData: any = { advNo: adNo };
+    if (isFixed) retryData.price = targetValue; else retryData.priceFloatingRatio = targetValue;
+    const retry = await callBinanceAds(binanceAdsUrl, internalAuthKey, { action: "updateAd", adData: retryData });
+
+    return retry?.success
+      ? { applied: true, moved, note: `Ladder re-spaced ${moved} ad(s) at ${LADDER_STEP_PCT}% steps, then applied ${targetValue}` }
+      : { applied: false, moved, note: `Ladder re-spaced ${moved} ad(s) but the retry still failed: ${(retry?.error || "unknown").toString().substring(0, 120)}` };
+  } catch (e) {
+    return { applied: false, moved: 0, note: `ladder failed: ${(e as Error).message}` };
+  }
+}
+
+
 
 // ===== AP-MISS-03: ANOMALY ALERT HELPER =====
 async function insertPricingAlert(supabase: any, rule: any, alertType: string, message: string) {

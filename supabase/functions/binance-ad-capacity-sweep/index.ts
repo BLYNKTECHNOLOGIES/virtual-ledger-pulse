@@ -26,6 +26,9 @@ const OK = "000000";
 const THROTTLE_MS = 600;
 const MAX_ESCALATIONS = 12;
 const MAX_BISECTIONS = 14;
+// Edge functions have a hard wall-clock limit; stop cleanly before it and let
+// the caller resume with another invocation.
+const DEADLINE_MS = 100_000;
 
 function isQuantityCapError(code: string, message: string): boolean {
   const m = `${code} ${message}`.toLowerCase();
@@ -173,8 +176,15 @@ serve(async (req) => {
     );
 
     const results: any[] = [];
+    const startedAt = Date.now();
+    let deferred = 0;
 
     for (const [key, combo] of combos) {
+      if (Date.now() - startedAt > DEADLINE_MS) {
+        deferred++;
+        results.push({ key, skipped: "deferred to next run (time budget)" });
+        continue;
+      }
       if (!force && calibrated.has(key)) {
         results.push({ key, skipped: "already calibrated" });
         continue;
@@ -321,11 +331,13 @@ serve(async (req) => {
       runId,
       exchange_account_id: account.id,
       combinations: results.length,
+      deferred,
       results,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
+    console.error("[capacity-sweep] failed:", e?.message || String(e), e?.stack || "");
     return new Response(JSON.stringify({ success: false, error: e?.message || String(e) }), {
-      status: 400,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

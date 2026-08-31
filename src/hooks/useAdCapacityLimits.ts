@@ -87,6 +87,7 @@ export function useRunCapacityProbe() {
 export interface SweepResult {
   success: boolean;
   combinations?: number;
+  deferred?: number;
   results?: Array<{
     key: string;
     asset?: string;
@@ -105,20 +106,33 @@ export interface SweepResult {
 /**
  * Account-wide auto-calibration: finds a carrier ad for every asset/zone/side we
  * run, escalates then bisects the quantity ceiling, restores the carrier and
- * stores the discovered maximum.
+ * stores the discovered maximum. The edge function stops before its wall-clock
+ * limit and reports how many combinations it deferred; we resume until none are
+ * left.
  */
 export function useRunCapacitySweep() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (args: { exchange_account_id?: string | null; force?: boolean; asset?: string; zone?: AdZone; tradeType?: 'BUY' | 'SELL' } = {}): Promise<SweepResult> => {
-      const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args });
-      if (error) throw new Error(error.message);
-      if (data && data.success === false && data.error) throw new Error(data.error);
-      return data as SweepResult;
+      const merged: SweepResult = { success: true, combinations: 0, deferred: 0, results: [] };
+      for (let round = 0; round < 10; round++) {
+        const { data, error } = await supabase.functions.invoke('binance-ad-capacity-sweep', { body: args });
+        if (error) throw new Error(error.message);
+        const res = data as SweepResult;
+        if (res && res.success === false && res.error) throw new Error(res.error);
+        const done = (res.results || []).filter((r) => r.skipped !== 'deferred to next run (time budget)');
+        merged.results!.push(...done);
+        merged.combinations = merged.results!.length;
+        merged.deferred = res.deferred || 0;
+        if (!res.deferred) break;
+        qc.invalidateQueries({ queryKey: ['ad_capacity_limits'] });
+      }
+      return merged;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['ad_capacity_limits'] }); },
   });
 }
+
 
 /** Manual override / learned-from-rejection write. */
 export function useUpsertCapacityLimit() {

@@ -100,7 +100,7 @@ export function getRuleAlertState(rule: AutoPricingRule): {
   alertType: 'merchant_missing' | 'deviation' | 'error' | 'auto_paused' | null;
   alertMessage: string | null;
 } {
-  if (!rule.is_active && (rule.consecutive_deviations >= rule.auto_pause_after_deviations)) {
+  if (!rule.is_active && (rule.auto_pause_after_deviations ?? 0) > 0 && rule.consecutive_deviations >= rule.auto_pause_after_deviations) {
     return { hasAlert: true, alertType: 'auto_paused', alertMessage: 'Auto-paused: deviation limit exceeded' };
   }
   if (rule.last_error) {

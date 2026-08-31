@@ -355,9 +355,14 @@ async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
     return [{ status: "skipped", reason: "auto_paused" }];
   }
 
-  // Determine assets to process
-  const assetsToProcess: string[] = (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset];
+  // Determine assets to process — ALWAYS in a deterministic order so every cycle
+  // walks the same sequence (otherwise logs interleave differently run to run and
+  // a later asset can race a price it saw earlier in the previous ordering).
+  const assetsToProcess: string[] = sortAssetsDeterministically(
+    (rule.assets && rule.assets.length > 0) ? rule.assets : [rule.asset],
+  );
   const assetConfig: Record<string, any> = rule.asset_config || {};
+
 
   const binanceTradeType = rule.trade_type === "BUY" ? "SELL" : "BUY";
   const usdtInr = await fetchUsdtInr(supabase);

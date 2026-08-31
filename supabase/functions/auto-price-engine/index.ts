@@ -318,7 +318,26 @@ async function refreshMerchantStateDiagnostic(supabase: any, reason: string) {
   }
 }
 
+// Fixed, stable processing order for assets. Anything not in the list keeps a
+// stable alphabetical position after the known majors, so the sequence is
+// identical on every run regardless of how the rule's array happens to be stored.
+const ASSET_ORDER = [
+  "USDT", "USDC", "FDUSD", "BTC", "ETH", "BNB", "SOL", "XRP", "TRX", "DOGE", "SHIB",
+];
+export function sortAssetsDeterministically(assets: string[]): string[] {
+  const unique = Array.from(new Set(assets.filter(Boolean)));
+  return unique.sort((a, b) => {
+    const ia = ASSET_ORDER.indexOf(a);
+    const ib = ASSET_ORDER.indexOf(b);
+    if (ia !== -1 && ib !== -1) return ia - ib;
+    if (ia !== -1) return -1;
+    if (ib !== -1) return 1;
+    return a.localeCompare(b);
+  });
+}
+
 async function processRule(rule: any, excludedSet: Set<string>, supabase: any) {
+
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;
   const istNow = new Date(now.getTime() + istOffset);

@@ -1048,15 +1048,8 @@ async function processAsset(
       }
 
 
-      const resp = await fetch(binanceAdsUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${internalAuthKey}`,
-        },
-        body: JSON.stringify({ action: "updateAd", adData }),
-      });
-      const respData = await resp.json();
+      const respData = await callBinanceAds(binanceAdsUrl, internalAuthKey, { action: "updateAd", adData });
+
 
       if (respData.success) {
         successCount++;

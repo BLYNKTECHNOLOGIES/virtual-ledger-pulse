@@ -1,10 +1,14 @@
-import { Suspense, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Outlet } from "react-router-dom";
 import { HorillaSidebar } from "./HorillaSidebar";
 import { HorillaHeader } from "./HorillaHeader";
 import { HrmsRouteFallback } from "./HrmsRouteFallback";
 import { RouteProgressBar } from "./RouteProgressBar";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  useHrmsSidebarAutoCollapse,
+  readHrmsSidebarCookie,
+} from "@/hooks/useHrmsSidebarAutoCollapse";
 import { RazorpayPushFeedbackProvider } from "@/components/hrms/RazorpayPushFeedbackProvider";
 import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,16 +17,23 @@ import { Shield } from "lucide-react";
 
 export function HorillaLayout() {
   const isMobile = useIsMobile();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readHrmsSidebarCookie());
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const workAreaRef = useRef<HTMLElement>(null);
+  const { expandOnHover, collapseOnLeave, isPeeking, pinToggle } = useHrmsSidebarAutoCollapse(
+    workAreaRef,
+    sidebarCollapsed,
+    setSidebarCollapsed,
+  );
 
   const handleToggleSidebar = () => {
     if (isMobile) {
       setMobileSidebarOpen((prev) => !prev);
       return;
     }
-    setSidebarCollapsed((prev) => !prev);
+    pinToggle();
   };
+
 
   return (
     <PermissionGate

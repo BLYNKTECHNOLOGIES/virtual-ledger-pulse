@@ -196,7 +196,7 @@ export function ShiftScheduleAssigner() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_employee_shift_schedule")
-        .select("*, hr_employees!hr_employee_shift_schedule_employee_id_fkey(first_name, last_name, badge_id, is_active), hr_shifts!hr_employee_shift_schedule_shift_id_fkey(name)")
+        .select("*, hr_employees!hr_employee_shift_schedule_employee_id_fkey(first_name, last_name, badge_id, is_active), hr_shifts!hr_employee_shift_schedule_shift_id_fkey(name, start_time, end_time)")
         .eq("is_current", true)
         .order("effective_from", { ascending: false });
       // Hide dismissed / inactive employees
@@ -250,13 +250,17 @@ export function ShiftScheduleAssigner() {
       return;
     }
     const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const header = ["Employee Name", "Badge ID", "Shift", "Effective From"];
+const header = ["Employee Name", "Badge ID", "Shift", "Shift Timing", "Effective From"];
     const lines = [header.map(esc).join(",")];
     for (const s of visibleSchedules) {
+      const timing = s.hr_shifts?.start_time && s.hr_shifts?.end_time
+        ? `${s.hr_shifts.start_time}–${s.hr_shifts.end_time}`
+        : "";
       lines.push([
         `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim(),
         s.hr_employees?.badge_id ?? "",
         s.hr_shifts?.name ?? "",
+        timing,
         s.effective_from ?? "",
       ].map(esc).join(","));
     }
@@ -322,7 +326,12 @@ export function ShiftScheduleAssigner() {
                         {s.hr_employees?.first_name} {s.hr_employees?.last_name}
                         <span className="text-xs text-muted-foreground ml-1">({s.hr_employees?.badge_id})</span>
                       </td>
-                      <td className="px-3 py-2">{s.hr_shifts?.name}</td>
+<td className="px-3 py-2">
+                        <div>{s.hr_shifts?.name}</div>
+                        {s.hr_shifts?.start_time && (
+                          <div className="text-xs text-muted-foreground">{s.hr_shifts.start_time}–{s.hr_shifts.end_time}</div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">{s.effective_from}</td>
                     </tr>
                   ))}

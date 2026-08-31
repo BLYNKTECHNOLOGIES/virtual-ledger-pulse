@@ -14,7 +14,7 @@ import {
 import {
   Building2, Briefcase, ChevronDown, ChevronRight, Users,
   ZoomIn, ZoomOut, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Search,
-  Maximize2, Minimize2, UserPlus, AlertTriangle,
+  Maximize2, Minimize2, UserPlus, AlertTriangle, UserCog,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";

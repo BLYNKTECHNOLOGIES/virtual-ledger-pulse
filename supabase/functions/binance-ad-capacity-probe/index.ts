@@ -94,7 +94,7 @@ serve(async (req) => {
     const base = account.proxyUrl;
 
     // 1. Load the carrier ad and make sure it is offline before touching it.
-    const detailResp = await fetch(`${base}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(advNo)}`, { headers });
+    const detailResp = await fetch(`${base}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(advNo)}`, { method: "POST", headers });
     const detailJson = await detailResp.json().catch(() => null);
     const ad = detailJson?.data?.adDetailResp || detailJson?.data || null;
     if (!ad || !ad.advNo) throw new Error(`Could not load carrier ad ${advNo} from Binance`);

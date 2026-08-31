@@ -68,8 +68,13 @@ export default function MyTeamCard({ employeeId, workInfo }: Props) {
     enabled: !!departmentId,
   });
 
+  const { data: reports = [] } = useDirectReports(!!employeeId);
+  const activeReports = (reports || []).filter((r) => r.is_active !== false);
+  const regsWithHr = activeReports.reduce((s, r) => s + (r.pending_reg_with_hr || 0), 0);
+
   const initials = (f?: string | null, l?: string | null) =>
     `${(f || '').charAt(0)}${(l || '').charAt(0)}`.toUpperCase() || '?';
+
 
   return (
     <Card>

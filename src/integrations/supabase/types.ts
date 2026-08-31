@@ -28972,6 +28972,7 @@ export type Database = {
         Returns: {
           badge_id: string
           created_at: string
+          employee_email: string
           employee_id: string
           employee_name: string
           end_date: string
@@ -28993,6 +28994,7 @@ export type Database = {
           attendance_date: string
           badge_id: string
           created_at: string
+          employee_email: string
           employee_id: string
           employee_name: string
           id: string

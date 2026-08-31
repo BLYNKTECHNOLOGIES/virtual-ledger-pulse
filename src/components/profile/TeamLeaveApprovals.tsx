@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,9 +12,11 @@ import {
 import { CheckCircle2, XCircle, UserCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { sendLeaveEmail } from '@/utils/leaveEmail';
+import { cn } from '@/lib/utils';
 
 interface Props {
   employeeId: string; // the logged-in employee (potential manager)
+  highlightedRequestId?: string | null;
 }
 
 const stageLabel = (r: any) =>
@@ -27,24 +29,28 @@ const stageLabel = (r: any) =>
  * Managers approve/reject their team's leave here; HR does the final approval
  * in HRMS. Managers never need HRMS access.
  */
-export default function TeamLeaveApprovals({ employeeId }: Props) {
+export default function TeamLeaveApprovals({ employeeId, highlightedRequestId }: Props) {
   const qc = useQueryClient();
   const [remarks, setRemarks] = useState<Record<string, string>>({});
 
-  const { data: requests = [], isLoading } = useQuery({
+  const { data: requests = [], isLoading, isError, error } = useQuery({
     queryKey: ['ess_team_leave_approvals', employeeId],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('hr_leave_requests')
-        .select('*, hr_leave_types(name), hr_employees!hr_leave_requests_employee_id_fkey(first_name, last_name, badge_id, email)')
-        .eq('manager_id', employeeId)
-        .in('status', ['requested', 'manager_approved'])
-        .order('created_at', { ascending: false });
+        .rpc('hr_manager_leave_queue');
       if (error) throw error;
       return data || [];
     },
     enabled: !!employeeId,
   });
+
+  useEffect(() => {
+    if (!highlightedRequestId || requests.length === 0) return;
+    document.getElementById(`leave-request-${highlightedRequestId}`)?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    });
+  }, [highlightedRequestId, requests]);
 
   const decide = useMutation({
     mutationFn: async ({ req, approve }: { req: any; approve: boolean }) => {
@@ -58,18 +64,17 @@ export default function TeamLeaveApprovals({ employeeId }: Props) {
         .eq('id', req.id);
       if (error) throw error;
 
-      const employeeName = `${req.hr_employees?.first_name || ''} ${req.hr_employees?.last_name || ''}`.trim();
       sendLeaveEmail({
         eventType: approve ? 'leave_manager_approved' : 'leave_rejected',
         requestId: req.id,
-        employeeName: employeeName || 'Employee',
-        leaveType: req.hr_leave_types?.name,
+        employeeName: req.employee_name || 'Employee',
+        leaveType: req.leave_type_name,
         startDate: req.start_date,
         endDate: req.end_date,
         totalDays: req.total_days,
         reason: req.reason,
+        employeeEmail: req.employee_email || null,
         decidedBy: 'Reporting manager',
-        employeeEmail: req.hr_employees?.email || null,
       });
     },
     onSuccess: (_d, v) => {
@@ -78,6 +83,16 @@ export default function TeamLeaveApprovals({ employeeId }: Props) {
     },
     onError: (e: any) => toast.error(e?.message || 'Failed to update request'),
   });
+
+  if (isError) {
+    return (
+      <Card className="border-destructive/40">
+        <CardContent className="py-4 text-sm text-destructive">
+          Leave approvals could not be loaded. {error instanceof Error ? error.message : 'Please refresh and try again.'}
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (!isLoading && requests.length === 0) return null;
 
@@ -96,18 +111,25 @@ export default function TeamLeaveApprovals({ employeeId }: Props) {
           <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
         ) : (
           (requests as any[]).map((r) => {
-            const name = `${r.hr_employees?.first_name || ''} ${r.hr_employees?.last_name || ''}`.trim();
+            const name = r.employee_name || '';
             const actionable = r.status === 'requested';
             return (
-              <div key={r.id} className="border border-border rounded-lg p-3 space-y-2">
+              <div
+                key={r.id}
+                id={`leave-request-${r.id}`}
+                className={cn(
+                  "border border-border rounded-lg p-3 space-y-2",
+                  highlightedRequestId === r.id && "border-primary ring-2 ring-primary/20 bg-primary/5",
+                )}
+              >
                 <div className="flex items-start justify-between gap-3 flex-wrap">
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-foreground">
                       {name || 'Employee'}{' '}
-                      <span className="text-muted-foreground text-xs">{r.hr_employees?.badge_id}</span>
+                       <span className="text-muted-foreground text-xs">{r.badge_id}</span>
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {r.hr_leave_types?.name || 'Type set by HR'} · {r.start_date} → {r.end_date} · {r.total_days} day(s)
+                       {r.leave_type_name || 'Type set by HR'} · {r.start_date} → {r.end_date} · {r.total_days} day(s)
                     </p>
                     {r.reason && <p className="text-xs text-muted-foreground mt-1">Reason: {r.reason}</p>}
                     {(r.leave_clashes_count || 0) > 0 && (

@@ -21,12 +21,14 @@ type Bound = 'cap' | 'balance' | 'none';
 interface PlanRow {
   ad: BinanceAd;
   current: number;
+  remaining: number;
   target: number | null;
   cap: number | null;
   available: number | null;
   bound: Bound;
   skipReason?: string;
 }
+
 type ResultStatus = 'pending' | 'success' | 'error' | 'skipped';
 
 const fmtQty = (n: number) => n.toLocaleString('en-IN', { maximumFractionDigits: 2 });

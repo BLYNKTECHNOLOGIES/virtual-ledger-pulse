@@ -141,6 +141,8 @@ export default function AdManager() {
 
   // Per-ad history → pre-filtered logs page (reuses TerminalLogs search).
   const handleHistory = (advNo: string) => navigate(`/terminal/logs?adv=${encodeURIComponent(advNo)}`);
+  const { user: currentAuthUser } = useAuth();
+  const isSuperAdmin = !!currentAuthUser?.roles?.some(isSuperAdminRoleName);
 
 
   // Status and zone are client-side dimensions, so they never go to the API.

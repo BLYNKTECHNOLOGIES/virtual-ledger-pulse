@@ -115,6 +115,31 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
         </div>
       </CardHeader>
       <CardContent>
+        {!isLoading && latestPerRule.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Last 2 runs per rule</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {latestPerRule.map(({ rule, runs }) => (
+                <div key={rule.id} className="rounded-lg border p-2.5">
+                  <p className="text-xs font-medium truncate">{rule.name}</p>
+                  <div className="mt-1.5 space-y-1">
+                    {runs.map(run => (
+                      <div key={run.id} className="flex items-start gap-2 text-[11px]">
+                        <span className="text-muted-foreground whitespace-nowrap">
+                          {format(new Date(run.created_at), 'dd MMM HH:mm')}
+                        </span>
+                        <Badge variant="secondary" className={`text-[10px] shrink-0 ${STATUS_COLORS[run.status] || ''}`}>
+                          {run.status}
+                        </Badge>
+                        <span className="text-muted-foreground">{getLogReason(run)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -122,8 +147,8 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
         ) : filteredLogs.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">No logs found</div>
         ) : (
-          <ScrollArea className="max-h-[500px]">
-            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="max-h-[500px] overflow-auto overscroll-contain -mx-4 px-4 sm:mx-0 sm:px-0">
+
             <Table>
               <TableHeader>
                 <TableRow>

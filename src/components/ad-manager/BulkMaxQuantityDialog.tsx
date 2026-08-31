@@ -213,9 +213,19 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete, onC
           </>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-between">
           {step === 'preview' && (
             <>
+              {onCalibrate && (
+                <Button
+                  variant="secondary"
+                  onClick={() => { handleClose(false); onCalibrate(); }}
+                  className="sm:mr-auto"
+                >
+                  <Gauge className="h-4 w-4 mr-2" />
+                  Calibrate limits
+                </Button>
+              )}
               <Button variant="outline" onClick={() => handleClose(false)}>Cancel</Button>
               <Button onClick={execute} disabled={actionable.length === 0}>
                 Apply to {actionable.length} ad{actionable.length !== 1 ? 's' : ''}

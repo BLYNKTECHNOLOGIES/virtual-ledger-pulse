@@ -182,15 +182,16 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                 {l.asset}
                               </span>
                               <span className="text-muted-foreground">→</span>
-                              <span className="text-muted-foreground">
+                              <span className="text-muted-foreground break-words min-w-0">
                                 {l.status === 'skipped'
                                   ? (l.reason === 'no_merchant' ? `Merchant not found in top listings` : l.reason === 'no_listings' ? 'No P2P listings available' : l.reason === 'deviation' ? `Price deviation exceeded limit` : l.reason || 'Skipped')
                                   : (l.error || 'Unknown error')
                                 }
                               </span>
                               {l.competitor_merchant && (
-                                <span className="text-muted-foreground/60">({l.competitor_merchant})</span>
+                                <span className="text-muted-foreground/60 break-words">({l.competitor_merchant})</span>
                               )}
+
                             </div>
                           ))}
                         </div>

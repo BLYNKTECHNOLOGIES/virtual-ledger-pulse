@@ -648,6 +648,8 @@ async function processAsset(
     await supabase.from("ad_pricing_rules").update({ consecutive_deviations: 0 }).eq("id", rule.id);
   }
 
+  let adNumbers = (config.ad_numbers || rule.ad_numbers || []).filter((no: string) => !excludedSet.has(no));
+
   // 6. CALCULATE PRICE
   // A per-asset offset of 0 is NOT a deliberate "match the competitor" instruction — it is
   // an asset that was added to the rule without inheriting the rule's offset. Fall back to

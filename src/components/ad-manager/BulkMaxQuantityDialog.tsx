@@ -15,6 +15,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   ads: BinanceAd[];
   onComplete: () => void;
+  /** Opens the capacity calibration dialog. */
+  onCalibrate?: () => void;
 }
 
 type Bound = 'cap' | 'balance' | 'none';

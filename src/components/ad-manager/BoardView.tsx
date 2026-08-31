@@ -55,6 +55,7 @@ function AdCard({
   compact?: boolean;
 }) {
   const [editingPrice, setEditingPrice] = useState(false);
+  const automationMap = useAdAutomationMap();
   const isBuy = ad.tradeType === 'BUY';
   const isOnline = ad.advStatus === BINANCE_AD_STATUS.ONLINE;
   const isPrivate = ad.advStatus === BINANCE_AD_STATUS.PRIVATE;

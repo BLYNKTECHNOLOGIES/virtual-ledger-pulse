@@ -3,7 +3,6 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAutoPricingLogs, AutoPricingLog, AutoPricingRule } from '@/hooks/useAutoPricingRules';
 import { format } from 'date-fns';
 
@@ -20,31 +19,28 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const REASON_LABELS: Record<string, string> = {
-  rest_timer: 'Rest timer is active',
-  ad_conflict: 'Ad is assigned to multiple rules',
-  outside_hours: 'Outside configured active hours',
-  cooldown: 'Manual-edit cooldown is active',
-  auto_paused: 'Rule was automatically paused',
-  no_listings: 'No eligible competitor listings found',
-  no_merchant: 'Target merchant was not found',
-  deviation_exceeded: 'Market deviation guard blocked the update',
-  zone_mismatch: 'Selected ad does not match the rule zone',
-  ad_offline: 'Ad is offline on Binance — repricing would not affect the live book',
-  no_ads: 'No eligible ads are assigned',
-
+  rest_timer: 'Rest timer active',
+  ad_conflict: 'Ad used by another rule',
+  outside_hours: 'Outside active hours',
+  cooldown: 'Manual-edit cooldown',
+  auto_paused: 'Rule auto-paused',
+  no_listings: 'No competitor found',
+  no_merchant: 'Target merchant not found',
+  deviation_exceeded: 'Blocked: too far from market',
+  zone_mismatch: 'Ad zone ≠ rule zone',
+  ad_offline: 'Ad offline on Binance',
+  no_ads: 'No ads assigned',
+  interval_not_elapsed: 'Waiting for next interval',
 };
 
 function getLogReason(log: AutoPricingLog): string {
   if (log.error_message) {
-    if (log.error_message.toLowerCase() === 'unauthorized') {
-      return 'Internal authorization failed while updating the Binance ad';
-    }
-    return log.error_message;
+    if (log.error_message.toLowerCase() === 'unauthorized') return 'Binance update rejected (auth)';
+    return log.error_message.length > 90 ? `${log.error_message.slice(0, 90)}…` : log.error_message;
   }
   if (log.skipped_reason) return REASON_LABELS[log.skipped_reason] || log.skipped_reason.replace(/_/g, ' ');
-  if (log.status === 'applied' || log.status === 'success') return 'Price update applied successfully';
-  
-  if (log.status === 'no_change') return 'Calculated value matched the current value';
+  if (log.status === 'applied' || log.status === 'success') return 'Price updated';
+  if (log.status === 'no_change') return 'Already at target price';
   return '—';
 }
 
@@ -53,7 +49,16 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterZone, setFilterZone] = useState('all');
   const activeRuleId = filterRuleId === 'all' ? undefined : filterRuleId;
-  const { data: logs = [], isLoading } = useAutoPricingLogs(activeRuleId, 200);
+  const { data: logs = [], isLoading } = useAutoPricingLogs(activeRuleId, 500);
+
+  // Last two runs per rule, always visible regardless of filters.
+  const latestPerRule = rules
+    .map(rule => ({
+      rule,
+      runs: logs.filter(l => l.rule_id === rule.id).slice(0, 2),
+    }))
+    .filter(r => r.runs.length > 0);
+
 
   const filteredLogs = logs.filter(l => {
     if (filterStatus !== 'all' && l.status !== filterStatus) return false;
@@ -109,6 +114,31 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
         </div>
       </CardHeader>
       <CardContent>
+        {!isLoading && latestPerRule.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Last 2 runs per rule</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {latestPerRule.map(({ rule, runs }) => (
+                <div key={rule.id} className="rounded-lg border p-2.5">
+                  <p className="text-xs font-medium truncate">{rule.name}</p>
+                  <div className="mt-1.5 space-y-1">
+                    {runs.map(run => (
+                      <div key={run.id} className="flex items-start gap-2 text-[11px]">
+                        <span className="text-muted-foreground whitespace-nowrap">
+                          {format(new Date(run.created_at), 'dd MMM HH:mm')}
+                        </span>
+                        <Badge variant="secondary" className={`text-[10px] shrink-0 ${STATUS_COLORS[run.status] || ''}`}>
+                          {run.status}
+                        </Badge>
+                        <span className="text-muted-foreground">{getLogReason(run)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -116,8 +146,8 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
         ) : filteredLogs.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground text-sm">No logs found</div>
         ) : (
-          <ScrollArea className="max-h-[500px]">
-            <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="max-h-[500px] overflow-auto overscroll-contain -mx-4 px-4 sm:mx-0 sm:px-0">
+
             <Table>
               <TableHeader>
                 <TableRow>
@@ -189,7 +219,7 @@ export function AutoPricingLogs({ ruleId: initialRuleId, rules }: AutoPricingLog
               </TableBody>
             </Table>
             </div>
-          </ScrollArea>
+
         )}
       </CardContent>
     </Card>

@@ -151,6 +151,38 @@ function charsetOf(headerBlock: string): string | null {
   return headerBlock.match(/charset\s*=\s*"?([\w\-]+)"?/i)?.[1] || null;
 }
 
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Splits a multipart body into its parts.
+ *
+ * Some senders (denomailer among them) declare boundaries that already carry
+ * leading dashes, or the declared value differs slightly from the delimiter
+ * actually written into the body. When the declared boundary yields a single
+ * part we sniff the real delimiter from the body instead, otherwise the whole
+ * multipart payload (headers, HTML source and all) leaks into the text part.
+ */
+function splitMimeParts(body: string, declared: string): string[] {
+  const trimmed = declared.trim().replace(/^"|"$/g, "");
+  const candidates = [trimmed, trimmed.replace(/^-+/, "")].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  for (const cand of candidates) {
+    const parts = body.split(new RegExp(`(?:^|\\r?\\n)--${esc(cand)}(?:--)?[ \\t]*(?=\\r?\\n)`));
+    if (parts.length > 1) return parts;
+  }
+
+  // Fallback: use the first delimiter-looking line present in the body.
+  const sniffed = body.match(/(?:^|\r?\n)(--[^\s]+)[ \t]*(?=\r?\n)/)?.[1];
+  if (sniffed) {
+    const base = sniffed.replace(/--$/, "");
+    const parts = body.split(new RegExp(`(?:^|\\r?\\n)${esc(base)}(?:--)?[ \\t]*(?=\\r?\\n)`));
+    if (parts.length > 1) return parts;
+  }
+
+  return [body];
+}
+
+
 function decodePart(head: string, rawBody: string): string {
   const lower = head.toLowerCase();
   const cs = charsetOf(head);
@@ -216,9 +248,10 @@ export function parseMessage(raw: string): ParsedMessage {
   let text: string | null = null;
   const attachments: ParsedAttachment[] = [];
 
-  const boundaryMatch = contentType.match(/boundary="?([^";]+)"?/i);
+  const boundaryMatch = contentType.match(/boundary\s*=\s*"?([^";]+)"?/i);
   if (boundaryMatch) {
-    const parts = body.split(new RegExp(`--${boundaryMatch[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    const parts = splitMimeParts(body, boundaryMatch[1]);
+
     for (const part of parts) {
       const pSplit = part.search(/\r?\n\r?\n/);
       if (pSplit === -1) continue;
@@ -257,6 +290,25 @@ export function parseMessage(raw: string): ParsedMessage {
     if (contentType.toLowerCase().includes("text/html")) html = decoded;
     else text = decoded;
   }
+
+  // Last-resort repair: a mis-split multipart leaves raw MIME inside the text
+  // part. Recover the HTML alternative and trim the text back to its own part.
+  if (!html && text && /content-type:\s*text\/html/i.test(text)) {
+    const idx = text.search(/(?:^|\n)-{2,}[^\s]*\s*\n?content-type:\s*text\/html/i);
+    const htmlHeadIdx = text.search(/content-type:\s*text\/html/i);
+    if (htmlHeadIdx > -1) {
+      const rest = text.slice(htmlHeadIdx);
+      const bodyStart = rest.search(/\r?\n\r?\n/);
+      if (bodyStart > -1) {
+        const pHead = rest.slice(0, bodyStart);
+        let raw = rest.slice(bodyStart).replace(/^\r?\n\r?\n/, "");
+        raw = raw.replace(/(?:^|\n)--[^\s]*--\s*$/, "");
+        html = decodePart(pHead, raw);
+        text = text.slice(0, idx > -1 ? idx : htmlHeadIdx).trimEnd();
+      }
+    }
+  }
+
 
   let date: string | null = null;
   if (headers["date"]) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuickAction } from "@/hooks/useQuickAction";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,9 +48,16 @@ const writeStoredTab = (key: string, value: string) => {
   }
 };
 
+const DIRECTORY_PAGE_SIZE = 50;
+
 export function ClientDashboard() {
   const [searchTerm, setSearchTerm] = useState("");
+  // Keeps typing responsive on large directories — filtering runs at lower priority.
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const [buyerPage, setBuyerPage] = useState(1);
+  const [sellerPage, setSellerPage] = useState(1);
   const [activeTab, setActiveTab] = useState(() => readStoredTab(CLIENT_DASHBOARD_TAB_KEY, 'directory'));
+
   const [activeDirectoryTab, setActiveDirectoryTab] = useState(() => readStoredTab(CLIENT_DIRECTORY_TAB_KEY, 'buyers'));
   const [activeApprovalTab, setActiveApprovalTab] = useState(() => readStoredTab(CLIENT_APPROVAL_TAB_KEY, 'buyer-approvals'));
   const [showAddClientDialog, setShowAddClientDialog] = useState(false);
@@ -115,9 +122,20 @@ export function ClientDashboard() {
     }
   }, [activeTab, canAssignRA, canViewApprovals, canViewDirectory]);
 
-  // Fetch clients (paginated past Supabase's 1000-row default cap)
+  // Fetch clients (paginated past Supabase's 1000-row default cap).
+  // Only the columns the directory actually renders/filters on are selected —
+  // pulling every column for ~5k clients was a multi-MB payload per load.
+  const DIRECTORY_COLUMNS =
+    'id, name, client_id, assigned_operator, risk_appetite, kyc_status, state, ' +
+    'current_month_used, monthly_limit, first_order_value, date_of_onboarding, created_at, ' +
+    'is_buyer, is_seller, buyer_approval_status, seller_approval_status';
+
   const { data: clients, isLoading } = useQuery({
-    queryKey: ['clients'],
+    // Namespaced under ['clients'] so existing invalidations still refresh it.
+    queryKey: ['clients', 'directory-list'],
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async () => {
       const PAGE_SIZE = 1000;
       let all: any[] = [];
@@ -125,7 +143,7 @@ export function ClientDashboard() {
       while (true) {
         const { data, error } = await supabase
           .from('clients')
-          .select('*')
+          .select(DIRECTORY_COLUMNS)
           .eq('is_deleted', false)
           .order('created_at', { ascending: false })
           .range(from, from + PAGE_SIZE - 1);
@@ -139,6 +157,7 @@ export function ClientDashboard() {
     },
     enabled: canViewDirectory,
   });
+
 
   // Get client types based on actual orders
   const { data: clientOrderCounts } = useClientTypeFromOrders(clients);
@@ -367,6 +386,19 @@ export function ClientDashboard() {
     return sorted;
   };
 
+  // Search term is normalized once per pass instead of once per client row.
+  const normalizedSearch = useMemo(
+    () => deferredSearchTerm.trim().replace(/\s+/g, ' ').toLowerCase(),
+    [deferredSearchTerm]
+  );
+
+  const matchesSearch = (client: any) => {
+    if (!normalizedSearch) return true;
+    const normalizedName = (client.name || '').replace(/\s+/g, ' ').toLowerCase();
+    if (normalizedName.includes(normalizedSearch)) return true;
+    return (client.client_id || '').toLowerCase().includes(normalizedSearch);
+  };
+
   // Filter clients by type based on actual order history
   const filteredBuyers = useMemo(() => {
     const filtered = clients?.filter(client => {
@@ -382,18 +414,12 @@ export function ClientDashboard() {
       // are shown in the directory.
       if (client.buyer_approval_status === 'PENDING') return false;
 
-      const normalizedSearch = searchTerm.trim().replace(/\s+/g, ' ').toLowerCase();
-      const normalizedName = (client.name || '').replace(/\s+/g, ' ').toLowerCase();
-      const normalizedClientId = (client.client_id || '').toLowerCase();
-      const matchesSearch = !normalizedSearch ||
-                            normalizedName.includes(normalizedSearch) ||
-                            normalizedClientId.includes(normalizedSearch);
-      if (!matchesSearch) return false;
+      if (!matchesSearch(client)) return false;
 
       return applyFilters(client, orderInfo, buyerFilters, true);
     });
     return applySorting(filtered, buyerSort, true);
-  }, [clients, clientOrderCounts, searchTerm, buyerFilters, buyerSort]);
+  }, [clients, clientOrderCounts, normalizedSearch, buyerFilters, buyerSort]);
 
   const filteredSellers = useMemo(() => {
     const filtered = clients?.filter(client => {
@@ -409,18 +435,31 @@ export function ClientDashboard() {
       // are shown in the directory.
       if (client.seller_approval_status === 'PENDING') return false;
 
-      const normalizedSearch = searchTerm.trim().replace(/\s+/g, ' ').toLowerCase();
-      const normalizedName = (client.name || '').replace(/\s+/g, ' ').toLowerCase();
-      const normalizedClientId = (client.client_id || '').toLowerCase();
-      const matchesSearch = !normalizedSearch ||
-                            normalizedName.includes(normalizedSearch) ||
-                            normalizedClientId.includes(normalizedSearch);
-      if (!matchesSearch) return false;
+      if (!matchesSearch(client)) return false;
 
       return applyFilters(client, orderInfo, sellerFilters, false);
     });
     return applySorting(filtered, sellerSort, false);
-  }, [clients, clientOrderCounts, searchTerm, sellerFilters, sellerSort]);
+  }, [clients, clientOrderCounts, normalizedSearch, sellerFilters, sellerSort]);
+
+  // Render only one page of rows at a time — 5k DOM rows was the crash trigger.
+  const buyerPageCount = Math.max(1, Math.ceil((filteredBuyers?.length || 0) / DIRECTORY_PAGE_SIZE));
+  const sellerPageCount = Math.max(1, Math.ceil((filteredSellers?.length || 0) / DIRECTORY_PAGE_SIZE));
+  const safeBuyerPage = Math.min(buyerPage, buyerPageCount);
+  const safeSellerPage = Math.min(sellerPage, sellerPageCount);
+
+  const pagedBuyers = useMemo(
+    () => (filteredBuyers || []).slice((safeBuyerPage - 1) * DIRECTORY_PAGE_SIZE, safeBuyerPage * DIRECTORY_PAGE_SIZE),
+    [filteredBuyers, safeBuyerPage]
+  );
+  const pagedSellers = useMemo(
+    () => (filteredSellers || []).slice((safeSellerPage - 1) * DIRECTORY_PAGE_SIZE, safeSellerPage * DIRECTORY_PAGE_SIZE),
+    [filteredSellers, safeSellerPage]
+  );
+
+  useEffect(() => { setBuyerPage(1); }, [normalizedSearch, buyerFilters, buyerSort]);
+  useEffect(() => { setSellerPage(1); }, [normalizedSearch, sellerFilters, sellerSort]);
+
 
   const getRiskBadge = (risk: string) => {
     const colors = {
@@ -603,7 +642,7 @@ export function ClientDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredBuyers?.map((client) => {
+                      {pagedBuyers.map((client) => {
                         const valueScore = getClientValueScore(client);
                         const priority = getClientPriority(valueScore);
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
@@ -662,6 +701,22 @@ export function ClientDashboard() {
                   )}
                 </div>
                 )}
+
+                {(filteredBuyers?.length || 0) > DIRECTORY_PAGE_SIZE && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {(safeBuyerPage - 1) * DIRECTORY_PAGE_SIZE + 1}–
+                      {Math.min(safeBuyerPage * DIRECTORY_PAGE_SIZE, filteredBuyers?.length || 0)} of {filteredBuyers?.length || 0}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" disabled={safeBuyerPage <= 1} onClick={() => setBuyerPage((p) => Math.max(1, p - 1))}>Previous</Button>
+                      <span className="text-sm text-muted-foreground">Page {safeBuyerPage} / {buyerPageCount}</span>
+                      <Button variant="outline" size="sm" disabled={safeBuyerPage >= buyerPageCount} onClick={() => setBuyerPage((p) => Math.min(buyerPageCount, p + 1))}>Next</Button>
+                    </div>
+                  </div>
+                )}
+
+
             </CardContent>
               </Card>
             </TabsContent>
@@ -766,7 +821,7 @@ export function ClientDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredSellers?.map((client) => {
+                      {pagedSellers.map((client) => {
                         const valueScore = getClientValueScore(client);
                         const priority = getClientPriority(valueScore);
                         const cosmosAlert = (client.current_month_used || 0) > (client.monthly_limit || client.first_order_value * 2);
@@ -825,6 +880,22 @@ export function ClientDashboard() {
                   )}
                 </div>
                 )}
+
+                {(filteredSellers?.length || 0) > DIRECTORY_PAGE_SIZE && (
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {(safeSellerPage - 1) * DIRECTORY_PAGE_SIZE + 1}–
+                      {Math.min(safeSellerPage * DIRECTORY_PAGE_SIZE, filteredSellers?.length || 0)} of {filteredSellers?.length || 0}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="sm" disabled={safeSellerPage <= 1} onClick={() => setSellerPage((p) => Math.max(1, p - 1))}>Previous</Button>
+                      <span className="text-sm text-muted-foreground">Page {safeSellerPage} / {sellerPageCount}</span>
+                      <Button variant="outline" size="sm" disabled={safeSellerPage >= sellerPageCount} onClick={() => setSellerPage((p) => Math.min(sellerPageCount, p + 1))}>Next</Button>
+                    </div>
+                  </div>
+                )}
+
+
             </CardContent>
           </Card>
             </TabsContent>

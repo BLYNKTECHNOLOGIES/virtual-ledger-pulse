@@ -17,8 +17,27 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 
 const EMPTY_FORM = {
   name: "", leave_type_id: "", accrual_period: "monthly", accrual_amount: 1,
+  accrual_day: 10, start_trigger: "joining", cycle_basis: "calendar",
   max_accrual: "", applicable_to: "all", department_id: "", is_active: true, effective_from: new Date().toISOString().slice(0, 10),
 };
+
+const ordinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
+function planSummary(p: any) {
+  const day = ordinal(Number(p.accrual_day) || 1);
+  const amount = `${p.accrual_amount} day${Number(p.accrual_amount) === 1 ? "" : "s"}`;
+  const start = p.start_trigger === "probation_end" ? "the first eligible date after probation ends" : "the first eligible date after joining";
+  const cadence = p.cycle_basis === "anniversary"
+    ? (p.accrual_period === "monthly" ? "every month from that date" : p.accrual_period === "quarterly" ? "every 3 months from that date" : "every 12 months from that date")
+    : (p.accrual_period === "monthly" ? `on the ${day} of every month` : p.accrual_period === "quarterly" ? `on the ${day} of Jan, Apr, Jul and Oct` : `on the ${day} of January`);
+  const cap = p.max_accrual ? `Balance is capped at ${p.max_accrual} days.` : "Unused balance carries forward with no cap.";
+  return `Credits ${amount} ${cadence}, starting from ${start}. ${cap}`;
+}
+
 
 export default function LeaveAccrualPlansPage() {
   const qc = useQueryClient();

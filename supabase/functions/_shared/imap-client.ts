@@ -291,6 +291,25 @@ export function parseMessage(raw: string): ParsedMessage {
     else text = decoded;
   }
 
+  // Last-resort repair: a mis-split multipart leaves raw MIME inside the text
+  // part. Recover the HTML alternative and trim the text back to its own part.
+  if (!html && text && /content-type:\s*text\/html/i.test(text)) {
+    const idx = text.search(/(?:^|\n)-{2,}[^\s]*\s*\n?content-type:\s*text\/html/i);
+    const htmlHeadIdx = text.search(/content-type:\s*text\/html/i);
+    if (htmlHeadIdx > -1) {
+      const rest = text.slice(htmlHeadIdx);
+      const bodyStart = rest.search(/\r?\n\r?\n/);
+      if (bodyStart > -1) {
+        const pHead = rest.slice(0, bodyStart);
+        let raw = rest.slice(bodyStart).replace(/^\r?\n\r?\n/, "");
+        raw = raw.replace(/(?:^|\n)--[^\s]*--\s*$/, "");
+        html = decodePart(pHead, raw);
+        text = text.slice(0, idx > -1 ? idx : htmlHeadIdx).trimEnd();
+      }
+    }
+  }
+
+
   let date: string | null = null;
   if (headers["date"]) {
     const d = new Date(headers["date"]);

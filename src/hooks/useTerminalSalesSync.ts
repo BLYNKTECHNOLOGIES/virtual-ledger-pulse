@@ -255,6 +255,11 @@ export async function syncCompletedSellOrders(): Promise<{ synced: number; dupli
       const syncStatus = clientId ? 'synced_pending_approval' : 'client_mapping_pending';
 
       const link = resolveLink(orderAccountId);
+      if (!link) {
+        console.warn('[terminal-sales-sync] no wallet link for exchange account', orderAccountId, 'order', order.order_number);
+        continue;
+      }
+
 
       toInsert.push({
         binance_order_number: order.order_number,

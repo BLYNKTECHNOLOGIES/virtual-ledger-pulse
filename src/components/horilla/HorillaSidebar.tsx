@@ -226,6 +226,8 @@ interface HorillaSidebarProps {
   onCloseMobile?: () => void;
   /** Hover-peek: panel floats above the content instead of pushing it. */
   peek?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function HorillaSidebar({
@@ -235,6 +237,8 @@ export function HorillaSidebar({
   mobileOpen = false,
   onCloseMobile,
   peek = false,
+  onMouseEnter,
+  onMouseLeave,
 }: HorillaSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();

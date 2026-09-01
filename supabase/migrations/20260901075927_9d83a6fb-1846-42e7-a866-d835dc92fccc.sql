@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.get_client_order_metrics() TO service_role;

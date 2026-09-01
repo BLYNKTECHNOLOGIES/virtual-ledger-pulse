@@ -28147,6 +28147,26 @@ export type Database = {
           calculated_balance: number
         }[]
       }
+      get_client_order_metrics: {
+        Args: never
+        Returns: {
+          client_id: string
+          current_month_purchase_value: number
+          current_month_sales_value: number
+          last_purchase_order_date: string
+          last_sales_order_date: string
+          last10_purchase_value: number
+          last10_sales_value: number
+          prev10_purchase_value: number
+          prev10_sales_value: number
+          previous_month_purchase_value: number
+          previous_month_sales_value: number
+          purchase_order_count: number
+          sales_order_count: number
+          total_purchase_value: number
+          total_sales_value: number
+        }[]
+      }
       get_client_usernos: {
         Args: { p_client_id: string }
         Returns: {

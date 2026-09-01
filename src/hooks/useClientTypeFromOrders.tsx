@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { differenceInDays, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { differenceInDays } from "date-fns";
 
 export type VolumeTrend = 'growing' | 'stable' | 'declining' | 'dropping' | 'new';
 
@@ -81,222 +81,101 @@ function calculateVolumeTrend(current: number, previous: number): { trend: Volum
   }
 }
 
-// Helper to fetch all rows from a table, paginating past the 1000-row limit
-async function fetchAllRows<T>(
-  table: string,
-  select: string,
-  filter?: { column: string; op: 'neq'; value: string }
-): Promise<T[]> {
-  const PAGE_SIZE = 1000;
-  let allData: T[] = [];
-  let from = 0;
-  let hasMore = true;
-
-  while (hasMore) {
-    let query = supabase.from(table as any).select(select).range(from, from + PAGE_SIZE - 1);
-    if (filter) {
-      query = query.neq(filter.column, filter.value);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-    if (data) {
-      allData = allData.concat(data as T[]);
-    }
-    hasMore = (data?.length || 0) === PAGE_SIZE;
-    from += PAGE_SIZE;
-  }
-
-  return allData;
+interface ClientOrderMetricsRow {
+  client_id: string;
+  sales_order_count: number;
+  purchase_order_count: number;
+  total_sales_value: number | string;
+  total_purchase_value: number | string;
+  last_sales_order_date: string | null;
+  last_purchase_order_date: string | null;
+  last10_sales_value: number | string;
+  prev10_sales_value: number | string;
+  last10_purchase_value: number | string;
+  prev10_purchase_value: number | string;
+  current_month_sales_value: number | string;
+  previous_month_sales_value: number | string;
+  current_month_purchase_value: number | string;
+  previous_month_purchase_value: number | string;
 }
 
+const num = (v: number | string | null | undefined) => Number(v) || 0;
+
+/**
+ * Client order metrics are aggregated server-side (RPC: get_client_order_metrics).
+ * Previously this hook downloaded every sales + purchase order and matched them in
+ * the browser (O(clients x orders) — ~85M comparisons), which crashed the tab.
+ * The RPC preserves the exact matching rules (sales: client_id FK, falling back to
+ * exact name for legacy rows; purchases: supplier name or contact phone).
+ */
 export function useClientTypeFromOrders(clients: any[] | undefined) {
   return useQuery({
-    queryKey: ['client-order-counts', clients?.map(c => c.id).join(',')],
+    queryKey: ['client-order-metrics'],
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
     queryFn: async (): Promise<Map<string, ClientOrderData>> => {
-      if (!clients || clients.length === 0) {
-        return new Map();
-      }
-
-      const result = new Map<string, ClientOrderData>();
-
-      // Get all client names and phones for matching
-      const clientIdentifiers = clients.map(c => ({
-        id: c.id,
-        name: c.name,
-        phone: c.phone
-      }));
-
-      // Fetch ALL sales orders (buyers) - paginated to avoid 1000-row limit
-      // Include client_id for FK-based matching (primary), fall back to name/phone
-      const salesOrders = await fetchAllRows<any>(
-        'sales_orders',
-        'client_id, client_name, client_phone, total_amount, order_date',
-        { column: 'status', op: 'neq', value: 'CANCELLED' }
-      );
-
-      // Fetch ALL purchase orders (sellers) - paginated to avoid 1000-row limit
-      const purchaseOrders = await fetchAllRows<any>(
-        'purchase_orders',
-        'supplier_name, contact_number, total_amount, order_date',
-        { column: 'status', op: 'neq', value: 'CANCELLED' }
-      );
+      const { data, error } = await supabase.rpc('get_client_order_metrics' as any);
+      if (error) throw error;
 
       const today = new Date();
-      
-      // Date boundaries for period comparisons
-      const last10Days = subDays(today, 10);
-      const prev10DaysStart = subDays(today, 20);
-      const currentMonthStart = startOfMonth(today);
-      const previousMonthStart = startOfMonth(subMonths(today, 1));
-      const previousMonthEnd = endOfMonth(subMonths(today, 1));
+      const result = new Map<string, ClientOrderData>();
 
-      // Count orders and calculate metrics for each client
-      for (const client of clientIdentifiers) {
-        // Get matching sales orders — prioritize client_id FK match,
-        // fall back to name-only match for legacy orders without client_id.
-        // NEVER match by phone alone — phone reuse across clients causes inflation.
-        const clientSalesOrders = salesOrders?.filter(order => {
-          if (order.client_id) {
-            return order.client_id === client.id;
-          }
-          // Legacy fallback: match by exact name only (no phone matching)
-          return order.client_name === client.name;
-        }) || [];
+      for (const row of ((data || []) as unknown as ClientOrderMetricsRow[])) {
+        const salesCount = Number(row.sales_order_count) || 0;
+        const purchaseCount = Number(row.purchase_order_count) || 0;
 
-        // Get matching purchase orders
-        const clientPurchaseOrders = purchaseOrders?.filter(order => 
-          order.supplier_name === client.name || 
-          (client.phone && order.contact_number === client.phone)
-        ) || [];
+        const totalSalesValue = num(row.total_sales_value);
+        const totalPurchaseValue = num(row.total_purchase_value);
+        const lastSalesOrderDate = row.last_sales_order_date;
+        const lastPurchaseOrderDate = row.last_purchase_order_date;
 
-        const salesCount = clientSalesOrders.length;
-        const purchaseCount = clientPurchaseOrders.length;
-
-        // Calculate sales metrics
-        const totalSalesValue = clientSalesOrders.reduce((sum, order) => 
-          sum + (Number(order.total_amount) || 0), 0);
-        const averageSalesOrderValue = salesCount > 0 ? totalSalesValue / salesCount : 0;
-        
-        // Find last sales order date
-        const salesDates = clientSalesOrders
-          .map(o => o.order_date)
-          .filter(Boolean)
-          .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
-        const lastSalesOrderDate = salesDates[0] || null;
-        const daysSinceLastSalesOrder = lastSalesOrderDate 
+        const daysSinceLastSalesOrder = lastSalesOrderDate
           ? differenceInDays(today, new Date(lastSalesOrderDate))
           : null;
-
-        // Calculate purchase metrics
-        const totalPurchaseValue = clientPurchaseOrders.reduce((sum, order) => 
-          sum + (Number(order.total_amount) || 0), 0);
-        const averagePurchaseOrderValue = purchaseCount > 0 ? totalPurchaseValue / purchaseCount : 0;
-        
-        // Find last purchase order date
-        const purchaseDates = clientPurchaseOrders
-          .map(o => o.order_date)
-          .filter(Boolean)
-          .sort((a, b) => new Date(b!).getTime() - new Date(a!).getTime());
-        const lastPurchaseOrderDate = purchaseDates[0] || null;
-        const daysSinceLastPurchaseOrder = lastPurchaseOrderDate 
+        const daysSinceLastPurchaseOrder = lastPurchaseOrderDate
           ? differenceInDays(today, new Date(lastPurchaseOrderDate))
           : null;
 
-        // Computed combined values
-        const totalOrderCount = salesCount + purchaseCount;
-        const totalTransactionValue = totalSalesValue + totalPurchaseValue;
-        
-        // Get the most recent order date across both types
-        let lastOrderDate: string | null = null;
+        let lastOrderDate: string | null;
         if (lastSalesOrderDate && lastPurchaseOrderDate) {
-          lastOrderDate = new Date(lastSalesOrderDate) > new Date(lastPurchaseOrderDate) 
-            ? lastSalesOrderDate 
+          lastOrderDate = new Date(lastSalesOrderDate) > new Date(lastPurchaseOrderDate)
+            ? lastSalesOrderDate
             : lastPurchaseOrderDate;
         } else {
           lastOrderDate = lastSalesOrderDate || lastPurchaseOrderDate;
         }
-        
-        const daysSinceLastOrder = lastOrderDate 
+        const daysSinceLastOrder = lastOrderDate
           ? differenceInDays(today, new Date(lastOrderDate))
           : null;
 
-        // Calculate 10-day period values for sales
-        const last10DaysSalesValue = clientSalesOrders
-          .filter(o => o.order_date && new Date(o.order_date) >= last10Days)
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-        
-        const prev10DaysSalesValue = clientSalesOrders
-          .filter(o => {
-            if (!o.order_date) return false;
-            const date = new Date(o.order_date);
-            return date >= prev10DaysStart && date < last10Days;
-          })
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
+        const last10DaysSalesValue = num(row.last10_sales_value);
+        const prev10DaysSalesValue = num(row.prev10_sales_value);
+        const last10DaysPurchaseValue = num(row.last10_purchase_value);
+        const prev10DaysPurchaseValue = num(row.prev10_purchase_value);
+        const currentMonthSalesValue = num(row.current_month_sales_value);
+        const previousMonthSalesValue = num(row.previous_month_sales_value);
+        const currentMonthPurchaseValue = num(row.current_month_purchase_value);
+        const previousMonthPurchaseValue = num(row.previous_month_purchase_value);
 
-        // Calculate 10-day period values for purchases
-        const last10DaysPurchaseValue = clientPurchaseOrders
-          .filter(o => o.order_date && new Date(o.order_date) >= last10Days)
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-        
-        const prev10DaysPurchaseValue = clientPurchaseOrders
-          .filter(o => {
-            if (!o.order_date) return false;
-            const date = new Date(o.order_date);
-            return date >= prev10DaysStart && date < last10Days;
-          })
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-
-        // Calculate month period values for sales
-        const currentMonthSalesValue = clientSalesOrders
-          .filter(o => o.order_date && new Date(o.order_date) >= currentMonthStart)
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-        
-        const previousMonthSalesValue = clientSalesOrders
-          .filter(o => {
-            if (!o.order_date) return false;
-            const date = new Date(o.order_date);
-            return date >= previousMonthStart && date <= previousMonthEnd;
-          })
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-
-        // Calculate month period values for purchases
-        const currentMonthPurchaseValue = clientPurchaseOrders
-          .filter(o => o.order_date && new Date(o.order_date) >= currentMonthStart)
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-        
-        const previousMonthPurchaseValue = clientPurchaseOrders
-          .filter(o => {
-            if (!o.order_date) return false;
-            const date = new Date(o.order_date);
-            return date >= previousMonthStart && date <= previousMonthEnd;
-          })
-          .reduce((sum, o) => sum + (Number(o.total_amount) || 0), 0);
-
-        // Calculate volume trends for sales
         const sales10DayTrend = calculateVolumeTrend(last10DaysSalesValue, prev10DaysSalesValue);
         const salesMonthTrend = calculateVolumeTrend(currentMonthSalesValue, previousMonthSalesValue);
-        
-        // Calculate volume trends for purchases
         const purchase10DayTrend = calculateVolumeTrend(last10DaysPurchaseValue, prev10DaysPurchaseValue);
         const purchaseMonthTrend = calculateVolumeTrend(currentMonthPurchaseValue, previousMonthPurchaseValue);
 
         const isBuyer = salesCount > 0;
         const isSeller = purchaseCount > 0;
         const isComposite = isBuyer && isSeller;
+        const clientType: ClientOrderData['clientType'] = isComposite
+          ? 'Composite'
+          : isBuyer
+            ? 'Buyer'
+            : isSeller
+              ? 'Seller'
+              : 'Unknown';
 
-        let clientType: 'Buyer' | 'Seller' | 'Composite' | 'Unknown';
-        if (isComposite) {
-          clientType = 'Composite';
-        } else if (isBuyer) {
-          clientType = 'Buyer';
-        } else if (isSeller) {
-          clientType = 'Seller';
-        } else {
-          clientType = 'Unknown';
-        }
-
-        result.set(client.id, {
-          clientId: client.id,
+        result.set(row.client_id, {
+          clientId: row.client_id,
           salesOrderCount: salesCount,
           purchaseOrderCount: purchaseCount,
           isBuyer,
@@ -305,32 +184,28 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
           clientType,
           totalSalesValue,
           totalPurchaseValue,
-          averageSalesOrderValue,
-          averagePurchaseOrderValue,
+          averageSalesOrderValue: salesCount > 0 ? totalSalesValue / salesCount : 0,
+          averagePurchaseOrderValue: purchaseCount > 0 ? totalPurchaseValue / purchaseCount : 0,
           lastSalesOrderDate,
           lastPurchaseOrderDate,
           daysSinceLastSalesOrder,
           daysSinceLastPurchaseOrder,
-          totalOrderCount,
-          totalTransactionValue,
+          totalOrderCount: salesCount + purchaseCount,
+          totalTransactionValue: totalSalesValue + totalPurchaseValue,
           lastOrderDate,
           daysSinceLastOrder,
-          // 10-day period values
           last10DaysSalesValue,
           prev10DaysSalesValue,
           last10DaysPurchaseValue,
           prev10DaysPurchaseValue,
-          // Month period values
           currentMonthSalesValue,
           previousMonthSalesValue,
           currentMonthPurchaseValue,
           previousMonthPurchaseValue,
-          // Sales volume trends
           salesVolumeTrend10Day: sales10DayTrend.trend,
           salesVolumeChange10Day: sales10DayTrend.changePercent,
           salesVolumeTrendMonth: salesMonthTrend.trend,
           salesVolumeChangeMonth: salesMonthTrend.changePercent,
-          // Purchase volume trends
           purchaseVolumeTrend10Day: purchase10DayTrend.trend,
           purchaseVolumeChange10Day: purchase10DayTrend.changePercent,
           purchaseVolumeTrendMonth: purchaseMonthTrend.trend,
@@ -340,9 +215,9 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
 
       return result;
     },
-    enabled: !!clients && clients.length > 0,
   });
 }
+
 
 // Helper to determine client activity status (15-day threshold for high-frequency business)
 export function getClientActivityStatus(daysSinceLastOrder: number | null, totalOrders: number): 'active' | 'inactive' | 'dormant' | 'new' {

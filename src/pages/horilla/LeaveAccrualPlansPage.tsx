@@ -213,9 +213,14 @@ export default function LeaveAccrualPlansPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Period:</span> <span className="font-medium capitalize">{p.accrual_period}</span></div>
                   <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium tabular-nums">{p.accrual_amount} days</span></div>
+                  <div><span className="text-muted-foreground">Credit day:</span> <span className="font-medium tabular-nums">{ordinal(Number(p.accrual_day) || 1)}</span></div>
+                  <div><span className="text-muted-foreground">Cycle:</span> <span className="font-medium capitalize">{p.cycle_basis}</span></div>
+                  <div><span className="text-muted-foreground">Starts:</span> <span className="font-medium">{p.start_trigger === "probation_end" ? "After probation" : "On joining"}</span></div>
                   <div><span className="text-muted-foreground">Scope:</span> <span className="font-medium capitalize">{p.applicable_to}</span></div>
                   <div><span className="text-muted-foreground">Effective:</span> <span className="font-medium tabular-nums">{p.effective_from}</span></div>
                 </div>
+                <p className="text-xs text-muted-foreground">{planSummary(p)}</p>
+
                 {p.last_accrual_date && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" /> Last accrual: {p.last_accrual_date}

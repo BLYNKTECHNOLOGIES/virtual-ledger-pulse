@@ -76,7 +76,10 @@ export function HorillaLayout() {
           mobileOpen={mobileSidebarOpen}
           onCloseMobile={() => setMobileSidebarOpen(false)}
           peek={!isMobile && isPeeking}
+          onMouseEnter={isMobile ? undefined : expandOnHover}
+          onMouseLeave={isMobile ? undefined : collapseOnLeave}
         />
+
       </div>
 
       {isMobile && mobileSidebarOpen && (

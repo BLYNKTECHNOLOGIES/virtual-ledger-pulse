@@ -141,6 +141,9 @@ export default function LeaveAccrualPlansPage() {
     setForm({
       name: plan.name, leave_type_id: plan.leave_type_id, accrual_period: plan.accrual_period,
       accrual_amount: plan.accrual_amount, max_accrual: plan.max_accrual?.toString() || "",
+      accrual_day: plan.accrual_day ?? 1,
+      start_trigger: plan.start_trigger || "joining",
+      cycle_basis: plan.cycle_basis || "calendar",
       applicable_to: plan.applicable_to, department_id: plan.department_id || "",
       is_active: plan.is_active, effective_from: plan.effective_from,
     });

@@ -114,14 +114,24 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
   }
 
   const linkByAccount = new Map<string, typeof allLinks[number]>();
-  let fallbackLink: typeof allLinks[number] | null = null;
   for (const l of allLinks) {
     if (l.exchange_account_id) linkByAccount.set(l.exchange_account_id, l);
-    else if (!fallbackLink) fallbackLink = l;
   }
-  if (!fallbackLink) fallbackLink = allLinks[0];
+  // Never fall back to an arbitrary link — that silently attributes an order to
+  // the wrong exchange account's wallet. Unknown account => default account only.
+  const { data: defaultAccount } = await supabase
+    .from('terminal_exchange_accounts')
+    .select('id')
+    .eq('is_default', true)
+    .eq('is_active', true)
+    .maybeSingle();
+  const fallbackLink =
+    (defaultAccount?.id ? linkByAccount.get(defaultAccount.id) : null) ||
+    allLinks.find((l) => !l.exchange_account_id) ||
+    null;
   const resolveLink = (accId: string | null | undefined) =>
-    (accId && linkByAccount.get(accId)) || fallbackLink!;
+    (accId ? linkByAccount.get(accId) : null) || fallbackLink;
+
 
   // Wallet name lookup for all linked wallets
   const { data: walletRows } = await supabase
@@ -334,6 +344,11 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const resolvedAsset = (raw.asset || order.asset || 'USDT').toUpperCase();
 
     const link = resolveLink(orderAccountId);
+    if (!link) {
+      console.warn('[terminal-purchase-sync] no wallet link for exchange account', orderAccountId, 'order', order.order_number);
+      continue;
+    }
+
 
     toInsert.push({
       binance_order_number: order.order_number,

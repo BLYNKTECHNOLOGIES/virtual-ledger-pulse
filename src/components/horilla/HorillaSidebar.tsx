@@ -331,6 +331,8 @@ export function HorillaSidebar({
   return (
     <aside
       data-hrms-sidebar-peek={peek ? "true" : undefined}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={cn(
         "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 shrink-0",
         "transition-[width,box-shadow] duration-200 ease-out will-change-[width]",
@@ -346,6 +348,7 @@ export function HorillaSidebar({
             )
       )}
     >
+
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#6C63FF]/10">

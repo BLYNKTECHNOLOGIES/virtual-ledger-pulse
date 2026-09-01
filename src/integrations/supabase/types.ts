@@ -11152,9 +11152,11 @@ export type Database = {
       hr_leave_accrual_plans: {
         Row: {
           accrual_amount: number
+          accrual_day: number
           accrual_period: string
           applicable_to: string
           created_at: string | null
+          cycle_basis: string
           department_id: string | null
           effective_from: string
           id: string
@@ -11166,13 +11168,16 @@ export type Database = {
           min_attendance_days: number | null
           name: string
           position_id: string | null
+          start_trigger: string
           updated_at: string | null
         }
         Insert: {
           accrual_amount?: number
+          accrual_day?: number
           accrual_period?: string
           applicable_to?: string
           created_at?: string | null
+          cycle_basis?: string
           department_id?: string | null
           effective_from?: string
           id?: string
@@ -11184,13 +11189,16 @@ export type Database = {
           min_attendance_days?: number | null
           name: string
           position_id?: string | null
+          start_trigger?: string
           updated_at?: string | null
         }
         Update: {
           accrual_amount?: number
+          accrual_day?: number
           accrual_period?: string
           applicable_to?: string
           created_at?: string | null
+          cycle_basis?: string
           department_id?: string | null
           effective_from?: string
           id?: string
@@ -11202,6 +11210,7 @@ export type Database = {
           min_attendance_days?: number | null
           name?: string
           position_id?: string | null
+          start_trigger?: string
           updated_at?: string | null
         }
         Relationships: [

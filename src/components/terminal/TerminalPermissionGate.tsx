@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useRef } from 'react';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import type { TerminalPermission } from '@/lib/permissions/terminalCatalog';
 import { Shield } from 'lucide-react';
@@ -19,6 +19,12 @@ export function TerminalPermissionGate({
   silent = false,
 }: Props) {
   const { hasPermission, hasAnyPermission, isLoading } = useTerminalAuth();
+  // Once children have rendered, a background revalidation (e.g. the Supabase
+  // TOKEN_REFRESHED fired when the operator returns from another browser tab)
+  // must never unmount them — that would destroy an open order chat workspace.
+  const hasRenderedRef = useRef(false);
+  if (!isLoading) hasRenderedRef.current = true;
+  if (isLoading && hasRenderedRef.current) return <>{children}</>;
 
   if (isLoading) {
     return (

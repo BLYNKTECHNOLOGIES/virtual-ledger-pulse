@@ -115,8 +115,13 @@ export function useClientTypeFromOrders(clients: any[] | undefined) {
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     queryFn: async (): Promise<Map<string, ClientOrderData>> => {
-      const { data, error } = await supabase.rpc('get_client_order_metrics' as any);
-      if (error) throw error;
+      // One row per client with order history (~5k today) — well past PostgREST's
+      // 1,000-row response cap, so every page must be fetched or clients beyond
+      // the cutoff silently show zero orders / no trend.
+      const data = await fetchAllPaginated<ClientOrderMetricsRow>(() =>
+        (supabase as any).rpc('get_client_order_metrics').order('client_id', { ascending: true }),
+      );
+
 
       const today = new Date();
       const result = new Map<string, ClientOrderData>();

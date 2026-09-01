@@ -306,6 +306,36 @@ export default function LeaveAccrualPlansPage() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <Label>Credit On Day</Label>
+                <Input type="number" min="1" max="28" value={form.accrual_day}
+                  onChange={e => setForm({ ...form, accrual_day: parseInt(e.target.value) || 1 })} className="h-9" />
+                <p className="text-[11px] text-muted-foreground mt-1">Day of month the credit is posted (1–28).</p>
+              </div>
+              <div>
+                <Label>Cycle Basis</Label>
+                <Select value={form.cycle_basis} onValueChange={v => setForm({ ...form, cycle_basis: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="calendar">Calendar (fixed months)</SelectItem>
+                    <SelectItem value="anniversary">Anniversary (from employee's start)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Eligibility Starts</Label>
+              <Select value={form.start_trigger} onValueChange={v => setForm({ ...form, start_trigger: v })}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="joining">From joining date (includes probation)</SelectItem>
+                  <SelectItem value="probation_end">After probation completion</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">{planSummary(form)}</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
                 <Label>Applicable To</Label>
                 <Select value={form.applicable_to} onValueChange={v => setForm({ ...form, applicable_to: v })}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>

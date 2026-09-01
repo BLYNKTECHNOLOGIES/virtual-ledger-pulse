@@ -20,6 +20,10 @@ interface BiometricAuthGateProps {
 export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   const { userId, isTerminalAdmin, isSuperAdmin } = useTerminalAuth();
   const { isAuthenticated, isLoading, setSession } = useTerminalBiometricSession(userId);
+  // Remembers that this gate has already let the operator through once.
+  const wasAuthedRef = useRef(false);
+  if (isAuthenticated) wasAuthedRef.current = true;
+
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [hasCheckedCredentials, setHasCheckedCredentials] = useState(false);

@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.hr_test_accrual_dryrun() TO authenticated, anon;

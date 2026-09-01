@@ -5029,6 +5029,24 @@ export type Database = {
           },
         ]
       }
+      hr_accrual_test_runs: {
+        Row: {
+          created_at: string
+          id: string
+          report: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report?: string | null
+        }
+        Relationships: []
+      }
       hr_announcements: {
         Row: {
           category: string | null

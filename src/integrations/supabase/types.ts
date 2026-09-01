@@ -5029,6 +5029,24 @@ export type Database = {
           },
         ]
       }
+      hr_accrual_test_runs: {
+        Row: {
+          created_at: string
+          id: string
+          report: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report?: string | null
+        }
+        Relationships: []
+      }
       hr_announcements: {
         Row: {
           category: string | null
@@ -29383,6 +29401,7 @@ export type Database = {
         }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }
+      hr_test_accrual_dryrun: { Args: never; Returns: string }
       hr_training_ctc_adjustment: {
         Args: { p_revision_id: string }
         Returns: Json

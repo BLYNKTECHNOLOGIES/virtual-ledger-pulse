@@ -181,6 +181,12 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
     toast.success('Fingerprint registered! Now verify to access the terminal.');
   };
 
+  // A transient re-validation must not unmount the terminal (it would destroy
+  // an open order chat). Only the genuine first check shows the full spinner.
+  if (isLoading && wasAuthedRef.current) {
+    return <>{children}</>;
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -192,6 +198,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   if (isAuthenticated) {
     return <>{children}</>;
   }
+
 
   return (
     <>

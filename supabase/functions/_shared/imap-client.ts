@@ -216,9 +216,10 @@ export function parseMessage(raw: string): ParsedMessage {
   let text: string | null = null;
   const attachments: ParsedAttachment[] = [];
 
-  const boundaryMatch = contentType.match(/boundary="?([^";]+)"?/i);
+  const boundaryMatch = contentType.match(/boundary\s*=\s*"?([^";]+)"?/i);
   if (boundaryMatch) {
-    const parts = body.split(new RegExp(`--${boundaryMatch[1].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`));
+    const parts = splitMimeParts(body, boundaryMatch[1]);
+
     for (const part of parts) {
       const pSplit = part.search(/\r?\n\r?\n/);
       if (pSplit === -1) continue;

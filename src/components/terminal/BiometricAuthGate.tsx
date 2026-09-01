@@ -20,6 +20,10 @@ interface BiometricAuthGateProps {
 export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   const { userId, isTerminalAdmin, isSuperAdmin } = useTerminalAuth();
   const { isAuthenticated, isLoading, setSession } = useTerminalBiometricSession(userId);
+  // Remembers that this gate has already let the operator through once.
+  const wasAuthedRef = useRef(false);
+  if (isAuthenticated) wasAuthedRef.current = true;
+
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [showRegistration, setShowRegistration] = useState(false);
   const [hasCheckedCredentials, setHasCheckedCredentials] = useState(false);
@@ -181,6 +185,12 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
     toast.success('Fingerprint registered! Now verify to access the terminal.');
   };
 
+  // A transient re-validation must not unmount the terminal (it would destroy
+  // an open order chat). Only the genuine first check shows the full spinner.
+  if (isLoading && wasAuthedRef.current) {
+    return <>{children}</>;
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
@@ -192,6 +202,7 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   if (isAuthenticated) {
     return <>{children}</>;
   }
+
 
   return (
     <>

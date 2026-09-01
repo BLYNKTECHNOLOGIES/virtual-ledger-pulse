@@ -90,6 +90,8 @@ export default function LeaveAccrualPlansPage() {
       const payload = {
         name: form.name, leave_type_id: form.leave_type_id, accrual_period: form.accrual_period,
         accrual_amount: Number(form.accrual_amount), max_accrual: form.max_accrual ? Number(form.max_accrual) : null,
+        accrual_day: Math.min(28, Math.max(1, Number(form.accrual_day) || 1)),
+        start_trigger: form.start_trigger, cycle_basis: form.cycle_basis,
         applicable_to: form.applicable_to,
         department_id: form.applicable_to === "department" ? form.department_id : null,
         is_active: form.is_active, effective_from: form.effective_from,

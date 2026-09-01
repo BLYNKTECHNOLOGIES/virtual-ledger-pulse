@@ -17,8 +17,27 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 
 const EMPTY_FORM = {
   name: "", leave_type_id: "", accrual_period: "monthly", accrual_amount: 1,
+  accrual_day: 10, start_trigger: "joining", cycle_basis: "calendar",
   max_accrual: "", applicable_to: "all", department_id: "", is_active: true, effective_from: new Date().toISOString().slice(0, 10),
 };
+
+const ordinal = (n: number) => {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`;
+};
+
+function planSummary(p: any) {
+  const day = ordinal(Number(p.accrual_day) || 1);
+  const amount = `${p.accrual_amount} day${Number(p.accrual_amount) === 1 ? "" : "s"}`;
+  const start = p.start_trigger === "probation_end" ? "the first eligible date after probation ends" : "the first eligible date after joining";
+  const cadence = p.cycle_basis === "anniversary"
+    ? (p.accrual_period === "monthly" ? "every month from that date" : p.accrual_period === "quarterly" ? "every 3 months from that date" : "every 12 months from that date")
+    : (p.accrual_period === "monthly" ? `on the ${day} of every month` : p.accrual_period === "quarterly" ? `on the ${day} of Jan, Apr, Jul and Oct` : `on the ${day} of January`);
+  const cap = p.max_accrual ? `Balance is capped at ${p.max_accrual} days.` : "Unused balance carries forward with no cap.";
+  return `Credits ${amount} ${cadence}, starting from ${start}. ${cap}`;
+}
+
 
 export default function LeaveAccrualPlansPage() {
   const qc = useQueryClient();
@@ -71,6 +90,8 @@ export default function LeaveAccrualPlansPage() {
       const payload = {
         name: form.name, leave_type_id: form.leave_type_id, accrual_period: form.accrual_period,
         accrual_amount: Number(form.accrual_amount), max_accrual: form.max_accrual ? Number(form.max_accrual) : null,
+        accrual_day: Math.min(28, Math.max(1, Number(form.accrual_day) || 1)),
+        start_trigger: form.start_trigger, cycle_basis: form.cycle_basis,
         applicable_to: form.applicable_to,
         department_id: form.applicable_to === "department" ? form.department_id : null,
         is_active: form.is_active, effective_from: form.effective_from,
@@ -120,6 +141,9 @@ export default function LeaveAccrualPlansPage() {
     setForm({
       name: plan.name, leave_type_id: plan.leave_type_id, accrual_period: plan.accrual_period,
       accrual_amount: plan.accrual_amount, max_accrual: plan.max_accrual?.toString() || "",
+      accrual_day: plan.accrual_day ?? 1,
+      start_trigger: plan.start_trigger || "joining",
+      cycle_basis: plan.cycle_basis || "calendar",
       applicable_to: plan.applicable_to, department_id: plan.department_id || "",
       is_active: plan.is_active, effective_from: plan.effective_from,
     });
@@ -189,9 +213,14 @@ export default function LeaveAccrualPlansPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Period:</span> <span className="font-medium capitalize">{p.accrual_period}</span></div>
                   <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium tabular-nums">{p.accrual_amount} days</span></div>
+                  <div><span className="text-muted-foreground">Credit day:</span> <span className="font-medium tabular-nums">{ordinal(Number(p.accrual_day) || 1)}</span></div>
+                  <div><span className="text-muted-foreground">Cycle:</span> <span className="font-medium capitalize">{p.cycle_basis}</span></div>
+                  <div><span className="text-muted-foreground">Starts:</span> <span className="font-medium">{p.start_trigger === "probation_end" ? "After probation" : "On joining"}</span></div>
                   <div><span className="text-muted-foreground">Scope:</span> <span className="font-medium capitalize">{p.applicable_to}</span></div>
                   <div><span className="text-muted-foreground">Effective:</span> <span className="font-medium tabular-nums">{p.effective_from}</span></div>
                 </div>
+                <p className="text-xs text-muted-foreground">{planSummary(p)}</p>
+
                 {p.last_accrual_date && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     <Clock className="h-3 w-3" /> Last accrual: {p.last_accrual_date}
@@ -275,6 +304,36 @@ export default function LeaveAccrualPlansPage() {
                 <Input type="number" value={form.max_accrual} onChange={e => setForm({ ...form, max_accrual: e.target.value })} placeholder="No limit" className="h-9" />
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Credit On Day</Label>
+                <Input type="number" min="1" max="28" value={form.accrual_day}
+                  onChange={e => setForm({ ...form, accrual_day: parseInt(e.target.value) || 1 })} className="h-9" />
+                <p className="text-[11px] text-muted-foreground mt-1">Day of month the credit is posted (1–28).</p>
+              </div>
+              <div>
+                <Label>Cycle Basis</Label>
+                <Select value={form.cycle_basis} onValueChange={v => setForm({ ...form, cycle_basis: v })}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="calendar">Calendar (fixed months)</SelectItem>
+                    <SelectItem value="anniversary">Anniversary (from employee's start)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Eligibility Starts</Label>
+              <Select value={form.start_trigger} onValueChange={v => setForm({ ...form, start_trigger: v })}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="joining">From joining date (includes probation)</SelectItem>
+                  <SelectItem value="probation_end">After probation completion</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground rounded-md bg-muted/50 p-2">{planSummary(form)}</p>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Applicable To</Label>

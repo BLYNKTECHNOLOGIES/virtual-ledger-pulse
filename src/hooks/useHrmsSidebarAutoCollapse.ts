@@ -68,34 +68,62 @@ export function useHrmsSidebarAutoCollapse(
   }, [setCollapsed]);
 
   // Collapse on interaction with the work area + on scroll down.
+  // Listeners are bound in the CAPTURE phase so they still fire when a page
+  // renders its own inner scroll container / stops propagation (scroll events
+  // do not bubble, which previously made the auto-collapse look "removed").
   useEffect(() => {
-    const el = workAreaRef.current;
-    if (!el || isMobile) return;
+    if (isMobile) return;
+
+    const inWorkArea = (target: EventTarget | null) => {
+      const el = workAreaRef.current;
+      return !!el && target instanceof Node && el.contains(target);
+    };
 
     const collapse = () => {
       setIsPeeking(false);
       autoSet(true);
     };
 
+    const onPointerDown = (e: Event) => {
+      if (inWorkArea(e.target)) collapse();
+    };
+    const onKeyDown = (e: Event) => {
+      if (inWorkArea(e.target)) collapse();
+    };
+
     let raf = 0;
-    const onScroll = () => {
+    const onScroll = (e: Event) => {
+      const target = e.target as HTMLElement | Document | null;
+      const el = workAreaRef.current;
+      const isOuter = target === el;
+      if (!isOuter && !inWorkArea(e.target)) return;
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        if (el.scrollTop > threshold) collapse();
+        const top = isOuter
+          ? el?.scrollTop ?? 0
+          : (target as HTMLElement)?.scrollTop ?? 0;
+        if (top > threshold) collapse();
       });
     };
 
-    el.addEventListener("pointerdown", collapse, { passive: true });
-    el.addEventListener("keydown", collapse);
-    el.addEventListener("scroll", onScroll, { passive: true });
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY > 0 && inWorkArea(e.target)) collapse();
+    };
+
+    document.addEventListener("pointerdown", onPointerDown, { capture: true, passive: true });
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    document.addEventListener("wheel", onWheel, { capture: true, passive: true });
     return () => {
-      el.removeEventListener("pointerdown", collapse);
-      el.removeEventListener("keydown", collapse);
-      el.removeEventListener("scroll", onScroll);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("scroll", onScroll, true);
+      document.removeEventListener("wheel", onWheel, true);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [workAreaRef, isMobile, autoSet, threshold]);
+
 
   // Hover intent timers keep the rail from flickering as the pointer crosses.
   const hoverTimer = useRef<number>();

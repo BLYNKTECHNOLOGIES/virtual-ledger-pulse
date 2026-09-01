@@ -226,6 +226,8 @@ interface HorillaSidebarProps {
   onCloseMobile?: () => void;
   /** Hover-peek: panel floats above the content instead of pushing it. */
   peek?: boolean;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function HorillaSidebar({
@@ -235,6 +237,8 @@ export function HorillaSidebar({
   mobileOpen = false,
   onCloseMobile,
   peek = false,
+  onMouseEnter,
+  onMouseLeave,
 }: HorillaSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -289,7 +293,11 @@ export function HorillaSidebar({
     }
   }, [location.pathname, visibleNavGroups]);
 
-  if (isLoading) return null;
+  // Never unmount the shell on a permissions refetch — an unmounted <aside>
+  // is what made the collapsible rail appear to vanish mid-session. Only the
+  // very first load (no groups resolved yet) renders the quiet rail skeleton.
+  const showSkeleton = isLoading && visibleNavGroups.length === 0;
+
 
   const isActive = (path: string) => {
     // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.
@@ -323,6 +331,8 @@ export function HorillaSidebar({
   return (
     <aside
       data-hrms-sidebar-peek={peek ? "true" : undefined}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       className={cn(
         "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 shrink-0",
         "transition-[width,box-shadow] duration-200 ease-out will-change-[width]",
@@ -338,6 +348,7 @@ export function HorillaSidebar({
             )
       )}
     >
+
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#6C63FF]/10">
@@ -353,6 +364,14 @@ export function HorillaSidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 ds-nav-scroll">
+
+        {showSkeleton &&
+          Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={`sk-${i}`}
+              className="h-8 rounded-lg bg-white/5 animate-pulse"
+            />
+          ))}
 
         {visibleNavGroups.map((group) => (
           <div key={group.title}>

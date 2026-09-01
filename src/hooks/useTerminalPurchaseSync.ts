@@ -344,6 +344,11 @@ export async function syncCompletedBuyOrders(): Promise<{ synced: number; duplic
     const resolvedAsset = (raw.asset || order.asset || 'USDT').toUpperCase();
 
     const link = resolveLink(orderAccountId);
+    if (!link) {
+      console.warn('[terminal-purchase-sync] no wallet link for exchange account', orderAccountId, 'order', order.order_number);
+      continue;
+    }
+
 
     toInsert.push({
       binance_order_number: order.order_number,

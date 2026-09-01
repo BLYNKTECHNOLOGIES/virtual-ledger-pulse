@@ -365,6 +365,14 @@ export function HorillaSidebar({
 
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-4 ds-nav-scroll">
 
+        {showSkeleton &&
+          Array.from({ length: 8 }).map((_, i) => (
+            <div
+              key={`sk-${i}`}
+              className="h-8 rounded-lg bg-white/5 animate-pulse"
+            />
+          ))}
+
         {visibleNavGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (

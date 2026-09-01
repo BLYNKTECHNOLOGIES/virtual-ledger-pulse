@@ -34,6 +34,8 @@ type LegendKey =
   | 'on_leave'
   | 'holiday'
   | 'week_off'
+  | 'incomplete'
+  | 'in_progress'
   | 'no_punch'
   | 'upcoming';
 
@@ -106,6 +108,24 @@ const LEGEND: Record<
     dot: 'bg-slate-400',
     text: 'text-muted-foreground',
     cell: 'bg-muted/50 border-border',
+  },
+  incomplete: {
+    label: 'Incomplete',
+    short: '!',
+    hint: 'Punch-out missing — pending HR review',
+    icon: Timer,
+    dot: 'bg-orange-500',
+    text: 'text-orange-700 dark:text-orange-300',
+    cell: 'bg-orange-500/20 border-orange-500/50',
+  },
+  in_progress: {
+    label: 'In Progress',
+    short: '•',
+    hint: 'Shift still running',
+    icon: Timer,
+    dot: 'bg-orange-400',
+    text: 'text-orange-700 dark:text-orange-300',
+    cell: 'bg-orange-500/10 border-orange-500/40',
   },
   no_punch: {
     label: 'No Punch',
@@ -203,8 +223,8 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
           case 'absent':       key = 'absent'; break;
           case 'on_leave':     key = 'on_leave'; break;
           case 'week_off':     key = 'week_off'; break;
-          case 'incomplete':
-          case 'in_progress':  key = 'present'; break;
+          case 'incomplete':   key = 'incomplete'; break;
+          case 'in_progress':  key = 'in_progress'; break;
           case 'no_punch':     key = upcoming ? 'upcoming' : 'no_punch'; break;
           default:             key = null;
         }

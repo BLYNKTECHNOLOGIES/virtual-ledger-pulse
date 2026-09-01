@@ -293,7 +293,11 @@ export function HorillaSidebar({
     }
   }, [location.pathname, visibleNavGroups]);
 
-  if (isLoading) return null;
+  // Never unmount the shell on a permissions refetch — an unmounted <aside>
+  // is what made the collapsible rail appear to vanish mid-session. Only the
+  // very first load (no groups resolved yet) renders the quiet rail skeleton.
+  const showSkeleton = isLoading && visibleNavGroups.length === 0;
+
 
   const isActive = (path: string) => {
     // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.

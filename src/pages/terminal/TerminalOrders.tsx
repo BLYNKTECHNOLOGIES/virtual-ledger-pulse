@@ -118,6 +118,8 @@ const ORDERS_SESSION_KEY = 'terminal_orders_open_state';
 
 interface OrdersSessionState {
   orderNumber?: string;
+  /** Full snapshot of the open order so a remount restores it instantly. */
+  order?: P2POrderRecord | null;
   queueMode?: boolean;
   showChatInbox?: boolean;
   activeChatConv?: ChatConversation | null;
@@ -149,7 +151,12 @@ function TerminalOrdersContent() {
   const [search, setSearch] = useState('');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [datePreset, setDatePreset] = useState<DateRangePreset>('allTime');
-  const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(null);
+  // The open order is restored synchronously from its stored snapshot, so a
+  // remount (tab-focus auth revalidation) never drops the operator back to the
+  // order list while a network lookup runs.
+  const [selectedOrder, setSelectedOrder] = useState<P2POrderRecord | null>(
+    () => readOrdersSession().order || null,
+  );
   // Chat surfaces restore synchronously from session storage so a remount
   // (tab-focus auth revalidation, internal navigation) re-opens the exact
   // chat the operator was in — no spinner, no trip back to the order list.
@@ -171,7 +178,8 @@ function TerminalOrdersContent() {
   const restoreSettledRef = useRef(false);
 
   // Restore the previously-open order by reusing the existing ?order deep-link
-  // machinery (which also resolves orders outside the loaded window).
+  // machinery (which also resolves orders outside the loaded window). With the
+  // snapshot restore above this is only a freshness top-up.
   useEffect(() => {
     if (restoreHandledRef.current) return;
     restoreHandledRef.current = true;
@@ -203,11 +211,13 @@ function TerminalOrdersContent() {
         // mounted" — keep the previously saved order so a double remount
         // (tab-focus auth revalidation) doesn't erase it mid-restore.
         : (restoreSettledRef.current ? undefined : previous.orderNumber),
+      order: selectedOrder ?? (restoreSettledRef.current ? null : previous.order ?? null),
       queueMode,
       showChatInbox,
       activeChatConv,
     });
   }, [selectedOrder, queueMode, showChatInbox, activeChatConv]);
+
 
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();

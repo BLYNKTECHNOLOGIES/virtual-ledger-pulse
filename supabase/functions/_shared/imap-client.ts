@@ -151,6 +151,38 @@ function charsetOf(headerBlock: string): string | null {
   return headerBlock.match(/charset\s*=\s*"?([\w\-]+)"?/i)?.[1] || null;
 }
 
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Splits a multipart body into its parts.
+ *
+ * Some senders (denomailer among them) declare boundaries that already carry
+ * leading dashes, or the declared value differs slightly from the delimiter
+ * actually written into the body. When the declared boundary yields a single
+ * part we sniff the real delimiter from the body instead, otherwise the whole
+ * multipart payload (headers, HTML source and all) leaks into the text part.
+ */
+function splitMimeParts(body: string, declared: string): string[] {
+  const trimmed = declared.trim().replace(/^"|"$/g, "");
+  const candidates = [trimmed, trimmed.replace(/^-+/, "")].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  for (const cand of candidates) {
+    const parts = body.split(new RegExp(`(?:^|\\r?\\n)--${esc(cand)}(?:--)?[ \\t]*(?=\\r?\\n)`));
+    if (parts.length > 1) return parts;
+  }
+
+  // Fallback: use the first delimiter-looking line present in the body.
+  const sniffed = body.match(/(?:^|\r?\n)(--[^\s]+)[ \t]*(?=\r?\n)/)?.[1];
+  if (sniffed) {
+    const base = sniffed.replace(/--$/, "");
+    const parts = body.split(new RegExp(`(?:^|\\r?\\n)${esc(base)}(?:--)?[ \\t]*(?=\\r?\\n)`));
+    if (parts.length > 1) return parts;
+  }
+
+  return [body];
+}
+
+
 function decodePart(head: string, rawBody: string): string {
   const lower = head.toLowerCase();
   const cs = charsetOf(head);

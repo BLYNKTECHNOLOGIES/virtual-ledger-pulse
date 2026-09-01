@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { differenceInDays } from "date-fns";
 
 export type VolumeTrend = 'growing' | 'stable' | 'declining' | 'dropping' | 'new';

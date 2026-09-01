@@ -29016,6 +29016,7 @@ export type Database = {
           half_day_period: string
           id: string
           is_half_day: boolean
+          leave_clashes_count: number
           leave_type_name: string
           manager_remarks: string
           manager_status: string

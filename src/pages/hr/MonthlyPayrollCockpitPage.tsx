@@ -64,6 +64,22 @@ const STEP_ICONS: Record<string, any> = {
   close_month: Flag,
 };
 
+/** Presentation-only grouping of the same 10 steps into readable stages. */
+const STEP_STAGE: Record<string, string> = {
+  lock_attendance: "Attendance",
+  watchdog_zero: "Attendance",
+  salary_revisions: "Compensation",
+  lop_push: "Compensation",
+  inputs_push: "Compensation",
+  run_on_razorpay: "Run",
+  import_payslips: "Reconcile",
+  shadow_compare: "Reconcile",
+  drift_review: "Reconcile",
+  close_month: "Close",
+};
+
+const STAGE_ORDER = ["Attendance", "Compensation", "Run", "Reconcile", "Close"];
+
 type StepTarget =
   | { tool: CockpitToolKey; label: string; params?: Record<string, string> }
   | { href: string; label: string };
@@ -81,16 +97,19 @@ const STEP_TARGET: Record<string, StepTarget> = {
 };
 
 
-const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
-  { tool: "inputs", label: "Payroll Inputs" },
-  { tool: "salary_revisions", label: "Salary Revisions" },
-  { tool: "salary_register", label: "Import Salary Register" },
-  { tool: "payslip_import", label: "Import Payslips" },
-  { tool: "payslip_emails", label: "Payslip Email Dispatch" },
-  { tool: "shadow", label: "Shadow Payroll" },
-  { tool: "razorpay_sync", label: "RazorpayX Diagnostics" },
-  { tool: "system_pulse", label: "System Pulse" },
-  { tool: "data_health", label: "Data Health" },
+const ROUTINE_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
+  { tool: "inputs", label: "Payroll Inputs", icon: Upload },
+  { tool: "salary_revisions", label: "Salary Revisions", icon: Scale },
+  { tool: "salary_register", label: "Import Salary Register", icon: FileText },
+  { tool: "payslip_import", label: "Import Payslips", icon: FileText },
+  { tool: "payslip_emails", label: "Payslip Email Dispatch", icon: FileText },
+];
+
+const DIAGNOSTIC_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
+  { tool: "shadow", label: "Shadow Payroll", icon: Calculator },
+  { tool: "razorpay_sync", label: "RazorpayX Diagnostics", icon: Activity },
+  { tool: "system_pulse", label: "System Pulse", icon: Activity },
+  { tool: "data_health", label: "Data Health", icon: Scale },
 ];
 
 function monthOptions(): { value: string; label: string }[] {
@@ -106,29 +125,61 @@ function monthOptions(): { value: string; label: string }[] {
   return opts;
 }
 
-function StepBadge({ step }: { step: CockpitStep }) {
-  if (step.ack_status === "done")
-    return <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30">Done</Badge>;
-  if (step.ack_status === "skipped")
-    return <Badge variant="outline">Skipped</Badge>;
-  if (step.ack_status === "blocked")
-    return <Badge variant="destructive">Blocked</Badge>;
-  if (step.live_status === "complete" && step.auto)
-    return <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30">Auto</Badge>;
+/** System-side (live) state chip — what the data says. */
+function LiveChip({ step }: { step: CockpitStep }) {
   if (step.live_status === "complete")
-    return <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">Ready to acknowledge</Badge>;
-  return <Badge variant="outline" className="text-muted-foreground">Pending</Badge>;
+    return (
+      <Badge variant="outline" className="border-success/40 bg-success/10 text-success gap-1">
+        <CheckCircle2 className="h-3 w-3 shrink-0" /> System: complete
+      </Badge>
+    );
+  return (
+    <Badge variant="outline" className="text-muted-foreground gap-1">
+      <Circle className="h-3 w-3 shrink-0" /> System: pending
+    </Badge>
+  );
+}
+
+/** Human-side (acknowledgement) chip — what the operator confirmed. */
+function AckChip({ step }: { step: CockpitStep }) {
+  if (step.ack_status === "done")
+    return (
+      <Badge className="bg-success/15 text-success border-success/30 gap-1">
+        <CheckCircle2 className="h-3 w-3 shrink-0" /> Confirmed
+      </Badge>
+    );
+  if (step.ack_status === "skipped") return <Badge variant="outline">Skipped</Badge>;
+  if (step.ack_status === "blocked")
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <AlertTriangle className="h-3 w-3 shrink-0" /> Blocked
+      </Badge>
+    );
+  if (step.auto && step.live_status === "complete")
+    return (
+      <Badge variant="outline" className="border-info/40 bg-info/10 text-info gap-1">
+        <Bot className="h-3 w-3 shrink-0" /> Automatic
+      </Badge>
+    );
+  if (step.live_status === "complete")
+    return (
+      <Badge variant="outline" className="border-info/40 bg-info/10 text-info">
+        Ready to confirm
+      </Badge>
+    );
+  return <Badge variant="outline" className="text-muted-foreground">Not confirmed</Badge>;
 }
 
 function StepIcon({ step }: { step: CockpitStep }) {
   if (step.ack_status === "done")
-    return <CheckCircle2 className="h-6 w-6 text-emerald-500" />;
+    return <CheckCircle2 className="h-5 w-5 text-success shrink-0" />;
   if (step.ack_status === "blocked")
-    return <AlertTriangle className="h-6 w-6 text-destructive" />;
+    return <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />;
   if (step.live_status === "complete")
-    return <CheckCircle2 className="h-6 w-6 text-blue-500" />;
-  return <Circle className="h-6 w-6 text-muted-foreground" />;
+    return <CheckCircle2 className="h-5 w-5 text-info shrink-0" />;
+  return <Circle className="h-5 w-5 text-muted-foreground shrink-0" />;
 }
+
 
 function plural(n: any, word: string): string {
   return Number(n ?? 0) === 1 ? word : `${word}s`;

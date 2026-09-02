@@ -17609,6 +17609,8 @@ export type Database = {
           contact_channel_value: string | null
           contact_number: string | null
           created_at: string
+          created_by: string | null
+          created_by_name: string | null
           description: string | null
           estimated_order_value: number | null
           follow_up_date: string | null
@@ -17626,6 +17628,8 @@ export type Database = {
           contact_channel_value?: string | null
           contact_number?: string | null
           created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
           description?: string | null
           estimated_order_value?: number | null
           follow_up_date?: string | null
@@ -17643,6 +17647,8 @@ export type Database = {
           contact_channel_value?: string | null
           contact_number?: string | null
           created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
           description?: string | null
           estimated_order_value?: number | null
           follow_up_date?: string | null

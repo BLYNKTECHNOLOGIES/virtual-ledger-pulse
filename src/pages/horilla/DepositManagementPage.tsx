@@ -660,6 +660,11 @@ export default function DepositManagementPage() {
         <TableCell>
           <span className={`px-2 py-0.5 rounded-full text-xs ${LIFECYCLE_BADGE[state].cls}`}>{LIFECYCLE_BADGE[state].label}</span>
           {d.is_paused && state === "active" && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Paused</span>}
+          {locked && (
+            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary" title="Governed by the employee's F&F settlement">
+              {d.fnf_state === "closed" ? "Settled in F&F" : "Reserved in F&F"}
+            </span>
+          )}
         </TableCell>
         <TableCell className="text-xs">
           {state === "refunded" ? (

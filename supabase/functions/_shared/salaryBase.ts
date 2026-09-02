@@ -66,7 +66,9 @@ export async function resolveMonthlyGross(
       .limit(1);
     const ctc = Number((empRow?.[0] as any)?.total_salary ?? 0);
     if (ctc > 0) {
-      monthlyGross = ctc > 100000 ? ctc / 12 : ctc;
+      // hr_employees.total_salary mirrors the RazorpayX CTC, which is annual by
+      // definition. Never guess the unit from the magnitude.
+      monthlyGross = ctc / 12;
       source = "razorpay_ctc";
     }
   }
@@ -79,8 +81,8 @@ export async function resolveMonthlyGross(
       .eq("is_active", true);
     const mirrorTotal = (mirror ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
     if (mirrorTotal > 0) {
-      // Mirror stores annual figures; anything below a month-scale threshold is already monthly.
-      monthlyGross = mirrorTotal > 100000 ? mirrorTotal / 12 : mirrorTotal;
+      // The RazorpayX-mirrored structure stores ANNUAL component amounts.
+      monthlyGross = mirrorTotal / 12;
       source = "razorpay_mirror";
     }
   }
@@ -117,7 +119,8 @@ export async function resolveMonthlyGross(
       .limit(1);
     const annual = Number((onb?.[0] as any)?.ctc ?? 0);
     if (annual > 0) {
-      monthlyGross = annual > 100000 ? annual / 12 : annual;
+      // hr_employee_onboarding.ctc is captured as an ANNUAL figure.
+      monthlyGross = annual / 12;
       source = "onboarding_ctc";
     }
   }

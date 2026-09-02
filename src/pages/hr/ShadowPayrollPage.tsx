@@ -184,17 +184,25 @@ export default function ShadowPayrollPage() {
   });
 
 
+  // monthly_gross is already post-LOP and already includes positive additions
+  // (engine: earningsTotal = grossEarnings + addPositive). Adding additions or
+  // subtracting LOP again here double-counts both. Lines with no imported
+  // RazorpayX payslip are excluded from BOTH sides so the comparison is
+  // like-for-like instead of counting them as ₹0 on the RazorpayX side.
   const totals = useMemo(() => {
     if (!lines) return { shadowGross: 0, shadowNet: 0, rzGross: 0, rzNet: 0, count: 0, missingRz: 0 };
     return lines.reduce(
-      (acc, l) => ({
-        shadowGross: acc.shadowGross + l.monthly_gross + l.additions_total - l.lop_amount,
-        shadowNet: acc.shadowNet + l.net_pay,
-        rzGross: acc.rzGross + (l.razorpay_gross ?? 0),
-        rzNet: acc.rzNet + (l.razorpay_net ?? 0),
-        count: acc.count + 1,
-        missingRz: acc.missingRz + (l.razorpay_net === null ? 1 : 0),
-      }),
+      (acc, l) => {
+        const comparable = l.razorpay_net !== null || l.razorpay_gross !== null;
+        return {
+          shadowGross: acc.shadowGross + (comparable ? l.monthly_gross : 0),
+          shadowNet: acc.shadowNet + (comparable ? l.net_pay : 0),
+          rzGross: acc.rzGross + (l.razorpay_gross ?? 0),
+          rzNet: acc.rzNet + (l.razorpay_net ?? 0),
+          count: acc.count + 1,
+          missingRz: acc.missingRz + (comparable ? 0 : 1),
+        };
+      },
       { shadowGross: 0, shadowNet: 0, rzGross: 0, rzNet: 0, count: 0, missingRz: 0 },
     );
   }, [lines]);
@@ -407,7 +415,7 @@ export default function ShadowPayrollPage() {
               <div className="col-span-1 text-right">Δ Net</div>
             </div>
             {lines.map((l) => {
-              const shadowGross = l.monthly_gross + l.additions_total - l.lop_amount;
+              const shadowGross = l.monthly_gross;
               const netDiff = diff(l.net_pay, l.razorpay_net);
               const isOpen = expandedId === l.id;
               return (

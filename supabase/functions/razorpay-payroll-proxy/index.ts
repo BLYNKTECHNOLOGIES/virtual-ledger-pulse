@@ -2899,13 +2899,34 @@ Deno.serve(async (req) => {
               if (r.ok && (await emailLanded())) { landed = true; ok = true; errText = null; break; }
             }
             if (!landed) {
-              ok = false;
-              errText = `RazorpayX did not apply the work-email change (${snapEmail} → ${wantedNewEmail}) via people:edit. Out of RazorpayX API scope on this tenant — change it in the RazorpayX dashboard, then rescan.`;
+              // VERIFIED (live probe, 2026-09-02 IST): the work email is the
+              // identity key of an Opfin person. people:edit accepts every
+              // email-change spelling with HTTP 200 and silently keeps the old
+              // address; people:edit-email / change-email / update-email do not
+              // exist (code 23). Out of RazorpayX API Scope / Limitation —
+              // dashboard-only field.
+              // So: drop the email from the payload and re-push the REST of the
+              // fields so a dashboard-only field never blocks the whole edit.
+              const rest: Record<string, any> = { ...wirePatch, email: snapEmail };
+              delete rest["new-email"];
+              delete rest["work-email"];
+              delete rest["personal-email"];
+              delete rest["email-id"];
+              const writableRest = Object.keys(rest).filter((k) => k !== "email");
+              if (writableRest.length > 0) {
+                const r2 = await opfinEditPerson({ "employee-id": eid, "employee-type": "employee", ...rest });
+                ok = r2.ok;
+                errText = r2.ok ? null : (r2.error || `HTTP ${r2.status}`);
+              } else {
+                ok = true; errText = null;
+              }
+              emailDashboardOnly = `Work email is RazorpayX's identity key and cannot be changed through the Payroll API (verified live: every people:edit variant returns 200 but keeps the old address; no change-email sub-type exists). Change ${snapEmail} → ${wantedNewEmail} in the RazorpayX dashboard (People → employee → Edit), then rescan. All other fields were pushed.`;
             }
           } else {
             ok = true; errText = null;
           }
         }
+
 
 
 

@@ -136,23 +136,38 @@ Deno.serve(async (req) => {
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const split = splitCompoff(pool.days_available, rawLopDays);
 
+      const gap = gapByEmp.get(map.hr_employee_id);
+      const monthWorkingDays = Number(gap?.month_working_days ?? 0);
+      const gapDays = Number(gap?.gap_working_days ?? 0);
+      // Charge days = genuine absence (after comp-off) + days not employed.
+      const chargeDays = Math.min(
+        Math.round((split.lop_after_offset + gapDays) * 100) / 100,
+        monthWorkingDays > 0 ? monthWorkingDays : split.lop_after_offset + gapDays,
+      );
+
       const base: any = {
         hr_employee_id: map.hr_employee_id,
         razorpay_employee_id: map.razorpay_employee_id,
         name,
         badge_id: emp.badge_id ?? null,
         working_days: Number(lop?.working_days ?? 0),
+        month_working_days: monthWorkingDays,
         present_days: Number(lop?.present_days ?? 0),
         paid_leave_days: Number(lop?.paid_leave_days ?? 0),
         unpaid_leave_days: Number(lop?.unpaid_leave_days ?? 0),
         raw_lop_days: rawLopDays,
         compoff_available: pool.days_available,
         compoff_offset_days: split.offset_days,
-        lop_days: split.lop_after_offset,
+        absence_lop_days: split.lop_after_offset,
+        proration_days: gapDays,
+        employment_from: gap?.emp_from ?? null,
+        employment_to: gap?.emp_to ?? null,
+        lop_days: chargeDays,
         formula: lop?.formula ?? null,
         existing_amount: existingAuto ? Number(existingAuto.amount) : null,
         existing_pushed: !!existingAuto?.pushed_at,
       };
+
 
 
       if (!lop) {

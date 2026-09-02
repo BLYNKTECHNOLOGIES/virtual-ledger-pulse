@@ -134,6 +134,26 @@ export function RazorpayPushResultDialog({
           </div>
         )}
 
+        {emailScopeBlock && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 space-y-1">
+            <div className="font-semibold uppercase tracking-wide">Out of RazorpayX API scope / limitation</div>
+            <p>
+              RazorpayX Payroll identifies a person by their <em>current</em> work email, so the email address itself
+              cannot be changed through the API — every write variant is accepted with HTTP 200 and silently ignored.
+              Change it in the RazorpayX dashboard (People → this employee → Edit), then run “Rescan now” here; the
+              drift clears automatically once the read-back matches.
+            </p>
+            <a
+              href="https://payroll.razorpay.com/people"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 font-medium underline"
+            >
+              Open RazorpayX People <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        )}
+
         <ScrollArea className="max-h-[55vh] pr-2">
           <div className="space-y-4">
             {unapplied.length > 0 && (
@@ -141,6 +161,7 @@ export function RazorpayPushResultDialog({
                 <div className="text-xs font-semibold uppercase tracking-wide text-rose-500">
                   Not applied by RazorpayX ({unapplied.length})
                 </div>
+
                 {unapplied.map((f) => <DiffRow key={f.key} f={f} />)}
               </section>
             )}

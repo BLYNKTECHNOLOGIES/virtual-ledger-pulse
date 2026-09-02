@@ -2452,3 +2452,12 @@ html {
   background: hsl(var(--primary) / 0.1);
   color: hsl(var(--sidebar-accent-foreground));
 }
+
+/* Cockpit tool shell — normalise each embedded payroll tool to full-bleed width.
+   Presentation only: the tool pages keep their own widths when routed standalone. */
+.cockpit-tool-shell > * {
+  max-width: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100%;
+}

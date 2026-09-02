@@ -36,7 +36,9 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
   const [evidence, setEvidence] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
 
-  const actionable = request?.status === "pending" || request?.status === "manager_reviewed";
+  const actionable = request?.status === "pending"
+    || request?.status === "manager_review"
+    || request?.status === "manager_reviewed";
 
   // Validate the proposal against raw punches as soon as HR opts to approve.
   useEffect(() => {
@@ -216,9 +218,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
   if (!actionable) {
     return (
       <p className="text-xs text-muted-foreground">
-        {request?.status === "manager_review"
-          ? "Waiting on the reporting manager's recommendation before HR can decide."
-          : `This request is already ${String(request?.status).replace(/_/g, " ")} — no further action needed.`}
+        This request is already {String(request?.status).replace(/_/g, " ")} — no further action needed.
       </p>
     );
   }
@@ -235,6 +235,12 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
               <XCircle className="h-4 w-4 mr-2" /> Reject
             </Button>
           </div>
+          {request.status === "manager_review" && (
+            <p className="text-[11px] text-muted-foreground">
+              Awaiting the reporting manager's recommendation — HR can still decide now. A final HR decision removes
+              it from the manager's queue.
+            </p>
+          )}
           {request.status === "pending" && (
             <Button variant="outline" className="w-full h-10" disabled={pushToManager.isPending}
               onClick={() => pushToManager.mutate()}>

@@ -376,7 +376,7 @@ export default function AttendanceRegularizationPage() {
                         {r.manager_remarks ? ` · "${r.manager_remarks}"` : ''}
                       </div>
                     )}
-                    {(r.status === 'pending' || r.status === 'manager_reviewed') && (
+                    {(r.status === 'pending' || r.status === 'manager_review' || r.status === 'manager_reviewed') && (
                       <div className="flex gap-2 pt-1 flex-wrap">
                         <Button size="sm" variant="outline" className="flex-1 h-10" onClick={() => openReview(r, 'approved')}>
                           <CheckCircle2 className="h-4 w-4 mr-1 text-success" /> Approve
@@ -420,7 +420,7 @@ export default function AttendanceRegularizationPage() {
                   <tbody className="divide-y divide-border/60">
                     {filtered.map((r: any) => {
                       const emp = r.hr_employees;
-                      const actionable = r.status === 'pending' || r.status === 'manager_reviewed';
+                      const actionable = r.status === 'pending' || r.status === 'manager_review' || r.status === 'manager_reviewed';
                       return (
                         <tr key={r.id} className="align-middle hover:bg-muted/30">
                           <td className="px-3 py-2">

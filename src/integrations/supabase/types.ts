@@ -11353,6 +11353,7 @@ export type Database = {
           expired_date: string | null
           id: string
           leave_type_id: string
+          month: number | null
           quarter: number
           reset_date: string | null
           updated_at: string
@@ -11368,6 +11369,7 @@ export type Database = {
           expired_date?: string | null
           id?: string
           leave_type_id: string
+          month?: number | null
           quarter?: number
           reset_date?: string | null
           updated_at?: string
@@ -11383,6 +11385,7 @@ export type Database = {
           expired_date?: string | null
           id?: string
           leave_type_id?: string
+          month?: number | null
           quarter?: number
           reset_date?: string | null
           updated_at?: string

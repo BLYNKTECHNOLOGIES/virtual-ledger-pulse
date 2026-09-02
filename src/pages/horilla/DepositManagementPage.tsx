@@ -210,14 +210,31 @@ export default function DepositManagementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // An edit never silently changes money: the old and new values, who changed them,
+  // when, and why are appended to the deposit ledger. Records governed by a live
+  // F&F settlement are immutable here.
   const editMutation = useMutation({
     mutationFn: async () => {
+      if (isFnfLocked(editingDeposit)) {
+        throw new Error("This record is reserved by an F&F settlement — change it from the F&F settlement instead.");
+      }
       const oldAmount = Number(editingDeposit.total_deposit_amount);
       const newAmount = Number(form.total_deposit_amount);
       const oldMode = editingDeposit.deduction_mode;
       const newMode = form.deduction_mode;
       const oldValue = Number(editingDeposit.deduction_value);
       const newValue = Number(form.deduction_value);
+
+      const changes: string[] = [];
+      if (oldAmount !== newAmount) changes.push(`Amount: ${inr(oldAmount)} → ${inr(newAmount)}`);
+      if (oldMode !== newMode) changes.push(`Mode: ${oldMode} → ${newMode}`);
+      if (oldValue !== newValue) changes.push(`Value: ${oldValue} → ${newValue}`);
+      if (changes.length > 0 && !editReason.trim()) {
+        throw new Error("Write the reason for this change — it is kept in the deposit ledger.");
+      }
+      if (newAmount < Number(editingDeposit.collected_amount || 0)) {
+        throw new Error(`Target cannot be below the ${inr(editingDeposit.collected_amount)} already collected.`);
+      }
 
       const isRecovery = (editingDeposit.deposit_type || "security") === "error_recovery";
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
@@ -232,11 +249,9 @@ export default function DepositManagementPage() {
       }).eq("id", editingDeposit.id);
       if (error) throw error;
 
-      const changes: string[] = [];
-      if (oldAmount !== newAmount) changes.push(`Amount: ${inr(oldAmount)} → ${inr(newAmount)}`);
-      if (oldMode !== newMode) changes.push(`Mode: ${oldMode} → ${newMode}`);
-      if (oldValue !== newValue) changes.push(`Value: ${oldValue} → ${newValue}`);
       if (changes.length > 0) {
+        const { data: auth } = await (supabase as any).auth.getUser();
+        const actor = auth?.user?.email || auth?.user?.id || "unknown user";
         await (supabase as any).from("hr_deposit_transactions").insert({
           employee_id: editingDeposit.employee_id,
           deposit_id: editingDeposit.id,
@@ -244,7 +259,7 @@ export default function DepositManagementPage() {
           transaction_type: "modified",
           amount: 0,
           balance_after: Number(editingDeposit.current_balance),
-          description: `Modified: ${changes.join("; ")}`,
+          description: `Modified: ${changes.join("; ")} · Reason: ${editReason.trim()} · By: ${actor}`,
           transaction_date: new Date().toISOString().slice(0, 10),
         });
       }
@@ -257,6 +272,7 @@ export default function DepositManagementPage() {
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
       setShowEdit(false);
       setEditingDeposit(null);
+      setEditReason("");
       toast.success("Deposit updated and schedule rebuilt");
     },
     onError: (e: any) => toast.error(e.message),

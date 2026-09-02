@@ -1832,6 +1832,61 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, body: editRes.body, salary: salaryResult });
     }
 
+    // ---------- probe_email_variants ----------
+    // Diagnostic + repair: try every plausible people:edit envelope for a
+    // WORK-EMAIL change, verifying with people:view after each attempt.
+    if (action === "probe_email_variants") {
+      const rpId = Number(payload?.razorpay_employee_id);
+      const target = String(payload?.new_email || "").trim().toLowerCase();
+      if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
+      if (!target.includes("@")) return json(400, { error: "new_email required" });
+
+      const view0 = await opfinView(rpId, "employee");
+      const b0: any = view0.body || {};
+      const currentEmail = String(b0.email ?? b0.work_email ?? b0["work-email"] ?? "").trim().toLowerCase();
+      const peopleId = b0["people-id"] ?? b0.people_id ?? b0.id ?? null;
+      if (!currentEmail) return json(200, { ok: false, error: "people:view returned no current email", view_keys: Object.keys(b0) });
+
+      const readBack = async () => {
+        const v = await opfinView(rpId, "employee");
+        const bb: any = v.body || {};
+        return String(bb.email ?? bb.work_email ?? bb["work-email"] ?? "").trim().toLowerCase();
+      };
+
+      const base = { "employee-id": rpId, "employee-type": "employee" };
+      const variants: Array<{ label: string; data: Record<string, any> }> = [
+        { label: "employee-id + email=new", data: { ...base, email: target } },
+        { label: "email=current + new-email", data: { ...base, email: currentEmail, "new-email": target } },
+        { label: "email=current + work-email", data: { ...base, email: currentEmail, "work-email": target } },
+        { label: "email=current + email-id", data: { ...base, email: currentEmail, "email-id": target } },
+        { label: "email=current + new_email(snake)", data: { ...base, email: currentEmail, new_email: target } },
+        { label: "employee-id only + email=new (no type)", data: { "employee-id": rpId, email: target } },
+      ];
+      if (peopleId) {
+        variants.push({ label: "people-id + email=new", data: { "people-id": Number(peopleId), email: target } });
+        variants.push({ label: "people-id + email=current + new-email", data: { "people-id": Number(peopleId), email: currentEmail, "new-email": target } });
+      }
+
+      const attempts: any[] = [];
+      let landedWith: string | null = null;
+      for (const v of variants) {
+        const r = await opfinEditPerson(v.data);
+        const after = await readBack();
+        attempts.push({ variant: v.label, http: r.status, ok: r.ok, error: r.error, after });
+        if (after === target) { landedWith = v.label; break; }
+      }
+      return json(200, {
+        ok: !!landedWith,
+        current_email: currentEmail,
+        target,
+        people_id: peopleId,
+        landed_with: landedWith,
+        attempts,
+        view_keys: Object.keys(b0),
+      });
+    }
+
+
     // ---------- attach_employee_id_by_email ----------
     // Repair path for records that were created in Razorpay but lost their
     // reserved employee-id (the "-NA-" limbo state). Official contract uses

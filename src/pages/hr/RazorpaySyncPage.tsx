@@ -940,7 +940,7 @@ export default function RazorpaySyncPage() {
 
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl">
+    <div className="space-y-6 p-4 md:p-6 w-full">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">RazorpayX Payroll Sync</h1>
@@ -1346,7 +1346,7 @@ export default function RazorpaySyncPage() {
         </CardContent>
       </Card>
 
-      {/* ▼ Payroll Sync Journey — sticky roadmap navigator (two rails: A–E setup, F–J monthly) */}
+      {/* Payroll Sync Journey — sticky roadmap navigator (two rails: A–E setup, F–J monthly) */}
       <RoadmapJourneyNav steps={stationSteps} railBreakAfter="E" />
 
       {(() => {

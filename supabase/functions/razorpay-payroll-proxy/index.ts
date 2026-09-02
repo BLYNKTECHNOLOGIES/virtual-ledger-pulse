@@ -2953,7 +2953,13 @@ Deno.serve(async (req) => {
           } else {
             await svc.from("hr_razorpay_settings").update({ last_push_at: new Date().toISOString() }).eq("is_singleton", true);
           }
-          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "pushed", changed: diff.changed });
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: emailDashboardOnly ? "pushed_email_dashboard_only" : "pushed",
+            changed: diff.changed,
+            dashboard_only_fields: emailDashboardOnly ? ["email"] : undefined,
+            note: emailDashboardOnly || undefined,
+          });
         } else {
           failed++;
           rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "failed", changed: diff.changed, error: errText });

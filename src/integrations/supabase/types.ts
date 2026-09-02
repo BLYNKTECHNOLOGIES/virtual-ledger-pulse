@@ -28861,6 +28861,10 @@ export type Database = {
             Returns: string
           }
       hr_current_employee_id: { Args: never; Returns: string }
+      hr_delete_fnf_settlement: {
+        Args: { p_reason: string; p_settlement_id: string }
+        Returns: Json
+      }
       hr_delete_salary_revision: {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: Json

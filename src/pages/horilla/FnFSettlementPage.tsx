@@ -10,7 +10,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Calculator, Plus, IndianRupee, AlertTriangle } from "lucide-react";
+import { Calculator, Plus, IndianRupee, AlertTriangle, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
@@ -346,6 +346,44 @@ export default function FnFSettlementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // ── Delete a settlement and unwind everything it touched ──────────────────
+  // hr_delete_fnf_settlement reopens reserved/closed deposits and error
+  // recoveries (with a released ledger entry), reopens loans it closed,
+  // un-applies its penalties, unticks the exit-checklist F&F item, and refuses
+  // outright once the settlement is live in a RazorpayX payroll run.
+  const [deletePrompt, setDeletePrompt] = useState<{ id: string; name: string; status: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { data, error } = await (supabase as any).rpc("hr_delete_fnf_settlement", {
+        p_settlement_id: id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["resignation-fnf"] });
+      qc.invalidateQueries({ queryKey: ["resignation-checklist"] });
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      const bits = [
+        res?.deposits_reopened ? `${res.deposits_reopened} deposit/recovery reopened` : null,
+        res?.deposits_released ? `${res.deposits_released} reservation released` : null,
+        res?.loans_reopened ? `${res.loans_reopened} loan reopened` : null,
+        res?.penalties_reopened ? `${res.penalties_reopened} penalty reopened` : null,
+        res?.checklist_unticked ? "exit checklist unticked" : null,
+      ].filter(Boolean);
+      toast.success(
+        bits.length ? `Settlement deleted — ${bits.join(", ")}.` : "Settlement deleted — nothing else was affected.",
+      );
+      setDeletePrompt(null);
+      setDeleteReason("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
 
   const [dismissing, setDismissing] = useState(false);
   const confirmDismissInRazorpay = async () => {
@@ -492,6 +530,27 @@ export default function FnFSettlementPage() {
                         </Button>
                       );
                     })()}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                      title={
+                        s.razorpay_push_status === "pushed"
+                          ? "Already pushed to RazorpayX — remove it there first"
+                          : "Delete this settlement and unwind everything it touched"
+                      }
+                      onClick={() => {
+                        setDeleteReason("");
+                        setDeletePrompt({
+                          id: s.id,
+                          status: s.status,
+                          name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
+                        });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
 
 
                   </div>
@@ -740,6 +799,50 @@ export default function FnFSettlementPage() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!deletePrompt} onOpenChange={(o) => { if (!o) { setDeletePrompt(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete the F&amp;F settlement of {deletePrompt?.name}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-xs">
+                <p>Deleting does not just remove the sheet — everything this settlement touched is put back:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>Security deposits and error recoveries it reserved or paid back / withheld are reopened with their full held amount, and the reason is written into the deposit history.</li>
+                  <li>Loans it closed are reopened with the outstanding recalculated from the repayments actually paid.</li>
+                  <li>Penalties it applied become open again.</li>
+                  <li>The “Full &amp; Final settlement initiated” item on the exit checklist is unticked.</li>
+                </ul>
+                <p className="text-destructive">
+                  If it was already pushed to RazorpayX, deletion is refused — remove the F&amp;F addition/deduction in RazorpayX first.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <Label>Reason for deleting <span className="text-destructive">*</span></Label>
+            <Textarea
+              rows={2}
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. created for the wrong employee / wrong last working day"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!deleteReason.trim() || deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!deletePrompt) return;
+                deleteMutation.mutate({ id: deletePrompt.id, reason: deleteReason.trim() });
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete & unwind"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
 
       <AlertDialog open={!!dismissPrompt} onOpenChange={(o) => { if (!o) setDismissPrompt(null); }}>

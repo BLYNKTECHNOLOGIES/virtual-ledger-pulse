@@ -1,20 +1,10 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { Plus, Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
-import {
-  buildRegularizationWindow,
-  validateRegularizationWindow,
-} from '@/lib/regularizationWindow';
 
 
 interface Props {
@@ -30,26 +20,6 @@ const statusMeta: Record<string, { label: string; icon: any; cls: string }> = {
 
 export default function RegularizationCard({ employeeId }: Props) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    attendance_date: format(new Date(), 'yyyy-MM-dd'),
-    requested_check_in: '',
-    requested_check_out: '',
-    reason: '',
-  });
-
-  const windowPreview = (() => {
-    const w = buildRegularizationWindow(
-      form.attendance_date,
-      form.requested_check_in,
-      form.requested_check_out,
-    );
-    return {
-      error: validateRegularizationWindow(w),
-      crossesMidnight: w.crossesMidnight,
-      spanLabel: w.spanHours !== null ? `${w.spanHours.toFixed(1)} h` : '',
-    };
-  })();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['reg_requests_self', employeeId],
@@ -64,49 +34,6 @@ export default function RegularizationCard({ employeeId }: Props) {
       return data || [];
     },
     enabled: !!employeeId,
-  });
-
-  const submit = useMutation({
-    mutationFn: async () => {
-      if (!form.reason.trim()) throw new Error('Please provide a reason');
-      if (!form.requested_check_in && !form.requested_check_out) {
-        throw new Error('Provide at least one time (check-in or check-out)');
-      }
-      const payload: any = {
-        employee_id: employeeId,
-        attendance_date: form.attendance_date,
-        reason: form.reason.trim(),
-        status: 'pending',
-      };
-      const win = buildRegularizationWindow(
-        form.attendance_date,
-        form.requested_check_in,
-        form.requested_check_out,
-      );
-      const windowError = validateRegularizationWindow(win);
-      if (windowError) throw new Error(windowError);
-      payload.requested_check_in = win.checkIn;
-      payload.requested_check_out = win.checkOut;
-
-
-      const { error } = await (supabase as any)
-        .from('hr_attendance_regularization_requests')
-        .insert(payload);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Regularization request submitted for HR approval');
-      setOpen(false);
-      setForm({
-        attendance_date: format(new Date(), 'yyyy-MM-dd'),
-        requested_check_in: '',
-        requested_check_out: '',
-        reason: '',
-      });
-      qc.invalidateQueries({ queryKey: ['reg_requests_self', employeeId] });
-      invalidateAttendanceCaches(qc);
-    },
-    onError: (e: any) => toast.error(e.message || 'Failed to submit request'),
   });
 
   const cancel = useMutation({
@@ -130,20 +57,17 @@ export default function RegularizationCard({ employeeId }: Props) {
 
   return (
     <Card>
-      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+      <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
           <Clock className="h-4 w-4" /> Attendance Regularization
         </CardTitle>
-        <Button size="sm" className="shrink-0" onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New Request</span>
-        </Button>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (
           <p className="text-center py-6 text-muted-foreground text-sm">Loading...</p>
         ) : requests.length === 0 ? (
           <p className="text-center py-6 px-4 text-muted-foreground text-sm">
-            No requests yet. Missed a punch? Raise a request and HR will review.
+            No requests yet. Use the <strong>Request</strong> button above to raise an attendance regularization.
           </p>
         ) : (
           <>
@@ -223,79 +147,6 @@ export default function RegularizationCard({ employeeId }: Props) {
           </>
         )}
       </CardContent>
-
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>New Regularization Request</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="min-w-0">
-              <Label className="mb-1.5 block">Date</Label>
-              <Input
-                type="date"
-                className="w-full min-w-0"
-                value={form.attendance_date}
-                onChange={(e) => setForm({ ...form, attendance_date: e.target.value })}
-                max={format(new Date(), 'yyyy-MM-dd')}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="min-w-0">
-                <Label className="mb-1.5 block">Check-In</Label>
-                <Input
-                  type="time"
-                  className="w-full min-w-0"
-                  value={form.requested_check_in}
-                  onChange={(e) => setForm({ ...form, requested_check_in: e.target.value })}
-                />
-              </div>
-              <div className="min-w-0">
-                <Label className="mb-1.5 block">Check-Out</Label>
-                <Input
-                  type="time"
-                  className="w-full min-w-0"
-                  value={form.requested_check_out}
-                  onChange={(e) => setForm({ ...form, requested_check_out: e.target.value })}
-                />
-              </div>
-            </div>
-            {windowPreview.error && (
-              <p className="text-xs text-destructive">{windowPreview.error}</p>
-            )}
-            {!windowPreview.error && windowPreview.crossesMidnight && (
-              <p className="text-xs text-muted-foreground">
-                Overnight shift detected — check-out will be recorded on the next day
-                ({windowPreview.spanLabel}).
-              </p>
-            )}
-
-            <div>
-              <Label className="mb-1.5 block">Reason *</Label>
-              <Textarea
-                rows={3}
-                className="w-full"
-                placeholder="e.g. Forgot to punch out, device offline..."
-                value={form.reason}
-                onChange={(e) => setForm({ ...form, reason: e.target.value })}
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button
-              className="w-full sm:w-auto"
-              onClick={() => submit.mutate()}
-              disabled={submit.isPending || !!windowPreview.error}
-            >
-              {submit.isPending ? 'Submitting...' : 'Submit Request'}
-            </Button>
-
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
     </Card>
   );
 }

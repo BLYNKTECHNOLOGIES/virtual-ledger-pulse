@@ -81,8 +81,8 @@ export async function resolveMonthlyGross(
       .eq("is_active", true);
     const mirrorTotal = (mirror ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
     if (mirrorTotal > 0) {
-      // Mirror stores annual figures; anything below a month-scale threshold is already monthly.
-      monthlyGross = mirrorTotal > 100000 ? mirrorTotal / 12 : mirrorTotal;
+      // The RazorpayX-mirrored structure stores ANNUAL component amounts.
+      monthlyGross = mirrorTotal / 12;
       source = "razorpay_mirror";
     }
   }

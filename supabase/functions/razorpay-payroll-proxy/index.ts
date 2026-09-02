@@ -2681,9 +2681,23 @@ Deno.serve(async (req) => {
         }
         // people:edit resolves the person by email; without it the API can
         // return 200 while no-oping the write.
-        if (!out["email"] && fallbackEmail) out["email"] = fallbackEmail;
+        //
+        // ROOT CAUSE FIX (2026-09-02): when the EMAIL ITSELF is the change, the
+        // old code sent the NEW address as the identity key, so Opfin could not
+        // find anybody and rejected the WHOLE edit with code 8 ("Unable to
+        // locate the user") — phone/employment-type in the same call died with
+        // it. Always identify by the CURRENT (snapshot) email and carry the new
+        // address in `new-email`.
+        const wantedEmail = out["email"] ? String(out["email"]).trim().toLowerCase() : null;
+        if (wantedEmail && fallbackEmail && wantedEmail !== fallbackEmail) {
+          out["email"] = fallbackEmail;
+          out["new-email"] = wantedEmail;
+        } else if (!out["email"] && fallbackEmail) {
+          out["email"] = fallbackEmail;
+        }
         return out;
       }
+
 
 
       // Diff incoming vs last snapshot; only include keys where the value

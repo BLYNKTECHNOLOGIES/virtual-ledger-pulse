@@ -164,7 +164,7 @@ export default function AttendanceStaleSessionsPage() {
 
       <Card>
         <CardContent className="p-4 flex items-center gap-4">
-          <AlertTriangle className="h-6 w-6 text-amber-500" />
+          <AlertTriangle className="h-6 w-6 text-warning" />
           <div>
             <div className="text-2xl font-semibold">{openCount}</div>
             <div className="text-sm text-muted-foreground">open sessions awaiting resolution</div>
@@ -179,7 +179,7 @@ export default function AttendanceStaleSessionsPage() {
       ) : (
         <div className="grid gap-3">
           {rows.map((r) => (
-            <Card key={r.id} className={r.status === "open" ? "border-amber-500/60" : ""}>
+            <Card key={r.id} className={r.status === "open" ? "border-warning/60" : ""}>
               <CardHeader className="pb-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">

@@ -29,21 +29,21 @@ const CONFIG: Record<PayrollSource, {
   razorpay: {
     label: "From RazorpayX",
     short: "Razorpay",
-    className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/40 dark:text-emerald-400",
+    className: "bg-success/10 text-success border-success/40 dark:text-success",
     icon: ShieldCheck,
     tooltip: "Pulled directly from the RazorpayX API for an executed payroll run. This is authoritative.",
   },
   register_csv: {
     label: "Salary Register",
     short: "Register",
-    className: "bg-blue-500/10 text-blue-600 border-blue-500/40 dark:text-blue-400",
+    className: "bg-info/10 text-info border-info/40 dark:text-info",
     icon: FileSpreadsheet,
     tooltip: "Ingested from the monthly Salary Register CSV downloaded from the RazorpayX dashboard. Statutory splits (PF/ESI/PT/TDS) come from here — the API does not expose them.",
   },
   dashboard_only: {
     label: "Dashboard only",
     short: "Dashboard",
-    className: "bg-amber-500/10 text-amber-600 border-amber-500/40 dark:text-amber-400",
+    className: "bg-warning/10 text-warning border-warning/40 dark:text-warning",
     icon: ExternalLink,
     tooltip: "This detail is visible on the RazorpayX dashboard but not exposed by the API. Open the dashboard link below to view the full breakdown.",
   },
@@ -106,7 +106,7 @@ export function DashboardLink({
 export function FreshnessStamp({ lastPulledAt }: { lastPulledAt: string | Date | null | undefined }) {
   if (!lastPulledAt) {
     return (
-      <span className="inline-flex items-center gap-1 text-[11px] text-amber-600">
+      <span className="inline-flex items-center gap-1 text-[11px] text-warning">
         <AlertTriangle className="w-3 h-3" />
         Never mirrored from RazorpayX
       </span>
@@ -116,7 +116,7 @@ export function FreshnessStamp({ lastPulledAt }: { lastPulledAt: string | Date |
   const hours = (Date.now() - t.getTime()) / 3_600_000;
   const stale = hours > 48;
   return (
-    <span className={`text-[11px] ${stale ? "text-amber-600" : "text-muted-foreground"}`}>
+    <span className={`text-[11px] ${stale ? "text-warning" : "text-muted-foreground"}`}>
       Mirrored {hours < 1 ? "just now" : hours < 24 ? `${Math.round(hours)}h ago` : `${Math.round(hours / 24)}d ago`}
       {stale && " • stale"}
     </span>

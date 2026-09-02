@@ -403,7 +403,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           </div>
 
           {!registerPresent && (
-            <div className="flex flex-wrap items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+            <div className="flex flex-wrap items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span className="flex-1 min-w-[240px]">
                 Salary Register CSV has not been imported for this month. Payslip emails are blocked until the register
@@ -482,11 +482,11 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                 Import report — {zipReport.fileName} ({zipReport.total} PDF(s))
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline" className="text-emerald-500 border-emerald-500/40">
+                <Badge variant="outline" className="text-success border-success/40">
                   {zipReport.matched.length} linked
                 </Badge>
                 {zipReport.unmapped.length > 0 && (
-                  <Badge variant="outline" className="text-amber-500 border-amber-500/40">
+                  <Badge variant="outline" className="text-warning border-warning/40">
                     {zipReport.unmapped.length} not in HRMS
                   </Badge>
                 )}
@@ -503,7 +503,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                 )}
               </div>
               {zipReport.unmapped.length > 0 && (
-                <div className="text-amber-600 dark:text-amber-400">
+                <div className="text-warning">
                   <div className="font-medium">No HRMS employee for these RazorpayX codes:</div>
                   {zipReport.unmapped.map((u) => (
                     <div key={u.code} className="pl-3 border-l-2 border-border">{u.code} — {u.name} ({u.group})</div>
@@ -616,7 +616,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                     </td>
                     <td className="p-2 align-top">
                       {r.pdf_path ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-500">
+                        <span className="inline-flex items-center gap-1 text-xs text-success">
                           <FileText className="h-3.5 w-3.5" /> attached
                         </span>
                       ) : (
@@ -633,7 +633,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                     </td>
                     <td className="p-2 align-top">
                       {r.already_sent_at ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-500">
+                        <span className="inline-flex items-center gap-1 text-xs text-success">
                           <CheckCircle2 className="h-3.5 w-3.5" /> sent
                         </span>
                       ) : r.sendable ? (

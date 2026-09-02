@@ -121,13 +121,13 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
 
   if (allDone) {
     return (
-      <Card className="border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-emerald-500/[0.04] to-transparent overflow-hidden">
+      <Card className="border-success/40 bg-gradient-to-br from-success/10 via-success/[0.04] to-transparent overflow-hidden">
         <CardContent className="py-5 px-5 flex items-center gap-4">
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/15 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+          <div className="h-12 w-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
+            <CheckCircle2 className="h-6 w-6 text-success" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-success">
               All caught up
             </div>
             <div className="text-lg font-semibold mt-0.5">{period} payroll is complete</div>
@@ -143,13 +143,13 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
   if (stalled) {
     const firstLocked = steps.find((s) => s.status === "locked");
     return (
-      <Card className="border-amber-500/50 bg-gradient-to-br from-amber-500/12 via-amber-500/[0.04] to-transparent overflow-hidden">
+      <Card className="border-warning/50 bg-gradient-to-br from-warning/12 via-warning/[0.04] to-transparent overflow-hidden">
         <CardContent className="py-5 px-5 flex items-start gap-4">
-          <div className="h-12 w-12 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-            <CalendarClock className="h-6 w-6 text-amber-700 dark:text-amber-400" />
+          <div className="h-12 w-12 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
+            <CalendarClock className="h-6 w-6 text-warning" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-400">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-warning">
               Attention needed
             </div>
             <div className="text-lg font-semibold mt-0.5">Payroll journey is stalled</div>
@@ -183,7 +183,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
           "relative overflow-hidden border-2 shadow-lg",
           isMonthly
             ? "border-primary/40 bg-gradient-to-br from-primary/10 via-primary/[0.03] to-transparent"
-            : "border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-amber-500/[0.03] to-transparent"
+            : "border-warning/40 bg-gradient-to-br from-warning/10 via-warning/[0.03] to-transparent"
         )}
       >
         {/* Subtle corner glow */}
@@ -191,7 +191,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
           aria-hidden
           className={cn(
             "absolute -top-16 -right-16 h-40 w-40 rounded-full blur-3xl opacity-40",
-            isMonthly ? "bg-primary" : "bg-amber-500"
+            isMonthly ? "bg-primary" : "bg-warning"
           )}
         />
         <CardContent className="py-5 px-5 sm:py-6 sm:px-6 relative">
@@ -199,7 +199,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
             <div
               className={cn(
                 "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center shrink-0",
-                isMonthly ? "bg-primary/15 text-primary" : "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                isMonthly ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning"
               )}
             >
               <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -209,7 +209,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
                 <span
                   className={cn(
                     "text-[10px] font-bold uppercase tracking-[0.16em]",
-                    isMonthly ? "text-primary" : "text-amber-700 dark:text-amber-400"
+                    isMonthly ? "text-primary" : "text-warning"
                   )}
                 >
                   {isMonthly ? "This month's task" : "Set up once"}
@@ -243,7 +243,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
                   "font-semibold shadow-md",
                   isMonthly
                     ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-                    : "bg-amber-600 hover:bg-amber-600/90 text-white dark:bg-amber-500 dark:hover:bg-amber-500/90"
+                    : "bg-warning hover:bg-warning/90 text-white dark:bg-warning dark:hover:bg-warning/90"
                 )}
               >
                 {copy?.cta ?? "Continue"} <ArrowRight className="h-4 w-4 ml-1" />
@@ -273,7 +273,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
                     <div
                       className={cn(
                         "h-1.5 w-1.5 rounded-full shrink-0",
-                        r.action === "apply_error" ? "bg-destructive" : "bg-emerald-500"
+                        r.action === "apply_error" ? "bg-destructive" : "bg-success"
                       )}
                     />
                     <span className="truncate">{r.label}</span>

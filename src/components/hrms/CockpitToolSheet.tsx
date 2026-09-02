@@ -82,13 +82,18 @@ export function CockpitToolSheet({
       aria-label={entry.title}
       className="fixed inset-0 z-50 flex flex-col bg-background"
     >
-      <div className="flex items-center gap-2 border-b px-4 py-2.5 shrink-0 bg-background">
-        <h2 className="text-sm font-semibold truncate">{entry.title}</h2>
-        <Button variant="ghost" size="sm" className="ml-auto gap-1.5" onClick={onClose}>
-          <X className="h-4 w-4" /> Back to cockpit
+      <div className="flex items-center gap-3 border-b px-3 md:px-4 py-2.5 shrink-0 bg-background">
+        <div className="min-w-0">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            Payroll cockpit{month ? ` · ${new Date(month + "T00:00:00Z").toLocaleString("en-IN", { month: "long", year: "numeric" })}` : ""}
+          </p>
+          <h2 className="text-sm font-semibold truncate">{entry.title}</h2>
+        </div>
+        <Button variant="outline" size="sm" className="ml-auto gap-1.5 shrink-0" onClick={onClose}>
+          <X className="h-4 w-4" /> <span className="hidden sm:inline">Back to cockpit</span>
         </Button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain cockpit-tool-shell">
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}>
           {tool === "payslip_emails" ? (
             <div className="p-3 md:p-6">
@@ -107,6 +112,7 @@ export function CockpitToolSheet({
           )}
         </Suspense>
       </div>
+
     </div>,
     document.body,
   );

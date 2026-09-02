@@ -732,9 +732,9 @@ export default function SalaryRegisterImportPage({
             <div className="rounded-lg border border-border p-3 space-y-2 bg-muted/30">
               <div className="flex items-center gap-3 flex-wrap text-sm">
                 <Badge variant="outline">{parsed.length} CSV rows</Badge>
-                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40">{preview.matched} matched to payslip records</Badge>
+                <Badge className="bg-success/10 text-success border-success/40">{preview.matched} matched to payslip records</Badge>
                 {preview.missing.length > 0 && (
-                  <Badge variant="destructive" className="bg-amber-500/10 text-amber-600 border-amber-500/40">{preview.missing.length} unmatched</Badge>
+                  <Badge variant="destructive" className="bg-warning/10 text-warning border-warning/40">{preview.missing.length} unmatched</Badge>
                 )}
               </div>
               {preview.missing.length > 0 && (
@@ -754,10 +754,10 @@ export default function SalaryRegisterImportPage({
 
       {result && (
         <Card>
-          <CardHeader><CardTitle className="text-base flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" /> Result</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-success" /> Result</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-3 flex-wrap text-sm">
-              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40">{result.updated} rows updated</Badge>
+              <Badge className="bg-success/10 text-success border-success/40">{result.updated} rows updated</Badge>
               {result.missing.length > 0 && <Badge variant="outline">{result.missing.length} skipped (no matching payslip)</Badge>}
               {result.mismatch.length > 0 && <Badge variant="destructive">{result.mismatch.length} net-pay variance</Badge>}
             </div>
@@ -794,13 +794,13 @@ export default function SalaryRegisterImportPage({
       )}
 
       {recon && (recon.register_only.length > 0 || recon.hrms_only.length > 0) && (
-        <Card className="border-amber-500/40">
+        <Card className="border-warning/40">
           <CardHeader>
             <CardTitle className="text-base">One-time payout reconciliation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <div className="flex gap-2 flex-wrap">
-              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/40">{recon.matched} matched</Badge>
+              <Badge className="bg-success/10 text-success border-success/40">{recon.matched} matched</Badge>
               {recon.register_only.length > 0 && <Badge variant="destructive">{recon.register_only.length} on RazorpayX only</Badge>}
               {recon.hrms_only.length > 0 && <Badge variant="outline">{recon.hrms_only.length} in HRMS only</Badge>}
             </div>
@@ -859,7 +859,7 @@ export default function SalaryRegisterImportPage({
 
 function InsightTile({ label, value, tone }: { label: string; value: string; tone?: "warn" }) {
   return (
-    <div className={`rounded border p-2 ${tone === "warn" ? "border-amber-500/40 bg-amber-500/10" : "border-border bg-background"}`}>
+    <div className={`rounded border p-2 ${tone === "warn" ? "border-warning/40 bg-warning/10" : "border-border bg-background"}`}>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-sm font-semibold text-foreground mt-0.5">{value}</p>
     </div>
@@ -871,10 +871,10 @@ function CoverageTile({ label, value, total }: { label: string; value: number; t
   const tone = pct >= 90 ? "emerald" : pct >= 60 ? "amber" : "rose";
   const cls =
     tone === "emerald"
-      ? "border-emerald-500/40 bg-emerald-500/10"
+      ? "border-success/40 bg-success/10"
       : tone === "amber"
-      ? "border-amber-500/40 bg-amber-500/10"
-      : "border-rose-500/40 bg-rose-500/10";
+      ? "border-warning/40 bg-warning/10"
+      : "border-destructive/40 bg-destructive/10";
   return (
     <div className={`rounded border p-2 ${cls}`}>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>

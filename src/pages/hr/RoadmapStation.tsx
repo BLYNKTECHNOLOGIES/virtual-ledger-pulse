@@ -8,12 +8,12 @@ const TONE: Record<
   { medallion: string; ring: string; title: string; pill: string; label: string; card: string }
 > = {
   done: {
-    medallion: "bg-emerald-500 text-white",
-    ring: "ring-emerald-500/25",
+    medallion: "bg-success text-white",
+    ring: "ring-success/25",
     title: "text-foreground",
-    pill: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
+    pill: "bg-success/10 text-success border-success/30",
     label: "Completed",
-    card: "border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.04] to-transparent",
+    card: "border-success/20 bg-gradient-to-br from-success/[0.04] to-transparent",
   },
   active: {
     medallion: "bg-primary text-primary-foreground",

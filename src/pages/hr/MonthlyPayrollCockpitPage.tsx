@@ -8,6 +8,9 @@ import {
   Clock,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
+
   Lock,
   Activity,
   TrendingUp,
@@ -64,6 +67,22 @@ const STEP_ICONS: Record<string, any> = {
   close_month: Flag,
 };
 
+/** Presentation-only grouping of the same 10 steps into readable stages. */
+const STEP_STAGE: Record<string, string> = {
+  lock_attendance: "Attendance",
+  watchdog_zero: "Attendance",
+  salary_revisions: "Compensation",
+  lop_push: "Compensation",
+  inputs_push: "Compensation",
+  run_on_razorpay: "Run",
+  import_payslips: "Reconcile",
+  shadow_compare: "Reconcile",
+  drift_review: "Reconcile",
+  close_month: "Close",
+};
+
+const STAGE_ORDER = ["Attendance", "Compensation", "Run", "Reconcile", "Close"];
+
 type StepTarget =
   | { tool: CockpitToolKey; label: string; params?: Record<string, string> }
   | { href: string; label: string };
@@ -81,16 +100,19 @@ const STEP_TARGET: Record<string, StepTarget> = {
 };
 
 
-const EXTRA_TOOLS: { tool: CockpitToolKey; label: string }[] = [
-  { tool: "inputs", label: "Payroll Inputs" },
-  { tool: "salary_revisions", label: "Salary Revisions" },
-  { tool: "salary_register", label: "Import Salary Register" },
-  { tool: "payslip_import", label: "Import Payslips" },
-  { tool: "payslip_emails", label: "Payslip Email Dispatch" },
-  { tool: "shadow", label: "Shadow Payroll" },
-  { tool: "razorpay_sync", label: "RazorpayX Diagnostics" },
-  { tool: "system_pulse", label: "System Pulse" },
-  { tool: "data_health", label: "Data Health" },
+const ROUTINE_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
+  { tool: "inputs", label: "Payroll Inputs", icon: Upload },
+  { tool: "salary_revisions", label: "Salary Revisions", icon: Scale },
+  { tool: "salary_register", label: "Import Salary Register", icon: FileText },
+  { tool: "payslip_import", label: "Import Payslips", icon: FileText },
+  { tool: "payslip_emails", label: "Payslip Email Dispatch", icon: FileText },
+];
+
+const DIAGNOSTIC_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
+  { tool: "shadow", label: "Shadow Payroll", icon: Calculator },
+  { tool: "razorpay_sync", label: "RazorpayX Diagnostics", icon: Activity },
+  { tool: "system_pulse", label: "System Pulse", icon: Activity },
+  { tool: "data_health", label: "Data Health", icon: Scale },
 ];
 
 function monthOptions(): { value: string; label: string }[] {
@@ -106,29 +128,61 @@ function monthOptions(): { value: string; label: string }[] {
   return opts;
 }
 
-function StepBadge({ step }: { step: CockpitStep }) {
-  if (step.ack_status === "done")
-    return <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30">Done</Badge>;
-  if (step.ack_status === "skipped")
-    return <Badge variant="outline">Skipped</Badge>;
-  if (step.ack_status === "blocked")
-    return <Badge variant="destructive">Blocked</Badge>;
-  if (step.live_status === "complete" && step.auto)
-    return <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30">Auto</Badge>;
+/** System-side (live) state chip — what the data says. */
+function LiveChip({ step }: { step: CockpitStep }) {
   if (step.live_status === "complete")
-    return <Badge className="bg-blue-500/15 text-blue-500 border-blue-500/30">Ready to acknowledge</Badge>;
-  return <Badge variant="outline" className="text-muted-foreground">Pending</Badge>;
+    return (
+      <Badge variant="outline" className="border-success/40 bg-success/10 text-success gap-1">
+        <CheckCircle2 className="h-3 w-3 shrink-0" /> System: complete
+      </Badge>
+    );
+  return (
+    <Badge variant="outline" className="text-muted-foreground gap-1">
+      <Circle className="h-3 w-3 shrink-0" /> System: pending
+    </Badge>
+  );
+}
+
+/** Human-side (acknowledgement) chip — what the operator confirmed. */
+function AckChip({ step }: { step: CockpitStep }) {
+  if (step.ack_status === "done")
+    return (
+      <Badge className="bg-success/15 text-success border-success/30 gap-1">
+        <CheckCircle2 className="h-3 w-3 shrink-0" /> Confirmed
+      </Badge>
+    );
+  if (step.ack_status === "skipped") return <Badge variant="outline">Skipped</Badge>;
+  if (step.ack_status === "blocked")
+    return (
+      <Badge variant="destructive" className="gap-1">
+        <AlertTriangle className="h-3 w-3 shrink-0" /> Blocked
+      </Badge>
+    );
+  if (step.auto && step.live_status === "complete")
+    return (
+      <Badge variant="outline" className="border-info/40 bg-info/10 text-info gap-1">
+        <Bot className="h-3 w-3 shrink-0" /> Automatic
+      </Badge>
+    );
+  if (step.live_status === "complete")
+    return (
+      <Badge variant="outline" className="border-info/40 bg-info/10 text-info">
+        Ready to confirm
+      </Badge>
+    );
+  return <Badge variant="outline" className="text-muted-foreground">Not confirmed</Badge>;
 }
 
 function StepIcon({ step }: { step: CockpitStep }) {
   if (step.ack_status === "done")
-    return <CheckCircle2 className="h-6 w-6 text-emerald-500" />;
+    return <CheckCircle2 className="h-5 w-5 text-success shrink-0" />;
   if (step.ack_status === "blocked")
-    return <AlertTriangle className="h-6 w-6 text-destructive" />;
+    return <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />;
   if (step.live_status === "complete")
-    return <CheckCircle2 className="h-6 w-6 text-blue-500" />;
-  return <Circle className="h-6 w-6 text-muted-foreground" />;
+    return <CheckCircle2 className="h-5 w-5 text-info shrink-0" />;
+  return <Circle className="h-5 w-5 text-muted-foreground shrink-0" />;
 }
+
 
 function plural(n: any, word: string): string {
   return Number(n ?? 0) === 1 ? word : `${word}s`;
@@ -192,7 +246,7 @@ function DetailLine({ step }: { step: CockpitStep }) {
     }
     case "run_on_razorpay":
       return (
-        <span className="text-amber-500">
+        <span className="text-warning">
           RazorpayX cannot confirm a payroll run via API — run payroll on the dashboard, then mark this step done.
           {d.processed_on ? ` Credited on ${new Date(String(d.processed_on)).toLocaleDateString("en-IN")}.` : ""}
         </span>
@@ -238,6 +292,8 @@ export default function MonthlyPayrollCockpitPage() {
   const [ackNotes, setAckNotes] = useState("");
   const [closeOpen, setCloseOpen] = useState(false);
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+
   const [, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
 
@@ -277,69 +333,168 @@ export default function MonthlyPayrollCockpitPage() {
 
   const closed = steps.find((s) => s.step_no === 10)?.ack_status === "done";
 
+  const isSettled = (s: CockpitStep) =>
+    s.ack_status === "done" ||
+    s.ack_status === "skipped" ||
+    (s.auto && s.live_status === "complete" && s.step_no !== 10);
+
+  // The first step that still needs a human — used as the "you are here" anchor.
+  const currentStep = steps.find((s) => !isSettled(s) && s.step_no !== 10) ?? null;
+
+  const stageSummary = STAGE_ORDER.map((stage) => {
+    const inStage = steps.filter((s) => STEP_STAGE[s.step_key] === stage);
+    return {
+      stage,
+      total: inStage.length,
+      done: inStage.filter(isSettled).length,
+      firstNo: inStage[0]?.step_no ?? 0,
+    };
+  }).filter((s) => s.total > 0);
+
+  const pct = steps.length ? Math.round((doneCount / steps.length) * 100) : 0;
+
+  function toggleExpanded(no: number) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      next.has(no) ? next.delete(no) : next.add(no);
+      return next;
+    });
+  }
+
+  function scrollToStep(no: number) {
+    document.getElementById(`cockpit-step-${no}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   return (
     <div className="hrms-page space-y-4 p-3 md:p-6 page-mount">
       <PageHeader
         title="Monthly Payroll Cockpit"
       />
 
-      <Card className="border-primary/30">
-        <CardContent className="p-4 md:p-5 flex flex-wrap items-center gap-3 md:gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Cycle month</span>
-            <Select value={month} onValueChange={setMonth}>
-              <SelectTrigger className="h-9 w-[220px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {opts.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">{doneCount}/10</span> steps complete for{" "}
-            <span className="font-medium text-foreground">{monthLabel}</span>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {closed ? (
-              <Badge className="bg-emerald-600/15 text-emerald-500 border-emerald-600/30 gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5" /> Month closed
-              </Badge>
-            ) : (
-              <Button
-                onClick={() => setCloseOpen(true)}
-                disabled={close.isPending}
-                variant={blockers.length > 0 ? "outline" : "default"}
-                className="gap-1.5"
-              >
-                <Flag className="h-4 w-4" />
-                {blockers.length > 0 ? `Close month (${blockers.length} blockers)` : "Close month"}
-              </Button>
+      {/* Command bar — month, progress rail, close-month */}
+      <Card className="border-primary/30 sticky top-0 z-20 backdrop-blur supports-[backdrop-filter]:bg-card/85">
+        <CardContent className="p-3 md:p-4 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Cycle month</span>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="h-9 w-[190px] text-foreground">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {opts.map((o) => (
+                    <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
+            <div className="text-sm text-muted-foreground">
+              <span className="t-mono font-semibold text-foreground">{doneCount}/{steps.length || 10}</span> steps complete
+            </div>
+
+            {currentStep && !closed && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-primary"
+                onClick={() => scrollToStep(currentStep.step_no)}
+              >
+                You are here · Step {currentStep.step_no} <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
             )}
+
+            <div className="ml-auto flex items-center gap-2">
+              {closed ? (
+                <Badge className="bg-success/15 text-success border-success/30 gap-1">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Month closed
+                </Badge>
+              ) : (
+                <Button
+                  onClick={() => setCloseOpen(true)}
+                  disabled={close.isPending}
+                  variant={blockers.length > 0 ? "outline" : "default"}
+                  className="gap-1.5 w-full sm:w-auto"
+                >
+                  <Flag className="h-4 w-4" />
+                  {blockers.length > 0 ? `Close month (${blockers.length} blockers)` : "Close month"}
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Stage rail */}
+          <div className="space-y-1.5">
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {stageSummary.map((s) => {
+                const complete = s.done === s.total;
+                return (
+                  <button
+                    key={s.stage}
+                    type="button"
+                    onClick={() => scrollToStep(s.firstNo)}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                      complete
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {complete ? <CheckCircle2 className="h-3 w-3" /> : <Circle className="h-3 w-3" />}
+                    {s.stage}
+                    <span className="t-mono">{s.done}/{s.total}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {blockers.length > 0 && !closed && (
+            <div className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-warning">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {blockers.length} {plural(blockers.length, "step")} still blocking month close
+              </div>
+              <ul className="mt-1 grid gap-0.5 sm:grid-cols-2 xl:grid-cols-3">
+                {blockers.map((b) => (
+                  <li key={b} className="text-xs text-muted-foreground truncate">{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Payroll toolbox — every sub-tool opens inside the cockpit, not the sidebar. */}
       <Card>
-        <CardContent className="p-3 md:p-4">
-          <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Tools</div>
-          <div className="flex flex-wrap gap-2">
-            {EXTRA_TOOLS.map((t) => (
-              <Button
-                key={t.tool + t.label}
-                variant="secondary"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => openTool(t.tool)}
-              >
-                {t.label}
-              </Button>
-            ))}
-          </div>
+        <CardContent className="p-3 md:p-4 grid gap-3 lg:grid-cols-2">
+          {[
+            { title: "Routine tools", items: ROUTINE_TOOLS },
+            { title: "Diagnostics", items: DIAGNOSTIC_TOOLS },
+          ].map((group) => (
+            <div key={group.title}>
+              <div className="t-eyebrow text-[10px] uppercase tracking-wide text-muted-foreground mb-2">{group.title}</div>
+              <div className="flex flex-wrap gap-2">
+                {group.items.map((t) => (
+                  <Button
+                    key={t.tool + t.label}
+                    variant="secondary"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => openTool(t.tool)}
+                  >
+                    <t.icon className="h-3.5 w-3.5" />
+                    {t.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
@@ -353,7 +508,7 @@ export default function MonthlyPayrollCockpitPage() {
         <Card><CardContent className="p-6 text-sm text-muted-foreground">Loading cockpit…</CardContent></Card>
       ) : (
 
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;
             const target = STEP_TARGET[step.step_key];
@@ -364,118 +519,162 @@ export default function MonthlyPayrollCockpitPage() {
               !gated &&
               (step.live_status === "complete" || step.step_key === "run_on_razorpay");
 
+            const settled = isSettled(step);
+            const isCurrent = currentStep?.step_no === step.step_no;
+            const open = expanded.has(step.step_no) || !settled;
+
             return (
               <Card
                 key={step.step_no}
-                className={
-                  step.ack_status === "done"
-                    ? "border-emerald-600/30 bg-emerald-500/[0.02]"
-                    : step.live_status === "complete"
-                    ? "border-blue-500/30"
-                    : ""
-                }
+                id={`cockpit-step-${step.step_no}`}
+                className={`scroll-mt-28 transition-colors ${
+                  gated || step.ack_status === "blocked"
+                    ? "border-destructive/30"
+                    : settled
+                    ? "border-success/25 bg-success/[0.02]"
+                    : isCurrent
+                    ? "border-primary/50 shadow-brand"
+                    : "border-info/25"
+                }`}
               >
-                <CardContent className="p-4 md:p-5">
-                  <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex items-start gap-3 md:min-w-[280px]">
-                      <div className="mt-0.5">
-                        <StepIcon step={step} />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-mono text-muted-foreground">Step {step.step_no}</span>
-                          <StepBadge step={step} />
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide flex items-center gap-1">
-                            {step.auto ? <Bot className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
-                            {step.actor_hint}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex items-center gap-2 font-semibold text-foreground">
-                          <Icon className="h-4 w-4 text-primary" />
-                          {step.step_label}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex-1 space-y-2">
-                      <div className="text-sm text-muted-foreground">
-                        <DetailLine step={step} />
-                      </div>
-                      {step.ack_notes && (
-                        <div className="text-xs italic text-muted-foreground border-l-2 border-primary/30 pl-2">
-                          Note: {step.ack_notes}
-                        </div>
-                      )}
-                      {step.ack_at && (
-                        <div className="text-xs text-emerald-500 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          Acknowledged {new Date(step.ack_at).toLocaleString("en-IN")}
-                        </div>
-                      )}
-                      {gated && (
-                        <div className="text-xs text-amber-600 dark:text-amber-400 flex items-start gap-1.5 border-l-2 border-amber-500/40 pl-2 space-y-0.5">
-                          <Lock className="h-3 w-3 mt-0.5 shrink-0" />
-                          <div className="space-y-0.5">
-                            <div className="font-medium">This step cannot be confirmed yet.</div>
-                            {stepGate.lopReasons.map((r) => (
-                              <div key={r}>Pending in Step 4: {r}.</div>
-                            ))}
-                            {stepGate.recoveryReasons.map((r) => (
-                              <div key={r}>{r}. Open the tool below to push {stepGate.recPending === 1 ? "it" : "them"}.</div>
-                            ))}
+                {/* Collapsed summary row for settled steps */}
+                {!open ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(step.step_no)}
+                    className="w-full text-left px-3 py-2.5 md:px-4 flex items-center gap-3 hover:bg-muted/40 rounded-[inherit]"
+                  >
+                    <StepIcon step={step} />
+                    <span className="t-mono text-[11px] text-muted-foreground shrink-0">Step {step.step_no}</span>
+                    <span className="font-medium truncate">{step.step_label}</span>
+                    <span className="hidden md:block text-xs text-muted-foreground truncate flex-1">
+                      <DetailLine step={step} />
+                    </span>
+                    <span className="ml-auto flex items-center gap-2 shrink-0">
+                      <AckChip step={step} />
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    </span>
+                  </button>
+                ) : (
+                  <CardContent className="p-3 md:p-5">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:gap-6">
+                      {/* Identity */}
+                      <div className="flex items-start gap-3 xl:w-[300px] xl:shrink-0">
+                        <div className="mt-0.5"><StepIcon step={step} /></div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="t-mono text-[11px] text-muted-foreground">Step {step.step_no}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase tracking-wide inline-flex items-center gap-1">
+                              {step.auto ? <Bot className="h-3 w-3" /> : <UserCheck className="h-3 w-3" />}
+                              {step.actor_hint}
+                            </span>
+                            {isCurrent && (
+                              <Badge className="bg-primary/15 text-primary border-primary/30">Current</Badge>
+                            )}
+                          </div>
+                          <div className="mt-1 flex items-start gap-2 font-semibold text-foreground">
+                            <Icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                            <span className="leading-snug">{step.step_label}</span>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <LiveChip step={step} />
+                            <AckChip step={step} />
                           </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="flex flex-col gap-2 md:min-w-[200px] md:items-end">
-                      {target && "tool" in target && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => openTool(target.tool, target.params)}
-                        >
-                          {target.label} <ChevronRight className="h-3.5 w-3.5" />
-                        </Button>
-                      )}
+                      {/* Detail */}
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="text-sm text-muted-foreground">
+                          <DetailLine step={step} />
+                        </div>
+                        {step.ack_notes && (
+                          <div className="text-xs italic text-muted-foreground border-l-2 border-primary/30 pl-2">
+                            Note: {step.ack_notes}
+                          </div>
+                        )}
+                        {step.ack_at && (
+                          <div className="text-xs text-success flex items-center gap-1">
+                            <Clock className="h-3 w-3 shrink-0" />
+                            Acknowledged {new Date(step.ack_at).toLocaleString("en-IN")}
+                          </div>
+                        )}
+                        {gated && (
+                          <div className="rounded-md border border-warning/30 bg-warning/5 px-2.5 py-2">
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-warning">
+                              <Lock className="h-3 w-3 shrink-0" /> This step cannot be confirmed yet
+                            </div>
+                            <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                              {stepGate.lopReasons.map((r) => (
+                                <li key={r}>Pending in Step 4: {r}.</li>
+                              ))}
+                              {stepGate.recoveryReasons.map((r) => (
+                                <li key={r}>{r}. Open the tool to push {stepGate.recPending === 1 ? "it" : "them"}.</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
 
-                      {target && "href" in target && (
-                        <Button variant="outline" size="sm" asChild className="gap-1.5">
-                          <a href={target.href} target="_blank" rel="noreferrer">
-                            {target.label} <ExternalLink className="h-3.5 w-3.5" />
-                          </a>
-                        </Button>
-                      )}
-                      {canAck && step.ack_status !== "done" && !closed && (
-                        <Button
-                          size="sm"
-                          onClick={() => {
-                            setAckStep(step);
-                            setAckNotes(step.ack_notes ?? "");
-                          }}
-                          className="gap-1.5"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" /> Mark done
-                        </Button>
-                      )}
-                      {step.ack_status === "done" && !closed && step.step_no !== 10 && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => ack.mutate({ step_no: step.step_no, status: "pending" })}
-                        >
-                          Undo
-                        </Button>
-                      )}
+                      {/* Actions */}
+                      <div className="flex flex-col gap-2 xl:w-[220px] xl:shrink-0 xl:items-stretch">
+                        {target && "tool" in target && (
+                          <Button
+                            variant="outline"
+                            className="h-10 w-full justify-between gap-1.5"
+                            onClick={() => openTool(target.tool, target.params)}
+                          >
+                            {target.label} <ChevronRight className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+
+                        {target && "href" in target && (
+                          <Button variant="outline" asChild className="h-10 w-full justify-between gap-1.5">
+                            <a href={target.href} target="_blank" rel="noreferrer">
+                              {target.label} <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
+                          </Button>
+                        )}
+                        {canAck && step.ack_status !== "done" && !closed && (
+                          <Button
+                            className="h-10 w-full gap-1.5"
+                            onClick={() => {
+                              setAckStep(step);
+                              setAckNotes(step.ack_notes ?? "");
+                            }}
+                          >
+                            <CheckCircle2 className="h-4 w-4" /> Mark done
+                          </Button>
+                        )}
+                        {step.ack_status === "done" && !closed && step.step_no !== 10 && (
+                          <Button
+                            variant="ghost"
+                            className="h-10 w-full"
+                            onClick={() => ack.mutate({ step_no: step.step_no, status: "pending" })}
+                          >
+                            Undo
+                          </Button>
+                        )}
+                        {settled && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full gap-1 text-muted-foreground"
+                            onClick={() => toggleExpanded(step.step_no)}
+                          >
+                            <ChevronUp className="h-3.5 w-3.5" /> Collapse
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
+                  </CardContent>
+                )}
               </Card>
             );
           })}
         </div>
       )}
+
 
       {/* Acknowledge dialog */}
       <AlertDialog open={!!ackStep} onOpenChange={(o) => !o && setAckStep(null)}>

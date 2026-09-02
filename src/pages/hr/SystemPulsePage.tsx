@@ -24,8 +24,8 @@ import { useGovernanceTiles } from "@/hooks/hrms/useGovernanceTiles";
 type Tone = "ok" | "warn" | "bad" | "muted";
 
 function StatusIcon({ tone }: { tone: Tone }) {
-  if (tone === "ok") return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-  if (tone === "warn") return <AlertTriangle className="h-4 w-4 text-amber-500" />;
+  if (tone === "ok") return <CheckCircle2 className="h-4 w-4 text-success" />;
+  if (tone === "warn") return <AlertTriangle className="h-4 w-4 text-warning" />;
   if (tone === "bad") return <XCircle className="h-4 w-4 text-destructive" />;
   return <Activity className="h-4 w-4 text-muted-foreground" />;
 }
@@ -49,8 +49,8 @@ function Tile({
 }) {
   const border =
     tone === "bad" ? "border-destructive/40" :
-    tone === "warn" ? "border-amber-500/40" :
-    tone === "ok" ? "border-emerald-500/30" :
+    tone === "warn" ? "border-warning/40" :
+    tone === "ok" ? "border-success/30" :
     "border-border";
 
   return (
@@ -412,7 +412,7 @@ export default function SystemPulsePage() {
                         <td className="py-2 px-2 text-xs text-muted-foreground">{r.schedule}</td>
                         <td className="py-2 px-2">
                           {r.last_status ? (
-                            <Badge variant={bad ? "destructive" : "outline"} className={!bad ? "text-emerald-500 border-emerald-500/30" : ""}>
+                            <Badge variant={bad ? "destructive" : "outline"} className={!bad ? "text-success border-success/30" : ""}>
                               {r.last_status}
                             </Badge>
                           ) : (
@@ -422,7 +422,7 @@ export default function SystemPulsePage() {
                         <td className="py-2 px-2 text-xs">
                           {r.last_run_at ? new Date(r.last_run_at).toLocaleString("en-IN") : "—"}
                         </td>
-                        <td className={`py-2 px-2 text-xs text-right tabular-nums ${stale ? "text-amber-500 font-medium" : "text-muted-foreground"}`}>
+                        <td className={`py-2 px-2 text-xs text-right tabular-nums ${stale ? "text-warning font-medium" : "text-muted-foreground"}`}>
                           {r.seconds_since != null
                             ? r.seconds_since < 3600
                               ? `${Math.round(r.seconds_since / 60)}m`

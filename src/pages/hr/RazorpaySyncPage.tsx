@@ -940,7 +940,7 @@ export default function RazorpaySyncPage() {
 
 
   return (
-    <div className="space-y-6 p-6 max-w-6xl">
+    <div className="space-y-6 p-4 md:p-6 w-full">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">RazorpayX Payroll Sync</h1>
@@ -1060,7 +1060,7 @@ export default function RazorpaySyncPage() {
           <Card className={cn(
             "relative overflow-hidden border transition",
             tone === "setup"
-              ? "border-amber-500/25 bg-gradient-to-br from-amber-500/[0.05] to-transparent"
+              ? "border-warning/25 bg-gradient-to-br from-warning/[0.05] to-transparent"
               : "border-primary/25 bg-gradient-to-br from-primary/[0.06] to-transparent"
           )}>
             <CardContent className="py-4 px-4 space-y-3">
@@ -1068,7 +1068,7 @@ export default function RazorpaySyncPage() {
                 <div className="min-w-0">
                   <div className={cn(
                     "text-[10px] font-bold uppercase tracking-[0.14em]",
-                    tone === "setup" ? "text-amber-700 dark:text-amber-400" : "text-primary"
+                    tone === "setup" ? "text-warning" : "text-primary"
                   )}>{eyebrow}</div>
                   <div className="text-base font-semibold mt-0.5 truncate">{title}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{subtitle}</div>
@@ -1083,8 +1083,8 @@ export default function RazorpaySyncPage() {
                   className={cn(
                     "h-full transition-all duration-500",
                     tone === "setup"
-                      ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                      : "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                      ? "bg-gradient-to-r from-warning to-warning"
+                      : "bg-gradient-to-r from-success to-success"
                   )}
                   style={{ width: `${pct}%` }}
                 />
@@ -1096,7 +1096,7 @@ export default function RazorpaySyncPage() {
                   className={cn(
                     "w-full text-left text-xs rounded-md px-3 py-2 border transition",
                     tone === "setup"
-                      ? "bg-background hover:bg-amber-500/10 border-amber-500/30"
+                      ? "bg-background hover:bg-warning/10 border-warning/30"
                       : "bg-background hover:bg-primary/10 border-primary/30"
                   )}
                 >
@@ -1104,11 +1104,11 @@ export default function RazorpaySyncPage() {
                   <div className="font-medium mt-0.5">Step {next.letter} — {next.title}</div>
                   <div className={cn(
                     "text-[11px] mt-1",
-                    tone === "setup" ? "text-amber-700 dark:text-amber-400" : "text-primary"
+                    tone === "setup" ? "text-warning" : "text-primary"
                   )}>{cta} →</div>
                 </button>
               ) : (
-                <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                <div className="rounded-md border border-success/40 bg-success/5 px-3 py-2 text-xs text-success font-medium">
                   All done — no action needed
                 </div>
               )}
@@ -1144,8 +1144,8 @@ export default function RazorpaySyncPage() {
               />
             </div>
             {setupFullyDone && setupCollapsedManual !== false && (
-              <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 px-3 py-2 text-xs flex items-center justify-between gap-2">
-                <div className="text-emerald-700 dark:text-emerald-400">
+              <div className="rounded-md border border-success/40 bg-success/5 px-3 py-2 text-xs flex items-center justify-between gap-2">
+                <div className="text-success">
                   One-time setup is complete — steps A–E are hidden by default.
                 </div>
                 <button
@@ -1273,9 +1273,9 @@ export default function RazorpaySyncPage() {
 
       {/* PILOT CONFIRMATION — human gate */}
       {pilotApplied && !canBulk && (
-        <Card className="border-amber-500/60 bg-amber-500/5">
+        <Card className="border-warning/60 bg-warning/5">
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+            <CardTitle className="text-base flex items-center gap-2 text-warning">
               <CheckCircle2 className="h-4 w-4" /> Pilot imported — verify before unlocking bulk
             </CardTitle>
             <CardDescription>
@@ -1339,14 +1339,14 @@ export default function RazorpaySyncPage() {
             </div>
           </div>
 
-          <div className="rounded-md border border-emerald-500/40 bg-emerald-500/5 p-3">
+          <div className="rounded-md border border-success/40 bg-success/5 p-3">
             <div className="font-medium mb-1">Rule of thumb for HR</div>
             <div className="text-muted-foreground">If a button feels scary, hit <b>Preview / Dry-run</b> first. It <em>never</em> changes data on RazorpayX. Everything that actually sends is clearly labelled <b>Apply</b>, <b>Push</b>, or <b>Send</b> and asks for confirmation.</div>
           </div>
         </CardContent>
       </Card>
 
-      {/* ▼ Payroll Sync Journey — sticky roadmap navigator (two rails: A–E setup, F–J monthly) */}
+      {/* Payroll Sync Journey — sticky roadmap navigator (two rails: A–E setup, F–J monthly) */}
       <RoadmapJourneyNav steps={stationSteps} railBreakAfter="E" />
 
       {(() => {
@@ -1357,8 +1357,8 @@ export default function RazorpaySyncPage() {
         return (
           <div className="flex items-center justify-between gap-2 pt-2">
             <div className="flex items-center gap-2">
-              <div className="h-px w-6 bg-amber-500/40" />
-              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-700 dark:text-amber-400">
+              <div className="h-px w-6 bg-warning/40" />
+              <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-warning">
                 One-time setup · Steps A–E
               </div>
             </div>
@@ -1515,10 +1515,10 @@ export default function RazorpaySyncPage() {
                           : <Badge variant="secondary" className="text-[10px]">write</Badge>}
                       </td>
                       <td className="p-2">
-                        {r.status === "ok" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">ok</Badge>}
+                        {r.status === "ok" && <Badge className="text-[10px] bg-success hover:bg-success">ok</Badge>}
                         {r.status === "fail" && <Badge variant="destructive" className="text-[10px]">fail</Badge>}
                         {r.status === "not_probed" && <Badge variant="outline" className="text-[10px]">pending</Badge>}
-                        {r.status === "skipped" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
+                        {r.status === "skipped" && <Badge variant="outline" className="text-[10px] border-warning text-warning">skipped</Badge>}
                       </td>
                       <td className="p-2 tabular-nums">{r.http_status ?? "—"}</td>
                       <td className="p-2 text-muted-foreground truncate max-w-[280px]">{r.error ?? (r.status === "not_probed" ? "write sub-type — needs operator payload" : "—")}</td>
@@ -1599,10 +1599,10 @@ export default function RazorpaySyncPage() {
                   <span>Total: <b>{r.summary.total}</b></span>
                   <span>Planned: <b>{r.summary.planned}</b></span>
                   <span>Unchanged: <b>{r.summary.unchanged}</b></span>
-                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Pushed: <b className="text-success">{r.summary.pushed}</b></span>
                   <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
                   {!!r.summary.no_baseline && (
-                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                    <span className="text-warning">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
                   )}
                 </div>
                 <table className="w-full text-xs">
@@ -1620,15 +1620,15 @@ export default function RazorpaySyncPage() {
                       <tr key={i} className="border-t">
                         <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
                         <td className="p-2">
-                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-success hover:bg-success">pushed</Badge>}
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
-                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
-                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-warning text-warning">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-warning text-warning">skipped</Badge>}
                         </td>
                         <td className="p-2 text-muted-foreground">{row.changed.join(", ") || "—"}</td>
-                        <td className="p-2 text-amber-600">{row.conflicts?.join(", ") || "—"}</td>
+                        <td className="p-2 text-warning">{row.conflicts?.join(", ") || "—"}</td>
                         <td className="p-2 text-destructive truncate max-w-[240px]">{row.error || "—"}</td>
                       </tr>
                     ))}
@@ -1654,17 +1654,17 @@ export default function RazorpaySyncPage() {
             <br />
             <b>Status:</b>{" "}
             {settings?.push_bank_pilot_verified_at
-              ? <span className="text-emerald-600">Test employee verified</span>
-              : <span className="text-amber-600">Test employee not yet run</span>}
+              ? <span className="text-success">Test employee verified</span>
+              : <span className="text-warning">Test employee not yet run</span>}
             {" · "}
             {settings?.bulk_bank_push_unlocked
-              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              ? <span className="text-success">"Send to all" is ON</span>
               : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Alert variant="default" className="border-amber-500/50">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <Alert variant="default" className="border-warning/50">
+            <AlertTriangle className="h-4 w-4 text-warning" />
             <AlertTitle className="text-sm">This one changes where salary lands</AlertTitle>
             <AlertDescription className="text-xs">
               Wrong account number = salary in wrong hands. For that reason this step never sends changes silently — you'll always see a masked preview and have to click "Confirm" for each apply.
@@ -1703,11 +1703,11 @@ export default function RazorpaySyncPage() {
                   <span>Total: <b>{r.summary.total}</b></span>
                   <span>Planned: <b>{r.summary.planned}</b></span>
                   <span>Unchanged: <b>{r.summary.unchanged}</b></span>
-                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Pushed: <b className="text-success">{r.summary.pushed}</b></span>
                   <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
                   <span className="text-destructive">Invalid: <b>{r.summary.invalid}</b></span>
                   {!!r.summary.no_baseline && (
-                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                    <span className="text-warning">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
                   )}
                 </div>
                 <table className="w-full text-xs">
@@ -1725,13 +1725,13 @@ export default function RazorpaySyncPage() {
                       <tr key={i} className="border-t">
                         <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
                         <td className="p-2">
-                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-success hover:bg-success">pushed</Badge>}
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
                           {row.status === "invalid" && <Badge variant="destructive" className="text-[10px]">invalid</Badge>}
-                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
-                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-warning text-warning">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-warning text-warning">skipped</Badge>}
                         </td>
                         <td className="p-2 text-muted-foreground">{row.holder_name || "—"}</td>
                         <td className="p-2 text-muted-foreground">
@@ -1755,7 +1755,7 @@ export default function RazorpaySyncPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="bg-background rounded-lg shadow-xl border max-w-lg w-full p-4 space-y-3">
             <div className="flex items-center gap-2 text-base font-semibold">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <ShieldAlert className="h-4 w-4 text-warning" />
               Confirm bank push to RazorpayX (Live)
             </div>
             {bankConfirm.mode === "one" && bankConfirm.row && (
@@ -1801,21 +1801,21 @@ export default function RazorpaySyncPage() {
             <br />
             <b>Status:</b>{" "}
             {settings?.push_salary_endpoint_verified
-              ? <span className="text-emerald-600">API name confirmed ({settings?.push_salary_envelope_key})</span>
-              : <span className="text-amber-600">API name not confirmed yet</span>}
+              ? <span className="text-success">API name confirmed ({settings?.push_salary_envelope_key})</span>
+              : <span className="text-warning">API name not confirmed yet</span>}
             {" · "}
             {settings?.push_salary_pilot_verified_at
-              ? <span className="text-emerald-600">Test employee verified</span>
+              ? <span className="text-success">Test employee verified</span>
               : <span className="text-muted-foreground">Test employee not run yet</span>}
             {" · "}
             {settings?.bulk_salary_push_unlocked
-              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              ? <span className="text-success">"Send to all" is ON</span>
               : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Alert variant="default" className="border-amber-500/50">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <Alert variant="default" className="border-warning/50">
+            <AlertTriangle className="h-4 w-4 text-warning" />
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
               {settings?.push_salary_endpoint_verified
@@ -1887,11 +1887,11 @@ export default function RazorpaySyncPage() {
                   <span>Total: <b>{r.summary.total}</b></span>
                   <span>Planned: <b>{r.summary.planned}</b></span>
                   <span>Unchanged: <b>{r.summary.unchanged}</b></span>
-                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Pushed: <b className="text-success">{r.summary.pushed}</b></span>
                   <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
                   <span>Skipped: <b>{r.summary.skipped}</b></span>
                   {!!r.summary.no_baseline && (
-                    <span className="text-amber-600">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
+                    <span className="text-warning">No baseline: <b>{r.summary.no_baseline}</b> — run Phase 1 deep-pull first</span>
                   )}
                 </div>
                 <table className="w-full text-xs">
@@ -1909,13 +1909,13 @@ export default function RazorpaySyncPage() {
                       <tr key={i} className="border-t">
                         <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
                         <td className="p-2">
-                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-success hover:bg-success">pushed</Badge>}
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "unchanged" && <Badge variant="secondary" className="text-[10px]">unchanged</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
-                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no baseline</Badge>}
-                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">skipped</Badge>}
-                          {row.status === "no_erp_structure" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no ERP structure</Badge>}
+                          {row.status === "no_baseline" && <Badge variant="outline" className="text-[10px] border-warning text-warning">no baseline</Badge>}
+                          {row.status === "skipped_no_baseline" && <Badge variant="outline" className="text-[10px] border-warning text-warning">skipped</Badge>}
+                          {row.status === "no_erp_structure" && <Badge variant="outline" className="text-[10px] border-warning text-warning">no ERP structure</Badge>}
                         </td>
                         <td className="p-2 font-mono">{row.erp_total !== undefined ? row.erp_total.toLocaleString() : "—"}</td>
                         <td className="p-2 text-muted-foreground">{row.components_count ?? "—"}</td>
@@ -1935,7 +1935,7 @@ export default function RazorpaySyncPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="bg-background rounded-lg shadow-xl border max-w-2xl w-full p-4 space-y-3">
             <div className="flex items-center gap-2 text-base font-semibold">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <ShieldAlert className="h-4 w-4 text-warning" />
               Confirm salary push to RazorpayX (Live)
             </div>
             {salaryConfirm.mode === "one" && salaryConfirm.row && (
@@ -1994,21 +1994,21 @@ export default function RazorpaySyncPage() {
             <br />
             <b>Status:</b>{" "}
             {settings?.push_attendance_endpoint_verified
-              ? <span className="text-emerald-600">API name confirmed ({settings?.push_attendance_envelope_key})</span>
-              : <span className="text-amber-600">API name not confirmed yet</span>}
+              ? <span className="text-success">API name confirmed ({settings?.push_attendance_envelope_key})</span>
+              : <span className="text-warning">API name not confirmed yet</span>}
             {" · "}
             {settings?.push_attendance_pilot_verified_at
-              ? <span className="text-emerald-600">Test employee verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span>
+              ? <span className="text-success">Test employee verified{settings?.push_attendance_pilot_period ? ` (${settings.push_attendance_pilot_period})` : ""}</span>
               : <span className="text-muted-foreground">Test employee not run yet</span>}
             {" · "}
             {settings?.bulk_attendance_push_unlocked
-              ? <span className="text-emerald-600">"Send to all" is ON</span>
+              ? <span className="text-success">"Send to all" is ON</span>
               : <span className="text-muted-foreground">"Send to all" is OFF</span>}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Alert variant="default" className="border-amber-500/50">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <Alert variant="default" className="border-warning/50">
+            <AlertTriangle className="h-4 w-4 text-warning" />
             <AlertTitle className="text-sm">One-time setup needed</AlertTitle>
             <AlertDescription className="text-xs">
               {settings?.push_attendance_endpoint_verified
@@ -2084,7 +2084,7 @@ export default function RazorpaySyncPage() {
             return (
               <div className="rounded-md border overflow-x-auto">
                 {!!r.tenant_warnings?.length && (
-                  <div className="p-2 text-xs bg-amber-500/10 border-b border-amber-500/30 text-amber-700 dark:text-amber-400 space-y-1">
+                  <div className="p-2 text-xs bg-warning/10 border-b border-warning/30 text-warning space-y-1">
                     {r.tenant_warnings.map((w, i) => (
                       <div key={i} className="flex gap-2"><ShieldAlert className="h-3.5 w-3.5 shrink-0 mt-0.5" /><span>{w}</span></div>
                     ))}
@@ -2101,10 +2101,10 @@ export default function RazorpaySyncPage() {
                         : (r.summary.working_days ?? "—")}
                     </b>
                   </span>
-                  <span>Holidays in month: <b className={r.summary.holidays_in_month === 0 ? "text-amber-600" : ""}>{r.summary.holidays_in_month ?? "—"}</b></span>
+                  <span>Holidays in month: <b className={r.summary.holidays_in_month === 0 ? "text-warning" : ""}>{r.summary.holidays_in_month ?? "—"}</b></span>
                   <span>Total rows: <b>{r.summary.total}</b></span>
                   <span>Planned: <b>{r.summary.planned}</b></span>
-                  <span>Pushed: <b className="text-emerald-600">{r.summary.pushed}</b></span>
+                  <span>Pushed: <b className="text-success">{r.summary.pushed}</b></span>
                   <span>Failed: <b className="text-destructive">{r.summary.failed}</b></span>
                   <span>Skipped: <b>{r.summary.skipped}</b></span>
                 </div>
@@ -2127,13 +2127,13 @@ export default function RazorpaySyncPage() {
                       <tr key={i} className="border-t align-top">
                         <td className="p-2 font-mono">{row.razorpay_employee_id}</td>
                         <td className="p-2">
-                          {row.status === "pushed" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">pushed</Badge>}
+                          {row.status === "pushed" && <Badge className="text-[10px] bg-success hover:bg-success">pushed</Badge>}
                           {row.status === "planned" && <Badge variant="outline" className="text-[10px]">planned</Badge>}
                           {row.status === "failed" && <Badge variant="destructive" className="text-[10px]">failed</Badge>}
                           {row.status === "skipped" && <Badge variant="outline" className="text-[10px]">skipped</Badge>}
                           {row.status === "blocked_config_error" && <Badge variant="destructive" className="text-[10px]">config error</Badge>}
-                          {row.status === "no_erp_attendance" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">no ERP data</Badge>}
-                          {row.status === "blocked_period_locked" && <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">period locked</Badge>}
+                          {row.status === "no_erp_attendance" && <Badge variant="outline" className="text-[10px] border-warning text-warning">no ERP data</Badge>}
+                          {row.status === "blocked_period_locked" && <Badge variant="outline" className="text-[10px] border-warning text-warning">period locked</Badge>}
                         </td>
                         <td className="p-2 font-mono">{row.working_days ?? "—"}</td>
                         <td className="p-2 font-mono">{row.present_days ?? "—"}</td>
@@ -2145,7 +2145,7 @@ export default function RazorpaySyncPage() {
                           {row.status === "blocked_config_error"
                             ? <span className="text-destructive">{row.error}</span>
                             : row.unpaid_matches_lop === false
-                              ? <Badge variant="outline" className="text-[10px] border-amber-500 text-amber-600">unpaid mismatch</Badge>
+                              ? <Badge variant="outline" className="text-[10px] border-warning text-warning">unpaid mismatch</Badge>
                               : row.error
                                 ? <span className="text-destructive truncate block">{row.error}</span>
                                 : <span className="text-muted-foreground">ok</span>}
@@ -2165,7 +2165,7 @@ export default function RazorpaySyncPage() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="bg-background rounded-lg shadow-xl border max-w-lg w-full p-4 space-y-3">
             <div className="flex items-center gap-2 text-base font-semibold">
-              <ShieldAlert className="h-4 w-4 text-amber-600" />
+              <ShieldAlert className="h-4 w-4 text-warning" />
               Confirm attendance push to RazorpayX (Live)
             </div>
             {attConfirm.mode === "one" && attConfirm.row && (
@@ -2183,7 +2183,7 @@ export default function RazorpaySyncPage() {
                   }, null, 2)}
                 </div>
                 {attConfirm.row.unpaid_matches_lop === false && (
-                  <div className="text-xs text-amber-600">Warning: unpaid leave doesn't equal LOP. There are unexplained absences or a leave-type is-paid flag mismatch. Proceed only if that's expected.</div>
+                  <div className="text-xs text-warning">Warning: unpaid leave doesn't equal LOP. There are unexplained absences or a leave-type is-paid flag mismatch. Proceed only if that's expected.</div>
                 )}
               </div>
             )}
@@ -2296,8 +2296,8 @@ export default function RazorpaySyncPage() {
                       <td className="p-2">{r.department ?? "—"}</td>
                       <td className="p-2">{r.matched_by ?? "—"}</td>
                       <td className="p-2">
-                        {r.action_planned === "match" && <span className="text-emerald-600">Match</span>}
-                        {r.action_planned === "create_draft" && <span className="text-amber-600">Create draft</span>}
+                        {r.action_planned === "match" && <span className="text-success">Match</span>}
+                        {r.action_planned === "create_draft" && <span className="text-warning">Create draft</span>}
                         {r.applied && <span className="ml-1 text-muted-foreground">written</span>}
                       </td>
                     </tr>
@@ -2333,8 +2333,8 @@ export default function RazorpaySyncPage() {
 
 function GapChip({ label, value, tone }: { label: string; value: number; tone: "ok" | "warn" | "neutral" }) {
   const cls =
-    tone === "ok" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-    : tone === "warn" ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+    tone === "ok" ? "border-success/40 bg-success/10 text-success"
+    : tone === "warn" ? "border-warning/40 bg-warning/10 text-warning"
     : "border-border bg-muted/40 text-foreground";
   return (
     <div className={`rounded-md border px-2 py-1.5 ${cls}`}>
@@ -3298,9 +3298,9 @@ function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
   }
 
   const money = (n: number | null | undefined) => (n == null ? "—" : Number(n).toLocaleString("en-IN", { maximumFractionDigits: 2 }));
-  const statusTone = period?.status === "signed_off" ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-    : period?.status === "reviewed" ? "border-blue-500/40 bg-blue-500/10 text-blue-700 dark:text-blue-300"
-    : period?.status === "reopened" ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+  const statusTone = period?.status === "signed_off" ? "border-success/40 bg-success/10 text-success"
+    : period?.status === "reviewed" ? "border-info/40 bg-info/10 text-info"
+    : period?.status === "reopened" ? "border-warning/40 bg-warning/10 text-warning"
     : "border-border bg-muted/40 text-foreground";
 
   return (
@@ -3377,9 +3377,9 @@ function LedgerReconciliationSection({ invoke }: { invoke: <T,>(body: object) =>
               )}
               {rows.map((r) => {
                 const m = r.match;
-                const tone = !m ? "text-amber-600 dark:text-amber-400"
+                const tone = !m ? "text-warning"
                   : m.match_method === "waived" ? "text-muted-foreground"
-                  : "text-emerald-600 dark:text-emerald-400";
+                  : "text-success";
                 return (
                   <tr key={r.id} className="border-t">
                     <td className="p-2 font-mono text-xs">{r.hr_employee_id?.slice(0, 8) || r.razorpay_employee_id || "—"}</td>

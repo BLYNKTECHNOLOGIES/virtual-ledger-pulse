@@ -750,6 +750,7 @@ export function ResignationTab() {
               const isFnf = t.includes("full & final") || t.includes("full and final");
               const isAccess = t.includes("access revoked") || t.includes("erp");
               const isBadge = t.includes("id card") || t.includes("access badge") || t.includes("badge returned");
+              const isRelieving = t.includes("relieving") || t.includes("experience letter");
               return (
               <div key={item.id} className="flex items-start gap-3 p-2 rounded border">
                 <Checkbox

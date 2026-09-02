@@ -20,12 +20,21 @@ import { useViewMode } from "@/hooks/useViewMode";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useNavigate } from "react-router-dom";
 
-function getCurrentQuarter() {
-  return Math.ceil((new Date().getMonth() + 1) / 3);
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function getCurrentMonth() {
+  return new Date().getMonth() + 1;
 }
 
-function getQuarterLabel(q: number) {
-  return `Q${q} (${["Jan-Mar", "Apr-Jun", "Jul-Sep", "Oct-Dec"][q - 1]})`;
+function getMonthLabel(m: number) {
+  return MONTHS[m - 1] || "";
+}
+
+function getMonthShort(m: number) {
+  return (MONTHS[m - 1] || "").slice(0, 3);
 }
 
 export default function LeaveAllocationsPage() {
@@ -33,7 +42,7 @@ export default function LeaveAllocationsPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
-  const [quarterFilter, setQuarterFilter] = useState(getCurrentQuarter().toString());
+  const [monthFilter, setMonthFilter] = useState(getCurrentMonth().toString());
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [form, setForm] = useState({ employee_id: "", leave_type_id: "", allocated_days: 12 });
@@ -42,7 +51,10 @@ export default function LeaveAllocationsPage() {
   const [viewMode, setViewMode] = useViewMode("leave-allocations");
 
   const year = parseInt(yearFilter);
-  const quarter = parseInt(quarterFilter);
+  const month = parseInt(monthFilter);
+  const quarterOfMonth = Math.ceil(month / 3);
+  const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
+  const monthEnd = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
   const { data: allAllocations = [], isLoading } = useQuery({
     queryKey: ["hr_leave_allocations_all"],
@@ -56,13 +68,49 @@ export default function LeaveAllocationsPage() {
     },
   });
 
+  // Automatic monthly accrual credits for the selected month (CL/SL etc.)
+  const { data: monthAccruals = [] } = useQuery({
+    queryKey: ["hr_leave_accrual_log_month", year, month],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_leave_accrual_log")
+        .select("employee_id, accrued_days, accrual_date, hr_leave_accrual_plans!hr_leave_accrual_log_accrual_plan_id_fkey(leave_type_id)")
+        .gte("accrual_date", monthStart)
+        .lt("accrual_date", monthEnd);
+      if (error) throw error;
+      return (data as any[]) || [];
+    },
+  });
+
   // Ex-employees (is_active = false) must not appear in live leave balances
   const activeAllocations = allAllocations.filter((a: any) => a.hr_employees?.is_active !== false);
 
-  const currentQuarterAllocations = activeAllocations.filter(
-    (a: any) => a.year === year && (a.quarter === quarter || !a.quarter)
+  // Allocations relevant to the selected month: the month's quarter buckets,
+  // legacy quarter-less rows, and the cumulative monthly-accrual buckets (quarter = 0)
+  const currentMonthAllocations = activeAllocations.filter(
+    (a: any) => a.year === year && (a.quarter === quarterOfMonth || !a.quarter)
   );
 
+  // ── Per-month credit map: what each employee was actually CREDITED in the selected month ──
+  // Sources: (1) automatic accrual log entries dated in the month,
+  //          (2) manual allocations tagged with this month (legacy rows backfilled by creation month).
+  const creditedMap: Record<string, Record<string, number>> = {};
+  const addCredit = (empId: string, ltId: string, days: number) => {
+    if (!empId || !ltId || !days) return;
+    if (!creditedMap[empId]) creditedMap[empId] = {};
+    creditedMap[empId][ltId] = (creditedMap[empId][ltId] || 0) + days;
+  };
+  for (const log of monthAccruals) {
+    addCredit(log.employee_id, log.hr_leave_accrual_plans?.leave_type_id, Number(log.accrued_days || 0));
+  }
+  for (const a of activeAllocations) {
+    if (a.year === year && a.month === month && a.quarter && a.quarter > 0) {
+      addCredit(a.employee_id, a.leave_type_id, Number(a.allocated_days || 0));
+    }
+  }
+  const totalCreditedThisMonth = Object.values(creditedMap).reduce(
+    (s, per) => s + Object.values(per).reduce((ss, v) => ss + v, 0), 0,
+  );
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
@@ -94,7 +142,8 @@ export default function LeaveAllocationsPage() {
         employee_id: form.employee_id,
         leave_type_id: form.leave_type_id,
         year,
-        quarter,
+        quarter: quarterOfMonth,
+        month,
         allocated_days: form.allocated_days,
         carry_forward_days: 0,
         used_days: 0,
@@ -116,7 +165,8 @@ export default function LeaveAllocationsPage() {
           employee_id: emp.id,
           leave_type_id: lt.id,
           year,
-          quarter,
+          quarter: quarterOfMonth,
+          month,
           allocated_days: lt.max_days_per_year ?? 12,
           available_days: lt.max_days_per_year ?? 12,
           used_days: 0,
@@ -131,7 +181,7 @@ export default function LeaveAllocationsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
       setShowBulk(false);
-      toast.success(`Leave allocated for all ${employees.length} employees for ${getQuarterLabel(quarter)} ${year}`);
+      toast.success(`Leave allocated for all ${employees.length} employees for ${getMonthLabel(month)} ${year}`);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -144,7 +194,7 @@ export default function LeaveAllocationsPage() {
       const ltId = a.leave_type_id;
       if (!empMap[empId].balances[ltId]) empMap[empId].balances[ltId] = { totalAllocated: 0, totalUsed: 0, leaveType: a.hr_leave_types };
       if (a.hr_leave_types?.code === "CO") {
-        const isSelectedPeriod = a.year === year && (a.quarter === quarter || !a.quarter);
+        const isSelectedPeriod = a.year === year && (a.quarter === quarterOfMonth || !a.quarter);
         if (isSelectedPeriod) {
           empMap[empId].balances[ltId].totalAllocated = Number(a.available_days || 0);
           empMap[empId].balances[ltId].totalUsed = 0;
@@ -157,12 +207,20 @@ export default function LeaveAllocationsPage() {
     return Object.values(empMap);
   };
 
-  const grouped = currentQuarterAllocations.reduce((acc: any, a: any) => {
+  // Group by employee: anyone with an allocation in scope OR a credit this month
+  const grouped = currentMonthAllocations.reduce((acc: any, a: any) => {
     const empId = a.employee_id;
     if (!acc[empId]) acc[empId] = { employee: a.hr_employees, allocations: [] };
     acc[empId].allocations.push(a);
     return acc;
   }, {} as Record<string, any>);
+  for (const empId of Object.keys(creditedMap)) {
+    if (!grouped[empId]) {
+      const emp = employees.find((e: any) => e.id === empId)
+        || allAllocations.find((a: any) => a.employee_id === empId)?.hr_employees;
+      if (emp && emp.is_active !== false) grouped[empId] = { employee: emp, allocations: [] };
+    }
+  }
 
   const groupedArr = Object.values(grouped).filter((g: any) => {
     if (!search) return true;
@@ -178,18 +236,25 @@ export default function LeaveAllocationsPage() {
 
   const exportCsv = () => {
     const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const header = ["Employee", "Badge", "Status", ...leaveTypes.map((lt: any) => `${lt.name} (Bal)`), "Total Balance"];
+    const monShort = getMonthShort(month);
+    const header = ["Employee", "Badge", "Status", ...leaveTypes.map((lt: any) => `${lt.name} (${monShort} credited)`), ...leaveTypes.map((lt: any) => `${lt.name} (Bal)`), "Total Credited", "Total Balance"];
     const rows = (groupedArr as any[]).map((g: any) => {
       const empCumulative = cumulativeData.find(c => c.employee?.id === g.employee?.id);
       const probation = isOnProbation(g.employee?.id);
-      let total = 0;
+      let totalBal = 0;
+      let totalCred = 0;
+      const credCells = leaveTypes.map((lt: any) => {
+        const c = creditedMap[g.employee?.id]?.[lt.id] || 0;
+        totalCred += c;
+        return c;
+      });
       const balCells = leaveTypes.map((lt: any) => {
         const alloc = g.allocations.find((a: any) => a.leave_type_id === lt.id);
         const cumBal = empCumulative?.balances[lt.id];
         const bal = cumBal
           ? cumBal.totalAllocated - cumBal.totalUsed
           : Number(alloc?.allocated_days || 0) - Number(alloc?.used_days || 0);
-        total += bal;
+        totalBal += bal;
         if (!alloc && isSickLeaveType(lt) && probation) return "Not allocated";
         return bal;
       });
@@ -197,15 +262,17 @@ export default function LeaveAllocationsPage() {
         `${g.employee?.first_name || ""} ${g.employee?.last_name || ""}`.trim(),
         g.employee?.badge_id || "",
         probation ? `Probation${probationEndDate(g.employee?.id) ? ` till ${probationEndDate(g.employee?.id)}` : ""}` : "Confirmed",
+        ...credCells,
         ...balCells,
-        total,
+        totalCred,
+        totalBal,
       ];
     });
     const csv = [header, ...rows].map(r => r.map(esc).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `leave-balances-${getQuarterLabel(quarter).replace(/[^\w]/g, "")}-${year}.csv`;
+    a.download = `leave-credits-${getMonthLabel(month)}-${year}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV exported");
@@ -215,7 +282,7 @@ export default function LeaveAllocationsPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Leave Allocations"
-        description="Quarterly leave allocation — Compensatory Off is earned from verified off-day work and settles monthly"
+        description="Monthly leave credits — Compensatory Off is earned from verified off-day work and settles monthly"
         actions={
           <>
             <ViewToggle value={viewMode} onChange={setViewMode} />
@@ -238,8 +305,8 @@ export default function LeaveAllocationsPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Employees Allocated", value: uniqueEmployees, icon: Users, color: "text-info", bg: "bg-info/10" },
-          { label: "Total Days Allocated (All Time)", value: totalAllocated, icon: CalendarDays, color: "text-success", bg: "bg-success/10" },
-          { label: "Total Days Used (All Time)", value: totalUsed, icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
+          { label: `Days Credited (${getMonthShort(month)} ${year})`, value: totalCreditedThisMonth, icon: CalendarDays, color: "text-success", bg: "bg-success/10" },
+          { label: "Total Days Allocated (All Time)", value: totalAllocated, icon: BarChart3, color: "text-warning", bg: "bg-warning/10" },
           { label: "Cumulative Balance", value: totalAllocated - totalUsed, icon: CalendarDays, color: "text-primary", bg: "bg-primary/10" },
         ].map((s) => (
           <Card key={s.label}>
@@ -258,10 +325,10 @@ export default function LeaveAllocationsPage() {
             {[2024, 2025, 2026, 2027].map(y => <SelectItem key={y} value={y.toString()}>{y}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={quarterFilter} onValueChange={setQuarterFilter}>
-          <SelectTrigger className="w-44 h-9"><SelectValue /></SelectTrigger>
+        <Select value={monthFilter} onValueChange={setMonthFilter}>
+          <SelectTrigger className="w-40 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {[1, 2, 3, 4].map(q => <SelectItem key={q} value={q.toString()}>{getQuarterLabel(q)}</SelectItem>)}
+            {MONTHS.map((m, i) => <SelectItem key={i + 1} value={(i + 1).toString()}>{m}</SelectItem>)}
           </SelectContent>
         </Select>
         <div className="relative flex-1 min-w-[200px]">
@@ -277,7 +344,7 @@ export default function LeaveAllocationsPage() {
           <CardContent className="p-0">
             <EmptyState
               icon={CalendarDays}
-              title={`No leave allocations for ${getQuarterLabel(quarter)} ${year}`}
+              title={`No leave allocations for ${getMonthLabel(month)} ${year}`}
               description="Bulk allocate to quickly assign default leave days to all active employees."
               action={
                 <button onClick={() => setShowBulk(true)} className="text-sm text-[#E8604C] font-medium hover:underline">
@@ -302,7 +369,7 @@ export default function LeaveAllocationsPage() {
                         <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: lt.color || "#E8604C" }} />
                         {lt.name}
                       </span>
-                      <span className="block text-[9px] normal-case tracking-normal">Balance</span>
+                      <span className="block text-[9px] normal-case tracking-normal">{getMonthShort(month)} credited · Balance</span>
                     </TableHead>
                   ))}
                   <TableHead className="text-[11px] uppercase tracking-wide text-muted-foreground font-medium text-right">Total Bal</TableHead>
@@ -316,14 +383,14 @@ export default function LeaveAllocationsPage() {
                   const cells = leaveTypes.map((lt: any) => {
                     const alloc = g.allocations.find((a: any) => a.leave_type_id === lt.id);
                     const cumBal = empCumulative?.balances[lt.id];
-                    const qtr = Number(alloc?.allocated_days || 0);
+                    const credited = creditedMap[g.employee?.id]?.[lt.id] || 0;
                     const used = Number(cumBal?.totalUsed ?? alloc?.used_days ?? 0);
                     const bal = lt.code === "CO"
                       ? Number(alloc?.available_days || 0)
-                      : cumBal ? cumBal.totalAllocated - cumBal.totalUsed : qtr - used;
+                      : cumBal ? cumBal.totalAllocated - cumBal.totalUsed : Number(alloc?.allocated_days || 0) - used;
                     totalBal += bal;
                     const blocked = !alloc && isSickLeaveType(lt) && probation;
-                    return { lt, qtr, used, bal, blocked, has: !!alloc };
+                    return { lt, credited, used, bal, blocked, has: !!alloc };
                   });
                   return (
                     <TableRow key={g.employee?.id} className="odd:bg-muted/20">
@@ -345,7 +412,12 @@ export default function LeaveAllocationsPage() {
                           {c.blocked ? (
                             <span className="text-warning text-[11px]">Not allocated</span>
                           ) : (
-                            <span className={c.bal ? "text-foreground font-medium" : "text-muted-foreground"}>{c.bal}</span>
+                            <span className="inline-flex flex-col items-end leading-tight">
+                              <span className={c.credited ? "text-success font-semibold" : "text-muted-foreground"}>
+                                {c.credited ? `+${c.credited}` : "0"}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">Bal: {c.bal}</span>
+                            </span>
                           )}
                         </TableCell>
                       ))}
@@ -380,57 +452,38 @@ export default function LeaveAllocationsPage() {
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                    {g.allocations.map((a: any) => {
-                      const cumBal = empCumulative?.balances[a.leave_type_id];
-                      const cumulativeAvailable = a.hr_leave_types?.code === "CO"
-                        ? Number(a.available_days || 0)
-                        : cumBal ? cumBal.totalAllocated - cumBal.totalUsed : a.allocated_days - a.used_days;
+                    {leaveTypes.map((lt: any) => {
+                      const a = g.allocations.find((al: any) => al.leave_type_id === lt.id);
+                      const cumBal = empCumulative?.balances[lt.id];
+                      const credited = creditedMap[g.employee?.id]?.[lt.id] || 0;
+                      const cumulativeAvailable = lt.code === "CO"
+                        ? Number(a?.available_days || 0)
+                        : cumBal ? cumBal.totalAllocated - cumBal.totalUsed : Number(a?.allocated_days || 0) - Number(a?.used_days || 0);
                       const percent = cumBal && cumBal.totalAllocated > 0 ? (cumBal.totalUsed / cumBal.totalAllocated) * 100 : 0;
+                      const probationBlocked = !a && isSickLeaveType(lt) && isOnProbation(g.employee?.id);
                       return (
-                        <div key={a.id} className="bg-muted/50 rounded-lg p-3 border border-border">
+                        <div key={lt.id} className={`rounded-lg p-3 border ${a || credited ? "bg-muted/50 border-border" : "bg-muted/20 border-dashed border-border"}`}>
                           <div className="flex items-center gap-1.5 mb-2">
-                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: a.hr_leave_types?.color || "#E8604C" }} />
-                            <p className="text-xs font-medium text-foreground truncate">{a.hr_leave_types?.name}</p>
+                            <div className={`w-2.5 h-2.5 rounded-full ${a || credited ? "" : "opacity-50"}`} style={{ backgroundColor: lt.color || "#E8604C" }} />
+                            <p className={`text-xs font-medium truncate ${a || credited ? "text-foreground" : "text-muted-foreground"}`}>{lt.name}</p>
                           </div>
                           <div className="w-full h-1.5 bg-muted rounded-full mb-2">
-                            <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(percent, 100)}%`, backgroundColor: a.hr_leave_types?.color || "#E8604C" }} />
+                            <div className="h-1.5 rounded-full transition-all" style={{ width: `${Math.min(percent, 100)}%`, backgroundColor: lt.color || "#E8604C" }} />
                           </div>
                           <div className="flex justify-between text-[10px] text-muted-foreground">
-                            <span>This Qtr: {a.allocated_days}d</span>
+                            <span className={credited ? "text-success font-semibold" : ""}>{getMonthShort(month)}: {credited ? `+${credited}d` : "0d"}</span>
                             <span className="font-medium text-foreground tabular-nums">Bal: {cumulativeAvailable}</span>
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">Used: {cumBal?.totalUsed || a.used_days} (all time)</p>
+                          <p className={`text-[10px] mt-0.5 tabular-nums ${probationBlocked ? "text-warning" : "text-muted-foreground"}`}>
+                            {probationBlocked
+                              ? "Not allocated — on probation"
+                              : lt.code === "CO"
+                                ? "Settled monthly — offsets LOP, remainder encashed"
+                                : `Used: ${cumBal?.totalUsed || a?.used_days || 0} (all time)`}
+                          </p>
                         </div>
                       );
                     })}
-
-                    {/* Leave types with no allocation this quarter — shown so the card is never misleading */}
-                    {leaveTypes
-                      .filter((lt: any) => !g.allocations.some((a: any) => a.leave_type_id === lt.id))
-                      .map((lt: any) => {
-                        const probationBlocked = isSickLeaveType(lt) && isOnProbation(g.employee?.id);
-                        return (
-                          <div key={`missing-${lt.id}`} className="bg-muted/20 rounded-lg p-3 border border-dashed border-border">
-                            <div className="flex items-center gap-1.5 mb-2">
-                              <div className="w-2.5 h-2.5 rounded-full opacity-50" style={{ backgroundColor: lt.color || "#E8604C" }} />
-                              <p className="text-xs font-medium text-muted-foreground truncate">{lt.name}</p>
-                            </div>
-                            <div className="w-full h-1.5 bg-muted rounded-full mb-2" />
-                            <div className="flex justify-between text-[10px] text-muted-foreground">
-                              <span>This Qtr: 0d</span>
-                              <span className="font-medium tabular-nums">Bal: 0</span>
-                            </div>
-                            <p className={`text-[10px] mt-0.5 ${probationBlocked ? "text-warning" : "text-muted-foreground"}`}>
-                              {probationBlocked
-                                ? "Not allocated — on probation"
-                                : lt.code === "CO"
-                                  ? "Settled monthly — offsets LOP, remainder encashed"
-                                  : "Not allocated"}
-                            </p>
-
-                          </div>
-                        );
-                      })}
                   </div>
 
                 </CardContent>
@@ -444,7 +497,7 @@ export default function LeaveAllocationsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-[#E8604C]" /> Allocate Leave — {getQuarterLabel(quarter)} {year}
+              <CalendarDays className="h-4 w-4 text-[#E8604C]" /> Allocate Leave — {getMonthLabel(month)} {year}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -466,13 +519,13 @@ export default function LeaveAllocationsPage() {
               </Select>
             </div>
             <div>
-              <Label>Days to Allocate (this quarter)</Label>
+              <Label>Days to Allocate (this month)</Label>
               <Input type="number" value={form.allocated_days} onChange={(e) => setForm({ ...form, allocated_days: parseFloat(e.target.value) || 0 })} className="h-9" />
             </div>
             {selectedIsProbationer && (
               <p className="text-xs text-warning">This employee is on probation{probationEndDate(form.employee_id) ? ` until ${probationEndDate(form.employee_id)}` : ""}. Sick / Medical leave cannot be allocated as per company policy.</p>
             )}
-            <p className="text-xs text-muted-foreground">Quarter: {getQuarterLabel(quarter)} {year} • Compensatory Off is generated automatically and cannot be allocated here.</p>
+            <p className="text-xs text-muted-foreground">Month: {getMonthLabel(month)} {year} • Compensatory Off is generated automatically and cannot be allocated here.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
@@ -485,18 +538,18 @@ export default function LeaveAllocationsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#E8604C]" /> Bulk Leave Allocation — {getQuarterLabel(quarter)} {year}
+              <Users className="h-4 w-4 text-[#E8604C]" /> Bulk Leave Allocation — {getMonthLabel(month)} {year}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              This will allocate default leave days (from leave type settings) to <strong>all {employees.length} active employees</strong> for <strong>{getQuarterLabel(quarter)} {year}</strong>.
+              This will allocate default leave days (from leave type settings) to <strong>all {employees.length} active employees</strong> for <strong>{getMonthLabel(month)} {year}</strong>.
             </p>
             <div className="bg-muted/50 rounded-lg p-3 space-y-1 text-sm">
               {allocatableLeaveTypes.map((lt: any) => (
                 <div key={lt.id} className="flex justify-between">
                   <span className="text-muted-foreground">{lt.name}</span>
-                  <span className="font-medium tabular-nums">{lt.max_days_per_year} days/quarter</span>
+                  <span className="font-medium tabular-nums">{lt.max_days_per_year} days (one-time)</span>
                 </div>
               ))}
             </div>

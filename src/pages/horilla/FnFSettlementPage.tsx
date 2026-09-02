@@ -584,10 +584,8 @@ export default function FnFSettlementPage() {
             {selectedEmpId && (
               <div className="rounded-md border border-border divide-y divide-border text-xs">
                 {[
-                  { key: "loans", label: "Loans & advances recovered", rows: details.loans, amount: (r: any) => Number(r.outstanding_balance || 0), title: (r: any) => `${r.loan_type || "loan"} — outstanding` },
-                  { key: "penalties", label: "Penalties applied", rows: details.penalties, amount: (r: any) => Number(r.penalty_amount || 0), title: (r: any) => `${r.penalty_month || ""} ${r.penalty_type || "penalty"}`.trim() },
-                  { key: "deposits", label: "Deposits refunded", rows: details.deposits, amount: (r: any) => Number(r.collected_amount || 0), title: (r: any) => (r.deposit_type === "error_recovery" ? "Error recovery (recovered)" : "Security deposit") },
-                  { key: "writtenOff", label: "Deposits written off", rows: details.writtenOff, amount: (r: any) => Number(r.collected_amount || 0), title: (r: any) => (r.is_paused ? "Paused deposit" : "Error recovery — not recovered") },
+                  { key: "loans", label: "Loans & advances recovered", rows: details.loans, amount: (r: any) => Number(r.outstanding_balance || 0), title: (r: any) => `${r.loan_type || "loan"} — outstanding`, note: () => "" },
+                  { key: "penalties", label: "Penalties applied", rows: details.penalties, amount: (r: any) => Number(r.amount || 0), title: (r: any) => `${r.penalty_month || ""} ${r.penalty_type === "days" ? `${r.days} day penalty` : r.penalty_type || "penalty"}`.trim(), note: (r: any) => r.note || "" },
                 ].map((sec) => (
                   <div key={sec.key}>
                     <button
@@ -604,8 +602,11 @@ export default function FnFSettlementPage() {
                       sec.rows.length ? (
                         <ul className="px-3 pb-2 space-y-1">
                           {sec.rows.map((r: any) => (
-                            <li key={r.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>{sec.title(r)} <span className="opacity-60">· {String(r.id).slice(0, 8)}</span></span>
+                            <li key={r.id} className="flex items-start justify-between gap-2 text-[11px] text-muted-foreground">
+                              <span>
+                                {sec.title(r)} <span className="opacity-60">· {String(r.id).slice(0, 8)}</span>
+                                {sec.note(r) && <span className="block opacity-70">{sec.note(r)}</span>}
+                              </span>
                               <span className="tabular-nums">₹{sec.amount(r).toLocaleString("en-IN")}</span>
                             </li>
                           ))}
@@ -618,6 +619,76 @@ export default function FnFSettlementPage() {
                 ))}
               </div>
             )}
+
+            {/* Deposits & error recoveries — one explicit decision per record.
+                Nothing is written off silently; keeping money always needs a reason. */}
+            {selectedEmpId && (
+              <div className="rounded-md border border-border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Deposits & error recoveries held ({details.deposits.length})</Label>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    Paying back ₹{Number(form.deposit_refund || 0).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                {details.deposits.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">No money is held for this employee.</p>
+                )}
+                {details.deposits.map((d) => {
+                  const withheld = Math.round((Number(d.held || 0) - Number(d.refund || 0)) * 100) / 100;
+                  const needsReason = withheld > 0 && !String(d.reason || "").trim();
+                  return (
+                    <div key={d.deposit_id} className="rounded border border-border/70 p-2 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-foreground">{d.label}</span>
+                        <span className="text-muted-foreground tabular-nums">Held ₹{d.held.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px]">Pay back (₹)</Label>
+                          <Input
+                            className="h-8 mt-1 text-foreground"
+                            type="number"
+                            min={0}
+                            max={d.held}
+                            value={d.refund}
+                            onChange={(e) => {
+                              const v = Math.min(Math.max(Number(e.target.value) || 0, 0), d.held);
+                              setDecision(d.deposit_id, { refund: v });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Company keeps (₹)</Label>
+                          <Input className="h-8 mt-1" type="number" readOnly value={withheld} />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]"
+                          onClick={() => setDecision(d.deposit_id, { refund: d.held })}>Refund full</Button>
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]"
+                          onClick={() => setDecision(d.deposit_id, { refund: 0 })}>Keep full</Button>
+                      </div>
+                      {withheld > 0 && (
+                        <div>
+                          <Label className="text-[10px]">Reason for keeping the money (required)</Label>
+                          <Input
+                            className={`h-8 mt-1 text-foreground ${needsReason ? "border-destructive" : ""}`}
+                            value={d.reason}
+                            placeholder="e.g. adjusted against the loss caused on order #1234"
+                            onChange={(e) => setDecision(d.deposit_id, { reason: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <p className="text-[10px] text-muted-foreground">
+                  Saving reserves these records on the Deposit Management page. They are finally closed —
+                  paid back or withheld with your reason in the ledger — when the settlement is marked paid.
+                </p>
+              </div>
+            )}
+
 
             {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
 

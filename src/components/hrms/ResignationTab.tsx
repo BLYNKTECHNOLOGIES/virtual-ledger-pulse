@@ -773,6 +773,46 @@ export function ResignationTab() {
                         : "Ticking this removes the employee from all eSSL biometric devices."}
                     </p>
                   )}
+                  {isRelieving && (
+                    <div className="mt-1.5 space-y-1.5">
+                      {relievingLetter ? (
+                        <>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">{relievingLetter.reference_no}</span> issued
+                            {relievingLetter.issued_at ? ` on ${new Date(relievingLetter.issued_at).toLocaleDateString("en-IN")}` : ""} · saved in the employee's Documents
+                            {relievingLetter.emailed_at ? ` · emailed ${new Date(relievingLetter.emailed_at).toLocaleDateString("en-IN")}` : ""}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={emailRelieving.isPending}
+                            onClick={() => emailRelieving.mutate()}
+                          >
+                            <Mail className="h-3.5 w-3.5 mr-1" />
+                            {emailRelieving.isPending ? "Sending…" : relievingLetter.emailed_at ? "Email again" : "Email the relieving letter"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={generateRelieving.isPending}
+                            onClick={() => generateRelieving.mutate()}
+                          >
+                            <FileText className="h-3.5 w-3.5 mr-1" />
+                            {generateRelieving.isPending ? "Generating…" : "Generate relieving letter"}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Generates and files it under the employee's documents. Emailing is optional and stays a separate step.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
 
                   {isFnf && (
                     <div className="mt-1.5">

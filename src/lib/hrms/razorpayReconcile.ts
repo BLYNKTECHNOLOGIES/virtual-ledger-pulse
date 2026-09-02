@@ -46,6 +46,7 @@ export interface ReconcileDiff {
 const API_UNAVAILABLE_FIELDS = new Set<string>([
   "ctc",
   "gender",
+  "dob",
   "employee_type",
   "probation_end_date",
   "bank_account_holder",

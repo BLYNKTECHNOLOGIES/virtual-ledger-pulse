@@ -91,6 +91,10 @@ const FIELD_LABEL: Record<string, string> = {
   bank_account: "Bank account #",
   bank_ifsc: "Bank IFSC",
   annual_ctc: "Annual CTC",
+  identity_bundle: "Identity details — push failure",
+  bank_bundle: "Bank details — push failure",
+  statutory_enrollment: "Statutory enrollment — push failure",
+  razorpay_link: "RazorpayX link — push failure",
   employment_bundle: "Employment details — push failure",
   dismissal_state: "Dismissal — push failure",
 };
@@ -111,6 +115,11 @@ const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   bank_account: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   bank_ifsc: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   annual_ctc: (id) => pushSalaryToRazorpay(id, { triggeredFrom: "data_health" }),
+  // Verification-failure bundles raised by the pushback layer — retry the same
+  // push envelope that failed to verify.
+  identity_bundle: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
+  bank_bundle: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
+  employment_bundle: (id) => pushEmploymentToRazorpay(id, { triggeredFrom: "data_health" }),
 };
 
 // Fields for which eSSL is a target — device holds only identity + roster.
@@ -411,10 +420,14 @@ export default function DataHealthPage() {
   async function markResolved(drift: Drift, note: string) {
     setResolvingId(drift.id);
     try {
-      await (supabase as any)
+      const { error } = await (supabase as any)
         .from("hr_drift_alerts")
         .update({ resolved_at: new Date().toISOString(), resolution_note: note })
         .eq("id", drift.id);
+      if (error) {
+        toast.error(`Could not mark resolved: ${error.message}`);
+        return;
+      }
       toast.success("Marked resolved");
       qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
     } finally {

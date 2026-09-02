@@ -425,7 +425,65 @@ export default function DataHealthPage() {
     }
   }
 
+  // Operator says they applied the change by hand in the RazorpayX dashboard
+  // (used for fields RazorpayX refuses over the API, e.g. work email).
+  // We never trust the claim: re-read RazorpayX live and close the card only
+  // when the fresh snapshot actually matches HRMS.
+  async function verifyManualRazorpayUpdate(drift: Drift) {
+    setResolvingId(drift.id);
+    try {
+      const { data: scan, error: scanError } = await supabase.functions.invoke("hr-drift-scan", {
+        body: { employee_id: drift.hr_employee_id, max_age_hours: 0 },
+      });
+      if (scanError || scan?.ok === false) {
+        throw new Error(scan?.error || scanError?.message || "Verification scan failed");
+      }
+
+      const { data: openRows, error: openError } = await (supabase as any)
+        .from("hr_drift_alerts")
+        .select("id, field, hrms_value, razorpay_value")
+        .eq("hr_employee_id", drift.hr_employee_id)
+        .is("resolved_at", null);
+      if (openError) throw openError;
+
+      const rows: Drift[] = (openRows || []) as Drift[];
+      const stillOpen = rows.some((r) => r.id === drift.id);
+      const fieldDriftsRemaining = rows.filter((r) => !isPushFailureAlert(r)).length;
+      const bundleAlert = isPushFailureAlert(drift);
+
+      if (bundleAlert && fieldDriftsRemaining === 0 && stillOpen) {
+        // Push-failure cards are synthetic: the scanner cannot resolve them.
+        // No real field difference left ⇒ the manual edit landed.
+        const { error } = await (supabase as any)
+          .from("hr_drift_alerts")
+          .update({
+            resolved_at: new Date().toISOString(),
+            resolution_note: "Verified after manual RazorpayX dashboard update",
+          })
+          .eq("id", drift.id);
+        if (error) throw error;
+        await qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+        toast.success("Verified against RazorpayX — difference closed");
+        return;
+      }
+
+      await qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
+      if (stillOpen) {
+        toast.error(
+          `RazorpayX still shows the old ${FIELD_LABEL[drift.field] || drift.field} — no change detected`,
+        );
+      } else {
+        toast.success("Verified against RazorpayX — difference closed");
+      }
+    } catch (e: any) {
+      toast.error(`Verification failed: ${e?.message || e}`);
+    } finally {
+      setResolvingId(null);
+    }
+  }
+
   async function markResolved(drift: Drift, note: string) {
+
     setResolvingId(drift.id);
     try {
       const { error } = await (supabase as any)

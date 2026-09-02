@@ -2852,6 +2852,7 @@ Deno.serve(async (req) => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
+        let emailDashboardOnly: string | null = null;
         try {
           const res = await fetch(`${BASE}/people`, {
             method: "POST",

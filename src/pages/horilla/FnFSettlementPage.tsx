@@ -531,6 +531,27 @@ export default function FnFSettlementPage() {
                       );
                     })()}
 
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                      title={
+                        s.razorpay_push_status === "pushed"
+                          ? "Already pushed to RazorpayX — remove it there first"
+                          : "Delete this settlement and unwind everything it touched"
+                      }
+                      onClick={() => {
+                        setDeleteReason("");
+                        setDeletePrompt({
+                          id: s.id,
+                          status: s.status,
+                          name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
+                        });
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+
 
                   </div>
                 </div>

@@ -18,7 +18,7 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
-import { computeFnFDraft, buildFnFPayload, fnfNetPayable } from "@/lib/fnfEngine";
+import { computeFnFDraft, buildFnFPayload, fnfNetPayable, syncFnFDepositReservations, sumRefunds, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -57,7 +57,7 @@ export default function FnFSettlementPage() {
   // Source records behind each auto-filled figure (shown as expandable detail
   // and written into breakdown.source_ids so the settlement stays auditable).
   const [details, setDetails] = useState<{
-    loans: any[]; penalties: any[]; deposits: any[]; writtenOff: any[];
+    loans: any[]; penalties: any[]; deposits: DepositDecision[]; writtenOff: any[];
   }>({ loans: [], penalties: [], deposits: [], writtenOff: [] });
   const [openDetail, setOpenDetail] = useState<string | null>(null);
 
@@ -104,8 +104,9 @@ export default function FnFSettlementPage() {
   //  • Pending (final-month) salary  → mirrored RazorpayX payslip record for the LWD month.
   //                                     Never computed locally. Missing ⇒ "awaiting RazorpayX".
   //  • Leave encashment / gratuity   → NOT payable per company policy. Removed.
-  //  • Loans / penalties / deposits  → HRMS-owned; security deposits only (error-recovery
-  //                                     collections are recoveries, never refunded).
+  //  • Penalties                     → stored in DAYS, priced at the payroll one-day rate.
+  //  • Deposits / error recoveries   → one editable refund/withhold decision each; nothing
+  //                                     is ever written off silently.
   const autoFillFnF = async (empId: string) => {
     setSelectedEmpId(empId);
     const emp = separatedEmployees.find((e: any) => e.id === empId);
@@ -121,9 +122,24 @@ export default function FnFSettlementPage() {
 
   const netPayable = fnfNetPayable(form as any);
 
+  /** Edit one deposit decision line and keep the refund total in lockstep. */
+  const setDecision = (id: string, patch: Partial<DepositDecision>) => {
+    setDetails((prev) => {
+      const deposits = prev.deposits.map((d) => (d.deposit_id === id ? { ...d, ...patch } : d));
+      setForm((f) => ({ ...f, deposit_refund: sumRefunds(deposits) }));
+      return { ...prev, deposits };
+    });
+  };
+
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const missing = missingDecisionReasons(details.deposits);
+      if (missing.length > 0) {
+        throw new Error(
+          `Write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
+        );
+      }
       const payload = buildFnFPayload(selectedEmpId, form as any, details, calcNote, finalMonth as any);
 
 
@@ -133,10 +149,15 @@ export default function FnFSettlementPage() {
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq("id", editingId);
         if (error) throw error;
+        await syncFnFDepositReservations(editingId);
         return;
       }
 
-      const { error } = await (supabase as any).from("hr_fnf_settlements").insert(payload);
+      const { data: created, error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) {
         // Backed by the partial unique index — one live settlement per employee.
         if ((error as any).code === "23505") {
@@ -144,9 +165,11 @@ export default function FnFSettlementPage() {
         }
         throw error;
       }
+      await syncFnFDepositReservations(created.id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       setShowCreate(false);
       toast.success(editingId ? "F&F Settlement updated" : "F&F Settlement created");
       setEditingId(null);
@@ -177,11 +200,36 @@ export default function FnFSettlementPage() {
     setSelectedEmpId(s.employee_id);
     const b = s.breakdown || {};
     const c = b.components || {};
+    // Per-deposit decisions are authoritative. Legacy settlements (refunded +
+    // written-off lists) are migrated into the same editable shape on open.
+    const legacyDecisions: DepositDecision[] = [
+      ...(c.deposits || []).map((d: any) => ({
+        deposit_id: d.id, deposit_type: (d.type || "security"), held: Number(d.collected || 0),
+        refund: Number(d.refund ?? d.collected ?? 0), reason: "",
+        label: d.type === "error_recovery" ? "Error recovery" : "Security deposit", is_paused: false,
+      })),
+      ...(b.written_off_deposits || []).map((d: any) => ({
+        deposit_id: d.id, deposit_type: (d.deposit_type || "security"), held: Number(d.collected_amount || 0),
+        refund: 0, reason: d.reason || "Written off in legacy settlement",
+        label: d.deposit_type === "error_recovery" ? "Error recovery" : "Security deposit", is_paused: d.reason === "paused",
+      })),
+    ];
     setDetails({
       loans: (c.loans || []).map((l: any) => ({ id: l.id, loan_type: l.type, outstanding_balance: l.outstanding })),
-      penalties: (c.penalties || []).map((p: any) => ({ id: p.id, penalty_month: p.month, penalty_type: p.type, penalty_amount: p.amount })),
-      deposits: (c.deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.type, collected_amount: d.collected })),
-      writtenOff: (b.written_off_deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.deposit_type, collected_amount: d.collected_amount, is_paused: d.reason === "paused" })),
+      penalties: (c.penalties || []).map((p: any) => ({
+        id: p.id, penalty_month: p.month, penalty_type: p.type,
+        penalty_amount: p.amount, days: Number(p.days || 0), day_rate: Number(p.day_rate || 0),
+        amount: Number(p.amount || 0), note: p.note || "",
+      })),
+      deposits: Array.isArray(b.deposit_decisions) && b.deposit_decisions.length
+        ? b.deposit_decisions.map((d: any) => ({
+            deposit_id: d.deposit_id, deposit_type: d.deposit_type || "security",
+            held: Number(d.held || 0), refund: Number(d.refund || 0),
+            reason: d.reason || "", label: d.label || (d.deposit_type === "error_recovery" ? "Error recovery" : "Security deposit"),
+            is_paused: false,
+          }))
+        : legacyDecisions,
+      writtenOff: [],
     });
     setCalcNote(b.calc_note || "");
     setFinalMonth(
@@ -222,6 +270,13 @@ export default function FnFSettlementPage() {
       }
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
+
+      // Cancelling releases every deposit this settlement had reserved.
+      if (status === "cancelled") {
+        try { await syncFnFDepositReservations(id); }
+        catch (e: any) { toast.error(`Cancelled, but releasing the reserved deposits failed: ${e.message}`); }
+      }
+
 
       // Approval is the moment the settlement enters payroll: F&F is the ONLY
       // thing that schedules additions/deductions for a leaver.
@@ -267,6 +322,7 @@ export default function FnFSettlementPage() {
 
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       toast.success("Status updated");
       if (result) {
         setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd });
@@ -515,7 +571,11 @@ export default function FnFSettlementPage() {
               <div><Label>Bonus (₹)</Label><Input className="h-9 mt-1" type="number" value={form.bonus_amount} onChange={(e) => setForm({ ...form, bonus_amount: Number(e.target.value) })} /></div>
               <div><Label>Notice Pay Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.notice_pay_recovery} onChange={(e) => setForm({ ...form, notice_pay_recovery: Number(e.target.value) })} /></div>
               <div><Label>Loan Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.loan_recovery} onChange={(e) => setForm({ ...form, loan_recovery: Number(e.target.value) })} /></div>
-              <div><Label>Security Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
+              <div>
+                <Label>Deposit / Recovery Refund (₹)</Label>
+                <Input className="h-9 mt-1" type="number" readOnly value={form.deposit_refund} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Sum of the decisions below.</p>
+              </div>
               <div><Label>Penalty Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.penalty_deductions} onChange={(e) => setForm({ ...form, penalty_deductions: Number(e.target.value) })} /></div>
               <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
             </div>
@@ -524,10 +584,8 @@ export default function FnFSettlementPage() {
             {selectedEmpId && (
               <div className="rounded-md border border-border divide-y divide-border text-xs">
                 {[
-                  { key: "loans", label: "Loans & advances recovered", rows: details.loans, amount: (r: any) => Number(r.outstanding_balance || 0), title: (r: any) => `${r.loan_type || "loan"} — outstanding` },
-                  { key: "penalties", label: "Penalties applied", rows: details.penalties, amount: (r: any) => Number(r.penalty_amount || 0), title: (r: any) => `${r.penalty_month || ""} ${r.penalty_type || "penalty"}`.trim() },
-                  { key: "deposits", label: "Deposits refunded", rows: details.deposits, amount: (r: any) => Number(r.collected_amount || 0), title: (r: any) => (r.deposit_type === "error_recovery" ? "Error recovery (recovered)" : "Security deposit") },
-                  { key: "writtenOff", label: "Deposits written off", rows: details.writtenOff, amount: (r: any) => Number(r.collected_amount || 0), title: (r: any) => (r.is_paused ? "Paused deposit" : "Error recovery — not recovered") },
+                  { key: "loans", label: "Loans & advances recovered", rows: details.loans, amount: (r: any) => Number(r.outstanding_balance || 0), title: (r: any) => `${r.loan_type || "loan"} — outstanding`, note: () => "" },
+                  { key: "penalties", label: "Penalties applied", rows: details.penalties, amount: (r: any) => Number(r.amount || 0), title: (r: any) => `${r.penalty_month || ""} ${r.penalty_type === "days" ? `${r.days} day penalty` : r.penalty_type || "penalty"}`.trim(), note: (r: any) => r.note || "" },
                 ].map((sec) => (
                   <div key={sec.key}>
                     <button
@@ -544,8 +602,11 @@ export default function FnFSettlementPage() {
                       sec.rows.length ? (
                         <ul className="px-3 pb-2 space-y-1">
                           {sec.rows.map((r: any) => (
-                            <li key={r.id} className="flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>{sec.title(r)} <span className="opacity-60">· {String(r.id).slice(0, 8)}</span></span>
+                            <li key={r.id} className="flex items-start justify-between gap-2 text-[11px] text-muted-foreground">
+                              <span>
+                                {sec.title(r)} <span className="opacity-60">· {String(r.id).slice(0, 8)}</span>
+                                {sec.note(r) && <span className="block opacity-70">{sec.note(r)}</span>}
+                              </span>
                               <span className="tabular-nums">₹{sec.amount(r).toLocaleString("en-IN")}</span>
                             </li>
                           ))}
@@ -558,6 +619,76 @@ export default function FnFSettlementPage() {
                 ))}
               </div>
             )}
+
+            {/* Deposits & error recoveries — one explicit decision per record.
+                Nothing is written off silently; keeping money always needs a reason. */}
+            {selectedEmpId && (
+              <div className="rounded-md border border-border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Deposits & error recoveries held ({details.deposits.length})</Label>
+                  <span className="text-[11px] text-muted-foreground tabular-nums">
+                    Paying back ₹{Number(form.deposit_refund || 0).toLocaleString("en-IN")}
+                  </span>
+                </div>
+                {details.deposits.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">No money is held for this employee.</p>
+                )}
+                {details.deposits.map((d) => {
+                  const withheld = Math.round((Number(d.held || 0) - Number(d.refund || 0)) * 100) / 100;
+                  const needsReason = withheld > 0 && !String(d.reason || "").trim();
+                  return (
+                    <div key={d.deposit_id} className="rounded border border-border/70 p-2 space-y-2">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-foreground">{d.label}</span>
+                        <span className="text-muted-foreground tabular-nums">Held ₹{d.held.toLocaleString("en-IN")}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px]">Pay back (₹)</Label>
+                          <Input
+                            className="h-8 mt-1 text-foreground"
+                            type="number"
+                            min={0}
+                            max={d.held}
+                            value={d.refund}
+                            onChange={(e) => {
+                              const v = Math.min(Math.max(Number(e.target.value) || 0, 0), d.held);
+                              setDecision(d.deposit_id, { refund: v });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-[10px]">Company keeps (₹)</Label>
+                          <Input className="h-8 mt-1" type="number" readOnly value={withheld} />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]"
+                          onClick={() => setDecision(d.deposit_id, { refund: d.held })}>Refund full</Button>
+                        <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]"
+                          onClick={() => setDecision(d.deposit_id, { refund: 0 })}>Keep full</Button>
+                      </div>
+                      {withheld > 0 && (
+                        <div>
+                          <Label className="text-[10px]">Reason for keeping the money (required)</Label>
+                          <Input
+                            className={`h-8 mt-1 text-foreground ${needsReason ? "border-destructive" : ""}`}
+                            value={d.reason}
+                            placeholder="e.g. adjusted against the loss caused on order #1234"
+                            onChange={(e) => setDecision(d.deposit_id, { reason: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                <p className="text-[10px] text-muted-foreground">
+                  Saving reserves these records on the Deposit Management page. They are finally closed —
+                  paid back or withheld with your reason in the ledger — when the settlement is marked paid.
+                </p>
+              </div>
+            )}
+
 
             {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
 

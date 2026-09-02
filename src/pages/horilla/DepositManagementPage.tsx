@@ -47,13 +47,16 @@ const LIFECYCLE_BADGE: Record<Lifecycle, { label: string; cls: string }> = {
 
 /** Single source of truth for which bucket a deposit belongs to. */
 function lifecycleOf(d: any): Lifecycle {
-  if (d.refund_status === "refunded" || d.is_recovered || d.is_settled) return "refunded";
+  if (["refunded", "withheld"].includes(d.refund_status) || d.is_recovered || d.is_settled) return "refunded";
   const employeeActive = d.hr_employees?.is_active !== false;
   const held = Number(d.collected_amount || 0) > 0;
   if (!employeeActive && held) return "exited_unpaid";
   if (d.is_fully_collected) return "collected";
   return "active";
 }
+
+/** A deposit governed by a live F&F settlement is locked here — F&F decides its fate. */
+const isFnfLocked = (d: any) => ["reserved", "closed"].includes(d.fnf_state || "none");
 
 const inr = (n: any) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 
@@ -66,7 +69,9 @@ export default function DepositManagementPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showTransactions, setShowTransactions] = useState<string | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<any>(null);
+  const [editReason, setEditReason] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
 
   // Refund ("pay back to employee") dialog
   const [refundTarget, setRefundTarget] = useState<any>(null);
@@ -205,14 +210,31 @@ export default function DepositManagementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // An edit never silently changes money: the old and new values, who changed them,
+  // when, and why are appended to the deposit ledger. Records governed by a live
+  // F&F settlement are immutable here.
   const editMutation = useMutation({
     mutationFn: async () => {
+      if (isFnfLocked(editingDeposit)) {
+        throw new Error("This record is reserved by an F&F settlement — change it from the F&F settlement instead.");
+      }
       const oldAmount = Number(editingDeposit.total_deposit_amount);
       const newAmount = Number(form.total_deposit_amount);
       const oldMode = editingDeposit.deduction_mode;
       const newMode = form.deduction_mode;
       const oldValue = Number(editingDeposit.deduction_value);
       const newValue = Number(form.deduction_value);
+
+      const changes: string[] = [];
+      if (oldAmount !== newAmount) changes.push(`Amount: ${inr(oldAmount)} → ${inr(newAmount)}`);
+      if (oldMode !== newMode) changes.push(`Mode: ${oldMode} → ${newMode}`);
+      if (oldValue !== newValue) changes.push(`Value: ${oldValue} → ${newValue}`);
+      if (changes.length > 0 && !editReason.trim()) {
+        throw new Error("Write the reason for this change — it is kept in the deposit ledger.");
+      }
+      if (newAmount < Number(editingDeposit.collected_amount || 0)) {
+        throw new Error(`Target cannot be below the ${inr(editingDeposit.collected_amount)} already collected.`);
+      }
 
       const isRecovery = (editingDeposit.deposit_type || "security") === "error_recovery";
       const { error } = await (supabase as any).from("hr_employee_deposits").update({
@@ -227,11 +249,9 @@ export default function DepositManagementPage() {
       }).eq("id", editingDeposit.id);
       if (error) throw error;
 
-      const changes: string[] = [];
-      if (oldAmount !== newAmount) changes.push(`Amount: ${inr(oldAmount)} → ${inr(newAmount)}`);
-      if (oldMode !== newMode) changes.push(`Mode: ${oldMode} → ${newMode}`);
-      if (oldValue !== newValue) changes.push(`Value: ${oldValue} → ${newValue}`);
       if (changes.length > 0) {
+        const { data: auth } = await (supabase as any).auth.getUser();
+        const actor = auth?.user?.email || auth?.user?.id || "unknown user";
         await (supabase as any).from("hr_deposit_transactions").insert({
           employee_id: editingDeposit.employee_id,
           deposit_id: editingDeposit.id,
@@ -239,7 +259,7 @@ export default function DepositManagementPage() {
           transaction_type: "modified",
           amount: 0,
           balance_after: Number(editingDeposit.current_balance),
-          description: `Modified: ${changes.join("; ")}`,
+          description: `Modified: ${changes.join("; ")} · Reason: ${editReason.trim()} · By: ${actor}`,
           transaction_date: new Date().toISOString().slice(0, 10),
         });
       }
@@ -252,6 +272,7 @@ export default function DepositManagementPage() {
       qc.invalidateQueries({ queryKey: ["hr_deposit_transactions"] });
       setShowEdit(false);
       setEditingDeposit(null);
+      setEditReason("");
       toast.success("Deposit updated and schedule rebuilt");
     },
     onError: (e: any) => toast.error(e.message),
@@ -448,6 +469,7 @@ export default function DepositManagementPage() {
       incident_reference: d.incident_reference || "",
       recovery_reason: d.recovery_reason || "",
     });
+    setEditReason("");
     setShowEdit(true);
   };
 
@@ -493,6 +515,9 @@ export default function DepositManagementPage() {
       case "completed": return "bg-success/10 text-success";
       case "paused": return "bg-warning/10 text-warning";
       case "resumed": return "bg-info/10 text-info";
+      case "withheld": return "bg-destructive/10 text-destructive";
+      case "reserved": return "bg-primary/10 text-primary";
+      case "released": return "bg-muted text-foreground";
       default: return "bg-muted text-foreground";
     }
   };
@@ -509,6 +534,9 @@ export default function DepositManagementPage() {
       case "completed": return "Completed";
       case "paused": return "Paused";
       case "resumed": return "Resumed";
+      case "withheld": return "Withheld in F&F";
+      case "reserved": return "Reserved for F&F";
+      case "released": return "Released from F&F";
       default: return type;
     }
   };
@@ -608,8 +636,9 @@ export default function DepositManagementPage() {
 
   const renderEntryRow = (d: any) => {
     const state = lifecycleOf(d);
+    const locked = isFnfLocked(d);
     const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
-    const canRefund = state !== "refunded" && Number(d.collected_amount || 0) > 0;
+    const canRefund = state !== "refunded" && !locked && Number(d.collected_amount || 0) > 0;
     return (
       <TableRow key={d.id} className="bg-muted/20">
         <TableCell className="pl-10 text-sm text-muted-foreground">
@@ -637,6 +666,11 @@ export default function DepositManagementPage() {
         <TableCell>
           <span className={`px-2 py-0.5 rounded-full text-xs ${LIFECYCLE_BADGE[state].cls}`}>{LIFECYCLE_BADGE[state].label}</span>
           {d.is_paused && state === "active" && <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-warning/10 text-warning">Paused</span>}
+          {locked && (
+            <span className="ml-1 px-2 py-0.5 rounded-full text-xs bg-primary/10 text-primary" title="Governed by the employee's F&F settlement">
+              {d.fnf_state === "closed" ? "Settled in F&F" : "Reserved in F&F"}
+            </span>
+          )}
         </TableCell>
         <TableCell className="text-xs">
           {state === "refunded" ? (
@@ -656,7 +690,12 @@ export default function DepositManagementPage() {
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setShowTransactions(d.id)} title="View ledger">
               <Eye className="h-3 w-3" />
             </Button>
-            {state !== "refunded" && (
+            {state !== "refunded" && locked && (
+              <span className="text-[11px] text-muted-foreground self-center px-1">
+                Handled in F&amp;F
+              </span>
+            )}
+            {state !== "refunded" && !locked && (
               <>
                 <Button size="sm" variant="ghost" className="h-7" onClick={() => openEdit(d)} title="Edit">
                   <Edit2 className="h-3 w-3" />
@@ -859,9 +898,22 @@ export default function DepositManagementPage() {
             <DialogDescription>Update deposit amount or deduction schedule</DialogDescription>
           </DialogHeader>
           {renderDepositForm(true)}
+          <div className="mt-3">
+            <Label>Reason for this change *</Label>
+            <Textarea
+              rows={2}
+              className="mt-1 text-foreground"
+              value={editReason}
+              onChange={(e) => setEditReason(e.target.value)}
+              placeholder="Why is the amount / schedule being changed? Kept in the deposit ledger."
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              The old and new values, your name and this reason are appended to the ledger.
+            </p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEdit(false)}>Cancel</Button>
-            <Button onClick={() => editMutation.mutate()} disabled={!form.total_deposit_amount || !form.deduction_value} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending || !form.total_deposit_amount || !form.deduction_value} className="bg-[#E8604C] hover:bg-[#d4553f]">
               Update
             </Button>
           </DialogFooter>

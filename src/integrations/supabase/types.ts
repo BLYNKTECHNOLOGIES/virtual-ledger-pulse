@@ -8661,6 +8661,8 @@ export type Database = {
           deduction_value: number
           deposit_type: string
           employee_id: string
+          fnf_settlement_id: string | null
+          fnf_state: string
           id: string
           incident_date: string | null
           incident_reference: string | null
@@ -8692,6 +8694,8 @@ export type Database = {
           deduction_value?: number
           deposit_type?: string
           employee_id: string
+          fnf_settlement_id?: string | null
+          fnf_state?: string
           id?: string
           incident_date?: string | null
           incident_reference?: string | null
@@ -8723,6 +8727,8 @@ export type Database = {
           deduction_value?: number
           deposit_type?: string
           employee_id?: string
+          fnf_settlement_id?: string | null
+          fnf_state?: string
           id?: string
           incident_date?: string | null
           incident_reference?: string | null
@@ -28572,6 +28578,10 @@ export type Database = {
       hr_apply_deposit_collection: {
         Args: { p_razorpay_input_id?: string; p_schedule_id: string }
         Returns: undefined
+      }
+      hr_apply_fnf_deposit_reservations: {
+        Args: { p_settlement_id: string }
+        Returns: Json
       }
       hr_apply_loan_push: {
         Args: { p_razorpay_input_id?: string; p_repayment_id: string }

@@ -364,8 +364,21 @@ export default function DepositManagementPage() {
         ? `Error recovery refund${d.incident_reference ? ` (${d.incident_reference})` : ""}`
         : "Security deposit refund";
 
+      // razorpay_employee_id is NOT NULL on the inputs table — resolve the mapping first
+      const { data: mapRow, error: mapErr } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", d.employee_id)
+        .not("razorpay_employee_id", "is", null)
+        .maybeSingle();
+      if (mapErr) throw mapErr;
+      if (!mapRow?.razorpay_employee_id) {
+        throw new Error("This employee is not mapped to RazorpayX yet — map them before staging a pay back.");
+      }
+
       const { error: addErr } = await (supabase as any).from("hr_payroll_input_additions").insert({
         hr_employee_id: d.employee_id,
+        razorpay_employee_id: mapRow.razorpay_employee_id,
         period_month: period,
         amount,
         label,
@@ -373,6 +386,7 @@ export default function DepositManagementPage() {
         taxable: false,
       });
       if (addErr) throw addErr;
+
 
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: d.employee_id,

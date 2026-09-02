@@ -27,6 +27,7 @@ function DiffRow({ f }: { f: FieldDiff }) {
   const ok = f.match === true;
   const bad = f.match === false;
   const unknown = f.match === null;
+  const dash = !!f.dashboardOnly;
   return (
     <div className={cn(
       "flex flex-col gap-1 rounded-md border p-3 text-sm",
@@ -50,7 +51,7 @@ function DiffRow({ f }: { f: FieldDiff }) {
             unknown && "border-amber-500/40 text-amber-600 dark:text-amber-400",
           )}
         >
-          {ok ? "Confirmed" : bad ? "Not applied" : "Not verified"}
+          {ok ? "Confirmed" : bad ? "Not applied" : dash ? "Dashboard only" : "Not verified"}
         </Badge>
       </div>
       <div className="grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
@@ -81,12 +82,13 @@ export function RazorpayPushResultDialog({
 }) {
   const [retrying, setRetrying] = useState(false);
 
-  const { confirmed, unapplied, unknown } = useMemo(() => {
+  const { confirmed, unapplied, unknown, dashboardOnly } = useMemo(() => {
     const fields = detail?.fields || [];
     return {
       confirmed: fields.filter((f) => f.match === true),
       unapplied: fields.filter((f) => f.match === false),
-      unknown: fields.filter((f) => f.match === null),
+      unknown: fields.filter((f) => f.match === null && !f.dashboardOnly),
+      dashboardOnly: fields.filter((f) => !!f.dashboardOnly),
     };
   }, [detail]);
 
@@ -97,8 +99,8 @@ export function RazorpayPushResultDialog({
   // so the work-email address itself cannot be rewritten through the API on this
   // tenant — every retry variant returns HTTP 200 and keeps the old value.
   // Out of RazorpayX API Scope / Limitation: dashboard-only change.
-  const emailScopeBlock =
-    unapplied.length > 0 && unapplied.every((f) => String(f.key).toLowerCase().includes("email"));
+  const emailScopeBlock = dashboardOnly.length > 0;
+  const onlyDashboardLeft = unapplied.length === 0 && unknown.length === 0 && dashboardOnly.length > 0;
 
 
   return (
@@ -114,7 +116,9 @@ export function RazorpayPushResultDialog({
               <CheckCircle2 className="h-5 w-5 text-emerald-500" />
             )}
             <DialogTitle>
-              {isFailed
+              {onlyDashboardLeft
+                ? "Pushed — work email needs the RazorpayX dashboard"
+                : isFailed
                 ? "RazorpayX did NOT apply the update"
                 : isPartial
                 ? "RazorpayX update not fully verified"
@@ -136,15 +140,15 @@ export function RazorpayPushResultDialog({
 
         {emailScopeBlock && (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 space-y-1">
-            <div className="font-semibold uppercase tracking-wide">Work-email change needs a retry (or the dashboard)</div>
+            <div className="font-semibold uppercase tracking-wide">Work email is dashboard-only in RazorpayX</div>
             <p>
-              RazorpayX Payroll identifies a person by their <em>current</em> work email. Earlier pushes sent the new
-              address as the lookup key, so Opfin answered “Unable to locate the user” and dropped the whole edit. That
-              is fixed — hit “Retry push”; it now keys by the current address and tries every accepted email-change
-              variant with a read-back. If it still reports a mismatch after that, the change is genuinely dashboard-only
-              (People → this employee → Edit), then run “Rescan now”.
+              RazorpayX Payroll identifies a person <em>by</em> their work email, so that address is the record's
+              identity key and is read-only over the Payroll API. We verified this live against the tenant: every
+              accepted spelling (<code>new-email</code>, <code>work-email</code>, <code>email-id</code>, people-id keyed)
+              returns HTTP 200 while keeping the old value, and no change-email endpoint exists. Every other field in
+              this push was applied. Change the address in RazorpayX (People → this employee → Edit), then hit
+              “Rescan now”.
             </p>
-
             <a
               href="https://payroll.razorpay.com/people"
               target="_blank"
@@ -165,6 +169,14 @@ export function RazorpayPushResultDialog({
                 </div>
 
                 {unapplied.map((f) => <DiffRow key={f.key} f={f} />)}
+              </section>
+            )}
+            {dashboardOnly.length > 0 && (
+              <section className="space-y-2">
+                <div className="text-xs font-semibold uppercase tracking-wide text-amber-500">
+                  Dashboard-only in RazorpayX ({dashboardOnly.length})
+                </div>
+                {dashboardOnly.map((f) => <DiffRow key={f.key} f={f} />)}
               </section>
             )}
             {unknown.length > 0 && (
@@ -191,7 +203,7 @@ export function RazorpayPushResultDialog({
             HRMS record was saved locally. This update is only complete after RazorpayX read-back confirms every field.
           </div>
           <div className="flex gap-2">
-            {(onRetry || detail.retry) && (
+            {!onlyDashboardLeft && (onRetry || detail.retry) && (
               <Button
                 variant="outline"
                 disabled={retrying}

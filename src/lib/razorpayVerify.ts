@@ -37,6 +37,8 @@ export type FieldDiff = {
    */
   match: boolean | null;
   reason?: string;
+  /** RazorpayX exposes this field read-only via API — dashboard change required. */
+  dashboardOnly?: boolean;
 };
 
 export type VerifyOverall = "verified" | "partial" | "failed" | "skipped";
@@ -413,6 +415,21 @@ function diffFields(
         match = true;
       }
     }
+    // Work email is the Opfin identity key: people:edit resolves the person BY
+    // this address, so it can never be rewritten through the Payroll API.
+    // Verified live (2026-09-02 IST): every accepted spelling (new-email,
+    // work-email, email-id, new_email, people-id keyed) returns HTTP 200 and
+    // keeps the old value, and people:{edit,change,update}-email do not exist
+    // (code 23). Out of RazorpayX API Scope / Limitation — dashboard-only.
+    if (!match && k === "email") {
+      rows.push({
+        key: k, label: LABELS[k] || k, expected: exp, actual: act,
+        match: null,
+        dashboardOnly: true,
+        reason: "Work email is RazorpayX's identity key and is read-only over the Payroll API. Change it in RazorpayX (People → employee → Edit), then run Rescan. All other fields were applied.",
+      });
+      continue;
+    }
     rows.push({
       key: k, label: LABELS[k] || k, expected: exp, actual: act,
       match,
@@ -421,6 +438,7 @@ function diffFields(
   }
   return rows;
 }
+
 
 function overallOf(fields: FieldDiff[]): VerifyOverall {
   if (fields.length === 0) return "skipped";

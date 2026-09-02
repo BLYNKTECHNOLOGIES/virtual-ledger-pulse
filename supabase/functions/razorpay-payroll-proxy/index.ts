@@ -1825,12 +1825,104 @@ Deno.serve(async (req) => {
       }
       if (mismatched.length > 0) {
         const emailBlocked = mismatched.some((m) => m.field === "email");
-        return json(200, { ok: false, error: emailBlocked
-            ? "RazorpayX did not apply the work-email change. Out of RazorpayX API scope: people:edit identifies the person by their current email, and this tenant rejects/ignores a change of that address — update the work email in the RazorpayX dashboard, then re-run the health check."
-            : `RazorpayX read-back mismatch after write: ${mismatched.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult });
+        const nonEmail = mismatched.filter((m) => m.field !== "email");
+        if (emailBlocked && nonEmail.length === 0) {
+          // Verified live: work email is the Opfin identity key and is read-only
+          // over the Payroll API. Everything else landed, so this is a success
+          // with a dashboard follow-up, not a failed push.
+          return json(200, {
+            ok: true,
+            dashboard_only_fields: ["email"],
+            note: "Work email is RazorpayX's identity key and cannot be changed via the Payroll API (Out of RazorpayX API Scope / Limitation). Change it in the RazorpayX dashboard, then rescan. All other fields were applied.",
+            http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult,
+          });
+        }
+        return json(200, { ok: false, error: `RazorpayX read-back mismatch after write: ${nonEmail.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, dashboard_only_fields: emailBlocked ? ["email"] : undefined, body: editRes.body, salary: salaryResult });
       }
+
       return json(200, { ok: true, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, body: editRes.body, salary: salaryResult });
     }
+
+    // ---------- probe_email_variants ----------
+    // Diagnostic + repair: try every plausible people:edit envelope for a
+    // WORK-EMAIL change, verifying with people:view after each attempt.
+    if (action === "probe_email_variants") {
+      const rpId = Number(payload?.razorpay_employee_id);
+      const target = String(payload?.new_email || "").trim().toLowerCase();
+      if (!Number.isFinite(rpId) || rpId < 1) return json(400, { error: "razorpay_employee_id required" });
+      if (!target.includes("@")) return json(400, { error: "new_email required" });
+
+      const view0 = await opfinView(rpId, "employee");
+      const b0: any = view0.body || {};
+      const currentEmail = String(b0.email ?? b0.work_email ?? b0["work-email"] ?? "").trim().toLowerCase();
+      const peopleId = b0["people-id"] ?? b0.people_id ?? b0.id ?? null;
+      if (!currentEmail) return json(200, { ok: false, error: "people:view returned no current email", view_keys: Object.keys(b0) });
+
+      const readBack = async () => {
+        const v = await opfinView(rpId, "employee");
+        const bb: any = v.body || {};
+        return String(bb.email ?? bb.work_email ?? bb["work-email"] ?? "").trim().toLowerCase();
+      };
+
+      const base = { "employee-id": rpId, "employee-type": "employee" };
+      const variants: Array<{ label: string; data: Record<string, any> }> = [
+        { label: "employee-id + email=new", data: { ...base, email: target } },
+        { label: "email=current + new-email", data: { ...base, email: currentEmail, "new-email": target } },
+        { label: "email=current + work-email", data: { ...base, email: currentEmail, "work-email": target } },
+        { label: "email=current + email-id", data: { ...base, email: currentEmail, "email-id": target } },
+        { label: "email=current + new_email(snake)", data: { ...base, email: currentEmail, new_email: target } },
+        { label: "employee-id only + email=new (no type)", data: { "employee-id": rpId, email: target } },
+      ];
+      if (peopleId) {
+        variants.push({ label: "people-id + email=new", data: { "people-id": Number(peopleId), email: target } });
+        variants.push({ label: "people-id + email=current + new-email", data: { "people-id": Number(peopleId), email: currentEmail, "new-email": target } });
+      }
+
+      const attempts: any[] = [];
+      let landedWith: string | null = null;
+      for (const v of variants) {
+        const r = await opfinEditPerson(v.data);
+        const after = await readBack();
+        attempts.push({ variant: v.label, http: r.status, ok: r.ok, error: r.error, after });
+        if (after === target) { landedWith = v.label; break; }
+      }
+
+      // Alternate sub-types: some Opfin tenants expose a dedicated email-change
+      // sub-type instead of allowing people:edit to rewrite the identity key.
+      if (!landedWith) {
+        const subTypes = ["edit-email", "change-email", "update-email", "edit-work-email"];
+        for (const st of subTypes) {
+          try {
+            const res = await fetch(`${BASE}/people`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                auth: authBlock(),
+                request: { type: "people", "sub-type": st },
+                data: { ...base, email: currentEmail, "new-email": target },
+              }),
+            });
+            const raw = await res.text();
+            const after = await readBack();
+            attempts.push({ variant: `people:${st}`, http: res.status, ok: after === target, error: raw.slice(0, 200), after });
+            if (after === target) { landedWith = `people:${st}`; break; }
+          } catch (e) {
+            attempts.push({ variant: `people:${st}`, http: 0, ok: false, error: (e as Error).message, after: null });
+          }
+        }
+      }
+
+      return json(200, {
+        ok: !!landedWith,
+        current_email: currentEmail,
+        target,
+        people_id: peopleId,
+        landed_with: landedWith,
+        attempts,
+        view_keys: Object.keys(b0),
+      });
+    }
+
 
     // ---------- attach_employee_id_by_email ----------
     // Repair path for records that were created in Razorpay but lost their
@@ -2771,6 +2863,7 @@ Deno.serve(async (req) => {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 20000);
         let httpStatus = 0; let ok = false; let errText: string | null = null;
+        let emailDashboardOnly: string | null = null;
         try {
           const res = await fetch(`${BASE}/people`, {
             method: "POST",
@@ -2818,13 +2911,34 @@ Deno.serve(async (req) => {
               if (r.ok && (await emailLanded())) { landed = true; ok = true; errText = null; break; }
             }
             if (!landed) {
-              ok = false;
-              errText = `RazorpayX did not apply the work-email change (${snapEmail} → ${wantedNewEmail}) via people:edit. Out of RazorpayX API scope on this tenant — change it in the RazorpayX dashboard, then rescan.`;
+              // VERIFIED (live probe, 2026-09-02 IST): the work email is the
+              // identity key of an Opfin person. people:edit accepts every
+              // email-change spelling with HTTP 200 and silently keeps the old
+              // address; people:edit-email / change-email / update-email do not
+              // exist (code 23). Out of RazorpayX API Scope / Limitation —
+              // dashboard-only field.
+              // So: drop the email from the payload and re-push the REST of the
+              // fields so a dashboard-only field never blocks the whole edit.
+              const rest: Record<string, any> = { ...wirePatch, email: snapEmail };
+              delete rest["new-email"];
+              delete rest["work-email"];
+              delete rest["personal-email"];
+              delete rest["email-id"];
+              const writableRest = Object.keys(rest).filter((k) => k !== "email");
+              if (writableRest.length > 0) {
+                const r2 = await opfinEditPerson({ "employee-id": eid, "employee-type": "employee", ...rest });
+                ok = r2.ok;
+                errText = r2.ok ? null : (r2.error || `HTTP ${r2.status}`);
+              } else {
+                ok = true; errText = null;
+              }
+              emailDashboardOnly = `Work email is RazorpayX's identity key and cannot be changed through the Payroll API (verified live: every people:edit variant returns 200 but keeps the old address; no change-email sub-type exists). Change ${snapEmail} → ${wantedNewEmail} in the RazorpayX dashboard (People → employee → Edit), then rescan. All other fields were pushed.`;
             }
           } else {
             ok = true; errText = null;
           }
         }
+
 
 
 
@@ -2850,7 +2964,13 @@ Deno.serve(async (req) => {
           } else {
             await svc.from("hr_razorpay_settings").update({ last_push_at: new Date().toISOString() }).eq("is_singleton", true);
           }
-          rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "pushed", changed: diff.changed });
+          rows.push({
+            razorpay_employee_id: m.razorpay_employee_id,
+            status: emailDashboardOnly ? "pushed_email_dashboard_only" : "pushed",
+            changed: diff.changed,
+            dashboard_only_fields: emailDashboardOnly ? ["email"] : undefined,
+            note: emailDashboardOnly || undefined,
+          });
         } else {
           failed++;
           rows.push({ razorpay_employee_id: m.razorpay_employee_id, status: "failed", changed: diff.changed, error: errText });

@@ -16,9 +16,11 @@ is the ONLY LOP calculator that payroll (shadow + real) is allowed to consume.
 | approved paid leave actually covered by a balance / weekly-off / holiday | 0 |
 | **approved paid-type leave NOT covered by any balance** (cascade shortfall, `hr_leave_requests.unpaid_days`) | **1.0 per uncovered working day** |
 | **day worked during approved leave** (`hr_leave_worked_days`) | **0 — counted as attendance only, never as leave** |
+| **day already fully credited as attended** | **overlapping approved leave adds nothing (no double credit); half-days still allow half work + half leave** |
+| **approved regularisation** | **credited once, through the day's final marked status — an approved regularisation does not additionally excuse the day** |
 | **day with an OPEN watchdog session** | **0 (held harmless)** |
-| **policy late occurrences** | **1 LOP day per `late_count_for_lop` lates** (only if threshold > 0) |
-| **policy half-day occurrences** | **1 extra LOP day per `half_day_count_for_lop` half-days** (only if threshold > 0) |
+| **policy late occurrences** | **1 LOP day per `late_count_for_lop` distinct late DATES** (only if threshold > 0; currently 0 = disabled) |
+| **policy half-day occurrences** | **disabled by owner decision (2026-09-02): `half_day_count_for_lop = 0`, so a half-day costs 0.5 day and nothing more** |
 
 ## Policy-driven LOP
 
@@ -26,12 +28,11 @@ The active default `hr_attendance_policies` row drives two optional extra LOP
 rules:
 
 - `late_count_for_lop`: number of late-come occurrences that add 1 LOP day.
-  Set to `0` to disable late-based LOP deductions entirely.
-- `half_day_count_for_lop`: number of half-day occurrences that add 1 extra
-  LOP day on top of the base 0.5-per-half-day deduction. Set to `0` to disable.
+  Counted as distinct late **dates** (two late punches in a day = 1).
+  Set to `0` to disable late-based LOP deductions entirely. **Currently 0.**
+- `half_day_count_for_lop`: extra LOP days on top of the base 0.5-per-half-day
+  deduction. **Currently 0 — owner decision, no extra half-day penalty.**
 
-These thresholds are read from the default policy inside `hr_lop_days` and
-`hr_lop_days_window`.
 
 ## Fairness gate
 

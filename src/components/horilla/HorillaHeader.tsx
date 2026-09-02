@@ -250,7 +250,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
                 </Button>
               )}
             </div>
-            <ScrollArea className="max-h-[350px]">
+            <ScrollArea className="h-[min(350px,60vh)]">
               {notifications.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">No notifications</div>
               ) : notifications.map((n: any) => (

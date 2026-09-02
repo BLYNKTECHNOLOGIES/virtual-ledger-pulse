@@ -1875,6 +1875,32 @@ Deno.serve(async (req) => {
         attempts.push({ variant: v.label, http: r.status, ok: r.ok, error: r.error, after });
         if (after === target) { landedWith = v.label; break; }
       }
+
+      // Alternate sub-types: some Opfin tenants expose a dedicated email-change
+      // sub-type instead of allowing people:edit to rewrite the identity key.
+      if (!landedWith) {
+        const subTypes = ["edit-email", "change-email", "update-email", "edit-work-email"];
+        for (const st of subTypes) {
+          try {
+            const res = await fetch(`${BASE}/people`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                auth: authBlock(),
+                request: { type: "people", "sub-type": st },
+                data: { ...base, email: currentEmail, "new-email": target },
+              }),
+            });
+            const raw = await res.text();
+            const after = await readBack();
+            attempts.push({ variant: `people:${st}`, http: res.status, ok: after === target, error: raw.slice(0, 200), after });
+            if (after === target) { landedWith = `people:${st}`; break; }
+          } catch (e) {
+            attempts.push({ variant: `people:${st}`, http: 0, ok: false, error: (e as Error).message, after: null });
+          }
+        }
+      }
+
       return json(200, {
         ok: !!landedWith,
         current_email: currentEmail,

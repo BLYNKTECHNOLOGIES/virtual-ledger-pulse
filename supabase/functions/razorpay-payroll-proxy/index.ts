@@ -1741,6 +1741,33 @@ Deno.serve(async (req) => {
         if (!editRes.ok) {
           return json(200, { ok: false, error: editRes.error || `HTTP ${editRes.status}`, http_status: editRes.status, applied, skipped, sent: data });
         }
+
+        // EMAIL CHANGE. people:edit resolves the person by `email`. When the
+        // edit IS the email change, sending only the new address makes Opfin
+        // look up a person that does not exist yet — it answers 200 and
+        // silently keeps the old address. Retry with identity-preserving
+        // variants (keyed by the CURRENT email / people-id) and verify each
+        // one with people:view before declaring anything applied.
+        const wantedEmail = String(data["email"] || "").trim().toLowerCase();
+        if (applied.includes("email") && currentEmail && wantedEmail && wantedEmail !== currentEmail) {
+          const emailLanded = async (): Promise<boolean> => {
+            const v = await opfinView(rpId, "employee");
+            const cur = String(
+              (v.body as any)?.email ?? (v.body as any)?.work_email ?? (v.body as any)?.["work-email"] ?? "",
+            ).trim().toLowerCase();
+            return cur === wantedEmail;
+          };
+          if (!(await emailLanded())) {
+            const variants: Array<Record<string, any>> = [
+              { ...data, email: currentEmail, "new-email": wantedEmail },
+              { ...data, email: currentEmail, "work-email": wantedEmail, "personal-email": wantedEmail },
+            ];
+            for (const variant of variants) {
+              const r = await opfinEditPerson(variant);
+              if (r.ok && (await emailLanded())) { editRes = r; break; }
+            }
+          }
+        }
       }
       let salaryResult: any = null;
       if (ctcAnnual) {
@@ -1797,7 +1824,10 @@ Deno.serve(async (req) => {
         unconfirmed.push(...Object.keys(expectedReadBack).filter(f => f !== "ctc"));
       }
       if (mismatched.length > 0) {
-        return json(200, { ok: false, error: `RazorpayX read-back mismatch after write: ${mismatched.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult });
+        const emailBlocked = mismatched.some((m) => m.field === "email");
+        return json(200, { ok: false, error: emailBlocked
+            ? "RazorpayX did not apply the work-email change. Out of RazorpayX API scope: people:edit identifies the person by their current email, and this tenant rejects/ignores a change of that address — update the work email in the RazorpayX dashboard, then re-run the health check."
+            : `RazorpayX read-back mismatch after write: ${mismatched.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult });
       }
       return json(200, { ok: true, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, body: editRes.body, salary: salaryResult });
     }

@@ -105,7 +105,8 @@ Deno.serve(async (req) => {
     }
 
     const rows: any[] = [];
-    const toUpsert: any[] = [];
+    const toInsert: any[] = [];
+    const toUpdate: any[] = [];
     const toDelete: string[] = [];
 
     for (const map of roster as any[]) {

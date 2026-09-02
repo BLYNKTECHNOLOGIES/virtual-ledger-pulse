@@ -684,7 +684,12 @@ export default function DepositManagementPage() {
             <Button size="sm" variant="ghost" className="h-7" onClick={() => setShowTransactions(d.id)} title="View ledger">
               <Eye className="h-3 w-3" />
             </Button>
-            {state !== "refunded" && (
+            {state !== "refunded" && locked && (
+              <span className="text-[11px] text-muted-foreground self-center px-1">
+                Handled in F&amp;F
+              </span>
+            )}
+            {state !== "refunded" && !locked && (
               <>
                 <Button size="sm" variant="ghost" className="h-7" onClick={() => openEdit(d)} title="Edit">
                   <Edit2 className="h-3 w-3" />

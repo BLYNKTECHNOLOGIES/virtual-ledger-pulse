@@ -515,6 +515,9 @@ export default function DepositManagementPage() {
       case "completed": return "bg-success/10 text-success";
       case "paused": return "bg-warning/10 text-warning";
       case "resumed": return "bg-info/10 text-info";
+      case "withheld": return "bg-destructive/10 text-destructive";
+      case "reserved": return "bg-primary/10 text-primary";
+      case "released": return "bg-muted text-foreground";
       default: return "bg-muted text-foreground";
     }
   };
@@ -531,6 +534,9 @@ export default function DepositManagementPage() {
       case "completed": return "Completed";
       case "paused": return "Paused";
       case "resumed": return "Resumed";
+      case "withheld": return "Withheld in F&F";
+      case "reserved": return "Reserved for F&F";
+      case "released": return "Released from F&F";
       default: return type;
     }
   };

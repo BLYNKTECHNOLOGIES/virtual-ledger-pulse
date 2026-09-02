@@ -7,10 +7,18 @@ import {
   AlertTriangle,
   CheckCircle2,
   RefreshCw,
-  Filter,
   ShieldAlert,
   Loader2,
+  ChevronDown,
+  MoreHorizontal,
+  ArrowRight,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   pushIdentityToRazorpay,
   pushBankToRazorpay,
@@ -464,336 +472,374 @@ export default function DataHealthPage() {
     }
   }
 
-  return (
+  // Group the worklist by person so one employee with several drifts reads as
+  // a single block instead of N unrelated cards.
+  const groups = useMemo(() => {
+    const map = new Map<string, { empId: string; name: string; badge: string | null; isActive: boolean; rows: Drift[] }>();
+    for (const d of filtered) {
+      const g = map.get(d.hr_employee_id) ?? {
+        empId: d.hr_employee_id,
+        name: d.employee_name || "Unknown employee",
+        badge: d.badge_id,
+        isActive: d.is_active,
+        rows: [],
+      };
+      g.rows.push(d);
+      map.set(d.hr_employee_id, g);
+    }
+    return Array.from(map.values());
+  }, [filtered]);
 
-    <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
-      <header className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/85 backdrop-blur border-b border-border flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
-          <ShieldAlert className="h-5 w-5 text-[#E8604C]" />
-          Data Health
-          {empFilter && (
-            <button
-              onClick={() => setParams({})}
-              className="text-[11px] font-normal rounded-full border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
-            >
-              1 employee · clear
-            </button>
-          )}
-        </h1>
-        <button
-          onClick={runScan}
-          disabled={scanning}
-          className="inline-flex items-center gap-2 rounded-lg bg-[#E8604C] px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-[#d04e3c] disabled:opacity-50"
-        >
-          {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Rescan now
-        </button>
+  const counters: Array<{ key: string; label: string; value: number; tone: string; onClick?: () => void; active?: boolean }> = [
+    { key: "open", label: "Open", value: kpis.total, tone: "text-foreground", onClick: () => { setSeverity("all"); setUnexplainedOnly(false); }, active: severity === "all" && !unexplainedOnly },
+    { key: "unexplained", label: "Unexplained", value: kpis.unexplained, tone: kpis.unexplained > 0 ? "text-destructive" : "text-success", onClick: () => toggleUnexplained(!unexplainedOnly), active: unexplainedOnly },
+    { key: "critical", label: "Critical", value: kpis.critical, tone: kpis.critical > 0 ? "text-destructive" : "text-muted-foreground", onClick: () => setSeverity(severity === "critical" ? "all" : "critical"), active: severity === "critical" },
+    { key: "high", label: "High", value: kpis.high, tone: kpis.high > 0 ? "text-destructive/80" : "text-muted-foreground", onClick: () => setSeverity(severity === "high" ? "all" : "high"), active: severity === "high" },
+    { key: "medium", label: "Medium", value: kpis.medium, tone: kpis.medium > 0 ? "text-warning" : "text-muted-foreground", onClick: () => setSeverity(severity === "medium" ? "all" : "medium"), active: severity === "medium" },
+    { key: "employees", label: "Employees", value: kpis.employees, tone: "text-foreground" },
+  ];
+
+  function toggleUnexplained(next: boolean) {
+    setUnexplainedOnly(next);
+    const p = new URLSearchParams(params);
+    if (next) p.set("unexplained", "1"); else p.delete("unexplained");
+    setParams(p, { replace: true });
+  }
+
+  return (
+    <div className="w-full px-4 md:px-6 pb-6 space-y-4 page-mount">
+      {/* Command bar — identity, scan, counters and filters in one block */}
+      <header className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/90 backdrop-blur border-b border-border space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
+            <ShieldAlert className="h-5 w-5 text-primary" />
+            Data Health
+            {empFilter && (
+              <button
+                onClick={() => setParams({})}
+                className="text-[11px] font-normal rounded-full border border-border px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+              >
+                1 employee · clear
+              </button>
+            )}
+          </h1>
+          <button
+            onClick={runScan}
+            disabled={scanning}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+          >
+            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            Rescan now
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+          {counters.map((c) => {
+            const content = (
+              <>
+                <span className={`text-sm font-semibold tabular-nums ${c.tone}`}>{c.value}</span>
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{c.label}</span>
+              </>
+            );
+            return c.onClick ? (
+              <button
+                key={c.key}
+                onClick={c.onClick}
+                data-active={c.active}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 transition-colors hover:bg-muted data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10"
+              >
+                {content}
+              </button>
+            ) : (
+              <span key={c.key} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1">
+                {content}
+              </span>
+            );
+          })}
+
+          <span className="mx-1 hidden h-5 w-px bg-border md:inline-block" />
+
+          <label className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground cursor-pointer select-none hover:bg-muted">
+            <Checkbox
+              checked={unexplainedOnly}
+              onCheckedChange={(v) => toggleUnexplained(v === true)}
+              className="h-3.5 w-3.5"
+            />
+            Unexplained only
+          </label>
+
+          <Select value={severity} onValueChange={setSeverity}>
+            <SelectTrigger className="h-8 w-[150px] text-xs text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All severities</SelectItem>
+              <SelectItem value="critical">Critical</SelectItem>
+              <SelectItem value="high">High</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="low">Low</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={systemPair} onValueChange={setSystemPair}>
+            <SelectTrigger className="h-8 w-[170px] text-xs text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All system pairs</SelectItem>
+              <SelectItem value="hrms_razorpay">HRMS ↔ Razorpay</SelectItem>
+              <SelectItem value="hrms_essl">HRMS ↔ eSSL</SelectItem>
+              <SelectItem value="razorpay_essl">Razorpay ↔ eSSL</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+            showing {filtered.length}/{kpis.total}
+          </span>
+        </div>
       </header>
 
-      {/* KPIs */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden grid grid-cols-3 md:grid-cols-6 divide-x divide-y md:divide-y-0 divide-border">
-        {[
-          { label: "Open", value: kpis.total, tone: "text-foreground" },
-          { label: "Unexplained", value: kpis.unexplained, tone: kpis.unexplained > 0 ? "text-destructive" : "text-success" },
-          { label: "Critical", value: kpis.critical, tone: kpis.critical > 0 ? "text-destructive" : "text-muted-foreground" },
-          { label: "High", value: kpis.high, tone: kpis.high > 0 ? "text-destructive/80" : "text-muted-foreground" },
-          { label: "Medium", value: kpis.medium, tone: kpis.medium > 0 ? "text-warning" : "text-muted-foreground" },
-          { label: "Employees", value: kpis.employees, tone: "text-foreground" },
-        ].map((k) => (
-          <div key={k.label} className="px-3 py-3 md:px-4">
-            <div className="text-[10px] uppercase tracking-wide text-muted-foreground truncate">{k.label}</div>
-            <div className={`text-2xl font-semibold mt-0.5 tabular-nums ${k.tone}`}>{k.value}</div>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
+        {/* Worklist */}
+        <section className="rounded-xl border border-border bg-card overflow-hidden">
+          {isLoading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+              Loading…
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center text-sm text-muted-foreground">
+              <CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />
+              In sync
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {groups.map((g) => (
+                <div key={g.empId}>
+                  <div className="flex flex-wrap items-center gap-2 bg-muted/40 px-3 md:px-4 py-2 border-b border-border">
+                    <Link
+                      to={`/hrms/employee/${g.empId}`}
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      {g.name}
+                    </Link>
+                    <span className="text-[11px] font-mono text-muted-foreground bg-background border border-border px-1.5 py-0.5 rounded">
+                      ID: {g.badge || "—"}
+                    </span>
+                    {!g.isActive && (
+                      <span className="text-[10px] uppercase text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        inactive
+                      </span>
+                    )}
+                    <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">
+                      {g.rows.length} issue{g.rows.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  <div className="divide-y divide-border/60">
+                    {g.rows.map((d) => {
+                      const canPush = !!PUSH_BY_FIELD[d.field] || (d.field === "active_state" && !d.is_active);
+                      const canPull = PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay");
+                      const esslRemoval = d.field === "active_state" && !d.is_active;
+                      const canEssl = ESSL_PUSHABLE_FIELDS.has(d.field);
+                      const busy = resolvingId === d.id;
+
+                      return (
+                        <div
+                          key={d.id}
+                          className="px-3 md:px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3 transition-colors hover:bg-muted/30"
+                        >
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${SEVERITY_STYLE[d.severity]}`}>
+                                {d.severity}
+                              </span>
+                              <span className="text-sm font-medium text-foreground">
+                                {FIELD_LABEL[d.field] || d.field}
+                              </span>
+                              {d.field === "active_state" && d.razorpay_value === "inactive" && d.hrms_value === "active" && (
+                                <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-warning/15 text-warning">
+                                  dismissal pending in HRMS
+                                </span>
+                              )}
+                            </div>
+
+                            {isPushFailureAlert(d) ? (
+                              <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs space-y-1">
+                                <div className="text-foreground">
+                                  {d.resolution_note || "Last push did not verify."}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground tabular-nums">
+                                  {new Date(d.first_seen_at).toLocaleString("en-IN")}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                                <ValuePill label="HRMS" value={d.hrms_value} highlight />
+                                {d.razorpay_value !== null && d.razorpay_value !== undefined && (
+                                  <>
+                                    <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    <ValuePill label="Razorpay" value={d.razorpay_value} />
+                                  </>
+                                )}
+                                {d.essl_value !== null && d.essl_value !== undefined && (
+                                  <>
+                                    <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                                    <ValuePill label="eSSL" value={d.essl_value} />
+                                  </>
+                                )}
+                              </div>
+                            )}
+
+                            {d.merged_note && (
+                              <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-foreground">
+                                {d.merged_note}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              disabled={busy || !canPush}
+                              onClick={() => adoptHrms(d)}
+                              className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
+                            >
+                              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                              {esslRemoval ? "Dismiss in RazorpayX" : "Push → Razorpay"}
+                            </button>
+
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  className="inline-flex items-center justify-center rounded-md border border-border h-[30px] w-8 text-muted-foreground hover:bg-muted"
+                                  aria-label="More actions"
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-56">
+                                {canPull && (
+                                  <DropdownMenuItem
+                                    disabled={pulling}
+                                    onSelect={() =>
+                                      setPullTarget({
+                                        driftId: d.id,
+                                        hrEmployeeId: d.hr_employee_id,
+                                        employeeName: d.employee_name || "Unknown employee",
+                                        field: d.field,
+                                        fieldLabel: FIELD_LABEL[d.field] || d.field,
+                                        hrmsValue: d.hrms_value,
+                                        razorpayValue: d.razorpay_value,
+                                      })
+                                    }
+                                  >
+                                    Pull ← Razorpay
+                                  </DropdownMenuItem>
+                                )}
+                                {canEssl && (
+                                  <DropdownMenuItem
+                                    disabled={busy}
+                                    onSelect={() => (esslRemoval ? setEsslDeleteTarget(d) : adoptEssl(d))}
+                                  >
+                                    {esslRemoval ? "Remove from eSSL device" : "Push → eSSL device"}
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem
+                                  disabled={busy}
+                                  onSelect={() => markResolved(d, "Manually marked resolved")}
+                                >
+                                  Mark resolved
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* System checks rail */}
+        <aside className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-1 gap-3">
+            <PayslipParityTile />
+            <EmailDispatchHealthTile />
+            <RosterCompletenessTile />
           </div>
-        ))}
-      </div>
 
-
-      {/* Ghost email residual — dispatcher retries have escalated to dead-letter */}
-      {ghostResidual && ghostResidual.length > 0 && (
-        <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium text-foreground">
-                Ghost email residual — {ghostResidual.length} message{ghostResidual.length === 1 ? "" : "s"} dead-lettered after retries
-              </div>
-              <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
+          {ghostResidual && ghostResidual.length > 0 && (
+            <RailSection
+              title={`Ghost email residual — ${ghostResidual.length} dead-lettered`}
+              tone="destructive"
+              defaultOpen
+            >
+              <ul className="space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
                 {ghostResidual.slice(0, 3).map((g) => (
                   <li key={g.id}>
                     <span className="font-mono">{g.recipient ?? "—"}</span> · {g.subject ?? "(no subject)"} · {g.last_error ?? "unknown"}
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
-        </div>
-      )}
+            </RailSection>
+          )}
 
-
-      {/* Payroll infra health */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <PayslipParityTile />
-        <EmailDispatchHealthTile />
-        <RosterCompletenessTile />
-      </div>
-
-      {/* Roster drift — people in RazorpayX with no HRMS employee record */}
-      <RazorpayOrphanPanel scanSignal={scanSignal} />
-
-      {/* ERP login accounts vs HRMS */}
-      <ErpAccountHealthPanel />
-
-
-
-
-      {/* Statutory drift rollup — Razorpay filing toggles vs actual payslip amounts */}
-      {statutoryDrift.count > 0 && (
-        <div className="rounded-xl border border-warning/40 bg-warning/5 p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-warning" />
-                <span className="text-sm font-medium text-foreground">
-                  Statutory filing drift — {statutoryDrift.count} mismatch{statutoryDrift.count === 1 ? "" : "es"} across {statutoryDrift.employees} employee{statutoryDrift.employees === 1 ? "" : "s"}
-                </span>
-              </div>
-              <ul className="mt-2 space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
+          {statutoryDrift.count > 0 && (
+            <RailSection
+              title={`Statutory filing drift — ${statutoryDrift.count} mismatch${statutoryDrift.count === 1 ? "" : "es"} · ${statutoryDrift.employees} employee${statutoryDrift.employees === 1 ? "" : "s"}`}
+              tone="warning"
+              defaultOpen
+            >
+              <ul className="space-y-0.5 text-[11px] text-muted-foreground list-disc list-inside">
                 {statutoryDrift.samples.slice(0, 3).map((s: any) => (
                   <li key={s.id}>
                     <span className="font-mono">{s.period_month}</span> · {s.msgs[0]}
                   </li>
                 ))}
               </ul>
-            </div>
-          </div>
-        </div>
-      )}
+            </RailSection>
+          )}
 
-      {/* Unknown per-employee statutory enrollment */}
-      {unknownEnrollmentRows && unknownEnrollmentRows.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-foreground">
-                  Statutory enrollment unknown — {unknownEnrollmentRows.length} employee{unknownEnrollmentRows.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              <div className="mt-2 text-[11px] text-muted-foreground">
+          {unknownEnrollmentRows && unknownEnrollmentRows.length > 0 && (
+            <RailSection
+              title={`Statutory enrollment unknown — ${unknownEnrollmentRows.length} employee${unknownEnrollmentRows.length === 1 ? "" : "s"}`}
+              tone="muted"
+              defaultOpen
+            >
+              <div className="text-[11px] text-muted-foreground">
                 {unknownEnrollmentRows.slice(0, 6).map((r: any) => `${r.first_name ?? ""} ${r.last_name ?? ""}`.trim() || `#${r.badge_id}`).join(", ")}
                 {unknownEnrollmentRows.length > 6 ? ` … +${unknownEnrollmentRows.length - 6} more` : ""}
               </div>
-
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={deriveAllEnrollment}
-                disabled={derivingEnrollment}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap disabled:opacity-50"
-              >
-                {derivingEnrollment ? "Deriving…" : "Derive from history"}
-              </button>
-              <Link
-                to="/hrms/payroll/salary-register-import"
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap"
-              >
-                Import Register
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-        <Filter className="h-4 w-4 text-muted-foreground" />
-        <label className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-foreground cursor-pointer select-none hover:bg-muted">
-          <input
-            type="checkbox"
-            checked={unexplainedOnly}
-            onChange={(e) => {
-              setUnexplainedOnly(e.target.checked);
-              const next = new URLSearchParams(params);
-              if (e.target.checked) next.set("unexplained", "1"); else next.delete("unexplained");
-              setParams(next, { replace: true });
-            }}
-            className="rounded border-border"
-          />
-          Unexplained only
-        </label>
-
-
-        <select
-          value={severity}
-          onChange={(e) => setSeverity(e.target.value)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-        >
-          <option value="all">All severities</option>
-          <option value="critical">Critical</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
-        <select
-          value={systemPair}
-          onChange={(e) => setSystemPair(e.target.value)}
-          className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
-        >
-          <option value="all">All system pairs</option>
-          <option value="hrms_razorpay">HRMS ↔ Razorpay</option>
-          <option value="hrms_essl">HRMS ↔ eSSL</option>
-          <option value="razorpay_essl">Razorpay ↔ eSSL</option>
-        </select>
-        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-          {filtered.length}/{kpis.total}
-        </span>
-      </div>
-
-      {/* Rows */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-            Loading…
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted-foreground">
-            <CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />
-            In sync
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {filtered.map((d) => (
-              <div key={d.id} className="p-3 md:p-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_auto] gap-3 transition-colors hover:bg-muted/40">
-
-                <div className="space-y-1.5">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded ${SEVERITY_STYLE[d.severity]}`}>
-                      {d.severity}
-                    </span>
-                    <span className="text-sm font-medium text-foreground">
-                      {FIELD_LABEL[d.field] || d.field}
-                    </span>
-                    {!d.is_active && (
-                      <span className="text-[10px] uppercase text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        inactive
-                      </span>
-                    )}
-                    {d.field === "active_state" && d.razorpay_value === "inactive" && d.hrms_value === "active" && (
-                      <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-warning/15 text-warning">
-                        dismissal pending in HRMS
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      to={`/hrms/employee/${d.hr_employee_id}`}
-                      className="text-sm font-semibold text-primary hover:underline"
-                    >
-                      {d.employee_name || "Unknown employee"}
-                    </Link>
-                    <span className="text-[11px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                      ID: {d.badge_id || "—"}
-                    </span>
-                  </div>
-
-                  {isPushFailureAlert(d) ? (
-                    <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs space-y-1">
-                      <div className="text-foreground">
-                        {d.resolution_note || "Last push did not verify."}
-                      </div>
-                      <div className="text-[11px] text-muted-foreground tabular-nums">
-                        {new Date(d.first_seen_at).toLocaleString("en-IN")}
-                      </div>
-                    </div>
-                  ) : (
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                      <ValueCol label="HRMS" value={d.hrms_value} highlight />
-                      <ValueCol label="Razorpay" value={d.razorpay_value} />
-                      <ValueCol label="eSSL" value={d.essl_value} />
-                    </div>
-                  )}
-
-                  {d.merged_note && (
-                    <div className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-foreground">
-                      {d.merged_note}
-                    </div>
-                  )}
-
-
-
-                </div>
-                <div className="flex flex-wrap md:flex-col gap-2 md:justify-center">
-                  <button
-                    disabled={resolvingId === d.id || (!PUSH_BY_FIELD[d.field] && !(d.field === "active_state" && !d.is_active))}
-                    onClick={() => adoptHrms(d)}
-                    className="inline-flex items-center gap-1 rounded-md bg-[#E8604C] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#d04e3c] disabled:opacity-50"
-                  >
-                    {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                    {d.field === "active_state" && !d.is_active ? "Dismiss in RazorpayX" : "Push → Razorpay"}
-                  </button>
-                  {PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay") && (
-                    <button
-                      disabled={pulling}
-                      onClick={() =>
-                        setPullTarget({
-                          driftId: d.id,
-                          hrEmployeeId: d.hr_employee_id,
-                          employeeName: d.employee_name || "Unknown employee",
-                          field: d.field,
-                          fieldLabel: FIELD_LABEL[d.field] || d.field,
-                          hrmsValue: d.hrms_value,
-                          razorpayValue: d.razorpay_value,
-                        })
-                      }
-                      title="Overwrite the HRMS value with the value RazorpayX holds (re-read live on confirm)."
-                      className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
-                    >
-                      Pull ← Razorpay
-                    </button>
-                  )}
-                  {ESSL_PUSHABLE_FIELDS.has(d.field) && (
-                    (() => {
-                      // eSSL firmware has no "inactive" user state — the only
-                      // roster action is DELETE USERINFO. Safe for payroll:
-                      // punches live in hr_attendance_punches keyed to the HRMS
-                      // employee (device-user rows are a mirror), so removing
-                      // the device user never retracts attendance history.
-                      const removal = d.field === "active_state" && !d.is_active;
-                      return (
-                        <button
-                          disabled={resolvingId === d.id}
-                          onClick={() => (removal ? setEsslDeleteTarget(d) : adoptEssl(d))}
-                          title={
-                            removal
-                              ? "Queues DATA DELETE USERINFO on every device. Attendance history stays in HRMS."
-                              : "Queues DATA UPDATE USERINFO on every registered device. Applies on next poll (30–60s)."
-                          }
-                          className="inline-flex items-center gap-1 rounded-md border border-[#E8604C]/40 bg-[#E8604C]/5 px-3 py-1.5 text-xs font-medium text-[#E8604C] hover:bg-[#E8604C]/10 disabled:opacity-50"
-                        >
-                          {resolvingId === d.id ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                          {removal ? "Remove from eSSL device" : "Push → eSSL device"}
-                        </button>
-                      );
-                    })()
-                  )}
-                  <button
-                    disabled={resolvingId === d.id}
-                    onClick={() => markResolved(d, "Manually marked resolved")}
-                    className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
-                  >
-                    Mark resolved
-                  </button>
-                </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  onClick={deriveAllEnrollment}
+                  disabled={derivingEnrollment}
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap disabled:opacity-50"
+                >
+                  {derivingEnrollment ? "Deriving…" : "Derive from history"}
+                </button>
+                <Link
+                  to="/hrms/payroll/salary-register-import"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted whitespace-nowrap"
+                >
+                  Import Register
+                </Link>
               </div>
-            ))}
-          </div>
-        )}
+            </RailSection>
+          )}
+
+          <RailSection title="RazorpayX roster orphans" tone="muted">
+            <RazorpayOrphanPanel scanSignal={scanSignal} />
+          </RailSection>
+
+          <RailSection title="ERP login accounts" tone="muted">
+            <ErpAccountHealthPanel />
+          </RailSection>
+        </aside>
       </div>
-
-
 
       <PullFromRazorpayDialog
         target={pullTarget}
@@ -805,12 +851,11 @@ export default function DataHealthPage() {
       <AlertDialog open={!!esslDeleteTarget} onOpenChange={(o) => !o && setEsslDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {esslDeleteTarget?.employee_name || "employee"} from eSSL devices?</AlertDialogTitle>
+            <AlertDialogTitle>Remove from eSSL devices?</AlertDialogTitle>
             <AlertDialogDescription>
-              eSSL has no inactive state — the only roster action is deleting the user, which queues
-              DATA DELETE USERINFO on every registered device. Attendance history is safe: punches are
-              stored permanently in HRMS against the employee record, not read back from the device, so
-              past presence/absence and pending payroll remain intact after deletion.
+              This queues <span className="font-mono">DATA DELETE USERINFO</span> on every registered
+              device for {esslDeleteTarget?.employee_name}. Attendance history stays in HRMS — only the
+              device roster entry is removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -828,17 +873,54 @@ export default function DataHealthPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-
   );
 }
 
-function ValueCol({ label, value, highlight }: { label: string; value: string | null; highlight?: boolean }) {
+const RAIL_TONE: Record<string, string> = {
+  destructive: "border-destructive/40 bg-destructive/5",
+  warning: "border-warning/40 bg-warning/5",
+  muted: "border-border bg-card",
+};
+
+function RailSection({
+  title,
+  tone = "muted",
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  tone?: "destructive" | "warning" | "muted";
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className={`rounded-md border px-2 py-1.5 ${highlight ? "border-[#E8604C]/30 bg-[#E8604C]/5" : "border-border bg-background"}`}>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={`text-xs font-medium mt-0.5 truncate ${value ? "text-foreground" : "text-muted-foreground italic"}`}>
+    <Collapsible open={open} onOpenChange={setOpen} className={`rounded-xl border ${RAIL_TONE[tone]}`}>
+      <CollapsibleTrigger className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
+        {tone === "muted" ? (
+          <CheckCircle2 className="h-4 w-4 text-muted-foreground shrink-0" />
+        ) : (
+          <AlertTriangle className={`h-4 w-4 shrink-0 ${tone === "destructive" ? "text-destructive" : "text-warning"}`} />
+        )}
+        <span className="text-xs font-medium text-foreground min-w-0 flex-1">{title}</span>
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-3">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function ValuePill({ label, value, highlight }: { label: string; value: string | null; highlight?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 min-w-0 ${
+        highlight ? "border-primary/30 bg-primary/5" : "border-border bg-background"
+      }`}
+    >
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0">{label}</span>
+      <span className={`text-xs font-medium truncate ${value ? "text-foreground" : "text-muted-foreground italic"}`}>
         {value ?? "—"}
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }

@@ -415,7 +415,7 @@ export default function ShadowPayrollPage() {
               <div className="col-span-1 text-right">Δ Net</div>
             </div>
             {lines.map((l) => {
-              const shadowGross = l.monthly_gross + l.additions_total - l.lop_amount;
+              const shadowGross = l.monthly_gross;
               const netDiff = diff(l.net_pay, l.razorpay_net);
               const isOpen = expandedId === l.id;
               return (

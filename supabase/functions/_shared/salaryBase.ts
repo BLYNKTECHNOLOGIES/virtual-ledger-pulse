@@ -5,17 +5,21 @@
 // shadow line for the same employee would drift. Keep this the ONLY place the
 // ladder is expressed.
 //
+// AUTHORITY RULE (learned the hard way — July 2026, Satyam Shukla):
+// RazorpayX pays from ITS OWN salary figure, and every deduction we push is
+// subtracted from that figure. So the base we deduct against MUST be the same
+// number RazorpayX pays. His July LOP was computed off a stale onboarding CTC
+// of 1,80,000 (15,000/month) while RazorpayX paid 1,10,328 (9,194/month) —
+// the deduction was ~63% too large and he was underpaid.
+//
 // Order:
-//   1. Salary structure assignment (annual CTC / 12)
-//   2. RazorpayX annual CTC cached on hr_employees.total_salary (authority)
-//   3. RazorpayX-mirrored structure cache (component rows, annual amounts) —
-//      only when no CTC exists, and never when it contradicts the CTC. The
-//      mirrored components are a *derived* breakup (they carry employer-side
-//      loading) and summing them overstates the monthly base, which silently
-//      inflated LOP deductions. CTC always wins.
-//   3. Imported Salary Register gross for the period
-//   4. Onboarding annual CTC (local estimate)
+//   1. RazorpayX annual CTC cached on hr_employees.total_salary (AUTHORITY)
+//   2. Salary structure assignment (annual CTC / 12)
+//   3. RazorpayX-mirrored structure cache (component rows, annual amounts)
+//   4. Imported Salary Register regular gross for the period
 //   5. Most recent imported payslip on or before this period
+//   6. Onboarding annual CTC — LAST RESORT, and it is returned as an ERROR for
+//      deduction purposes: a local estimate must never drive money.
 
 export type SalaryBaseSource =
   | "structure_assignment"
@@ -30,7 +34,15 @@ export interface SalaryBaseResult {
   monthlyGross: number;
   source: SalaryBaseSource;
   error?: string;
+  /** Monthly salary mirrored from RazorpayX, when known. */
+  razorpayMonthly?: number;
+  /** True when the resolved base disagrees with the RazorpayX salary. */
+  mismatch?: boolean;
 }
+
+/** Fraction of the RazorpayX salary a fallback base may differ by. */
+const BASE_TOLERANCE = 0.01;
+
 
 export async function resolveMonthlyGross(
   supabase: any,

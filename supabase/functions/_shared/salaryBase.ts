@@ -50,6 +50,17 @@ export async function resolveMonthlyGross(
   periodStr: string, // YYYY-MM-01
   monthEndStr: string, // YYYY-MM-DD (last day of period)
 ): Promise<SalaryBaseResult> {
+  // 1. AUTHORITY: RazorpayX annual CTC cached on the employee record.
+  const { data: empRow } = await supabase
+    .from("hr_employees")
+    .select("total_salary")
+    .eq("id", employeeId)
+    .limit(1);
+  const razorpayAnnual = Number((empRow?.[0] as any)?.total_salary ?? 0);
+  // hr_employees.total_salary mirrors the RazorpayX CTC, which is annual by
+  // definition. Never guess the unit from the magnitude.
+  const razorpayMonthly = razorpayAnnual > 0 ? Math.round(razorpayAnnual / 12) : 0;
+
   const { data: salaryAssignArr, error: saErr } = await supabase
     .from("hr_employee_salary_structure_assignments")
     .select("*")
@@ -63,27 +74,21 @@ export async function resolveMonthlyGross(
 
   let monthlyGross = 0;
   let source: SalaryBaseSource = "none";
+  let mismatch = false;
 
-  if (salaryAssignArr?.length) {
+  if (razorpayMonthly > 0) {
+    monthlyGross = razorpayMonthly;
+    source = "razorpay_ctc";
+    // Flag (but do not follow) a local assignment that disagrees with payroll.
+    const assigned = Number(salaryAssignArr?.[0]?.annual_ctc ?? 0) / 12;
+    if (assigned > 0 && Math.abs(assigned - razorpayMonthly) > razorpayMonthly * BASE_TOLERANCE) {
+      mismatch = true;
+    }
+  } else if (salaryAssignArr?.length) {
     monthlyGross = Number(salaryAssignArr[0]?.annual_ctc ?? 0) / 12;
     if (monthlyGross > 0) source = "structure_assignment";
   }
 
-  // RazorpayX CTC cached on the employee record is the payroll authority.
-  if (!(monthlyGross > 0)) {
-    const { data: empRow } = await supabase
-      .from("hr_employees")
-      .select("total_salary")
-      .eq("id", employeeId)
-      .limit(1);
-    const ctc = Number((empRow?.[0] as any)?.total_salary ?? 0);
-    if (ctc > 0) {
-      // hr_employees.total_salary mirrors the RazorpayX CTC, which is annual by
-      // definition. Never guess the unit from the magnitude.
-      monthlyGross = ctc / 12;
-      source = "razorpay_ctc";
-    }
-  }
 
   if (!(monthlyGross > 0)) {
     const { data: mirror } = await supabase

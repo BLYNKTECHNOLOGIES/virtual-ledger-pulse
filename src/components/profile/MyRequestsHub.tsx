@@ -357,14 +357,52 @@ export default function MyRequestsHub({ employeeId }: Props) {
             <FileText className="h-4 w-4 text-primary" /> My Requests
           </CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
-          <RequestLeaveDialog employeeId={employeeId} />
-          <Dialog open={regOpen} onOpenChange={setRegOpen}>
-            <DialogTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" /> Regularization
+                <Plus className="h-4 w-4" /> Request
               </Button>
-            </DialogTrigger>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel className="text-xs">What do you want to raise?</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setLeaveOpen(true)} className="gap-2">
+                <CalendarClock className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm">Leave request</p>
+                  <p className="text-[11px] text-muted-foreground">Planned or past time off</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setRegOpen(true)} className="gap-2">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm">Attendance regularization</p>
+                  <p className="text-[11px] text-muted-foreground">You worked but a punch is missing</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setBankOpen(true)} className="gap-2">
+                <Landmark className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm">Bank change request</p>
+                  <p className="text-[11px] text-muted-foreground">Update your salary account</p>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <RequestLeaveDialog employeeId={employeeId} open={leaveOpen} onOpenChange={setLeaveOpen} hideTrigger />
+          <BankChangeRequestCard
+            employeeId={employeeId}
+            userId={userId}
+            defaultHolderName={defaultHolderName}
+            dialogOnly
+            open={bankOpen}
+            onOpenChange={setBankOpen}
+          />
+
+          <Dialog open={regOpen} onOpenChange={setRegOpen}>
             <DialogContent>
+
               <DialogHeader>
                 <DialogTitle>Raise Attendance Regularization</DialogTitle>
               </DialogHeader>

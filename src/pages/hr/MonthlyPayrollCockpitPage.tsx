@@ -246,7 +246,7 @@ function DetailLine({ step }: { step: CockpitStep }) {
     }
     case "run_on_razorpay":
       return (
-        <span className="text-amber-500">
+        <span className="text-warning">
           RazorpayX cannot confirm a payroll run via API — run payroll on the dashboard, then mark this step done.
           {d.processed_on ? ` Credited on ${new Date(String(d.processed_on)).toLocaleDateString("en-IN")}.` : ""}
         </span>

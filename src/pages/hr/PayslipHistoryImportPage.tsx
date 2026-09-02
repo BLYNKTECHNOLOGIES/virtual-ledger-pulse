@@ -217,7 +217,7 @@ export default function PayslipHistoryImportPage() {
           <CardContent className="space-y-3">
             <div className="flex flex-wrap gap-2 text-sm">
               <Badge variant="secondary">Months probed: {discovery.months}</Badge>
-              <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">Executed: {discovery.summary.executed}</Badge>
+              <Badge className="bg-success/15 text-success border-success/30" variant="outline">Executed: {discovery.summary.executed}</Badge>
               <Badge variant="outline">Seeded: {discovery.summary.seeded}</Badge>
               <Badge variant="outline">Already ready: {discovery.summary.already_bulk_applied}</Badge>
               <Badge variant="secondary">Not executed: {discovery.summary.not_executed}</Badge>
@@ -245,7 +245,7 @@ export default function PayslipHistoryImportPage() {
                         <td className="px-3 py-2">{m.http_status}</td>
                         <td className="px-3 py-2">
                           {m.executed
-                            ? <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30" variant="outline">yes</Badge>
+                            ? <Badge className="bg-success/15 text-success border-success/30" variant="outline">yes</Badge>
                             : <Badge variant="outline">no</Badge>}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{m.existing_status ?? "—"}</td>
@@ -267,7 +267,7 @@ export default function PayslipHistoryImportPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              <CheckCircle2 className="h-4 w-4 text-success" />
               Import result
             </CardTitle>
             <CardDescription>{result.note}</CardDescription>

@@ -164,7 +164,7 @@ export default function AttendancePeriodLockPage() {
                 <Lock className="h-3.5 w-3.5 text-success shrink-0" />
                 <span className="font-medium tabular-nums text-sm">{l.period_start} → {l.period_end}</span>
                 {l.is_system && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-500 border border-blue-500/30 uppercase tracking-wide">Auto</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-info/15 text-info border border-info/30 uppercase tracking-wide">Auto</span>
                 )}
               </div>
               <div className="text-[11px] text-muted-foreground">Locked: {l.locked_at ? new Date(l.locked_at).toLocaleString('en-IN') : '—'}</div>
@@ -211,7 +211,7 @@ export default function AttendancePeriodLockPage() {
                         <Lock className="h-3 w-3 inline mr-1 text-success" />
                         {l.period_start} → {l.period_end}
                         {l.is_system && (
-                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-500 border border-blue-500/30 uppercase tracking-wide">Auto</span>
+                          <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-info/15 text-info border border-info/30 uppercase tracking-wide">Auto</span>
                         )}
                       </td>
                       <td className="px-4 py-2 text-xs text-muted-foreground">

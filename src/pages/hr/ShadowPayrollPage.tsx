@@ -229,8 +229,8 @@ export default function ShadowPayrollPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
       {/* Big loud banner — this page is advisory only */}
-      <div className="rounded-xl border-2 border-amber-500/50 bg-amber-500/10 p-4 flex items-start gap-3">
-        <TestTube2 className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+      <div className="rounded-xl border-2 border-warning/50 bg-warning/10 p-4 flex items-start gap-3">
+        <TestTube2 className="h-5 w-5 text-warning shrink-0 mt-0.5" />
         <div>
           <div className="text-sm font-semibold text-foreground">Payroll Calculation (Building) — advisory only</div>
           <p className="text-xs text-muted-foreground mt-1">

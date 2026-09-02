@@ -380,9 +380,9 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   <span
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap",
-                      tone === "ok" && "border-emerald-500/40 text-emerald-600 bg-emerald-500/10",
-                      tone === "info" && "border-sky-500/40 text-sky-600 bg-sky-500/10",
-                      tone === "warn" && "border-amber-500/40 text-amber-600 bg-amber-500/10",
+                      tone === "ok" && "border-success/40 text-success bg-success/10",
+                      tone === "info" && "border-info/40 text-info bg-info/10",
+                      tone === "warn" && "border-warning/40 text-warning bg-warning/10",
                       tone === "bad" && "border-destructive/40 text-destructive bg-destructive/10",
                     )}
                   >
@@ -471,13 +471,13 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
               : category === "DEDUCTION"
                 ? "border-destructive/40 text-destructive bg-destructive/10"
                 : category === "ADDITION"
-                  ? "border-sky-500/40 text-sky-600 bg-sky-500/10"
+                  ? "border-info/40 text-info bg-info/10"
                   : isOneTime
                     ? "border-violet-500/40 text-violet-600 bg-violet-500/10"
                     : isScheduled
-                      ? "border-amber-500/40 text-amber-600 bg-amber-500/10"
+                      ? "border-warning/40 text-warning bg-warning/10"
                       : diff >= 0
-                        ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
+                        ? "border-success/40 text-success bg-success/10"
                         : "border-destructive/40 text-destructive bg-destructive/10";
 
 
@@ -576,7 +576,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 <div className="text-sm tabular-nums flex items-baseline gap-1.5 min-w-0">
                   {isPayrollInput ? (
                     <>
-                      <span className={cn("font-semibold", category === "DEDUCTION" ? "text-destructive" : "text-sky-600")}>
+                      <span className={cn("font-semibold", category === "DEDUCTION" ? "text-destructive" : "text-info")}>
                         {category === "DEDUCTION" ? "−" : "+"}{money(r.one_time_amount)}
                       </span>
                       <span className="text-[11px] text-muted-foreground truncate">
@@ -586,7 +586,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                     </>
                   ) : isOneTime ? (
                     <>
-                      <span className="font-semibold text-emerald-600">+{money(r.one_time_amount)}</span>
+                      <span className="font-semibold text-success">+{money(r.one_time_amount)}</span>
                       <span className="text-[11px] text-muted-foreground truncate">
                         {isRecordOnlyPayout
                           ? `outside payroll${r.payout_paid_on ? ` · ${format(new Date(r.payout_paid_on), "dd MMM yyyy")}` : ""}`
@@ -598,7 +598,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                       <span className="text-muted-foreground text-xs">{money(r.previous_total)}</span>
                       <span className="text-muted-foreground text-xs">→</span>
                       <span className="font-semibold text-foreground">{money(r.new_total)}</span>
-                      <span className={cn("text-[11px] font-medium shrink-0", diff >= 0 ? "text-emerald-600" : "text-destructive")}>
+                      <span className={cn("text-[11px] font-medium shrink-0", diff >= 0 ? "text-success" : "text-destructive")}>
                         {diff >= 0 ? "+" : "−"}{money(Math.abs(diff))}
                       </span>
                     </>
@@ -649,11 +649,11 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                     className={cn(
                       "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
                       envelopeVerified
-                        ? "border-emerald-500/40 text-emerald-600"
+                        ? "border-success/40 text-success"
                         : "border-destructive/40 text-destructive",
                     )}
                   >
-                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-emerald-500" : "bg-destructive")} />
+                    <span className={cn("h-1.5 w-1.5 rounded-full", envelopeVerified ? "bg-success" : "bg-destructive")} />
                     RazorpayX
                   </span>
                 </TooltipTrigger>

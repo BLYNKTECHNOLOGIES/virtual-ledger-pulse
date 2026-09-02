@@ -20,7 +20,7 @@ interface Props {
 }
 
 const DOT: Record<StationStatus, string> = {
-  done: "bg-emerald-500 text-white border-emerald-500",
+  done: "bg-success text-white border-success",
   active: "bg-primary text-primary-foreground border-primary shadow-[0_0_0_4px_hsl(var(--primary)/0.18)]",
   ready: "bg-background text-foreground border-border",
   locked: "bg-muted text-muted-foreground border-border/60",
@@ -62,7 +62,7 @@ export function RoadmapJourneyNav({
         <div className="flex items-center gap-2 shrink-0">
           <div className="h-1.5 w-20 sm:w-28 rounded-full bg-muted overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
+              className="h-full bg-gradient-to-r from-success to-success transition-all duration-500"
               style={{ width: `${pct}%` }}
             />
           </div>
@@ -117,7 +117,7 @@ export function RoadmapJourneyNav({
                       aria-hidden
                       className={cn(
                         "h-0.5 w-6 sm:w-8",
-                        nextDone ? "bg-emerald-500" : "bg-border"
+                        nextDone ? "bg-success" : "bg-border"
                       )}
                     />
                   )

@@ -469,6 +469,7 @@ export default function DepositManagementPage() {
       incident_reference: d.incident_reference || "",
       recovery_reason: d.recovery_reason || "",
     });
+    setEditReason("");
     setShowEdit(true);
   };
 
@@ -629,8 +630,9 @@ export default function DepositManagementPage() {
 
   const renderEntryRow = (d: any) => {
     const state = lifecycleOf(d);
+    const locked = isFnfLocked(d);
     const progress = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
-    const canRefund = state !== "refunded" && Number(d.collected_amount || 0) > 0;
+    const canRefund = state !== "refunded" && !locked && Number(d.collected_amount || 0) > 0;
     return (
       <TableRow key={d.id} className="bg-muted/20">
         <TableCell className="pl-10 text-sm text-muted-foreground">

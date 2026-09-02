@@ -815,6 +815,10 @@ export default function FnFSettlementPage() {
                 <p className="text-destructive">
                   If it was already pushed to RazorpayX, deletion is refused — remove the F&amp;F addition/deduction in RazorpayX first.
                 </p>
+                <p className="text-muted-foreground">
+                  The employee’s account stays deactivated if the settlement was already paid — reactivate it from the employee page if that is what you want.
+                </p>
+
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

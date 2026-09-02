@@ -91,6 +91,10 @@ const FIELD_LABEL: Record<string, string> = {
   bank_account: "Bank account #",
   bank_ifsc: "Bank IFSC",
   annual_ctc: "Annual CTC",
+  identity_bundle: "Identity details — push failure",
+  bank_bundle: "Bank details — push failure",
+  statutory_enrollment: "Statutory enrollment — push failure",
+  razorpay_link: "RazorpayX link — push failure",
   employment_bundle: "Employment details — push failure",
   dismissal_state: "Dismissal — push failure",
 };

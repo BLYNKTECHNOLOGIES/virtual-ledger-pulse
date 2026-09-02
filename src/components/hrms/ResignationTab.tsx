@@ -20,6 +20,7 @@ import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { createFnFDraft } from "@/lib/fnfEngine";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
+import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
 
 type ResignationEmployee = {
   id: string;

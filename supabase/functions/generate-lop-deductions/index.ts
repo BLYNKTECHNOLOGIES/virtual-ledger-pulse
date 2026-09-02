@@ -158,7 +158,20 @@ Deno.serve(async (req) => {
           rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
           toDelete.push(existingAuto.id);
         } else if (existingAuto?.pushed_at) {
-          rows.push({ ...base, status: "pushed", reason: "Already pushed to RazorpayX — left untouched", amount: Number(existingAuto.amount), base_source: null });
+          // Attendance now says no LOP but a row is already pushed — flag it,
+          // never silently rewrite a pushed row.
+          rows.push({
+            ...base,
+            status: "pushed",
+            stale_pushed: Number(existingAuto.amount) !== 0,
+            pushed_amount: Number(existingAuto.amount),
+            pushed_lop_days: existingAuto.lop_days === null ? null : Number(existingAuto.lop_days),
+            reason: Number(existingAuto.amount) !== 0
+              ? `Pushed row (₹${Number(existingAuto.amount)}) disagrees with current attendance (no LOP) — correct it in RazorpayX`
+              : "Already pushed to RazorpayX — left untouched",
+            amount: Number(existingAuto.amount),
+            base_source: null,
+          });
         } else {
           rows.push({ ...base, status: "no_lop", reason: offsetNote ?? "No loss of pay this month", amount: 0, base_source: null });
         }

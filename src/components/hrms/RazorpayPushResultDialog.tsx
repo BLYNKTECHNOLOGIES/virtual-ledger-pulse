@@ -189,7 +189,7 @@ export function RazorpayPushResultDialog({
             HRMS record was saved locally. This update is only complete after RazorpayX read-back confirms every field.
           </div>
           <div className="flex gap-2">
-            {(onRetry || detail.retry) && (
+            {!emailScopeBlock && (onRetry || detail.retry) && (
               <Button
                 variant="outline"
                 disabled={retrying}

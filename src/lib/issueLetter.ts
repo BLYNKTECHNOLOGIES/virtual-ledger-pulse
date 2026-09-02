@@ -32,7 +32,7 @@ export type IssuedLetter = {
 export async function findIssuedLetter(employeeId: string, category: string) {
   const { data } = await (supabase as any)
     .from("hr_documents_issued")
-    .select("id, reference_no, template_name, status, issued_at, pdf_path, file_path, emailed_at")
+    .select("id, reference_no, template_name, status, issued_at, pdf_path, file_path, file_mime, employee_id, employee_document_id, issued_by_name, delivered_at, delivered_to")
     .eq("employee_id", employeeId)
     .eq("category", category)
     .neq("status", "revoked")

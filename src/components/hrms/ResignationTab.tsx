@@ -15,11 +15,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
-import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail } from "lucide-react";
+import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail, ExternalLink } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { createFnFDraft } from "@/lib/fnfEngine";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
+import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
 
 type ResignationEmployee = {
   id: string;
@@ -69,6 +70,7 @@ export function ResignationTab() {
     separation_reason: "",
   });
   const [newTemplateItem, setNewTemplateItem] = useState({ item_title: "", category: "general" });
+  const [previewingRelieving, setPreviewingRelieving] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: string; id: string; label: string } | null>(null);
   const queryClient = useQueryClient();
 
@@ -780,18 +782,43 @@ export function ResignationTab() {
                           <p className="text-xs text-muted-foreground">
                             <span className="font-medium">{relievingLetter.reference_no}</span> issued
                             {relievingLetter.issued_at ? ` on ${new Date(relievingLetter.issued_at).toLocaleDateString("en-IN")}` : ""} · saved in the employee's Documents
-                            {relievingLetter.emailed_at ? ` · emailed ${new Date(relievingLetter.emailed_at).toLocaleDateString("en-IN")}` : ""}
+                            {relievingLetter.delivered_at ? ` · emailed ${new Date(relievingLetter.delivered_at).toLocaleDateString("en-IN")}${relievingLetter.delivered_to ? ` to ${relievingLetter.delivered_to}` : ""}` : ""}
                           </p>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs"
-                            disabled={emailRelieving.isPending}
-                            onClick={() => emailRelieving.mutate()}
-                          >
-                            <Mail className="h-3.5 w-3.5 mr-1" />
-                            {emailRelieving.isPending ? "Sending…" : relievingLetter.emailed_at ? "Email again" : "Email the relieving letter"}
-                          </Button>
+                          <div className="flex flex-wrap gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={previewingRelieving}
+                              onClick={async () => {
+                                setPreviewingRelieving(true);
+                                try {
+                                  const { path } = await ensureIssuedPdf(relievingLetter);
+                                  const { data, error } = await supabase.storage
+                                    .from("hr-doc-issued").createSignedUrl(path, 300);
+                                  if (error || !data?.signedUrl) throw error || new Error("Could not open the letter");
+                                  window.open(data.signedUrl, "_blank", "noopener");
+                                } catch (e: any) {
+                                  toast.error(e?.message || "Could not open the letter");
+                                } finally {
+                                  setPreviewingRelieving(false);
+                                }
+                              }}
+                            >
+                              <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                              {previewingRelieving ? "Opening…" : "Preview letter"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              disabled={emailRelieving.isPending}
+                              onClick={() => emailRelieving.mutate()}
+                            >
+                              <Mail className="h-3.5 w-3.5 mr-1" />
+                              {emailRelieving.isPending ? "Sending…" : relievingLetter.delivered_at ? "Email again" : "Email the relieving letter"}
+                            </Button>
+                          </div>
                         </>
                       ) : (
                         <>

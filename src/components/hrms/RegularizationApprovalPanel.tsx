@@ -235,6 +235,12 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
               <XCircle className="h-4 w-4 mr-2" /> Reject
             </Button>
           </div>
+          {request.status === "manager_review" && (
+            <p className="text-[11px] text-muted-foreground">
+              Awaiting the reporting manager's recommendation — HR can still decide now. A final HR decision removes
+              it from the manager's queue.
+            </p>
+          )}
           {request.status === "pending" && (
             <Button variant="outline" className="w-full h-10" disabled={pushToManager.isPending}
               onClick={() => pushToManager.mutate()}>

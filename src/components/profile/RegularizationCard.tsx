@@ -1,20 +1,10 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { Plus, Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Hourglass, Ban } from 'lucide-react';
 import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
-import {
-  buildRegularizationWindow,
-  validateRegularizationWindow,
-} from '@/lib/regularizationWindow';
 
 
 interface Props {

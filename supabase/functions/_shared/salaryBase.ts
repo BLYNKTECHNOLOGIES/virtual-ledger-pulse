@@ -119,7 +119,8 @@ export async function resolveMonthlyGross(
       .limit(1);
     const annual = Number((onb?.[0] as any)?.ctc ?? 0);
     if (annual > 0) {
-      monthlyGross = annual > 100000 ? annual / 12 : annual;
+      // hr_employee_onboarding.ctc is captured as an ANNUAL figure.
+      monthlyGross = annual / 12;
       source = "onboarding_ctc";
     }
   }

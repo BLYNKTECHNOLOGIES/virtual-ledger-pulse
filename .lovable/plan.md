@@ -1,100 +1,60 @@
-# Payroll Cockpit — Deep Logic Audit (bugs only, no new features)
+# Monthly Payroll Cockpit — Deep Logic Audit (verified against live DB, 02 Sep 2026, 17:5x IST)
 
-Audited: `hr_lop_days` / `hr_compute_lop_days` / `hr_lop_days_window` / `hr_attendance_month_summary` / `fn_calculate_leave_days` / `hr_cockpit_month_state` / `hr_close_payroll_month` / `hr_cockpit_ack_step` (live DB definitions), plus `generate-lop-deductions`, `compute-shadow-payroll`, `hr-send-payslip-emails`, `razorpay-payroll-proxy`, and the cockpit/step UI pages.
+Scope: the monthly payroll cockpit only — its 10 steps, their completion rules, and every function/edge function they depend on. Logic only; no UI, no new features. Every claim below was checked against the live database or the actual source, not assumed.
 
-Findings are ordered by blast radius. Everything below is verified against the live database or the live function source unless marked "unconfirmed".
+## Plain-language summary of bugs found
 
----
+1. **The LOP calculator is currently broken and silently returns nothing.** The main function that counts loss-of-pay days reads the weekly-off setting in the wrong format, so it errors every single time it is called. Callers catch the error and carry on, so the screen shows "0 LOP" instead of "failed".
+   Live proof: August 2026 has 199 absent days, 37 half-days and 285 no-data days recorded, yet **zero LOP deduction rows exist for August**. July (before the regression) has 9 rows. This is real money not being deducted.
+2. **New joiners and leavers are over-charged LOP.** The calculator counts the whole month's working days even if someone joined on the 20th, so their pre-joining days can be billed as LOP.
+3. **The same employee can get three different LOP numbers**, because three different functions each calculate it their own way (one clips employment dates, one doesn't, one ignores held-harmless days and late-coming penalties entirely).
+4. **Two attendance tables are being written in parallel and they disagree.** August: 1,287 rows in the new table vs 965 in the old one. The month summary reads the old one; LOP reads the new one.
+5. **Re-generating LOP after an attendance correction can crash the whole batch.** The row is matched by a label that contains the day count ("LOP — 2 days"). If the count changes, the save collides with the existing row's ID and the entire run fails for everyone in it.
+6. **Once LOP is pushed to RazorpayX it is frozen forever.** If attendance is corrected afterwards, nothing recomputes or flags it; the month still shows as "complete".
+7. **Step 4 can miss LOP rows and can never complete a genuinely LOP-free month.** It matches deductions whose label contains "lop" — a manually added row labelled "Loss of Pay" is not matched (one such orphan row exists, dated 2999‑01‑01). And a month with legitimately zero LOP can never turn green.
+8. **A month can be closed with real work outstanding.** Marking a step "skipped" removes it from the blocker list with no check at all, so the month can close with unpushed LOP, unsent payslips or open drift.
+9. **Step 7 says "…then email payslips" but never checks that emails were sent.** It counts the emails and displays the number, but completion only looks at imported rows.
+10. **Step 8 goes green on any shadow run, even a failed or unusable one.**
+11. **Step 9 (drift) checks the wrong dates.** Drift alerts have no payroll month; they are re-touched every night, so an old unresolved drift blocks whatever month you are closing today and stops blocking the month it actually belongs to. Live: 94 alerts, newest touched today 17:30 IST.
+12. **Shadow payroll's total on screen is inflated.** The page adds bonuses again and subtracts LOP again, although the stored figure already includes both. Employees with no imported RazorpayX payslip are counted as ₹0 on the RazorpayX side, making the comparison look worse than it is.
+13. **Step 5 can get stuck permanently.** It checks recovery rows against status values that partly don't exist and never excludes legitimately "skipped" recoveries, so a skipped recovery keeps the step blocked forever.
+14. **Salary base guesses annual vs monthly using a ₹1,00,000 threshold.** Any genuinely monthly figure above that is divided by 12, making each LOP day ~12× too expensive.
+15. **Smaller issues:** LOP rounding is applied several times per line (₹1–2 noise); a recurring holiday saved on 29 Feb would crash the calculation in a non-leap year (none exists today); the "device outage" hold-harmless check looks at all employees instead of the queried one; a half-day worked on an approved leave day can be credited twice; the worked-on-leave reconciliation only looks back 40 days; comp-off consumption can be overstated, shrinking the comp-off offset; ESI eligibility uses a narrower figure than the contribution base (dormant — the setting is off); TDS is projected on CTC including employer PF/ESI; professional tax ignores bonus months; step 3's status check contains two values the table can never hold.
 
-## P0 — LOP engine is currently throwing at runtime (verified)
+## Severity order
 
-The live `hr_lop_days` reads the weekly-off pattern with **jsonb** operators:
+| # | Finding | Severity | Verified how |
+|---|---|---|---|
+| 1 | `hr_lop_days` reads `integer[]` with jsonb functions → errors on every call | P0 | live function body + `ERROR 42883` reproduction + zero Aug LOP rows |
+| 2 | No joining/relieving clamp in `hr_lop_days` / `hr_attendance_month_summary` | P0 | live: `joining_date` absent from both bodies, present in `hr_lop_days_window` |
+| 3 | Three divergent LOP engines | P0 | function bodies compared |
+| 5 | Auto-LOP upsert conflict target vs mutable label + explicit `id` | P1 | live: two unique indexes (`..._period_mon_key` on label, `..._auto_lop_uniq` partial) |
+| 6 | Pushed LOP rows never revisited | P1 | `generate-lop-deductions/index.ts` skip-on-`pushed_at` |
+| 4 | `hr_attendance` vs `hr_attendance_daily` split brain | P1 | live row counts Aug: 965 vs 1287 |
+| 8 | `skipped` bypasses all close blockers | P1 | live `hr_close_payroll_month` body |
+| 7 | Step 4 `%lop%` label match + zero-LOP month | P1 | live `hr_cockpit_month_state` s4; orphan `Loss of Pay` row 2999‑01‑01 |
+| 11 | Step 9 drift date filter | P1 | live s9 CTE + `hr_drift_alerts` has no `period_month` |
+| 9,10 | Step 7 ignores `emails_sent`; step 8 accepts any run | P2 | live s7/s7c/s8 |
+| 12 | Shadow page double counts additions/LOP | P2 | `ShadowPayrollPage.tsx` totals vs `monthly_gross` definition |
+| 13 | Step 5 recovery status vocabulary | P2 | live statuses: `scheduled/pushed/paid` only |
+| 14 | ₹1,00,000 annual/monthly heuristic | P2 | `_shared/salaryBase.ts` |
+| 15 | Rounding, Feb‑29, blackout scope, half-day double credit, 40-day window, comp-off pool, ESI/TDS/PT | P3 | source; ESI flag live = `false` |
 
-```sql
-SELECT ARRAY(SELECT jsonb_array_elements_text(p.weekly_offs)::int) ...
-WHERE jsonb_typeof(p.weekly_offs) = 'array' AND jsonb_array_length(p.weekly_offs) > 0
-```
+## Proposed fix order (no functional/UI change, correctness only)
 
-but `hr_weekly_off_patterns.weekly_offs` is an **integer[]** column. Reproduced against the real column:
-`ERROR 42883: function jsonb_typeof(integer[]) does not exist`.
+1. **P0 migration** — rewrite `hr_lop_days` to read `weekly_offs` as `integer[]` (mirror `hr_lop_days_window`), add joining/relieving clamping, and guard recurring Feb‑29. Then make `hr_compute_lop_days` and `hr_attendance_month_summary` delegate to one single implementation so all three paths return the same number.
+2. **Backfill + verify** — re-run LOP for August 2026, compare per-employee days/amount against July as a control, and publish a before/after table.
+3. **P1 edge function** — key the auto-LOP upsert on the stable `(hr_employee_id, period_month) WHERE source='auto_lop'` index, drop the day-count from the conflict key, and add a "pushed row is stale vs current attendance" flag surfaced on step 4.
+4. **P1 cockpit SQL** — step 4 match on `source='auto_lop'` (not the label) and treat a verified zero-LOP month as complete; step 9 scope drift by the month it belongs to rather than `last_seen_at`; block `skipped` from clearing steps whose live state is incomplete (subject to Q4 below).
+5. **P2** — step 7 requires emails sent, step 8 requires a usable run, fix `ShadowPayrollPage` totals arithmetic and the missing-RazorpayX comparison, fix the recovery status list.
+6. **P3** — rounding once per line, blackout scoped to the employee, half-day/leave double credit cap, comp-off pool actual-consumption, salary-base unit flag instead of the ₹1,00,000 guess.
+7. Log each verified change in `docs/STATE_LOG.md` with IST timestamps.
 
-Consequence: every call to `hr_lop_days` raises — and `hr_compute_lop_days` (wrapper) and `hr_attendance_month_summary` (calls it in its `safeguards` CTE) fail with it. Those three feed **auto-LOP generation, shadow payroll, the projected salary register, the RazorpayX LOP push and the attendance month summary**. All of those callers only `console.error` the RPC failure and continue, so the visible symptom is "no LOP / zero LOP / empty summary", not an error.
+Every step is verified after applying: DB query for the SQL changes, function redeploy + log check for the edge functions.
 
-The sibling `hr_lop_days_window` (created minutes later, 25-Aug) already uses the correct `integer[]` form — so the jsonb version is stale code that survived the column type change.
+## Questions I need answered before touching the policy-dependent parts
 
-Fix: rewrite the two weekly-off lookups in `hr_lop_days` to plain `integer[]` (mirroring `hr_lop_days_window`), then re-run LOP for August and compare against `hr_lop_days_window`.
-
-## P1 — Mid-month joiners/leavers get LOP for days before they joined
-
-In `hr_attendance_month_summary`, `wd_elapsed` counts working days from the **1st of the month** to today, with no clipping to joining date / last working day, while the displayed `working_days` column *is* clipped (`LEAST(working_days, wd_elapsed)`). The LOP expression uses the unclipped `wd_elapsed`.
-
-Joiner on the 15th of a 26-working-day month with perfect attendance: displayed working days 12, LOP = 26 − 12 = **14 days**. `generate-lop-deductions` then divides by the *clipped* 12 → a deduction of more than one month's pay. Same failure mirrored for exits.
-
-Fix: clip the elapsed window to `[joining_date, COALESCE(last_working_day, termination_date, month_end)]` and use the same clipped value in both the displayed column and the LOP expression.
-
-## P1 — Re-staging LOP after an attendance correction breaks
-
-`generate-lop-deductions` upserts with `onConflict: "razorpay_employee_id,period_month,label"`, but the real guard is a partial unique index on `(hr_employee_id, period_month) WHERE source='auto_lop'`, and the label embeds the day count (`"LOP — 2 days"`). When attendance changes 2 → 3 days the label changes, the declared conflict target no longer matches, and the batch fails on the partial index / primary key instead of updating.
-
-Fix: upsert on the partial-index key (or update by `id` when the auto row already exists) and keep the day count out of the conflict key.
-
-## P1 — Pushed LOP is frozen; the gate cannot see it went stale
-
-`generate-lop-deductions` short-circuits any row with `pushed_at` ("left untouched") and discards the freshly computed value. Step 4's live status and `usePayrollStepGate` only ask "was it pushed and read-back verified", never "does it still match attendance". A regularization approved after the push leaves a wrong deduction live on RazorpayX with step 4 green.
-
-Fix: recompute even for pushed rows and surface a `stale` state (recomputed ≠ pushed) that flips step 4 back to incomplete.
-
-## P1 — Step 4 misses manually staged LOP, and is never green when LOP is genuinely zero
-
-Step 4 counts `hr_payroll_input_deductions` rows with `label ILIKE '%lop%'`. The manual LOP form defaults the label to **"Loss of Pay"**, which does not contain "lop" — so manual LOP rows are invisible to step 4 (verified: the one such row in the table matches 0). Separately, `lop_rows > 0` is required for "complete", so a month with legitimately zero LOP can never go green on its own.
-
-Fix: match on `source='auto_lop' OR label ~* '(lop|loss of pay)'`, and treat "zero LOP rows and zero computed LOP days" as complete.
-
-## P1 — Month close can be certified without the condition being true
-
-`hr_close_payroll_month` raises a blocker only when a step is **both** un-acked **and** live-incomplete; `hr_cockpit_ack_step` performs no validation at all. Acking steps 7/8/9 as done/skipped closes a month with open drift, no register import and zero payslip emails. Step 7 also computes `emails_sent` but never uses it in its status, and step 8 is satisfied by *any* shadow run — including one tagged `approximate`/`unusable`.
-
-Fix: keep the manual-ack override (it is needed for step 6) but block close on hard-safety steps unless live state agrees, record the override reason, include `emails_sent` in step 7, and require a non-`unusable` shadow run for step 8.
-
-## P2 — LOP arithmetic edge cases inside `hr_lop_days`
-
-- **Half-day double penalty.** A half day already contributes 0.5 present, so the missing 0.5 is LOP; the policy term then adds `FLOOR(half_days / threshold)` again on top.
-- **Late-come not de-duplicated.** Multiple `hr_late_come_early_out` rows on the same date each count towards the late-LOP threshold.
-- **Cross-month leave over-credits paid days.** `paid_days` is a whole-request figure but is applied per month via `LEAST(days_in_month, paid_days)`, so a part-paid leave spanning two months can be credited its paid quota twice. (No such request exists today — 0 of 7 approved leaves cross a month — so this is latent.)
-- **Worked-on-leave relies on `hr_leave_worked_days`.** Only 2 rows exist and it is populated by a nightly job; if a day is missed, the day counts as *both* present and paid leave and silently erases a real LOP day.
-- **Held-harmless is open-ended.** An "incomplete" day with an approved regularization is treated as fully paid regardless of the regularization decision.
-- **`weekly_off_source` label lies.** The `EXISTS` check omits the `effective_from <= month_end` filter used by the actual lookup, so a future-dated assignment reports `per_employee` while the default pattern is used.
-- **Recurring holidays.** `make_date(year, month, day)` on a 29-Feb recurring holiday errors in a non-leap year.
-
-## P2 — Leave-day arithmetic double-subtracts
-
-`fn_calculate_leave_days` subtracts holidays and weekly offs independently, so a holiday falling on a Sunday is subtracted twice and the leave is under-charged. It also ignores recurring holidays and has no half-day handling.
-
-## P2 — Shadow payroll dashboard totals double-count
-
-`ShadowPayrollPage` computes `monthly_gross + additions_total − lop_amount`, but the engine already folds additions into `monthly_gross` (`earningsTotal = grossEarnings + addPositive`) and already applied the LOP factor to it. The header total is inflated by the additions and skewed by the LOP a second time. Per-line `net_pay` is correct — display only, but it is the number HR reads before closing.
-
-## P2 — ESI threshold vs base
-
-Eligibility is tested on `regularGross > 21000` while the contribution base can include additions. An employee at ₹20,500 + ₹5,000 bonus is charged ESI on ₹25,500 instead of exiting the scheme for the contribution period.
-
-## P3 — Data hygiene / smaller gaps
-
-- A junk deduction row exists with `period_month = 2999-01-01` (`Loss of Pay`, employee 71, staged 02-Aug) — it pollutes any all-period aggregation.
-- Standalone Salary Register import trusts the filename-derived month with no cross-check against the CSV contents (the guard only fires in the embedded cockpit flow).
-- `hr-send-payslip-emails` honours `force_resend` with no second-actor or audit gate; not reachable from the UI today.
-- Step 9 filters drift alerts by `first_seen/last_seen` inside the month, so drift discovered in the following month never blocks the close.
-- `cron.job` contains a duplicated `cleanup-old-balance-snapshots` entry and at least one job with a scheduler secret inline in the command text.
-
----
-
-## Open questions
-
-1. **Half-day policy** — should `half_day_count_for_lop` be an *additional* penalty on top of the 0.5 already lost, or is the 0.5 the whole intent? (Affects whether the double-penalty above is a bug or policy.)
-2. **Late-come threshold** — count distinct dates, or every logged late event?
-3. **Held-harmless regularizations** — should an approved regularization always pay the day, or only when the decision was "regularize as present"?
-4. **Close-month override** — may I make steps 7 and 9 hard blockers (no ack override, reason required), or must every step stay overridable?
-
-## Delivery
-
-This pass is the audit. On approval I will fix in this order: P0 → P1 → P2, each with a before/after recomputation for July and August (per-employee LOP days and amounts) so nothing changes silently, and a `docs/STATE_LOG.md` entry per slice. No workflow, UI flow or feature changes.
+1. **Half-day penalty** — when the policy threshold for half-days is hit, is that an *extra* LOP day on top of the 0.5 already lost, or is the 0.5 the whole penalty?
+2. **Late coming** — should the threshold count distinct late *dates*, or every late event (two late punches in one day = 2)?
+3. **Incomplete days** — should an approved regularization always make the day paid, or only when the decision explicitly says "regularize as present"?
+4. **Close blockers** — may steps 7 (payslips/emails) and 9 (drift) become hard blockers that cannot be skipped, or must every step stay overridable by HR?

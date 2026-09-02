@@ -15,10 +15,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
-import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight } from "lucide-react";
+import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { createFnFDraft } from "@/lib/fnfEngine";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
+import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
 
 type ResignationEmployee = {
   id: string;
@@ -511,6 +512,46 @@ export function ResignationTab() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  // ── Relieving cum experience letter: generate → file → (optional) email ─────
+  const { data: relievingLetter, refetch: refetchRelieving } = useQuery({
+    queryKey: ["resignation-relieving-letter", selectedEmployee?.id],
+    queryFn: async () => (selectedEmployee ? findIssuedLetter(selectedEmployee.id, "relieving") : null),
+    enabled: !!selectedEmployee,
+  });
+
+  const generateRelieving = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployee) throw new Error("No employee selected");
+      const res = await issueLetterForEmployee(selectedEmployee.id, "relieving");
+      await markChecklistItem(t => t.includes("relieving") || t.includes("experience letter"));
+      return res;
+    },
+    onSuccess: (res) => {
+      toast.success(
+        res.existed
+          ? `Relieving letter ${res.referenceNo} already issued — filed under the employee's documents`
+          : `Relieving letter ${res.referenceNo} generated and filed under the employee's documents`,
+      );
+      refetchRelieving();
+      queryClient.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_documents", selectedEmployee?.id] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const emailRelieving = useMutation({
+    mutationFn: async () => {
+      if (!relievingLetter?.id) throw new Error("Generate the relieving letter first");
+      return emailIssuedLetter(relievingLetter.id);
+    },
+    onSuccess: (to) => {
+      toast.success(`Relieving letter emailed to ${to}`);
+      refetchRelieving();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+
 
   return (
     <div className="space-y-4">
@@ -709,6 +750,7 @@ export function ResignationTab() {
               const isFnf = t.includes("full & final") || t.includes("full and final");
               const isAccess = t.includes("access revoked") || t.includes("erp");
               const isBadge = t.includes("id card") || t.includes("access badge") || t.includes("badge returned");
+              const isRelieving = t.includes("relieving") || t.includes("experience letter");
               return (
               <div key={item.id} className="flex items-start gap-3 p-2 rounded border">
                 <Checkbox
@@ -731,6 +773,46 @@ export function ResignationTab() {
                         : "Ticking this removes the employee from all eSSL biometric devices."}
                     </p>
                   )}
+                  {isRelieving && (
+                    <div className="mt-1.5 space-y-1.5">
+                      {relievingLetter ? (
+                        <>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="font-medium">{relievingLetter.reference_no}</span> issued
+                            {relievingLetter.issued_at ? ` on ${new Date(relievingLetter.issued_at).toLocaleDateString("en-IN")}` : ""} · saved in the employee's Documents
+                            {relievingLetter.emailed_at ? ` · emailed ${new Date(relievingLetter.emailed_at).toLocaleDateString("en-IN")}` : ""}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={emailRelieving.isPending}
+                            onClick={() => emailRelieving.mutate()}
+                          >
+                            <Mail className="h-3.5 w-3.5 mr-1" />
+                            {emailRelieving.isPending ? "Sending…" : relievingLetter.emailed_at ? "Email again" : "Email the relieving letter"}
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={generateRelieving.isPending}
+                            onClick={() => generateRelieving.mutate()}
+                          >
+                            <FileText className="h-3.5 w-3.5 mr-1" />
+                            {generateRelieving.isPending ? "Generating…" : "Generate relieving letter"}
+                          </Button>
+                          <p className="text-xs text-muted-foreground">
+                            Generates and files it under the employee's documents. Emailing is optional and stays a separate step.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
 
                   {isFnf && (
                     <div className="mt-1.5">

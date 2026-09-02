@@ -115,6 +115,11 @@ const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   bank_account: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   bank_ifsc: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   annual_ctc: (id) => pushSalaryToRazorpay(id, { triggeredFrom: "data_health" }),
+  // Verification-failure bundles raised by the pushback layer — retry the same
+  // push envelope that failed to verify.
+  identity_bundle: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
+  bank_bundle: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
+  employment_bundle: (id) => pushEmploymentToRazorpay(id, { triggeredFrom: "data_health" }),
 };
 
 // Fields for which eSSL is a target — device holds only identity + roster.

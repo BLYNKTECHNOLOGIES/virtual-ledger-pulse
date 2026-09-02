@@ -5,8 +5,8 @@ Scope: the monthly payroll cockpit only — its 10 steps, their completion rules
 ## Plain-language summary of bugs found
 
 1. **The LOP calculator is currently broken and silently returns nothing.** The main function that counts loss-of-pay days reads the weekly-off setting in the wrong format, so it errors every single time it is called. Callers catch the error and carry on, so the screen shows "0 LOP" instead of "failed".
-   Live proof: August 2026 has 199 absent days, 37 half-days and 285 no-data days recorded, yet **zero LOP deduction rows exist for August**. July (before the regression) has 9 rows. This is real money not being deducted.
-2. **New joiners and leavers are over-charged LOP.** The calculator counts the whole month's working days even if someone joined on the 20th, so their pre-joining days can be billed as LOP.
+  Live proof: August 2026 has 199 absent days, 37 half-days and 285 no-data days recorded, yet **zero LOP deduction rows exist for August**. July (before the regression) has 9 rows. This is real money not being deducted.
+2. &nbsp;
 3. **The same employee can get three different LOP numbers**, because three different functions each calculate it their own way (one clips employment dates, one doesn't, one ignores held-harmless days and late-coming penalties entirely).
 4. **Two attendance tables are being written in parallel and they disagree.** August: 1,287 rows in the new table vs 965 in the old one. The month summary reads the old one; LOP reads the new one.
 5. **Re-generating LOP after an attendance correction can crash the whole batch.** The row is matched by a label that contains the day count ("LOP — 2 days"). If the count changes, the save collides with the existing row's ID and the entire run fails for everyone in it.
@@ -23,22 +23,24 @@ Scope: the monthly payroll cockpit only — its 10 steps, their completion rules
 
 ## Severity order
 
-| # | Finding | Severity | Verified how |
-|---|---|---|---|
-| 1 | `hr_lop_days` reads `integer[]` with jsonb functions → errors on every call | P0 | live function body + `ERROR 42883` reproduction + zero Aug LOP rows |
-| 2 | No joining/relieving clamp in `hr_lop_days` / `hr_attendance_month_summary` | P0 | live: `joining_date` absent from both bodies, present in `hr_lop_days_window` |
-| 3 | Three divergent LOP engines | P0 | function bodies compared |
-| 5 | Auto-LOP upsert conflict target vs mutable label + explicit `id` | P1 | live: two unique indexes (`..._period_mon_key` on label, `..._auto_lop_uniq` partial) |
-| 6 | Pushed LOP rows never revisited | P1 | `generate-lop-deductions/index.ts` skip-on-`pushed_at` |
-| 4 | `hr_attendance` vs `hr_attendance_daily` split brain | P1 | live row counts Aug: 965 vs 1287 |
-| 8 | `skipped` bypasses all close blockers | P1 | live `hr_close_payroll_month` body |
-| 7 | Step 4 `%lop%` label match + zero-LOP month | P1 | live `hr_cockpit_month_state` s4; orphan `Loss of Pay` row 2999‑01‑01 |
-| 11 | Step 9 drift date filter | P1 | live s9 CTE + `hr_drift_alerts` has no `period_month` |
-| 9,10 | Step 7 ignores `emails_sent`; step 8 accepts any run | P2 | live s7/s7c/s8 |
-| 12 | Shadow page double counts additions/LOP | P2 | `ShadowPayrollPage.tsx` totals vs `monthly_gross` definition |
-| 13 | Step 5 recovery status vocabulary | P2 | live statuses: `scheduled/pushed/paid` only |
-| 14 | ₹1,00,000 annual/monthly heuristic | P2 | `_shared/salaryBase.ts` |
-| 15 | Rounding, Feb‑29, blackout scope, half-day double credit, 40-day window, comp-off pool, ESI/TDS/PT | P3 | source; ESI flag live = `false` |
+
+| #    | Finding                                                                                            | Severity | Verified how                                                                          |
+| ---- | -------------------------------------------------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------- |
+| 1    | `hr_lop_days` reads `integer[]` with jsonb functions → errors on every call                        | P0       | live function body + `ERROR 42883` reproduction + zero Aug LOP rows                   |
+| 2    | No joining/relieving clamp in `hr_lop_days` / `hr_attendance_month_summary`                        | P0       | live: `joining_date` absent from both bodies, present in `hr_lop_days_window`         |
+| 3    | Three divergent LOP engines                                                                        | P0       | function bodies compared                                                              |
+| 5    | Auto-LOP upsert conflict target vs mutable label + explicit `id`                                   | P1       | live: two unique indexes (`..._period_mon_key` on label, `..._auto_lop_uniq` partial) |
+| 6    | Pushed LOP rows never revisited                                                                    | P1       | `generate-lop-deductions/index.ts` skip-on-`pushed_at`                                |
+| 4    | `hr_attendance` vs `hr_attendance_daily` split brain                                               | P1       | live row counts Aug: 965 vs 1287                                                      |
+| 8    | `skipped` bypasses all close blockers                                                              | P1       | live `hr_close_payroll_month` body                                                    |
+| 7    | Step 4 `%lop%` label match + zero-LOP month                                                        | P1       | live `hr_cockpit_month_state` s4; orphan `Loss of Pay` row 2999‑01‑01                 |
+| 11   | Step 9 drift date filter                                                                           | P1       | live s9 CTE + `hr_drift_alerts` has no `period_month`                                 |
+| 9,10 | Step 7 ignores `emails_sent`; step 8 accepts any run                                               | P2       | live s7/s7c/s8                                                                        |
+| 12   | Shadow page double counts additions/LOP                                                            | P2       | `ShadowPayrollPage.tsx` totals vs `monthly_gross` definition                          |
+| 13   | Step 5 recovery status vocabulary                                                                  | P2       | live statuses: `scheduled/pushed/paid` only                                           |
+| 14   | ₹1,00,000 annual/monthly heuristic                                                                 | P2       | `_shared/salaryBase.ts`                                                               |
+| 15   | Rounding, Feb‑29, blackout scope, half-day double credit, 40-day window, comp-off pool, ESI/TDS/PT | P3       | source; ESI flag live = `false`                                                       |
+
 
 ## Proposed fix order (no functional/UI change, correctness only)
 

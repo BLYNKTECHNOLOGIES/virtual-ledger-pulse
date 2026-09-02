@@ -28903,6 +28903,16 @@ export type Database = {
         }
         Returns: string
       }
+      hr_employment_gap_working_days: {
+        Args: { p_employee_ids: string[]; p_period_month: string }
+        Returns: {
+          emp_from: string
+          emp_to: string
+          employee_id: string
+          gap_working_days: number
+          month_working_days: number
+        }[]
+      }
       hr_ess_current_employee_id: { Args: never; Returns: string }
       hr_get_offer_letter_policy: {
         Args: never

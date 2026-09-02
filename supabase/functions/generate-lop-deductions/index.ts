@@ -87,6 +87,23 @@ Deno.serve(async (req) => {
     const lopByEmp = new Map<string, any>();
     for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
 
+    // Employment-window proration (Model B).
+    //
+    // RazorpayX pays the FULL monthly salary in the joining/relieving month
+    // (payroll:view-payroll returns isProRated: false), so the working days a
+    // person was not employed for must be charged back as LOP days — otherwise
+    // a 13th-of-the-month joiner is paid a whole month. The canonical LOP
+    // engine deliberately clips to the employment window, so those days are
+    // counted here and added on top.
+    const { data: gapRows, error: gapErr } = await supabase.rpc("hr_employment_gap_working_days", {
+      p_employee_ids: roster.map((r: any) => r.hr_employee_id),
+      p_period_month: periodStr,
+    });
+    if (gapErr) throw gapErr;
+    const gapByEmp = new Map<string, any>();
+    for (const r of (gapRows ?? []) as any[]) gapByEmp.set(r.employee_id, r);
+
+
     // Comp-off pool — LOP is cancelled by available comp-off before any
     // deduction is computed (the remainder is encashed by
     // generate-compoff-encashment). Both engines share this math.
@@ -119,25 +136,44 @@ Deno.serve(async (req) => {
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const split = splitCompoff(pool.days_available, rawLopDays);
 
+      const gap = gapByEmp.get(map.hr_employee_id);
+      const monthWorkingDays = Number(gap?.month_working_days ?? 0);
+      const gapDays = Number(gap?.gap_working_days ?? 0);
+      // Charge days = genuine absence (after comp-off) + days not employed.
+      const chargeDays = Math.min(
+        Math.round((split.lop_after_offset + gapDays) * 100) / 100,
+        monthWorkingDays > 0 ? monthWorkingDays : split.lop_after_offset + gapDays,
+      );
+
       const base: any = {
         hr_employee_id: map.hr_employee_id,
         razorpay_employee_id: map.razorpay_employee_id,
         name,
         badge_id: emp.badge_id ?? null,
         working_days: Number(lop?.working_days ?? 0),
+        month_working_days: monthWorkingDays,
         present_days: Number(lop?.present_days ?? 0),
         paid_leave_days: Number(lop?.paid_leave_days ?? 0),
         unpaid_leave_days: Number(lop?.unpaid_leave_days ?? 0),
         raw_lop_days: rawLopDays,
         compoff_available: pool.days_available,
         compoff_offset_days: split.offset_days,
-        lop_days: split.lop_after_offset,
+        absence_lop_days: split.lop_after_offset,
+        proration_days: gapDays,
+        employment_from: gap?.emp_from ?? null,
+        employment_to: gap?.emp_to ?? null,
+        lop_days: chargeDays,
         formula: lop?.formula ?? null,
         existing_amount: existingAuto ? Number(existingAuto.amount) : null,
         existing_pushed: !!existingAuto?.pushed_at,
       };
 
 
+
+      if (monthWorkingDays > 0 && gapDays >= monthWorkingDays) {
+        rows.push({ ...base, status: "skipped", reason: "Not employed during this period — no payroll expected", amount: 0, base_source: null });
+        continue;
+      }
       if (!lop) {
         rows.push({ ...base, status: "skipped", reason: "No attendance computation for this employee", amount: 0, base_source: null });
         continue;
@@ -147,8 +183,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // LOP after comp-off has cancelled what it can.
-      const lopDays = split.lop_after_offset;
+      // Absence LOP (after comp-off) + employment-window proration days.
+      const absenceDays = split.lop_after_offset;
+      const lopDays = chargeDays;
 
       if (lopDays <= 0) {
         const offsetNote = split.offset_days > 0
@@ -189,8 +226,20 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const divisor = base.working_days > 0 ? base.working_days : totalDays;
+      // Day rate = full-month salary ÷ FULL-month working days. RazorpayX pays
+      // the whole month, so the divisor must describe the whole month too;
+      // using the employment-clipped count would inflate every joiner's day
+      // rate (July 2026: 12 clipped days made one day worth ~2.2x the truth).
+      const divisor = monthWorkingDays > 0
+        ? monthWorkingDays
+        : (base.working_days > 0 ? base.working_days : totalDays);
       const amount = Math.round(salary.monthlyGross * (lopDays / divisor));
+
+      const dayWord = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+      const labelParts: string[] = [];
+      if (absenceDays > 0) labelParts.push(`${dayWord(absenceDays)} absence`);
+      if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} not employed`);
+      if (split.offset_days > 0) labelParts.push(`${dayWord(split.offset_days)} offset by comp-off`);
 
       const row: any = {
         ...base,
@@ -198,9 +247,11 @@ Deno.serve(async (req) => {
         monthly_base: salary.monthlyGross,
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],
+        base_mismatch: !!salary.mismatch,
         divisor,
-        label: `LOP — ${lopDays} day${lopDays === 1 ? "" : "s"}${split.offset_days > 0 ? ` (${split.offset_days} offset by comp-off)` : ""}`,
+        label: `LOP — ${dayWord(lopDays)}${labelParts.length ? ` (${labelParts.join(", ")})` : ""}`,
       };
+
 
       if (existingAuto?.pushed_at) {
         const pushedAmount = Number(existingAuto.amount);

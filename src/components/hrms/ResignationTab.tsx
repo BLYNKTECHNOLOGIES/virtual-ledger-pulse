@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
-import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail } from "lucide-react";
+import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail, ExternalLink } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { createFnFDraft } from "@/lib/fnfEngine";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";

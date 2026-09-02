@@ -696,11 +696,21 @@ export default function DataHealthPage() {
 
                   <div className="divide-y divide-border/60">
                     {g.rows.map((d) => {
-                      const canPush = !!PUSH_BY_FIELD[d.field] || (d.field === "active_state" && !d.is_active);
+                      // RazorpayX refuses work-email edits over the API (verified:
+                      // every variant returns 200 but preserves the old value).
+                      // Never offer a push we know cannot land.
+                      const dashboardOnly =
+                        (d.systems_involved || []).includes("razorpay") &&
+                        (d.field === "email" ||
+                          (isPushFailureAlert(d) && /work email/i.test(d.resolution_note || "")));
+                      const canPush =
+                        !dashboardOnly &&
+                        (!!PUSH_BY_FIELD[d.field] || (d.field === "active_state" && !d.is_active));
                       const canPull = PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay");
                       const esslRemoval = d.field === "active_state" && !d.is_active;
                       const canEssl = ESSL_PUSHABLE_FIELDS.has(d.field);
                       const busy = resolvingId === d.id;
+
 
                       return (
                         <div
@@ -757,14 +767,47 @@ export default function DataHealthPage() {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              disabled={busy || !canPush}
-                              onClick={() => adoptHrms(d)}
-                              className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
-                            >
-                              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                              {esslRemoval ? "Dismiss in RazorpayX" : "Push → Razorpay"}
-                            </button>
+                            {dashboardOnly ? (
+                              <>
+                                {canPull && (
+                                  <button
+                                    disabled={busy || pulling}
+                                    onClick={() =>
+                                      setPullTarget({
+                                        driftId: d.id,
+                                        hrEmployeeId: d.hr_employee_id,
+                                        employeeName: d.employee_name || "Unknown employee",
+                                        field: d.field,
+                                        fieldLabel: FIELD_LABEL[d.field] || d.field,
+                                        hrmsValue: d.hrms_value,
+                                        razorpayValue: d.razorpay_value,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50 whitespace-nowrap"
+                                  >
+                                    Pull ← Razorpay
+                                  </button>
+                                )}
+                                <button
+                                  disabled={busy}
+                                  onClick={() => verifyManualRazorpayUpdate(d)}
+                                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
+                                >
+                                  {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                                  I updated in RazorpayX
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                disabled={busy || !canPush}
+                                onClick={() => adoptHrms(d)}
+                                className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
+                              >
+                                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+                                {esslRemoval ? "Dismiss in RazorpayX" : "Push → Razorpay"}
+                              </button>
+                            )}
+
 
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>

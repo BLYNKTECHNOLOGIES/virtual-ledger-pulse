@@ -67,7 +67,7 @@ export default function RegularizationCard({ employeeId }: Props) {
           <p className="text-center py-6 text-muted-foreground text-sm">Loading...</p>
         ) : requests.length === 0 ? (
           <p className="text-center py-6 px-4 text-muted-foreground text-sm">
-            No requests yet. Missed a punch? Raise a request and HR will review.
+            No requests yet. Use the <strong>Request</strong> button above to raise an attendance regularization.
           </p>
         ) : (
           <>

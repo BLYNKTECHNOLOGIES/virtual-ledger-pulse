@@ -1,5 +1,8 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useAttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
-import { DAY_STATUS_DOT, DAY_STATUS_LABEL } from "@/components/hrms/attendance/DayTileTooltip";
+import { DAY_STATUS_DOT, DAY_STATUS_LABEL, istTime } from "@/components/hrms/attendance/DayTileTooltip";
+import { CheckCircle2, AlertCircle } from "lucide-react";
 
 const fmt = (ts: string | null) =>
   ts ? new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "—";
@@ -18,9 +21,26 @@ export function CurrentAttendanceSnapshot({
 }) {
   const { data, isLoading } = useAttendanceDay(employeeId, date);
 
+  const { data: detail } = useQuery({
+    queryKey: ["hr_day_detail", employeeId, date],
+    enabled: !!employeeId && !!date,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("hr_attendance_day_detail", {
+        p_employee_id: employeeId,
+        p_date: date,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const kept: any[] = detail?.kept_punches || [];
+  const suppressed: any[] = detail?.suppressed_punches || [];
+
   if (!employeeId || !date) return null;
 
   const status: AttendanceDayStatus = (data?.status as AttendanceDayStatus) || "no_data";
+
 
   return (
     <div className="rounded-md border border-border bg-muted/30 p-2.5 text-xs space-y-1.5">

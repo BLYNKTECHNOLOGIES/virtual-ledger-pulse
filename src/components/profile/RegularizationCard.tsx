@@ -20,26 +20,6 @@ const statusMeta: Record<string, { label: string; icon: any; cls: string }> = {
 
 export default function RegularizationCard({ employeeId }: Props) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    attendance_date: format(new Date(), 'yyyy-MM-dd'),
-    requested_check_in: '',
-    requested_check_out: '',
-    reason: '',
-  });
-
-  const windowPreview = (() => {
-    const w = buildRegularizationWindow(
-      form.attendance_date,
-      form.requested_check_in,
-      form.requested_check_out,
-    );
-    return {
-      error: validateRegularizationWindow(w),
-      crossesMidnight: w.crossesMidnight,
-      spanLabel: w.spanHours !== null ? `${w.spanHours.toFixed(1)} h` : '',
-    };
-  })();
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ['reg_requests_self', employeeId],

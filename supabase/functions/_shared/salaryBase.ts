@@ -66,7 +66,9 @@ export async function resolveMonthlyGross(
       .limit(1);
     const ctc = Number((empRow?.[0] as any)?.total_salary ?? 0);
     if (ctc > 0) {
-      monthlyGross = ctc > 100000 ? ctc / 12 : ctc;
+      // hr_employees.total_salary mirrors the RazorpayX CTC, which is annual by
+      // definition. Never guess the unit from the magnitude.
+      monthlyGross = ctc / 12;
       source = "razorpay_ctc";
     }
   }

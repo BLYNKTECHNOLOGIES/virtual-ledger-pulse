@@ -804,10 +804,17 @@ export default function DataHealthPage() {
                                 )}
                                 <DropdownMenuItem
                                   disabled={busy}
+                                  onSelect={() => verifyManualRazorpayUpdate(d)}
+                                >
+                                  I updated it in RazorpayX — verify
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  disabled={busy}
                                   onSelect={() => markResolved(d, "Manually marked resolved")}
                                 >
                                   Mark resolved
                                 </DropdownMenuItem>
+
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>

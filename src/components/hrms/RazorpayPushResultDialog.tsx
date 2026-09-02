@@ -136,13 +136,15 @@ export function RazorpayPushResultDialog({
 
         {emailScopeBlock && (
           <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300 space-y-1">
-            <div className="font-semibold uppercase tracking-wide">Out of RazorpayX API scope / limitation</div>
+            <div className="font-semibold uppercase tracking-wide">Work-email change needs a retry (or the dashboard)</div>
             <p>
-              RazorpayX Payroll identifies a person by their <em>current</em> work email, so the email address itself
-              cannot be changed through the API — every write variant is accepted with HTTP 200 and silently ignored.
-              Change it in the RazorpayX dashboard (People → this employee → Edit), then run “Rescan now” here; the
-              drift clears automatically once the read-back matches.
+              RazorpayX Payroll identifies a person by their <em>current</em> work email. Earlier pushes sent the new
+              address as the lookup key, so Opfin answered “Unable to locate the user” and dropped the whole edit. That
+              is fixed — hit “Retry push”; it now keys by the current address and tries every accepted email-change
+              variant with a read-back. If it still reports a mismatch after that, the change is genuinely dashboard-only
+              (People → this employee → Edit), then run “Rescan now”.
             </p>
+
             <a
               href="https://payroll.razorpay.com/people"
               target="_blank"

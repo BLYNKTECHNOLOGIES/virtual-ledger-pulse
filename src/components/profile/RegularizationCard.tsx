@@ -57,13 +57,10 @@ export default function RegularizationCard({ employeeId }: Props) {
 
   return (
     <Card>
-      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
+      <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
           <Clock className="h-4 w-4" /> Attendance Regularization
         </CardTitle>
-        <Button size="sm" className="shrink-0" onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 sm:mr-1" /> <span className="hidden sm:inline">New Request</span>
-        </Button>
       </CardHeader>
       <CardContent className="p-0">
         {isLoading ? (

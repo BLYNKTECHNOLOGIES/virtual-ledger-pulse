@@ -19,6 +19,7 @@ import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, F
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { createFnFDraft } from "@/lib/fnfEngine";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
+import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
 
 type ResignationEmployee = {
   id: string;

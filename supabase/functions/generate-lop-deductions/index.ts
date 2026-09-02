@@ -105,7 +105,8 @@ Deno.serve(async (req) => {
     }
 
     const rows: any[] = [];
-    const toUpsert: any[] = [];
+    const toInsert: any[] = [];
+    const toUpdate: any[] = [];
     const toDelete: string[] = [];
 
     for (const map of roster as any[]) {
@@ -157,7 +158,20 @@ Deno.serve(async (req) => {
           rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
           toDelete.push(existingAuto.id);
         } else if (existingAuto?.pushed_at) {
-          rows.push({ ...base, status: "pushed", reason: "Already pushed to RazorpayX — left untouched", amount: Number(existingAuto.amount), base_source: null });
+          // Attendance now says no LOP but a row is already pushed — flag it,
+          // never silently rewrite a pushed row.
+          rows.push({
+            ...base,
+            status: "pushed",
+            stale_pushed: Number(existingAuto.amount) !== 0,
+            pushed_amount: Number(existingAuto.amount),
+            pushed_lop_days: existingAuto.lop_days === null ? null : Number(existingAuto.lop_days),
+            reason: Number(existingAuto.amount) !== 0
+              ? `Pushed row (₹${Number(existingAuto.amount)}) disagrees with current attendance (no LOP) — correct it in RazorpayX`
+              : "Already pushed to RazorpayX — left untouched",
+            amount: Number(existingAuto.amount),
+            base_source: null,
+          });
         } else {
           rows.push({ ...base, status: "no_lop", reason: offsetNote ?? "No loss of pay this month", amount: 0, base_source: null });
         }
@@ -189,8 +203,15 @@ Deno.serve(async (req) => {
       };
 
       if (existingAuto?.pushed_at) {
+        const pushedAmount = Number(existingAuto.amount);
+        const stale = pushedAmount !== amount;
         row.status = "pushed";
-        row.reason = "Already pushed to RazorpayX — left untouched";
+        row.stale_pushed = stale;
+        row.pushed_amount = pushedAmount;
+        row.pushed_lop_days = existingAuto.lop_days === null ? null : Number(existingAuto.lop_days);
+        row.reason = stale
+          ? `Pushed row (₹${pushedAmount}) disagrees with current attendance (₹${amount} / ${lopDays} day${lopDays === 1 ? "" : "s"}) — correct it in RazorpayX`
+          : "Already pushed to RazorpayX — left untouched";
         rows.push(row);
         continue;
       }
@@ -203,17 +224,27 @@ Deno.serve(async (req) => {
       rows.push(row);
 
       if (amount > 0) {
-        toUpsert.push({
-          ...(existingAuto ? { id: existingAuto.id } : {}),
-          hr_employee_id: map.hr_employee_id,
-          razorpay_employee_id: map.razorpay_employee_id,
-          period_month: periodStr,
-          label: row.label,
-          amount,
-          source: "auto_lop",
-          lop_days: lopDays,
-          created_by: callerId,
-        });
+        // Identity of an auto row is (hr_employee_id, period_month) — the label
+        // carries the day count and must never be part of the write key.
+        if (existingAuto) {
+          toUpdate.push({
+            id: existingAuto.id,
+            label: row.label,
+            amount,
+            lop_days: lopDays,
+          });
+        } else {
+          toInsert.push({
+            hr_employee_id: map.hr_employee_id,
+            razorpay_employee_id: map.razorpay_employee_id,
+            period_month: periodStr,
+            label: row.label,
+            amount,
+            source: "auto_lop",
+            lop_days: lopDays,
+            created_by: callerId,
+          });
+        }
       }
     }
 
@@ -221,12 +252,23 @@ Deno.serve(async (req) => {
     let removed = 0;
 
     if (!dryRun) {
-      if (toUpsert.length) {
-        const { error: upErr } = await supabase
+      for (const upd of toUpdate) {
+        const { id, ...patch } = upd;
+        const { error: updErr } = await supabase
           .from("hr_payroll_input_deductions")
-          .upsert(toUpsert, { onConflict: "razorpay_employee_id,period_month,label", ignoreDuplicates: false });
-        if (upErr) throw upErr;
-        staged = toUpsert.length;
+          .update(patch)
+          .eq("id", id)
+          .is("pushed_at", null)
+          .eq("source", "auto_lop");
+        if (updErr) throw updErr;
+        staged += 1;
+      }
+      if (toInsert.length) {
+        const { error: insErr } = await supabase
+          .from("hr_payroll_input_deductions")
+          .insert(toInsert);
+        if (insErr) throw insErr;
+        staged += toInsert.length;
       }
       if (toDelete.length) {
         const { error: delErr } = await supabase
@@ -243,12 +285,13 @@ Deno.serve(async (req) => {
     const summary = {
       employees: roster.length,
       with_lop: rows.filter((r) => r.lop_days > 0).length,
-      to_stage: toUpsert.length,
+      to_stage: toUpdate.length + toInsert.length,
       to_remove: toDelete.length,
       staged,
       removed,
       skipped: rows.filter((r) => r.status === "skipped").length,
       pushed_locked: rows.filter((r) => r.status === "pushed").length,
+      pushed_stale: rows.filter((r) => r.stale_pushed === true).length,
       total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),
     };
 

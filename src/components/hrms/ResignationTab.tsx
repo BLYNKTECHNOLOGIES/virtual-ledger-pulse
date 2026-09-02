@@ -70,6 +70,7 @@ export function ResignationTab() {
     separation_reason: "",
   });
   const [newTemplateItem, setNewTemplateItem] = useState({ item_title: "", category: "general" });
+  const [previewingRelieving, setPreviewingRelieving] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{ type: string; id: string; label: string } | null>(null);
   const queryClient = useQueryClient();
 

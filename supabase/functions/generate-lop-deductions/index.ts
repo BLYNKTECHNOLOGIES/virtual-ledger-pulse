@@ -170,6 +170,10 @@ Deno.serve(async (req) => {
 
 
 
+      if (monthWorkingDays > 0 && gapDays >= monthWorkingDays) {
+        rows.push({ ...base, status: "skipped", reason: "Not employed during this period — no payroll expected", amount: 0, base_source: null });
+        continue;
+      }
       if (!lop) {
         rows.push({ ...base, status: "skipped", reason: "No attendance computation for this employee", amount: 0, base_source: null });
         continue;
@@ -179,8 +183,9 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // LOP after comp-off has cancelled what it can.
-      const lopDays = split.lop_after_offset;
+      // Absence LOP (after comp-off) + employment-window proration days.
+      const absenceDays = split.lop_after_offset;
+      const lopDays = chargeDays;
 
       if (lopDays <= 0) {
         const offsetNote = split.offset_days > 0
@@ -221,8 +226,20 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const divisor = base.working_days > 0 ? base.working_days : totalDays;
+      // Day rate = full-month salary ÷ FULL-month working days. RazorpayX pays
+      // the whole month, so the divisor must describe the whole month too;
+      // using the employment-clipped count would inflate every joiner's day
+      // rate (July 2026: 12 clipped days made one day worth ~2.2x the truth).
+      const divisor = monthWorkingDays > 0
+        ? monthWorkingDays
+        : (base.working_days > 0 ? base.working_days : totalDays);
       const amount = Math.round(salary.monthlyGross * (lopDays / divisor));
+
+      const dayWord = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
+      const labelParts: string[] = [];
+      if (absenceDays > 0) labelParts.push(`${dayWord(absenceDays)} absence`);
+      if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} not employed`);
+      if (split.offset_days > 0) labelParts.push(`${dayWord(split.offset_days)} offset by comp-off`);
 
       const row: any = {
         ...base,
@@ -230,9 +247,11 @@ Deno.serve(async (req) => {
         monthly_base: salary.monthlyGross,
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],
+        base_mismatch: !!salary.mismatch,
         divisor,
-        label: `LOP — ${lopDays} day${lopDays === 1 ? "" : "s"}${split.offset_days > 0 ? ` (${split.offset_days} offset by comp-off)` : ""}`,
+        label: `LOP — ${dayWord(lopDays)}${labelParts.length ? ` (${labelParts.join(", ")})` : ""}`,
       };
+
 
       if (existingAuto?.pushed_at) {
         const pushedAmount = Number(existingAuto.amount);

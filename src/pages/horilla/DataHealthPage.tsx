@@ -696,11 +696,21 @@ export default function DataHealthPage() {
 
                   <div className="divide-y divide-border/60">
                     {g.rows.map((d) => {
-                      const canPush = !!PUSH_BY_FIELD[d.field] || (d.field === "active_state" && !d.is_active);
+                      // RazorpayX refuses work-email edits over the API (verified:
+                      // every variant returns 200 but preserves the old value).
+                      // Never offer a push we know cannot land.
+                      const dashboardOnly =
+                        (d.systems_involved || []).includes("razorpay") &&
+                        (d.field === "email" ||
+                          (isPushFailureAlert(d) && /work email/i.test(d.resolution_note || "")));
+                      const canPush =
+                        !dashboardOnly &&
+                        (!!PUSH_BY_FIELD[d.field] || (d.field === "active_state" && !d.is_active));
                       const canPull = PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay");
                       const esslRemoval = d.field === "active_state" && !d.is_active;
                       const canEssl = ESSL_PUSHABLE_FIELDS.has(d.field);
                       const busy = resolvingId === d.id;
+
 
                       return (
                         <div

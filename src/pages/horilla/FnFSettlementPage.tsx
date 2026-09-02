@@ -799,6 +799,50 @@ export default function FnFSettlementPage() {
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!deletePrompt} onOpenChange={(o) => { if (!o) { setDeletePrompt(null); setDeleteReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete the F&amp;F settlement of {deletePrompt?.name}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-xs">
+                <p>Deleting does not just remove the sheet — everything this settlement touched is put back:</p>
+                <ul className="list-disc pl-4 space-y-0.5">
+                  <li>Security deposits and error recoveries it reserved or paid back / withheld are reopened with their full held amount, and the reason is written into the deposit history.</li>
+                  <li>Loans it closed are reopened with the outstanding recalculated from the repayments actually paid.</li>
+                  <li>Penalties it applied become open again.</li>
+                  <li>The “Full &amp; Final settlement initiated” item on the exit checklist is unticked.</li>
+                </ul>
+                <p className="text-destructive">
+                  If it was already pushed to RazorpayX, deletion is refused — remove the F&amp;F addition/deduction in RazorpayX first.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <Label>Reason for deleting <span className="text-destructive">*</span></Label>
+            <Textarea
+              rows={2}
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. created for the wrong employee / wrong last working day"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!deleteReason.trim() || deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!deletePrompt) return;
+                deleteMutation.mutate({ id: deletePrompt.id, reason: deleteReason.trim() });
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting…" : "Delete & unwind"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
 
       <AlertDialog open={!!dismissPrompt} onOpenChange={(o) => { if (!o) setDismissPrompt(null); }}>

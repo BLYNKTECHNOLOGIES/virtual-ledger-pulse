@@ -1620,6 +1620,73 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, razorpay_employee_id: String(rpId), snapshot: r.body, http_status: r.status });
     }
 
+    // ---------- scan_emails: read-only email census across a people-id range ----
+    // Answers "is this address already used by another RazorpayX person?" —
+    // including dismissed/inactive people, which still hold their email and
+    // are the usual cause of the dashboard's "Email already exists" error.
+    if (action === "scan_emails") {
+      const p = (payload?.payload && typeof payload.payload === "object") ? payload.payload : payload;
+      const start = Math.max(1, Number(p?.start_id ?? 1));
+      const end = Math.max(start, Number(p?.max_id ?? start + 99));
+      if (end - start + 1 > 400) return json(400, { error: "Range too wide (max 400)" });
+      const stopAfter = Math.max(5, Number(p?.stop_after_misses ?? 40));
+      const needle = String(p?.email ?? "").trim().toLowerCase();
+
+      const people: any[] = [];
+      let misses = 0, consecutiveMisses = 0;
+      for (let i = start; i <= end; i++) {
+        const r = await opfinView(i, "employee");
+        if (!r.ok) {
+          misses++; consecutiveMisses++;
+          if (consecutiveMisses >= stopAfter) break;
+          continue;
+        }
+        consecutiveMisses = 0;
+        const rp: any = r.body || {};
+        const emails = {
+          email: rp.email ?? null,
+          work_email: rp.work_email ?? rp["work-email"] ?? null,
+          personal_email: rp.personal_email ?? rp["personal-email"] ?? null,
+        };
+        people.push({
+          razorpay_employee_id: String(i),
+          name: rp.name ?? [rp["first-name"], rp["last-name"]].filter(Boolean).join(" ") ?? null,
+          dismissed: isDismissedRazorpayPerson(rp),
+          ...emails,
+        });
+      }
+
+      const byEmail: Record<string, string[]> = {};
+      for (const pr of people) {
+        for (const v of [pr.email, pr.work_email, pr.personal_email]) {
+          const k = String(v ?? "").trim().toLowerCase();
+          if (!k) continue;
+          (byEmail[k] ||= []).push(pr.razorpay_employee_id);
+        }
+      }
+      const duplicates = Object.entries(byEmail)
+        .filter(([, ids]) => new Set(ids).size > 1)
+        .map(([email, ids]) => ({ email, razorpay_employee_ids: Array.from(new Set(ids)) }));
+      const matches = needle
+        ? people.filter((pr) =>
+            [pr.email, pr.work_email, pr.personal_email]
+              .some((v) => String(v ?? "").trim().toLowerCase() === needle))
+        : [];
+
+      return json(200, {
+        ok: true,
+        scanned: people.length,
+        misses,
+        range: { start, end },
+        needle: needle || null,
+        matches,
+        duplicates,
+        people,
+      });
+    }
+
+
+
     // ---------- edit_person_by_id ----------
     // Write-back path used by the Stage 5 reconciliation panel when the
     // operator picks "Keep HRMS" for one or more field diffs. The client sends

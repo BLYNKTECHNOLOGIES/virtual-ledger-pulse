@@ -37,6 +37,8 @@ export type FieldDiff = {
    */
   match: boolean | null;
   reason?: string;
+  /** RazorpayX exposes this field read-only via API — dashboard change required. */
+  dashboardOnly?: boolean;
 };
 
 export type VerifyOverall = "verified" | "partial" | "failed" | "skipped";

@@ -87,6 +87,23 @@ Deno.serve(async (req) => {
     const lopByEmp = new Map<string, any>();
     for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
 
+    // Employment-window proration (Model B).
+    //
+    // RazorpayX pays the FULL monthly salary in the joining/relieving month
+    // (payroll:view-payroll returns isProRated: false), so the working days a
+    // person was not employed for must be charged back as LOP days — otherwise
+    // a 13th-of-the-month joiner is paid a whole month. The canonical LOP
+    // engine deliberately clips to the employment window, so those days are
+    // counted here and added on top.
+    const { data: gapRows, error: gapErr } = await supabase.rpc("hr_employment_gap_working_days", {
+      p_employee_ids: roster.map((r: any) => r.hr_employee_id),
+      p_period_month: periodStr,
+    });
+    if (gapErr) throw gapErr;
+    const gapByEmp = new Map<string, any>();
+    for (const r of (gapRows ?? []) as any[]) gapByEmp.set(r.employee_id, r);
+
+
     // Comp-off pool — LOP is cancelled by available comp-off before any
     // deduction is computed (the remainder is encashed by
     // generate-compoff-encashment). Both engines share this math.

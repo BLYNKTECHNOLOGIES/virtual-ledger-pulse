@@ -1825,10 +1825,21 @@ Deno.serve(async (req) => {
       }
       if (mismatched.length > 0) {
         const emailBlocked = mismatched.some((m) => m.field === "email");
-        return json(200, { ok: false, error: emailBlocked
-            ? "RazorpayX did not apply the work-email change. Out of RazorpayX API scope: people:edit identifies the person by their current email, and this tenant rejects/ignores a change of that address — update the work email in the RazorpayX dashboard, then re-run the health check."
-            : `RazorpayX read-back mismatch after write: ${mismatched.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult });
+        const nonEmail = mismatched.filter((m) => m.field !== "email");
+        if (emailBlocked && nonEmail.length === 0) {
+          // Verified live: work email is the Opfin identity key and is read-only
+          // over the Payroll API. Everything else landed, so this is a success
+          // with a dashboard follow-up, not a failed push.
+          return json(200, {
+            ok: true,
+            dashboard_only_fields: ["email"],
+            note: "Work email is RazorpayX's identity key and cannot be changed via the Payroll API (Out of RazorpayX API Scope / Limitation). Change it in the RazorpayX dashboard, then rescan. All other fields were applied.",
+            http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, body: editRes.body, salary: salaryResult,
+          });
+        }
+        return json(200, { ok: false, error: `RazorpayX read-back mismatch after write: ${nonEmail.map(m => m.field).join(", ")}`, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, mismatched, dashboard_only_fields: emailBlocked ? ["email"] : undefined, body: editRes.body, salary: salaryResult });
       }
+
       return json(200, { ok: true, http_status: editRes.status, applied, skipped, confirmed, unconfirmed, body: editRes.body, salary: salaryResult });
     }
 

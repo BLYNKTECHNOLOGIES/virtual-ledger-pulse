@@ -18,7 +18,7 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
-import { computeFnFDraft, buildFnFPayload, fnfNetPayable } from "@/lib/fnfEngine";
+import { computeFnFDraft, buildFnFPayload, fnfNetPayable, syncFnFDepositReservations, sumRefunds, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -57,7 +57,7 @@ export default function FnFSettlementPage() {
   // Source records behind each auto-filled figure (shown as expandable detail
   // and written into breakdown.source_ids so the settlement stays auditable).
   const [details, setDetails] = useState<{
-    loans: any[]; penalties: any[]; deposits: any[]; writtenOff: any[];
+    loans: any[]; penalties: any[]; deposits: DepositDecision[]; writtenOff: any[];
   }>({ loans: [], penalties: [], deposits: [], writtenOff: [] });
   const [openDetail, setOpenDetail] = useState<string | null>(null);
 
@@ -104,8 +104,9 @@ export default function FnFSettlementPage() {
   //  • Pending (final-month) salary  → mirrored RazorpayX payslip record for the LWD month.
   //                                     Never computed locally. Missing ⇒ "awaiting RazorpayX".
   //  • Leave encashment / gratuity   → NOT payable per company policy. Removed.
-  //  • Loans / penalties / deposits  → HRMS-owned; security deposits only (error-recovery
-  //                                     collections are recoveries, never refunded).
+  //  • Penalties                     → stored in DAYS, priced at the payroll one-day rate.
+  //  • Deposits / error recoveries   → one editable refund/withhold decision each; nothing
+  //                                     is ever written off silently.
   const autoFillFnF = async (empId: string) => {
     setSelectedEmpId(empId);
     const emp = separatedEmployees.find((e: any) => e.id === empId);
@@ -121,9 +122,24 @@ export default function FnFSettlementPage() {
 
   const netPayable = fnfNetPayable(form as any);
 
+  /** Edit one deposit decision line and keep the refund total in lockstep. */
+  const setDecision = (id: string, patch: Partial<DepositDecision>) => {
+    setDetails((prev) => {
+      const deposits = prev.deposits.map((d) => (d.deposit_id === id ? { ...d, ...patch } : d));
+      setForm((f) => ({ ...f, deposit_refund: sumRefunds(deposits) }));
+      return { ...prev, deposits };
+    });
+  };
+
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      const missing = missingDecisionReasons(details.deposits);
+      if (missing.length > 0) {
+        throw new Error(
+          `Write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
+        );
+      }
       const payload = buildFnFPayload(selectedEmpId, form as any, details, calcNote, finalMonth as any);
 
 
@@ -133,10 +149,15 @@ export default function FnFSettlementPage() {
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq("id", editingId);
         if (error) throw error;
+        await syncFnFDepositReservations(editingId);
         return;
       }
 
-      const { error } = await (supabase as any).from("hr_fnf_settlements").insert(payload);
+      const { data: created, error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) {
         // Backed by the partial unique index — one live settlement per employee.
         if ((error as any).code === "23505") {
@@ -144,9 +165,11 @@ export default function FnFSettlementPage() {
         }
         throw error;
       }
+      await syncFnFDepositReservations(created.id);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       setShowCreate(false);
       toast.success(editingId ? "F&F Settlement updated" : "F&F Settlement created");
       setEditingId(null);
@@ -177,11 +200,36 @@ export default function FnFSettlementPage() {
     setSelectedEmpId(s.employee_id);
     const b = s.breakdown || {};
     const c = b.components || {};
+    // Per-deposit decisions are authoritative. Legacy settlements (refunded +
+    // written-off lists) are migrated into the same editable shape on open.
+    const legacyDecisions: DepositDecision[] = [
+      ...(c.deposits || []).map((d: any) => ({
+        deposit_id: d.id, deposit_type: (d.type || "security"), held: Number(d.collected || 0),
+        refund: Number(d.refund ?? d.collected ?? 0), reason: "",
+        label: d.type === "error_recovery" ? "Error recovery" : "Security deposit", is_paused: false,
+      })),
+      ...(b.written_off_deposits || []).map((d: any) => ({
+        deposit_id: d.id, deposit_type: (d.deposit_type || "security"), held: Number(d.collected_amount || 0),
+        refund: 0, reason: d.reason || "Written off in legacy settlement",
+        label: d.deposit_type === "error_recovery" ? "Error recovery" : "Security deposit", is_paused: d.reason === "paused",
+      })),
+    ];
     setDetails({
       loans: (c.loans || []).map((l: any) => ({ id: l.id, loan_type: l.type, outstanding_balance: l.outstanding })),
-      penalties: (c.penalties || []).map((p: any) => ({ id: p.id, penalty_month: p.month, penalty_type: p.type, penalty_amount: p.amount })),
-      deposits: (c.deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.type, collected_amount: d.collected })),
-      writtenOff: (b.written_off_deposits || []).map((d: any) => ({ id: d.id, deposit_type: d.deposit_type, collected_amount: d.collected_amount, is_paused: d.reason === "paused" })),
+      penalties: (c.penalties || []).map((p: any) => ({
+        id: p.id, penalty_month: p.month, penalty_type: p.type,
+        penalty_amount: p.amount, days: Number(p.days || 0), day_rate: Number(p.day_rate || 0),
+        amount: Number(p.amount || 0), note: p.note || "",
+      })),
+      deposits: Array.isArray(b.deposit_decisions) && b.deposit_decisions.length
+        ? b.deposit_decisions.map((d: any) => ({
+            deposit_id: d.deposit_id, deposit_type: d.deposit_type || "security",
+            held: Number(d.held || 0), refund: Number(d.refund || 0),
+            reason: d.reason || "", label: d.label || (d.deposit_type === "error_recovery" ? "Error recovery" : "Security deposit"),
+            is_paused: false,
+          }))
+        : legacyDecisions,
+      writtenOff: [],
     });
     setCalcNote(b.calc_note || "");
     setFinalMonth(
@@ -222,6 +270,13 @@ export default function FnFSettlementPage() {
       }
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
+
+      // Cancelling releases every deposit this settlement had reserved.
+      if (status === "cancelled") {
+        try { await syncFnFDepositReservations(id); }
+        catch (e: any) { toast.error(`Cancelled, but releasing the reserved deposits failed: ${e.message}`); }
+      }
+
 
       // Approval is the moment the settlement enters payroll: F&F is the ONLY
       // thing that schedules additions/deductions for a leaver.
@@ -267,6 +322,7 @@ export default function FnFSettlementPage() {
 
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       toast.success("Status updated");
       if (result) {
         setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd });
@@ -515,7 +571,11 @@ export default function FnFSettlementPage() {
               <div><Label>Bonus (₹)</Label><Input className="h-9 mt-1" type="number" value={form.bonus_amount} onChange={(e) => setForm({ ...form, bonus_amount: Number(e.target.value) })} /></div>
               <div><Label>Notice Pay Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.notice_pay_recovery} onChange={(e) => setForm({ ...form, notice_pay_recovery: Number(e.target.value) })} /></div>
               <div><Label>Loan Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.loan_recovery} onChange={(e) => setForm({ ...form, loan_recovery: Number(e.target.value) })} /></div>
-              <div><Label>Security Deposit Refund (₹)</Label><Input className="h-9 mt-1" type="number" value={form.deposit_refund} onChange={(e) => setForm({ ...form, deposit_refund: Number(e.target.value) })} /></div>
+              <div>
+                <Label>Deposit / Recovery Refund (₹)</Label>
+                <Input className="h-9 mt-1" type="number" readOnly value={form.deposit_refund} />
+                <p className="text-[10px] text-muted-foreground mt-0.5">Sum of the decisions below.</p>
+              </div>
               <div><Label>Penalty Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.penalty_deductions} onChange={(e) => setForm({ ...form, penalty_deductions: Number(e.target.value) })} /></div>
               <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
             </div>

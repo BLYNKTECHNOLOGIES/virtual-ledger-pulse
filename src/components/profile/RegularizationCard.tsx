@@ -36,49 +36,6 @@ export default function RegularizationCard({ employeeId }: Props) {
     enabled: !!employeeId,
   });
 
-  const submit = useMutation({
-    mutationFn: async () => {
-      if (!form.reason.trim()) throw new Error('Please provide a reason');
-      if (!form.requested_check_in && !form.requested_check_out) {
-        throw new Error('Provide at least one time (check-in or check-out)');
-      }
-      const payload: any = {
-        employee_id: employeeId,
-        attendance_date: form.attendance_date,
-        reason: form.reason.trim(),
-        status: 'pending',
-      };
-      const win = buildRegularizationWindow(
-        form.attendance_date,
-        form.requested_check_in,
-        form.requested_check_out,
-      );
-      const windowError = validateRegularizationWindow(win);
-      if (windowError) throw new Error(windowError);
-      payload.requested_check_in = win.checkIn;
-      payload.requested_check_out = win.checkOut;
-
-
-      const { error } = await (supabase as any)
-        .from('hr_attendance_regularization_requests')
-        .insert(payload);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success('Regularization request submitted for HR approval');
-      setOpen(false);
-      setForm({
-        attendance_date: format(new Date(), 'yyyy-MM-dd'),
-        requested_check_in: '',
-        requested_check_out: '',
-        reason: '',
-      });
-      qc.invalidateQueries({ queryKey: ['reg_requests_self', employeeId] });
-      invalidateAttendanceCaches(qc);
-    },
-    onError: (e: any) => toast.error(e.message || 'Failed to submit request'),
-  });
-
   const cancel = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any)

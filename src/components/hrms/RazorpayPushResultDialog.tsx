@@ -93,6 +93,13 @@ export function RazorpayPushResultDialog({
   if (!detail) return null;
   const isFailed = detail.overall === "failed";
   const isPartial = detail.overall === "partial";
+  // RazorpayX (Opfin) `people:edit` resolves the person BY their current email,
+  // so the work-email address itself cannot be rewritten through the API on this
+  // tenant — every retry variant returns HTTP 200 and keeps the old value.
+  // Out of RazorpayX API Scope / Limitation: dashboard-only change.
+  const emailScopeBlock =
+    unapplied.length > 0 && unapplied.every((f) => String(f.key).toLowerCase().includes("email"));
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -69,7 +69,9 @@ export default function DepositManagementPage() {
   const [showEdit, setShowEdit] = useState(false);
   const [showTransactions, setShowTransactions] = useState<string | null>(null);
   const [editingDeposit, setEditingDeposit] = useState<any>(null);
+  const [editReason, setEditReason] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
 
   // Refund ("pay back to employee") dialog
   const [refundTarget, setRefundTarget] = useState<any>(null);

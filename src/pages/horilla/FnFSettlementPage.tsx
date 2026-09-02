@@ -346,6 +346,44 @@ export default function FnFSettlementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // ── Delete a settlement and unwind everything it touched ──────────────────
+  // hr_delete_fnf_settlement reopens reserved/closed deposits and error
+  // recoveries (with a released ledger entry), reopens loans it closed,
+  // un-applies its penalties, unticks the exit-checklist F&F item, and refuses
+  // outright once the settlement is live in a RazorpayX payroll run.
+  const [deletePrompt, setDeletePrompt] = useState<{ id: string; name: string; status: string } | null>(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { data, error } = await (supabase as any).rpc("hr_delete_fnf_settlement", {
+        p_settlement_id: id,
+        p_reason: reason,
+      });
+      if (error) throw error;
+      return data as any;
+    },
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["resignation-fnf"] });
+      qc.invalidateQueries({ queryKey: ["resignation-checklist"] });
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      const bits = [
+        res?.deposits_reopened ? `${res.deposits_reopened} deposit/recovery reopened` : null,
+        res?.deposits_released ? `${res.deposits_released} reservation released` : null,
+        res?.loans_reopened ? `${res.loans_reopened} loan reopened` : null,
+        res?.penalties_reopened ? `${res.penalties_reopened} penalty reopened` : null,
+        res?.checklist_unticked ? "exit checklist unticked" : null,
+      ].filter(Boolean);
+      toast.success(
+        bits.length ? `Settlement deleted — ${bits.join(", ")}.` : "Settlement deleted — nothing else was affected.",
+      );
+      setDeletePrompt(null);
+      setDeleteReason("");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
 
   const [dismissing, setDismissing] = useState(false);
   const confirmDismissInRazorpay = async () => {

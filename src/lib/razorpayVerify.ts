@@ -327,6 +327,9 @@ function extractActual(kind: PushVerifyKind, snap: any): Record<string, any> {
 const API_UNAVAILABLE_FIELDS = new Set<string>([
   "employee_type",
   "gender",
+  // people:view accepts a date-of-birth write but never echoes it back in the
+  // read payload, so a read-back diff can never confirm it.
+  "date_of_birth",
   "probation_end_date",
   "account_holder_name",
 ]);

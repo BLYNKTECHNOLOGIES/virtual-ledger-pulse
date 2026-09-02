@@ -13,7 +13,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle } from 'lucide-react';
+import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle, Landmark } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BankChangeRequestCard } from './BankChangeRequestCard';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,6 +32,8 @@ import {
 
 interface Props {
   employeeId: string;
+  userId?: string;
+  defaultHolderName?: string;
 }
 
 type UnifiedRequest = {
@@ -57,9 +64,11 @@ const statusVariant = (s: string): 'default' | 'secondary' | 'destructive' | 'ou
  * hunt through HRMS pages for it. Leave creation continues to live in the
  * Leaves tab (dedicated balance UX).
  */
-export default function MyRequestsHub({ employeeId }: Props) {
+export default function MyRequestsHub({ employeeId, userId, defaultHolderName }: Props) {
   const qc = useQueryClient();
   const [regOpen, setRegOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   const [regForm, setRegForm] = useState({
     attendance_date: '',
     requested_check_in: '',
@@ -357,14 +366,52 @@ export default function MyRequestsHub({ employeeId }: Props) {
             <FileText className="h-4 w-4 text-primary" /> My Requests
           </CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
-          <RequestLeaveDialog employeeId={employeeId} />
-          <Dialog open={regOpen} onOpenChange={setRegOpen}>
-            <DialogTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" /> Regularization
+                <Plus className="h-4 w-4" /> Request
               </Button>
-            </DialogTrigger>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel className="text-xs">What do you want to raise?</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setLeaveOpen(true)} className="gap-2">
+                <CalendarClock className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm">Leave request</p>
+                  <p className="text-[11px] text-muted-foreground">Planned or past time off</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setRegOpen(true)} className="gap-2">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm">Attendance regularization</p>
+                  <p className="text-[11px] text-muted-foreground">You worked but a punch is missing</p>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setBankOpen(true)} className="gap-2">
+                <Landmark className="h-4 w-4 text-primary" />
+                <div className="min-w-0">
+                  <p className="text-sm">Bank change request</p>
+                  <p className="text-[11px] text-muted-foreground">Update your salary account</p>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <RequestLeaveDialog employeeId={employeeId} open={leaveOpen} onOpenChange={setLeaveOpen} hideTrigger />
+          <BankChangeRequestCard
+            employeeId={employeeId}
+            userId={userId}
+            defaultHolderName={defaultHolderName}
+            dialogOnly
+            open={bankOpen}
+            onOpenChange={setBankOpen}
+          />
+
+          <Dialog open={regOpen} onOpenChange={setRegOpen}>
             <DialogContent>
+
               <DialogHeader>
                 <DialogTitle>Raise Attendance Regularization</DialogTitle>
               </DialogHeader>

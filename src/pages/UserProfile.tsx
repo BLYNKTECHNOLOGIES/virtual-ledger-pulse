@@ -1478,7 +1478,11 @@ export default function UserProfile() {
                 employeeId={hrEmployee.id}
                 highlightedRequestId={searchParams.get('regId')}
               />
-              <MyRequestsHub employeeId={hrEmployee.id} />
+              <MyRequestsHub
+                employeeId={hrEmployee.id}
+                userId={user?.id}
+                defaultHolderName={[hrEmployee.first_name, hrEmployee.last_name].filter(Boolean).join(' ')}
+              />
             </>
           )}
         </TabsContent>

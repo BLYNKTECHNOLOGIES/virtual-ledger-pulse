@@ -511,6 +511,46 @@ export function ResignationTab() {
     onError: (err: any) => toast.error(err.message),
   });
 
+  // ── Relieving cum experience letter: generate → file → (optional) email ─────
+  const { data: relievingLetter, refetch: refetchRelieving } = useQuery({
+    queryKey: ["resignation-relieving-letter", selectedEmployee?.id],
+    queryFn: async () => (selectedEmployee ? findIssuedLetter(selectedEmployee.id, "relieving") : null),
+    enabled: !!selectedEmployee,
+  });
+
+  const generateRelieving = useMutation({
+    mutationFn: async () => {
+      if (!selectedEmployee) throw new Error("No employee selected");
+      const res = await issueLetterForEmployee(selectedEmployee.id, "relieving");
+      await markChecklistItem(t => t.includes("relieving") || t.includes("experience letter"));
+      return res;
+    },
+    onSuccess: (res) => {
+      toast.success(
+        res.existed
+          ? `Relieving letter ${res.referenceNo} already issued — filed under the employee's documents`
+          : `Relieving letter ${res.referenceNo} generated and filed under the employee's documents`,
+      );
+      refetchRelieving();
+      queryClient.invalidateQueries({ queryKey: ["hr_documents_issued"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_employee_documents", selectedEmployee?.id] });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const emailRelieving = useMutation({
+    mutationFn: async () => {
+      if (!relievingLetter?.id) throw new Error("Generate the relieving letter first");
+      return emailIssuedLetter(relievingLetter.id);
+    },
+    onSuccess: (to) => {
+      toast.success(`Relieving letter emailed to ${to}`);
+      refetchRelieving();
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+
 
   return (
     <div className="space-y-4">

@@ -13,7 +13,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle } from 'lucide-react';
+import { CalendarClock, ClipboardList, Gift, FileText, Plus, XCircle, Landmark } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { BankChangeRequestCard } from './BankChangeRequestCard';
 import { toast as sonnerToast } from 'sonner';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -27,6 +32,8 @@ import {
 
 interface Props {
   employeeId: string;
+  userId?: string;
+  defaultHolderName?: string;
 }
 
 type UnifiedRequest = {
@@ -57,9 +64,11 @@ const statusVariant = (s: string): 'default' | 'secondary' | 'destructive' | 'ou
  * hunt through HRMS pages for it. Leave creation continues to live in the
  * Leaves tab (dedicated balance UX).
  */
-export default function MyRequestsHub({ employeeId }: Props) {
+export default function MyRequestsHub({ employeeId, userId, defaultHolderName }: Props) {
   const qc = useQueryClient();
   const [regOpen, setRegOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   const [regForm, setRegForm] = useState({
     attendance_date: '',
     requested_check_in: '',

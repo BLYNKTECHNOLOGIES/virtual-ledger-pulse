@@ -124,10 +124,10 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
       <Card className="border-success/40 bg-gradient-to-br from-success/10 via-success/[0.04] to-transparent overflow-hidden">
         <CardContent className="py-5 px-5 flex items-center gap-4">
           <div className="h-12 w-12 rounded-xl bg-success/15 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="h-6 w-6 text-success dark:text-success" />
+            <CheckCircle2 className="h-6 w-6 text-success" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-success dark:text-success">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-success">
               All caught up
             </div>
             <div className="text-lg font-semibold mt-0.5">{period} payroll is complete</div>
@@ -146,10 +146,10 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
       <Card className="border-warning/50 bg-gradient-to-br from-warning/12 via-warning/[0.04] to-transparent overflow-hidden">
         <CardContent className="py-5 px-5 flex items-start gap-4">
           <div className="h-12 w-12 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
-            <CalendarClock className="h-6 w-6 text-warning dark:text-warning" />
+            <CalendarClock className="h-6 w-6 text-warning" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-warning dark:text-warning">
+            <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-warning">
               Attention needed
             </div>
             <div className="text-lg font-semibold mt-0.5">Payroll journey is stalled</div>
@@ -199,7 +199,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
             <div
               className={cn(
                 "h-12 w-12 sm:h-14 sm:w-14 rounded-xl flex items-center justify-center shrink-0",
-                isMonthly ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning dark:text-warning"
+                isMonthly ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning"
               )}
             >
               <Icon className="h-6 w-6 sm:h-7 sm:w-7" />
@@ -209,7 +209,7 @@ export function TodaysFocusHero({ steps, onJumpToStation }: Props) {
                 <span
                   className={cn(
                     "text-[10px] font-bold uppercase tracking-[0.16em]",
-                    isMonthly ? "text-primary" : "text-warning dark:text-warning"
+                    isMonthly ? "text-primary" : "text-warning"
                   )}
                 >
                   {isMonthly ? "This month's task" : "Set up once"}

@@ -11,7 +11,7 @@ const TONE: Record<
     medallion: "bg-success text-white",
     ring: "ring-success/25",
     title: "text-foreground",
-    pill: "bg-success/10 text-success dark:text-success border-success/30",
+    pill: "bg-success/10 text-success border-success/30",
     label: "Completed",
     card: "border-success/20 bg-gradient-to-br from-success/[0.04] to-transparent",
   },

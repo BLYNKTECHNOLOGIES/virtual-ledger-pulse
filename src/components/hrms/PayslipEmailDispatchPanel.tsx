@@ -403,7 +403,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           </div>
 
           {!registerPresent && (
-            <div className="flex flex-wrap items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning dark:text-warning">
+            <div className="flex flex-wrap items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
               <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
               <span className="flex-1 min-w-[240px]">
                 Salary Register CSV has not been imported for this month. Payslip emails are blocked until the register
@@ -503,7 +503,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                 )}
               </div>
               {zipReport.unmapped.length > 0 && (
-                <div className="text-warning dark:text-warning">
+                <div className="text-warning">
                   <div className="font-medium">No HRMS employee for these RazorpayX codes:</div>
                   {zipReport.unmapped.map((u) => (
                     <div key={u.code} className="pl-3 border-l-2 border-border">{u.code} — {u.name} ({u.group})</div>

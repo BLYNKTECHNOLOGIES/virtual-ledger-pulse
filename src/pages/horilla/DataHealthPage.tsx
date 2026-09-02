@@ -420,10 +420,14 @@ export default function DataHealthPage() {
   async function markResolved(drift: Drift, note: string) {
     setResolvingId(drift.id);
     try {
-      await (supabase as any)
+      const { error } = await (supabase as any)
         .from("hr_drift_alerts")
         .update({ resolved_at: new Date().toISOString(), resolution_note: note })
         .eq("id", drift.id);
+      if (error) {
+        toast.error(`Could not mark resolved: ${error.message}`);
+        return;
+      }
       toast.success("Marked resolved");
       qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
     } finally {

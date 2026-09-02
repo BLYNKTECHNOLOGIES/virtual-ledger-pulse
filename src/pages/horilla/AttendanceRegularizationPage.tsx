@@ -420,7 +420,7 @@ export default function AttendanceRegularizationPage() {
                   <tbody className="divide-y divide-border/60">
                     {filtered.map((r: any) => {
                       const emp = r.hr_employees;
-                      const actionable = r.status === 'pending' || r.status === 'manager_reviewed';
+                      const actionable = r.status === 'pending' || r.status === 'manager_review' || r.status === 'manager_reviewed';
                       return (
                         <tr key={r.id} className="align-middle hover:bg-muted/30">
                           <td className="px-3 py-2">

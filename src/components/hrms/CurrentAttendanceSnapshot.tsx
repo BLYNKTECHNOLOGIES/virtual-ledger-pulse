@@ -79,6 +79,43 @@ export function CurrentAttendanceSnapshot({
       ) : (
         <p className="text-muted-foreground">No attendance recorded for this date.</p>
       )}
+
+      <div className="border-t border-border pt-1.5 space-y-1.5">
+        <div>
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <CheckCircle2 className="h-3 w-3 text-success" /> Kept punches ({kept.length})
+          </p>
+          {kept.length === 0 ? (
+            <p className="text-muted-foreground">No punches in the 05:00 → 05:00 IST window.</p>
+          ) : (
+            <ul className="mt-0.5 space-y-0.5">
+              {kept.map((p: any) => (
+                <li key={p.id} className="flex items-center justify-between gap-2">
+                  <span className="font-mono tabular-nums text-foreground">{istTime(p.punch_time)}</span>
+                  <span className="truncate text-muted-foreground">{p.device_name || p.device_serial || "—"}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {suppressed.length > 0 && (
+          <div>
+            <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <AlertCircle className="h-3 w-3 text-warning" /> Suppressed ({suppressed.length})
+            </p>
+            <ul className="mt-0.5 space-y-0.5">
+              {suppressed.map((p: any) => (
+                <li key={p.id} className="flex items-center justify-between gap-2">
+                  <span className="font-mono tabular-nums text-foreground">{istTime(p.punch_time)}</span>
+                  <span className="truncate text-muted-foreground">{p.suppressed_reason || "suppressed"}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
+
   );
 }

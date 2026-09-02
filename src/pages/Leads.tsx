@@ -24,6 +24,7 @@ export default function Leads() {
   const [searchTerm, setSearchTerm] = useState("");
   const [timeFilter, setTimeFilter] = useState("all");
   const [pendingOnly, setPendingOnly] = useState(false);
+  const [creatorFilter, setCreatorFilter] = useState("all");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [leadToDelete, setLeadToDelete] = useState<any>(null);
@@ -188,8 +189,19 @@ export default function Leads() {
     }
   };
 
+  const creators = Array.from(
+    new Set((leads || []).map((l: any) => (l.created_by_name || "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
   const filteredLeads =
     (leads || [])
+      .filter((lead: any) =>
+        creatorFilter === "all"
+          ? true
+          : creatorFilter === "__unknown__"
+          ? !lead.created_by_name
+          : lead.created_by_name === creatorFilter
+      )
       .filter((lead) =>
         pendingOnly
           ? String(lead.status || '').toUpperCase() === 'PENDING'
@@ -330,7 +342,19 @@ export default function Leads() {
                 className="max-w-sm"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              <Select value={creatorFilter} onValueChange={setCreatorFilter}>
+                <SelectTrigger className="w-[190px] text-foreground">
+                  <SelectValue placeholder="Created by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Created by: Anyone</SelectItem>
+                  {creators.map((c) => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                  <SelectItem value="__unknown__">Not recorded</SelectItem>
+                </SelectContent>
+              </Select>
               <Checkbox
                 id="pending-only"
                 checked={pendingOnly}
@@ -357,6 +381,7 @@ export default function Leads() {
               <TableHead>Channel</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Follow-up</TableHead>
+              <TableHead>Created By</TableHead>
               <TableHead>Created</TableHead>
               <TableHead className="w-[200px]">Actions</TableHead>
             </TableRow>
@@ -394,6 +419,9 @@ export default function Leads() {
                       )}
                     </div>
                   ) : "-"}
+                </TableCell>
+                <TableCell className="whitespace-nowrap">
+                  {lead.created_by_name || <span className="text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell>{new Date(lead.created_at).toLocaleDateString()}</TableCell>
                 <TableCell>

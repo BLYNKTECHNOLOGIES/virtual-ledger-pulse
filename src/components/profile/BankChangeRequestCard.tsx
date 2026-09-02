@@ -71,12 +71,18 @@ interface Props {
   employeeId: string;
   userId: string | undefined;
   defaultHolderName?: string;
+  /** Render only the dialog (no card) — used by the unified "Request" menu. */
+  dialogOnly?: boolean;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }
 
-export function BankChangeRequestCard({ employeeId, userId, defaultHolderName }: Props) {
+export function BankChangeRequestCard({ employeeId, userId, defaultHolderName, dialogOnly, open: openProp, onOpenChange }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
@@ -195,6 +201,8 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName }:
   });
 
   return (
+    <>
+    {!dialogOnly && (
     <Card className="border-border/60">
       <CardContent className="p-4 md:p-5 space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -272,6 +280,8 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName }:
           </div>
         )}
       </CardContent>
+    </Card>
+    )}
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
         <DialogContent className="max-w-lg max-h-[90dvh] overflow-y-auto">
@@ -420,6 +430,6 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName }:
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </>
   );
 }

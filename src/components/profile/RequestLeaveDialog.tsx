@@ -16,6 +16,11 @@ import { sendLeaveEmail } from '@/utils/leaveEmail';
 
 interface Props {
   employeeId: string;
+  /** Controlled open state — used when the dialog is launched from a shared "Request" menu. */
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
+  /** Hide the built-in trigger button when an external menu opens this dialog. */
+  hideTrigger?: boolean;
 }
 
 /**
@@ -23,9 +28,11 @@ interface Props {
  * Routes to the reporting manager first, then HR (two-stage approval).
  * HR assigns the leave type at final approval; balances cascade automatically.
  */
-export default function RequestLeaveDialog({ employeeId }: Props) {
+export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenChange, hideTrigger }: Props) {
   const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [form, setForm] = useState({
     start_date: '',
     end_date: '',
@@ -134,11 +141,13 @@ export default function RequestLeaveDialog({ employeeId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="gap-1.5">
-          <CalendarPlus className="h-4 w-4" /> Request Leave
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline" className="gap-1.5">
+            <CalendarPlus className="h-4 w-4" /> Request Leave
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Request Leave</DialogTitle>

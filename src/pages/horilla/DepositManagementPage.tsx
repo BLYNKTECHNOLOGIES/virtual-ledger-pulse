@@ -892,9 +892,22 @@ export default function DepositManagementPage() {
             <DialogDescription>Update deposit amount or deduction schedule</DialogDescription>
           </DialogHeader>
           {renderDepositForm(true)}
+          <div className="mt-3">
+            <Label>Reason for this change *</Label>
+            <Textarea
+              rows={2}
+              className="mt-1 text-foreground"
+              value={editReason}
+              onChange={(e) => setEditReason(e.target.value)}
+              placeholder="Why is the amount / schedule being changed? Kept in the deposit ledger."
+            />
+            <p className="text-[11px] text-muted-foreground mt-1">
+              The old and new values, your name and this reason are appended to the ledger.
+            </p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEdit(false)}>Cancel</Button>
-            <Button onClick={() => editMutation.mutate()} disabled={!form.total_deposit_amount || !form.deduction_value} className="bg-[#E8604C] hover:bg-[#d4553f]">
+            <Button onClick={() => editMutation.mutate()} disabled={editMutation.isPending || !form.total_deposit_amount || !form.deduction_value} className="bg-[#E8604C] hover:bg-[#d4553f]">
               Update
             </Button>
           </DialogFooter>

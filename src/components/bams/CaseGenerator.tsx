@@ -131,19 +131,43 @@ export function CaseGenerator() {
     statement_proof: [],
   });
 
-  // Fetch bank accounts for dropdown (excluding dormant)
+  // Fetch bank accounts (including inactive/dormant) + POS gateways for dropdown
   const { data: bankAccounts } = useQuery({
     queryKey: ['bank_accounts', 'case-generator-minimal'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_accounts')
-        .select('id, bank_name, account_name, account_number')
-        .eq('status', 'ACTIVE')
-        .is('dormant_at', null) // Exclude dormant accounts
+        .select('id, bank_name, account_name, account_number, status, dormant_at')
         .order('bank_name');
-      
+
       if (error) throw error;
-      return data;
+
+      // POS / payment-gateway methods, mapped to the bank account they settle into
+      const { data: pos } = await supabase
+        .from('sales_payment_methods')
+        .select('id, type, upi_id, bank_account_id, is_active, payment_gateway')
+        .eq('payment_gateway', true);
+
+      const accounts = (data || []).map((a: any) => ({
+        id: a.id,
+        label: `${a.bank_name} - ${a.account_name}`,
+        inactive: a.status !== 'ACTIVE' || !!a.dormant_at,
+        group: 'Bank accounts',
+      }));
+
+      const posOptions = (pos || [])
+        .filter((p: any) => p.bank_account_id)
+        .map((p: any) => {
+          const acct = (data || []).find((a: any) => a.id === p.bank_account_id);
+          return {
+            id: p.bank_account_id,
+            label: `POS · ${p.type}${p.upi_id ? ` (${p.upi_id})` : ''}${acct ? ` → ${acct.bank_name}` : ''}`,
+            inactive: !p.is_active,
+            group: 'POS / payment gateways',
+          };
+        });
+
+      return [...accounts, ...posOptions];
     },
   });
 
@@ -917,9 +941,12 @@ export function CaseGenerator() {
                             <SelectValue placeholder="Select bank account" />
                           </SelectTrigger>
                           <SelectContent className="bg-background border shadow-sm z-50">
-                            {bankAccounts?.map((account) => (
-                              <SelectItem key={account.id} value={account.id}>
-                                {account.bank_name} - {account.account_name}
+                            {bankAccounts?.map((account, idx) => (
+                              <SelectItem key={`${account.id}-${idx}`} value={account.id}>
+                                {account.label}
+                                {account.inactive && (
+                                  <span className="ml-2 text-xs text-muted-foreground">(Inactive)</span>
+                                )}
                               </SelectItem>
                             ))}
                           </SelectContent>

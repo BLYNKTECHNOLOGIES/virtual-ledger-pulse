@@ -127,22 +127,6 @@ export async function resolveMonthlyGross(
 
 
   if (!(monthlyGross > 0)) {
-    // Preferred over an older payslip because prior-period payslips are often
-    // partial months (mid-month joiners / training stints).
-    const { data: onb } = await supabase
-      .from("hr_employee_onboarding")
-      .select("ctc")
-      .eq("employee_id", employeeId)
-      .limit(1);
-    const annual = Number((onb?.[0] as any)?.ctc ?? 0);
-    if (annual > 0) {
-      // hr_employee_onboarding.ctc is captured as an ANNUAL figure.
-      monthlyGross = annual / 12;
-      source = "onboarding_ctc";
-    }
-  }
-
-  if (!(monthlyGross > 0)) {
     // Same one-time-payout hazard as above: prefer the regular-gross split.
     const { data: prev } = await supabase
       .from("hr_payslip_gross_split_v")
@@ -156,11 +140,33 @@ export async function resolveMonthlyGross(
     if (monthlyGross > 0) source = "previous_payslip";
   }
 
+  if (!(monthlyGross > 0)) {
+    // LAST RESORT. Onboarding CTC is a locally typed estimate that is routinely
+    // stale (it is not synced back from RazorpayX). It may describe the salary,
+    // but it must never silently drive a deduction — surface it as an error.
+    const { data: onb } = await supabase
+      .from("hr_employee_onboarding")
+      .select("ctc")
+      .eq("employee_id", employeeId)
+      .limit(1);
+    const annual = Number((onb?.[0] as any)?.ctc ?? 0);
+    if (annual > 0) {
+      // hr_employee_onboarding.ctc is captured as an ANNUAL figure.
+      return {
+        monthlyGross: Math.round(annual / 12),
+        source: "onboarding_ctc",
+        razorpayMonthly: 0,
+        error:
+          "Salary base unverified: only the onboarding CTC estimate is available and it is not mirrored from RazorpayX. Sync this employee's salary from RazorpayX before staging a deduction.",
+      };
+    }
+  }
 
   monthlyGross = Math.round(monthlyGross);
-  if (!(monthlyGross > 0)) return { monthlyGross: 0, source: "none" };
-  return { monthlyGross, source };
+  if (!(monthlyGross > 0)) return { monthlyGross: 0, source: "none", razorpayMonthly };
+  return { monthlyGross, source, razorpayMonthly, mismatch };
 }
+
 
 export const SALARY_BASE_LABELS: Record<SalaryBaseSource, string> = {
   structure_assignment: "Salary structure assignment",

@@ -262,7 +262,24 @@ export default function FnFSettlementPage() {
   //   approving requires approved_by; marking paid requires payment_reference.
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, paymentReference }: { id: string; status: string; paymentReference?: string }) => {
+      // Money kept at exit must carry a written reason before the settlement moves forward.
+      if (status === "approved" || status === "paid") {
+        const { data: row } = await (supabase as any)
+          .from("hr_fnf_settlements").select("breakdown").eq("id", id).maybeSingle();
+        const decisions: DepositDecision[] = (row?.breakdown?.deposit_decisions || []).map((d: any) => ({
+          deposit_id: d.deposit_id, deposit_type: d.deposit_type || "security",
+          held: Number(d.held || 0), refund: Number(d.refund || 0), reason: d.reason || "",
+          label: d.label || "Deposit", is_paused: false,
+        }));
+        const missing = missingDecisionReasons(decisions);
+        if (missing.length > 0) {
+          throw new Error(
+            `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
+          );
+        }
+      }
       const payload: any = { status, updated_at: new Date().toISOString() };
+
       if (status === "approved") payload.approved_by = user?.username || user?.id || "hr";
       if (status === "paid") {
         payload.paid_at = new Date().toISOString();

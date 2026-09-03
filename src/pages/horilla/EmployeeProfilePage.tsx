@@ -85,28 +85,42 @@ function DepositCard({ deposit }: { deposit: any }) {
   const progress = deposit.total_deposit_amount > 0 ? Math.round((deposit.collected_amount / deposit.total_deposit_amount) * 100) : 0;
   const modeLabel = deposit.deduction_mode === "one_time" ? "One-Time" : deposit.deduction_mode === "percentage" ? `${deposit.deduction_value}% of Salary` : deposit.deduction_mode === "already_deducted" ? "Already Deducted" : `₹${Number(deposit.deduction_value).toLocaleString('en-IN')}/month`;
 
-  const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund", refund: "Refund" };
-  const txTypeColor: Record<string, string> = { collection: "text-success", penalty_deduction: "text-destructive", replenishment: "text-info", ff_refund: "text-primary", refund: "text-primary" };
+  const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund", refund: "Refund", withheld: "Kept by company" };
+  const txTypeColor: Record<string, string> = { collection: "text-success", penalty_deduction: "text-destructive", replenishment: "text-info", ff_refund: "text-primary", refund: "text-primary", withheld: "text-warning" };
 
-  const refunded = deposit.refund_status === "refunded" || deposit.is_recovered || deposit.is_settled;
+  const refundAmt = Number(deposit.refund_amount || 0);
+  const withheldAmt = Number(deposit.withheld_amount || 0);
+  const settled = deposit.is_settled || ["refunded", "withheld", "partial"].includes(deposit.refund_status) || deposit.is_recovered;
+  const exitLabel = !settled
+    ? null
+    : withheldAmt > 0 && refundAmt > 0
+      ? "Partly paid back"
+      : withheldAmt > 0
+        ? "Kept by company"
+        : "Paid back";
 
   return (
     <div className="border border-border rounded-lg p-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-semibold">{DEPOSIT_TYPE_LABEL[deposit.deposit_type || "security"]}</p>
-        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${refunded ? "bg-primary/10 text-primary" : deposit.is_fully_collected ? "bg-success/10 text-success" : deposit.is_paused ? "bg-muted text-muted-foreground" : "bg-warning/10 text-warning"}`}>
-          {refunded ? "Paid back" : deposit.is_fully_collected ? "Fully Collected" : deposit.is_paused ? "Paused" : "Collecting"}
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${settled ? (withheldAmt > 0 ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary") : deposit.is_fully_collected ? "bg-success/10 text-success" : deposit.is_paused ? "bg-muted text-muted-foreground" : "bg-warning/10 text-warning"}`}>
+          {settled ? exitLabel : deposit.is_fully_collected ? "Fully Collected" : deposit.is_paused ? "Paused" : "Collecting"}
         </span>
       </div>
 
-      {refunded && (
+      {settled && (
         <div className="text-xs text-muted-foreground space-y-0.5 rounded-md bg-muted/40 p-2">
-          <p>Paid back: <span className="text-foreground font-medium">₹{Number(deposit.refund_amount || 0).toLocaleString("en-IN")}</span>{deposit.refund_period_month ? ` (payroll ${String(deposit.refund_period_month).slice(0, 7)})` : ""}</p>
-          {Number(deposit.withheld_amount) > 0 && (
-            <p>Withheld: <span className="text-foreground font-medium">₹{Number(deposit.withheld_amount).toLocaleString("en-IN")}</span> — {deposit.withheld_reason || "—"}</p>
+          <p className="font-medium text-foreground">Exit record (kept permanently)</p>
+          <p>Paid back: <span className="text-foreground font-medium">₹{refundAmt.toLocaleString("en-IN")}</span>{deposit.refund_period_month ? ` (payroll ${String(deposit.refund_period_month).slice(0, 7)})` : ""}</p>
+          <p>Kept by company: <span className="text-foreground font-medium">₹{withheldAmt.toLocaleString("en-IN")}</span></p>
+          {withheldAmt > 0 && (
+            <p>Reason: <span className="text-foreground">{deposit.withheld_reason || "not recorded (legacy settlement)"}</span></p>
           )}
+          {deposit.settled_at && <p>Settled on: <span className="text-foreground">{new Date(deposit.settled_at).toLocaleDateString("en-IN")}</span></p>}
+          {deposit.fnf_settlement_id && <p className="break-all">F&F reference: <span className="text-foreground">{deposit.fnf_settlement_id}</span></p>}
         </div>
       )}
+
 
       {deposit.deposit_type === "error_recovery" && (deposit.incident_reference || deposit.incident_date || deposit.recovery_reason) && (
         <div className="text-xs text-muted-foreground space-y-0.5">

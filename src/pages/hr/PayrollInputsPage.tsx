@@ -179,8 +179,11 @@ export default function PayrollInputsPage() {
     // F&F settlement lines are pushed by the settlement approval itself and are
     // shown in their own segregated card below, never in the staging list.
     const all = ((rows as any[]) ?? []).filter(
-      (r) => r.source !== "training_ctc_adjustment" && r.source !== "fnf_settlement",
+      (r) => r.source !== "training_ctc_adjustment"
+        && r.source !== "ctc_transition_adjustment"
+        && r.source !== "fnf_settlement",
     );
+
     if (!lopFocus || tab !== "deduction") return all;
     return all.filter((r) => /lop|loss of pay|loss-of-pay/i.test(String(r.label ?? "")));
   }, [rows, lopFocus, tab]);

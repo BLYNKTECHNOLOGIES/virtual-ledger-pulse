@@ -67,15 +67,18 @@ Deno.serve(async (req) => {
       // the 1st means the entire month is paid at the new rate. Stage the exact
       // recovery (or arrears, if the month was already processed) for HR to
       // approve in the payroll cockpit. Idempotent — safe on cron re-runs.
+      // Provisional while the CTC push has not succeeded; final once it has.
       let adjustment: any = null;
+      const ctcPushOk = !pushErr && !(pushResp as any)?.error;
       const effDay = Number(String(row.effective_from || "").slice(8, 10));
       if (Number.isFinite(effDay) && effDay > 1) {
         const { data: adj, error: adjErr } = await svc.rpc(
           "hr_stage_ctc_transition_adjustment",
-          { p_revision_id: row.id },
+          { p_revision_id: row.id, p_provisional: !ctcPushOk },
         );
         adjustment = adjErr ? { ok: false, error: adjErr.message } : adj;
       }
+
 
 
       results.push({

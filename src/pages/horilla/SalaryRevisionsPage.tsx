@@ -130,30 +130,31 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
   // Mid-month CTC corrections already staged into payroll inputs, keyed by revision.
   const ADJ_SOURCES = ["ctc_transition_adjustment", "training_ctc_adjustment"];
-  const { data: stagedAdjustments = {} as Record<string, { kind: "deduction" | "addition"; amount: number; period: string; pushed: boolean }> } = useQuery({
+  const { data: stagedAdjustments = {} as Record<string, { kind: "deduction" | "addition"; amount: number; period: string; pushed: boolean; provisional: boolean; label: string }> } = useQuery({
     queryKey: ["hr_ctc_transition_adjustments"],
     queryFn: async () => {
       const map: Record<string, any> = {};
       const [ded, add] = await Promise.all([
         (supabase as any)
           .from("hr_payroll_input_deductions")
-          .select("source_revision_id, amount, period_month, pushed_at, source")
+          .select("source_revision_id, amount, period_month, pushed_at, source, provisional, label")
           .in("source", ADJ_SOURCES),
         (supabase as any)
           .from("hr_payroll_input_additions")
-          .select("source_revision_id, amount, period_month, pushed_at, source")
+          .select("source_revision_id, amount, period_month, pushed_at, source, provisional, label")
           .in("source", ADJ_SOURCES),
       ]);
       for (const r of (ded.data || [])) {
-        if (r.source_revision_id) map[r.source_revision_id] = { kind: "deduction", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at };
+        if (r.source_revision_id) map[r.source_revision_id] = { kind: "deduction", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at, provisional: !!r.provisional, label: r.label };
       }
       for (const r of (add.data || [])) {
-        if (r.source_revision_id) map[r.source_revision_id] = { kind: "addition", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at };
+        if (r.source_revision_id) map[r.source_revision_id] = { kind: "addition", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at, provisional: !!r.provisional, label: r.label };
       }
       return map;
     },
     staleTime: 15_000,
   });
+
 
 
 
@@ -380,12 +381,15 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   }
 
   // RazorpayX CTC is a whole-month attribute: a revision effective mid-month is
-  // paid for the FULL month at the new rate. Stage the recovery (or arrears, if
-  // the month was already processed) as a payroll input so Step 5 pushes it.
+  // paid for the FULL month at the new rate. The part-month recovery/arrears is
+  // staged PROVISIONALLY the moment the revision is applied (DB trigger); this
+  // call recalculates it against current LOP and marks it FINAL after a verified
+  // RazorpayX push, so Step 5 can push it to the payroll month.
   async function stageMidMonthAdjustment(revisionId: string) {
-    const { data, error } = await (supabase as any).rpc("hr_stage_ctc_transition_adjustment", {
+    const { data, error } = await (supabase as any).rpc("hr_finalize_ctc_transition_adjustment", {
       p_revision_id: revisionId,
     });
+
     if (error) {
       toast.warning("Mid-month correction could not be staged.", { description: error.message.slice(0, 200) });
       return;
@@ -737,13 +741,20 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   {adj && (
                     <Link to="/hrms/payroll/inputs">
                       <StatusPill
-                        tone={adj.kind === "deduction" ? "warn" : "info"}
+                        tone={adj.provisional ? "warn" : adj.kind === "deduction" ? "warn" : "info"}
                         icon={adj.kind === "deduction" ? TrendingDown : TrendingUp}
-                        label={`${adj.kind === "deduction" ? "−" : "+"}${money(adj.amount)} · ${adj.period ? format(new Date(adj.period), "MMM") : ""}`}
-                        detail={`Mid-month CTC correction: ${adj.kind === "deduction" ? "recovery" : "arrears"} of ${money(adj.amount)} staged in ${adj.period ? format(new Date(adj.period), "MMMM yyyy") : ""} payroll inputs${adj.pushed ? " · already pushed to RazorpayX" : " · push from Payroll Cockpit Step 5"}.`}
+                        label={`${adj.provisional ? "Provisional " : ""}${adj.kind === "deduction" ? "−" : "+"}${money(adj.amount)} · ${adj.period ? format(new Date(adj.period), "MMM") : ""}`}
+                        detail={`${adj.label || (adj.kind === "deduction" ? "Salary Recovery - Part-Month CTC Revision" : "Salary Arrears - Part-Month CTC Revision")} — ${money(adj.amount)} in ${adj.period ? format(new Date(adj.period), "MMMM yyyy") : ""} payroll inputs. ${
+                          adj.pushed
+                            ? "Already pushed to RazorpayX."
+                            : adj.provisional
+                              ? "Provisional — recalculated and finalised automatically once this CTC is pushed to RazorpayX. Not pushable yet."
+                              : "Final — push it from Payroll Cockpit Step 5."
+                        }`}
                       />
                     </Link>
                   )}
+
 
                   {pushBtn}
                   {deleteBtn}

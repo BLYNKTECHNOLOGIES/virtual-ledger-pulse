@@ -209,9 +209,20 @@ Deno.serve(async (req) => {
         formula: lop?.formula ?? null,
         existing_amount: existingAuto ? Number(existingAuto.amount) : null,
         existing_pushed: !!existingAuto?.pushed_at,
+        employee_type: empTypeByEmp.get(map.hr_employee_id) ?? null,
       };
 
-
+      // Contract staff: LOP does not apply — mark clearly, and clean up any
+      // stale un-pushed auto row that may exist from before.
+      if (isContract(map.hr_employee_id)) {
+        if (existingAuto && !existingAuto.pushed_at) {
+          rows.push({ ...base, status: "remove", reason: "LOP not applicable — contract employee; stale auto row will be removed", amount: 0, base_source: null });
+          toDelete.push(existingAuto.id);
+        } else {
+          rows.push({ ...base, status: "not_applicable", reason: "LOP not applicable — contract employee (paid per contract, not attendance)", amount: 0, base_source: null });
+        }
+        continue;
+      }
 
       if (monthWorkingDays > 0 && gapDays >= monthWorkingDays) {
         rows.push({ ...base, status: "skipped", reason: "Not employed during this period — no payroll expected", amount: 0, base_source: null });

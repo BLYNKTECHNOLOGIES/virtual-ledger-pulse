@@ -351,6 +351,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       });
       if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
         toast.success(`Verified in RazorpayX: ₹${res.verifiedTotal.toLocaleString("en-IN")}`);
+        await stageMidMonthAdjustment(revisionId);
       } else if (res.skipped) {
         toast.warning("Employee is not linked to RazorpayX — link them from Data Health first.");
       } else {
@@ -363,6 +364,37 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       setPushingIds(prev => { const n = new Set(prev); n.delete(revisionId); return n; });
     }
   }
+
+  // RazorpayX CTC is a whole-month attribute: a revision effective mid-month is
+  // paid for the FULL month at the new rate. Stage the recovery (or arrears, if
+  // the month was already processed) as a payroll input so Step 5 pushes it.
+  async function stageMidMonthAdjustment(revisionId: string) {
+    const { data, error } = await (supabase as any).rpc("hr_stage_ctc_transition_adjustment", {
+      p_revision_id: revisionId,
+    });
+    if (error) {
+      toast.warning("Mid-month correction could not be staged.", { description: error.message.slice(0, 200) });
+      return;
+    }
+    const res: any = data || {};
+    if (res.ok === false) {
+      toast.warning("Mid-month correction not staged.", { description: String(res.error || "").slice(0, 200) });
+      return;
+    }
+    if (res.staged) {
+      const period = res.period_month ? format(new Date(res.period_month), "MMMM yyyy") : "";
+      toast.info(
+        res.kind === "deduction"
+          ? `Recovery of ₹${Number(res.amount).toLocaleString("en-IN")} staged in ${period} payroll inputs`
+          : `Arrears of ₹${Number(res.amount).toLocaleString("en-IN")} staged in ${period} payroll inputs`,
+        { description: "RazorpayX pays the whole month at the new CTC — push this from Payroll Cockpit Step 5." },
+      );
+    } else if (res.error) {
+      toast.warning("Mid-month correction not staged.", { description: String(res.error).slice(0, 200) });
+    }
+    await qc.invalidateQueries({ queryKey: ["hr_ctc_transition_adjustments"] });
+  }
+
 
   async function pushOneTime(revisionId: string) {
     setPushingIds(prev => new Set(prev).add(revisionId));

@@ -28979,6 +28979,10 @@ export type Database = {
             }
             Returns: string
           }
+      hr_ctc_transition_adjustment: {
+        Args: { p_revision_id: string }
+        Returns: Json
+      }
       hr_current_employee_id: { Args: never; Returns: string }
       hr_delete_fnf_settlement: {
         Args: { p_reason: string; p_settlement_id: string }
@@ -29509,6 +29513,10 @@ export type Database = {
         Returns: undefined
       }
       hr_settle_loan_period: { Args: { p_period: string }; Returns: number }
+      hr_stage_ctc_transition_adjustment: {
+        Args: { p_revision_id: string }
+        Returns: Json
+      }
       hr_stage_training_ctc_adjustment: {
         Args: { p_revision_id: string }
         Returns: Json

@@ -192,6 +192,31 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const isFutureDated = rawFutureDated && !applyNow;
   const effectiveDateForRpc = applyNow && rawFutureDated ? new Date() : effectiveFrom;
 
+  // RazorpayX CTC is a month-level attribute — there is no mid-month effective
+  // date. A revision effective after the 1st means the FULL month is paid at
+  // the new CTC, so a one-time correction is staged into that month's payroll
+  // inputs. This is an LOP-free estimate of that correction, shown up front.
+  const midMonthPreview = useMemo(() => {
+    if (mode !== "recurring") return null;
+    const d = effectiveDateForRpc;
+    const day = d.getDate();
+    if (day <= 1) return null;
+    if (!(nT > 0) || !(currentTotal > 0) || nT === currentTotal) return null;
+    const n = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const daysBefore = day - 1;
+    const signed = ((nT - currentTotal) / 12) * (daysBefore / n);
+    const amount = Math.round(Math.abs(signed));
+    if (amount < 10) return null;
+    return {
+      kind: signed > 0 ? "deduction" : "addition",
+      amount,
+      daysBefore,
+      monthLabel: format(d, "MMMM yyyy"),
+    } as const;
+  }, [mode, effectiveDateForRpc, nT, currentTotal]);
+
+
+
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -642,6 +667,22 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
               </div>
 
               <DefaultStructurePreview annualCtc={nT} />
+
+              {midMonthPreview && (
+                <div className="text-xs bg-info/10 text-foreground border border-info/30 rounded p-2 space-y-1">
+                  <p className="font-medium">
+                    Mid-month effective date — RazorpayX pays the whole of {midMonthPreview.monthLabel} at the new CTC.
+                  </p>
+                  <p className="text-muted-foreground">
+                    {midMonthPreview.kind === "deduction"
+                      ? `A recovery deduction of about ₹${midMonthPreview.amount.toLocaleString("en-IN")} will be staged into ${midMonthPreview.monthLabel} payroll inputs (${midMonthPreview.daysBefore} day(s) belong to the old CTC).`
+                      : `Arrears of about ₹${midMonthPreview.amount.toLocaleString("en-IN")} will be staged into ${midMonthPreview.monthLabel} payroll inputs (${midMonthPreview.daysBefore} day(s) at the old, higher CTC).`}
+                    {" "}The exact figure is recomputed with Loss of Pay when the CTC reaches RazorpayX, and is pushed from Payroll Cockpit Step 5.
+                  </p>
+                </div>
+              )}
+
+
 
 
               <div>

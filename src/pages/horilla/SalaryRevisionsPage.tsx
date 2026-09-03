@@ -118,6 +118,35 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     staleTime: 15_000,
   });
 
+  // Mid-month CTC corrections already staged into payroll inputs, keyed by revision.
+  const ADJ_SOURCES = ["ctc_transition_adjustment", "training_ctc_adjustment"];
+  const { data: stagedAdjustments = {} as Record<string, { kind: "deduction" | "addition"; amount: number; period: string; pushed: boolean }> } = useQuery({
+    queryKey: ["hr_ctc_transition_adjustments"],
+    queryFn: async () => {
+      const map: Record<string, any> = {};
+      const [ded, add] = await Promise.all([
+        (supabase as any)
+          .from("hr_payroll_input_deductions")
+          .select("source_revision_id, amount, period_month, pushed_at, source")
+          .in("source", ADJ_SOURCES),
+        (supabase as any)
+          .from("hr_payroll_input_additions")
+          .select("source_revision_id, amount, period_month, pushed_at, source")
+          .in("source", ADJ_SOURCES),
+      ]);
+      for (const r of (ded.data || [])) {
+        if (r.source_revision_id) map[r.source_revision_id] = { kind: "deduction", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at };
+      }
+      for (const r of (add.data || [])) {
+        if (r.source_revision_id) map[r.source_revision_id] = { kind: "addition", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at };
+      }
+      return map;
+    },
+    staleTime: 15_000,
+  });
+
+
+
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -322,6 +351,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       });
       if (res.ok && typeof res.verifiedTotal === "number" && Math.abs(res.verifiedTotal - expectedTotal) <= 1) {
         toast.success(`Verified in RazorpayX: ₹${res.verifiedTotal.toLocaleString("en-IN")}`);
+        await stageMidMonthAdjustment(revisionId);
       } else if (res.skipped) {
         toast.warning("Employee is not linked to RazorpayX — link them from Data Health first.");
       } else {
@@ -334,6 +364,37 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       setPushingIds(prev => { const n = new Set(prev); n.delete(revisionId); return n; });
     }
   }
+
+  // RazorpayX CTC is a whole-month attribute: a revision effective mid-month is
+  // paid for the FULL month at the new rate. Stage the recovery (or arrears, if
+  // the month was already processed) as a payroll input so Step 5 pushes it.
+  async function stageMidMonthAdjustment(revisionId: string) {
+    const { data, error } = await (supabase as any).rpc("hr_stage_ctc_transition_adjustment", {
+      p_revision_id: revisionId,
+    });
+    if (error) {
+      toast.warning("Mid-month correction could not be staged.", { description: error.message.slice(0, 200) });
+      return;
+    }
+    const res: any = data || {};
+    if (res.ok === false) {
+      toast.warning("Mid-month correction not staged.", { description: String(res.error || "").slice(0, 200) });
+      return;
+    }
+    if (res.staged) {
+      const period = res.period_month ? format(new Date(res.period_month), "MMMM yyyy") : "";
+      toast.info(
+        res.kind === "deduction"
+          ? `Recovery of ₹${Number(res.amount).toLocaleString("en-IN")} staged in ${period} payroll inputs`
+          : `Arrears of ₹${Number(res.amount).toLocaleString("en-IN")} staged in ${period} payroll inputs`,
+        { description: "RazorpayX pays the whole month at the new CTC — push this from Payroll Cockpit Step 5." },
+      );
+    } else if (res.error) {
+      toast.warning("Mid-month correction not staged.", { description: String(res.error).slice(0, 200) });
+    }
+    await qc.invalidateQueries({ queryKey: ["hr_ctc_transition_adjustments"] });
+  }
+
 
   async function pushOneTime(revisionId: string) {
     setPushingIds(prev => new Set(prev).add(revisionId));
@@ -372,6 +433,8 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             const pushSyncedAfterRevision = pushResult.state === "verified";
             const pushFailedAfterRevision = pushResult.state === "failed";
             const pushing = pushingIds.has(r.id);
+            const adj = stagedAdjustments[r.id];
+
 
 
             const StatusPill = ({ tone, icon: Icon, label, detail }: { tone: "ok" | "warn" | "bad" | "info"; icon: any; label: string; detail?: string }) => (
@@ -618,6 +681,17 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 {/* Status + action */}
                 <div className="flex items-center gap-2 md:justify-end">
                   {syncBadge}
+                  {adj && (
+                    <Link to="/hrms/payroll/inputs">
+                      <StatusPill
+                        tone={adj.kind === "deduction" ? "warn" : "info"}
+                        icon={adj.kind === "deduction" ? TrendingDown : TrendingUp}
+                        label={`${adj.kind === "deduction" ? "−" : "+"}${money(adj.amount)} · ${adj.period ? format(new Date(adj.period), "MMM") : ""}`}
+                        detail={`Mid-month CTC correction: ${adj.kind === "deduction" ? "recovery" : "arrears"} of ${money(adj.amount)} staged in ${adj.period ? format(new Date(adj.period), "MMMM yyyy") : ""} payroll inputs${adj.pushed ? " · already pushed to RazorpayX" : " · push from Payroll Cockpit Step 5"}.`}
+                      />
+                    </Link>
+                  )}
+
                   {pushBtn}
                   {deleteBtn}
                 </div>

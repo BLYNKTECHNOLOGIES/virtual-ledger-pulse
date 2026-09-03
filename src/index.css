@@ -1666,7 +1666,7 @@ html {
 }
 
 .horilla-root .hrms-sidebar-item {
-  color: hsl(0 0% 100%);
+  color: hsl(220 12% 94%);
 }
 
 .horilla-root .hrms-sidebar-item:hover,
@@ -1676,13 +1676,12 @@ html {
 }
 
 .horilla-root .hrms-sidebar-child {
-  color: hsl(220 20% 95%);
+  color: hsl(220 15% 90%);
 }
-
 
 .horilla-root .hrms-sidebar-child:hover,
 .horilla-root .hrms-sidebar-child:focus-visible {
-  color: hsl(0 0% 100%);
+  color: hsl(220 10% 96%);
   background-color: hsl(226 22% 18%);
 }
 

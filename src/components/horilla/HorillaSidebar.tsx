@@ -412,7 +412,7 @@ export function HorillaSidebar({
                         "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150",
                         active
                           ? "bg-[#6C63FF] text-white"
-                          : "text-foreground/85 hover:text-white hover:bg-[#252540]",
+                          : "hrms-sidebar-item hover:text-white hover:bg-[#252540]",
                         collapsed && "justify-center px-2"
                       )}
                     >

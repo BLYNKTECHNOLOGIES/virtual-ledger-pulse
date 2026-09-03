@@ -490,7 +490,7 @@ export function HorillaSidebar({
         <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
           <button
             onClick={onToggle}
-            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-muted-foreground hover:text-gray-200 hover:bg-[#252540] transition-colors text-[13px]"
+            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-foreground/80 hover:text-white hover:bg-[#252540] transition-colors text-[13px]"
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />

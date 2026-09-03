@@ -48,10 +48,11 @@ export function SupplierAutocomplete({
     queryKey: ['clients-all-search'],
     queryFn: async () => {
       // Use paginated fetch — there are >1000 clients and PostgREST caps
-      // a single request at 1000 rows, which silently dropped clients
-      // (e.g. names late in the alphabet) from the search results.
+      // a single request at 1000 rows. The secondary .order('id') is REQUIRED:
+      // duplicate client names make a name-only sort unstable across page
+      // boundaries, silently dropping clients from the search results.
       return await fetchAllPaginated<any>(() =>
-        supabase.from('clients').select('*').order('name')
+        supabase.from('clients').select('*').order('name').order('id')
       );
     },
   });

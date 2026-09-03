@@ -62,6 +62,32 @@ function readableError(value: any, fallback = "RazorpayX rejected the push"): st
   }
 }
 
+/**
+ * supabase.functions.invoke() collapses every non-2xx into the useless
+ * "Edge Function returned a non-2xx status code". The actual backend message
+ * lives in error.context (a Response). Read it so operators see the real cause.
+ */
+async function edgeFunctionError(error: any, fallback = "RazorpayX push failed"): Promise<string> {
+  try {
+    const ctx = (error as any)?.context;
+    if (ctx && typeof ctx.text === "function") {
+      const raw = await ctx.clone().text();
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          const msg = parsed?.error || parsed?.message || parsed?.msg;
+          if (msg) return readableError(msg, fallback);
+        } catch {
+          return raw.slice(0, 400);
+        }
+      }
+    }
+  } catch { /* best-effort */ }
+  return readableError(error, fallback);
+}
+
+
+
 
 async function resolveRazorpayEmployeeId(hrEmployeeId: string): Promise<string | null> {
   const { data, error } = await (supabase as any)
@@ -278,7 +304,7 @@ export async function pushToRazorpay(
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
       body: { action: ACTION_BY_KIND[kind], razorpay_employee_id: razorpayId },
     });
-    if (error) throw error;
+    if (error) throw new Error(await edgeFunctionError(error));
     if (data && (data as any).ok === false) {
       throw new Error(readableError((data as any).error));
     }
@@ -509,7 +535,7 @@ export async function dismissInRazorpay(
       __separation_reason_note: "Recorded in HRMS only — RazorpayX people:dismiss has no reason field.",
     };
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body: payload });
-    if (error) throw error;
+    if (error) throw new Error(await edgeFunctionError(error));
     const res: any = data || {};
 
     // Already dismissed in RazorpayX (people:view can no longer resolve them) —
@@ -638,7 +664,7 @@ export async function pushStatutoryToRazorpay(
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
       body: { action: "push_statutory_apply_one", hr_employee_id: hrEmployeeId },
     });
-    if (error) throw error;
+    if (error) throw new Error(await edgeFunctionError(error));
     const d = data as any;
     if (d?.ok === false) {
       const needsEnvelope = d?.code === "STATUTORY_ENVELOPE_UNVERIFIED";

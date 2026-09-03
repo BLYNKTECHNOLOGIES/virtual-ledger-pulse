@@ -643,7 +643,12 @@ serve(async (req) => {
           if (existing?.id) {
             await supa
               .from("hr_drift_alerts")
-              .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved: values now match" })
+              .update({
+                resolved_at: new Date().toISOString(),
+                resolution_note: ctcPushConfirmed
+                  ? "Auto-resolved: CTC push verified by RazorpayX (people:set-salary accepted). RazorpayX exposes CTC over the read API only after the first executed payroll run, so there is no read-back value to compare."
+                  : "Auto-resolved: values now match",
+              })
               .eq("id", existing.id);
             resolved++;
           }

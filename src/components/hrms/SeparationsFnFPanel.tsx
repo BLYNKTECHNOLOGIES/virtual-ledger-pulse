@@ -468,11 +468,10 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
             </div>
             <div>
               <Label>Reason</Label>
-              <Textarea
-                className="mt-1 text-foreground"
-                rows={3}
+              <SeparationReasonSelect
+                compact
                 value={form.separation_reason}
-                onChange={(e) => setForm({ ...form, separation_reason: e.target.value })}
+                onChange={(v) => setForm({ ...form, separation_reason: v })}
               />
             </div>
           </div>

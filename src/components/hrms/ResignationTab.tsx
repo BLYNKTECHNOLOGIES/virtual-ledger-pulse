@@ -722,7 +722,7 @@ export function ResignationTab() {
             </div>
             <div>
               <Label>Reason for Leaving</Label>
-              <Textarea value={formData.separation_reason} onChange={e => setFormData(p => ({ ...p, separation_reason: e.target.value }))} placeholder="e.g. Better opportunity, personal reasons..." />
+              <SeparationReasonSelect value={formData.separation_reason} onChange={(v) => setFormData(p => ({ ...p, separation_reason: v }))} />
             </div>
           </div>
           <DialogFooter>

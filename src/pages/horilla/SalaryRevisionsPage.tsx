@@ -230,21 +230,25 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   }), [revisions]);
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<CategoryFilter, number> = { ALL: 0, CTC: 0, ADDITION: 0, DEDUCTION: 0, PAYOUT: 0, STATUTORY: 0 };
+    const counts: Record<CategoryFilter, number> = { ALL: 0, CTC: 0, ADDITION: 0, DEDUCTION: 0, PAYOUT: 0, STATUTORY: 0, TRAINING: 0 };
     for (const r of baseVisible) {
       if (statusFilter !== "ALL" && r.status !== statusFilter) continue;
       counts.ALL += 1;
       counts[revisionCategory(r)] += 1;
+      if (isTrainingRevision(r)) counts.TRAINING += 1;
     }
     return counts;
   }, [baseVisible, statusFilter]);
 
   const filtered = useMemo(() => baseVisible.filter((r: any) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
-    if (categoryFilter !== "ALL" && revisionCategory(r) !== categoryFilter) return false;
+    if (categoryFilter === "TRAINING") {
+      if (!isTrainingRevision(r)) return false;
+    } else if (categoryFilter !== "ALL" && revisionCategory(r) !== categoryFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());
   }), [baseVisible, statusFilter, categoryFilter, search]);
+
 
 
   // Revisions that land in THIS payroll month for the first time:

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { SeparationReasonSelect } from "@/components/hrms/SeparationReasonSelect";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -468,11 +468,10 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
             </div>
             <div>
               <Label>Reason</Label>
-              <Textarea
-                className="mt-1 text-foreground"
-                rows={3}
+              <SeparationReasonSelect
+                compact
                 value={form.separation_reason}
-                onChange={(e) => setForm({ ...form, separation_reason: e.target.value })}
+                onChange={(v) => setForm({ ...form, separation_reason: v })}
               />
             </div>
           </div>

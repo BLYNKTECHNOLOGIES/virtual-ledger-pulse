@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import { SeparationReasonSelect } from "@/components/hrms/SeparationReasonSelect";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -722,7 +722,7 @@ export function ResignationTab() {
             </div>
             <div>
               <Label>Reason for Leaving</Label>
-              <Textarea value={formData.separation_reason} onChange={e => setFormData(p => ({ ...p, separation_reason: e.target.value }))} placeholder="e.g. Better opportunity, personal reasons..." />
+              <SeparationReasonSelect value={formData.separation_reason} onChange={(v) => setFormData(p => ({ ...p, separation_reason: v }))} />
             </div>
           </div>
           <DialogFooter>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -281,9 +281,8 @@ export function AutoLopDialog({
                     const mismatch =
                       Math.abs((r.leave_paid_total ?? 0) - (r.paid_leave_days ?? 0)) > 0.01;
                     return (
-                      <>
+                      <Fragment key={r.hr_employee_id}>
                         <tr
-                          key={r.hr_employee_id}
                           className="border-t align-top cursor-pointer hover:bg-muted/30"
                           onClick={() => setExpanded((s) => ({ ...s, [r.hr_employee_id]: !s[r.hr_employee_id] }))}
                         >
@@ -300,7 +299,7 @@ export function AutoLopDialog({
                               {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
                               {r.name}
                             </div>
-                            <div className="text-xs text-muted-foreground pl-4.5">
+                            <div className="text-xs text-muted-foreground pl-[18px]">
                               {r.badge_id ?? "—"}
                               {r.base_source_label ? ` · ${r.base_source_label}` : ""}
                             </div>
@@ -343,7 +342,7 @@ export function AutoLopDialog({
                           <td className="p-2 border-l"><Badge variant={meta.variant} className="text-[11px]">{meta.label}</Badge></td>
                         </tr>
                         {isOpen && (
-                          <tr key={`${r.hr_employee_id}-detail`} className="bg-muted/20 border-t">
+                          <tr className="bg-muted/20 border-t">
                             <td />
                             <td colSpan={17} className="p-3">
                               <div className="grid gap-4 md:grid-cols-3 text-xs">
@@ -398,7 +397,7 @@ export function AutoLopDialog({
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                   {!rows.length && (

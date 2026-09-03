@@ -7010,7 +7010,6 @@ Deno.serve(async (req) => {
                 request: { type: "people", "sub-type": "set-salary" },
                 data: {
                   "employee-id": rpIdNum,
-                  "employee-type": "employee",
                   "custom-salary-structure": false,
                   "annual-ctc": ctcAnnual,
                 },

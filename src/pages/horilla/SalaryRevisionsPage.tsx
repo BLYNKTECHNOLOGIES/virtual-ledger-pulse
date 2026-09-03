@@ -885,7 +885,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {deleteTarget?.__ctcRollback ? "Delete this salary revision?" : "Delete this entry permanently?"}
+              {deleteTarget?.__ctcRollback || deleteTarget?.__ctcHistoryOnly ? "Delete this salary revision?" : "Delete this entry permanently?"}
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3 text-sm">

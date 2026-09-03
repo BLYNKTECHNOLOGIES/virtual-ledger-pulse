@@ -215,11 +215,12 @@ Deno.serve(async (req) => {
       // Contract staff: LOP does not apply — mark clearly, and clean up any
       // stale un-pushed auto row that may exist from before.
       if (isContract(map.hr_employee_id)) {
+        // lop_days zeroed so summaries/sorting treat them as no deduction.
         if (existingAuto && !existingAuto.pushed_at) {
-          rows.push({ ...base, status: "remove", reason: "LOP not applicable — contract employee; stale auto row will be removed", amount: 0, base_source: null });
+          rows.push({ ...base, lop_days: 0, status: "remove", reason: "LOP not applicable — contract employee; stale auto row will be removed", amount: 0, base_source: null });
           toDelete.push(existingAuto.id);
         } else {
-          rows.push({ ...base, status: "not_applicable", reason: "LOP not applicable — contract employee (paid per contract, not attendance)", amount: 0, base_source: null });
+          rows.push({ ...base, lop_days: 0, status: "not_applicable", reason: "LOP not applicable — contract employee (paid per contract, not attendance)", amount: 0, base_source: null });
         }
         continue;
       }
@@ -395,6 +396,7 @@ Deno.serve(async (req) => {
       staged,
       removed,
       skipped: rows.filter((r) => r.status === "skipped").length,
+      not_applicable: rows.filter((r) => r.status === "not_applicable").length,
       pushed_locked: rows.filter((r) => r.status === "pushed").length,
       pushed_stale: rows.filter((r) => r.stale_pushed === true).length,
       total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),

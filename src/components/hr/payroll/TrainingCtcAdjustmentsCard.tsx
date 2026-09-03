@@ -14,6 +14,10 @@ import { additionTypeSlug } from "@/lib/hrms/additionType";
 
 type Props = { period: string }; // YYYY-MM
 
+// Both flavours of the part-month CTC transition line: the onboarding
+// training-completion uplift and any other mid-month CTC revision.
+const ADJ_SOURCES = ["training_ctc_adjustment", "ctc_transition_adjustment"];
+
 const inr = (n: number) => `₹${Math.round(Number(n || 0)).toLocaleString("en-IN")}`;
 
 /**
@@ -36,9 +40,9 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
     queryFn: async () => {
       const [ded, add] = await Promise.all([
         (supabase as any).from("hr_payroll_input_deductions").select("*")
-          .eq("period_month", periodDate).eq("source", "training_ctc_adjustment"),
+          .eq("period_month", periodDate).in("source", ADJ_SOURCES),
         (supabase as any).from("hr_payroll_input_additions").select("*")
-          .eq("period_month", periodDate).eq("source", "training_ctc_adjustment"),
+          .eq("period_month", periodDate).in("source", ADJ_SOURCES),
       ]);
       if (ded.error) throw ded.error;
       if (add.error) throw add.error;
@@ -138,19 +142,21 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-sm flex items-center gap-2">
-          <GraduationCap className="h-4 w-4" /> Training CTC adjustments
+          <GraduationCap className="h-4 w-4" /> Part-month CTC adjustments
           {rows.length > 0 && <Badge variant="secondary">{rows.length}</Badge>}
         </CardTitle>
         <CardDescription className="text-xs">
-          One-time corrections for employees whose CTC changed mid-month on training completion.
-          RazorpayX pays the whole month at the live CTC — these lines settle the difference on the
-          days before the change. Never pushed automatically.
+          One-time corrections for employees whose CTC changed mid-month (training completion or any
+          other revision). RazorpayX pays the whole month at the live CTC — these lines settle the
+          difference on the days before the change. Never pushed automatically. Lines marked
+          <span className="font-medium"> Provisional</span> are staged from a revision that has not been
+          pushed to RazorpayX yet; they are recalculated and unlocked automatically once it is.
         </CardDescription>
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
           <p className="text-xs text-muted-foreground">
-            No training-completion transitions land in this period.
+            No mid-month CTC transitions land in this period.
           </p>
         ) : (
           <>
@@ -178,6 +184,12 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
                       {r.calc?.mode === "arrears" && (
                         <Badge variant="outline">Month already processed</Badge>
                       )}
+                      {r.source === "training_ctc_adjustment" && (
+                        <Badge variant="outline" className="border-primary/40 text-primary">Post-training</Badge>
+                      )}
+                      {r.provisional && (
+                        <Badge variant="outline" className="border-warning/50 text-warning">Provisional</Badge>
+                      )}
                       <div className="ml-auto flex items-center gap-2">
                         {r.pushed_at ? (
                           <a className="underline text-muted-foreground inline-flex items-center gap-1"
@@ -186,7 +198,14 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
                           </a>
                         ) : (
                           <>
-                            <Button size="sm" className="h-7 text-xs" onClick={() => setConfirm(r)}>
+                            <Button
+                              size="sm" className="h-7 text-xs"
+                              disabled={!!r.provisional}
+                              title={r.provisional
+                                ? "Provisional — push the new CTC to RazorpayX first; this line is then recalculated and unlocked."
+                                : "Push this adjustment to the RazorpayX payroll month"}
+                              onClick={() => setConfirm(r)}
+                            >
                               Approve &amp; push
                             </Button>
                             <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"

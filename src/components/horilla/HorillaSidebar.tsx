@@ -334,7 +334,7 @@ export function HorillaSidebar({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 shrink-0",
+        "horilla-sidebar h-screen flex flex-col shrink-0",
         "transition-[width,box-shadow] duration-200 ease-out will-change-[width]",
         isMobile
           ? cn(
@@ -376,7 +376,7 @@ export function HorillaSidebar({
         {visibleNavGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <p className="text-[10px] font-semibold text-foreground/55 uppercase tracking-[0.12em] px-2 mb-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] px-2 mb-1.5 hrms-sidebar-label">
                 {group.title}
               </p>
             )}
@@ -412,7 +412,7 @@ export function HorillaSidebar({
                         "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150",
                         active
                           ? "bg-[#6C63FF] text-white"
-                          : "text-foreground/85 hover:text-white hover:bg-[#252540]",
+                          : "hrms-sidebar-item hover:text-white hover:bg-[#252540]",
                         collapsed && "justify-center px-2"
                       )}
                     >
@@ -443,10 +443,10 @@ export function HorillaSidebar({
                               onMouseEnter={() => prefetch(child.path)}
                               onFocus={() => prefetch(child.path)}
                               onClick={() => handleNavigate(child.path)}
-                              className={cn(
-                                "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
-                                childActive ? "text-[#6C63FF] font-medium" : "text-foreground/75 hover:text-foreground hover:bg-[#252540]/60"
-                              )}
+                                className={cn(
+                                  "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
+                                  childActive ? "text-[#6C63FF] font-medium" : "hrms-sidebar-child hover:text-white hover:bg-[#252540]/80"
+                                )}
                             >
                               {child.label}
                             </button>
@@ -457,7 +457,7 @@ export function HorillaSidebar({
 
                     {!isMobile && collapsed && hoveredItem === item.label && hasChildren && (
                       <div className="absolute left-full top-0 ml-2 bg-[#1a1a2e] border border-[#2a2a40] rounded-lg shadow-2xl py-2 min-w-[180px] z-50">
-                        <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground/60 uppercase tracking-wider">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider hrms-sidebar-label">
                           {item.label}
                         </div>
                         {item.children!.map((child) => (
@@ -470,7 +470,7 @@ export function HorillaSidebar({
                               "w-full text-left text-sm py-2 px-3 transition-colors",
                               isChildActive(child.path)
                                 ? "text-[#6C63FF] bg-[#6C63FF]/10"
-                                : "text-foreground/85 hover:text-white hover:bg-[#252540]"
+                                : "hrms-sidebar-item hover:text-white hover:bg-[#252540]"
                             )}
                           >
                             {child.label}
@@ -490,7 +490,7 @@ export function HorillaSidebar({
         <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
           <button
             onClick={onToggle}
-            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-foreground/80 hover:text-white hover:bg-[#252540] transition-colors text-[13px]"
+            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg hrms-sidebar-item hover:text-white hover:bg-[#252540] transition-colors text-[13px]"
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />

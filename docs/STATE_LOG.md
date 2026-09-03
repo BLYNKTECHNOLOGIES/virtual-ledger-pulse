@@ -1,5 +1,5 @@
+- 2026-09-03 17:15 IST: HRMS sidebar text contrast improved — replaced low-opacity `text-foreground/55|75|85` tints with dedicated high-contrast classes (`hrms-sidebar-label`, `hrms-sidebar-item`, `hrms-sidebar-child`) and a CSS block that sets the rail surface to `hsl(228 28% 12%)` with near-white item text (`hsl(220 14% 92%)`) and brighter muted labels (`hsl(220 12% 68%)`). Active brand-purple state preserved; hover/focus states lighten the background and switch text to white. Typecheck and build passed.
 - 2026-09-03: Monthly Payroll Cockpit default month changed — on open it now resolves the most recent cycle month whose close-month acknowledgement is not yet done and lands there automatically; month dropdown expanded to last 12 months + next 3 months to support older unfinished cycles.
-- 2026-09-03: HRMS sidebar text contrast improved — unselected parent/child nav labels, group headers, collapse control, and collapsed hover tooltips now use semantically-opaque foreground tones instead of `text-muted-foreground`, making labels readable against the dark navy sidebar while preserving active-state highlighting.
 - 2026-08-23: Attendance policy LOP thresholds wired into payroll — `hr_attendance_policies.late_count_for_lop` and `half_day_count_for_lop` now drive extra LOP days in `hr_lop_days` and `hr_lop_days_window`; a value of 0 disables the corresponding deduction.
 - 2026-08-20: First-login password reset loop repaired — successful forced, recovery-link, and OTP resets now atomically clear the ERP temporary-password requirement through an authenticated self-only completion action.
 - 2026-08-20: Comp-off ledger repaired and backfilled — phantom bulk/manual allocations removed, current balances rebuilt from verified monthly weekly-off/holiday credits, manual CO edits blocked, and all profile surfaces switched from cumulative to monthly display.
@@ -15,7 +15,7 @@
 - 2026-08-02: July LOP push completed and live-verified in RazorpayX — add-deduction corrected to email + singular deduction-amount; all 9 employees / ₹12,658 read back exactly and temporary probe removed.
 - 2026-08-02: Data Health lifecycle cleanup shipped — live RazorpayX inactive/dismissed state now auto-closes stale employment/dismissal push-failure bundles; only Active / dismissed remains when HRMS is still active.
 - 2026-08-02: RazorpayX designation push root cause fixed — Data Health used linked positions.title while push/read-back verification used legacy work_info.job_role, producing false green verification without changing the displayed designation; all paths now use position title first and legacy role only as fallback.
-# STATE LOG
+
 
 Living cross-agent log. **Newest entry at top.** One dated line per event. Prune entries older than 30 days.
 

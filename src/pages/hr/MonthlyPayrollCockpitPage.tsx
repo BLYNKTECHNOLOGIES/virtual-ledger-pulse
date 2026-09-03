@@ -586,9 +586,13 @@ export default function MonthlyPayrollCockpitPage() {
             // Step 5 stays sealed until step 4 is genuinely finished.
             const gated = step.step_key === "inputs_push" && stepGate.blocked && step.ack_status !== "done";
             const canAck =
-              step.step_no !== 10 &&
+              !isCloseStep(step) &&
               !gated &&
               (step.live_status === "complete" || step.step_key === "run_on_razorpay");
+            // Steps stay skippable per the close-month policy: a step the system
+            // still reports as pending can be confirmed deliberately with a note.
+            const canAckAnyway = !isCloseStep(step) && !gated && !canAck;
+
 
             const settled = isSettled(step);
             const isCurrent = currentStep?.step_no === step.step_no;

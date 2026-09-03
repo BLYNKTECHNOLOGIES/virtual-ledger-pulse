@@ -13238,10 +13238,12 @@ export type Database = {
           amount: number
           created_at: string
           created_by: string | null
+          finalized_at: string | null
           hr_employee_id: string | null
           id: string
           label: string
           period_month: string
+          provisional: boolean
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
@@ -13257,10 +13259,12 @@ export type Database = {
           amount: number
           created_at?: string
           created_by?: string | null
+          finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
           label: string
           period_month: string
+          provisional?: boolean
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
@@ -13276,10 +13280,12 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
           label?: string
           period_month?: string
+          provisional?: boolean
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
@@ -13340,11 +13346,13 @@ export type Database = {
           amount: number
           created_at: string
           created_by: string | null
+          finalized_at: string | null
           hr_employee_id: string | null
           id: string
           label: string
           lop_days: number | null
           period_month: string
+          provisional: boolean
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
@@ -13358,11 +13366,13 @@ export type Database = {
           amount: number
           created_at?: string
           created_by?: string | null
+          finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
           label: string
           lop_days?: number | null
           period_month: string
+          provisional?: boolean
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
@@ -13376,11 +13386,13 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
           label?: string
           lop_days?: number | null
           period_month?: string
+          provisional?: boolean
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
@@ -28983,6 +28995,10 @@ export type Database = {
             }
             Returns: string
           }
+      hr_ctc_adjustment_label: {
+        Args: { p_effective: string; p_is_training: boolean; p_kind: string }
+        Returns: string
+      }
       hr_ctc_transition_adjustment: {
         Args: { p_revision_id: string }
         Returns: Json
@@ -29058,6 +29074,10 @@ export type Database = {
         }[]
       }
       hr_ess_current_employee_id: { Args: never; Returns: string }
+      hr_finalize_ctc_transition_adjustment: {
+        Args: { p_revision_id: string }
+        Returns: Json
+      }
       hr_get_offer_letter_policy: {
         Args: never
         Returns: {
@@ -29517,10 +29537,12 @@ export type Database = {
         Returns: undefined
       }
       hr_settle_loan_period: { Args: { p_period: string }; Returns: number }
-      hr_stage_ctc_transition_adjustment: {
-        Args: { p_revision_id: string }
-        Returns: Json
-      }
+      hr_stage_ctc_transition_adjustment:
+        | { Args: { p_revision_id: string }; Returns: Json }
+        | {
+            Args: { p_provisional?: boolean; p_revision_id: string }
+            Returns: Json
+          }
       hr_stage_training_ctc_adjustment: {
         Args: { p_revision_id: string }
         Returns: Json

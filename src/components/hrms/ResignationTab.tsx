@@ -18,6 +18,7 @@ import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail, ExternalLink } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 import { createFnFDraft } from "@/lib/fnfEngine";
+import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
 import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
@@ -463,7 +464,7 @@ export function ResignationTab() {
       if (!selectedEmployee) return null;
       const { data } = await (supabase as any)
         .from("hr_fnf_settlements")
-        .select("id, status, net_payable")
+        .select("*")
         .eq("employee_id", selectedEmployee.id)
         .neq("status", "cancelled")
         .maybeSingle();
@@ -471,6 +472,11 @@ export function ResignationTab() {
     },
     enabled: !!selectedEmployee,
   });
+
+  // The F&F button in the checklist opens the SAME settlement dialog used on
+  // the Full & Final Settlement page — the saved record flows through the
+  // identical draft → submit → approve → RazorpayX push → paid pipeline.
+  const [showFnfDialog, setShowFnfDialog] = useState(false);
 
   // Ticks the checklist item whose title matches, once its action is done.
   const markChecklistItem = async (matcher: (title: string) => boolean) => {
@@ -499,20 +505,11 @@ export function ResignationTab() {
     onError: (err: any) => toast.error(err.message),
   });
 
-  const createFnFFromChecklist = useMutation({
-    mutationFn: async () => {
-      if (!selectedEmployee) throw new Error("No employee selected");
-      const res = await createFnFDraft(selectedEmployee.id, selectedEmployee.last_working_day || null);
-      await markChecklistItem(t => t.includes("full & final") || t.includes("full and final"));
-      return res;
-    },
-    onSuccess: (res) => {
-      toast.success(res.existed ? "F&F settlement already exists — linked to this exit" : "F&F settlement draft created");
-      refetchFnf();
-      queryClient.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+  // Called after the shared F&F dialog saves from inside the checklist.
+  const onFnFSavedFromChecklist = async () => {
+    await markChecklistItem(t => t.includes("full & final") || t.includes("full and final"));
+    refetchFnf();
+  };
 
   // ── Relieving cum experience letter: generate → file → (optional) email ─────
   const { data: relievingLetter, refetch: refetchRelieving } = useQuery({
@@ -844,18 +841,29 @@ export function ResignationTab() {
                   {isFnf && (
                     <div className="mt-1.5">
                       {fnfForEmployee ? (
-                        <p className="text-xs text-muted-foreground">
-                          Settlement <span className="font-medium">{fnfForEmployee.status}</span> · Net ₹{Number(fnfForEmployee.net_payable || 0).toLocaleString("en-IN")} — manage it in Full &amp; Final Settlement
-                        </p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-xs text-muted-foreground">
+                            Settlement <span className="font-medium">{fnfForEmployee.status}</span> · Net ₹{Number(fnfForEmployee.net_payable || 0).toLocaleString("en-IN")}
+                          </p>
+                          {["draft", "calculated"].includes(fnfForEmployee.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => setShowFnfDialog(true)}
+                            >
+                              Edit settlement
+                            </Button>
+                          )}
+                        </div>
                       ) : (
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-7 text-xs"
-                          disabled={createFnFFromChecklist.isPending}
-                          onClick={() => createFnFFromChecklist.mutate()}
+                          onClick={() => setShowFnfDialog(true)}
                         >
-                          {createFnFFromChecklist.isPending ? "Creating…" : "Create F&F settlement"}
+                          Create F&F settlement
                         </Button>
                       )}
                     </div>
@@ -902,6 +910,16 @@ export function ResignationTab() {
 
         </DialogContent>
       </Dialog>
+
+      {/* F&F settlement — the same dialog as the Full & Final Settlement page,
+          opened in place from the checklist for a faster workflow. */}
+      <FnFSettlementDialog
+        open={showFnfDialog}
+        onOpenChange={setShowFnfDialog}
+        fixedEmployee={selectedEmployee}
+        settlement={fnfForEmployee && ["draft", "calculated"].includes(fnfForEmployee.status) ? fnfForEmployee : null}
+        onSaved={onFnFSavedFromChecklist}
+      />
 
       {/* Template Editor Dialog */}
       <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>

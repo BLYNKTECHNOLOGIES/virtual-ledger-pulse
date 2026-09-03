@@ -276,8 +276,12 @@ export function AutoLopDialog({
                   <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th className="px-2 pt-2" colSpan={2} />
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Attendance</th>
-                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave (days)</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave used (days)</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Casual leave balance</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Sick leave balance</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={6}>Comp-off balance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Loss of pay</th>
+
                     <th className="px-2 pt-2 text-center border-l" colSpan={2}>Amount</th>
                     <th className="px-2 pt-2 border-l" />
                   </tr>

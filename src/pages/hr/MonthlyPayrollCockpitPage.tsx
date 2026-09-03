@@ -390,22 +390,27 @@ export default function MonthlyPayrollCockpitPage() {
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 
+  // The close step is identified by key, never by number — the step list was
+  // renumbered when Separations & F&F was inserted.
+  const isCloseStep = (s: CockpitStep) => s.step_key === "close_month";
+
   const doneCount = steps.filter(
-    (s) => s.ack_status === "done" || (s.live_status === "complete" && s.auto && s.step_no !== 10)
+    (s) => s.ack_status === "done" || (s.live_status === "complete" && s.auto && !isCloseStep(s))
   ).length;
   const blockers = steps
-    .filter((s) => s.step_no <= 9 && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
+    .filter((s) => !isCloseStep(s) && s.ack_status !== "done" && s.ack_status !== "skipped" && s.live_status !== "complete")
     .map((s) => `Step ${s.step_no}: ${s.step_label}`);
 
-  const closed = steps.find((s) => s.step_no === 10)?.ack_status === "done";
+  const closed = steps.find(isCloseStep)?.ack_status === "done";
 
   const isSettled = (s: CockpitStep) =>
     s.ack_status === "done" ||
     s.ack_status === "skipped" ||
-    (s.auto && s.live_status === "complete" && s.step_no !== 10);
+    (s.auto && s.live_status === "complete" && !isCloseStep(s));
 
   // The first step that still needs a human — used as the "you are here" anchor.
-  const currentStep = steps.find((s) => !isSettled(s) && s.step_no !== 10) ?? null;
+  const currentStep = steps.find((s) => !isSettled(s) && !isCloseStep(s)) ?? null;
+
 
   const stageSummary = STAGE_ORDER.map((stage) => {
     const inStage = steps.filter((s) => STEP_STAGE[s.step_key] === stage);

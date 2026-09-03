@@ -12,10 +12,10 @@ import { deleteFromEssl } from "@/lib/esslPushback";
  */
 export async function finalizeSeparation(
   employeeId: string,
-): Promise<{ name: string; lwd: string | null; erp: { deactivated: boolean; reason?: string } }> {
+): Promise<{ name: string; lwd: string | null; separationReason: string | null; erp: { deactivated: boolean; reason?: string } }> {
   const { data: emp } = await (supabase as any)
     .from("hr_employees")
-    .select("first_name, last_name, notice_period_end_date, last_working_day")
+    .select("first_name, last_name, notice_period_end_date, last_working_day, separation_reason")
     .eq("id", employeeId)
     .maybeSingle();
 
@@ -45,6 +45,7 @@ export async function finalizeSeparation(
   return {
     name: `${emp?.first_name ?? ""} ${emp?.last_name ?? ""}`.trim() || "employee",
     lwd,
+    separationReason: (emp?.separation_reason as string | null) || null,
     erp,
   };
 }

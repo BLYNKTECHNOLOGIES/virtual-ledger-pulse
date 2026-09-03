@@ -709,9 +709,16 @@ export default function DataHealthPage() {
 
                   <div className="divide-y divide-border/60">
                     {g.rows.map((d) => {
-                      // RazorpayX refuses work-email edits over the API (verified:
-                      // every variant returns 200 but preserves the old value).
+                      // RazorpayX refuses email edits over the API. Re-verified
+                      // live on 03-Sep-2026 IST with a control test: a job-title
+                      // edit on the same person applied and reverted correctly,
+                      // while every email variant (email / new-email / work-email /
+                      // personal-email / official-email, keyed by e-mail and by
+                      // employee-id) returned 200 and left the address unchanged —
+                      // even for a brand-new, non-duplicate address. So this is an
+                      // API limitation, not the "email already exists" collision.
                       // Never offer a push we know cannot land.
+
                       const dashboardOnly =
                         (d.systems_involved || []).includes("razorpay") &&
                         (d.field === "email" ||

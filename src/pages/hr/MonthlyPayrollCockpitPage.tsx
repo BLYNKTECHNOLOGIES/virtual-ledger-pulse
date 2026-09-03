@@ -330,7 +330,7 @@ function DetailLine({ step }: { step: CockpitStep }) {
 export default function MonthlyPayrollCockpitPage() {
   const [month, setMonth] = useState<string>(() => {
     const d = new Date();
-    return firstOfMonth(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCFullYear(), 1)));
+    return firstOfMonth(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
   });
   const defaultMonthResolved = useRef(false);
   const { data: latestIncompleteMonth } = useLatestIncompleteCockpitMonth();

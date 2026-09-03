@@ -330,8 +330,18 @@ function DetailLine({ step }: { step: CockpitStep }) {
 export default function MonthlyPayrollCockpitPage() {
   const [month, setMonth] = useState<string>(() => {
     const d = new Date();
-    return firstOfMonth(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
+    return firstOfMonth(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCFullYear(), 1)));
   });
+  const defaultMonthResolved = useRef(false);
+  const { data: latestIncompleteMonth } = useLatestIncompleteCockpitMonth();
+
+  useEffect(() => {
+    if (latestIncompleteMonth && !defaultMonthResolved.current) {
+      setMonth(latestIncompleteMonth);
+      defaultMonthResolved.current = true;
+    }
+  }, [latestIncompleteMonth]);
+
   const [ackStep, setAckStep] = useState<CockpitStep | null>(null);
   const [ackNotes, setAckNotes] = useState("");
   const [closeOpen, setCloseOpen] = useState(false);

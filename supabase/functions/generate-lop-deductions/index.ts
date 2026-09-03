@@ -103,6 +103,18 @@ Deno.serve(async (req) => {
     const gapByEmp = new Map<string, any>();
     for (const r of (gapRows ?? []) as any[]) gapByEmp.set(r.employee_id, r);
 
+    // Reporting-only leave-type breakdown (CL / SL / comp-off / unpaid) and
+    // days worked on a weekly off or holiday. Never feeds the LOP maths.
+    const breakdownByEmp = new Map<string, any>();
+    {
+      const { data: bd, error: bdErr } = await supabase.rpc("hr_leave_month_breakdown", {
+        p_employee_ids: roster.map((r: any) => r.hr_employee_id),
+        p_period_month: periodStr,
+      });
+      if (bdErr) console.error("hr_leave_month_breakdown failed", bdErr);
+      for (const r of ((bd ?? []) as any[])) breakdownByEmp.set(r.employee_id, r);
+    }
+
 
     // Comp-off pool — LOP is cancelled by available comp-off before any
     // deduction is computed (the remainder is encashed by

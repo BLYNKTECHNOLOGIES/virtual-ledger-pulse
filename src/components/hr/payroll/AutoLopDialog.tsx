@@ -40,6 +40,7 @@ type PreviewRow = {
   unprocessed_off_dates?: string[];
   compoff_credit_days?: number;
   compoff_credits?: CompoffCredit[];
+  leave_ledger?: LeaveLedger | null;
   raw_lop_days?: number;
   compoff_available?: number;
   compoff_earned?: number;

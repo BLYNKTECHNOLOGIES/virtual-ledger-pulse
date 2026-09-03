@@ -1662,22 +1662,23 @@ html {
 }
 
 .horilla-root .hrms-sidebar-label {
-  color: hsl(220 12% 68%);
+  color: hsl(220 16% 82%);
 }
 
 .horilla-root .hrms-sidebar-item {
-  color: hsl(220 14% 92%);
+  color: hsl(0 0% 100%);
 }
 
 .horilla-root .hrms-sidebar-item:hover,
 .horilla-root .hrms-sidebar-item:focus-visible {
   color: hsl(0 0% 100%);
-  background-color: hsl(226 22% 20%);
+  background-color: hsl(226 22% 22%);
 }
 
 .horilla-root .hrms-sidebar-child {
-  color: hsl(220 12% 82%);
+  color: hsl(220 20% 95%);
 }
+
 
 .horilla-root .hrms-sidebar-child:hover,
 .horilla-root .hrms-sidebar-child:focus-visible {

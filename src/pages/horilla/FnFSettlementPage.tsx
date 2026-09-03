@@ -625,7 +625,23 @@ export default function FnFSettlementPage() {
                   : "Employees with an existing settlement are not listed; edit their settlement from the list instead."}
               </p>
             </div>
-            <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
+            <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value, payroll_month: form.payroll_month || (e.target.value || "").slice(0, 7) })} /></div>
+
+            <div>
+              <Label>Payroll cycle month</Label>
+              <Input
+                className="h-9 mt-1"
+                type="month"
+                value={form.payroll_month}
+                onChange={(e) => setForm({ ...form, payroll_month: e.target.value })}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                The monthly payroll run this settlement is added to. Its dues and recoveries appear in the
+                Monthly Payroll Cockpit → Additions / Deductions for this month, grouped under “F&amp;F settlement”.
+                Defaults to the last working day's month.
+              </p>
+            </div>
+
 
             <div className="rounded-md border border-border p-3 space-y-1.5">
               <div className="flex items-center justify-between">

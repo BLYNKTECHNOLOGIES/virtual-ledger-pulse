@@ -209,8 +209,12 @@ const FIELDS: FieldSpec[] = [
   {
     field: "annual_ctc",
     severity: "high",
+    // A CTC present in HRMS but absent in RazorpayX (₹0 / no salary structure
+    // there) is a payout-critical gap, not a "nothing to compare" case.
+    missingIsDrift: true,
     extract: ({ salary, rzp }) => {
-      const hrmsCtc = salary?.annual_ctc ?? salary?.gross_annual ?? null;
+      const hrmsCtc = salary?.annual_ctc ?? null;
+
       const rzpSalary = rzp?.__salary ?? null;
       const rzpCtc =
         rzpSalary?.annual_ctc ??
@@ -257,11 +261,23 @@ serve(async (req) => {
 
     const empIds = employees.map((e: any) => e.id);
 
-    const [workInfoRes, bankRes, salaryRes, rzpMapRes, esslRes] = await Promise.all([
+    const [workInfoRes, bankRes, salaryRes, onboardRes, rzpMapRes, esslRes] = await Promise.all([
       supa.from("hr_employee_work_info").select("*").in("employee_id", empIds),
       supa.from("hr_employee_bank_details").select("*").in("employee_id", empIds)
         .order("updated_at", { ascending: false }).order("created_at", { ascending: false }),
-      supa.from("hr_employee_salary_structures").select("*").in("employee_id", empIds).order("effective_from", { ascending: false }),
+      // ROOT CAUSE (2026-09-03): the CTC comparison read
+      // hr_employee_salary_structures.annual_ctc / gross_annual — columns that
+      // do not exist on that table (it is a per-component table). The HRMS side
+      // was therefore ALWAYS null and the annual_ctc check could never fire, so
+      // employees carrying ₹0 in RazorpayX never raised an alert. The authoritative
+      // HRMS CTC lives on the structure ASSIGNMENT, with onboarding CTC as fallback.
+      supa.from("hr_employee_salary_structure_assignments")
+        .select("employee_id, annual_ctc, created_at").in("employee_id", empIds)
+        .order("created_at", { ascending: false }),
+      supa.from("hr_employee_onboarding")
+        .select("employee_id, ctc, created_at").in("employee_id", empIds)
+        .order("created_at", { ascending: false }),
+
       supa.from("hr_razorpay_employee_map").select("hr_employee_id, razorpay_employee_id, last_pull_snapshot, last_pulled_at").in("hr_employee_id", empIds),
       supa.from("hr_biometric_device_users").select("id, name, pin, department, title, enabled"),
     ]);
@@ -287,8 +303,22 @@ serve(async (req) => {
     }
     const bankByEmp = new Map<string, any>();
     for (const b of bankRes.data ?? []) if (!bankByEmp.has(b.employee_id)) bankByEmp.set(b.employee_id, b);
+    // HRMS CTC: latest structure assignment wins, onboarding CTC is the fallback
+    // (used until a structure assignment is created/pushed).
     const salaryByEmp = new Map<string, any>();
-    for (const s of salaryRes.data ?? []) if (!salaryByEmp.has(s.employee_id)) salaryByEmp.set(s.employee_id, s);
+    for (const s of salaryRes.data ?? []) {
+      if (s.annual_ctc == null) continue;
+      if (!salaryByEmp.has(s.employee_id)) {
+        salaryByEmp.set(s.employee_id, { annual_ctc: s.annual_ctc, ctc_source: "structure_assignment" });
+      }
+    }
+    for (const o of onboardRes.data ?? []) {
+      if (o.ctc == null) continue;
+      if (!salaryByEmp.has(o.employee_id)) {
+        salaryByEmp.set(o.employee_id, { annual_ctc: o.ctc, ctc_source: "onboarding" });
+      }
+    }
+
     // ------------------------------------------------------------------
     // Snapshot freshness gate.
     //

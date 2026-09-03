@@ -122,7 +122,6 @@ const PUSH_BY_FIELD: Record<string, (id: string) => Promise<any>> = {
   employee_code: (id) => pushEmploymentToRazorpay(id, { triggeredFrom: "data_health" }),
   bank_account: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
   bank_ifsc: (id) => pushBankToRazorpay(id, { triggeredFrom: "data_health" }),
-  annual_ctc: (id) => pushSalaryToRazorpay(id, { triggeredFrom: "data_health" }),
   // Verification-failure bundles raised by the pushback layer — retry the same
   // push envelope that failed to verify.
   identity_bundle: (id) => pushIdentityToRazorpay(id, { triggeredFrom: "data_health" }),
@@ -344,7 +343,20 @@ export default function DataHealthPage() {
   }
 
   async function adoptHrms(drift: Drift) {
-    const push = drift.field === "active_state" && !drift.is_active
+    const annualCtc = drift.field === "annual_ctc"
+      ? Number(String(drift.hrms_value ?? "").replace(/[^0-9.-]/g, ""))
+      : null;
+    const push = drift.field === "annual_ctc"
+      ? async (id: string) => {
+          if (!Number.isFinite(annualCtc) || Number(annualCtc) <= 0) {
+            throw new Error("The HRMS annual CTC is missing or invalid. Re-scan Data Health before retrying.");
+          }
+          return pushSalaryToRazorpay(id, {
+            triggeredFrom: "data_health",
+            expectedTotal: Number(annualCtc),
+          });
+        }
+      : drift.field === "active_state" && !drift.is_active
       ? async (id: string) => {
           const { data: employee, error } = await (supabase as any)
             .from("hr_employees")

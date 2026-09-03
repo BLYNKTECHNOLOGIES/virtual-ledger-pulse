@@ -35,6 +35,7 @@ const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: "collected", label: "Collected" },
   { key: "refunded", label: "Paid back" },
   { key: "exited_unpaid", label: "Exited — unpaid" },
+  { key: "cancelled", label: "Cancelled" },
   { key: "all", label: "All" },
 ];
 

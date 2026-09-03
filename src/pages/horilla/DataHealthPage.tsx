@@ -383,23 +383,30 @@ export default function DataHealthPage() {
         await qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
         const { data: stillOpen, error: checkError } = await (supabase as any)
           .from("hr_drift_alerts")
-          .select("id")
+          .select("id, razorpay_value")
           .eq("id", drift.id)
           .is("resolved_at", null)
           .maybeSingle();
         if (checkError) throw checkError;
         if (stillOpen) {
-          if (drift.field === "annual_ctc") {
-            toast.warning("CTC push accepted, but RazorpayX still reports no CTC", {
+          const rzpNow = String(stillOpen.razorpay_value ?? "").trim();
+          const rzpMissing = !rzpNow || rzpNow === "(missing)";
+          if (drift.field === "annual_ctc" && rzpMissing) {
+            toast.warning("CTC push accepted, but no read-back is available yet", {
               description:
-                "The push was accepted, but no full (non-joining) payroll month is available yet to read the CTC back. Re-scan next month to confirm.",
+                "RazorpayX has no full (non-joining) payroll month for this employee yet, so the CTC cannot be read back. Re-scan next month to confirm.",
             });
           } else {
-            toast.error(`${FIELD_LABEL[drift.field] || drift.field} is still different in RazorpayX`);
+            toast.error(`${FIELD_LABEL[drift.field] || drift.field} is still different in RazorpayX`, {
+              description: rzpMissing
+                ? undefined
+                : `RazorpayX still reports ${rzpNow} — the write was not applied.`,
+            });
           }
         } else {
           toast.success(`${FIELD_LABEL[drift.field] || drift.field} verified in RazorpayX`);
         }
+
       }
     } catch (e: any) {
       toast.error(`Push verification failed: ${e?.message || e}`);

@@ -49,13 +49,42 @@ export function CustomerAutocomplete({
     queryKey: ['clients-all-search'],
     queryFn: async () => {
       // Use paginated fetch — there are >1000 clients and PostgREST caps
-      // a single request at 1000 rows, which silently dropped clients
-      // (e.g. names late in the alphabet) from the search results.
+      // a single request at 1000 rows. The secondary .order('id') is REQUIRED:
+      // ~178 clients share duplicate names, and ordering only by a non-unique
+      // column makes page boundaries unstable, silently dropping clients
+      // (e.g. "Sanyam Jain") from the search results.
       return await fetchAllPaginated<any>(() =>
-        supabase.from('clients').select('*').order('name')
+        supabase.from('clients').select('*').order('name').order('id')
       );
     },
   });
+
+  // Targeted server-side search. The cached full list can be large and slow to
+  // refresh; this guarantees an existing client (however old) is always found
+  // by name / phone / PAN even if the cached list is stale or truncated.
+  const { data: serverMatches } = useQuery({
+    queryKey: ['clients-server-search', debouncedValue.trim().toLowerCase()],
+    enabled: debouncedValue.trim().length >= 2,
+    queryFn: async () => {
+      const term = debouncedValue.trim().replace(/[%,()]/g, ' ').trim();
+      if (!term) return [];
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .or(`name.ilike.%${term}%,phone.ilike.%${term}%,pan_card_number.ilike.%${term}%`)
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // All known clients = cached full list + live server matches (de-duped)
+  const knownClients = useMemo(() => {
+    const map = new Map<string, any>();
+    (clients || []).forEach((c: any) => map.set(c.id, c));
+    (serverMatches || []).forEach((c: any) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [clients, serverMatches]);
 
   // Pending onboarding approvals — these are counterparties that have
   // transacted but do NOT yet exist in the clients table. Surfacing them here
@@ -85,9 +114,9 @@ export function CustomerAutocomplete({
   // Filter clients based on input - search by name, phone, or PAN
   // Exclude deleted clients and rejected buyers
   const filteredClients = useMemo(() => {
-    if (!clients || !debouncedValue.trim()) return [];
+    if (!knownClients.length || !debouncedValue.trim()) return [];
     const searchTerm = debouncedValue.toLowerCase().trim();
-    return clients.filter(client => {
+    return knownClients.filter(client => {
       // Skip deleted clients
       if ((client as any).is_deleted) return false;
       // Skip rejected buyers
@@ -97,7 +126,7 @@ export function CustomerAutocomplete({
         (client.phone && client.phone.includes(searchTerm)) ||
         (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm));
     });
-  }, [clients, debouncedValue]);
+  }, [knownClients, debouncedValue]);
 
   // Filter pending approvals by the same search term. Match on name, phone or
   // Binance nickname so operators can find the queued client however they type.
@@ -122,14 +151,14 @@ export function CustomerAutocomplete({
 
   // Check for exact match
   useEffect(() => {
-    if (!clients || !value.trim()) {
+    if (!knownClients.length || !value.trim()) {
       setHasExactMatch(false);
       setIsNewClient(false);
       onNewClient?.(false);
       return;
     }
 
-    const exactMatch = clients.find(
+    const exactMatch = knownClients.find(
       c => c.name.toLowerCase() === value.trim().toLowerCase()
     );
 
@@ -147,7 +176,7 @@ export function CustomerAutocomplete({
       setIsNewClient(false);
       onNewClient?.(false);
     }
-  }, [value, clients, selectedClientId, onNewClient]);
+  }, [value, knownClients, selectedClientId, onNewClient]);
 
   // Detect whether the typed name matches a client already sitting in the
   // pending onboarding approval queue — surfaces a warning so the operator

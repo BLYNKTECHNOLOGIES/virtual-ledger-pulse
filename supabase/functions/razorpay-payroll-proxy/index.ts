@@ -3938,10 +3938,8 @@ Deno.serve(async (req) => {
               request: { type, "sub-type": subType },
               data: {
                 "employee-id": rpId,
-                "employee-type": "employee",
                 "custom-salary-structure": false,
                 "annual-ctc": annualCtc,
-                "ctc-annual": annualCtc,
               },
             }),
           signal: ctrl.signal,

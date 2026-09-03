@@ -1857,12 +1857,14 @@ Deno.serve(async (req) => {
             body: JSON.stringify({
               auth: authBlock(),
               request: { type: "people", "sub-type": "set-salary" },
+              // Exact documented contract (RazorpayX Payroll Postman collection,
+              // People > Set Salary): only these three keys. Undocumented extras
+              // ("employee-type", "ctc-annual") are dropped — Opfin echoes 200 but
+              // does not apply the write when the payload carries unknown keys.
               data: {
                 "employee-id": rpId,
-                "employee-type": "employee",
                 "custom-salary-structure": false,
                 "annual-ctc": ctcAnnual,
-                "ctc-annual": ctcAnnual,
               },
             }),
             signal: ctrl.signal,
@@ -3804,10 +3806,8 @@ Deno.serve(async (req) => {
               //           re-derive components from the new CTC.
               data: {
                 "employee-id": eid,
-                "employee-type": "employee",
                 "custom-salary-structure": false,
                 "annual-ctc": erp.total,
-                "ctc-annual": erp.total,
               },
             }),
 
@@ -3938,10 +3938,8 @@ Deno.serve(async (req) => {
               request: { type, "sub-type": subType },
               data: {
                 "employee-id": rpId,
-                "employee-type": "employee",
                 "custom-salary-structure": false,
                 "annual-ctc": annualCtc,
-                "ctc-annual": annualCtc,
               },
             }),
           signal: ctrl.signal,
@@ -7012,7 +7010,6 @@ Deno.serve(async (req) => {
                 request: { type: "people", "sub-type": "set-salary" },
                 data: {
                   "employee-id": rpIdNum,
-                  "employee-type": "employee",
                   "custom-salary-structure": false,
                   "annual-ctc": ctcAnnual,
                 },

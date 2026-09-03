@@ -70,6 +70,21 @@ type CompoffCredit = {
   duplicate?: boolean;
 };
 
+/** Opening → credited → used → closing balance ledger per leave category. */
+type LedgerLeg = {
+  opening?: number;
+  credited?: number;
+  used?: number;
+  closing?: number;
+  offset_lop?: number;
+  encashed?: number;
+};
+type LeaveLedger = { cl?: LedgerLeg; sl?: LedgerLeg; co?: LedgerLeg };
+
+const EMPTY_LEG: LedgerLeg = { opening: 0, credited: 0, used: 0, closing: 0 };
+const leg = (r: PreviewRow, k: "cl" | "sl" | "co"): LedgerLeg => r.leave_ledger?.[k] ?? EMPTY_LEG;
+
+
 type LeaveSlice = {
   name: string;
   code: string;

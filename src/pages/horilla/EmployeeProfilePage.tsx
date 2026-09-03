@@ -85,8 +85,8 @@ function DepositCard({ deposit }: { deposit: any }) {
   const progress = deposit.total_deposit_amount > 0 ? Math.round((deposit.collected_amount / deposit.total_deposit_amount) * 100) : 0;
   const modeLabel = deposit.deduction_mode === "one_time" ? "One-Time" : deposit.deduction_mode === "percentage" ? `${deposit.deduction_value}% of Salary` : deposit.deduction_mode === "already_deducted" ? "Already Deducted" : `₹${Number(deposit.deduction_value).toLocaleString('en-IN')}/month`;
 
-  const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund", refund: "Refund" };
-  const txTypeColor: Record<string, string> = { collection: "text-success", penalty_deduction: "text-destructive", replenishment: "text-info", ff_refund: "text-primary", refund: "text-primary" };
+  const txTypeLabel: Record<string, string> = { collection: "Collection", penalty_deduction: "Penalty", replenishment: "Replenishment", ff_refund: "F&F Refund", refund: "Refund", withheld: "Kept by company" };
+  const txTypeColor: Record<string, string> = { collection: "text-success", penalty_deduction: "text-destructive", replenishment: "text-info", ff_refund: "text-primary", refund: "text-primary", withheld: "text-warning" };
 
   const refundAmt = Number(deposit.refund_amount || 0);
   const withheldAmt = Number(deposit.withheld_amount || 0);

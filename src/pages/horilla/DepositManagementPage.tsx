@@ -47,7 +47,7 @@ const LIFECYCLE_BADGE: Record<Lifecycle, { label: string; cls: string }> = {
 
 /** Single source of truth for which bucket a deposit belongs to. */
 function lifecycleOf(d: any): Lifecycle {
-  if (["refunded", "withheld"].includes(d.refund_status) || d.is_recovered || d.is_settled) return "refunded";
+  if (["refunded", "withheld", "partial"].includes(d.refund_status) || d.is_recovered || d.is_settled) return "refunded";
   const employeeActive = d.hr_employees?.is_active !== false;
   const held = Number(d.collected_amount || 0) > 0;
   if (!employeeActive && held) return "exited_unpaid";

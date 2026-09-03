@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, UserMinus, Plus, Pencil, CalendarClock } from "lucide-react";
+import { AlertTriangle, UserMinus, Plus, Pencil, CalendarClock, Send } from "lucide-react";
 import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 
 /**
@@ -183,7 +183,25 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Draft → calculated (same transition as the "Submit" action on the F&F page).
+  const submitDraft = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .update({ status: "calculated", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Submitted — settlement is now awaiting approval");
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const initiate = useMutation({
+
     mutationFn: async () => {
       if (!form.employee_id) throw new Error("Select an employee");
       if (!form.resignation_date || !form.last_working_day)
@@ -402,15 +420,28 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                       </Badge>
                     )}
                     {EDITABLE_STATUSES.includes(String(s.status)) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5"
-                        onClick={() => setDialogFor({ mode: "edit", settlement: s })}
-                      >
-                        <Pencil className="h-3.5 w-3.5" /> Edit
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5"
+                          onClick={() => setDialogFor({ mode: "edit", settlement: s })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        {String(s.status) === "draft" && (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            disabled={submitDraft.isPending}
+                            onClick={() => submitDraft.mutate(s.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" /> Submit
+                          </Button>
+                        )}
+                      </>
                     ) : (
+
                       <span className="text-[11px] text-muted-foreground">
                         Locked — manage on the F&amp;F page
                       </span>

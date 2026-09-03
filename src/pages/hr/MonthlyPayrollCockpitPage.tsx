@@ -721,7 +721,21 @@ export default function MonthlyPayrollCockpitPage() {
                             <CheckCircle2 className="h-4 w-4" /> Mark done
                           </Button>
                         )}
-                        {step.ack_status === "done" && !closed && step.step_no !== 10 && (
+                        {canAckAnyway && step.ack_status !== "done" && !closed && (
+                          <Button
+                            variant="outline"
+                            className="h-10 w-full gap-1.5"
+                            title="The system still reports work pending on this step — confirm only if it is deliberate."
+                            onClick={() => {
+                              setAckStep(step);
+                              setAckNotes(step.ack_notes ?? "");
+                            }}
+                          >
+                            <CheckCircle2 className="h-4 w-4" /> Confirm anyway
+                          </Button>
+                        )}
+                        {step.ack_status === "done" && !closed && !isCloseStep(step) && (
+
                           <Button
                             variant="ghost"
                             className="h-10 w-full"

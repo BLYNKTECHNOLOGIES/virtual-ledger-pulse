@@ -55,7 +55,8 @@ type PreviewRow = {
   amount: number;
   monthly_base?: number;
   base_source_label?: string;
-  status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped";
+  employee_type?: string | null;
+  status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped" | "not_applicable";
   reason?: string;
   existing_amount?: number | null;
 };
@@ -84,6 +85,7 @@ const STATUS_META: Record<PreviewRow["status"], { label: string; variant: any }>
   remove: { label: "Stale — will remove", variant: "destructive" },
   no_lop: { label: "No LOP", variant: "outline" },
   skipped: { label: "Skipped", variant: "destructive" },
+  not_applicable: { label: "LOP not applicable", variant: "secondary" },
 };
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
@@ -239,6 +241,7 @@ export function AutoLopDialog({
                 {summary.to_remove > 0 && <Badge variant="destructive">{summary.to_remove} stale to remove</Badge>}
                 {summary.pushed_locked > 0 && <Badge variant="secondary">{summary.pushed_locked} locked (pushed)</Badge>}
                 {summary.skipped > 0 && <Badge variant="destructive">{summary.skipped} skipped</Badge>}
+                {summary.not_applicable > 0 && <Badge variant="secondary">{summary.not_applicable} LOP not applicable (contract)</Badge>}
                 <Badge>{inr(summary.total_amount)} total</Badge>
               </div>
             )}
@@ -311,9 +314,14 @@ export function AutoLopDialog({
                               {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
                               {r.name}
                             </div>
-                            <div className="text-xs text-muted-foreground pl-[18px]">
-                              {r.badge_id ?? "—"}
-                              {r.base_source_label ? ` · ${r.base_source_label}` : ""}
+                            <div className="text-xs text-muted-foreground pl-[18px] flex items-center gap-1.5 flex-wrap">
+                              <span>
+                                {r.badge_id ?? "—"}
+                                {r.base_source_label ? ` · ${r.base_source_label}` : ""}
+                              </span>
+                              {r.employee_type === "contract" && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Contract — LOP not applicable</Badge>
+                              )}
                             </div>
                             {r.reason && <div className="text-xs text-muted-foreground mt-0.5">{r.reason}</div>}
                             {mismatch && (

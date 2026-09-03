@@ -77,6 +77,19 @@ Deno.serve(async (req) => {
       return json({ period, dry_run: dryRun, rows: [], summary: { employees: 0, with_lop: 0, staged: 0, removed: 0, skipped: 0 } });
     }
 
+    // Employment type — contract staff are paid per contract, not via the
+    // attendance LOP engine, so they are surfaced as "LOP not applicable".
+    const { data: workInfo } = await supabase
+      .from("hr_employee_work_info")
+      .select("employee_id, employee_type")
+      .in("employee_id", roster.map((r: any) => r.hr_employee_id));
+    const empTypeByEmp = new Map<string, string>();
+    for (const w of (workInfo ?? []) as any[]) {
+      if (w.employee_type) empTypeByEmp.set(w.employee_id, String(w.employee_type).toLowerCase());
+    }
+    const isContract = (id: string) =>
+      ["contract", "contractor", "contractual", "consultant"].includes(empTypeByEmp.get(id) ?? "");
+
     // Attendance Summary is the payroll source of truth. Do not bypass this
     // RPC with raw punches, sessions, or the lower-level LOP helper.
     const { data: lopRows, error: lopErr } = await supabase.rpc("hr_attendance_month_summary", {
@@ -196,9 +209,21 @@ Deno.serve(async (req) => {
         formula: lop?.formula ?? null,
         existing_amount: existingAuto ? Number(existingAuto.amount) : null,
         existing_pushed: !!existingAuto?.pushed_at,
+        employee_type: empTypeByEmp.get(map.hr_employee_id) ?? null,
       };
 
-
+      // Contract staff: LOP does not apply — mark clearly, and clean up any
+      // stale un-pushed auto row that may exist from before.
+      if (isContract(map.hr_employee_id)) {
+        // lop_days zeroed so summaries/sorting treat them as no deduction.
+        if (existingAuto && !existingAuto.pushed_at) {
+          rows.push({ ...base, lop_days: 0, status: "remove", reason: "LOP not applicable — contract employee; stale auto row will be removed", amount: 0, base_source: null });
+          toDelete.push(existingAuto.id);
+        } else {
+          rows.push({ ...base, lop_days: 0, status: "not_applicable", reason: "LOP not applicable — contract employee (paid per contract, not attendance)", amount: 0, base_source: null });
+        }
+        continue;
+      }
 
       if (monthWorkingDays > 0 && gapDays >= monthWorkingDays) {
         rows.push({ ...base, status: "skipped", reason: "Not employed during this period — no payroll expected", amount: 0, base_source: null });
@@ -371,6 +396,7 @@ Deno.serve(async (req) => {
       staged,
       removed,
       skipped: rows.filter((r) => r.status === "skipped").length,
+      not_applicable: rows.filter((r) => r.status === "not_applicable").length,
       pushed_locked: rows.filter((r) => r.status === "pushed").length,
       pushed_stale: rows.filter((r) => r.stale_pushed === true).length,
       total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),

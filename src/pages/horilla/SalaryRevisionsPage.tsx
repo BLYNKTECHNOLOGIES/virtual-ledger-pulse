@@ -891,11 +891,11 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
               <div className="space-y-3 text-sm">
                 <p>
                   {deleteTarget?.hr_employees?.first_name} {deleteTarget?.hr_employees?.last_name}
-                  {deleteTarget?.__ctcRollback ? (
+                  {deleteTarget?.__ctcRollback || deleteTarget?.__ctcHistoryOnly ? (
                     <>
                       {" · "}
                       <b>
-                        ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")} ←{" "}
+                        ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")} →{" "}
                         ₹{Number(deleteTarget?.new_total || 0).toLocaleString("en-IN")}
                       </b>
                     </>
@@ -912,6 +912,12 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                     This revision was never sent to RazorpayX. Deleting it will
                     <b> revert the salary back to ₹{Number(deleteTarget?.previous_total || 0).toLocaleString("en-IN")}</b>{" "}
                     and remove it from the revision history. An audit copy is retained.
+                  </p>
+                ) : deleteTarget?.__ctcHistoryOnly ? (
+                  <p>
+                    This revision was never sent to RazorpayX and a newer revision already supersedes it, so
+                    <b> the employee's current salary will not change</b>. It is removed from the revision
+                    history and the next revision's "previous" figure is corrected. An audit copy is retained.
                   </p>
                 ) : (
                   <p>

@@ -49,10 +49,12 @@ export function CustomerAutocomplete({
     queryKey: ['clients-all-search'],
     queryFn: async () => {
       // Use paginated fetch — there are >1000 clients and PostgREST caps
-      // a single request at 1000 rows, which silently dropped clients
-      // (e.g. names late in the alphabet) from the search results.
+      // a single request at 1000 rows. The secondary .order('id') is REQUIRED:
+      // ~178 clients share duplicate names, and ordering only by a non-unique
+      // column makes page boundaries unstable, silently dropping clients
+      // (e.g. "Sanyam Jain") from the search results.
       return await fetchAllPaginated<any>(() =>
-        supabase.from('clients').select('*').order('name')
+        supabase.from('clients').select('*').order('name').order('id')
       );
     },
   });

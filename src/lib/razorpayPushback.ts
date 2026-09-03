@@ -498,6 +498,16 @@ export async function dismissInRazorpay(
         dateOfDismissal: ddmmyyyy,
       },
     };
+    // RazorpayX `people:dismiss` accepts ONLY { email, dateOfDismissal } — a
+    // dismissal reason is not part of the API contract (sending it returns
+    // UNKNOWN_EXCEPTION). Out of RazorpayX API Scope / Limitation: the exit
+    // reason is therefore recorded on the HRMS dismissal audit row instead of
+    // being transmitted, so Data Health always shows why the person was exited.
+    const auditPayload = {
+      ...payload,
+      __separation_reason: opts.reason || null,
+      __separation_reason_note: "Recorded in HRMS only — RazorpayX people:dismiss has no reason field.",
+    };
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body: payload });
     if (error) throw error;
     const res: any = data || {};
@@ -511,7 +521,7 @@ export async function dismissInRazorpay(
         kind: "dismissal",
         action: "people_dismiss",
         status: "success",
-        request_snapshot: payload,
+        request_snapshot: auditPayload,
         response_snapshot: res,
         error_message: "Already dismissed in RazorpayX",
         triggered_from: opts.triggeredFrom,
@@ -530,7 +540,7 @@ export async function dismissInRazorpay(
         kind: "dismissal",
         action: "people_dismiss",
         status: "manual_required",
-        request_snapshot: payload,
+        request_snapshot: auditPayload,
         response_snapshot: res,
         error_message: msg,
         triggered_from: opts.triggeredFrom,
@@ -538,7 +548,7 @@ export async function dismissInRazorpay(
       await upsertDrift(
         hrEmployeeId,
         "dismissal_state",
-        `Manual RazorpayX dismissal required — ${msg}`.slice(0, 400),
+        `Manual RazorpayX dismissal required${opts.reason ? ` (exit reason: ${opts.reason})` : ""} — ${msg}`.slice(0, 400),
       );
 
       toast.warning("Dismiss this employee manually in RazorpayX", {
@@ -555,7 +565,7 @@ export async function dismissInRazorpay(
       kind: "dismissal",
       action: "people_dismiss",
       status: "success",
-      request_snapshot: payload,
+      request_snapshot: auditPayload,
       response_snapshot: data ?? null,
       triggered_from: opts.triggeredFrom,
     });

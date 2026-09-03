@@ -749,9 +749,13 @@ export default function DataHealthPage() {
                         (d.systems_involved || []).includes("razorpay") &&
                         (d.field === "email" ||
                           (isPushFailureAlert(d) && /work email/i.test(d.resolution_note || "")));
+                      // annual_ctc has no PUSH_BY_FIELD entry — adoptHrms() handles
+                      // it through the dedicated salary route, so allow it here too.
                       const canPush =
                         !dashboardOnly &&
-                        (!!PUSH_BY_FIELD[d.field] || (d.field === "active_state" && !d.is_active));
+                        (!!PUSH_BY_FIELD[d.field] ||
+                          d.field === "annual_ctc" ||
+                          (d.field === "active_state" && !d.is_active));
                       const canPull = PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay");
                       const esslRemoval = d.field === "active_state" && !d.is_active;
                       const canEssl = ESSL_PUSHABLE_FIELDS.has(d.field);

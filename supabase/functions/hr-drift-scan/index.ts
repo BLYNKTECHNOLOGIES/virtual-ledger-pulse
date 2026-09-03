@@ -647,7 +647,7 @@ serve(async (req) => {
               .update({
                 resolved_at: new Date().toISOString(),
                 resolution_note: ctcPushConfirmed
-                  ? "Auto-resolved: CTC push verified by RazorpayX (people:set-salary accepted). RazorpayX exposes CTC over the read API only after the first executed payroll run, so there is no read-back value to compare."
+                  ? "Auto-resolved: CTC push verified by RazorpayX (people:set-salary accepted). No full (non-joining) payroll month is available yet for a read-back comparison."
                   : "Auto-resolved: values now match",
               })
               .eq("id", existing.id);

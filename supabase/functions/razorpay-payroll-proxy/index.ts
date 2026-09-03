@@ -2141,6 +2141,46 @@ Deno.serve(async (req) => {
     // shape and R4 pre-flight is now inlined into create_person.)
 
 
+    // ---------- probe_salary_months: read-only sweep of payroll:view-payroll ----
+    // Diagnostic: for a given email, try N recent months and report which ones
+    // return a salary figure. Proves whether CTC is readable for employees who
+    // were not present in the single locally-recorded executed run.
+    if (action === "probe_salary_months") {
+      const p = (payload?.payload && typeof payload.payload === "object") ? payload.payload : payload;
+      const email = String(p?.email ?? "").trim();
+      const back = Math.min(24, Math.max(1, Number(p?.months_back ?? 12)));
+      if (!email.includes("@")) return json(400, { error: "email required" });
+      const now = new Date();
+      const out: any[] = [];
+      for (let i = 0; i < back; i++) {
+        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+        const ym = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+        try {
+          const res = await fetch(`${BASE}/payroll`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "payroll", "sub-type": "view-payroll" },
+              data: { email, "payroll-month": ym },
+            }),
+          });
+          const raw = await res.text();
+          let body: any = null; try { body = JSON.parse(raw); } catch { /* */ }
+          out.push({
+            month: ym, http: res.status,
+            error: body?.error || body?.message || null,
+            salary: body?.salary ?? null,
+            keys: body && typeof body === "object" ? Object.keys(body).slice(0, 15) : null,
+          });
+        } catch (e) {
+          out.push({ month: ym, http: 0, error: (e as Error).message });
+        }
+      }
+      return json(200, { ok: true, email, results: out });
+    }
+
+
     // ---------- probe_endpoint: gated read-only sub-type validator ----------
     // Used by Phase-planning to prove which Opfin sub-types exist against the
     // live tenant BEFORE any Phase B/C/... UI is wired to them. Writes are

@@ -562,7 +562,7 @@ serve(async (req) => {
           }
           continue;
         }
-        const values = spec.extract({ emp, workInfo, bank, salary, rzp, esslUser });
+        const values = spec.extract({ emp, workInfo, bank, salary, rzp, esslUser, salaryPush: salaryPushByEmp.get(emp.id) ?? null });
         const present: SystemKey[] = (Object.keys(values) as SystemKey[]).filter(
           (k) => values[k] !== null && values[k] !== undefined,
         );

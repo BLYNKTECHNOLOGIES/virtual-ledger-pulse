@@ -179,9 +179,11 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
   for (const p of penalties || []) {
     const stored = Number(p.penalty_amount || 0);
     const storedDays = Number((p as any).penalty_days || 0);
-    // Day-based when the row carries penalty_days (late_slab / manual / absence rows all use it).
-    const isDays = storedDays > 0;
-    if (!isDays) {
+    // Day-based when penalty_type = 'days' (legacy rows keep the day count in
+    // penalty_amount and leave penalty_days at 0) or when penalty_days is set.
+    const typeIsDays = String(p.penalty_type || "").toLowerCase() === "days";
+    const days = storedDays > 0 ? storedDays : typeIsDays ? stored : 0;
+    if (days <= 0) {
       penaltyRows.push({
         ...p, penalty_amount: stored, days: 0, day_rate: 0, amount: round2(stored),
         note: "recorded in rupees",
@@ -191,21 +193,23 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
     const month = String(p.penalty_month || periodMonth || "").slice(0, 7);
     const wd = month ? await workingDaysFor(empId, month) : 26;
     const dayRate = monthlyBase > 0 && wd > 0 ? round2(monthlyBase / wd) : 0;
-    const priced = round2(storedDays * dayRate);
+    const priced = round2(days * dayRate);
+    // Rupees are only trusted when the row itself carries a separate day count.
+    const rupeesRecorded = storedDays > 0 && stored > 0;
     penaltyRows.push({
       ...p,
       penalty_amount: stored,
-      days: storedDays,
+      days,
       day_rate: dayRate,
-      // If HR already stored a rupee amount for the same row, never double-count: take the larger of nothing — prefer the stored rupees when present.
-      amount: stored > 0 ? round2(stored) : priced,
-      note: stored > 0
-        ? `${storedDays} day(s), amount recorded in rupees`
+      amount: rupeesRecorded ? round2(stored) : priced,
+      note: rupeesRecorded
+        ? `${days} day(s), amount recorded in rupees`
         : dayRate > 0
-          ? `${storedDays} day × ₹${dayRate.toLocaleString("en-IN")}/day (${wd} working days)`
+          ? `${days} day × ₹${dayRate.toLocaleString("en-IN")}/day (${wd} working days)`
           : "no salary on record — enter the amount manually",
     });
   }
+
   const penaltyTotal = round2(penaltyRows.reduce((s, p) => s + p.amount, 0));
 
   // ── Deposits: one editable decision per held record, nothing written off ──

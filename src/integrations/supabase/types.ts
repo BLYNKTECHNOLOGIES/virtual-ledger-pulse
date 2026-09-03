@@ -29374,6 +29374,7 @@ export type Database = {
         }
         Returns: number
       }
+      hr_open_payroll_month: { Args: never; Returns: string }
       hr_open_unexplained_drift_count: { Args: never; Returns: number }
       hr_ops_user_ids: { Args: never; Returns: string[] }
       hr_org_chart_directory: {
@@ -29490,6 +29491,10 @@ export type Database = {
           p_resolution: string
           p_session_id: string
         }
+        Returns: Json
+      }
+      hr_revision_push_window: {
+        Args: { p_revision_id: string }
         Returns: Json
       }
       hr_roster_completeness: { Args: never; Returns: Json }

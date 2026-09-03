@@ -884,19 +884,22 @@ export function ResignationTab() {
             );})}
 
           </div>
-          <DialogFooter>
-            <Button
-              variant="destructive"
-              disabled={completedCount < totalCount}
-              onClick={() => {
-                if (selectedEmployee) {
-                  setConfirmAction({ type: 'complete', id: selectedEmployee.id, label: 'Complete resignation, deactivate this employee in the ERP, and set their Date of Dismissal in RazorpayX Payroll (does not hard-delete — keeps them eligible for FNF payroll)?' });
-                }
-              }}
-            >
-              {completedCount < totalCount ? `Complete all ${totalCount - completedCount} remaining items` : "Complete Resignation & Deactivate"}
-            </Button>
+          <DialogFooter className="sm:justify-start">
+            <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground w-full">
+              <p className="font-medium text-foreground mb-1">Separation completes itself after the F&amp;F is paid</p>
+              <p>
+                The employee stays active here on purpose — dismissing them in RazorpayX now would block their final
+                payroll run. Once the F&amp;F settlement is pushed into its payroll cycle, verified on the RazorpayX
+                read-back and marked <strong>paid</strong> in Full &amp; Final Settlement, the resignation is completed
+                automatically: the employee is deactivated, the ERP login is disabled, biometrics are removed and the
+                RazorpayX dismissal is offered.
+              </p>
+              {completedCount < totalCount && (
+                <p className="mt-1">Still open: {totalCount - completedCount} checklist item(s).</p>
+              )}
+            </div>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 

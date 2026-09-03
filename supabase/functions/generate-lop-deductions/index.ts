@@ -103,6 +103,18 @@ Deno.serve(async (req) => {
     const gapByEmp = new Map<string, any>();
     for (const r of (gapRows ?? []) as any[]) gapByEmp.set(r.employee_id, r);
 
+    // Reporting-only leave-type breakdown (CL / SL / comp-off / unpaid) and
+    // days worked on a weekly off or holiday. Never feeds the LOP maths.
+    const breakdownByEmp = new Map<string, any>();
+    {
+      const { data: bd, error: bdErr } = await supabase.rpc("hr_leave_month_breakdown", {
+        p_employee_ids: roster.map((r: any) => r.hr_employee_id),
+        p_period_month: periodStr,
+      });
+      if (bdErr) console.error("hr_leave_month_breakdown failed", bdErr);
+      for (const r of ((bd ?? []) as any[])) breakdownByEmp.set(r.employee_id, r);
+    }
+
 
     // Comp-off pool — LOP is cancelled by available comp-off before any
     // deduction is computed (the remainder is encashed by
@@ -131,6 +143,7 @@ Deno.serve(async (req) => {
       const name = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || emp.badge_id || "—";
       const lop = lopByEmp.get(map.hr_employee_id);
       const existingAuto = autoByEmp.get(map.hr_employee_id);
+      const bd = breakdownByEmp.get(map.hr_employee_id);
 
       const pool = compoffPool.get(map.hr_employee_id) ?? { days_earned: 0, days_opening: 0, days_taken: 0, days_available: 0 };
       const rawLopDays = Number(lop?.lop_days ?? 0);
@@ -155,8 +168,21 @@ Deno.serve(async (req) => {
         present_days: Number(lop?.present_days ?? 0),
         paid_leave_days: Number(lop?.paid_leave_days ?? 0),
         unpaid_leave_days: Number(lop?.unpaid_leave_days ?? 0),
+        half_days: Number(lop?.half_days ?? 0),
+        absent_days: Number(lop?.absent_days ?? 0),
+        held_harmless_days: Number(lop?.held_harmless_days ?? 0),
+        unverified_days: Number(lop?.unverified_days ?? 0),
+        leave_breakdown: bd?.leave_breakdown ?? [],
+        leave_paid_total: Number(bd?.paid_leave_total ?? 0),
+        leave_unpaid_total: Number(bd?.unpaid_leave_total ?? 0),
+        leave_compoff_total: Number(bd?.compoff_leave_total ?? 0),
+        worked_off_days: Number(bd?.worked_off_days ?? 0),
+        worked_off_dates: bd?.worked_off_dates ?? [],
         raw_lop_days: rawLopDays,
         compoff_available: pool.days_available,
+        compoff_earned: pool.days_earned,
+        compoff_opening: pool.days_opening,
+        compoff_taken: pool.days_taken,
         compoff_offset_days: split.offset_days,
         absence_lop_days: split.lop_after_offset,
         proration_days: gapDays,

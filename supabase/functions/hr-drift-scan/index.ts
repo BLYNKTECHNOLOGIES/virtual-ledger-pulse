@@ -209,8 +209,12 @@ const FIELDS: FieldSpec[] = [
   {
     field: "annual_ctc",
     severity: "high",
+    // A CTC present in HRMS but absent in RazorpayX (₹0 / no salary structure
+    // there) is a payout-critical gap, not a "nothing to compare" case.
+    missingIsDrift: true,
     extract: ({ salary, rzp }) => {
-      const hrmsCtc = salary?.annual_ctc ?? salary?.gross_annual ?? null;
+      const hrmsCtc = salary?.annual_ctc ?? null;
+
       const rzpSalary = rzp?.__salary ?? null;
       const rzpCtc =
         rzpSalary?.annual_ctc ??

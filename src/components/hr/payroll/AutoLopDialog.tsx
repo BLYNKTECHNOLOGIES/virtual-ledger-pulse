@@ -36,6 +36,10 @@ type PreviewRow = {
   leave_compoff_total?: number;
   worked_off_days?: number;
   worked_off_dates?: string[];
+  unprocessed_off_days?: number;
+  unprocessed_off_dates?: string[];
+  compoff_credit_days?: number;
+  compoff_credits?: CompoffCredit[];
   raw_lop_days?: number;
   compoff_available?: number;
   compoff_earned?: number;
@@ -54,6 +58,14 @@ type PreviewRow = {
   status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped";
   reason?: string;
   existing_amount?: number | null;
+};
+
+type CompoffCredit = {
+  date: string;
+  type: string;
+  days: number;
+  notes?: string | null;
+  duplicate?: boolean;
 };
 
 type LeaveSlice = {
@@ -112,7 +124,7 @@ export function AutoLopDialog({
   function exportCsv() {
     const head = [
       "Employee", "Badge", "Working days", "Present", "Half days", "Absent", "Held harmless", "Unverified",
-      "CL", "SL", "Comp-off leave", "Other paid leave", "Unpaid leave", "Worked on off/holiday",
+      "CL", "SL", "Comp-off leave", "Other paid leave", "Unpaid leave", "Worked on off/holiday", "Comp-off credits earned", "Punched but unprocessed",
       "Raw LOP", "Comp-off set-off", "Proration days", "Charged LOP days",
       "Monthly base", "LOP amount", "Status",
     ];
@@ -123,7 +135,7 @@ export function AutoLopDialog({
         `"${(r.name || "").replace(/"/g, "'")}"`, `"${r.badge_id ?? ""}"`,
         num(r.working_days), num(r.present_days), num(r.half_days), num(r.absent_days),
         num(r.held_harmless_days), num(r.unverified_days),
-        num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid), num(r.worked_off_days),
+        num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid), num(r.worked_off_days), num(r.compoff_credit_days), num(r.unprocessed_off_days),
         num(r.raw_lop_days), num(r.compoff_offset_days), num(r.proration_days), num(r.lop_days),
         num(r.monthly_base), num(r.amount), STATUS_META[r.status]?.label ?? r.status,
       ].join(","));

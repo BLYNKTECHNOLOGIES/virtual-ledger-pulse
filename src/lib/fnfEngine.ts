@@ -22,6 +22,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type FnFForm = {
   last_working_day: string;
+  /** Payroll cycle (first day of the month) the F&F lines are pushed into. */
+  payroll_month: string;
   pending_salary: number;
   leave_encashment_days: number;
   leave_encashment_amount: number;

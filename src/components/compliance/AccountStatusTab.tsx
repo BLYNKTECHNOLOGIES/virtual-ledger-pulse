@@ -375,6 +375,77 @@ export function AccountStatusTab() {
           </div>
         )}
 
+        {posTerminals && posTerminals.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 pb-2 border-b">
+              <div className="w-3 h-3 rounded-full bg-primary"></div>
+              <h3 className="text-lg font-semibold text-foreground">
+                POS / Payment Gateways ({posTerminals.length})
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {posTerminals.map((t: any) => {
+                const bankInactive = t.bank_accounts && (t.bank_accounts.status !== 'ACTIVE' || t.bank_accounts.account_status !== 'ACTIVE');
+                const inactive = !t.is_active;
+                return (
+                  <div
+                    key={t.id}
+                    className={`border rounded-lg p-4 transition-all duration-200 ${
+                      inactive
+                        ? 'border-destructive/30 bg-destructive/5 hover:bg-destructive/10'
+                        : 'border-border bg-card hover:shadow-sm'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h4 className={`font-medium ${inactive ? 'text-destructive' : 'text-foreground'}`}>
+                          {posLabel(t)}
+                        </h4>
+                        <p className={`text-sm break-all ${inactive ? 'text-destructive/80' : 'text-muted-foreground'}`}>
+                          {t.upi_id || '—'}
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge variant={inactive ? 'destructive' : 'default'}>
+                          {inactive ? 'INACTIVE' : 'ACTIVE'}
+                        </Badge>
+                        {t.risk_category && (
+                          <Badge variant="secondary" className="whitespace-nowrap">{t.risk_category}</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-xs space-y-1 text-muted-foreground">
+                      <p>
+                        <span className="font-medium">Settles to:</span>{' '}
+                        {t.bank_accounts
+                          ? `${t.bank_accounts.bank_name} · ${t.bank_accounts.account_name}`
+                          : 'Not linked'}
+                        {bankInactive && (
+                          <Badge variant="destructive" className="ml-2 align-middle">Bank inactive</Badge>
+                        )}
+                      </p>
+                      {t.settlement_cycle && (
+                        <p><span className="font-medium">Cycle:</span> {t.settlement_cycle}</p>
+                      )}
+                    </div>
+                    {t.bank_accounts && bankInactive && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full mt-3 border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50"
+                        onClick={() => handleStartInvestigation({ ...t.bank_accounts, id: t.bank_account_id })}
+                      >
+                        Start Investigation
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+
         {completedInvestigations && completedInvestigations.length > 0 && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 pb-2 border-b">

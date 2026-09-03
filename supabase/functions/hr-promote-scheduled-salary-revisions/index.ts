@@ -49,6 +49,25 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      // Payroll-month scope guard: RazorpayX CTC is a LIVE, whole-month
+      // attribute. If the payroll month still being processed is EARLIER than
+      // the month this revision becomes effective in, pushing now would pay the
+      // open month at the new rate. Promote in HRMS, but defer the push to the
+      // revision's own payroll cycle (HR pushes it from the cockpit then).
+      const { data: win } = await svc.rpc("hr_revision_push_window", { p_revision_id: row.id });
+      if (win && (win as any).allowed === false) {
+        results.push({
+          id: row.id,
+          employee_id: row.employee_id,
+          effective_from: row.effective_from,
+          ok: true,
+          promoted,
+          push_deferred: true,
+          push_defer_reason: `open payroll month ${(win as any).open_payroll_month} is earlier than effective month ${(win as any).effective_month}`,
+        });
+        continue;
+      }
+
       // Push to RazorpayX. Never block a promotion on push failure — a badge
       // will surface it on the Salary Revisions page for retry.
       const { data: pushResp, error: pushErr } = await svc.functions.invoke(

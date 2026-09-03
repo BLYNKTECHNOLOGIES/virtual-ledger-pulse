@@ -457,7 +457,7 @@ export function HorillaSidebar({
 
                     {!isMobile && collapsed && hoveredItem === item.label && hasChildren && (
                       <div className="absolute left-full top-0 ml-2 bg-[#1a1a2e] border border-[#2a2a40] rounded-lg shadow-2xl py-2 min-w-[180px] z-50">
-                        <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground/60 uppercase tracking-wider">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider hrms-sidebar-label">
                           {item.label}
                         </div>
                         {item.children!.map((child) => (

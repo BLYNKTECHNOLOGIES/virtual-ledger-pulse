@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { CockpitToolSheet, type CockpitToolKey } from "@/components/hrms/CockpitToolSheet";
 import {
@@ -53,6 +53,7 @@ import {
   type CockpitStep,
 } from "@/hooks/hrms/useCockpit";
 import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
+import { supabase } from "@/integrations/supabase/client";
 
 const STEP_ICONS: Record<string, any> = {
   lock_attendance: Lock,

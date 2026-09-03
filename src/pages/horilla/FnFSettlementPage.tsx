@@ -19,6 +19,8 @@ import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
 import { computeFnFDraft, buildFnFPayload, fnfNetPayable, syncFnFDepositReservations, sumRefunds, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { finalizeSeparation } from "@/lib/finalizeSeparation";
+
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
@@ -267,7 +269,7 @@ export default function FnFSettlementPage() {
       // Money kept at exit must carry a written reason before the settlement moves forward.
       if (status === "approved" || status === "paid") {
         const { data: row } = await (supabase as any)
-          .from("hr_fnf_settlements").select("breakdown").eq("id", id).maybeSingle();
+          .from("hr_fnf_settlements").select("breakdown, razorpay_push_status").eq("id", id).maybeSingle();
         const decisions: DepositDecision[] = (row?.breakdown?.deposit_decisions || []).map((d: any) => ({
           deposit_id: d.deposit_id, deposit_type: d.deposit_type || "security",
           held: Number(d.held || 0), refund: Number(d.refund || 0), reason: d.reason || "",
@@ -279,7 +281,15 @@ export default function FnFSettlementPage() {
             `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
           );
         }
+        // Marking paid also completes the separation, so the payroll lines must be
+        // verified on the live RazorpayX run first.
+        if (status === "paid" && !["pushed", "nothing_to_push"].includes(String(row?.razorpay_push_status || ""))) {
+          throw new Error(
+            "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
+          );
+        }
       }
+
       const payload: any = { status, updated_at: new Date().toISOString() };
 
       if (status === "approved") payload.approved_by = user?.username || user?.id || "hr";
@@ -312,7 +322,9 @@ export default function FnFSettlementPage() {
         }
       }
 
-      // Auto-deactivate employee when F&F is paid + surface Razorpay dismiss prompt
+      // Paid = the F&F money is verified on the payroll run. This is the ONLY
+      // moment the separation is finalised (ERP login off, biometrics removed,
+      // employee deactivated) and the RazorpayX dismissal is offered.
       if (status === "paid") {
         // Close every source record the settlement recovered/refunded.
         const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: id });
@@ -320,33 +332,37 @@ export default function FnFSettlementPage() {
 
         const { data: settlement } = await (supabase as any)
           .from("hr_fnf_settlements")
-          .select("employee_id, last_working_day, hr_employees!hr_fnf_settlements_employee_id_fkey(first_name, last_name)")
+          .select("employee_id, last_working_day")
           .eq("id", id)
           .single();
         if (settlement?.employee_id) {
-          await (supabase as any)
-            .from("hr_employees")
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq("id", settlement.employee_id);
+          const fin = await finalizeSeparation(settlement.employee_id);
           return {
             settledId: id,
             employee_id: settlement.employee_id,
-            name: `${settlement.hr_employees?.first_name ?? ""} ${settlement.hr_employees?.last_name ?? ""}`.trim() || "employee",
-            lwd: settlement.last_working_day || new Date().toISOString().slice(0, 10),
+            name: fin.name,
+            lwd: settlement.last_working_day || fin.lwd || new Date().toISOString().slice(0, 10),
+            erp: fin.erp,
           };
         }
       }
+
       return null;
     },
 
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["resignation-employees"] });
       toast.success("Status updated");
       if (result) {
+        toast.success(
+          `Separation completed for ${result.name} — employee deactivated${result.erp?.deactivated ? ", ERP login disabled" : ""}.`,
+        );
         setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd });
       }
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

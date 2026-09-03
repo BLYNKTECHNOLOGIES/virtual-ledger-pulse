@@ -168,9 +168,15 @@ async function opfinSalary(
   }
   for (const m of (executedMonths ?? [])) if (!candidates.includes(m)) candidates.push(m);
 
-  // Skip the joining month (prorated) and everything before it.
-  const hireYm = hireDate && /^\d{4}-\d{2}/.test(String(hireDate)) ? String(hireDate).slice(0, 7) : null;
+  // Skip the joining month (RazorpayX prorates it) and everything before it.
+  // RazorpayX returns dates as DD/MM/YYYY; ISO is also accepted defensively.
+  const hd = hireDate ? String(hireDate).trim() : "";
+  let hireYm: string | null = null;
+  const dmy = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(hd);
+  if (dmy) hireYm = `${dmy[3]}-${dmy[2]}`;
+  else if (/^\d{4}-\d{2}/.test(hd)) hireYm = hd.slice(0, 7);
   const months = candidates.filter((m) => (hireYm ? m > hireYm : true));
+
   if (months.length === 0) {
     return { ...empty, err: "not-exposed-by-api: no full (non-joining) payroll month available yet" };
   }

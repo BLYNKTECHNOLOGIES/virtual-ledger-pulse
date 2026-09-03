@@ -1650,6 +1650,56 @@ html {
   background-color: hsl(226 22% 18%) !important;
 }
 
+/* ═══════════════════════════════════════════════════════
+   HRMS sidebar — high-contrast dark rail
+   The rail is always dark; text must read clearly against
+   the navy surface without relying on low-opacity greys.
+   ═══════════════════════════════════════════════════════ */
+.horilla-root .horilla-sidebar,
+.horilla-root aside.horilla-sidebar {
+  background-color: hsl(228 28% 12%);
+  color: hsl(220 14% 92%);
+}
+
+.horilla-root .hrms-sidebar-label {
+  color: hsl(220 12% 68%);
+}
+
+.horilla-root .hrms-sidebar-item {
+  color: hsl(220 14% 92%);
+}
+
+.horilla-root .hrms-sidebar-item:hover,
+.horilla-root .hrms-sidebar-item:focus-visible {
+  color: hsl(0 0% 100%);
+  background-color: hsl(226 22% 20%);
+}
+
+.horilla-root .hrms-sidebar-child {
+  color: hsl(220 12% 82%);
+}
+
+.horilla-root .hrms-sidebar-child:hover,
+.horilla-root .hrms-sidebar-child:focus-visible {
+  color: hsl(0 0% 100%);
+  background-color: hsl(226 22% 18%);
+}
+
+/* Active parent/child already use the brand purple; keep it crisp. */
+.horilla-root .horilla-sidebar button[class*="bg-[#6C63FF]"] {
+  background-color: hsl(250 75% 60%);
+  color: hsl(0 0% 100%);
+}
+
+.horilla-root .horilla-sidebar button[class*="text-[#6C63FF]"] {
+  color: hsl(250 95% 72%);
+}
+
+/* Flyout submenu inherits the same surface. */
+.horilla-root .horilla-sidebar [class*="border-[#2a2a40]"] {
+  border-color: hsl(226 22% 22%);
+}
+
 /* Cards: subtle elevation + hairline border */
 .dark .horilla-root .bg-card {
   background-color: hsl(var(--card));

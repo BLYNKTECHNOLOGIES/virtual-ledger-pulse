@@ -73,8 +73,10 @@ Deno.serve(async (req) => {
       return json({ ok: false, error: "No RazorpayX employee mapping for this employee" }, 400);
     }
 
-    const month = String(s.last_working_day || "").slice(0, 7);
-    if (!month) return json({ ok: false, error: "Settlement has no last working day" }, 400);
+    // The payroll cycle chosen by HR on the settlement wins; the last working
+    // day's month is only the fallback for legacy settlements.
+    const month = String(s.payroll_month || s.last_working_day || "").slice(0, 7);
+    if (!month) return json({ ok: false, error: "Settlement has no payroll cycle month or last working day" }, 400);
 
     const b: any = s.breakdown || {};
     const additionTotal =
@@ -124,12 +126,41 @@ Deno.serve(async (req) => {
     }
 
     const allVerified = results.every((r) => r.verified);
+
+    // Mirror the pushed F&F lines into the monthly payroll input tables so the
+    // Monthly Payroll Cockpit shows them for that cycle, clearly segregated as
+    // F&F settlement lines. They are recorded as already pushed so the cockpit
+    // never re-pushes them to RazorpayX.
+    const periodMonth = `${month}-01`;
+    const nowIso = new Date().toISOString();
+    for (const r of results) {
+      const isAddition = r.line === "addition";
+      const table = isAddition ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
+      const row: Record<string, unknown> = {
+        hr_employee_id: s.employee_id,
+        razorpay_employee_id: String(mapRow.razorpay_employee_id),
+        period_month: periodMonth,
+        label: isAddition ? "F&F settlement — dues" : "F&F settlement — recoveries",
+        amount: r.amount,
+        source: "fnf_settlement",
+        pushed_at: r.verified ? nowIso : null,
+        readback_verified_at: r.verified ? nowIso : null,
+        push_response: { settlement_id: s.id, readback: r.readback ?? null, error: r.error ?? null },
+        updated_at: nowIso,
+      };
+      if (isAddition) { row.addition_type = 0; row.taxable = true; }
+      const { error: mirrorErr } = await svc
+        .from(table)
+        .upsert(row, { onConflict: "razorpay_employee_id,period_month,label" });
+      if (mirrorErr) console.error("F&F payroll-input mirror failed", table, mirrorErr.message);
+    }
+
     await svc.from("hr_fnf_settlements")
       .update({
         razorpay_push_status: allVerified ? "pushed" : "failed",
         razorpay_pushed_at: allVerified ? new Date().toISOString() : null,
         push_failure_reason: allVerified ? null : results.filter((r) => !r.verified).map((r) => `${r.line}: ${r.error}`).join(" | "),
-        breakdown: { ...b, razorpay_push: { month, results, at: new Date().toISOString() } },
+        breakdown: { ...b, razorpay_push: { month, payroll_month: periodMonth, results, at: new Date().toISOString() } },
         updated_at: new Date().toISOString(),
       })
       .eq("id", s.id);

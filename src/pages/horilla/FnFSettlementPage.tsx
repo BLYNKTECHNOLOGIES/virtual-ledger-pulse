@@ -34,6 +34,7 @@ export default function FnFSettlementPage() {
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [form, setForm] = useState({
     last_working_day: "",
+    payroll_month: "",
     pending_salary: 0,
     leave_encashment_days: 0,
     leave_encashment_amount: 0,
@@ -183,7 +184,7 @@ export default function FnFSettlementPage() {
     setCalcNote("");
     setFinalMonth({ state: "idle" });
     setForm({
-      last_working_day: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
+      last_working_day: "", payroll_month: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
       bonus_amount: 0, gratuity_amount: 0, notice_pay_recovery: 0, loan_recovery: 0, deposit_refund: 0,
       penalty_deductions: 0, other_deductions: 0, other_deductions_notes: "", notes: "",
     });
@@ -239,6 +240,7 @@ export default function FnFSettlementPage() {
     );
     setForm({
       last_working_day: s.last_working_day || "",
+      payroll_month: (s.payroll_month || s.last_working_day || "").slice(0, 7),
       pending_salary: Number(s.pending_salary || 0),
       leave_encashment_days: Number(s.leave_encashment_days || 0),
       leave_encashment_amount: Number(s.leave_encashment_amount || 0),
@@ -478,7 +480,11 @@ export default function FnFSettlementPage() {
                       {s.hr_employees?.first_name} {s.hr_employees?.last_name}
                       <span className="text-muted-foreground text-xs ml-2">({s.hr_employees?.badge_id})</span>
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">LWD: <span className="tabular-nums">{s.last_working_day}</span></p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      LWD: <span className="tabular-nums">{s.last_working_day}</span>
+                      <span className="mx-1.5">·</span>
+                      Payroll cycle: <span className="tabular-nums">{String(s.payroll_month || s.last_working_day || "").slice(0, 7)}</span>
+                    </p>
                   </div>
                   <div className="text-right flex items-center gap-3">
                     <div>
@@ -623,7 +629,23 @@ export default function FnFSettlementPage() {
                   : "Employees with an existing settlement are not listed; edit their settlement from the list instead."}
               </p>
             </div>
-            <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value })} /></div>
+            <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value, payroll_month: form.payroll_month || (e.target.value || "").slice(0, 7) })} /></div>
+
+            <div>
+              <Label>Payroll cycle month</Label>
+              <Input
+                className="h-9 mt-1"
+                type="month"
+                value={form.payroll_month}
+                onChange={(e) => setForm({ ...form, payroll_month: e.target.value })}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                The monthly payroll run this settlement is added to. Its dues and recoveries appear in the
+                Monthly Payroll Cockpit → Additions / Deductions for this month, grouped under “F&amp;F settlement”.
+                Defaults to the last working day's month.
+              </p>
+            </div>
+
 
             <div className="rounded-md border border-border p-3 space-y-1.5">
               <div className="flex items-center justify-between">

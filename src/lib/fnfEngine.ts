@@ -22,6 +22,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type FnFForm = {
   last_working_day: string;
+  /** Payroll cycle (first day of the month) the F&F lines are pushed into. */
+  payroll_month: string;
   pending_salary: number;
   leave_encashment_days: number;
   leave_encashment_amount: number;
@@ -84,6 +86,7 @@ export type FnFDraft = {
 
 export const emptyFnFForm = (): FnFForm => ({
   last_working_day: "",
+  payroll_month: "",
   pending_salary: 0,
   leave_encashment_days: 0,
   leave_encashment_amount: 0,
@@ -254,6 +257,7 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
     form: {
       ...emptyFnFForm(),
       last_working_day: lwdIso || "",
+      payroll_month: lwdIso ? `${lwdIso.slice(0, 7)}-01` : "",
       pending_salary: pendingSalary,
       loan_recovery: loanRecovery,
       deposit_refund: sumRefunds(decisions),
@@ -275,11 +279,16 @@ export function buildFnFPayload(
   calcNote: string,
   finalMonth: FnFFinalMonth,
 ) {
-  const { gratuity_amount, notice_pay_recovery, ...rest } = form;
+  const { gratuity_amount, notice_pay_recovery, payroll_month, ...rest } = form;
   const decisions = details.deposits || [];
   return {
     employee_id: empId,
     ...rest,
+    // Payroll cycle the F&F additions/deductions belong to. Falls back to the
+    // last-working-day month when the operator did not choose one.
+    payroll_month: payroll_month
+      ? `${String(payroll_month).slice(0, 7)}-01`
+      : (form.last_working_day ? `${String(form.last_working_day).slice(0, 7)}-01` : null),
     net_payable: fnfNetPayable(form),
     breakdown: {
       notice_pay_recovery,

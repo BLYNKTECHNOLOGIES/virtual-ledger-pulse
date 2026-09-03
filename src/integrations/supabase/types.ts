@@ -10565,6 +10565,7 @@ export type Database = {
           other_deductions_notes: string | null
           paid_at: string | null
           payment_reference: string | null
+          payroll_month: string | null
           penalty_deductions: number
           pending_salary: number
           push_failure_reason: string | null
@@ -10591,6 +10592,7 @@ export type Database = {
           other_deductions_notes?: string | null
           paid_at?: string | null
           payment_reference?: string | null
+          payroll_month?: string | null
           penalty_deductions?: number
           pending_salary?: number
           push_failure_reason?: string | null
@@ -10617,6 +10619,7 @@ export type Database = {
           other_deductions_notes?: string | null
           paid_at?: string | null
           payment_reference?: string | null
+          payroll_month?: string | null
           penalty_deductions?: number
           pending_salary?: number
           push_failure_reason?: string | null

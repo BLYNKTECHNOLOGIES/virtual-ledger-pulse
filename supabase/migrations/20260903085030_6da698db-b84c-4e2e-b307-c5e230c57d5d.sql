@@ -1,0 +1,2 @@
+ALTER TABLE public.hr_fnf_settlements ADD COLUMN IF NOT EXISTS payroll_month date;
+UPDATE public.hr_fnf_settlements SET payroll_month = date_trunc('month', last_working_day)::date WHERE payroll_month IS NULL;

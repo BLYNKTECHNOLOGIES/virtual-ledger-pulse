@@ -392,7 +392,7 @@ export default function DataHealthPage() {
           if (drift.field === "annual_ctc") {
             toast.warning("CTC push accepted, but RazorpayX still reports no CTC", {
               description:
-                "RazorpayX exposes CTC over its read API only after the first executed payroll run for this employee. Re-scan after the next payroll run to confirm.",
+                "The push was accepted, but no full (non-joining) payroll month is available yet to read the CTC back. Re-scan next month to confirm.",
             });
           } else {
             toast.error(`${FIELD_LABEL[drift.field] || drift.field} is still different in RazorpayX`);

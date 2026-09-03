@@ -285,16 +285,28 @@ Deno.serve(async (req) => {
             break;
           }
           case "annual_ctc": {
-            const monthly = Math.round(Number(value) / 12);
-            if (!(monthly > 0)) throw new Error("RazorpayX CTC is not a usable number");
+            // hr_employees.total_salary and reconcile_employee_salary_structure_to_total
+            // are BOTH annual figures. Previously we passed the monthly amount as
+            // p_expected_total, which tripped the RPC's "expected must equal current"
+            // guard ("Expected CTC 12000 does not match HRMS employee CTC 144000").
+            const annual = Math.round(Number(value));
+            if (!(annual > 0)) throw new Error("RazorpayX CTC is not a usable number");
+            // Adopting the RazorpayX value means the employee master must move FIRST —
+            // the RPC only rescales components to match the master total.
+            const { error: mErr } = await svc
+              .from("hr_employees")
+              .update({ total_salary: annual })
+              .eq("id", hrEmployeeId);
+            if (mErr) throw new Error(mErr.message);
             const { error } = await svc.rpc("reconcile_employee_salary_structure_to_total", {
               p_employee_id: hrEmployeeId,
-              p_expected_total: monthly,
+              p_expected_total: annual,
             });
             if (error) throw new Error(error.message);
-            base.reason = `Salary structure rescaled to ₹${monthly.toLocaleString("en-IN")}/month`;
+            base.reason = `HRMS CTC set to ₹${annual.toLocaleString("en-IN")}/year and salary components rescaled`;
             break;
           }
+
         }
         base.applied = true;
       } catch (e) {

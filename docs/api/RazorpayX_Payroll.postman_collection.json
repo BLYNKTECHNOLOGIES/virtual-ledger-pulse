@@ -1,0 +1,1867 @@
+{
+  "info": {
+    "_postman_id": "7038b08d-3ce6-42ad-9f04-c91eda8b46ff",
+    "name": "RazorpayX Payroll",
+    "description": "## RazorpayX Payroll (Opfin) API documentation\n\nAll API requests are JSON requests, with three section - `auth`, `request` and `data`.\n\n1. `auth` - Requires two keys - `id` and `key`. Both of these can be obtained from Opfin under Settings > API.\n\n2. `request` - This has two keys - `type` and `sub-type`. Please see the examples below.\n\n3. `data` - Depending on your request, you might need to supply certain data which should be included in this section.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "51603034",
+    "_collection_link": "https://go.postman.co/collection/51603034-7038b08d-3ce6-42ad-9f04-c91eda8b46ff?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "People",
+      "item": [
+        {
+          "name": "Create",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"people\",\n       \"sub-type\": \"create\"\n   },\n   \"data\": {\n           \"email\": \"test+20201214@mailinator.com\",\n           \"name\": \"API Test User\",\n           \"type\": \"employee\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/people",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "people"
+              ]
+            },
+            "description": "This API can be used to create a new employee or contractor in RazorpayX Payroll.\n\nAvailable types are:\n- employee\n- contractor"
+          },
+          "response": [
+            {
+              "name": "Create an employee or contractor",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"people\",\n       \"sub-type\": \"create\"\n   },\n   \"data\": {\n           \"email\": \"test+20201214@mailinator.com\",\n           \"name\": \"API Test User\",\n           \"type\": \"contractor\"\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/people",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "people"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Mon, 14 Dec 2020 10:52:42 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "49"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=0e427b03423772f6af94d84ea07a2b43; expires=Mon, 21-Dec-2020 10:52:42 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\",\n    \"people-id\": 36286,\n    \"employee-id\": 4\n}"
+            }
+          ]
+        },
+        {
+          "name": "Edit",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n  \"request\":{\n     \"type\":\"people\",\n     \"sub-type\":\"edit\"\n  },\n  \"data\":{\n     \"email\":\"varun.chawla@mailinator.com\",\n     \"manager-employee-id\":127,\n     \"manager-employee-type\": \"contractor\",\n     \"title\":\"Senior Recruiter\",\n     \"department\":\"Human Resources\",\n     \"bank-ifsc\":\"CORP0002106\",\n     \"bank-account-number\":\"1234567890\",\n     \"pan\":\"AGCPJ0387P\",\n     \"phone-number\":\"9810012345\",\n     \"employee-id\":3,\n     \"pt-enabled\":true,\n     \"hiring-date\":\"2020-01-01\",\n     \"state\":\"karnataka\",\n     \"pastSalary\":0,\n     \"pastExemption\":0,\n     \"pastTds\":0,\n     \"previousEmployerSalary\":0,\n     \"previousEmployerTds\":0\n  }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/people",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "people"
+              ]
+            },
+            "description": "Edit details of any employee or contractor. This does *not* include the salary of an employee.\n\nPlease specify the email of the user to be edited in the `email` key. All other fields are optional."
+          },
+          "response": [
+            {
+              "name": "Edit",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n  \"request\":{\n     \"type\":\"people\",\n     \"sub-type\":\"edit\"\n  },\n  \"data\":{\n     \"email\":\"varun.chawla@mailinator.com\",\n     \"manager-employee-id\":127,\n     \"title\":\"Senior Recruiter\",\n     \"department\":\"Human Resources\",\n     \"bank-ifsc\":\"CORP0002106\",\n     \"bank-account-number\":\"1234567890\",\n     \"pan\":\"AGCPJ0387P\",\n     \"phone-number\":\"9810012345\",\n     \"employee-id\":3,\n     \"pt-enabled\":true,\n     \"hiring-date\":\"2020-01-01\",\n     \"state\":\"karnataka\",\n     \"pastSalary\":0,\n     \"pastExemption\":0,\n     \"pastTds\":0,\n     \"previousEmployerSalary\":0,\n     \"previousEmployerTds\":0\n  }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/people",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "people"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Mon, 14 Dec 2020 11:01:00 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "15"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=b7b4cb2604fa0d5ac94033d3cb8e6996; expires=Mon, 21-Dec-2020 11:00:59 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "View",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"people\",\n       \"sub-type\": \"view\"\n   },\n   \"data\": {\n           \"employee-id\": 1,\n           \"employee-type\": \"employee\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/people",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "people"
+              ]
+            },
+            "description": "View an employee's details"
+          },
+          "response": [
+            {
+              "name": "View Profile",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"people\",\n       \"sub-type\": \"view\"\n   },\n   \"data\": {\n           \"employee-id\": 1\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/people",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "people"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Mon, 14 Dec 2020 10:43:50 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "170"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=0d42ef5ae43bcca4f7cff445c6f7f8f7; expires=Mon, 21-Dec-2020 10:43:49 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"name\": \"Anuj Jain\",\n    \"email\": \"anuj.jain+api@razorpay.com\",\n    \"title\": null,\n    \"department\": null,\n    \"manager-employee-id\": null,\n    \"pan\": null,\n    \"bank-ifsc\": null,\n    \"bank-account-number\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Set Salary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"people\",\n       \"sub-type\": \"set-salary\"\n   },\n   \"data\": {\n           \"employee-id\": 3,\n           \"custom-salary-structure\": false,\n           \"annual-ctc\": 600000\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/people",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "people"
+              ]
+            },
+            "description": "Set the salary of an employee. This is the annual salary of an employee. Even if an employee joins mid-year, please set the salary as their monthly_salary*12."
+          },
+          "response": [
+            {
+              "name": "Set custom salary structure",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n  \"request\":{  \n     \"type\":\"people\",\n     \"sub-type\":\"set-salary\"\n  },\n  \"data\":{  \n     \"employee-id\":29,\n     \"custom-salary-structure\":true,\n     \"salary-structure\":{  \n        \"basic\":20000,\n        \"da\":0,\n        \"hra\":10000,\n        \"special-allowance\":10000,\n        \"lta\":0,\n        \"employer-pf\":0,\n        \"employer-esi\":0,\n        \"custom-allowances\":[  \n           {  \n              \"name\":\"Books & Periodicals\",\n              \"amount\":1000,\n              \"taxable\":\"no\"\n           },\n           {  \n              \"name\":\"Medical Insurance\",\n              \"amount\":2000,\n              \"taxable\":\"yes\"\n           },\n           {\n               \"name\": \"Internet Allowance\",\n               \"amount\": 1000,\n               \"taxable\": \"flexi\"\n           }\n        ],\n        \"deductions\":[  \n           {  \n              \"name\":\"Medical Insurance\",\n              \"amount\":2000,\n              \"taxable\":false\n           }\n        ]\n     }\n  }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/people",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "people"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Mon, 14 Dec 2020 11:15:14 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "15"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=91fad0d73c443e6b049dc49fe5836889; expires=Mon, 21-Dec-2020 11:15:13 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            },
+            {
+              "name": "Set Salary",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"people\",\n       \"sub-type\": \"set-salary\"\n   },\n   \"data\": {\n           \"employee-id\": 3,\n           \"custom-salary-structure\": false,\n           \"annual-ctc\": 600000\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/people",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "people"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Mon, 14 Dec 2020 11:15:14 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "15"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=91fad0d73c443e6b049dc49fe5836889; expires=Mon, 21-Dec-2020 11:15:13 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Dismiss",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n  \"request\":{\n     \"type\":\"people\",\n     \"sub-type\":\"dismiss\"\n  },\n  \"data\":{\n     \"email\":\"varun.chawla@mailinator.com\",\n     \"dateOfDismissal\":\"30/03/2021\"\n  }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/people",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "people"
+              ]
+            },
+            "description": "Dismiss any employee or contractor.\n\nPlease specify the email of the user to be dismissed in the `email` key. Also `dateOfDismissal` is required and it should be in `dd/mm/yyyy` format."
+          },
+          "response": [
+            {
+              "name": "Dismiss",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n  \"request\":{\n     \"type\":\"people\",\n     \"sub-type\":\"dismiss\"\n  },\n  \"data\":{\n     \"email\":\"varun.chawla@mailinator.com\",\n     \"dateOfDismissal\":\"30/03/2021\"\n  }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/people",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "people"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "Text",
+              "header": null,
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "All employee and contractor information related APIs."
+    },
+    {
+      "name": "Payroll",
+      "item": [
+        {
+          "name": "View",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"view-payroll\"\n   },\n   \"data\": {\n        \"email\": \"sample_email@ymail.com\",\n        \"payroll-month\": \"2020-12\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/payroll",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "payroll"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "View",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"view-payroll\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\"\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/payroll",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "payroll"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 14:56:16 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "209"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=355ec6423d0eda588e50d997de3f8fab; expires=Tue, 22-Dec-2020 14:56:16 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"employee-id\": 3,\n    \"employee-name\": \"Varun Chawla\",\n    \"payroll-month\": \"2020-12\",\n    \"salary\": 50000,\n    \"additions\": {\n        \"Bonus\": {\n            \"name\": \"Bonus\",\n            \"amount\": \"10000\",\n            \"taxable\": true,\n            \"type\": 0\n        }\n    },\n    \"deduction-amount\": 0,\n    \"do-not-pay\": false\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add Additions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"add-additions\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\",\n           \"additions\": [\n                   {\n                           \"label\": \"Joining Bonus\",\n                           \"amount\": 10000\n                   },\n                   {\n                           \"label\": \"Sales Incentive\",\n                           \"amount\": 5000\n                   }\n                ],\n            \"remarks\": \"your comments here\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/payroll",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "payroll"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "Add Additions",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"add-additions\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\",\n           \"additions\": [\n                   {\n                           \"label\": \"Joining Bonus\",\n                           \"amount\": 10000\n                   },\n                   {\n                           \"label\": \"Sales Incentive\",\n                           \"amount\": 5000\n                   }\n                ]\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/payroll",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "payroll"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 14:59:32 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "307"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=b502b22de7df79346e3049974085a7d7; expires=Tue, 22-Dec-2020 14:59:32 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"employee-id\": 2,\n    \"employee-name\": \"Aditya Malik\",\n    \"payroll-month\": \"2020-12\",\n    \"salary\": 116129,\n    \"additions\": {\n        \"Joining Bonus\": {\n            \"name\": \"Joining Bonus\",\n            \"amount\": 10000,\n            \"taxable\": true,\n            \"type\": 0\n        },\n        \"Sales Incentive\": {\n            \"name\": \"Sales Incentive\",\n            \"amount\": 5000,\n            \"taxable\": true,\n            \"type\": 0\n        }\n    },\n    \"deduction-amount\": 0,\n    \"do-not-pay\": false\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add Deductions",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"add-deduction\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\",\n           \"deduction-amount\": 1000,\n           \"remarks\": \"your comments here\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/payroll",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "payroll"
+              ]
+            },
+            "description": "Instead of the `deduction-amount` key, you can also specify a `deduction-days` key and enter the number of days of pay that has to be deducted as the value for that key. In that case, Opfin will automatically calculate the deduction amount using the formula\n\nDeduction amount = [Deduction days] * [Monthly salary] / [Number of days in the month]"
+          },
+          "response": [
+            {
+              "name": "Add Deductions",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"add-deduction\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\",\n           \"deduction-amount\": 1000\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/payroll",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "payroll"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 15:01:18 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "310"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=8edf3c1b96bb4b0fe828eaca566eb286; expires=Tue, 22-Dec-2020 15:01:16 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"employee-id\": 2,\n    \"employee-name\": \"Aditya Malik\",\n    \"payroll-month\": \"2020-12\",\n    \"salary\": 116129,\n    \"additions\": {\n        \"Joining Bonus\": {\n            \"name\": \"Joining Bonus\",\n            \"amount\": 10000,\n            \"taxable\": true,\n            \"type\": 0\n        },\n        \"Sales Incentive\": {\n            \"name\": \"Sales Incentive\",\n            \"amount\": 5000,\n            \"taxable\": true,\n            \"type\": 0\n        }\n    },\n    \"deduction-amount\": 1000,\n    \"do-not-pay\": false\n}"
+            }
+          ]
+        },
+        {
+          "name": "Reset",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"reset-modifications\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/payroll",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "payroll"
+              ]
+            },
+            "description": "Use this if you want to remove all additions and deductions from an employee's payroll."
+          },
+          "response": [
+            {
+              "name": "Reset",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"reset-modifications\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\"\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/payroll",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "payroll"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 15:10:24 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "147"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=971c70ebd897b8a0b9264a445d736642; expires=Tue, 22-Dec-2020 15:10:24 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"employee-id\": 2,\n    \"employee-name\": \"Aditya Malik\",\n    \"payroll-month\": \"2020-12\",\n    \"salary\": 116129,\n    \"additions\": null,\n    \"deduction-amount\": 0,\n    \"do-not-pay\": false\n}"
+            }
+          ]
+        },
+        {
+          "name": "Pause/Resume",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"do-not-pay\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\",\n           \"value\": true\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/payroll",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "payroll"
+              ]
+            },
+            "description": "Opfin gives you the capability to pause an employee's payroll for a specific month, in case you do not want to process their salary with the rest. If paused, payroll can be resumed later and processed."
+          },
+          "response": [
+            {
+              "name": "Pause/Resume",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"payroll\",\n       \"sub-type\": \"do-not-pay\"\n   },\n   \"data\": {\n            \"email\": \"sample_email@ymail.com\",\n           \"payroll-month\": \"2020-12\",\n           \"value\": true\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/payroll",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "payroll"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 15:19:39 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "146"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=a2a27396ef6c668c005474514046369b; expires=Tue, 22-Dec-2020 15:19:39 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"employee-id\": 2,\n    \"employee-name\": \"Aditya Malik\",\n    \"payroll-month\": \"2020-12\",\n    \"salary\": 116129,\n    \"additions\": null,\n    \"deduction-amount\": 0,\n    \"do-not-pay\": true\n}"
+            }
+          ]
+        }
+      ],
+      "description": "This API will let you take the following actions for any specific payroll month -\n\n- View an employee's payroll information.\n    \n- To add additions to an employee's payroll (like bonuses etc).\n    \n- To add deductions to an employee's payroll (like loss of pay etc).\n    \n- To reset an employee's payroll (remove all additions and deductions).\n    \n- To pause/resume an employee's payroll.\n    \n\nIdentifier options: You can either use the `employee-id` attribute or the `email` attribute within the data field as identifiers for the user. We would recommend using the email attribute as demonstrated in the example. If you need to use the `employee-id`attribute, in the data field you can replace the `email` attribute with `employee-id` and the value as an integer value like so,  \n`\"employee-id\" : 212`"
+    },
+    {
+      "name": "Contractor Payments",
+      "item": [
+        {
+          "name": "Create Payment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"create\"\n   },\n   \"data\": {\n           \"from\": 1,\n           \"from-employee-type\": \"employee\",\n           \"to\": 5,\n           \"executeOn\": \"2020-12-15\",\n           \"remarks\": \"Test Payment\",\n           \"purpose\": \"professional-services\",\n           \"amount\": 2000,\n           \"tax\": 360\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/contractorPayment",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "contractorPayment"
+              ]
+            },
+            "description": "Used to create a new payment to a contractor.\n\n**Request Structure**\n\n- **request**: Specifies the type of operation to be performed.\n    - `type`: Always set to `\"contractor-payment\"` for contractor payment-related requests.\n    - `sub-type`: The specific action to be taken, in this case, `\"create\"` to initiate a new payment.\n- **data**: Contains the details of the payment to be processed.\n    \n    - `from`: Employee ID or email of the person initiating the payment.\n    - `from-employee-type (optional)`: Type of the person initiating the payment (`\"employee\"/\"contractor\"`).\n    - `to`: Employee ID or email of the contractor of the payment.\n    - `executeOn`: Date on which the payment should be executed, formatted as `\"YYYY-MM-DD\"`.\n    - `remarks (optional)`: Optional comments or notes regarding the payment.\n    - `amount`: Total amount of the payment.\n    - `tax`: GST, VAT, sales tax etc.\n        \n    - `purpose`: Purpose of the contractor payment.\n        \n        | Purpose | Description | TDS | Tax Code |\n        | --- | --- | --- | --- |\n        | professional-services | Professional Services | 10% | 194J |\n        | technical-services | Technical Services | 2% | 194J |\n        | commission | Commission or Brokerage | 5% | 194H |\n        | interest | Interest | 10% | 194A |\n        | contractor-ind | Contractor - Resident Individual or HUF | 1% | 194C |\n        | contractor-other | Contractor - Others | 2% | 194C |\n        | rent-land | Rent of land/building/furniture/fitting | 10% | 194I |\n        | rent-plan | Rent of plant and machinery | 2% | 194I |\n        | reimb-no-tds | Reimbursement / No TDS | 0% |  |\n        \n\nYou can also add attachments (invoices etc) to the payment by including an `attachments` array in the data section. Each attachment should have a `fileName` and `fileContent` key. `fileContent` should have the contents of the file, encoded in base64. Example -\n\n```\n\"attachments\": [\n           {\n               \"fileName\": \"invoice.pdf\",\n               \"fileContent\": \"AyNT4+CnN0YXJ0eHVPRgo=\"\n           }\n       ]\n\n ```"
+          },
+          "response": [
+            {
+              "name": "Create Payment",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"create\"\n   },\n   \"data\": {\n           \"from\": 1,\n           \"to\": 5,\n           \"executeOn\": \"2020-12-15\",\n           \"remarks\": \"Test Payment\",\n           \"purpose\": \"professional-services\",\n           \"amount\": 2000,\n           \"tax\": 360\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/contractorPayment",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "contractorPayment"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 11:17:11 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "34"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=31fc8b88cc17436227895692a29da26b; expires=Tue, 22-Dec-2020 11:17:11 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\",\n    \"payment-id\": 13908\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Payment",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"delete\"\n   },\n   \"data\": {\n           \"id\": 13908\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/contractorPayment",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "contractorPayment"
+              ]
+            },
+            "description": "To delete a payment, you need to specify the `id` that you had received while creating the payment.\n\n  \n**Request Structure**\n\n- **request**: Specifies the type of operation to be performed.\n    \n    - `type`: Always set to `\"contractor-payment\"` for contractor payment-related requests.\n        \n    - `sub-type`: The specific action to be taken, in this case, `\"delete\"` to remove an existing payment.\n        \n- **data**: Contains the details of the payment to be deleted.\n    \n    - `id`: Unique identifier of the contractor payment received while creating the payment."
+          },
+          "response": [
+            {
+              "name": "Delete Payment",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"delete\"\n   },\n   \"data\": {\n           \"id\": 13909\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/contractorPayment",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "contractorPayment"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 11:49:50 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "15"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=6c41efdd271aa7055b8b3d2e19fa5c7b; expires=Tue, 22-Dec-2020 11:49:50 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "View Pending Payments",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"list-pending\"\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/contractorPayment",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "contractorPayment"
+              ]
+            },
+            "description": "View all payments to contractors which have been created, but have not been executed yet.\n\n#### **Request Structure**\n\n- **request**: Specifies the type of operation to be performed.\n    \n    - `type`: Always set to `\"contractor-payment\"` for contractor payment-related requests.\n        \n    - `sub-type`: The specific action to be taken, in this case, `\"list-pending\"` to retrieve all pending payments."
+          },
+          "response": [
+            {
+              "name": "View Pending Payments",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"list-pending\"\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/contractorPayment",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "contractorPayment"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 11:27:58 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "425"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=839460809fc11df1a2b925258f3dc134; expires=Tue, 22-Dec-2020 11:27:57 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"payments\": [\n        {\n            \"id\": 13908,\n            \"from\": \"anuj.jain+api@razorpay.com\",\n            \"to\": \"rohit.contractor@mailinator.com\",\n            \"executeOn\": \"2020-12-15\",\n            \"remarks\": \"Test Payment\",\n            \"purpose\": \"professional-services\",\n            \"amount\": \"2000.00\",\n            \"tax\": \"360\"\n        },\n        {\n            \"id\": 13909,\n            \"from\": \"anuj.jain+api@razorpay.com\",\n            \"to\": \"rohit.contractor@mailinator.com\",\n            \"executeOn\": \"2020-12-15\",\n            \"remarks\": \"Test Payment\",\n            \"purpose\": \"professional-services\",\n            \"amount\": \"1.00\",\n            \"tax\": \"0\"\n        }\n    ],\n    \"count\": 2\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Status",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"get-status\"\n   },\n   \"data\": {\n           \"id\": 13908\n   }\n}"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/contractorPayment",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "contractorPayment"
+              ]
+            },
+            "description": "Use this to check whether a payment to a contractor has been completed or not.\n\n#### **Request Structure**\n\n- **auth**: Authentication credentials required to access the API.\n    - `id`: Unique identifier for the user or application making the request.\n    - `key`: API key associated with the user or application.\n- **request**: Specifies the type of operation to be performed.\n    - `type`: Always set to `\"contractor-payment\"` for contractor payment-related requests.\n    - `sub-type`: The specific action to be taken, in this case, `\"get-status\"` to retrieve the status of a payment.\n- **data**: Contains the details of the payment whose status is being queried.\n    \n    - `id`: Unique identifier of the contractor payment received while creating the payment."
+          },
+          "response": [
+            {
+              "name": "Check Status",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"contractor-payment\",\n       \"sub-type\": \"get-status\"\n   },\n   \"data\": {\n           \"id\": 13908\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/contractorPayment",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "contractorPayment"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 14:44:32 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "169"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=e8e67123d02eea4f2f8f296d4fddab02; expires=Tue, 22-Dec-2020 14:44:31 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"amount\": \"2000.00\",\n    \"tax\": \"360\",\n    \"created_at\": \"15/12/2020 20:14:32\",\n    \"execute_at\": \"15/12/2020\",\n    \"remarks\": \"Test Payment\",\n    \"purpose\": \"professional-services\",\n    \"paid\": false\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Attendance",
+      "item": [
+        {
+          "name": "Modify/Add",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"attendance\",\n       \"sub-type\": \"modify\"\n   },\n   \"data\": {\n        \"email\": \"sample_email@testmail.com\",\n        \"employee-type\": \"employee\",\n        \"date\": \"2020-12-15\",\n        \"status\": \"leave\",\n        \"leave-type\": 0,\n        \"checkin\": \"09:00\",\n        \"checkout\": \"17:00\",\n        \"remarks\": \"attendance api test\"\n   }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/att",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "att"
+              ]
+            },
+            "description": "`status` options -\n\n- present\n    \n- leave\n    \n- half-day\n    \n- unpaid-leave\n    \n- unpaid-half-day\n    \n\n`checkin` and `checkout` are applicable for days marked as present or half day.\n\n`leave-type` is applicable if you have set up different types of leaves in Opfin. Try value “-1” to see a list of possible values.\n\nAdditional note - if your attendance configuration is set to not allow negative leaves, then any excessive leave requests will automatically be converted into unpaid leaves.\n\nIdentifier options: You can either use the `employee-id` attribute or the `email` attribute within the data field as identifiers for the user. We would recommend using the email attribute as demonstrated in the example. If you need to use the `employee-id`attribute, in the data field you can replace the `email` attribute with `employee-id` and the value as an integer value like so,  \n`\"employee-id\" : 212`"
+          },
+          "response": [
+            {
+              "name": "Modify/Add Attendance",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"attendance\",\n       \"sub-type\": \"modify\"\n   },\n   \"data\": {\n           \"email\": \"sample_email@testmail.com\",\n           \"date\": \"2020-12-15\",\n           \"status\": \"leave\",\n           \"leave-type\": 0,\n           \"checkin\": \"09:00\",\n           \"checkout\": \"17:00\",\n           \"remarks\": \"attendance api test\"\n   }\n}"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/att",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "att"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 15:27:53 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "15"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=28879c3086a037f6d67d26bdef599fba; expires=Tue, 22-Dec-2020 15:27:52 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Fetch",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"auth\": {\n        \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n    },\n    \"request\": {\n        \"type\": \"attendance\",\n        \"sub-type\": \"fetch\"\n    },\n    \"data\": {\n        \"email\": \"sample_email@testmail.com\",\n        \"employee-type\": \"employee\",\n        \"date\": \"2020-12-15\"\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/att",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "att"
+              ]
+            },
+            "description": "This API can be used to get the attendance records for a user on a given date\n\n**Note:** In the fields returned, all the fields prefixed with 'requested' are fields that imply a request has been made, but is yet to be approved. Once approved, they will show up as the actual status/leave-type/time. If rejected, they will be set back to null."
+          },
+          "response": [
+            {
+              "name": "Fetch",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"attendance\",\n       \"sub-type\": \"modify\"\n   },\n   \"data\": {\n           \"email\": \"sample_email@testmail.com\",\n           \"date\": \"2020-12-15\",\n           \"status\": \"leave\",\n           \"leave-type\": 0,\n           \"checkin\": \"09:00\",\n           \"checkout\": \"17:00\",\n           \"remarks\": \"attendance api test\"\n   }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/att",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "att"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "description": "",
+                  "type": "text"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"data\": {\n        \"employee-id\": 2,\n        \"employee-type\": \"employee\",\n        \"date\": \"2020-12-15\",\n        \"status\": {\n            \"code\": 20,\n            \"description\": \"leave\"\n        },\n        \"leave-type\": {\n            \"code\": 1,\n            \"description\": \"Medical Leave\"\n        },\n        \"check-in\": \"09:00:00\",\n        \"check-out\": \"11:00:00\",\n        \"remarks\": \"attendance api test24\",\n        \"requested-status\": {\n            \"code\": null,\n            \"description\": null\n        },\n        \"requested-leave-type\": {\n            \"code\": null,\n            \"description\": null\n        },\n        \"requested-check-in\": null,\n        \"requested-check-out\": null\n    }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Edit",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"attendance\",\n       \"sub-type\": \"modify\"\n   },\n   \"data\": {\n        \"email\": \"sample_email@testmail.com\",\n        \"employee-type\": \"employee\",\n        \"date\": \"2020-12-15\",\n        \"status\": \"leave\",\n        \"leave-type\": 0,\n        \"checkin\": \"09:00\",\n        \"checkout\": \"17:00\",\n        \"remarks\": \"attendance api test\"\n   }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/att",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "att"
+              ]
+            },
+            "description": "Use this API to edit an existing attendance record.\n\n`status` options -\n\n- present\n- leave\n- half-day\n- unpaid-leave\n- unpaid-half-day\n    \n\n`checkin` and `checkout` are applicable for days marked as present or half day.\n\n`leave-type` is applicable if you have set up different types of leaves in Opfin. Try value “-1” to see a list of possible values.\n\nAdditional note - if your attendance configuration is set to not allow negative leaves, then any excessive leave requests will automatically be converted into unpaid leaves.\n\n| **Data Field** | **Requirement** |\n| --- | --- |\n| `employee-id` | `required` |\n| `employee-type` | `required` |\n| `date` | `required` |\n| `status` | `optional` |\n| `leave-type` | `optional` |\n| `checkin` | `optional` |\n| `checkout` | `optional` |\n| `remarks` | `optional` |"
+          },
+          "response": [
+            {
+              "name": "Edit",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": 2631,\n       \"key\": \"tbge0t0od2s8od3chvsjf2g3x1b4g12w\"\n   },\n   \"request\": {\n       \"type\": \"attendance\",\n       \"sub-type\": \"modify\"\n   },\n   \"data\": {\n        \"email\": \"sample_email@testmail.com\",\n        \"employee-type\": \"employee\",\n        \"date\": \"2020-12-15\",\n        \"status\": \"leave\",\n        \"leave-type\": 0,\n        \"checkin\": \"09:00\",\n        \"checkout\": \"17:00\",\n        \"remarks\": \"attendance api test\"\n   }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/att",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "att"
+                  ]
+                }
+              },
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "description": "",
+                  "type": "text"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n    \"status\": \"ok\"\n}"
+            }
+          ]
+        }
+      ],
+      "description": "Use this API to add/update your employees' check-in and check-out timings, or even to just update their leaves."
+    },
+    {
+      "name": "Advance Salary",
+      "item": [
+        {
+          "name": "Create Advance Salary",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n   \"auth\": {\n       \"id\": YOUR_API_ID,\n       \"key\": \"YOUR_API_KEY\"\n   },\n   \"request\": {\n       \"type\": \"advance-salary\",\n       \"sub-type\": \"create\"\n   },\n   \"data\": {\n        \"from\" : \"from_email@example.com\"\n        \"employee-id\": 1,\n        \"amount\": 2000,\n        \"emi-amount\": 360,\n        \"reason\" : \"This is a optional field\"\n   }\n}\n"
+            },
+            "url": {
+              "raw": "https://payroll.razorpay.com/api/advanceSalary",
+              "protocol": "https",
+              "host": [
+                "payroll",
+                "razorpay",
+                "com"
+              ],
+              "path": [
+                "api",
+                "advanceSalary"
+              ]
+            },
+            "description": "Use this API to create an advance salary request. The request will be auto approved. You will need to make the payments from the dashboard.\n\n| **Data Field** | **Requirement** |\n| --- | --- |\n| `from` | `required` |\n| `employee-id` | `required` |\n| `amount` | `required` |\n| `emi-amount` | `required` |\n| `reason` | `optional` |"
+          },
+          "response": [
+            {
+              "name": "View",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n   \"auth\": {\n       \"id\": YOUR_API_ID,\n       \"key\": \"YOUR_API_KEY\"\n   },\n   \"request\": {\n       \"type\": \"advance-salary\",\n       \"sub-type\": \"create\"\n   },\n   \"data\": {\n        \"from\" : \"from_email@example.com\"\n        \"employee-id\": 1,\n        \"amount\": 2000,\n        \"emi-amount\": 360,\n        \"reason\" : \"This is a optional field\"\n   }\n}\n"
+                },
+                "url": {
+                  "raw": "https://payroll.razorpay.com/api/advanceSalary",
+                  "protocol": "https",
+                  "host": [
+                    "payroll",
+                    "razorpay",
+                    "com"
+                  ],
+                  "path": [
+                    "api",
+                    "advanceSalary"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Date",
+                  "value": "Tue, 15 Dec 2020 14:56:16 GMT"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "key": "Content-Length",
+                  "value": "209"
+                },
+                {
+                  "key": "Connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "max-age=0, private, must-revalidate"
+                },
+                {
+                  "key": "Server",
+                  "value": "Apache"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "opfinproduction=355ec6423d0eda588e50d997de3f8fab; expires=Tue, 22-Dec-2020 14:56:16 GMT; Max-Age=604800; path=/; domain=razorpay.com; secure; HttpOnly; SameSite=Lax"
+                },
+                {
+                  "key": "Strict-Transport-Security",
+                  "value": "max-age=315360000; includeSubDomains"
+                },
+                {
+                  "key": "X-Content-Type-Options",
+                  "value": "nosniff"
+                },
+                {
+                  "key": "X-Frame-Options",
+                  "value": "DENY"
+                },
+                {
+                  "key": "X-Xss-Protection",
+                  "value": "1; mode=block"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n   \"status\": \"ok\",\n   \"advance-salary-id\": 13908\n}\n"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ]
+}

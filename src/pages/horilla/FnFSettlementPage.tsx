@@ -480,7 +480,11 @@ export default function FnFSettlementPage() {
                       {s.hr_employees?.first_name} {s.hr_employees?.last_name}
                       <span className="text-muted-foreground text-xs ml-2">({s.hr_employees?.badge_id})</span>
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">LWD: <span className="tabular-nums">{s.last_working_day}</span></p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      LWD: <span className="tabular-nums">{s.last_working_day}</span>
+                      <span className="mx-1.5">·</span>
+                      Payroll cycle: <span className="tabular-nums">{String(s.payroll_month || s.last_working_day || "").slice(0, 7)}</span>
+                    </p>
                   </div>
                   <div className="text-right flex items-center gap-3">
                     <div>

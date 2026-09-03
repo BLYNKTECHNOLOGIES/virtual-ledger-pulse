@@ -226,15 +226,16 @@ const FIELDS: FieldSpec[] = [
 
       const hrmsStr = hrmsCtc != null ? String(Math.round(Number(hrmsCtc))) : null;
 
-      // ROOT CAUSE (2026-09-04 IST): RazorpayX people:view never exposes CTC and
-      // payroll:view-payroll only answers AFTER an executed payroll run for that
-      // employee (badge 21/25 return
-      // "Trying to access array offset on value of type null"). The push verifier
-      // already treats that as "confirmed by the successful push", but this
-      // scanner treated the same absence as "(missing)" drift — so a good push
-      // toasted green and then instantly red. When the API genuinely cannot
-      // expose the value AND a verified salary push proves the same CTC landed,
-      // that is not drift.
+      // ROOT CAUSE (04 Sep 2026 IST, corrected): RazorpayX DOES expose CTC —
+      // `payroll:view-payroll` returns the monthly salary for the current /
+      // recent months (verified live: badge 21 → 2026-09 salary 10000 →
+      // ₹1,20,000 annual). The earlier failure was ours: the proxy only probed
+      // months with a locally recorded executed payroll run (May 2026 only), so
+      // later joiners read as "(missing)". That gate is removed.
+      // The one genuine gap left: an employee still inside their JOINING month
+      // has only a prorated figure, which must not be annualised — in that case
+      // a verified salary push whose expected CTC equals HRMS is accepted.
+
       if (rzpCtc == null && hrmsCtc != null && rzp && rzp.__salary_probe_error) {
         const pushed = salaryPush?.expected;
         if (pushed != null && Math.abs(Number(pushed) - Number(hrmsCtc)) <= 1) {

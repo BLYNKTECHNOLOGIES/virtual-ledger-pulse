@@ -563,6 +563,9 @@ serve(async (req) => {
           continue;
         }
         const values = spec.extract({ emp, workInfo, bank, salary, rzp, esslUser, salaryPush: salaryPushByEmp.get(emp.id) ?? null });
+        const ctcPushConfirmed =
+          spec.field === "annual_ctc" && !!rzp?.__salary_probe_error && !rzp?.__salary &&
+          salaryPushByEmp.has(emp.id);
         const present: SystemKey[] = (Object.keys(values) as SystemKey[]).filter(
           (k) => values[k] !== null && values[k] !== undefined,
         );

@@ -384,6 +384,25 @@ export function AutoLopDialog({
                                     {num(r.worked_off_days)} day{r.worked_off_days === 1 ? "" : "s"}
                                     {(r.worked_off_dates ?? []).length ? ` — ${(r.worked_off_dates ?? []).join(", ")}` : ""}
                                   </p>
+                                  <p className="font-semibold pt-1">Comp-off credits earned ({num(r.compoff_credit_days)})</p>
+                                  {(r.compoff_credits ?? []).length === 0 ? (
+                                    <p className="text-muted-foreground">None</p>
+                                  ) : (
+                                    <ul className="text-muted-foreground space-y-0.5">
+                                      {(r.compoff_credits ?? []).map((c, i) => (
+                                        <li key={`${c.date}-${i}`}>
+                                          {c.date} · {c.type} · {num(c.days)}d
+                                          {c.duplicate ? <span className="ml-1 text-warning">(same-day duplicate)</span> : null}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  {(r.unprocessed_off_days ?? 0) > 0 && (
+                                    <p className="text-warning">
+                                      Punched but not processed by the engine: {num(r.unprocessed_off_days)} day(s)
+                                      {(r.unprocessed_off_dates ?? []).length ? ` — ${(r.unprocessed_off_dates ?? []).join(", ")}` : ""}
+                                    </p>
+                                  )}
                                 </div>
                                 <div className="space-y-1">
                                   <p className="font-semibold">Employment window</p>

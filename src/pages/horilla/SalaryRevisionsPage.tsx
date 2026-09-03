@@ -708,7 +708,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 key={r.id}
                 className={cn(
                   "grid items-center gap-x-4 gap-y-1 border-b border-border/60 px-3 py-2.5 last:border-b-0 hover:bg-muted/40 transition-colors",
-                  "grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_96px_minmax(0,1.6fr)_120px_minmax(0,1fr)]",
+                  "grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_96px_minmax(0,1.5fr)_96px_minmax(0,1.9fr)]",
                   isCancelled && "opacity-50",
                 )}
               >
@@ -777,7 +777,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 </div>
 
                 {/* Effective */}
-                <div className="text-xs text-muted-foreground tabular-nums">
+                <div className="text-xs text-muted-foreground tabular-nums min-w-0 truncate">
                   {isRecordOnlyPayout && r.payout_paid_on
                     ? format(new Date(r.payout_paid_on), "dd MMM yyyy")
                     : isOneTime || isPayrollInput
@@ -787,10 +787,10 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
                 {/* Status + action */}
-                <div className="flex items-center gap-2 md:justify-end">
+                <div className="min-w-0 flex flex-wrap items-center gap-1.5 md:justify-end">
                   {syncBadge}
                   {adj && (
-                    <Link to="/hrms/payroll/inputs">
+                    <Link to="/hrms/payroll/inputs" className="min-w-0">
                       <StatusPill
                         tone={adj.provisional ? "warn" : adj.kind === "deduction" ? "warn" : "info"}
                         icon={adj.kind === "deduction" ? TrendingDown : TrendingUp}
@@ -815,7 +815,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   };
 
   const listHeader = (
-    <div className="hidden md:grid grid-cols-[minmax(0,1.5fr)_96px_minmax(0,1.6fr)_120px_minmax(0,1fr)] gap-x-4 px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="hidden md:grid grid-cols-[minmax(0,1.3fr)_96px_minmax(0,1.5fr)_96px_minmax(0,1.9fr)] gap-x-4 px-3 pb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
       <span>Employee</span>
       <span>Type</span>
       <span>Annual CTC change</span>

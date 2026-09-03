@@ -75,6 +75,24 @@ const STATUS_META: Record<PreviewRow["status"], { label: string; variant: any }>
 };
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
+const num = (n: number | undefined | null) => {
+  const v = Number(n ?? 0);
+  return Number.isInteger(v) ? String(v) : String(Math.round(v * 100) / 100);
+};
+
+/** Buckets the leave-type breakdown into the column shape the table shows. */
+function leaveSlices(r: PreviewRow) {
+  const out = { cl: 0, sl: 0, compoff: 0, otherPaid: 0, unpaid: 0 };
+  for (const s of r.leave_breakdown ?? []) {
+    const label = `${s.name ?? ""} ${s.code ?? ""}`.toLowerCase();
+    if (!s.is_paid) out.unpaid += Number(s.days) || 0;
+    else if (s.is_compoff || label.includes("comp")) out.compoff += Number(s.days) || 0;
+    else if (label.includes("sick") || /\bsl\b/.test(label)) out.sl += Number(s.days) || 0;
+    else if (label.includes("casual") || /\bcl\b/.test(label)) out.cl += Number(s.days) || 0;
+    else out.otherPaid += Number(s.days) || 0;
+  }
+  return out;
+}
 
 export function AutoLopDialog({
   open,

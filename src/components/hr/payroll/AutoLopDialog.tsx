@@ -187,7 +187,15 @@ export function AutoLopDialog({
 
             <div className="flex-1 min-h-0 overflow-auto rounded-md border">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 sticky top-0">
+                <thead className="bg-muted/50 sticky top-0 z-10">
+                  <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <th className="px-2 pt-2" colSpan={2} />
+                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Attendance</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave (days)</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Loss of pay</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={2}>Amount</th>
+                    <th className="px-2 pt-2 border-l" />
+                  </tr>
                   <tr className="text-left">
                     <th className="p-2 w-8">
                       <Checkbox
@@ -200,54 +208,155 @@ export function AutoLopDialog({
                       />
                     </th>
                     <th className="p-2">Employee</th>
-                    <th className="p-2 text-right">Working</th>
+                    <th className="p-2 text-right border-l">Working</th>
                     <th className="p-2 text-right">Present</th>
-                    <th className="p-2 text-right">Paid leave</th>
-                    <th className="p-2 text-right">LOP days</th>
-                    <th className="p-2 text-right">Monthly base</th>
+                    <th className="p-2 text-right">Half</th>
+                    <th className="p-2 text-right">Absent</th>
+                    <th className="p-2 text-right border-l">CL</th>
+                    <th className="p-2 text-right">SL</th>
+                    <th className="p-2 text-right">Comp-off</th>
+                    <th className="p-2 text-right">Other paid</th>
+                    <th className="p-2 text-right">Unpaid</th>
+                    <th className="p-2 text-right border-l">Raw</th>
+                    <th className="p-2 text-right">C/off set-off</th>
+                    <th className="p-2 text-right">Proration</th>
+                    <th className="p-2 text-right">Charged</th>
+                    <th className="p-2 text-right border-l">Monthly base</th>
                     <th className="p-2 text-right">LOP amount</th>
-                    <th className="p-2">Status</th>
+                    <th className="p-2 border-l">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r) => {
                     const meta = STATUS_META[r.status] ?? STATUS_META.skipped;
                     const canSelect = ["new", "changed", "unchanged"].includes(r.status);
+                    const slices = leaveSlices(r);
+                    const isOpen = !!expanded[r.hr_employee_id];
+                    const mismatch =
+                      Math.abs((r.leave_paid_total ?? 0) - (r.paid_leave_days ?? 0)) > 0.01;
                     return (
-                      <tr key={r.hr_employee_id} className="border-t align-top">
-                        <td className="p-2">
-                          {canSelect && (
-                            <Checkbox
-                              checked={!!selected[r.hr_employee_id]}
-                              onCheckedChange={(v) => setSelected((s) => ({ ...s, [r.hr_employee_id]: !!v }))}
-                            />
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <div className="font-medium">{r.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {r.badge_id ?? "—"}
-                            {r.base_source_label ? ` · ${r.base_source_label}` : ""}
-                          </div>
-                          {r.reason && <div className="text-xs text-muted-foreground mt-0.5">{r.reason}</div>}
-                        </td>
-                        <td className="p-2 text-right tabular-nums">{r.working_days}</td>
-                        <td className="p-2 text-right tabular-nums">{r.present_days}</td>
-                        <td className="p-2 text-right tabular-nums">{r.paid_leave_days}</td>
-                        <td className="p-2 text-right tabular-nums font-medium">{r.lop_days}</td>
-                        <td className="p-2 text-right tabular-nums">{r.monthly_base ? inr(r.monthly_base) : "—"}</td>
-                        <td className="p-2 text-right tabular-nums font-medium">
-                          {r.amount ? inr(r.amount) : "—"}
-                          {r.status === "changed" && r.existing_amount != null && (
-                            <div className="text-xs text-muted-foreground">was {inr(r.existing_amount)}</div>
-                          )}
-                        </td>
-                        <td className="p-2"><Badge variant={meta.variant} className="text-[11px]">{meta.label}</Badge></td>
-                      </tr>
+                      <>
+                        <tr
+                          key={r.hr_employee_id}
+                          className="border-t align-top cursor-pointer hover:bg-muted/30"
+                          onClick={() => setExpanded((s) => ({ ...s, [r.hr_employee_id]: !s[r.hr_employee_id] }))}
+                        >
+                          <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                            {canSelect && (
+                              <Checkbox
+                                checked={!!selected[r.hr_employee_id]}
+                                onCheckedChange={(v) => setSelected((s) => ({ ...s, [r.hr_employee_id]: !!v }))}
+                              />
+                            )}
+                          </td>
+                          <td className="p-2 min-w-[190px]">
+                            <div className="font-medium flex items-center gap-1">
+                              {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
+                              {r.name}
+                            </div>
+                            <div className="text-xs text-muted-foreground pl-4.5">
+                              {r.badge_id ?? "—"}
+                              {r.base_source_label ? ` · ${r.base_source_label}` : ""}
+                            </div>
+                            {r.reason && <div className="text-xs text-muted-foreground mt-0.5">{r.reason}</div>}
+                            {mismatch && (
+                              <div className="text-[11px] text-destructive mt-0.5">
+                                Leave breakdown ({num(r.leave_paid_total)}) ≠ engine paid leave ({num(r.paid_leave_days)})
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(r.working_days)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(r.present_days)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(r.half_days)}</td>
+                          <td className="p-2 text-right tabular-nums">
+                            {num(r.absent_days)}
+                            {(r.held_harmless_days || r.unverified_days) ? (
+                              <div className="text-[11px] text-muted-foreground">
+                                {r.held_harmless_days ? `${num(r.held_harmless_days)} held` : ""}
+                                {r.held_harmless_days && r.unverified_days ? " · " : ""}
+                                {r.unverified_days ? `${num(r.unverified_days)} unverified` : ""}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(slices.cl)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slices.sl)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slices.compoff)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slices.otherPaid)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slices.unpaid)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(r.raw_lop_days)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(r.compoff_offset_days)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(r.proration_days)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(r.lop_days)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{r.monthly_base ? inr(r.monthly_base) : "—"}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">
+                            {r.amount ? inr(r.amount) : "—"}
+                            {r.status === "changed" && r.existing_amount != null && (
+                              <div className="text-xs text-muted-foreground">was {inr(r.existing_amount)}</div>
+                            )}
+                          </td>
+                          <td className="p-2 border-l"><Badge variant={meta.variant} className="text-[11px]">{meta.label}</Badge></td>
+                        </tr>
+                        {isOpen && (
+                          <tr key={`${r.hr_employee_id}-detail`} className="bg-muted/20 border-t">
+                            <td />
+                            <td colSpan={17} className="p-3">
+                              <div className="grid gap-4 md:grid-cols-3 text-xs">
+                                <div>
+                                  <p className="font-semibold mb-1">Leave consumed this month</p>
+                                  {(r.leave_breakdown ?? []).length === 0 ? (
+                                    <p className="text-muted-foreground">No leave consumed.</p>
+                                  ) : (
+                                    <table className="w-full">
+                                      <thead>
+                                        <tr className="text-muted-foreground text-left">
+                                          <th className="pr-2 font-medium">Type</th>
+                                          <th className="pr-2 font-medium">Paid?</th>
+                                          <th className="font-medium text-right">Days</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {(r.leave_breakdown ?? []).map((s, i) => (
+                                          <tr key={i}>
+                                            <td className="pr-2 py-0.5">{s.name}{s.code && s.code !== "—" ? ` (${s.code})` : ""}</td>
+                                            <td className="pr-2 py-0.5">{s.is_paid ? "Paid" : "Unpaid"}</td>
+                                            <td className="py-0.5 text-right tabular-nums">{num(s.days)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  )}
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="font-semibold">Comp-off pool</p>
+                                  <p className="text-muted-foreground">
+                                    Opening {num(r.compoff_opening)} · Earned {num(r.compoff_earned)} · Taken {num(r.compoff_taken)}
+                                  </p>
+                                  <p className="text-muted-foreground">
+                                    Available {num(r.compoff_available)} · Used to cancel LOP {num(r.compoff_offset_days)}
+                                  </p>
+                                  <p className="font-semibold pt-1">Worked on weekly off / holiday</p>
+                                  <p className="text-muted-foreground">
+                                    {num(r.worked_off_days)} day{r.worked_off_days === 1 ? "" : "s"}
+                                    {(r.worked_off_dates ?? []).length ? ` — ${(r.worked_off_dates ?? []).join(", ")}` : ""}
+                                  </p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="font-semibold">Employment window</p>
+                                  <p className="text-muted-foreground">
+                                    {r.employment_from ?? "—"} → {r.employment_to ?? "—"} · proration {num(r.proration_days)} day(s)
+                                  </p>
+                                  <p className="font-semibold pt-1">Engine formula</p>
+                                  <p className="text-muted-foreground break-words">{r.formula ?? "—"}</p>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     );
                   })}
                   {!rows.length && (
-                    <tr><td colSpan={9} className="p-6 text-center text-muted-foreground">No mapped employees for this period.</td></tr>
+                    <tr><td colSpan={18} className="p-6 text-center text-muted-foreground">No mapped employees for this period.</td></tr>
                   )}
                 </tbody>
               </table>

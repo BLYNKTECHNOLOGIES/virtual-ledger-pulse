@@ -15,6 +15,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -74,6 +84,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     | null
   >(null);
   const [showInitiate, setShowInitiate] = useState(false);
+  const [confirmSettlement, setConfirmSettlement] = useState<any | null>(null);
   const [form, setForm] = useState({
     employee_id: "",
     resignation_date: "",
@@ -242,6 +253,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       return { pushResult, pushError };
     },
     onSuccess: ({ pushResult, pushError }) => {
+      setConfirmSettlement(null);
       if (pushError || pushResult?.ok === false) {
         toast.error(
           `Approved, but the RazorpayX push did not verify: ${pushResult?.error ?? pushError?.message ?? "unknown error"}`,
@@ -501,9 +513,9 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                             size="sm"
                             className="h-8 gap-1.5"
                             disabled={approveSettlement.isPending}
-                            onClick={() => approveSettlement.mutate(s)}
+                            onClick={() => setConfirmSettlement(s)}
                           >
-                            <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Confirm F&amp;F
                           </Button>
                         )}
                       </>
@@ -512,9 +524,9 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                         size="sm"
                         className="h-8 gap-1.5"
                         disabled={approveSettlement.isPending}
-                        onClick={() => approveSettlement.mutate(s)}
+                        onClick={() => setConfirmSettlement(s)}
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Confirm F&amp;F
                       </Button>
                     ) : (
 
@@ -529,6 +541,34 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
           })
         )}
       </div>
+
+      <AlertDialog
+        open={Boolean(confirmSettlement)}
+        onOpenChange={(open) => {
+          if (!open && !approveSettlement.isPending) setConfirmSettlement(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm this F&amp;F settlement?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will mark the settlement for {confirmSettlement?.hr_employees?.first_name || "this employee"} as approved and send its verified payroll input to RazorpayX where applicable.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={approveSettlement.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!confirmSettlement || approveSettlement.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (confirmSettlement) approveSettlement.mutate(confirmSettlement);
+              }}
+            >
+              {approveSettlement.isPending ? "Confirming…" : "Confirm F&F"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 2) Exits in this month with no F&F */}
       {exitsWithoutFnF.length > 0 && (

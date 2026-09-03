@@ -26,6 +26,27 @@ type PreviewRow = {
   present_days: number;
   paid_leave_days: number;
   unpaid_leave_days: number;
+  half_days?: number;
+  absent_days?: number;
+  held_harmless_days?: number;
+  unverified_days?: number;
+  leave_breakdown?: LeaveSlice[];
+  leave_paid_total?: number;
+  leave_unpaid_total?: number;
+  leave_compoff_total?: number;
+  worked_off_days?: number;
+  worked_off_dates?: string[];
+  raw_lop_days?: number;
+  compoff_available?: number;
+  compoff_earned?: number;
+  compoff_opening?: number;
+  compoff_taken?: number;
+  compoff_offset_days?: number;
+  absence_lop_days?: number;
+  proration_days?: number;
+  employment_from?: string | null;
+  employment_to?: string | null;
+  formula?: string | null;
   lop_days: number;
   amount: number;
   monthly_base?: number;
@@ -33,6 +54,14 @@ type PreviewRow = {
   status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped";
   reason?: string;
   existing_amount?: number | null;
+};
+
+type LeaveSlice = {
+  name: string;
+  code: string;
+  is_paid: boolean;
+  is_compoff: boolean;
+  days: number;
 };
 
 const STATUS_META: Record<PreviewRow["status"], { label: string; variant: any }> = {

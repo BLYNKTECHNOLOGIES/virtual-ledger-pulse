@@ -52,6 +52,11 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
     },
   });
 
+  // Is the cockpit's month already covered by a lock?
+  const cockpitLocked = !!cockpitStart && locks.some((l: any) =>
+    l.period_start <= cockpitStart && l.period_end >= (cockpitEnd ?? cockpitStart)
+  );
+
   const create = useMutation({
     mutationFn: async () => {
       if (!form.period_start || !form.period_end) throw new Error('Provide period start and end');

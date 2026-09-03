@@ -57,6 +57,7 @@ import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
 const STEP_ICONS: Record<string, any> = {
   lock_attendance: Lock,
   watchdog_zero: Activity,
+  separations_fnf: UserCheck,
   salary_revisions: Scale,
   lop_push: TrendingUp,
   inputs_push: Upload,
@@ -71,6 +72,7 @@ const STEP_ICONS: Record<string, any> = {
 const STEP_STAGE: Record<string, string> = {
   lock_attendance: "Attendance",
   watchdog_zero: "Attendance",
+  separations_fnf: "Separations",
   salary_revisions: "Compensation",
   lop_push: "Compensation",
   inputs_push: "Compensation",
@@ -81,7 +83,7 @@ const STEP_STAGE: Record<string, string> = {
   close_month: "Close",
 };
 
-const STAGE_ORDER = ["Attendance", "Compensation", "Run", "Reconcile", "Close"];
+const STAGE_ORDER = ["Attendance", "Separations", "Compensation", "Run", "Reconcile", "Close"];
 
 type StepTarget =
   | { tool: CockpitToolKey; label: string; params?: Record<string, string> }
@@ -90,6 +92,7 @@ type StepTarget =
 const STEP_TARGET: Record<string, StepTarget> = {
   lock_attendance: { tool: "period_locks", label: "Open Period Locks" },
   watchdog_zero: { tool: "stale_sessions", label: "Open Stale Sessions" },
+  separations_fnf: { tool: "separations", label: "Open Separations & F&F" },
   salary_revisions: { tool: "salary_revisions", label: "Open Salary Revisions" },
   lop_push: { tool: "inputs", label: "Open LOP deductions", params: { tab: "deduction", focus: "lop" } },
   inputs_push: { tool: "inputs", label: "Open additions / deductions", params: { tab: "addition" } },
@@ -207,6 +210,15 @@ function DetailLine({ step }: { step: CockpitStep }) {
       ) : (
         <span>No stale sessions.</span>
       );
+    case "separations_fnf": {
+      const parts: string[] = [];
+      if ((d.fnf_total ?? 0) > 0) parts.push(`${d.fnf_total} F&F ${plural(d.fnf_total, "settlement")} in this cycle`);
+      if ((d.fnf_open ?? 0) > 0) parts.push(`${d.fnf_open} still unfinished`);
+      if ((d.fnf_approved_unpushed ?? 0) > 0) parts.push(`${d.fnf_approved_unpushed} approved but not pushed to RazorpayX`);
+      if ((d.exits_without_fnf ?? 0) > 0) parts.push(`${d.exits_without_fnf} exit ${plural(d.exits_without_fnf, "employee")} with no settlement`);
+      if (parts.length === 0) return <span>Nothing to settle this cycle.</span>;
+      return <span>{parts.join(" · ")}.</span>;
+    }
     case "salary_revisions": {
       const parts: string[] = [];
       if ((d.rev_rows ?? 0) > 0) parts.push(`${d.rev_rows} ${plural(d.rev_rows, "revision")} effective this month`);

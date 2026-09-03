@@ -299,8 +299,22 @@ serve(async (req) => {
     }
     const bankByEmp = new Map<string, any>();
     for (const b of bankRes.data ?? []) if (!bankByEmp.has(b.employee_id)) bankByEmp.set(b.employee_id, b);
+    // HRMS CTC: latest structure assignment wins, onboarding CTC is the fallback
+    // (used until a structure assignment is created/pushed).
     const salaryByEmp = new Map<string, any>();
-    for (const s of salaryRes.data ?? []) if (!salaryByEmp.has(s.employee_id)) salaryByEmp.set(s.employee_id, s);
+    for (const s of salaryRes.data ?? []) {
+      if (s.annual_ctc == null) continue;
+      if (!salaryByEmp.has(s.employee_id)) {
+        salaryByEmp.set(s.employee_id, { annual_ctc: s.annual_ctc, ctc_source: "structure_assignment" });
+      }
+    }
+    for (const o of onboardRes.data ?? []) {
+      if (o.ctc == null) continue;
+      if (!salaryByEmp.has(o.employee_id)) {
+        salaryByEmp.set(o.employee_id, { annual_ctc: o.ctc, ctc_source: "onboarding" });
+      }
+    }
+
     // ------------------------------------------------------------------
     // Snapshot freshness gate.
     //

@@ -3806,10 +3806,8 @@ Deno.serve(async (req) => {
               //           re-derive components from the new CTC.
               data: {
                 "employee-id": eid,
-                "employee-type": "employee",
                 "custom-salary-structure": false,
                 "annual-ctc": erp.total,
-                "ctc-annual": erp.total,
               },
             }),
 

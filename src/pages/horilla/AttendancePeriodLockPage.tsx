@@ -165,6 +165,32 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
         }
       />
 
+      {/* Cockpit context: prompt to lock the payroll month being worked on */}
+      {cockpitStart && !isLoading && (
+        cockpitLocked ? (
+          <div className="flex items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm">
+            <Lock className="h-4 w-4 text-success shrink-0" />
+            <span><span className="font-medium">{cockpitLabel}</span> is already locked — payroll can run for this period.</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+            <Lock className="h-4 w-4 text-warning shrink-0" />
+            <span className="flex-1 min-w-[200px]">
+              Cockpit period <span className="font-medium">{cockpitLabel}</span> is not locked yet.
+            </span>
+            <Button
+              size="sm"
+              onClick={() => {
+                setForm({ period_start: cockpitStart, period_end: cockpitEnd!, notes: '' });
+                setOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Lock {cockpitLabel}
+            </Button>
+          </div>
+        )
+      )}
+
       {/* Mobile */}
       <div className="md:hidden space-y-2">
         {isLoading ? (

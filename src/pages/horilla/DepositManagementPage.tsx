@@ -118,7 +118,7 @@ export default function DepositManagementPage() {
   );
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { active: 0, collected: 0, refunded: 0, exited_unpaid: 0, all: typeDeposits.length };
+    const c: Record<string, number> = { active: 0, collected: 0, refunded: 0, exited_unpaid: 0, cancelled: 0, all: typeDeposits.length };
     typeDeposits.forEach((d: any) => { c[lifecycleOf(d)] += 1; });
     return c;
   }, [typeDeposits]);

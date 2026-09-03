@@ -114,9 +114,9 @@ export function CustomerAutocomplete({
   // Filter clients based on input - search by name, phone, or PAN
   // Exclude deleted clients and rejected buyers
   const filteredClients = useMemo(() => {
-    if (!clients || !debouncedValue.trim()) return [];
+    if (!knownClients.length || !debouncedValue.trim()) return [];
     const searchTerm = debouncedValue.toLowerCase().trim();
-    return clients.filter(client => {
+    return knownClients.filter(client => {
       // Skip deleted clients
       if ((client as any).is_deleted) return false;
       // Skip rejected buyers
@@ -126,7 +126,7 @@ export function CustomerAutocomplete({
         (client.phone && client.phone.includes(searchTerm)) ||
         (client.pan_card_number && client.pan_card_number.toLowerCase().includes(searchTerm));
     });
-  }, [clients, debouncedValue]);
+  }, [knownClients, debouncedValue]);
 
   // Filter pending approvals by the same search term. Match on name, phone or
   // Binance nickname so operators can find the queued client however they type.
@@ -151,14 +151,14 @@ export function CustomerAutocomplete({
 
   // Check for exact match
   useEffect(() => {
-    if (!clients || !value.trim()) {
+    if (!knownClients.length || !value.trim()) {
       setHasExactMatch(false);
       setIsNewClient(false);
       onNewClient?.(false);
       return;
     }
 
-    const exactMatch = clients.find(
+    const exactMatch = knownClients.find(
       c => c.name.toLowerCase() === value.trim().toLowerCase()
     );
 
@@ -176,7 +176,7 @@ export function CustomerAutocomplete({
       setIsNewClient(false);
       onNewClient?.(false);
     }
-  }, [value, clients, selectedClientId, onNewClient]);
+  }, [value, knownClients, selectedClientId, onNewClient]);
 
   // Detect whether the typed name matches a client already sitting in the
   // pending onboarding approval queue — surfaces a warning so the operator

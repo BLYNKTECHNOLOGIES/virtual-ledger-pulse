@@ -31,6 +31,8 @@ interface FieldSpec {
     salary: any;
     rzp: any;                 // snapshot from hr_razorpay_employee_map.last_pull_snapshot
     esslUser: any;
+    /** Latest VERIFIED salary push (expected CTC that people:set-salary accepted). */
+    salaryPush?: { expected: number | null; at: string | null } | null;
   }) => Partial<Record<SystemKey, string | null>>;
 }
 

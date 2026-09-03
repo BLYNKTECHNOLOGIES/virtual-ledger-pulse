@@ -668,11 +668,25 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 </div>
 
                 {/* Type */}
-                <div className="md:justify-self-start">
+                <div className="md:justify-self-start flex flex-wrap items-center gap-1">
                   <span className={cn("inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize", typeTone)}>
                     {typeLabel}
                   </span>
+                  {isTrainingRevision(r) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          <GraduationCap className="h-3 w-3" />
+                          Post-training
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs text-xs">
+                        Onboarding training-period CTC workflow — the post-training CTC uplift applied on the training completion date.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
+
 
                 {/* What changed */}
                 <div className="text-sm tabular-nums flex items-baseline gap-1.5 min-w-0">

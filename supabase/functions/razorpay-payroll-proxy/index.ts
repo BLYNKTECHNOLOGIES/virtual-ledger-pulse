@@ -1604,7 +1604,8 @@ Deno.serve(async (req) => {
           if (m) months.add(`${m[1]}-${m[2]}`);
         }
         const rpEmail = (r.body as any)?.email || (r.body as any)?.work_email || null;
-        const sal = await opfinSalary(rpId, rpEmail, Array.from(months));
+        const rpHire = (r.body as any)?.["date-of-hiring"] ?? (r.body as any)?.date_of_hiring ?? (r.body as any)?.["hiring-date"] ?? null;
+        const sal = await opfinSalary(rpId, rpEmail, Array.from(months), rpHire);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,
@@ -2663,7 +2664,7 @@ Deno.serve(async (req) => {
         // Attach onto snapshot as __salary so projectors can read it. Silent on
         // failure (Razorpay returns nothing when salary structure isn't set).
         // GATED: only probes months with an executed RazorpayX payroll run.
-        const sal = await opfinSalary(eid, (r.body as any)?.email, executedMonthsSet);
+        const sal = await opfinSalary(eid, (r.body as any)?.email, executedMonthsSet, (r.body as any)?.["date-of-hiring"] ?? (r.body as any)?.date_of_hiring ?? (r.body as any)?.["hiring-date"] ?? null);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,

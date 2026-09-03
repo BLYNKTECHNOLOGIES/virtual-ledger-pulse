@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Loader2, Calculator, RefreshCw } from "lucide-react";
+import { Loader2, Calculator, RefreshCw, ChevronDown, ChevronRight, Download } from "lucide-react";
 
 /**
  * Auto-LOP generator.

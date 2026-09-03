@@ -1305,7 +1305,81 @@ html {
     width: 100% !important;
     min-width: 0 !important;
   }
+
+  /* ═══════════════════════════════════════════════════════
+     HRMS phone layer — systemic fixes applied to every page
+     under .horilla-root. Presentation only.
+     ═══════════════════════════════════════════════════════ */
+
+  /* 1. Page padding + no accidental horizontal scroll */
+  .horilla-root {
+    overflow-x: hidden;
+  }
+  .horilla-root .p-6 { padding: 0.875rem !important; }
+  .horilla-root .p-4 { padding: 0.75rem !important; }
+
+  /* 2. Any "title left / actions right" header row stacks */
+  .horilla-root .flex.items-center.justify-between,
+  .horilla-root .flex.items-start.justify-between {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  /* 3. Action clusters wrap and stay reachable */
+  .horilla-root .flex.items-center.gap-2,
+  .horilla-root .flex.items-center.gap-3,
+  .horilla-root .flex.items-center.gap-1 {
+    flex-wrap: wrap !important;
+  }
+  .horilla-root .text-right.flex {
+    text-align: left !important;
+  }
+
+  /* 4. Dense metric strips: never more than 2 columns on a phone */
+  .horilla-root [class*="grid-cols-3"],
+  .horilla-root [class*="grid-cols-4"],
+  .horilla-root [class*="grid-cols-5"],
+  .horilla-root [class*="grid-cols-6"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  /* 5. Numbers/labels shouldn't blow out the card */
+  .horilla-root .tabular-nums,
+  .horilla-root .font-bold,
+  .horilla-root .font-semibold {
+    overflow-wrap: anywhere;
+  }
+  .horilla-root .text-2xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
+  .horilla-root .text-3xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+  .horilla-root .text-lg { font-size: 1rem !important; }
+
+  /* 6. Touch targets: min 36px tall buttons, comfortable inputs */
+  .horilla-root button:not([class*="h-6"]):not([class*="h-7"]) { min-height: 36px; }
+  .horilla-root input,
+  .horilla-root select,
+  .horilla-root textarea { font-size: 16px !important; }
+
+  /* 7. Dialogs/sheets fit the viewport and scroll */
+  .horilla-root ~ [role="dialog"],
+  [role="dialog"][data-state="open"] {
+    max-width: calc(100vw - 1.5rem) !important;
+    max-height: 88vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* 8. Tabs strips scroll horizontally instead of squashing */
+  .horilla-root [role="tablist"] {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start !important;
+  }
+  .horilla-root [role="tablist"]::-webkit-scrollbar { display: none; }
+  .horilla-root [role="tablist"] > * { flex: 0 0 auto; }
 }
+
 
 /* --- Deep-link transaction highlight --- */
 @keyframes tx-deeplink-pulse {

@@ -682,7 +682,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 <div className="flex items-center gap-2 md:justify-end">
                   {syncBadge}
                   {adj && (
-                    <Link to="/hrms/payroll-inputs">
+                    <Link to="/hrms/payroll/inputs">
                       <StatusPill
                         tone={adj.kind === "deduction" ? "warn" : "info"}
                         icon={adj.kind === "deduction" ? TrendingDown : TrendingUp}

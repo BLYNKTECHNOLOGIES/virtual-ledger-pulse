@@ -316,9 +316,9 @@ export default function FnFSettlementPage() {
           {settlements.map((s: any) => (
             <Card key={s.id} className="hover:shadow-sm transition-shadow">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-semibold text-foreground">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground break-words">
                       {s.hr_employees?.first_name} {s.hr_employees?.last_name}
                       <span className="text-muted-foreground text-xs ml-2">({s.hr_employees?.badge_id})</span>
                     </p>
@@ -328,11 +328,12 @@ export default function FnFSettlementPage() {
                       Payroll cycle: <span className="tabular-nums">{String(s.payroll_month || s.last_working_day || "").slice(0, 7)}</span>
                     </p>
                   </div>
-                  <div className="text-right flex items-center gap-3">
-                    <div>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 sm:justify-end">
+                    <div className="min-w-0">
                       <p className="text-lg font-bold text-foreground flex items-center gap-1 tabular-nums">
                         <IndianRupee className="h-4 w-4" />{Number(s.net_payable).toLocaleString("en-IN")}
                       </p>
+
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge(s.status)}`}>
                         {s.status.replace("_", " ")}
                       </span>
@@ -420,7 +421,7 @@ export default function FnFSettlementPage() {
 
                   </div>
                 </div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
                   <div>
                     <span className="text-muted-foreground block">Final-Month Salary</span>
                     <p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p>

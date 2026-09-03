@@ -143,21 +143,29 @@ export function AutoLopDialog({
     const head = [
       "Employee", "Badge", "Working days", "Present", "Half days", "Absent", "Held harmless", "Unverified",
       "CL", "SL", "Comp-off leave", "Other paid leave", "Unpaid leave", "Worked on off/holiday", "Comp-off credits earned", "Punched but unprocessed",
+      "CL opening", "CL credited", "CL used", "CL balance",
+      "SL opening", "SL credited", "SL used", "SL balance",
+      "CO opening", "CO credited", "CO used", "CO set-off against LOP", "CO encashed", "CO balance",
       "Raw LOP", "Comp-off set-off", "Proration days", "Charged LOP days",
       "Monthly base", "LOP amount", "Status",
     ];
     const lines = [head.join(",")];
     for (const r of rows ?? []) {
       const s = leaveSlices(r);
+      const cl = leg(r, "cl"), sl = leg(r, "sl"), co = leg(r, "co");
       lines.push([
         `"${(r.name || "").replace(/"/g, "'")}"`, `"${r.badge_id ?? ""}"`,
         num(r.working_days), num(r.present_days), num(r.half_days), num(r.absent_days),
         num(r.held_harmless_days), num(r.unverified_days),
         num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid), num(r.worked_off_days), num(r.compoff_credit_days), num(r.unprocessed_off_days),
+        num(cl.opening), num(cl.credited), num(cl.used), num(cl.closing),
+        num(sl.opening), num(sl.credited), num(sl.used), num(sl.closing),
+        num(co.opening), num(co.credited), num(co.used), num(co.offset_lop), num(co.encashed), num(co.closing),
         num(r.raw_lop_days), num(r.compoff_offset_days), num(r.proration_days), num(r.lop_days),
         num(r.monthly_base), num(r.amount), STATUS_META[r.status]?.label ?? r.status,
       ].join(","));
     }
+
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);

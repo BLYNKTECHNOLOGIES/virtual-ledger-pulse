@@ -738,13 +738,20 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   {adj && (
                     <Link to="/hrms/payroll/inputs">
                       <StatusPill
-                        tone={adj.kind === "deduction" ? "warn" : "info"}
+                        tone={adj.provisional ? "warn" : adj.kind === "deduction" ? "warn" : "info"}
                         icon={adj.kind === "deduction" ? TrendingDown : TrendingUp}
-                        label={`${adj.kind === "deduction" ? "−" : "+"}${money(adj.amount)} · ${adj.period ? format(new Date(adj.period), "MMM") : ""}`}
-                        detail={`Mid-month CTC correction: ${adj.kind === "deduction" ? "recovery" : "arrears"} of ${money(adj.amount)} staged in ${adj.period ? format(new Date(adj.period), "MMMM yyyy") : ""} payroll inputs${adj.pushed ? " · already pushed to RazorpayX" : " · push from Payroll Cockpit Step 5"}.`}
+                        label={`${adj.provisional ? "Provisional " : ""}${adj.kind === "deduction" ? "−" : "+"}${money(adj.amount)} · ${adj.period ? format(new Date(adj.period), "MMM") : ""}`}
+                        detail={`${adj.label || (adj.kind === "deduction" ? "Salary Recovery - Part-Month CTC Revision" : "Salary Arrears - Part-Month CTC Revision")} — ${money(adj.amount)} in ${adj.period ? format(new Date(adj.period), "MMMM yyyy") : ""} payroll inputs. ${
+                          adj.pushed
+                            ? "Already pushed to RazorpayX."
+                            : adj.provisional
+                              ? "Provisional — recalculated and finalised automatically once this CTC is pushed to RazorpayX. Not pushable yet."
+                              : "Final — push it from Payroll Cockpit Step 5."
+                        }`}
                       />
                     </Link>
                   )}
+
 
                   {pushBtn}
                   {deleteBtn}

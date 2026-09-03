@@ -340,6 +340,33 @@ serve(async (req) => {
       }
     }
 
+    // Latest VERIFIED salary push per employee. Used only to decide whether an
+    // API-unexposable CTC counts as drift (see the annual_ctc field spec).
+    const salaryPushByEmp = new Map<string, { expected: number | null; at: string | null }>();
+    {
+      const { data: pushRows } = await supa
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id, created_at, response_snapshot")
+        .in("hr_employee_id", empIds)
+        .eq("action", "verify_salary")
+        .eq("status", "success")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      for (const row of pushRows ?? []) {
+        const eid = (row as any).hr_employee_id;
+        if (!eid || salaryPushByEmp.has(eid)) continue;
+        const fields = (row as any).response_snapshot?.fields;
+        const f = Array.isArray(fields) ? fields.find((x: any) => x?.key === "annual_ctc") : null;
+        const expected = f && f.expected != null && Number.isFinite(Number(f.expected))
+          ? Number(f.expected)
+          : null;
+        if (expected == null) continue;
+        salaryPushByEmp.set(eid, { expected, at: (row as any).created_at ?? null });
+      }
+    }
+
+
+
     // ------------------------------------------------------------------
     // Snapshot freshness gate.
     //

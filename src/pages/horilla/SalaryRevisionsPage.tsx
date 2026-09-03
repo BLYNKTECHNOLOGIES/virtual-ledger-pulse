@@ -25,16 +25,26 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
-type CategoryFilter = "ALL" | "CTC" | "ADDITION" | "DEDUCTION" | "PAYOUT" | "STATUTORY";
+type CategoryFilter = "ALL" | "CTC" | "ADDITION" | "DEDUCTION" | "PAYOUT" | "STATUTORY" | "TRAINING";
 
 const CATEGORY_TABS: { value: CategoryFilter; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "CTC", label: "CTC change" },
+  { value: "TRAINING", label: "Post-training CTC" },
   { value: "ADDITION", label: "Addition" },
   { value: "DEDUCTION", label: "Deduction" },
   { value: "PAYOUT", label: "One-time payout" },
   { value: "STATUTORY", label: "Statutory" },
 ];
+
+// Revisions produced by the onboarding training-period CTC workflow — the
+// post-training uplift that becomes effective on the training completion date.
+function isTrainingRevision(r: any): boolean {
+  const reason = String(r?.revision_reason || "").toLowerCase();
+  return reason.includes("training_completion") || reason.includes("training completion") ||
+    String(r?.revision_type || "").toLowerCase() === "training_completion";
+}
+
 
 const ONE_TIME_TYPE_SET = new Set([
   "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",

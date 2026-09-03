@@ -1860,12 +1860,8 @@ Deno.serve(async (req) => {
               data: {
                 "employee-id": rpId,
                 "employee-type": "employee",
-                // Use RazorpayX's existing/default salary structure — do NOT
-                // send a custom breakdown. `custom-salary-structure` must be a
-                // boolean; false = RazorpayX derives components from CTC.
                 "custom-salary-structure": false,
-                "annual-ctc": ctcAnnual,
-                "ctc-annual": ctcAnnual,
+                salary: { "ctc-annual": ctcAnnual },
               },
             }),
             signal: ctrl.signal,
@@ -3809,8 +3805,10 @@ Deno.serve(async (req) => {
                 "employee-id": eid,
                 "employee-type": "employee",
                 "custom-salary-structure": false,
-                "annual-ctc": erp.total,
-                "ctc-annual": erp.total,
+                salary: {
+                  "ctc-annual": erp.total,
+                  components: salaryComponents,
+                },
               },
             }),
 
@@ -3942,12 +3940,8 @@ Deno.serve(async (req) => {
               data: {
                 "employee-id": rpId,
                 "employee-type": "employee",
-                // RazorpayX contract: MUST be boolean. Sending a breakdown object
-                // triggers "Undefined property: stdClass::$custom-salary-structure".
-                // Push false and let RazorpayX derive components from annual CTC.
                 "custom-salary-structure": false,
-                "annual-ctc": annualCtc,
-                "ctc-annual": annualCtc,
+                salary: { "ctc-annual": annualCtc },
               },
             }),
           signal: ctrl.signal,
@@ -7020,7 +7014,7 @@ Deno.serve(async (req) => {
                   "employee-id": rpIdNum,
                   "employee-type": "employee",
                   "custom-salary-structure": false,
-                  "annual-ctc": ctcAnnual,
+                  salary: { "ctc-annual": ctcAnnual },
                 },
               }),
               signal: c.signal,

@@ -24,6 +24,7 @@ import { AutoRecoveriesCard } from "@/components/hr/payroll/AutoRecoveriesCard";
 import { TrainingCtcAdjustmentsCard } from "@/components/hr/payroll/TrainingCtcAdjustmentsCard";
 
 import { OtherPayrollInputsCard } from "@/components/hr/payroll/OtherPayrollInputsCard";
+import { FnFSettlementInputsCard } from "@/components/hr/payroll/FnFSettlementInputsCard";
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
@@ -175,7 +176,11 @@ export default function PayrollInputsPage() {
   // Training-completion CTC corrections live in their own block below, with the
   // full derivation and an HR approval gate, so they are kept out of this list.
   const visibleRows = useMemo(() => {
-    const all = ((rows as any[]) ?? []).filter((r) => r.source !== "training_ctc_adjustment");
+    // F&F settlement lines are pushed by the settlement approval itself and are
+    // shown in their own segregated card below, never in the staging list.
+    const all = ((rows as any[]) ?? []).filter(
+      (r) => r.source !== "training_ctc_adjustment" && r.source !== "fnf_settlement",
+    );
     if (!lopFocus || tab !== "deduction") return all;
     return all.filter((r) => /lop|loss of pay|loss-of-pay/i.test(String(r.label ?? "")));
   }, [rows, lopFocus, tab]);
@@ -621,6 +626,7 @@ export default function PayrollInputsPage() {
         </TabsContent>
       </Tabs>
 
+      {!lopFocus && <FnFSettlementInputsCard period={period} kind={tab} />}
       {!lopFocus && <TrainingCtcAdjustmentsCard period={period} />}
       {!lopFocus && tab === "deduction" && <AutoRecoveriesCard period={period} />}
       {!lopFocus && tab === "addition" && <OtherPayrollInputsCard period={period} />}

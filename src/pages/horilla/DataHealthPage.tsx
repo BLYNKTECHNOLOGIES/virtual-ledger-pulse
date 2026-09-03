@@ -389,7 +389,14 @@ export default function DataHealthPage() {
           .maybeSingle();
         if (checkError) throw checkError;
         if (stillOpen) {
-          toast.error(`${FIELD_LABEL[drift.field] || drift.field} is still different in RazorpayX`);
+          if (drift.field === "annual_ctc") {
+            toast.warning("CTC push accepted, but RazorpayX still reports no CTC", {
+              description:
+                "RazorpayX exposes CTC over its read API only after the first executed payroll run for this employee. Re-scan after the next payroll run to confirm.",
+            });
+          } else {
+            toast.error(`${FIELD_LABEL[drift.field] || drift.field} is still different in RazorpayX`);
+          }
         } else {
           toast.success(`${FIELD_LABEL[drift.field] || drift.field} verified in RazorpayX`);
         }

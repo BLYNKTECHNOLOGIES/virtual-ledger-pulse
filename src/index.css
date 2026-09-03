@@ -1335,6 +1335,19 @@ html {
     text-align: left !important;
   }
 
+  /* 3b. App header exception: menu + search + icons must stay on ONE row.
+     The blanket wrap rules above otherwise push the search box onto a
+     second line that overflows the fixed-height header onto the page title. */
+  .horilla-root header.flex.items-center.justify-between,
+  .horilla-root header .flex.items-center.gap-1,
+  .horilla-root header .flex.items-center.gap-2,
+  .horilla-root header .flex.items-center.gap-3 {
+    flex-wrap: nowrap !important;
+  }
+  .horilla-root header input {
+    font-size: 16px !important; /* prevent iOS focus zoom */
+  }
+
   /* 4. Dense metric strips: never more than 2 columns on a phone */
   .horilla-root [class*="grid-cols-3"],
   .horilla-root [class*="grid-cols-4"],

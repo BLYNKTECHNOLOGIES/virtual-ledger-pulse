@@ -335,6 +335,8 @@ export function AutoLopDialog({
                     const meta = STATUS_META[r.status] ?? STATUS_META.skipped;
                     const canSelect = ["new", "changed", "unchanged"].includes(r.status);
                     const slices = leaveSlices(r);
+                    const clL = leg(r, "cl"), slL = leg(r, "sl"), coL = leg(r, "co");
+
                     const isOpen = !!expanded[r.hr_employee_id];
                     const mismatch =
                       Math.abs((r.leave_paid_total ?? 0) - (r.paid_leave_days ?? 0)) > 0.01;

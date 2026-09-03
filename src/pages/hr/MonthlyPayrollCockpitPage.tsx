@@ -140,15 +140,24 @@ function monthOptions(): { value: string; label: string }[] {
   });
 }
 
-/** Find the OLDEST cycle month (within the last 12) whose payroll close is not
- *  yet acknowledged — that is the cycle still pending work. Future months are
- *  never candidates; if everything past is closed we land on the current month. */
+/** Cockpit history floor — payroll cycles before this month are not tracked in
+ *  the cockpit, so they must never be auto-selected. */
+const COCKPIT_FIRST_TRACKED_MONTH = "2026-07-01";
+
+/** Find the OLDEST cycle month (from the tracked floor onwards) whose payroll
+ *  close is not yet acknowledged — that is the cycle still pending work. Future
+ *  months are never candidates; if everything past is closed we land on the
+ *  current month. */
 function useLatestIncompleteCockpitMonth() {
   return useQuery({
     queryKey: ["hr_cockpit_latest_incomplete_month"],
     queryFn: async () => {
-      // current → previous 12 months, then oldest-first
-      const candidates = generateRecentMonths(12, 0).slice().reverse();
+      // current → previous 12 months, then oldest-first, floored at the tracked start
+      const candidates = generateRecentMonths(12, 0)
+        .slice()
+        .reverse()
+        .filter((m) => m >= COCKPIT_FIRST_TRACKED_MONTH);
+
       const results = await Promise.all(
         candidates.map(async (m) => {
           const { data, error } = await (supabase as any).rpc("hr_cockpit_month_state", { _month: m });

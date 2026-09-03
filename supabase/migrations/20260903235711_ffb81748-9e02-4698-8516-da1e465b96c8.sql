@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.hr_leave_month_breakdown(uuid[], date) TO supabase_read_only_user;

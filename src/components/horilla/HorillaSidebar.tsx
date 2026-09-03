@@ -334,7 +334,7 @@ export function HorillaSidebar({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "h-screen flex flex-col bg-[#1a1a2e] text-gray-300 shrink-0",
+        "horilla-sidebar h-screen flex flex-col shrink-0",
         "transition-[width,box-shadow] duration-200 ease-out will-change-[width]",
         isMobile
           ? cn(

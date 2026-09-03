@@ -443,10 +443,10 @@ export function HorillaSidebar({
                               onMouseEnter={() => prefetch(child.path)}
                               onFocus={() => prefetch(child.path)}
                               onClick={() => handleNavigate(child.path)}
-                              className={cn(
-                                "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
-                                childActive ? "text-[#6C63FF] font-medium" : "text-foreground/75 hover:text-foreground hover:bg-[#252540]/60"
-                              )}
+                                className={cn(
+                                  "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
+                                  childActive ? "text-[#6C63FF] font-medium" : "hrms-sidebar-child hover:text-white hover:bg-[#252540]/80"
+                                )}
                             >
                               {child.label}
                             </button>

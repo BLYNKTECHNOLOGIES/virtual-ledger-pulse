@@ -122,8 +122,9 @@ const DIAGNOSTIC_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
 function generateRecentMonths(countBack: number, countForward: number): string[] {
   const months: string[] = [];
   const now = new Date();
+  // Newest first: +countForward … current … -countBack
   for (let i = countForward; i >= -countBack; i--) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
     months.push(firstOfMonth(d));
   }
   return months;
@@ -139,29 +140,31 @@ function monthOptions(): { value: string; label: string }[] {
   });
 }
 
-/** Find the most recent cycle month whose payroll close is not yet acknowledged.
- *  Scans the current month first, then walks backwards so the user lands on the
- *  latest unfinished payroll cycle by default. */
+/** Find the OLDEST cycle month (within the last 12) whose payroll close is not
+ *  yet acknowledged — that is the cycle still pending work. Future months are
+ *  never candidates; if everything past is closed we land on the current month. */
 function useLatestIncompleteCockpitMonth() {
   return useQuery({
     queryKey: ["hr_cockpit_latest_incomplete_month"],
     queryFn: async () => {
-      const candidates = generateRecentMonths(12, 0); // current → previous 12 months
+      // current → previous 12 months, then oldest-first
+      const candidates = generateRecentMonths(12, 0).slice().reverse();
       const results = await Promise.all(
         candidates.map(async (m) => {
           const { data, error } = await (supabase as any).rpc("hr_cockpit_month_state", { _month: m });
-          if (error) return { month: m, closed: false };
+          if (error) return { month: m, closed: true }; // don't strand the user on an unreadable month
           const steps = (data ?? []) as CockpitStep[];
           const closeStep = steps.find((s) => s.step_key === "close_month");
           return { month: m, closed: closeStep?.ack_status === "done" };
         })
       );
-      const latestIncomplete = candidates.find((_, idx) => !results[idx].closed);
-      return latestIncomplete ?? firstOfMonth(new Date());
+      const oldestIncomplete = candidates.find((_, idx) => !results[idx].closed);
+      return oldestIncomplete ?? firstOfMonth(new Date());
     },
     staleTime: 5 * 60 * 1000,
   });
 }
+
 
 /** System-side (live) state chip — what the data says. */
 function LiveChip({ step }: { step: CockpitStep }) {

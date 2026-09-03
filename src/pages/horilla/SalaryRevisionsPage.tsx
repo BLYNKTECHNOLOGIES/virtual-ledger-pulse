@@ -553,12 +553,16 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             // Deleting the latter rolls the salary structure back automatically.
             const isCtcRow = isApplied && !isPayrollInput && !isOneTime;
             const isLatestCtc = latestCtcRevisionByEmployee[r.employee_id]?.id === r.id;
-            const ctcRollbackDeletable =
-              isCtcRow && isLatestCtc && !pushSyncedAfterRevision &&
+            const ctcUnpushed = isCtcRow && !pushSyncedAfterRevision &&
               !r.razorpay_pushed_at && !r.razorpay_verified_at &&
               Number(r.previous_total || 0) > 0;
+            // Latest un-pushed CTC revision → delete rolls the salary back.
+            const ctcRollbackDeletable = ctcUnpushed && isLatestCtc;
+            // Superseded un-pushed CTC revision → history-only delete, live
+            // salary is governed by the newer revision and stays untouched.
+            const ctcHistoryDeletable = ctcUnpushed && !isLatestCtc;
             const isDeletable = canManage && !r.register_confirmed_at &&
-              (isScheduled || isPayrollInput || isOneTime || ctcRollbackDeletable);
+              (isScheduled || isPayrollInput || isOneTime || ctcRollbackDeletable || ctcHistoryDeletable);
             // Why a CTC row may not be deletable — surfaced as a disabled icon
             // with an explanation instead of silently hiding the control.
             const blockedReason = !isDeletable && canManage && isCtcRow && Number(r.previous_total || 0) > 0
@@ -566,16 +570,14 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   ? "Locked — this revision is confirmed against a payroll register."
                   : (r.razorpay_pushed_at || r.razorpay_verified_at || pushSyncedAfterRevision)
                     ? "Already pushed to RazorpayX — reverse it there first."
-                    : !isLatestCtc
-                      ? "Only the employee's most recent CTC revision can be deleted — a newer revision already supersedes this one."
-                      : null)
+                    : null)
               : null;
             const deleteBtn = isDeletable ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     size="sm" variant="ghost" className="h-7 w-7 p-0"
-                    onClick={() => { setDeleteReason(""); setDeleteTarget({ ...r, __ctcRollback: ctcRollbackDeletable }); }}
+                    onClick={() => { setDeleteReason(""); setDeleteTarget({ ...r, __ctcRollback: ctcRollbackDeletable, __ctcHistoryOnly: ctcHistoryDeletable }); }}
                   >
                     <Trash2 className="h-3.5 w-3.5 text-destructive" />
                   </Button>
@@ -583,7 +585,9 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 <TooltipContent side="left" className="max-w-xs text-xs">
                   {ctcRollbackDeletable
                     ? `Delete this revision — salary reverts to ${money(r.previous_total)}`
-                    : "Delete this entry so it no longer affects payroll"}
+                    : ctcHistoryDeletable
+                      ? "Delete this superseded history entry — current salary is unchanged"
+                      : "Delete this entry so it no longer affects payroll"}
                 </TooltipContent>
               </Tooltip>
             ) : blockedReason ? (

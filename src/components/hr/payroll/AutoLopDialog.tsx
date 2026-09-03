@@ -393,6 +393,21 @@ export function AutoLopDialog({
                           <td className="p-2 text-right tabular-nums">{num(slices.compoff)}</td>
                           <td className="p-2 text-right tabular-nums">{num(slices.otherPaid)}</td>
                           <td className="p-2 text-right tabular-nums">{num(slices.unpaid)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(clL.opening)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(clL.credited)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(clL.used)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(clL.closing)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(slL.opening)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slL.credited)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slL.used)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(slL.closing)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(coL.opening)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.credited)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.used)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.offset_lop)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.encashed)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(coL.closing)}</td>
+
                           <td className="p-2 text-right tabular-nums border-l">{num(r.raw_lop_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.compoff_offset_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.proration_days)}</td>

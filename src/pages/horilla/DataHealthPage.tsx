@@ -482,24 +482,37 @@ export default function DataHealthPage() {
     }
   }
 
+  // "Mark resolved" is a sticky acknowledgement, not a one-scan dismissal.
+  // We snapshot the exact values HR looked at; the scanner keeps the card
+  // hidden until HRMS or RazorpayX (or eSSL) actually changes that value.
   async function markResolved(drift: Drift, note: string) {
 
     setResolvingId(drift.id);
     try {
+      const { data: userData } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from("hr_drift_alerts")
-        .update({ resolved_at: new Date().toISOString(), resolution_note: note })
+        .update({
+          acknowledged_at: new Date().toISOString(),
+          acknowledged_by: userData?.user?.id ?? null,
+          acknowledged_note: note,
+          ack_hrms_value: drift.hrms_value ?? null,
+          ack_razorpay_value: drift.razorpay_value ?? null,
+          ack_essl_value: drift.essl_value ?? null,
+          resolution_note: note,
+        })
         .eq("id", drift.id);
       if (error) {
         toast.error(`Could not mark resolved: ${error.message}`);
         return;
       }
-      toast.success("Marked resolved");
+      toast.success("Marked resolved — it will only come back if either value changes");
       qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
     } finally {
       setResolvingId(null);
     }
   }
+
 
   // Reverse direction: adopt the RazorpayX value into HRMS.
   async function runPull(target: PullTarget, confirmSensitive: boolean) {

@@ -55,7 +55,8 @@ type PreviewRow = {
   amount: number;
   monthly_base?: number;
   base_source_label?: string;
-  status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped";
+  employee_type?: string | null;
+  status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped" | "not_applicable";
   reason?: string;
   existing_amount?: number | null;
 };
@@ -84,6 +85,7 @@ const STATUS_META: Record<PreviewRow["status"], { label: string; variant: any }>
   remove: { label: "Stale — will remove", variant: "destructive" },
   no_lop: { label: "No LOP", variant: "outline" },
   skipped: { label: "Skipped", variant: "destructive" },
+  not_applicable: { label: "LOP not applicable", variant: "secondary" },
 };
 
 const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN")}`;

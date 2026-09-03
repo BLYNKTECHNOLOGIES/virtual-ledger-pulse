@@ -234,38 +234,115 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       !["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || "")),
   ).length;
 
-  return (
-    <div className="p-3 md:p-6 space-y-4 max-w-5xl mx-auto">
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-base font-semibold">
-          Separations &amp; Full &amp; Final — {cycleLabel}
-        </h3>
-        <Button
-          size="sm"
-          variant="outline"
-          className="ml-auto gap-1.5"
-          onClick={() => setShowInitiate(true)}
-        >
-          <UserMinus className="h-4 w-4" /> Initiate resignation
-        </Button>
-      </div>
+  const initials = (a?: string, b?: string) =>
+    `${(a || "").charAt(0)}${(b || "").charAt(0)}`.toUpperCase() || "–";
 
-      <p className="text-xs text-muted-foreground">
-        Everything settled here is the same record as on the Full &amp; Final page.
-        Approved settlements reach payroll through the Inputs step, tagged as F&amp;F.
+  const SectionHead = ({
+    icon: Icon,
+    title,
+    count,
+    tone = "muted",
+  }: {
+    icon: any;
+    title: string;
+    count?: number;
+    tone?: "muted" | "warning" | "destructive";
+  }) => (
+    <div className="flex items-center gap-2">
+      <Icon
+        className={`h-3.5 w-3.5 shrink-0 ${
+          tone === "destructive"
+            ? "text-destructive"
+            : tone === "warning"
+              ? "text-warning"
+              : "text-muted-foreground"
+        }`}
+      />
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        {title}
       </p>
+      {typeof count === "number" && (
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold tabular-nums text-muted-foreground">
+          {count}
+        </span>
+      )}
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+
+  const Avatar = ({ text, tone }: { text: string; tone?: string }) => (
+    <div
+      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-[11px] font-semibold ${
+        tone || "bg-primary/10 text-primary"
+      }`}
+    >
+      {text}
+    </div>
+  );
+
+  return (
+    <div className="p-3 md:p-6 space-y-5 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="rounded-xl border bg-card p-4 md:p-5 space-y-3">
+        <div className="flex flex-wrap items-start gap-3">
+          <div className="min-w-0 space-y-1">
+            <h3 className="text-base md:text-lg font-semibold leading-tight">
+              Separations &amp; Full &amp; Final
+              <span className="text-muted-foreground font-normal"> — {cycleLabel}</span>
+            </h3>
+            <p className="text-xs text-muted-foreground max-w-2xl">
+              Everything settled here is the same record as on the Full &amp; Final page.
+              Approved settlements reach payroll through the Inputs step, tagged as F&amp;F.
+            </p>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="ml-auto gap-1.5 w-full sm:w-auto"
+            onClick={() => setShowInitiate(true)}
+          >
+            <UserMinus className="h-4 w-4" /> Initiate resignation
+          </Button>
+        </div>
+
+        {/* At-a-glance counters */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+          {[
+            { label: "Scheduled F&F", value: cycleSettlements.length, tone: "" },
+            { label: "Unfinished", value: openUnfinished, tone: "text-warning" },
+            { label: "Approved, not pushed", value: approvedUnpushed, tone: "text-warning" },
+            { label: "Exits without F&F", value: exitsWithoutFnF.length, tone: "text-destructive" },
+          ].map((m) => (
+            <div key={m.label} className="rounded-lg border bg-muted/30 px-3 py-2">
+              <p className={`text-lg font-semibold tabular-nums leading-none ${m.tone}`}>
+                {m.value}
+              </p>
+              <p className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">
+                {m.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {(openUnfinished > 0 || approvedUnpushed > 0 || exitsWithoutFnF.length > 0) && (
         <Card className="border-warning/40 bg-warning/5">
-          <CardContent className="p-3 text-xs space-y-1">
+          <CardContent className="p-3 text-xs space-y-1.5">
             {exitsWithoutFnF.length > 0 && (
-              <p>{exitsWithoutFnF.length} exit(s) this cycle have no settlement yet.</p>
+              <p className="flex gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+                {exitsWithoutFnF.length} exit(s) this cycle have no settlement yet.
+              </p>
             )}
             {openUnfinished > 0 && (
-              <p>{openUnfinished} settlement(s) still unfinished (draft / calculated / awaiting approval).</p>
+              <p className="flex gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+                {openUnfinished} settlement(s) still unfinished (draft / calculated / awaiting approval).
+              </p>
             )}
             {approvedUnpushed > 0 && (
-              <p>
+              <p className="flex gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
                 {approvedUnpushed} approved settlement(s) not yet pushed to RazorpayX — clear
                 them on the Inputs push step.
               </p>
@@ -275,22 +352,31 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       )}
 
       {/* 1) Settlements scheduled for this cycle */}
-      <div className="space-y-2">
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          F&amp;F scheduled for this payroll cycle
-        </p>
+      <div className="space-y-2.5">
+        <SectionHead
+          icon={CalendarClock}
+          title="F&F scheduled for this payroll cycle"
+          count={cycleSettlements.length}
+        />
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <div className="space-y-2">
+            {[0, 1].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-muted/50" />
+            ))}
+          </div>
         ) : cycleSettlements.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No settlement is scheduled for {cycleLabel}.
-          </p>
+          <div className="rounded-xl border border-dashed p-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              No settlement is scheduled for {cycleLabel}.
+            </p>
+          </div>
         ) : (
           cycleSettlements.map((s: any) => {
             const emp = s.hr_employees || {};
             return (
-              <Card key={s.id}>
-                <CardContent className="p-3 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <Card key={s.id} className="transition-colors hover:border-primary/40">
+                <CardContent className="p-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <Avatar text={initials(emp.first_name, emp.last_name)} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">
                       {emp.first_name} {emp.last_name}
@@ -301,7 +387,9 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                     </p>
                     <p className="text-[11px] text-muted-foreground">
                       LWD {s.last_working_day || emp.last_working_day || "—"} · Net{" "}
-                      <span className="tabular-nums">{inr(s.net_payable)}</span>
+                      <span className="tabular-nums font-medium text-foreground">
+                        {inr(s.net_payable)}
+                      </span>
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 ml-auto flex-wrap">
@@ -309,8 +397,8 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                       {String(s.status).replace("_", " ")}
                     </Badge>
                     {s.razorpay_push_status && (
-                      <Badge variant="outline" className="text-[10px]">
-                        RazorpayX {s.razorpay_push_status}
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        RazorpayX {String(s.razorpay_push_status).replace(/_/g, " ")}
                       </Badge>
                     )}
                     {EDITABLE_STATUSES.includes(String(s.status)) ? (
@@ -337,14 +425,20 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
 
       {/* 2) Exits in this month with no F&F */}
       {exitsWithoutFnF.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Exits this cycle without a settlement
-          </p>
+        <div className="space-y-2.5">
+          <SectionHead
+            icon={AlertTriangle}
+            title="Exits this cycle without a settlement"
+            count={exitsWithoutFnF.length}
+            tone="destructive"
+          />
           {exitsWithoutFnF.map((e: any) => (
-            <Card key={e.id} className="border-destructive/30">
-              <CardContent className="p-3 flex flex-wrap items-center gap-3">
-                <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+            <Card key={e.id} className="border-destructive/30 bg-destructive/[0.03]">
+              <CardContent className="p-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <Avatar
+                  text={initials(e.first_name, e.last_name)}
+                  tone="bg-destructive/10 text-destructive"
+                />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">
                     {e.first_name} {e.last_name}
@@ -370,14 +464,20 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
 
       {/* 3) Mis-tagged cycles */}
       {misTagged.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
-            Exited this cycle but tagged to another payroll month
-          </p>
+        <div className="space-y-2.5">
+          <SectionHead
+            icon={CalendarClock}
+            title="Exited this cycle but tagged to another payroll month"
+            count={misTagged.length}
+            tone="warning"
+          />
           {misTagged.map((s: any) => (
-            <Card key={s.id} className="border-warning/40">
-              <CardContent className="p-3 flex flex-wrap items-center gap-3">
-                <CalendarClock className="h-4 w-4 text-warning shrink-0" />
+            <Card key={s.id} className="border-warning/40 bg-warning/[0.04]">
+              <CardContent className="p-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                <Avatar
+                  text={initials(s.hr_employees?.first_name, s.hr_employees?.last_name)}
+                  tone="bg-warning/10 text-warning"
+                />
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">
                     {s.hr_employees?.first_name} {s.hr_employees?.last_name}
@@ -401,6 +501,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
           ))}
         </div>
       )}
+
 
       {/* Shared create/edit dialog — identical to the F&F page and exit checklist */}
       <FnFSettlementDialog

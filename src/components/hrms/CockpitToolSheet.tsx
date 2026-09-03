@@ -15,9 +15,11 @@ const SystemPulsePage = lazy(() => import("@/pages/hr/SystemPulsePage"));
 const RazorpaySyncPage = lazy(() => import("@/pages/hr/RazorpaySyncPage"));
 const SalaryRevisionsPage = lazy(() => import("@/pages/horilla/SalaryRevisionsPage"));
 const PayslipEmailDispatchPanel = lazy(() => import("@/components/hrms/PayslipEmailDispatchPanel"));
+const SeparationsFnFPanel = lazy(() => import("@/components/hrms/SeparationsFnFPanel"));
 
 export type CockpitToolKey =
   | "inputs"
+  | "separations"
   | "salary_revisions"
   | "period_locks"
   | "stale_sessions"
@@ -31,6 +33,7 @@ export type CockpitToolKey =
 
 const TOOLS: Record<CockpitToolKey, { title: string; Component: React.LazyExoticComponent<any> }> = {
   inputs: { title: "Payroll Inputs — Additions / Deductions", Component: PayrollInputsPage },
+  separations: { title: "Separations & Full & Final — This Payroll Cycle", Component: SeparationsFnFPanel },
   salary_revisions: { title: "Salary Revisions — Compensation Changes", Component: SalaryRevisionsPage },
   period_locks: { title: "Attendance Period Locks", Component: AttendancePeriodLockPage },
   stale_sessions: { title: "Stale Attendance Sessions", Component: AttendanceStaleSessionsPage },
@@ -95,7 +98,12 @@ export function CockpitToolSheet({
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain cockpit-tool-shell">
         <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading tool…</div>}>
-          {tool === "payslip_emails" ? (
+          {tool === "separations" ? (
+            (() => {
+              const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;
+              return <C month={month} />;
+            })()
+          ) : tool === "payslip_emails" ? (
             <div className="p-3 md:p-6">
               {(() => {
                 const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;

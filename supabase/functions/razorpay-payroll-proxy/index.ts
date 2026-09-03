@@ -219,9 +219,10 @@ async function opfinSalary(
       const monthly = readNum(body, ["salary"]);
       if (monthly && monthly > 0) {
         const annual = Math.round(monthly * 12);
-        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual} (executed-run gated)`);
-        return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: [], raw: body, http_status: res.status, err: null };
+        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual}`);
+        return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: [], raw: body, http_status: res.status, err: null, source_month: ym };
       }
+
       perAttempt.push(`no salary field @ ${tag} keys=${Object.keys(body).slice(0, 10).join(",")}`);
       lastErr = perAttempt[perAttempt.length - 1];
     } catch (e) {

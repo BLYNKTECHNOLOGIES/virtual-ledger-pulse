@@ -371,7 +371,17 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       toast.error("This entry has no CTC change — nothing to push to RazorpayX.");
       return;
     }
+    // Server-side truth check: never push a CTC that belongs to a payroll month
+    // later than the one still being processed.
+    const { data: win } = await (supabase as any).rpc("hr_revision_push_window", { p_revision_id: revisionId });
+    if (win && win.allowed === false) {
+      toast.error("Held for a later payroll month", {
+        description: `This CTC is effective ${win.effective_month || ""} but the ${win.open_payroll_month || ""} payroll is still open. RazorpayX would apply it to the open month. Push it from that month's cockpit cycle.`,
+      });
+      return;
+    }
     setPushingIds(prev => new Set(prev).add(revisionId));
+
     try {
       const res = await pushSalaryToRazorpay(employeeId, {
         triggeredFrom: "salary_revisions_row",

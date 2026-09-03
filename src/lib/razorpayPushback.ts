@@ -304,7 +304,7 @@ export async function pushToRazorpay(
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
       body: { action: ACTION_BY_KIND[kind], razorpay_employee_id: razorpayId },
     });
-    if (error) throw error;
+    if (error) throw new Error(await edgeFunctionError(error));
     if (data && (data as any).ok === false) {
       throw new Error(readableError((data as any).error));
     }
@@ -535,7 +535,7 @@ export async function dismissInRazorpay(
       __separation_reason_note: "Recorded in HRMS only — RazorpayX people:dismiss has no reason field.",
     };
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", { body: payload });
-    if (error) throw error;
+    if (error) throw new Error(await edgeFunctionError(error));
     const res: any = data || {};
 
     // Already dismissed in RazorpayX (people:view can no longer resolve them) —
@@ -664,7 +664,7 @@ export async function pushStatutoryToRazorpay(
     const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
       body: { action: "push_statutory_apply_one", hr_employee_id: hrEmployeeId },
     });
-    if (error) throw error;
+    if (error) throw new Error(await edgeFunctionError(error));
     const d = data as any;
     if (d?.ok === false) {
       const needsEnvelope = d?.code === "STATUTORY_ENVELOPE_UNVERIFIED";

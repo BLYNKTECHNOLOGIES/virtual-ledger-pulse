@@ -78,7 +78,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_salary_revisions")
-        .select("*, hr_employees!hr_salary_revisions_employee_id_fkey(first_name, last_name, badge_id)")
+        .select("*, hr_employees!hr_salary_revisions_employee_id_fkey(first_name, last_name, badge_id, is_active)")
         .neq("status", "NOOP")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -371,6 +371,32 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       toast.error("This entry has no CTC change — nothing to push to RazorpayX.");
       return;
     }
+    // Guard: an inactive HRMS record, or a RazorpayX mapping whose remote
+    // employee no longer exists, can never accept a push — RazorpayX answers
+    // "Unable to locate employee". Explain that instead of firing a doomed call.
+    {
+      const [{ data: emp }, { data: map }] = await Promise.all([
+        (supabase as any).from("hr_employees").select("is_active, first_name, last_name, badge_id").eq("id", employeeId).maybeSingle(),
+        (supabase as any).from("hr_razorpay_employee_map").select("razorpay_employee_id, last_pull_snapshot").eq("hr_employee_id", employeeId).maybeSingle(),
+      ]);
+      const notFoundRemotely = !!(map?.last_pull_snapshot as any)?.__not_found_in_razorpay;
+      if (emp && emp.is_active === false) {
+        toast.error("This HRMS record is inactive — RazorpayX cannot be updated.", {
+          description: `${emp.first_name || ""} ${emp.last_name || ""} (${emp.badge_id || "—"}) is not an active employee. If this is a duplicate record, resolve it in Data Health; the live record must carry the revision.`,
+        });
+        return;
+      }
+      if (!map?.razorpay_employee_id) {
+        toast.error("Employee is not linked to RazorpayX — link them from Data Health first.");
+        return;
+      }
+      if (notFoundRemotely) {
+        toast.error("Stale RazorpayX link — that employee no longer exists there.", {
+          description: `HRMS points at RazorpayX ID ${map.razorpay_employee_id}, which RazorpayX cannot locate (deleted or merged). Re-link this employee in Data Health before pushing.`,
+        });
+        return;
+      }
+    }
     // Server-side truth check: never push a CTC that belongs to a payroll month
     // later than the one still being processed.
     const { data: win } = await (supabase as any).rpc("hr_revision_push_window", { p_revision_id: revisionId });
@@ -381,6 +407,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
       return;
     }
     setPushingIds(prev => new Set(prev).add(revisionId));
+
 
     try {
       const res = await pushSalaryToRazorpay(employeeId, {
@@ -719,6 +746,9 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   </span>
                   {r.hr_employees?.badge_id && (
                     <span className="text-[10px] text-muted-foreground shrink-0">#{r.hr_employees.badge_id}</span>
+                  )}
+                  {r.hr_employees?.is_active === false && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Inactive</span>
                   )}
                 </div>
 

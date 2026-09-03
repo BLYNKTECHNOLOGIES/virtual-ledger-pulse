@@ -470,7 +470,7 @@ export function HorillaSidebar({
                               "w-full text-left text-sm py-2 px-3 transition-colors",
                               isChildActive(child.path)
                                 ? "text-[#6C63FF] bg-[#6C63FF]/10"
-                                : "text-foreground/85 hover:text-white hover:bg-[#252540]"
+                                : "hrms-sidebar-item hover:text-white hover:bg-[#252540]"
                             )}
                           >
                             {child.label}

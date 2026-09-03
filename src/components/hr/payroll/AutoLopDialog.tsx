@@ -424,7 +424,7 @@ export function AutoLopDialog({
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">
                             <td />
-                            <td colSpan={17} className="p-3">
+                            <td colSpan={31} className="p-3">
                               <div className="grid gap-4 md:grid-cols-3 text-xs">
                                 <div>
                                   <p className="font-semibold mb-1">Leave consumed this month</p>

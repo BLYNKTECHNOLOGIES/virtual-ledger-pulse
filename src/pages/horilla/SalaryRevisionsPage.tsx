@@ -86,6 +86,20 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     },
   });
 
+  // Which payroll month is still being processed? RazorpayX CTC is a LIVE,
+  // whole-month attribute — pushing a revision that becomes effective in a
+  // later month than the month being processed would pay that earlier month at
+  // the new rate. So a future-month CTC revision is held back until its own
+  // payroll cycle is the open one.
+  const { data: openPayrollMonth } = useQuery({
+    queryKey: ["hr_open_payroll_month"],
+    queryFn: async () => {
+      const { data } = await (supabase as any).rpc("hr_open_payroll_month");
+      return (data as string | null) ?? null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
   // Envelope verification status — governs whether pushes to Razorpay can succeed.
   const { data: envelope } = useQuery({
     queryKey: ["hr_razorpay_settings_envelope"],
@@ -621,9 +635,36 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
 
 
+            // Held back: CTC effective in a month later than the payroll month
+            // still being processed (see openPayrollMonth above).
+            const effMonth = r.effective_from ? String(r.effective_from).slice(0, 7) : null;
+            const heldForLaterMonth =
+              !isOneTime && !isPayrollInput && !!openPayrollMonth && !!effMonth &&
+              effMonth > String(openPayrollMonth).slice(0, 7);
+            const heldLabel = heldForLaterMonth && effMonth
+              ? format(new Date(`${effMonth}-01T00:00:00Z`), "MMMM yyyy")
+              : "";
+
             const pushBtn =
               isPayrollInput || isRecordOnlyPayout ? null
-              : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
+              : heldForLaterMonth && isApplied && canManage && !pushSyncedAfterRevision ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled>
+                        <Clock className="h-3.5 w-3.5" />
+                        <span className="ml-1">Held</span>
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" className="max-w-xs text-xs">
+                    Effective {heldLabel}, but the {openPayrollMonth ? format(new Date(`${String(openPayrollMonth).slice(0,7)}-01T00:00:00Z`), "MMMM yyyy") : ""} payroll
+                    is still open. RazorpayX applies a CTC to the whole live month, so pushing this now would pay
+                    the open month at the new rate. It unlocks in the {heldLabel} payroll cycle — and needs no
+                    part-month adjustment then.
+                  </TooltipContent>
+                </Tooltip>
+              ) : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
                 <Button
                   size="sm" variant={pushFailedAfterRevision ? "default" : "outline"} className="h-7 px-2 text-xs"
                   onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}

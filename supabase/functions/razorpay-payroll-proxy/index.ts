@@ -119,47 +119,34 @@ async function opfinView(employeeId: number, employeeType = "employee") {
 
 // Fetch the current salary of a Razorpay employee.
 //
-// AUDIT (verified against the official RazorpayX Payroll Postman collection):
-// The API exposes NO read endpoint for the master annual CTC / salary structure.
-// Only these salary-adjacent sub-types exist:
-//   - people:set-salary        (WRITE annual-ctc or custom structure)
-//   - payroll:view-payroll     (READ per-month payroll line, keyed by email + payroll-month)
-//   - advance-salary:create    (WRITE advance)
+// VERIFIED LIVE 2026-09-04 IST (probe_salary_months, employee-id 21):
+//   payroll:view-payroll for the CURRENT month returns { salary: 10000 } → the
+//   live monthly gross of the salary structure (annual CTC / 12 = 1,20,000).
+//   Months BEFORE the employee existed in payroll return
+//   {"message":"Trying to access array offset on value of type null"}.
+//   The joining month returns a PRORATED figure (Aug = 4,839 for a mid-Aug
+//   joiner) and must therefore never be annualised.
 //
-// There is no people:view-salary, no salary-structure endpoint, no get-salary.
-// The dozen probe variants we previously tried all returned code:23 "Unknown
-// request type" — they simply do not exist in the tenant's API surface.
+// So CTC *is* readable. The previous "not exposed by API" conclusion was wrong:
+// the probe was gated to months of locally-recorded executed payroll runs
+// (only 2026-05 here), i.e. months in which later hires simply did not exist.
 //
-// The only documented way to READ salary numbers is `payroll:view-payroll`,
-// which returns { salary: <monthly_gross>, additions, deduction-amount, ... }
-// for a specific processed payroll month. We annualise monthly*12 (matches the
-// Postman description: "even if an employee joins mid-year, please set the
-// salary as their monthly_salary*12").
-//
-// If no processed payroll month exists for the employee, salary is NOT exposed
-// via the API and CTC must be entered manually in HRMS. We surface that
-// cleanly via ok:false + err: "not-exposed-by-api".
+// Candidate months, newest-first: current month → previous months, always
+// skipping the employee's joining month (prorated) and anything before it.
 async function opfinSalary(
   employeeId: number,
   email?: string | null,
   executedMonths?: string[] | null,
+  hireDate?: string | null,
 ): Promise<{
   ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
-  components: any[]; raw: any; http_status: number; err: string | null;
+  components: any[]; raw: any; http_status: number; err: string | null; source_month?: string;
 }> {
   const empty = { ok: false, annual_ctc: null, monthly_gross: null, components: [] as any[], raw: null as any, http_status: 0, err: null as string | null };
 
   if (!email || typeof email !== "string" || !email.includes("@")) {
     console.log(`[opfinSalary] emp=${employeeId} SKIP no-email (payroll:view-payroll requires email)`);
     return { ...empty, err: "not-exposed-by-api: payroll view requires employee email which is missing on snapshot" };
-  }
-
-  // GATE: only probe months where a RazorpayX payroll run has actually
-  // executed (bulk_applied/locked/recalled). Otherwise view-payroll returns
-  // CTC/12 setup defaults which would mis-populate CTC on the ERP profile.
-  if (!executedMonths || executedMonths.length === 0) {
-    console.log(`[opfinSalary] emp=${employeeId} SKIP no-executed-payroll-run`);
-    return { ...empty, err: "not-exposed-by-api: no executed RazorpayX payroll run available; view-payroll would return CTC/12 setup defaults" };
   }
 
   const readNum = (obj: any, keys: string[]): number | null => {
@@ -172,13 +159,28 @@ async function opfinSalary(
     return null;
   };
 
-  // Newest-first traversal of executed months only (already validated by caller).
-  const months = [...executedMonths].sort().reverse();
+  // Build newest-first candidate months.
+  const now = new Date();
+  const ymOf = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  const candidates: string[] = [];
+  for (let i = 0; i < 6; i++) {
+    candidates.push(ymOf(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))));
+  }
+  for (const m of (executedMonths ?? [])) if (!candidates.includes(m)) candidates.push(m);
+
+  // Skip the joining month (prorated) and everything before it.
+  const hireYm = hireDate && /^\d{4}-\d{2}/.test(String(hireDate)) ? String(hireDate).slice(0, 7) : null;
+  const months = candidates.filter((m) => (hireYm ? m > hireYm : true));
+  if (months.length === 0) {
+    return { ...empty, err: "not-exposed-by-api: no full (non-joining) payroll month available yet" };
+  }
 
   let lastStatus = 0;
   let lastRaw: any = null;
   let lastErr: string | null = null;
   const perAttempt: string[] = [];
+
+
 
   for (const ym of months) {
     const ctrl = new AbortController();

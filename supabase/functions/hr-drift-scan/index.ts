@@ -257,11 +257,23 @@ serve(async (req) => {
 
     const empIds = employees.map((e: any) => e.id);
 
-    const [workInfoRes, bankRes, salaryRes, rzpMapRes, esslRes] = await Promise.all([
+    const [workInfoRes, bankRes, salaryRes, onboardRes, rzpMapRes, esslRes] = await Promise.all([
       supa.from("hr_employee_work_info").select("*").in("employee_id", empIds),
       supa.from("hr_employee_bank_details").select("*").in("employee_id", empIds)
         .order("updated_at", { ascending: false }).order("created_at", { ascending: false }),
-      supa.from("hr_employee_salary_structures").select("*").in("employee_id", empIds).order("effective_from", { ascending: false }),
+      // ROOT CAUSE (2026-09-03): the CTC comparison read
+      // hr_employee_salary_structures.annual_ctc / gross_annual — columns that
+      // do not exist on that table (it is a per-component table). The HRMS side
+      // was therefore ALWAYS null and the annual_ctc check could never fire, so
+      // employees carrying ₹0 in RazorpayX never raised an alert. The authoritative
+      // HRMS CTC lives on the structure ASSIGNMENT, with onboarding CTC as fallback.
+      supa.from("hr_employee_salary_structure_assignments")
+        .select("employee_id, annual_ctc, created_at").in("employee_id", empIds)
+        .order("created_at", { ascending: false }),
+      supa.from("hr_employee_onboarding")
+        .select("employee_id, ctc, created_at").in("employee_id", empIds)
+        .order("created_at", { ascending: false }),
+
       supa.from("hr_razorpay_employee_map").select("hr_employee_id, razorpay_employee_id, last_pull_snapshot, last_pulled_at").in("hr_employee_id", empIds),
       supa.from("hr_biometric_device_users").select("id, name, pin, department, title, enabled"),
     ]);

@@ -411,6 +411,9 @@ export function AutoLopDialog({
         )}
 
         <DialogFooter className="gap-2 sm:gap-2">
+          <Button variant="outline" onClick={exportCsv} disabled={!rows?.length}>
+            <Download className="h-4 w-4 mr-1.5" /> Export breakdown CSV
+          </Button>
           <Button variant="outline" onClick={() => preview.mutate()} disabled={preview.isPending || stage.isPending}>
             <RefreshCw className={`h-4 w-4 mr-1.5 ${preview.isPending ? "animate-spin" : ""}`} /> Recalculate
           </Button>

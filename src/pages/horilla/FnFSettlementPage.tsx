@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Calculator, Plus, IndianRupee, AlertTriangle, Trash2 } from "lucide-react";
@@ -15,10 +14,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
-import { EmployeePicker } from "@/components/hrms/EmployeePicker";
-import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
+import { SourceTag } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
-import { computeFnFDraft, buildFnFPayload, fnfNetPayable, syncFnFDepositReservations, sumRefunds, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { syncFnFDepositReservations, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { finalizeSeparation } from "@/lib/finalizeSeparation";
 
 
@@ -33,36 +32,6 @@ export default function FnFSettlementPage() {
   // editing the existing (still-editable) settlement of that employee.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
-  const [selectedEmpId, setSelectedEmpId] = useState("");
-  const [form, setForm] = useState({
-    last_working_day: "",
-    payroll_month: "",
-    pending_salary: 0,
-    leave_encashment_days: 0,
-    leave_encashment_amount: 0,
-    bonus_amount: 0,
-    gratuity_amount: 0,
-    notice_pay_recovery: 0,
-    loan_recovery: 0,
-    deposit_refund: 0,
-    penalty_deductions: 0,
-    other_deductions: 0,
-    other_deductions_notes: "",
-    notes: "",
-  });
-  // Provenance of the final-month salary figure — RazorpayX is the payroll authority.
-  const [finalMonth, setFinalMonth] = useState<{
-    state: "idle" | "loading" | "razorpay" | "awaiting";
-    periodMonth?: string;
-    source?: "razorpay" | "register_csv";
-  }>({ state: "idle" });
-  const [calcNote, setCalcNote] = useState<string>("");
-  // Source records behind each auto-filled figure (shown as expandable detail
-  // and written into breakdown.source_ids so the settlement stays auditable).
-  const [details, setDetails] = useState<{
-    loans: any[]; penalties: any[]; deposits: DepositDecision[]; writtenOff: any[];
-  }>({ loans: [], penalties: [], deposits: [], writtenOff: [] });
-  const [openDetail, setOpenDetail] = useState<string | null>(null);
 
 
 
@@ -98,164 +67,20 @@ export default function FnFSettlementPage() {
     settlements.filter((s: any) => s.status !== "cancelled").map((s: any) => s.employee_id)
   );
   const selectableEmployees = separatedEmployees.filter(
-    (e: any) => !settledEmployeeIds.has(e.id) || e.id === selectedEmpId
+    (e: any) => !settledEmployeeIds.has(e.id)
   );
   const allSettled = separatedEmployees.length > 0 && selectableEmployees.length === 0 && !editingId;
   const EDITABLE_STATUSES = ["draft", "calculated"];
 
-  // Payroll doctrine: RazorpayX is the payroll authority.
-  //  • Pending (final-month) salary  → mirrored RazorpayX payslip record for the LWD month.
-  //                                     Never computed locally. Missing ⇒ "awaiting RazorpayX".
-  //  • Leave encashment / gratuity   → NOT payable per company policy. Removed.
-  //  • Penalties                     → stored in DAYS, priced at the payroll one-day rate.
-  //  • Deposits / error recoveries   → one editable refund/withhold decision each; nothing
-  //                                     is ever written off silently.
-  const autoFillFnF = async (empId: string) => {
-    setSelectedEmpId(empId);
-    const emp = separatedEmployees.find((e: any) => e.id === empId);
-    if (!emp) return;
-    setFinalMonth({ state: "loading" });
-
-    const draft = await computeFnFDraft(empId, emp.last_working_day || null);
-    setFinalMonth(draft.finalMonth);
-    setDetails(draft.details);
-    setCalcNote(draft.calcNote);
-    setForm(draft.form);
-  };
-
-  const netPayable = fnfNetPayable(form as any);
-
-  /** Edit one deposit decision line and keep the refund total in lockstep. */
-  const setDecision = (id: string, patch: Partial<DepositDecision>) => {
-    setDetails((prev) => {
-      const deposits = prev.deposits.map((d) => (d.deposit_id === id ? { ...d, ...patch } : d));
-      setForm((f) => ({ ...f, deposit_refund: sumRefunds(deposits) }));
-      return { ...prev, deposits };
-    });
-  };
-
-
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      const missing = missingDecisionReasons(details.deposits);
-      if (missing.length > 0) {
-        throw new Error(
-          `Write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
-        );
-      }
-      const payload = buildFnFPayload(selectedEmpId, form as any, details, calcNote, finalMonth as any);
-
-
-      if (editingId) {
-        const { error } = await (supabase as any)
-          .from("hr_fnf_settlements")
-          .update({ ...payload, updated_at: new Date().toISOString() })
-          .eq("id", editingId);
-        if (error) throw error;
-        await syncFnFDepositReservations(editingId);
-        return;
-      }
-
-      const { data: created, error } = await (supabase as any)
-        .from("hr_fnf_settlements")
-        .insert(payload)
-        .select("id")
-        .single();
-      if (error) {
-        // Backed by the partial unique index — one live settlement per employee.
-        if ((error as any).code === "23505") {
-          throw new Error("This employee already has an F&F settlement. Edit the existing one instead.");
-        }
-        throw error;
-      }
-      await syncFnFDepositReservations(created.id);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
-      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
-      setShowCreate(false);
-      toast.success(editingId ? "F&F Settlement updated" : "F&F Settlement created");
-      setEditingId(null);
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  const resetForm = () => {
-    setSelectedEmpId("");
-    setDetails({ loans: [], penalties: [], deposits: [], writtenOff: [] });
-    setCalcNote("");
-    setFinalMonth({ state: "idle" });
-    setForm({
-      last_working_day: "", payroll_month: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
-      bonus_amount: 0, gratuity_amount: 0, notice_pay_recovery: 0, loan_recovery: 0, deposit_refund: 0,
-      penalty_deductions: 0, other_deductions: 0, other_deductions_notes: "", notes: "",
-    });
-  };
-
+  // The create/edit form lives in the shared FnFSettlementDialog — the same
+  // dialog is opened from the exit checklist on the Separation page.
   const openCreate = () => {
     setEditingId(null);
-    resetForm();
     setShowCreate(true);
   };
 
   const openEdit = (s: any) => {
     setEditingId(s.id);
-    setSelectedEmpId(s.employee_id);
-    const b = s.breakdown || {};
-    const c = b.components || {};
-    // Per-deposit decisions are authoritative. Legacy settlements (refunded +
-    // written-off lists) are migrated into the same editable shape on open.
-    const legacyDecisions: DepositDecision[] = [
-      ...(c.deposits || []).map((d: any) => ({
-        deposit_id: d.id, deposit_type: (d.type || "security"), held: Number(d.collected || 0),
-        refund: Number(d.refund ?? d.collected ?? 0), reason: "",
-        label: d.type === "error_recovery" ? "Error recovery" : "Security deposit", is_paused: false,
-      })),
-      ...(b.written_off_deposits || []).map((d: any) => ({
-        deposit_id: d.id, deposit_type: (d.deposit_type || "security"), held: Number(d.collected_amount || 0),
-        refund: 0, reason: d.reason || "Written off in legacy settlement",
-        label: d.deposit_type === "error_recovery" ? "Error recovery" : "Security deposit", is_paused: d.reason === "paused",
-      })),
-    ];
-    setDetails({
-      loans: (c.loans || []).map((l: any) => ({ id: l.id, loan_type: l.type, outstanding_balance: l.outstanding })),
-      penalties: (c.penalties || []).map((p: any) => ({
-        id: p.id, penalty_month: p.month, penalty_type: p.type,
-        penalty_amount: p.amount, days: Number(p.days || 0), day_rate: Number(p.day_rate || 0),
-        amount: Number(p.amount || 0), note: p.note || "",
-      })),
-      deposits: Array.isArray(b.deposit_decisions) && b.deposit_decisions.length
-        ? b.deposit_decisions.map((d: any) => ({
-            deposit_id: d.deposit_id, deposit_type: d.deposit_type || "security",
-            held: Number(d.held || 0), refund: Number(d.refund || 0),
-            reason: d.reason || "", label: d.label || (d.deposit_type === "error_recovery" ? "Error recovery" : "Security deposit"),
-            is_paused: false,
-          }))
-        : legacyDecisions,
-      writtenOff: [],
-    });
-    setCalcNote(b.calc_note || "");
-    setFinalMonth(
-      ["razorpay", "register_csv"].includes(b.pending_salary_source)
-        ? { state: "razorpay", source: b.pending_salary_source, periodMonth: b.razorpay_period_month || undefined }
-        : { state: "awaiting", periodMonth: b.razorpay_period_month || undefined }
-    );
-    setForm({
-      last_working_day: s.last_working_day || "",
-      payroll_month: (s.payroll_month || s.last_working_day || "").slice(0, 7),
-      pending_salary: Number(s.pending_salary || 0),
-      leave_encashment_days: Number(s.leave_encashment_days || 0),
-      leave_encashment_amount: Number(s.leave_encashment_amount || 0),
-      bonus_amount: Number(s.bonus_amount || 0),
-      gratuity_amount: 0,
-      notice_pay_recovery: Number(b.notice_pay_recovery || 0),
-      loan_recovery: Number(s.loan_recovery || 0),
-      deposit_refund: Number(s.deposit_refund || 0),
-      penalty_deductions: Number(s.penalty_deductions || 0),
-      other_deductions: Number(s.other_deductions || 0),
-      other_deductions_notes: s.other_deductions_notes || "",
-      notes: s.notes || "",
-    });
     setShowCreate(true);
   };
 
@@ -621,209 +446,12 @@ export default function FnFSettlementPage() {
         </div>
       )}
 
-      <Dialog open={showCreate} onOpenChange={(o) => { setShowCreate(o); if (!o) { setEditingId(null); } }}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-sm font-semibold">
-              <Calculator className="h-4 w-4" /> {editingId ? "Edit F&F Settlement" : "New F&F Settlement"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Employee</Label>
-              <EmployeePicker
-                className="mt-1"
-                placeholder={selectableEmployees.length ? "Select separated employee" : "All separated employees already settled"}
-                employees={selectableEmployees}
-                value={selectedEmpId}
-                onChange={editingId ? () => {} : autoFillFnF}
-                disabled={!!editingId}
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                {editingId
-                  ? "One settlement per employee — the employee cannot be changed on an existing settlement."
-                  : "Employees with an existing settlement are not listed; edit their settlement from the list instead."}
-              </p>
-            </div>
-            <div><Label>Last Working Day</Label><Input className="h-9 mt-1" type="date" value={form.last_working_day} onChange={(e) => setForm({ ...form, last_working_day: e.target.value, payroll_month: form.payroll_month || (e.target.value || "").slice(0, 7) })} /></div>
-
-            <div>
-              <Label>Payroll cycle month</Label>
-              <Input
-                className="h-9 mt-1"
-                type="month"
-                value={form.payroll_month}
-                onChange={(e) => setForm({ ...form, payroll_month: e.target.value })}
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">
-                The monthly payroll run this settlement is added to. Its dues and recoveries appear in the
-                Monthly Payroll Cockpit → Additions / Deductions for this month, grouped under “F&amp;F settlement”.
-                Defaults to the last working day's month.
-              </p>
-            </div>
-
-
-            <div className="rounded-md border border-border p-3 space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Final-Month Salary (₹)</Label>
-                {finalMonth.state === "razorpay" && finalMonth.source && <SourceTag source={finalMonth.source} />}
-              </div>
-              <Input className="h-9" type="number" readOnly value={form.pending_salary} />
-              {finalMonth.state === "awaiting" && (
-                <p className="text-[11px] text-destructive inline-flex items-center gap-1">
-                  <AlertTriangle className="h-3 w-3" />
-                  No RazorpayX payslip mirrored for {finalMonth.periodMonth?.slice(0, 7) || "the final month"} yet — run that month's payroll in RazorpayX and pull it back before paying this settlement.
-                </p>
-              )}
-              <DashboardLink />
-              <p className="text-[11px] text-muted-foreground">
-                Leave encashment and gratuity are not payable under current company policy and are excluded.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>Bonus (₹)</Label><Input className="h-9 mt-1" type="number" value={form.bonus_amount} onChange={(e) => setForm({ ...form, bonus_amount: Number(e.target.value) })} /></div>
-              <div><Label>Notice Pay Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.notice_pay_recovery} onChange={(e) => setForm({ ...form, notice_pay_recovery: Number(e.target.value) })} /></div>
-              <div><Label>Loan Recovery (₹)</Label><Input className="h-9 mt-1" type="number" value={form.loan_recovery} onChange={(e) => setForm({ ...form, loan_recovery: Number(e.target.value) })} /></div>
-              <div>
-                <Label>Deposit / Recovery Refund (₹)</Label>
-                <Input className="h-9 mt-1" type="number" readOnly value={form.deposit_refund} />
-                <p className="text-[10px] text-muted-foreground mt-0.5">Sum of the decisions below.</p>
-              </div>
-              <div><Label>Penalty Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.penalty_deductions} onChange={(e) => setForm({ ...form, penalty_deductions: Number(e.target.value) })} /></div>
-              <div><Label>Other Ded. (₹)</Label><Input className="h-9 mt-1" type="number" value={form.other_deductions} onChange={(e) => setForm({ ...form, other_deductions: Number(e.target.value) })} /></div>
-            </div>
-
-            {/* Every auto-filled recovery/refund traces back to live HRMS records. */}
-            {selectedEmpId && (
-              <div className="rounded-md border border-border divide-y divide-border text-xs">
-                {[
-                  { key: "loans", label: "Loans & advances recovered", rows: details.loans, amount: (r: any) => Number(r.outstanding_balance || 0), title: (r: any) => `${r.loan_type || "loan"} — outstanding`, note: () => "" },
-                  { key: "penalties", label: "Penalties applied", rows: details.penalties, amount: (r: any) => Number(r.amount || 0), title: (r: any) => `${r.penalty_month || ""} ${r.penalty_type === "days" ? `${r.days} day penalty` : r.penalty_type || "penalty"}`.trim(), note: (r: any) => r.note || "" },
-                ].map((sec) => (
-                  <div key={sec.key}>
-                    <button
-                      type="button"
-                      className="w-full flex items-center justify-between px-2 py-1.5 text-left"
-                      onClick={() => setOpenDetail(openDetail === sec.key ? null : sec.key)}
-                    >
-                      <span className="text-muted-foreground">{sec.label} ({sec.rows.length})</span>
-                      <span className="tabular-nums font-medium">
-                        ₹{sec.rows.reduce((s: number, r: any) => s + sec.amount(r), 0).toLocaleString("en-IN")}
-                      </span>
-                    </button>
-                    {openDetail === sec.key && (
-                      sec.rows.length ? (
-                        <ul className="px-3 pb-2 space-y-1">
-                          {sec.rows.map((r: any) => (
-                            <li key={r.id} className="flex items-start justify-between gap-2 text-[11px] text-muted-foreground">
-                              <span>
-                                {sec.title(r)} <span className="opacity-60">· {String(r.id).slice(0, 8)}</span>
-                                {sec.note(r) && <span className="block opacity-70">{sec.note(r)}</span>}
-                              </span>
-                              <span className="tabular-nums">₹{sec.amount(r).toLocaleString("en-IN")}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="px-3 pb-2 text-[11px] text-muted-foreground">Nothing outstanding.</p>
-                      )
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Deposits & error recoveries — one explicit decision per record.
-                Nothing is written off silently; keeping money always needs a reason. */}
-            {selectedEmpId && (
-              <div className="rounded-md border border-border p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs">Deposits & error recoveries held ({details.deposits.length})</Label>
-                  <span className="text-[11px] text-muted-foreground tabular-nums">
-                    Paying back ₹{Number(form.deposit_refund || 0).toLocaleString("en-IN")}
-                  </span>
-                </div>
-                {details.deposits.length === 0 && (
-                  <p className="text-[11px] text-muted-foreground">No money is held for this employee.</p>
-                )}
-                {details.deposits.map((d) => {
-                  const withheld = Math.round((Number(d.held || 0) - Number(d.refund || 0)) * 100) / 100;
-                  const needsReason = withheld > 0 && !String(d.reason || "").trim();
-                  return (
-                    <div key={d.deposit_id} className="rounded border border-border/70 p-2 space-y-2">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-medium text-foreground">{d.label}</span>
-                        <span className="text-muted-foreground tabular-nums">Held ₹{d.held.toLocaleString("en-IN")}</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-[10px]">Pay back (₹)</Label>
-                          <Input
-                            className="h-8 mt-1 text-foreground"
-                            type="number"
-                            min={0}
-                            max={d.held}
-                            value={d.refund}
-                            onChange={(e) => {
-                              const v = Math.min(Math.max(Number(e.target.value) || 0, 0), d.held);
-                              setDecision(d.deposit_id, { refund: v });
-                            }}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Company keeps (₹)</Label>
-                          <Input className="h-8 mt-1" type="number" readOnly value={withheld} />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]"
-                          onClick={() => setDecision(d.deposit_id, { refund: d.held })}>Refund full</Button>
-                        <Button type="button" size="sm" variant="outline" className="h-7 text-[11px]"
-                          onClick={() => setDecision(d.deposit_id, { refund: 0 })}>Keep full</Button>
-                      </div>
-                      {withheld > 0 && (
-                        <div>
-                          <Label className="text-[10px]">Reason for keeping the money (required)</Label>
-                          <Input
-                            className={`h-8 mt-1 text-foreground ${needsReason ? "border-destructive" : ""}`}
-                            value={d.reason}
-                            placeholder="e.g. adjusted against the loss caused on order #1234"
-                            onChange={(e) => setDecision(d.deposit_id, { reason: e.target.value })}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <p className="text-[10px] text-muted-foreground">
-                  Saving reserves these records on the Deposit Management page. They are finally closed —
-                  paid back or withheld with your reason in the ledger — when the settlement is marked paid.
-                </p>
-              </div>
-            )}
-
-
-            {calcNote && <p className="text-[11px] text-muted-foreground bg-muted/40 rounded px-2 py-1.5">{calcNote}</p>}
-
-
-            <div><Label>Other Deductions Notes</Label><Input className="h-9 mt-1" value={form.other_deductions_notes} onChange={(e) => setForm({ ...form, other_deductions_notes: e.target.value })} /></div>
-            <div><Label>Notes</Label><Textarea className="mt-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-            <Card className="bg-muted/50">
-              <CardContent className="p-3 text-center">
-                <p className="text-xs text-muted-foreground">Net Payable</p>
-                <p className="text-2xl font-bold text-foreground tabular-nums">₹{netPayable.toLocaleString("en-IN")}</p>
-              </CardContent>
-            </Card>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" className="h-9" onClick={() => { setShowCreate(false); setEditingId(null); }}>Cancel</Button>
-            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => createMutation.mutate()} disabled={!selectedEmpId || !form.last_working_day || createMutation.isPending}>
-              {createMutation.isPending ? (editingId ? "Saving..." : "Creating...") : (editingId ? "Save Changes" : "Create Settlement")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FnFSettlementDialog
+        open={showCreate}
+        onOpenChange={(o) => { setShowCreate(o); if (!o) setEditingId(null); }}
+        employees={selectableEmployees}
+        settlement={editingId ? settlements.find((s: any) => s.id === editingId) ?? null : null}
+      />
 
       <Dialog open={!!payPrompt} onOpenChange={(o) => { if (!o) setPayPrompt(null); }}>
         <DialogContent className="max-w-md">

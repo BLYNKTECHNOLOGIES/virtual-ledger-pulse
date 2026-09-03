@@ -279,11 +279,16 @@ export function buildFnFPayload(
   calcNote: string,
   finalMonth: FnFFinalMonth,
 ) {
-  const { gratuity_amount, notice_pay_recovery, ...rest } = form;
+  const { gratuity_amount, notice_pay_recovery, payroll_month, ...rest } = form;
   const decisions = details.deposits || [];
   return {
     employee_id: empId,
     ...rest,
+    // Payroll cycle the F&F additions/deductions belong to. Falls back to the
+    // last-working-day month when the operator did not choose one.
+    payroll_month: payroll_month
+      ? `${String(payroll_month).slice(0, 7)}-01`
+      : (form.last_working_day ? `${String(form.last_working_day).slice(0, 7)}-01` : null),
     net_payable: fnfNetPayable(form),
     breakdown: {
       notice_pay_recovery,

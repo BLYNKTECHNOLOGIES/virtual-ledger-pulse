@@ -34,6 +34,7 @@ export default function FnFSettlementPage() {
   const [selectedEmpId, setSelectedEmpId] = useState("");
   const [form, setForm] = useState({
     last_working_day: "",
+    payroll_month: "",
     pending_salary: 0,
     leave_encashment_days: 0,
     leave_encashment_amount: 0,
@@ -183,7 +184,7 @@ export default function FnFSettlementPage() {
     setCalcNote("");
     setFinalMonth({ state: "idle" });
     setForm({
-      last_working_day: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
+      last_working_day: "", payroll_month: "", pending_salary: 0, leave_encashment_days: 0, leave_encashment_amount: 0,
       bonus_amount: 0, gratuity_amount: 0, notice_pay_recovery: 0, loan_recovery: 0, deposit_refund: 0,
       penalty_deductions: 0, other_deductions: 0, other_deductions_notes: "", notes: "",
     });
@@ -239,6 +240,7 @@ export default function FnFSettlementPage() {
     );
     setForm({
       last_working_day: s.last_working_day || "",
+      payroll_month: (s.payroll_month || s.last_working_day || "").slice(0, 7),
       pending_salary: Number(s.pending_salary || 0),
       leave_encashment_days: Number(s.leave_encashment_days || 0),
       leave_encashment_amount: Number(s.leave_encashment_amount || 0),

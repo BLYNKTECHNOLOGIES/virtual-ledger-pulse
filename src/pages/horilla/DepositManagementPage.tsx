@@ -22,7 +22,7 @@ import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type DepositType = "security" | "error_recovery";
-type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid";
+type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid" | "cancelled";
 type SubTab = Lifecycle | "all";
 
 const TYPE_LABEL: Record<DepositType, string> = {
@@ -35,6 +35,7 @@ const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: "collected", label: "Collected" },
   { key: "refunded", label: "Paid back" },
   { key: "exited_unpaid", label: "Exited — unpaid" },
+  { key: "cancelled", label: "Cancelled" },
   { key: "all", label: "All" },
 ];
 
@@ -43,6 +44,7 @@ const LIFECYCLE_BADGE: Record<Lifecycle, { label: string; cls: string }> = {
   collected: { label: "Collected — held", cls: "bg-success/10 text-success" },
   refunded: { label: "Paid back", cls: "bg-primary/10 text-primary" },
   exited_unpaid: { label: "Exited — unpaid", cls: "bg-destructive/10 text-destructive" },
+  cancelled: { label: "Cancelled — exited", cls: "bg-muted text-muted-foreground" },
 };
 
 /** Single source of truth for which bucket a deposit belongs to. */
@@ -50,7 +52,8 @@ function lifecycleOf(d: any): Lifecycle {
   if (["refunded", "withheld", "partial"].includes(d.refund_status) || d.is_recovered || d.is_settled) return "refunded";
   const employeeActive = d.hr_employees?.is_active !== false;
   const held = Number(d.collected_amount || 0) > 0;
-  if (!employeeActive && held) return "exited_unpaid";
+  // An exited employee can never be "collecting" — nothing more can be deducted.
+  if (!employeeActive) return held ? "exited_unpaid" : "cancelled";
   if (d.is_fully_collected) return "collected";
   return "active";
 }
@@ -115,7 +118,7 @@ export default function DepositManagementPage() {
   );
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { active: 0, collected: 0, refunded: 0, exited_unpaid: 0, all: typeDeposits.length };
+    const c: Record<string, number> = { active: 0, collected: 0, refunded: 0, exited_unpaid: 0, cancelled: 0, all: typeDeposits.length };
     typeDeposits.forEach((d: any) => { c[lifecycleOf(d)] += 1; });
     return c;
   }, [typeDeposits]);

@@ -320,7 +320,9 @@ export default function FnFSettlementPage() {
         }
       }
 
-      // Auto-deactivate employee when F&F is paid + surface Razorpay dismiss prompt
+      // Paid = the F&F money is verified on the payroll run. This is the ONLY
+      // moment the separation is finalised (ERP login off, biometrics removed,
+      // employee deactivated) and the RazorpayX dismissal is offered.
       if (status === "paid") {
         // Close every source record the settlement recovered/refunded.
         const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: id });
@@ -328,22 +330,21 @@ export default function FnFSettlementPage() {
 
         const { data: settlement } = await (supabase as any)
           .from("hr_fnf_settlements")
-          .select("employee_id, last_working_day, hr_employees!hr_fnf_settlements_employee_id_fkey(first_name, last_name)")
+          .select("employee_id, last_working_day")
           .eq("id", id)
           .single();
         if (settlement?.employee_id) {
-          await (supabase as any)
-            .from("hr_employees")
-            .update({ is_active: false, updated_at: new Date().toISOString() })
-            .eq("id", settlement.employee_id);
+          const fin = await finalizeSeparation(settlement.employee_id);
           return {
             settledId: id,
             employee_id: settlement.employee_id,
-            name: `${settlement.hr_employees?.first_name ?? ""} ${settlement.hr_employees?.last_name ?? ""}`.trim() || "employee",
-            lwd: settlement.last_working_day || new Date().toISOString().slice(0, 10),
+            name: fin.name,
+            lwd: settlement.last_working_day || fin.lwd || new Date().toISOString().slice(0, 10),
+            erp: fin.erp,
           };
         }
       }
+
       return null;
     },
 

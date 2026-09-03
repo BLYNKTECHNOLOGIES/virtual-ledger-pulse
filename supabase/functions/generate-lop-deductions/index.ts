@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
       const name = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || emp.badge_id || "—";
       const lop = lopByEmp.get(map.hr_employee_id);
       const existingAuto = autoByEmp.get(map.hr_employee_id);
+      const bd = breakdownByEmp.get(map.hr_employee_id);
 
       const pool = compoffPool.get(map.hr_employee_id) ?? { days_earned: 0, days_opening: 0, days_taken: 0, days_available: 0 };
       const rawLopDays = Number(lop?.lop_days ?? 0);

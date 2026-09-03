@@ -107,6 +107,34 @@ export function AutoLopDialog({
   const [rows, setRows] = useState<PreviewRow[] | null>(null);
   const [summary, setSummary] = useState<any>(null);
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  function exportCsv() {
+    const head = [
+      "Employee", "Badge", "Working days", "Present", "Half days", "Absent", "Held harmless", "Unverified",
+      "CL", "SL", "Comp-off leave", "Other paid leave", "Unpaid leave", "Worked on off/holiday",
+      "Raw LOP", "Comp-off set-off", "Proration days", "Charged LOP days",
+      "Monthly base", "LOP amount", "Status",
+    ];
+    const lines = [head.join(",")];
+    for (const r of rows ?? []) {
+      const s = leaveSlices(r);
+      lines.push([
+        `"${(r.name || "").replace(/"/g, "'")}"`, `"${r.badge_id ?? ""}"`,
+        num(r.working_days), num(r.present_days), num(r.half_days), num(r.absent_days),
+        num(r.held_harmless_days), num(r.unverified_days),
+        num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid), num(r.worked_off_days),
+        num(r.raw_lop_days), num(r.compoff_offset_days), num(r.proration_days), num(r.lop_days),
+        num(r.monthly_base), num(r.amount), STATUS_META[r.status]?.label ?? r.status,
+      ].join(","));
+    }
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `lop_breakdown_${period}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
 
   const stageable = useMemo(
     () => (rows ?? []).filter((r) => ["new", "changed", "unchanged"].includes(r.status)),

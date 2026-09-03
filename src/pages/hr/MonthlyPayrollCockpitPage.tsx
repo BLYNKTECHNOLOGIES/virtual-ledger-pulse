@@ -119,17 +119,48 @@ const DIAGNOSTIC_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
   { tool: "data_health", label: "Data Health", icon: Scale },
 ];
 
-function monthOptions(): { value: string; label: string }[] {
-  const opts: { value: string; label: string }[] = [];
+function generateRecentMonths(countBack: number, countForward: number): string[] {
+  const months: string[] = [];
   const now = new Date();
-  for (let i = -1; i <= 6; i++) {
+  for (let i = countForward; i >= -countBack; i--) {
     const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
-    opts.push({
-      value: firstOfMonth(d),
-      label: d.toLocaleString("en-IN", { month: "long", year: "numeric" }),
-    });
+    months.push(firstOfMonth(d));
   }
-  return opts;
+  return months;
+}
+
+function monthOptions(): { value: string; label: string }[] {
+  return generateRecentMonths(12, 3).map((m) => {
+    const d = new Date(m + "T00:00:00Z");
+    return {
+      value: m,
+      label: d.toLocaleString("en-IN", { month: "long", year: "numeric" }),
+    };
+  });
+}
+
+/** Find the most recent cycle month whose payroll close is not yet acknowledged.
+ *  Scans the current month first, then walks backwards so the user lands on the
+ *  latest unfinished payroll cycle by default. */
+function useLatestIncompleteCockpitMonth() {
+  return useQuery({
+    queryKey: ["hr_cockpit_latest_incomplete_month"],
+    queryFn: async () => {
+      const candidates = generateRecentMonths(12, 0); // current → previous 12 months
+      const results = await Promise.all(
+        candidates.map(async (m) => {
+          const { data, error } = await (supabase as any).rpc("hr_cockpit_month_state", { _month: m });
+          if (error) return { month: m, closed: false };
+          const steps = (data ?? []) as CockpitStep[];
+          const closeStep = steps.find((s) => s.step_key === "close_month");
+          return { month: m, closed: closeStep?.ack_status === "done" };
+        })
+      );
+      const latestIncomplete = candidates.find((_, idx) => !results[idx].closed);
+      return latestIncomplete ?? firstOfMonth(new Date());
+    },
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 /** System-side (live) state chip — what the data says. */

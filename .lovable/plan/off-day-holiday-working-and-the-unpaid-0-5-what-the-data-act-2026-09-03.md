@@ -13,11 +13,13 @@ All figures below are live reads from the database for August 2026 (checked 04 S
 
 Comp-off credits are granted by a trigger on `hr_attendance_daily`: status in (present / late / half_day) on a weekly-off or holiday inserts one credit day. Checked against your reading of the calendar:
 
-| Person | You said | Credits in DB |
-|---|---|---|
-| Meenu Raja (52) | 2 off days worked | 2 (23 Aug, 30 Aug) |
-| Naman Saxena (48) | 2 | 2 (09 Aug, 30 Aug) |
-| Monti Raja (50) | 3 | 5 rows — 3 Sunday credits + a `holiday` credit and a duplicate `manual` "Rakhi holiday comp" credit, both on 28 Aug |
+
+| Person            | You said          | Credits in DB                                                                                                       |
+| ----------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Meenu Raja (52)   | 2 off days worked | 2 (23 Aug, 30 Aug)                                                                                                  |
+| Naman Saxena (48) | 2                 | 2 (09 Aug, 30 Aug)                                                                                                  |
+| Monti Raja (50)   | 3                 | 5 rows — 3 Sunday credits + a `holiday` credit and a duplicate `manual` "Rakhi holiday comp" credit, both on 28 Aug |
+
 
 So the engine agrees with you; the extra rows come from a manual Rakhi top-up that overlaps the automatic holiday credit.
 
@@ -48,6 +50,6 @@ Nothing in LOP arithmetic, staging, pushing or proration changes.
 
 ## Questions before I start
 
-1. **Duplicate 28 Aug credits** (auto `holiday` + manual "Rakhi holiday comp" for Sabeel, Arjun, Ritesh, Monti, Subham): was the manual grant meant to be the only credit, or is a Rakhi day genuinely worth two? I would keep one per day per person unless you say otherwise.
-2. **Comp-off expiry.** Auto credits currently expire at month end and `hr_compoff_close_month` zeroes the pool when the month closes. If the 15 Aug credits are granted retroactively, should they stay usable in September, or be settled in the August payroll?
-3. **Satyam's 18 Aug half day** — re-book it against his available Casual Leave (removing 0.5 LOP, ₹312), or leave it unpaid because that is what was approved?
+1. **Duplicate 28 Aug credits** (auto `holiday` + manual "Rakhi holiday comp" for Sabeel, Arjun, Ritesh, Monti, Subham): was the manual grant meant to be the only credit, or is a Rakhi day genuinely worth two? I would keep one per day per person unless you say [otherwise.it](http://otherwise.it) is intentional
+2. **Comp-off expiry.** Auto credits currently expire at month end and `hr_compoff_close_month` zeroes the pool when the month closes. If the 15 Aug credits are granted retroactively, should they stay usable in September, or be settled in the August payroll?august payroll
+3. **Satyam's 18 Aug half day** — re-book it against his available Casual Leave (removing 0.5 LOP, ₹312), or leave it unpaid because that is what was approved?book it against cl balance

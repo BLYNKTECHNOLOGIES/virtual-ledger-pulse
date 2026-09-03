@@ -17,17 +17,26 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
-export default function AttendancePeriodLockPage() {
+export default function AttendancePeriodLockPage({ month }: { month?: string }) {
   const qc = useQueryClient();
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
+  // When opened from the payroll cockpit, `month` (YYYY-MM-DD, first of month)
+  // pre-selects that exact payroll period so the operator locks the right month.
+  const cockpitStart = month ? month.slice(0, 10) : null;
+  const cockpitEnd = cockpitStart
+    ? format(new Date(new Date(cockpitStart + 'T00:00:00Z').getUTCFullYear(), new Date(cockpitStart + 'T00:00:00Z').getUTCMonth() + 1, 0), 'yyyy-MM-dd')
+    : null;
+  const cockpitLabel = cockpitStart
+    ? new Date(cockpitStart + 'T00:00:00Z').toLocaleString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : null;
   const [open, setOpen] = useState(false);
   const [unlockLock, setUnlockLock] = useState<any | null>(null);
   const [unlockReason, setUnlockReason] = useState("");
   const [form, setForm] = useState({
-    period_start: format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
-    period_end: format(new Date(y, m, 0), 'yyyy-MM-dd'),
+    period_start: cockpitStart ?? format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
+    period_end: cockpitEnd ?? format(new Date(y, m, 0), 'yyyy-MM-dd'),
     notes: '',
   });
 

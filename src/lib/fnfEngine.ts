@@ -150,7 +150,7 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
       .in("status", ["approved", "active", "paused"]),
     (supabase as any)
       .from("hr_penalties")
-      .select("id, penalty_month, penalty_type, penalty_reason, penalty_amount")
+      .select("id, penalty_month, penalty_type, penalty_reason, penalty_amount, penalty_days")
       .eq("employee_id", empId)
       .eq("is_applied", false),
     (supabase as any)

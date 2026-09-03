@@ -681,6 +681,17 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 {/* Status + action */}
                 <div className="flex items-center gap-2 md:justify-end">
                   {syncBadge}
+                  {adj && (
+                    <Link to="/hrms/payroll-inputs">
+                      <StatusPill
+                        tone={adj.kind === "deduction" ? "warn" : "info"}
+                        icon={adj.kind === "deduction" ? TrendingDown : TrendingUp}
+                        label={`${adj.kind === "deduction" ? "−" : "+"}${money(adj.amount)} · ${adj.period ? format(new Date(adj.period), "MMM") : ""}`}
+                        detail={`Mid-month CTC correction: ${adj.kind === "deduction" ? "recovery" : "arrears"} of ${money(adj.amount)} staged in ${adj.period ? format(new Date(adj.period), "MMMM yyyy") : ""} payroll inputs${adj.pushed ? " · already pushed to RazorpayX" : " · push from Payroll Cockpit Step 5"}.`}
+                      />
+                    </Link>
+                  )}
+
                   {pushBtn}
                   {deleteBtn}
                 </div>

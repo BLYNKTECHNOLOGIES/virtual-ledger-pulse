@@ -28737,6 +28737,7 @@ export type Database = {
           profile_id: string
         }[]
       }
+      hr_assert_fnf_reasons: { Args: { p_breakdown: Json }; Returns: undefined }
       hr_assign_shift_schedule: {
         Args: {
           p_effective_from: string

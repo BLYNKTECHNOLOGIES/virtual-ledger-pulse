@@ -87,7 +87,32 @@ export function AccountStatusTab() {
     },
   });
 
+  // POS / payment-gateway terminals (Indus POS, Paytm POS, Mswipe, …) with the
+  // bank account each one settles into — active and inactive alike.
+  const { data: posTerminals } = useQuery({
+    queryKey: ['compliance_pos_terminals'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('sales_payment_methods')
+        .select('id, type, upi_id, is_active, risk_category, settlement_cycle, payment_limit, bank_account_id, bank_accounts(bank_name, account_name, status, account_status)')
+        .eq('payment_gateway', true)
+        .order('upi_id');
+      if (error) throw error;
+      return data as any[];
+    },
+  });
+
+  const posLabel = (t: any) => {
+    const handle = String(t.upi_id || '');
+    const suffix = handle.split('@')[1]?.toLowerCase() || '';
+    if (suffix.includes('indus')) return 'IndusInd POS';
+    if (suffix.includes('pty') || suffix.includes('paytm')) return 'Paytm POS';
+    if (suffix.includes('mswipe')) return 'Mswipe POS';
+    return `${t.type || 'POS'} Terminal`;
+  };
+
   const { data: completedInvestigations } = useQuery({
+
     queryKey: ['completed_investigations'],
     queryFn: async () => {
       const { data, error } = await supabase

@@ -271,7 +271,7 @@ serve(async (req) => {
   try {
     let empQuery: any = supa
       .from("hr_employees")
-      .select("id, first_name, last_name, email, phone, dob, gender, pan_number, badge_id, is_active");
+      .select("id, first_name, last_name, email, phone, dob, gender, pan_number, badge_id, is_active, total_salary");
     if (employeeIdFilter) empQuery = empQuery.eq("id", employeeIdFilter);
     const { data: employees, error: empErr } = await empQuery;
     if (empErr) throw empErr;
@@ -325,9 +325,40 @@ serve(async (req) => {
     }
     const bankByEmp = new Map<string, any>();
     for (const b of bankRes.data ?? []) if (!bankByEmp.has(b.employee_id)) bankByEmp.set(b.employee_id, b);
-    // HRMS CTC: latest structure assignment wins, onboarding CTC is the fallback
-    // (used until a structure assignment is created/pushed).
+    // HRMS CTC authority order (ROOT CAUSE fix, 04 Sep 2026 IST):
+    //   1. Latest APPLIED salary revision effective on/before today
+    //      (`hr_salary_revisions.new_total`) — this is what the Salary Revisions
+    //      page shows and what was pushed to RazorpayX.
+    //   2. `hr_employees.total_salary` — kept in step with applied revisions by
+    //      the apply RPC.
+    //   3. Latest structure ASSIGNMENT annual_ctc.
+    //   4. Onboarding CTC (only until any of the above exists).
+    // Previously the scan started at (3)/(4), so every employee who received an
+    // increment after onboarding was compared using their STALE onboarding CTC
+    // and raised a phantom "HRMS 120000 vs Razorpay 180000" drift even though
+    // both systems already agreed.
     const salaryByEmp = new Map<string, any>();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const { data: revRows } = await supa
+      .from("hr_salary_revisions")
+      .select("employee_id, new_total, effective_from, status")
+      .in("employee_id", empIds)
+      .eq("status", "APPLIED")
+      .not("new_total", "is", null)
+      .lte("effective_from", todayStr)
+      .order("effective_from", { ascending: false });
+    for (const r of revRows ?? []) {
+      if (r.new_total == null || Number(r.new_total) <= 0) continue;
+      if (!salaryByEmp.has(r.employee_id)) {
+        salaryByEmp.set(r.employee_id, { annual_ctc: r.new_total, ctc_source: "applied_revision" });
+      }
+    }
+    for (const e of employees as any[]) {
+      if (e.total_salary == null || Number(e.total_salary) <= 0) continue;
+      if (!salaryByEmp.has(e.id)) {
+        salaryByEmp.set(e.id, { annual_ctc: e.total_salary, ctc_source: "employee_master" });
+      }
+    }
     for (const s of salaryRes.data ?? []) {
       if (s.annual_ctc == null) continue;
       if (!salaryByEmp.has(s.employee_id)) {

@@ -16,6 +16,7 @@
 - 2026-08-02: Data Health lifecycle cleanup shipped — live RazorpayX inactive/dismissed state now auto-closes stale employment/dismissal push-failure bundles; only Active / dismissed remains when HRMS is still active.
 - 2026-08-02: RazorpayX designation push root cause fixed — Data Health used linked positions.title while push/read-back verification used legacy work_info.job_role, producing false green verification without changing the displayed designation; all paths now use position title first and legacy role only as fallback.
 # STATE LOG
+- 2026-09-03 17:15 IST: HRMS sidebar text contrast improved — replaced low-opacity `text-foreground/55|75|85` tints with dedicated high-contrast classes (`hrms-sidebar-label`, `hrms-sidebar-item`, `hrms-sidebar-child`) and a CSS block that sets the rail surface to `hsl(228 28% 12%)` with near-white item text (`hsl(220 14% 92%)`) and brighter muted labels (`hsl(220 12% 68%)`). Active brand-purple state preserved; hover/focus states lighten the background and switch text to white. Typecheck and build passed.
 
 Living cross-agent log. **Newest entry at top.** One dated line per event. Prune entries older than 30 days.
 

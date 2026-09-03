@@ -38,10 +38,11 @@
    {
      value: "hr_people_development",
      label: "HR & People Development",
-     subCategories: [
-       { value: "employee_engagement", label: "Employee engagement activities" },
-       { value: "cafeteria_expenses", label: "Cafeteria expenses" },
-     ],
+      subCategories: [
+        { value: "employee_engagement", label: "Employee engagement activities" },
+        { value: "cafeteria_expenses", label: "Cafeteria expenses" },
+        { value: "job_hiring_expenses", label: "Job & hiring related expenses" },
+      ],
    },
    {
      value: "finance_banking_compliance",

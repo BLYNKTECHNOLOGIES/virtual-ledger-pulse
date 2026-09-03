@@ -267,7 +267,7 @@ export default function FnFSettlementPage() {
       // Money kept at exit must carry a written reason before the settlement moves forward.
       if (status === "approved" || status === "paid") {
         const { data: row } = await (supabase as any)
-          .from("hr_fnf_settlements").select("breakdown").eq("id", id).maybeSingle();
+          .from("hr_fnf_settlements").select("breakdown, razorpay_push_status").eq("id", id).maybeSingle();
         const decisions: DepositDecision[] = (row?.breakdown?.deposit_decisions || []).map((d: any) => ({
           deposit_id: d.deposit_id, deposit_type: d.deposit_type || "security",
           held: Number(d.held || 0), refund: Number(d.refund || 0), reason: d.reason || "",
@@ -279,7 +279,15 @@ export default function FnFSettlementPage() {
             `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
           );
         }
+        // Marking paid also completes the separation, so the payroll lines must be
+        // verified on the live RazorpayX run first.
+        if (status === "paid" && !["pushed", "nothing_to_push"].includes(String(row?.razorpay_push_status || ""))) {
+          throw new Error(
+            "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
+          );
+        }
       }
+
       const payload: any = { status, updated_at: new Date().toISOString() };
 
       if (status === "approved") payload.approved_by = user?.username || user?.id || "hr";

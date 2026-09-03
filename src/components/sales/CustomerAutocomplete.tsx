@@ -59,6 +59,33 @@ export function CustomerAutocomplete({
     },
   });
 
+  // Targeted server-side search. The cached full list can be large and slow to
+  // refresh; this guarantees an existing client (however old) is always found
+  // by name / phone / PAN even if the cached list is stale or truncated.
+  const { data: serverMatches } = useQuery({
+    queryKey: ['clients-server-search', debouncedValue.trim().toLowerCase()],
+    enabled: debouncedValue.trim().length >= 2,
+    queryFn: async () => {
+      const term = debouncedValue.trim().replace(/[%,()]/g, ' ').trim();
+      if (!term) return [];
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .or(`name.ilike.%${term}%,phone.ilike.%${term}%,pan_card_number.ilike.%${term}%`)
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // All known clients = cached full list + live server matches (de-duped)
+  const knownClients = useMemo(() => {
+    const map = new Map<string, any>();
+    (clients || []).forEach((c: any) => map.set(c.id, c));
+    (serverMatches || []).forEach((c: any) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [clients, serverMatches]);
+
   // Pending onboarding approvals — these are counterparties that have
   // transacted but do NOT yet exist in the clients table. Surfacing them here
   // prevents operators from creating duplicate clients for someone who is

@@ -110,7 +110,7 @@ export function CockpitToolSheet({
                 return <C month={month} />;
               })()}
             </div>
-          ) : tool === "salary_revisions" ? (
+          ) : tool === "salary_revisions" || tool === "period_locks" ? (
             (() => {
               const C = entry.Component as unknown as React.ComponentType<{ month?: string }>;
               return <C month={month} />;

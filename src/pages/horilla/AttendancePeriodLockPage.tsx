@@ -17,17 +17,26 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { TableSkeleton } from '@/components/ui/skeleton';
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
-export default function AttendancePeriodLockPage() {
+export default function AttendancePeriodLockPage({ month }: { month?: string }) {
   const qc = useQueryClient();
   const now = new Date();
   const y = now.getFullYear();
   const m = now.getMonth();
+  // When opened from the payroll cockpit, `month` (YYYY-MM-DD, first of month)
+  // pre-selects that exact payroll period so the operator locks the right month.
+  const cockpitStart = month ? month.slice(0, 10) : null;
+  const cockpitEnd = cockpitStart
+    ? format(new Date(new Date(cockpitStart + 'T00:00:00Z').getUTCFullYear(), new Date(cockpitStart + 'T00:00:00Z').getUTCMonth() + 1, 0), 'yyyy-MM-dd')
+    : null;
+  const cockpitLabel = cockpitStart
+    ? new Date(cockpitStart + 'T00:00:00Z').toLocaleString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : null;
   const [open, setOpen] = useState(false);
   const [unlockLock, setUnlockLock] = useState<any | null>(null);
   const [unlockReason, setUnlockReason] = useState("");
   const [form, setForm] = useState({
-    period_start: format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
-    period_end: format(new Date(y, m, 0), 'yyyy-MM-dd'),
+    period_start: cockpitStart ?? format(new Date(y, m - 1, 1), 'yyyy-MM-dd'),
+    period_end: cockpitEnd ?? format(new Date(y, m, 0), 'yyyy-MM-dd'),
     notes: '',
   });
 
@@ -42,6 +51,11 @@ export default function AttendancePeriodLockPage() {
       return data || [];
     },
   });
+
+  // Is the cockpit's month already covered by a lock?
+  const cockpitLocked = !!cockpitStart && locks.some((l: any) =>
+    l.period_start <= cockpitStart && l.period_end >= (cockpitEnd ?? cockpitStart)
+  );
 
   const create = useMutation({
     mutationFn: async () => {
@@ -150,6 +164,32 @@ export default function AttendancePeriodLockPage() {
           </Button>
         }
       />
+
+      {/* Cockpit context: prompt to lock the payroll month being worked on */}
+      {cockpitStart && !isLoading && (
+        cockpitLocked ? (
+          <div className="flex items-center gap-2 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm">
+            <Lock className="h-4 w-4 text-success shrink-0" />
+            <span><span className="font-medium">{cockpitLabel}</span> is already locked — payroll can run for this period.</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+            <Lock className="h-4 w-4 text-warning shrink-0" />
+            <span className="flex-1 min-w-[200px]">
+              Cockpit period <span className="font-medium">{cockpitLabel}</span> is not locked yet.
+            </span>
+            <Button
+              size="sm"
+              onClick={() => {
+                setForm({ period_start: cockpitStart, period_end: cockpitEnd!, notes: '' });
+                setOpen(true);
+              }}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Lock {cockpitLabel}
+            </Button>
+          </div>
+        )
+      )}
 
       {/* Mobile */}
       <div className="md:hidden space-y-2">

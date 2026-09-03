@@ -348,14 +348,19 @@ export default function FnFSettlementPage() {
       return null;
     },
 
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["resignation-employees"] });
       toast.success("Status updated");
       if (result) {
+        toast.success(
+          `Separation completed for ${result.name} — employee deactivated${result.erp?.deactivated ? ", ERP login disabled" : ""}.`,
+        );
         setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd });
       }
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

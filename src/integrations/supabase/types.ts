@@ -28862,6 +28862,10 @@ export type Database = {
         }
         Returns: number
       }
+      hr_build_default_salary_structure: {
+        Args: { p_employee_id: string; p_target: number }
+        Returns: number
+      }
       hr_can_access_payroll_data: {
         Args: { _user_id: string }
         Returns: boolean

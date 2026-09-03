@@ -643,6 +643,22 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
 
               <DefaultStructurePreview annualCtc={nT} />
 
+              {midMonthPreview && (
+                <div className="text-xs bg-info/10 text-foreground border border-info/30 rounded p-2 space-y-1">
+                  <p className="font-medium">
+                    Mid-month effective date — RazorpayX pays the whole of {midMonthPreview.monthLabel} at the new CTC.
+                  </p>
+                  <p className="text-muted-foreground">
+                    {midMonthPreview.kind === "deduction"
+                      ? `A recovery deduction of about ₹${midMonthPreview.amount.toLocaleString("en-IN")} will be staged into ${midMonthPreview.monthLabel} payroll inputs (${midMonthPreview.daysBefore} day(s) belong to the old CTC).`
+                      : `Arrears of about ₹${midMonthPreview.amount.toLocaleString("en-IN")} will be staged into ${midMonthPreview.monthLabel} payroll inputs (${midMonthPreview.daysBefore} day(s) at the old, higher CTC).`}
+                    {" "}The exact figure is recomputed with Loss of Pay when the CTC reaches RazorpayX, and is pushed from Payroll Cockpit Step 5.
+                  </p>
+                </div>
+              )}
+
+
+
 
               <div>
                 <Label>Reason / notes {reasonRequired && <span className="text-destructive">*</span>}</Label>

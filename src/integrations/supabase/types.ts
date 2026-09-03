@@ -8325,6 +8325,12 @@ export type Database = {
       }
       hr_drift_alerts: {
         Row: {
+          ack_essl_value: string | null
+          ack_hrms_value: string | null
+          ack_razorpay_value: string | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledged_note: string | null
           auto_classified_at: string | null
           auto_closed_at: string | null
           auto_closed_reason: string | null
@@ -8352,6 +8358,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ack_essl_value?: string | null
+          ack_hrms_value?: string | null
+          ack_razorpay_value?: string | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_note?: string | null
           auto_classified_at?: string | null
           auto_closed_at?: string | null
           auto_closed_reason?: string | null
@@ -8379,6 +8391,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ack_essl_value?: string | null
+          ack_hrms_value?: string | null
+          ack_razorpay_value?: string | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_note?: string | null
           auto_classified_at?: string | null
           auto_closed_at?: string | null
           auto_closed_reason?: string | null
@@ -26199,13 +26217,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["counter_subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["subsidiary_id"]
             isOneToOne: false
             referencedRelation: "fin_entity_master_v"
@@ -26214,13 +26225,20 @@ export type Database = {
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["counter_subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
+            columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
@@ -26593,8 +26611,101 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_drift_acknowledged: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acknowledged_note: string | null
+          essl_value: string | null
+          field: string | null
+          first_seen_at: string | null
+          hr_employee_id: string | null
+          hrms_value: string | null
+          id: string | null
+          last_seen_at: string | null
+          razorpay_value: string | null
+          severity: string | null
+          systems_involved: string[] | null
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_note?: string | null
+          essl_value?: string | null
+          field?: string | null
+          first_seen_at?: string | null
+          hr_employee_id?: string | null
+          hrms_value?: string | null
+          id?: string | null
+          last_seen_at?: string | null
+          razorpay_value?: string | null
+          severity?: string | null
+          systems_involved?: string[] | null
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acknowledged_note?: string | null
+          essl_value?: string | null
+          field?: string | null
+          first_seen_at?: string | null
+          hr_employee_id?: string | null
+          hrms_value?: string | null
+          id?: string | null
+          last_seen_at?: string | null
+          razorpay_value?: string | null
+          severity?: string | null
+          systems_involved?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
       hr_drift_open: {
         Row: {
+          acknowledged_at: string | null
+          acknowledged_note: string | null
           created_at: string | null
           essl_value: string | null
           field: string | null
@@ -26613,6 +26724,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          acknowledged_at?: string | null
+          acknowledged_note?: string | null
           created_at?: string | null
           essl_value?: string | null
           field?: string | null
@@ -26631,6 +26744,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          acknowledged_at?: string | null
+          acknowledged_note?: string | null
           created_at?: string | null
           essl_value?: string | null
           field?: string | null

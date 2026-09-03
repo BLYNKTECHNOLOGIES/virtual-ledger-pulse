@@ -22,8 +22,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, UserMinus, Plus, Pencil, CalendarClock, Send } from "lucide-react";
+import { AlertTriangle, UserMinus, Plus, Pencil, CalendarClock, Send, CheckCircle2 } from "lucide-react";
 import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
+import { missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { useAuth } from "@/hooks/useAuth";
 
 /**
  * Cockpit Step 3 — Separations & Full & Final for the selected payroll cycle.
@@ -59,6 +61,7 @@ function statusTone(s: string) {
 
 export default function SeparationsFnFPanel({ month }: { month?: string }) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const cycle = monthKey(month) || new Date().toISOString().slice(0, 7);
   const cycleLabel = new Date(`${cycle}-01T00:00:00Z`).toLocaleString("en-IN", {
     month: "long",
@@ -194,6 +197,60 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     },
     onSuccess: () => {
       toast.success("Submitted — settlement is now awaiting approval");
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Calculated / awaiting approval → approved, with the same safeguards and
+  // RazorpayX payroll push used by the canonical F&F page.
+  const approveSettlement = useMutation({
+    mutationFn: async (settlement: any) => {
+      const decisions: DepositDecision[] = (settlement?.breakdown?.deposit_decisions || []).map(
+        (d: any) => ({
+          deposit_id: d.deposit_id,
+          deposit_type: d.deposit_type || "security",
+          held: Number(d.held || 0),
+          refund: Number(d.refund || 0),
+          reason: d.reason || "",
+          label: d.label || "Deposit",
+          is_paused: false,
+        }),
+      );
+      const missing = missingDecisionReasons(decisions);
+      if (missing.length > 0) {
+        throw new Error(
+          `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
+        );
+      }
+
+      const { error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .update({
+          status: "approved",
+          approved_by: user?.username || user?.id || "hr",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", settlement.id);
+      if (error) throw error;
+
+      const { data: pushResult, error: pushError } = await (supabase as any).functions.invoke(
+        "hr-push-fnf",
+        { body: { settlement_id: settlement.id } },
+      );
+      return { pushResult, pushError };
+    },
+    onSuccess: ({ pushResult, pushError }) => {
+      if (pushError || pushResult?.ok === false) {
+        toast.error(
+          `Approved, but the RazorpayX push did not verify: ${pushResult?.error ?? pushError?.message ?? "unknown error"}`,
+        );
+      } else if (pushResult?.nothing_to_push) {
+        toast.success("Approved — there is nothing to push to RazorpayX");
+      } else {
+        toast.success("Approved and verified on the RazorpayX payroll run");
+      }
       qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     },
@@ -439,7 +496,26 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                             <Send className="h-3.5 w-3.5" /> Submit
                           </Button>
                         )}
+                        {String(s.status) === "calculated" && (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            disabled={approveSettlement.isPending}
+                            onClick={() => approveSettlement.mutate(s)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                          </Button>
+                        )}
                       </>
+                    ) : String(s.status) === "pending_approval" ? (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1.5"
+                        disabled={approveSettlement.isPending}
+                        onClick={() => approveSettlement.mutate(s)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Approve
+                      </Button>
                     ) : (
 
                       <span className="text-[11px] text-muted-foreground">

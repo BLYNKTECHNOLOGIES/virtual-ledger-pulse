@@ -118,6 +118,35 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     staleTime: 15_000,
   });
 
+  // Mid-month CTC corrections already staged into payroll inputs, keyed by revision.
+  const ADJ_SOURCES = ["ctc_transition_adjustment", "training_ctc_adjustment"];
+  const { data: stagedAdjustments = {} as Record<string, { kind: "deduction" | "addition"; amount: number; period: string; pushed: boolean }> } = useQuery({
+    queryKey: ["hr_ctc_transition_adjustments"],
+    queryFn: async () => {
+      const map: Record<string, any> = {};
+      const [ded, add] = await Promise.all([
+        (supabase as any)
+          .from("hr_payroll_input_deductions")
+          .select("source_revision_id, amount, period_month, pushed_at, source")
+          .in("source", ADJ_SOURCES),
+        (supabase as any)
+          .from("hr_payroll_input_additions")
+          .select("source_revision_id, amount, period_month, pushed_at, source")
+          .in("source", ADJ_SOURCES),
+      ]);
+      for (const r of (ded.data || [])) {
+        if (r.source_revision_id) map[r.source_revision_id] = { kind: "deduction", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at };
+      }
+      for (const r of (add.data || [])) {
+        if (r.source_revision_id) map[r.source_revision_id] = { kind: "addition", amount: Number(r.amount || 0), period: r.period_month, pushed: !!r.pushed_at };
+      }
+      return map;
+    },
+    staleTime: 15_000,
+  });
+
+
+
 
   const cancelMutation = useMutation({
     mutationFn: async (id: string) => {

@@ -306,7 +306,22 @@ export function AutoLopDialog({
                     <th className="p-2 text-right">Comp-off</th>
                     <th className="p-2 text-right">Other paid</th>
                     <th className="p-2 text-right">Unpaid</th>
+                    <th className="p-2 text-right border-l">Open</th>
+                    <th className="p-2 text-right">Cr</th>
+                    <th className="p-2 text-right">Used</th>
+                    <th className="p-2 text-right">Bal</th>
+                    <th className="p-2 text-right border-l">Open</th>
+                    <th className="p-2 text-right">Cr</th>
+                    <th className="p-2 text-right">Used</th>
+                    <th className="p-2 text-right">Bal</th>
+                    <th className="p-2 text-right border-l">Open</th>
+                    <th className="p-2 text-right">Cr</th>
+                    <th className="p-2 text-right">Used</th>
+                    <th className="p-2 text-right">LOP set-off</th>
+                    <th className="p-2 text-right">Encashed</th>
+                    <th className="p-2 text-right">Bal</th>
                     <th className="p-2 text-right border-l">Raw</th>
+
                     <th className="p-2 text-right">C/off set-off</th>
                     <th className="p-2 text-right">Proration</th>
                     <th className="p-2 text-right">Charged</th>

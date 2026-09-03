@@ -183,7 +183,25 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Draft → calculated (same transition as the "Submit" action on the F&F page).
+  const submitDraft = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .update({ status: "calculated", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Submitted — settlement is now awaiting approval");
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const initiate = useMutation({
+
     mutationFn: async () => {
       if (!form.employee_id) throw new Error("Select an employee");
       if (!form.resignation_date || !form.last_working_day)

@@ -31,7 +31,7 @@ export default function FnFSettlementPage() {
   // One settlement per employee: the dialog is either creating a new one or
   // editing the existing (still-editable) settlement of that employee.
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string } | null>(null);
+  const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string; reason: string | null } | null>(null);
 
 
 
@@ -167,6 +167,7 @@ export default function FnFSettlementPage() {
             employee_id: settlement.employee_id,
             name: fin.name,
             lwd: settlement.last_working_day || fin.lwd || new Date().toISOString().slice(0, 10),
+            separationReason: fin.separationReason,
             erp: fin.erp,
           };
         }
@@ -184,7 +185,7 @@ export default function FnFSettlementPage() {
         toast.success(
           `Separation completed for ${result.name} — employee deactivated${result.erp?.deactivated ? ", ERP login disabled" : ""}.`,
         );
-        setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd });
+        setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd, reason: result.separationReason ?? null });
       }
     },
 
@@ -252,7 +253,7 @@ export default function FnFSettlementPage() {
     try {
       const res = await dismissInRazorpay(dismissPrompt.employee_id, {
         dateOfDismissal: dismissPrompt.lwd,
-        reason: "F&F settled",
+        reason: dismissPrompt.reason || "F&F settled",
         triggeredFrom: "fnf_paid",
       });
       if (res.ok) toast.success("Dismissal propagated to Razorpay");
@@ -542,6 +543,15 @@ export default function FnFSettlementPage() {
               and stops future payslips. This is destructive on the Razorpay side and requires the CONFIRM_DISMISS acknowledgement —
               click <em>Dismiss in Razorpay</em> to send it, or <em>Skip</em> to keep this to the HRMS only.
               If the employee is not linked to Razorpay, nothing will be sent.
+              {dismissPrompt?.reason ? (
+                <>
+                  <br />
+                  <br />
+                  Exit reason on record: <strong>{dismissPrompt.reason}</strong>. RazorpayX <em>people:dismiss</em> accepts only
+                  the email and date of dismissal, so the reason is stored in the HRMS dismissal audit log (Data Health) and must
+                  be typed in the RazorpayX dashboard if you need it there.
+                </>
+              ) : null}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

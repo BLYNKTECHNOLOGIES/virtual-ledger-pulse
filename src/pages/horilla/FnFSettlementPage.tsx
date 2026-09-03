@@ -421,7 +421,7 @@ export default function FnFSettlementPage() {
 
                   </div>
                 </div>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 mt-3 text-xs border-t border-border pt-3">
                   <div>
                     <span className="text-muted-foreground block">Final-Month Salary</span>
                     <p className="font-medium tabular-nums">₹{Number(s.pending_salary).toLocaleString("en-IN")}</p>

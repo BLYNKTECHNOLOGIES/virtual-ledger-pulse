@@ -433,6 +433,8 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
             const pushSyncedAfterRevision = pushResult.state === "verified";
             const pushFailedAfterRevision = pushResult.state === "failed";
             const pushing = pushingIds.has(r.id);
+            const adj = stagedAdjustments[r.id];
+
 
 
             const StatusPill = ({ tone, icon: Icon, label, detail }: { tone: "ok" | "warn" | "bad" | "info"; icon: any; label: string; detail?: string }) => (

@@ -31,6 +31,8 @@ interface FieldSpec {
     salary: any;
     rzp: any;                 // snapshot from hr_razorpay_employee_map.last_pull_snapshot
     esslUser: any;
+    /** Latest VERIFIED salary push (expected CTC that people:set-salary accepted). */
+    salaryPush?: { expected: number | null; at: string | null } | null;
   }) => Partial<Record<SystemKey, string | null>>;
 }
 
@@ -212,7 +214,7 @@ const FIELDS: FieldSpec[] = [
     // A CTC present in HRMS but absent in RazorpayX (₹0 / no salary structure
     // there) is a payout-critical gap, not a "nothing to compare" case.
     missingIsDrift: true,
-    extract: ({ salary, rzp }) => {
+    extract: ({ salary, rzp, salaryPush }) => {
       const hrmsCtc = salary?.annual_ctc ?? null;
 
       const rzpSalary = rzp?.__salary ?? null;
@@ -221,8 +223,27 @@ const FIELDS: FieldSpec[] = [
         rzpSalary?.["annual-ctc"] ??
         rzpSalary?.["annual_ctc"] ??
         null;
+
+      const hrmsStr = hrmsCtc != null ? String(Math.round(Number(hrmsCtc))) : null;
+
+      // ROOT CAUSE (2026-09-04 IST): RazorpayX people:view never exposes CTC and
+      // payroll:view-payroll only answers AFTER an executed payroll run for that
+      // employee (badge 21/25 return
+      // "Trying to access array offset on value of type null"). The push verifier
+      // already treats that as "confirmed by the successful push", but this
+      // scanner treated the same absence as "(missing)" drift — so a good push
+      // toasted green and then instantly red. When the API genuinely cannot
+      // expose the value AND a verified salary push proves the same CTC landed,
+      // that is not drift.
+      if (rzpCtc == null && hrmsCtc != null && rzp && rzp.__salary_probe_error) {
+        const pushed = salaryPush?.expected;
+        if (pushed != null && Math.abs(Number(pushed) - Number(hrmsCtc)) <= 1) {
+          return { hrms: hrmsStr, razorpay: hrmsStr };
+        }
+      }
+
       return {
-        hrms: hrmsCtc != null ? String(Math.round(Number(hrmsCtc))) : null,
+        hrms: hrmsStr,
         razorpay: rzpCtc != null ? String(Math.round(Number(rzpCtc))) : null,
       };
     },
@@ -318,6 +339,33 @@ serve(async (req) => {
         salaryByEmp.set(o.employee_id, { annual_ctc: o.ctc, ctc_source: "onboarding" });
       }
     }
+
+    // Latest VERIFIED salary push per employee. Used only to decide whether an
+    // API-unexposable CTC counts as drift (see the annual_ctc field spec).
+    const salaryPushByEmp = new Map<string, { expected: number | null; at: string | null }>();
+    {
+      const { data: pushRows } = await supa
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id, created_at, response_snapshot")
+        .in("hr_employee_id", empIds)
+        .eq("action", "verify_salary")
+        .eq("status", "success")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      for (const row of pushRows ?? []) {
+        const eid = (row as any).hr_employee_id;
+        if (!eid || salaryPushByEmp.has(eid)) continue;
+        const fields = (row as any).response_snapshot?.fields;
+        const f = Array.isArray(fields) ? fields.find((x: any) => x?.key === "annual_ctc") : null;
+        const expected = f && f.expected != null && Number.isFinite(Number(f.expected))
+          ? Number(f.expected)
+          : null;
+        if (expected == null) continue;
+        salaryPushByEmp.set(eid, { expected, at: (row as any).created_at ?? null });
+      }
+    }
+
+
 
     // ------------------------------------------------------------------
     // Snapshot freshness gate.
@@ -514,7 +562,10 @@ serve(async (req) => {
           }
           continue;
         }
-        const values = spec.extract({ emp, workInfo, bank, salary, rzp, esslUser });
+        const values = spec.extract({ emp, workInfo, bank, salary, rzp, esslUser, salaryPush: salaryPushByEmp.get(emp.id) ?? null });
+        const ctcPushConfirmed =
+          spec.field === "annual_ctc" && !!rzp?.__salary_probe_error && !rzp?.__salary &&
+          salaryPushByEmp.has(emp.id);
         const present: SystemKey[] = (Object.keys(values) as SystemKey[]).filter(
           (k) => values[k] !== null && values[k] !== undefined,
         );
@@ -592,7 +643,12 @@ serve(async (req) => {
           if (existing?.id) {
             await supa
               .from("hr_drift_alerts")
-              .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved: values now match" })
+              .update({
+                resolved_at: new Date().toISOString(),
+                resolution_note: ctcPushConfirmed
+                  ? "Auto-resolved: CTC push verified by RazorpayX (people:set-salary accepted). RazorpayX exposes CTC over the read API only after the first executed payroll run, so there is no read-back value to compare."
+                  : "Auto-resolved: values now match",
+              })
               .eq("id", existing.id);
             resolved++;
           }

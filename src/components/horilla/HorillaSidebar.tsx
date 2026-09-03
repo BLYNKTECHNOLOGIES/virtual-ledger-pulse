@@ -457,7 +457,7 @@ export function HorillaSidebar({
 
                     {!isMobile && collapsed && hoveredItem === item.label && hasChildren && (
                       <div className="absolute left-full top-0 ml-2 bg-[#1a1a2e] border border-[#2a2a40] rounded-lg shadow-2xl py-2 min-w-[180px] z-50">
-                        <div className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold text-foreground/60 uppercase tracking-wider">
                           {item.label}
                         </div>
                         {item.children!.map((child) => (
@@ -470,7 +470,7 @@ export function HorillaSidebar({
                               "w-full text-left text-sm py-2 px-3 transition-colors",
                               isChildActive(child.path)
                                 ? "text-[#6C63FF] bg-[#6C63FF]/10"
-                                : "text-muted-foreground hover:text-white hover:bg-[#252540]"
+                                : "text-foreground/85 hover:text-white hover:bg-[#252540]"
                             )}
                           >
                             {child.label}

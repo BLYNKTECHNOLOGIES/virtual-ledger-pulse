@@ -376,7 +376,7 @@ export function HorillaSidebar({
         {visibleNavGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <p className="text-[10px] font-semibold text-foreground/55 uppercase tracking-[0.12em] px-2 mb-1.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] px-2 mb-1.5 hrms-sidebar-label">
                 {group.title}
               </p>
             )}

@@ -78,7 +78,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_salary_revisions")
-        .select("*, hr_employees!hr_salary_revisions_employee_id_fkey(first_name, last_name, badge_id)")
+        .select("*, hr_employees!hr_salary_revisions_employee_id_fkey(first_name, last_name, badge_id, is_active)")
         .neq("status", "NOOP")
         .order("created_at", { ascending: false });
       if (error) throw error;
@@ -746,6 +746,9 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   </span>
                   {r.hr_employees?.badge_id && (
                     <span className="text-[10px] text-muted-foreground shrink-0">#{r.hr_employees.badge_id}</span>
+                  )}
+                  {r.hr_employees?.is_active === false && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Inactive</span>
                   )}
                 </div>
 

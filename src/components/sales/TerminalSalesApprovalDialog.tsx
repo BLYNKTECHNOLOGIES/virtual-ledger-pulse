@@ -159,6 +159,13 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
   // display-name matching has been removed — it caused cross-contamination.
   // If userNo isn't cached for a fresh order, resolveOrderUserNo fetches
   // order-detail on demand. No userNo → operator must pick/create manually.
+  // NOTE: `allClients` must NOT be a dependency here. The clients list is
+  // refetched periodically; when it was a dep, every refetch aborted the
+  // in-flight resolution (cancelled ⇒ `finally` skipped) and restarted it,
+  // leaving `userNoResolving` permanently true and the Approve button disabled.
+  const allClientsRef = useRef(allClients);
+  allClientsRef.current = allClients;
+
   useEffect(() => {
     if (!open) { setUserNoLocked(false); setLockedUserNo(null); setUserNoResolving(false); manualSelectionRef.current = false; setAutoMatchVia(null); return; }
     const orderNumber = od?.order_number || syncRecord?.binance_order_number;
@@ -180,7 +187,7 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       setAutoMatchVia('userno');
       setShowClientDropdown(false);
       setUserNoLocked(true);
-      const matched = allClients.find(c => c.id === res.clientId);
+      const matched = allClientsRef.current.find(c => c.id === res.clientId);
       if (matched) {
         const isApprovedClient = String(matched.buyer_approval_status || '').toUpperCase() === 'APPROVED';
         if (!contactNumber && matched.phone) setContactNumber(matched.phone);
@@ -193,7 +200,8 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
       if (!cancelled) setUserNoResolving(false);
     });
     return () => { cancelled = true; };
-  }, [open, od?.order_number, syncRecord?.binance_order_number, allClients]);
+  }, [open, od?.order_number, syncRecord?.binance_order_number]);
+
 
 
   // Pre-fill from counterparty contact records (terminal-captured data = highest priority)

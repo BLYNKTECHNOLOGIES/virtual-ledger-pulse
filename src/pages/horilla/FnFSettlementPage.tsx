@@ -19,6 +19,8 @@ import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
 import { computeFnFDraft, buildFnFPayload, fnfNetPayable, syncFnFDepositReservations, sumRefunds, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { finalizeSeparation } from "@/lib/finalizeSeparation";
+
 
 export default function FnFSettlementPage() {
   const qc = useQueryClient();

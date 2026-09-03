@@ -44,6 +44,7 @@ const LIFECYCLE_BADGE: Record<Lifecycle, { label: string; cls: string }> = {
   collected: { label: "Collected — held", cls: "bg-success/10 text-success" },
   refunded: { label: "Paid back", cls: "bg-primary/10 text-primary" },
   exited_unpaid: { label: "Exited — unpaid", cls: "bg-destructive/10 text-destructive" },
+  cancelled: { label: "Cancelled — exited", cls: "bg-muted text-muted-foreground" },
 };
 
 /** Single source of truth for which bucket a deposit belongs to. */
@@ -51,7 +52,8 @@ function lifecycleOf(d: any): Lifecycle {
   if (["refunded", "withheld", "partial"].includes(d.refund_status) || d.is_recovered || d.is_settled) return "refunded";
   const employeeActive = d.hr_employees?.is_active !== false;
   const held = Number(d.collected_amount || 0) > 0;
-  if (!employeeActive && held) return "exited_unpaid";
+  // An exited employee can never be "collecting" — nothing more can be deducted.
+  if (!employeeActive) return held ? "exited_unpaid" : "cancelled";
   if (d.is_fully_collected) return "collected";
   return "active";
 }

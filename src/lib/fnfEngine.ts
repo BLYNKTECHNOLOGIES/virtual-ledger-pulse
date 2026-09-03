@@ -86,6 +86,7 @@ export type FnFDraft = {
 
 export const emptyFnFForm = (): FnFForm => ({
   last_working_day: "",
+  payroll_month: "",
   pending_salary: 0,
   leave_encashment_days: 0,
   leave_encashment_amount: 0,
@@ -256,6 +257,7 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
     form: {
       ...emptyFnFForm(),
       last_working_day: lwdIso || "",
+      payroll_month: lwdIso ? `${lwdIso.slice(0, 7)}-01` : "",
       pending_salary: pendingSalary,
       loan_recovery: loanRecovery,
       deposit_refund: sumRefunds(decisions),

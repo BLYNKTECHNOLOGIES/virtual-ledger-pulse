@@ -445,7 +445,7 @@ export function HorillaSidebar({
                               onClick={() => handleNavigate(child.path)}
                               className={cn(
                                 "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
-                                childActive ? "text-[#6C63FF] font-medium" : "text-muted-foreground hover:text-gray-300"
+                                childActive ? "text-[#6C63FF] font-medium" : "text-foreground/75 hover:text-foreground hover:bg-[#252540]/60"
                               )}
                             >
                               {child.label}

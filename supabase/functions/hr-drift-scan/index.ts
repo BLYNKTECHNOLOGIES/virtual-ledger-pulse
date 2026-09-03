@@ -507,22 +507,49 @@ serve(async (req) => {
         }
 
         if (hasDrift) {
+          const hrmsV = values.hrms ?? null;
+          const rzpV = values.razorpay ?? null;
+          const esslV = values.essl ?? null;
+
+          // Sticky acknowledgement: once HR marks a difference as resolved we
+          // remember the exact values at that moment. The card stays hidden
+          // until one of those values actually changes on either side.
+          const { data: prior } = await supa
+            .from("hr_drift_alerts")
+            .select("acknowledged_at, acknowledged_by, acknowledged_note, ack_hrms_value, ack_razorpay_value, ack_essl_value")
+            .eq("hr_employee_id", emp.id)
+            .eq("field", spec.field)
+            .maybeSingle();
+
+          const ackStillValid =
+            !!prior?.acknowledged_at &&
+            (prior.ack_hrms_value ?? null) === hrmsV &&
+            (prior.ack_razorpay_value ?? null) === rzpV &&
+            (prior.ack_essl_value ?? null) === esslV;
+
           const payload = {
             hr_employee_id: emp.id,
             field: spec.field,
             systems_involved: compared,
-            hrms_value: values.hrms ?? null,
-            razorpay_value: values.razorpay ?? null,
-            essl_value: values.essl ?? null,
+            hrms_value: hrmsV,
+            razorpay_value: rzpV,
+            essl_value: esslV,
             severity: spec.severity,
             last_seen_at: new Date().toISOString(),
             resolved_at: null,
-            resolution_note: null,
+            resolution_note: ackStillValid ? (prior?.acknowledged_note ?? null) : null,
+            acknowledged_at: ackStillValid ? prior!.acknowledged_at : null,
+            acknowledged_by: ackStillValid ? prior!.acknowledged_by : null,
+            acknowledged_note: ackStillValid ? prior!.acknowledged_note : null,
+            ack_hrms_value: ackStillValid ? prior!.ack_hrms_value : null,
+            ack_razorpay_value: ackStillValid ? prior!.ack_razorpay_value : null,
+            ack_essl_value: ackStillValid ? prior!.ack_essl_value : null,
           };
           const { error } = await supa.from("hr_drift_alerts").upsert(payload, {
             onConflict: "hr_employee_id,field",
           });
           if (!error) upserted++;
+
         } else {
           // Resolve any previously-open drift for this field.
           const { data: existing } = await supa

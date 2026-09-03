@@ -22,7 +22,7 @@ import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type DepositType = "security" | "error_recovery";
-type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid";
+type Lifecycle = "active" | "collected" | "refunded" | "exited_unpaid" | "cancelled";
 type SubTab = Lifecycle | "all";
 
 const TYPE_LABEL: Record<DepositType, string> = {

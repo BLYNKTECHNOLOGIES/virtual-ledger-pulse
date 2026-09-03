@@ -57,11 +57,36 @@ export function SupplierAutocomplete({
     },
   });
 
+  // Targeted server-side search — guarantees an existing client (however old)
+  // is always found even if the cached full list is stale or truncated.
+  const { data: serverMatches } = useQuery({
+    queryKey: ['clients-server-search', debouncedValue.trim().toLowerCase()],
+    enabled: debouncedValue.trim().length >= 2,
+    queryFn: async () => {
+      const term = debouncedValue.trim().replace(/[%,()]/g, ' ').trim();
+      if (!term) return [];
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .or(`name.ilike.%${term}%,phone.ilike.%${term}%,pan_card_number.ilike.%${term}%`)
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const knownClients = useMemo(() => {
+    const map = new Map<string, any>();
+    (clients || []).forEach((c: any) => map.set(c.id, c));
+    (serverMatches || []).forEach((c: any) => map.set(c.id, c));
+    return Array.from(map.values());
+  }, [clients, serverMatches]);
+
   // Filter clients based on input - exclude deleted and rejected clients
   const filteredClients = useMemo(() => {
-    if (!clients || !debouncedValue.trim()) return [];
+    if (!knownClients.length || !debouncedValue.trim()) return [];
     
-    const prefixMatches = clients.filter(client => {
+    const prefixMatches = knownClients.filter(client => {
       // Skip deleted clients
       if ((client as any).is_deleted) return false;
       // Skip rejected sellers
@@ -80,23 +105,23 @@ export function SupplierAutocomplete({
     });
     
     return prefixMatches;
-  }, [clients, debouncedValue]);
+  }, [knownClients, debouncedValue]);
 
   // Check for exact match
   useEffect(() => {
-    if (!clients || !value.trim()) {
+    if (!knownClients.length || !value.trim()) {
       setHasExactMatch(false);
       setIsNewClient(false);
       onNewClient?.(false);
       return;
     }
 
-    const exactMatch = clients.find(
+    const exactMatch = knownClients.find(
       c => c.name.toLowerCase() === value.trim().toLowerCase()
     );
     
     // Also check for partial match (client name contains input or vice versa)
-    const partialMatch = clients.find(
+    const partialMatch = knownClients.find(
       c => c.name.toLowerCase().includes(value.trim().toLowerCase()) ||
            value.trim().toLowerCase().includes(c.name.toLowerCase())
     );
@@ -122,7 +147,7 @@ export function SupplierAutocomplete({
       setIsNewClient(false);
       onNewClient?.(false);
     }
-  }, [value, clients, selectedClientId, onNewClient, filteredClients]);
+  }, [value, knownClients, selectedClientId, onNewClient, filteredClients]);
 
   const handleClientSelect = (client: any) => {
     onChange(client.name);

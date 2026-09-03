@@ -420,15 +420,28 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                       </Badge>
                     )}
                     {EDITABLE_STATUSES.includes(String(s.status)) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 gap-1.5"
-                        onClick={() => setDialogFor({ mode: "edit", settlement: s })}
-                      >
-                        <Pencil className="h-3.5 w-3.5" /> Edit
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8 gap-1.5"
+                          onClick={() => setDialogFor({ mode: "edit", settlement: s })}
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                        {String(s.status) === "draft" && (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            disabled={submitDraft.isPending}
+                            onClick={() => submitDraft.mutate(s.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" /> Submit
+                          </Button>
+                        )}
+                      </>
                     ) : (
+
                       <span className="text-[11px] text-muted-foreground">
                         Locked — manage on the F&amp;F page
                       </span>

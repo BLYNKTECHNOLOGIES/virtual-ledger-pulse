@@ -381,12 +381,15 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   }
 
   // RazorpayX CTC is a whole-month attribute: a revision effective mid-month is
-  // paid for the FULL month at the new rate. Stage the recovery (or arrears, if
-  // the month was already processed) as a payroll input so Step 5 pushes it.
+  // paid for the FULL month at the new rate. The part-month recovery/arrears is
+  // staged PROVISIONALLY the moment the revision is applied (DB trigger); this
+  // call recalculates it against current LOP and marks it FINAL after a verified
+  // RazorpayX push, so Step 5 can push it to the payroll month.
   async function stageMidMonthAdjustment(revisionId: string) {
-    const { data, error } = await (supabase as any).rpc("hr_stage_ctc_transition_adjustment", {
+    const { data, error } = await (supabase as any).rpc("hr_finalize_ctc_transition_adjustment", {
       p_revision_id: revisionId,
     });
+
     if (error) {
       toast.warning("Mid-month correction could not be staged.", { description: error.message.slice(0, 200) });
       return;

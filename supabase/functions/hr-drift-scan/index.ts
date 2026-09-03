@@ -214,7 +214,7 @@ const FIELDS: FieldSpec[] = [
     // A CTC present in HRMS but absent in RazorpayX (₹0 / no salary structure
     // there) is a payout-critical gap, not a "nothing to compare" case.
     missingIsDrift: true,
-    extract: ({ salary, rzp }) => {
+    extract: ({ salary, rzp, salaryPush }) => {
       const hrmsCtc = salary?.annual_ctc ?? null;
 
       const rzpSalary = rzp?.__salary ?? null;
@@ -223,8 +223,27 @@ const FIELDS: FieldSpec[] = [
         rzpSalary?.["annual-ctc"] ??
         rzpSalary?.["annual_ctc"] ??
         null;
+
+      const hrmsStr = hrmsCtc != null ? String(Math.round(Number(hrmsCtc))) : null;
+
+      // ROOT CAUSE (2026-09-04 IST): RazorpayX people:view never exposes CTC and
+      // payroll:view-payroll only answers AFTER an executed payroll run for that
+      // employee (badge 21/25 return
+      // "Trying to access array offset on value of type null"). The push verifier
+      // already treats that as "confirmed by the successful push", but this
+      // scanner treated the same absence as "(missing)" drift — so a good push
+      // toasted green and then instantly red. When the API genuinely cannot
+      // expose the value AND a verified salary push proves the same CTC landed,
+      // that is not drift.
+      if (rzpCtc == null && hrmsCtc != null && rzp && rzp.__salary_probe_error) {
+        const pushed = salaryPush?.expected;
+        if (pushed != null && Math.abs(Number(pushed) - Number(hrmsCtc)) <= 1) {
+          return { hrms: hrmsStr, razorpay: hrmsStr };
+        }
+      }
+
       return {
-        hrms: hrmsCtc != null ? String(Math.round(Number(hrmsCtc))) : null,
+        hrms: hrmsStr,
         razorpay: rzpCtc != null ? String(Math.round(Number(rzpCtc))) : null,
       };
     },

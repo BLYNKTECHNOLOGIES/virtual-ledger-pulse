@@ -29144,11 +29144,15 @@ export type Database = {
       hr_leave_month_breakdown: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {
+          compoff_credit_days: number
+          compoff_credits: Json
           compoff_leave_total: number
           employee_id: string
           leave_breakdown: Json
           paid_leave_total: number
           unpaid_leave_total: number
+          unprocessed_off_dates: string[]
+          unprocessed_off_days: number
           worked_off_dates: string[]
           worked_off_days: number
         }[]

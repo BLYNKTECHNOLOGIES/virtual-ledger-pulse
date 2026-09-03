@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle, Trash2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle, Trash2, GraduationCap } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -25,16 +25,26 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
-type CategoryFilter = "ALL" | "CTC" | "ADDITION" | "DEDUCTION" | "PAYOUT" | "STATUTORY";
+type CategoryFilter = "ALL" | "CTC" | "ADDITION" | "DEDUCTION" | "PAYOUT" | "STATUTORY" | "TRAINING";
 
 const CATEGORY_TABS: { value: CategoryFilter; label: string }[] = [
   { value: "ALL", label: "All" },
   { value: "CTC", label: "CTC change" },
+  { value: "TRAINING", label: "Post-training CTC" },
   { value: "ADDITION", label: "Addition" },
   { value: "DEDUCTION", label: "Deduction" },
   { value: "PAYOUT", label: "One-time payout" },
   { value: "STATUTORY", label: "Statutory" },
 ];
+
+// Revisions produced by the onboarding training-period CTC workflow — the
+// post-training uplift that becomes effective on the training completion date.
+function isTrainingRevision(r: any): boolean {
+  const reason = String(r?.revision_reason || "").toLowerCase();
+  return reason.includes("training_completion") || reason.includes("training completion") ||
+    String(r?.revision_type || "").toLowerCase() === "training_completion";
+}
+
 
 const ONE_TIME_TYPE_SET = new Set([
   "bonus", "performance_incentive", "retention_bonus", "special_allowance", "ad_hoc", "one_time_correction",
@@ -230,21 +240,25 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   }), [revisions]);
 
   const categoryCounts = useMemo(() => {
-    const counts: Record<CategoryFilter, number> = { ALL: 0, CTC: 0, ADDITION: 0, DEDUCTION: 0, PAYOUT: 0, STATUTORY: 0 };
+    const counts: Record<CategoryFilter, number> = { ALL: 0, CTC: 0, ADDITION: 0, DEDUCTION: 0, PAYOUT: 0, STATUTORY: 0, TRAINING: 0 };
     for (const r of baseVisible) {
       if (statusFilter !== "ALL" && r.status !== statusFilter) continue;
       counts.ALL += 1;
       counts[revisionCategory(r)] += 1;
+      if (isTrainingRevision(r)) counts.TRAINING += 1;
     }
     return counts;
   }, [baseVisible, statusFilter]);
 
   const filtered = useMemo(() => baseVisible.filter((r: any) => {
     if (statusFilter !== "ALL" && r.status !== statusFilter) return false;
-    if (categoryFilter !== "ALL" && revisionCategory(r) !== categoryFilter) return false;
+    if (categoryFilter === "TRAINING") {
+      if (!isTrainingRevision(r)) return false;
+    } else if (categoryFilter !== "ALL" && revisionCategory(r) !== categoryFilter) return false;
     const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.toLowerCase();
     return name.includes(search.toLowerCase());
   }), [baseVisible, statusFilter, categoryFilter, search]);
+
 
 
   // Revisions that land in THIS payroll month for the first time:
@@ -654,11 +668,25 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                 </div>
 
                 {/* Type */}
-                <div className="md:justify-self-start">
+                <div className="md:justify-self-start flex flex-wrap items-center gap-1">
                   <span className={cn("inline-block rounded border px-1.5 py-0.5 text-[10px] font-medium capitalize", typeTone)}>
                     {typeLabel}
                   </span>
+                  {isTrainingRevision(r) && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 rounded border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                          <GraduationCap className="h-3 w-3" />
+                          Post-training
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-xs text-xs">
+                        Onboarding training-period CTC workflow — the post-training CTC uplift applied on the training completion date.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
                 </div>
+
 
                 {/* What changed */}
                 <div className="text-sm tabular-nums flex items-baseline gap-1.5 min-w-0">

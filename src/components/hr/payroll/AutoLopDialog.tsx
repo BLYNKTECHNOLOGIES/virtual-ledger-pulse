@@ -346,7 +346,7 @@ export function AutoLopDialog({
                           className="border-t align-top cursor-pointer hover:bg-muted/30"
                           onClick={() => setExpanded((s) => ({ ...s, [r.hr_employee_id]: !s[r.hr_employee_id] }))}
                         >
-                          <td className="p-2" onClick={(e) => e.stopPropagation()}>
+                          <td className="p-2 sticky left-0 z-10 bg-background border-r border-border" onClick={(e) => e.stopPropagation()}>
                             {canSelect && (
                               <Checkbox
                                 checked={!!selected[r.hr_employee_id]}
@@ -354,7 +354,7 @@ export function AutoLopDialog({
                               />
                             )}
                           </td>
-                          <td className="p-2 min-w-[190px]">
+                          <td className="p-2 min-w-[190px] sticky left-[48px] z-10 bg-background border-r border-border">
                             <div className="font-medium flex items-center gap-1">
                               {isOpen ? <ChevronDown className="h-3.5 w-3.5 shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" />}
                               {r.name}

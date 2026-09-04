@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.hr_cockpit_month_state(date) TO supabase_read_only_user;

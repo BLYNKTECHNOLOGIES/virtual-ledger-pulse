@@ -268,7 +268,8 @@ function DetailLine({ step }: { step: CockpitStep }) {
       if ((d.rev_rows ?? 0) > 0) parts.push(`${d.rev_rows} ${plural(d.rev_rows, "revision")} effective this month`);
       if ((d.rev_pending ?? 0) > 0) parts.push(`${d.rev_pending} pending`);
       if ((d.rev_unsynced ?? 0) > 0) parts.push(`${d.rev_unsynced} not yet pushed to RazorpayX`);
-      if (Number(d.one_time_total ?? 0) > 0) parts.push(`one-time arrears ₹${Number(d.one_time_total).toLocaleString("en-IN")}`);
+      if (Number(d.one_time_total ?? 0) > 0) parts.push(`one-time payable ₹${Number(d.one_time_total).toLocaleString("en-IN")}`);
+      if (Number(d.one_time_recorded_total ?? 0) > 0) parts.push(`₹${Number(d.one_time_recorded_total).toLocaleString("en-IN")} already paid outside payroll (recorded only)`);
       if (parts.length === 0) return <span>No salary revisions for this month.</span>;
       return <span>{parts.join(" · ")}.</span>;
     }

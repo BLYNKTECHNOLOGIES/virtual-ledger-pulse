@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Info } from "lucide-react";
+import { ExternalLink, Info, ChevronDown, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 /**
@@ -25,7 +26,7 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_salary_revisions")
-        .select("id, employee_id, revision_type, one_time_amount, payout_month, status, notes, revision_reason, razorpay_pushed_at, razorpay_verified_at, razorpay_push_error, hr_employees:employee_id(first_name,last_name,badge_id)")
+        .select("id, employee_id, revision_type, one_time_amount, payout_month, status, notes, revision_reason, razorpay_pushed_at, razorpay_verified_at, razorpay_push_error, payout_channel, payout_paid_on, hr_employees:employee_id(first_name,last_name,badge_id)")
         .eq("payout_month", periodDate)
         .in("revision_type", ONE_TIME_KINDS)
         .order("created_at", { ascending: false });
@@ -36,8 +37,46 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
   });
 
   const list = rows as any[];
-  const total = list.reduce((s, r) => s + Number(r.one_time_amount || 0), 0);
-  const unpushed = list.filter((r) => !r.razorpay_pushed_at).length;
+  // Record-only payouts were already paid to the employee OUTSIDE this payroll
+  // run (direct transfer / RazorpayX one-off). They are logged here purely for
+  // the record — they must never be pushed again on this run.
+  const isRecordOnly = (r: any) => r.payout_channel === "outside_payroll";
+  const payable = list.filter((r) => !isRecordOnly(r));
+  const recorded = list.filter(isRecordOnly);
+  const payableTotal = payable.reduce((s, r) => s + Number(r.one_time_amount || 0), 0);
+  const recordedTotal = recorded.reduce((s, r) => s + Number(r.one_time_amount || 0), 0);
+  const unpushed = payable.filter((r) => !r.razorpay_pushed_at).length;
+
+  const [showRecorded, setShowRecorded] = useState(false);
+
+  const employeeLabel = (e: any) =>
+    e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : "—";
+
+  const renderRows = (items: any[], recordOnly: boolean) =>
+    items.map((r) => (
+      <tr key={r.id} className="border-b hover:bg-muted/30">
+        <td className="px-3 py-2">{employeeLabel(r.hr_employees)}</td>
+        <td className="px-3 py-2 capitalize">{String(r.revision_type).replace(/_/g, " ")}</td>
+        <td className="px-3 py-2 text-xs text-muted-foreground max-w-[240px] truncate">{r.revision_reason || r.notes || "—"}</td>
+        <td className="px-3 py-2 tabular-nums">₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</td>
+        <td className="px-3 py-2">
+          {recordOnly ? (
+            <Badge
+              className="bg-success/10 text-success"
+              title={`Already paid outside payroll${r.payout_paid_on ? ` on ${new Date(r.payout_paid_on).toLocaleDateString("en-IN")}` : ""} — recorded only, nothing is pushed to this run.`}
+            >
+              Paid outside payroll{r.payout_paid_on ? ` · ${new Date(r.payout_paid_on).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}` : ""}
+            </Badge>
+          ) : r.razorpay_verified_at ? (
+            <Badge className="bg-success/10 text-success">Verified on run</Badge>
+          ) : r.razorpay_pushed_at ? (
+            <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
+          ) : (
+            <Badge variant="outline" title={r.razorpay_push_error || ""}>Not pushed</Badge>
+          )}
+        </td>
+      </tr>
+    ));
 
   return (
     <Card>
@@ -45,7 +84,9 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
         <div>
           <CardTitle className="text-sm">One-time payouts from Salary Revisions · {period}</CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Bonuses and incentives raised outside this page but landing on the same RazorpayX run. Read-only here — manage them in Salary Revisions.
+            Bonuses and incentives raised outside this page. Only the <span className="text-foreground font-medium">payable</span> ones land on this
+            RazorpayX run — items already paid outside payroll are listed separately, for the record only, and are never pushed again.
+            Read-only here — manage them in Salary Revisions.
           </p>
         </div>
         <Button asChild size="sm" variant="outline" className="h-7 text-xs">
@@ -68,32 +109,45 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
                 </tr>
               </thead>
               <tbody>
-                {list.map((r) => {
-                  const e = r.hr_employees;
-                  return (
-                    <tr key={r.id} className="border-b hover:bg-muted/30">
-                      <td className="px-3 py-2">
-                        {e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : "—"}
-                      </td>
-                      <td className="px-3 py-2 capitalize">{String(r.revision_type).replace(/_/g, " ")}</td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground max-w-[240px] truncate">{r.revision_reason || r.notes || "—"}</td>
-                      <td className="px-3 py-2 tabular-nums">₹{Number(r.one_time_amount || 0).toLocaleString("en-IN")}</td>
-                      <td className="px-3 py-2">
-                        {r.razorpay_verified_at ? (
-                          <Badge className="bg-success/10 text-success">Verified on run</Badge>
-                        ) : r.razorpay_pushed_at ? (
-                          <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
-                        ) : (
-                          <Badge variant="outline" title={r.razorpay_push_error || ""}>Not pushed</Badge>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                {payable.length > 0 ? (
+                  renderRows(payable, false)
+                ) : (
+                  <tr className="border-b">
+                    <td colSpan={5} className="px-3 py-4 text-center text-xs text-muted-foreground">
+                      Nothing payable on this RazorpayX run.
+                    </td>
+                  </tr>
+                )}
+
+                {recorded.length > 0 && (
+                  <tr className="border-b bg-muted/30">
+                    <td colSpan={5} className="px-3 py-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowRecorded((v) => !v)}
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground"
+                      >
+                        {showRecorded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                        Already paid outside payroll — record only ({recorded.length} · ₹{recordedTotal.toLocaleString("en-IN")})
+                      </button>
+                      <span className="ml-2 text-[11px] text-muted-foreground">not payable on this run</span>
+                    </td>
+                  </tr>
+                )}
+                {showRecorded && renderRows(recorded, true)}
               </tbody>
             </table>
             <div className="flex flex-wrap items-center gap-3 border-t px-3 py-2 text-xs text-muted-foreground">
-              <span>{list.length} payout{list.length === 1 ? "" : "s"} · total <span className="tabular-nums font-medium text-foreground">₹{total.toLocaleString("en-IN")}</span></span>
+              <span>
+                Payable on this run: <span className="tabular-nums font-medium text-foreground">₹{payableTotal.toLocaleString("en-IN")}</span>
+                {" "}({payable.length} payout{payable.length === 1 ? "" : "s"})
+              </span>
+              {recorded.length > 0 && (
+                <span>
+                  Recorded only (already paid outside payroll): <span className="tabular-nums font-medium text-foreground">₹{recordedTotal.toLocaleString("en-IN")}</span>
+                  {" "}({recorded.length})
+                </span>
+              )}
               {unpushed > 0 && (
                 <span className="inline-flex items-center gap-1 text-warning">
                   <Info className="h-3 w-3" /> {unpushed} not pushed to RazorpayX yet
@@ -106,3 +160,4 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
     </Card>
   );
 }
+

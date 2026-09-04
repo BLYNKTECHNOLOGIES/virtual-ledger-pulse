@@ -168,12 +168,9 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
           {rows.length > 0 && <Badge variant="secondary">{rows.length}</Badge>}
         </CardTitle>
         <CardDescription className="text-xs">
-          One-time corrections for employees whose CTC changed mid-month (training completion or any
-          other revision). RazorpayX pays the whole month at the live CTC — these lines settle the
-          difference on the days before the change. Never pushed automatically. Lines marked
-          <span className="font-medium"> Provisional</span> are staged from a revision that has not been
-          pushed to RazorpayX yet; they are recalculated and unlocked automatically once it is.
+          Settles the days before a mid-month CTC change. Never pushed automatically.
         </CardDescription>
+
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (

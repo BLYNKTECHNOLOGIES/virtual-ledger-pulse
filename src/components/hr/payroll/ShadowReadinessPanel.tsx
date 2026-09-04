@@ -80,7 +80,7 @@ export function ShadowReadinessPanel({
         <div>
           <div className="text-sm font-semibold text-foreground">Shadow readiness · {period.slice(0, 7)}</div>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Which inputs are available for this month. Persisted on every run as <code className="text-[10px]">input_completeness</code> so drift alerts stay honest.
+            Inputs available for this month.
           </p>
         </div>
         <Badge variant="outline" className={cn("gap-1.5", tierMeta.className)}>

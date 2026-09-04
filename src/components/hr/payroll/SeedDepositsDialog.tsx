@@ -116,13 +116,13 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="md:max-w-6xl md:w-[min(98vw,80rem)] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Seed existing {typeLabel.toLowerCase()}s</DialogTitle>
-          <DialogDescription>
-            Record amounts already collected before the HRMS migration. These are marked fully collected and are never
-            deducted from upcoming payrolls — they only appear on the employee profile and in the ledger.
+        <DialogHeader className="pb-1">
+          <DialogTitle className="text-base">Seed existing {typeLabel.toLowerCase()}s</DialogTitle>
+          <DialogDescription className="text-xs">
+            Already-collected amounts — recorded as fully collected, never deducted from payroll.
           </DialogDescription>
         </DialogHeader>
+
 
         <Table className="min-w-[44rem]">
           <TableHeader>
@@ -183,11 +183,11 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
           </TableBody>
         </Table>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between rounded-md border bg-muted/30 px-3 py-2">
           <Button type="button" variant="outline" size="sm" onClick={() => setRows((rs) => [...rs, newRow()])}>
             <Plus className="h-4 w-4 mr-1" /> Add row
           </Button>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground tabular-nums">
             {valid.length} record(s) · Total <span className="font-medium text-foreground">₹{total.toLocaleString("en-IN")}</span>
           </div>
         </div>
@@ -197,10 +197,10 @@ export function SeedDepositsDialog({ open, onOpenChange, depositType, typeLabel,
           <Button
             onClick={() => seedMutation.mutate()}
             disabled={seedMutation.isPending || !valid.length}
-            className="bg-[#E8604C] hover:bg-[#d4553f]"
           >
             {seedMutation.isPending ? "Seeding…" : `Seed ${valid.length || ""} record(s)`}
           </Button>
+
         </DialogFooter>
       </DialogContent>
     </Dialog>

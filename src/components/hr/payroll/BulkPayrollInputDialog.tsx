@@ -213,12 +213,11 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[97vw] md:max-w-[1400px] w-[97vw] max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Bulk stage {kind}s · {period}</DialogTitle>
-          <DialogDescription>
-            Add one row per employee with its own amount, apply the same {kind} to many employees, or paste amounts. Rows are staged only — push to RazorpayX from the list.
-          </DialogDescription>
+        <DialogHeader className="pb-1">
+          <DialogTitle className="text-base">Bulk stage {kind}s</DialogTitle>
+          <DialogDescription className="text-xs">{period} · staged only, pushed from the list</DialogDescription>
         </DialogHeader>
+
 
         <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
           <TabsList className="w-full">
@@ -346,7 +345,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
           </TabsContent>
 
           <TabsContent value="paste" className="space-y-2 mt-3">
-            <Label className="text-xs">One line per employee — <code>badge_id, amount</code> (optional third column overrides the label)</Label>
+            <Label className="text-xs text-muted-foreground"><code>badge_id, amount</code> — optional third column overrides the label</Label>
             <Textarea
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
@@ -354,13 +353,13 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               className="font-mono text-xs"
               placeholder={"BVT001, 5000\nBVT002, 2500, Attendance bonus"}
             />
-            <div className="text-xs text-muted-foreground">Unmapped badges and bad amounts are skipped and reported.</div>
           </TabsContent>
         </Tabs>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1 rounded-md border bg-muted/30 p-3">
           <div className="md:col-span-1">
-            <Label className="text-xs">Label{mode === "select" ? "" : " (default for blank rows)"}</Label>
+            <Label className="text-xs">Label</Label>
+
             {kind === "addition" && additionType === "bonus" && mode !== "rows" ? (
               <Select value={BONUS_LABELS.includes(label) ? label : ""} onValueChange={setLabel}>
                 <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bonus label" /></SelectTrigger>

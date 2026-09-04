@@ -103,6 +103,10 @@ Deno.serve(async (req) => {
     const toUpsert: any[] = [];
     const toDelete: string[] = [];
     const settlements: any[] = [];
+    // Ledger closure: every comp-off day consumed this month — whether it
+    // cancelled LOP or was encashed — must be marked settled so it can never
+    // reappear as an opening balance (and be paid again) in a later month.
+    const creditSettlements: any[] = [];
 
     for (const map of roster as any[]) {
       const emp = map.hr_employees;

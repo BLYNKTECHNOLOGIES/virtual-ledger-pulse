@@ -464,6 +464,14 @@ Deno.serve(async (req) => {
       if (absErr) throw absErr;
       clBooked = ((absData ?? []) as any[]).reduce((s, r) => s + Number(r.days_booked ?? 0), 0);
 
+      if (creditSettlements.length) {
+        const { error: credErr } = await supabase.rpc("hr_settle_compoff_credits", {
+          p_period_month: periodStr,
+          p_rows: creditSettlements,
+        });
+        if (credErr) throw credErr;
+      }
+
       for (const upd of toUpdate) {
         const { id, ...patch } = upd;
         const { error: updErr } = await supabase

@@ -29084,7 +29084,9 @@ export type Database = {
           emp_from: string
           emp_to: string
           employee_id: string
+          gap_calendar_days: number
           gap_working_days: number
+          month_calendar_days: number
           month_working_days: number
         }[]
       }

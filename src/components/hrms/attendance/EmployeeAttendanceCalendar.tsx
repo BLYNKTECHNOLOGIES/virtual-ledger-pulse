@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
+import { useMonthHolidays } from "@/hooks/hrms/useMonthHolidays";
+
 import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
 import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";
@@ -33,11 +35,13 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
   const startDay = getDay(monthStart);
 
   const { data: complianceSettings } = useComplianceSettings();
+  const { data: holidays = {} } = useMonthHolidays(format(monthStart, "yyyy-MM-dd"), format(monthEnd, "yyyy-MM-dd"));
   const { data: engineDays = [], isLoading } = useAttendanceDayRange(
     employeeId ? [employeeId] : [],
     format(monthStart, "yyyy-MM-dd"),
     format(monthEnd, "yyyy-MM-dd"),
   );
+
 
   const byDate = useMemo(() => {
     const map: Record<string, AttendanceDay> = {};
@@ -113,8 +117,12 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
               const dateStr = format(day, "yyyy-MM-dd");
               const record = byDate[dateStr];
               const weeklyOff = isWeeklyOff(day, complianceSettings);
+              const holidayName = holidays[dateStr];
               const status: AttendanceDayStatus =
-                record?.status && record.status !== "no_data" ? record.status : weeklyOff ? "week_off" : "no_data";
+                record?.status && record.status !== "no_data"
+                  ? record.status
+                  : holidayName ? "holiday" : weeklyOff ? "week_off" : "no_data";
+
               const hasDetail = !!record && record.status !== "no_data";
 
               return (
@@ -142,7 +150,7 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
                     <DayTileTooltip
                       day={record}
                       dateLabel={format(day, "EEE, MMM d")}
-                      fallback={weeklyOff ? "Weekly off" : status === "holiday" ? "Holiday" : "No punch recorded"}
+                      fallback={holidayName ? `Holiday — ${holidayName}` : weeklyOff ? "Weekly off" : "No punch recorded"}
                     />
                   </TooltipContent>
                 </Tooltip>

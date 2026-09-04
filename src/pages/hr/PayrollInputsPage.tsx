@@ -475,11 +475,11 @@ export default function PayrollInputsPage() {
       </div>
 
       {lopFocus && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs">
           <Badge className="bg-primary/10 text-primary hover:bg-primary/10">LOP-only view</Badge>
-          <span>Additions and other deductions are hidden here — manage them from Payroll Inputs in the cockpit tools.</span>
         </div>
       )}
+
 
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>

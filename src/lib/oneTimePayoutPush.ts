@@ -36,10 +36,25 @@ export async function pushOneTimePayoutToRazorpay(revisionId: string): Promise<O
   // 1) Read revision
   const { data: rev, error: readErr } = await (supabase as any)
     .from("hr_salary_revisions")
-    .select("id, employee_id, revision_type, one_time_amount, payout_month, revision_reason, notes")
+    .select("id, employee_id, revision_type, one_time_amount, payout_month, revision_reason, notes, payout_channel, payout_paid_on")
     .eq("id", revisionId)
     .maybeSingle();
   if (readErr || !rev) return { ok: false, error: readErr?.message || "Revision not found" };
+
+  // DOUBLE-PAYMENT GUARD — record-only payouts were already paid to the
+  // employee outside this payroll run (direct transfer / one-off in RazorpayX)
+  // and are logged in HRMS purely for the record. Staging them as an addition
+  // would pay the same money a second time on the run.
+  if (rev.payout_channel === "outside_payroll") {
+    const when = rev.payout_paid_on
+      ? ` on ${new Date(rev.payout_paid_on).toLocaleDateString("en-IN")}`
+      : "";
+    return {
+      ok: false,
+      skipped: true,
+      error: `This payout was already paid outside payroll${when} — it is recorded only. Pushing it would pay the employee twice.`,
+    };
+  }
 
   const amount = Number(rev.one_time_amount || 0);
   if (!amount || amount <= 0) return { ok: false, error: "No one-time amount on this revision" };

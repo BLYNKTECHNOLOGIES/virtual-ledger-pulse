@@ -413,10 +413,10 @@ export default function PayrollInputsPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
-        title={lopFocus ? "LOP Deductions — push to RazorpayX" : "Payroll Inputs"}
+        title={lopFocus ? "LOP Deductions" : "Payroll Inputs"}
         description={lopFocus
-          ? "Cockpit step 3: stage loss-of-pay deductions for the period and push them to RazorpayX. This view handles LOP only."
-          : "Stage one-off additions, deductions, do-not-pay and reset-modifications, then push to RazorpayX. RazorpayX computes payroll; HRMS is the input feeder."}
+          ? `Loss-of-pay deductions for ${periodLabel} — stage, then push to RazorpayX.`
+          : "Stage one-off additions and deductions, then push to RazorpayX."}
         actions={<DashboardLink />}
       />
 
@@ -424,7 +424,7 @@ export default function PayrollInputsPage() {
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
         <SourceTag source="razorpay" />
         <span className="text-muted-foreground">
-          These inputs land in RazorpayX and are applied on the next payroll run there. Pay-run and payslip PDFs live on the RazorpayX dashboard.
+          Inputs apply on the next RazorpayX payroll run; payslips live on the RazorpayX dashboard.
         </span>
       </div>
 
@@ -470,12 +470,12 @@ export default function PayrollInputsPage() {
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-border">
           {[
-            { label: "Pending to push", value: `${pendingRows.length}`, sub: inr(sum(pendingRows)), tone: "text-foreground" },
-            { label: "Verified on run", value: `${pushedRows.length - unverifiedRows.length}`, sub: inr(sum(pushedRows.filter((r) => r.readback_verified_at))), tone: "text-success" },
-            { label: "Pushed · unverified", value: `${unverifiedRows.length}`, sub: inr(sum(unverifiedRows)), tone: unverifiedRows.length ? "text-warning" : "text-muted-foreground" },
-            { label: `Total staged ${tab}s`, value: `${visibleRows.length}`, sub: inr(sum(visibleRows as any[])), tone: "text-foreground" },
+            { label: "Pending to push", value: `${pendingRows.length}`, sub: inr(sum(pendingRows)), tone: "text-foreground", tint: pendingRows.length ? "bg-primary/5" : "" },
+            { label: "Verified on run", value: `${pushedRows.length - unverifiedRows.length}`, sub: inr(sum(pushedRows.filter((r) => r.readback_verified_at))), tone: "text-success", tint: "bg-success/5" },
+            { label: "Pushed · unverified", value: `${unverifiedRows.length}`, sub: inr(sum(unverifiedRows)), tone: unverifiedRows.length ? "text-warning" : "text-muted-foreground", tint: unverifiedRows.length ? "bg-warning/5" : "" },
+            { label: `Total staged ${tab}s`, value: `${visibleRows.length}`, sub: inr(sum(visibleRows as any[])), tone: "text-foreground", tint: "" },
           ].map((s) => (
-            <div key={s.label} className="p-3">
+            <div key={s.label} className={`p-3 ${s.tint}`}>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
               <p className={`text-xl font-bold tabular-nums leading-tight ${s.tone}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground tabular-nums">{s.sub}</p>
@@ -485,11 +485,9 @@ export default function PayrollInputsPage() {
       </div>
 
       {lopFocus && (
-        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-          <div className="font-medium">LOP-only view</div>
-          <div className="text-muted-foreground mt-1">
-            Only loss-of-pay deductions for {period} are staged, listed and pushed here. Additions, bonuses and other deductions are intentionally hidden — open Payroll Inputs from the cockpit tools to manage those.
-          </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Badge className="bg-primary/10 text-primary hover:bg-primary/10">LOP-only view</Badge>
+          <span>Additions and other deductions are hidden here — manage them from Payroll Inputs in the cockpit tools.</span>
         </div>
       )}
 
@@ -503,15 +501,12 @@ export default function PayrollInputsPage() {
         )}
 
         <TabsContent value={tab} className="space-y-4 mt-4">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="overflow-hidden border-l-2 border-l-primary/60">
+            <CardHeader className="pb-3 bg-muted/40 border-b">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <PlusCircle className="h-4 w-4 text-primary" />
                 {lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}
               </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Staging only records the line in HRMS. Nothing reaches RazorpayX until you push it.
-              </p>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-start">
@@ -527,12 +522,10 @@ export default function PayrollInputsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground">Only RazorpayX-mapped active employees are listed.</p>
                 </div>
                 <div className="md:col-span-2 space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Label {lopFocus ? "" : "(appears on the payslip)"}</Label>
+                  <Label className="text-xs text-muted-foreground">{lopFocus ? "Label" : "Payslip label"}</Label>
                   <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
-                  {lopFocus && <p className="text-[10px] text-muted-foreground">Locked to the LOP head so the row stays inside this view.</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Amount</Label>
@@ -577,7 +570,7 @@ export default function PayrollInputsPage() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t">
                 <p className="text-xs text-muted-foreground">
-                  {tab === "addition" ? "Additions increase net pay" : "Deductions reduce net pay"} for <span className="font-medium text-foreground">{periodLabel}</span>.
+                  {tab === "addition" ? "Increases" : "Reduces"} net pay for <span className="font-medium text-foreground">{periodLabel}</span> — nothing reaches RazorpayX until pushed.
                 </p>
                 <Button onClick={() => stageMutation.mutate()} disabled={stageMutation.isPending} size="sm">
                   {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-1" />}
@@ -588,13 +581,15 @@ export default function PayrollInputsPage() {
           </Card>
 
 
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-2 flex-wrap space-y-0">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-start justify-between gap-2 flex-wrap space-y-0 bg-muted/40 border-b">
               <div>
                 <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} — {periodLabel}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {pendingRows.length} pending · {pushedRows.length} pushed · {inr(sum(visibleRows as any[]))} total
-                </p>
+                <div className="flex items-center gap-2 mt-1.5 text-xs">
+                  <Badge variant="outline" className="font-normal text-muted-foreground">{pendingRows.length} pending</Badge>
+                  <Badge className="bg-success/10 text-success hover:bg-success/10 font-normal">{pushedRows.length} pushed</Badge>
+                  <span className="text-muted-foreground tabular-nums">{inr(sum(visibleRows as any[]))} total</span>
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 {selectedPending.length > 0 && (
@@ -671,9 +666,11 @@ export default function PayrollInputsPage() {
                     </td></tr>
                   ) : visibleRows.length === 0 ? (
                     <tr><td colSpan={7} className="p-10 text-center">
-                      <Layers className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-sm font-medium">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {periodLabel}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Stage a line above{tab === "deduction" ? ", or auto-calculate LOP from attendance" : ""} to get started.</p>
+                      <div className="inline-flex flex-col items-center rounded-xl border border-dashed border-border bg-muted/20 px-8 py-6">
+                        <Layers className="h-6 w-6 text-muted-foreground/50 mb-2" />
+                        <p className="text-sm font-medium">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {periodLabel}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Stage a line above{tab === "deduction" ? ", or auto-calculate LOP from attendance" : ""}.</p>
+                      </div>
                     </td></tr>
                   ) : visibleRows.map((r) => (
                     <tr key={r.id} className={`border-b transition-colors hover:bg-muted/40 ${selected[r.id] ? "bg-primary/5" : ""}`}>
@@ -776,7 +773,7 @@ export default function PayrollInputsPage() {
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 flex-wrap">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 flex-wrap bg-muted/40 border-b">
           <div>
             <CardTitle className="text-sm">Per-employee actions — {periodLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">

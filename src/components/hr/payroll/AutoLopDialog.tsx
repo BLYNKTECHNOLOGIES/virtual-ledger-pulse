@@ -245,10 +245,9 @@ export function AutoLopDialog({
             <Calculator className="h-4 w-4" /> Auto-calculate LOP from attendance — {period}
           </DialogTitle>
           <DialogDescription>
-            Loss of pay uses the exact maintained figures shown in Attendance Summary (working days minus
-            present, half-day credit and paid leave) and the same monthly base the shadow payroll uses. Nothing is saved
-            until you stage it. Rows already pushed to RazorpayX are never overwritten.
+            Nothing is saved until you stage it. Rows already pushed to RazorpayX are never overwritten.
           </DialogDescription>
+
         </DialogHeader>
 
         {preview.isPending && (

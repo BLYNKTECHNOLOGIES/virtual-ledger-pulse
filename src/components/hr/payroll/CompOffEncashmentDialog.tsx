@@ -135,7 +135,7 @@ export function CompOffEncashmentDialog({
             <Gift className="h-4 w-4 text-muted-foreground" /> Comp-off encashment — {period}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Leftover comp-off after LOP offset, at monthly base ÷ working days. Run Auto-LOP first; nothing saves until you stage.
+            Leftover comp-off after LOP offset, at monthly base ÷ calendar days of the month (same rate as LOP). Run Auto-LOP first; nothing saves until you stage.
           </DialogDescription>
         </DialogHeader>
 

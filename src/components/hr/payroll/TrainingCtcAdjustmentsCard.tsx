@@ -123,6 +123,28 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
     onError: (e: any) => { setConfirm(null); toast.error(e.message); },
   });
 
+  // Re-derives a provisional line from the live revision. If the CTC push has
+  // since landed the line is finalised and unlocked; if the revision no longer
+  // owes anything (old CTC == new CTC after a reconciliation) the stale line is
+  // removed. Without this, such a row stays Provisional — and unpushable — forever.
+  const recheck = useMutation({
+    mutationFn: async (row: any) => {
+      const { data, error } = await (supabase as any).rpc("hr_stage_ctc_transition_adjustment", {
+        p_revision_id: row.source_revision_id,
+        p_provisional: true,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ["training_ctc_adjustments", periodDate] });
+      if (data?.kind === "none") toast.success("No longer applicable — the line was removed");
+      else if (data?.provisional === false) toast.success("Finalised — you can push it now");
+      else toast.info("Still provisional — push the new CTC to RazorpayX first");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const dismiss = useMutation({
     mutationFn: async (row: any) => {
       const table = row.kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
@@ -208,6 +230,16 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
                             >
                               Approve &amp; push
                             </Button>
+                            {r.provisional && r.source_revision_id && (
+                              <Button
+                                size="sm" variant="outline" className="h-7 text-xs"
+                                disabled={recheck.isPending}
+                                title="Re-derive from the revision: unlocks it if the CTC push has landed, removes it if nothing is owed any more."
+                                onClick={() => recheck.mutate(r)}
+                              >
+                                {recheck.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Re-check
+                              </Button>
+                            )}
                             <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
                                     onClick={() => dismiss.mutate(r)}>
                               Dismiss

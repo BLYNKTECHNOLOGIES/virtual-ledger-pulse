@@ -53,10 +53,14 @@ export const COCKPIT_TOOL_TITLES = Object.fromEntries(
 export function CockpitToolSheet({
   tool,
   month,
+  stepNo,
+  stepLabel,
   onClose,
 }: {
   tool: CockpitToolKey | null;
   month?: string;
+  stepNo?: number;
+  stepLabel?: string;
   onClose: () => void;
 }) {
   const entry = tool ? TOOLS[tool] : null;
@@ -87,10 +91,13 @@ export function CockpitToolSheet({
     >
       <div className="flex items-center gap-3 border-b px-3 md:px-4 py-2.5 shrink-0 bg-background">
         <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
-            Payroll cockpit{month ? ` · ${new Date(month + "T00:00:00Z").toLocaleString("en-IN", { month: "long", year: "numeric" })}` : ""}
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground truncate">
+            {stepNo ? `Step ${stepNo} · ` : ""}Payroll cockpit
+            {month ? ` · ${new Date(month + "T00:00:00Z").toLocaleString("en-IN", { month: "long", year: "numeric" })}` : ""}
           </p>
-          <h2 className="text-sm font-semibold truncate">{entry.title}</h2>
+          <h2 className="text-sm font-semibold truncate">
+            {stepLabel ? `${stepLabel} — ${entry.title}` : entry.title}
+          </h2>
         </div>
         <Button variant="outline" size="sm" className="ml-auto gap-1.5 shrink-0" onClick={onClose}>
           <X className="h-4 w-4" /> <span className="hidden sm:inline">Back to cockpit</span>

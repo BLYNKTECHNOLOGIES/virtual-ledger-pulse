@@ -359,6 +359,7 @@ export default function MonthlyPayrollCockpitPage() {
   const [ackNotes, setAckNotes] = useState("");
   const [closeOpen, setCloseOpen] = useState(false);
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
+  const [toolStep, setToolStep] = useState<{ no: number; label: string } | null>(null);
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
 
   const [, setSearchParams] = useSearchParams();
@@ -366,14 +367,20 @@ export default function MonthlyPayrollCockpitPage() {
 
 
   // Embedded tools read the URL (tab / focus / period), so the cockpit sets them before opening.
-  function openTool(key: CockpitToolKey, params?: Record<string, string>) {
+  function openTool(
+    key: CockpitToolKey,
+    params?: Record<string, string>,
+    step?: { no: number; label: string },
+  ) {
     const next = new URLSearchParams(params ?? {});
     next.set("period", month.slice(0, 7));
     setSearchParams(next, { replace: true });
+    setToolStep(step ?? null);
     setTool(key);
   }
   function closeTool() {
     setTool(null);
+    setToolStep(null);
     setSearchParams(new URLSearchParams(), { replace: true });
     // A tool may have changed revisions / inputs / recoveries — re-evaluate the
     // live step status and the step-5 gate instead of serving the 30s cache.
@@ -698,7 +705,12 @@ export default function MonthlyPayrollCockpitPage() {
                           <Button
                             variant="outline"
                             className="h-10 w-full justify-between gap-1.5"
-                            onClick={() => openTool(target.tool, target.params)}
+                            onClick={() =>
+                              openTool(target.tool, target.params, {
+                                no: step.step_no,
+                                label: step.step_label,
+                              })
+                            }
                           >
                             {target.label} <ChevronRight className="h-3.5 w-3.5" />
                           </Button>
@@ -832,7 +844,13 @@ export default function MonthlyPayrollCockpitPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <CockpitToolSheet tool={tool} month={month} onClose={closeTool} />
+      <CockpitToolSheet
+        tool={tool}
+        month={month}
+        stepNo={toolStep?.no}
+        stepLabel={toolStep?.label}
+        onClose={closeTool}
+      />
     </div>
   );
 }

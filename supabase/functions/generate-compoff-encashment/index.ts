@@ -256,6 +256,13 @@ Deno.serve(async (req) => {
           .upsert(settlements, { onConflict: "employee_id,period_month", ignoreDuplicates: false });
         if (setErr) throw setErr;
       }
+      if (creditSettlements.length) {
+        const { error: credErr } = await supabase.rpc("hr_settle_compoff_credits", {
+          p_period_month: periodStr,
+          p_rows: creditSettlements,
+        });
+        if (credErr) throw credErr;
+      }
     }
 
     const summary = {

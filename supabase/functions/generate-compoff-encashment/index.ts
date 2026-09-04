@@ -160,7 +160,10 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const divisor = workingDays > 0 ? workingDays : totalDays;
+      // Divisor MUST match generate-lop-deductions: calendar days of the month,
+      // not working days. A day cancelled and a day encashed must be worth the
+      // same rupee amount.
+      const divisor = totalDays;
       const perDay = salary.monthlyGross / divisor;
       const amount = Math.round(perDay * split.encash_days);
 

@@ -144,7 +144,7 @@ export function AutoLopDialog({
   function exportCsv() {
     const head = [
       "Employee", "Badge", "Working days", "Present", "Half days", "Absent", "Held harmless", "Unverified",
-      "CL", "SL", "Comp-off leave", "Other paid leave", "Unpaid leave", "Worked on off/holiday", "Comp-off credits earned", "Punched but unprocessed",
+      "Other paid leave", "Unpaid leave", "Worked on off/holiday", "Comp-off credits earned", "Punched but unprocessed",
       "CL opening", "CL credited", "CL used", "CL balance",
       "SL opening", "SL credited", "SL used", "SL balance",
       "CO opening", "CO credited", "CO used", "CO set-off against LOP", "CO encashed", "CO balance",
@@ -159,7 +159,7 @@ export function AutoLopDialog({
         `"${(r.name || "").replace(/"/g, "'")}"`, `"${r.badge_id ?? ""}"`,
         num(r.working_days), num(r.present_days), num(r.half_days), num(r.absent_days),
         num(r.held_harmless_days), num(r.unverified_days),
-        num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid), num(r.worked_off_days), num(r.compoff_credit_days), num(r.unprocessed_off_days),
+        num(s.otherPaid), num(s.unpaid), num(r.worked_off_days), num(r.compoff_credit_days), num(r.unprocessed_off_days),
         num(cl.opening), num(cl.credited), num(cl.used), num(cl.closing),
         num(sl.opening), num(sl.credited), num(sl.used), num(sl.closing),
         num(co.opening), num(co.credited), num(co.used), num(co.offset_lop), num(co.encashed), num(co.closing),
@@ -278,7 +278,7 @@ export function AutoLopDialog({
                   <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th className="px-2 pt-2 sticky left-0 z-20 bg-muted/50 border-r border-border" colSpan={2} />
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Attendance</th>
-                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave used (days)</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={2}>Leave used (days)</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Casual leave balance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Sick leave balance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={6}>Comp-off balance</th>
@@ -303,10 +303,7 @@ export function AutoLopDialog({
                     <th className="p-2 text-right">Present</th>
                     <th className="p-2 text-right">Half</th>
                     <th className="p-2 text-right">Absent</th>
-                    <th className="p-2 text-right border-l">CL</th>
-                    <th className="p-2 text-right">SL</th>
-                    <th className="p-2 text-right">Comp-off</th>
-                    <th className="p-2 text-right">Other paid</th>
+                    <th className="p-2 text-right border-l">Other paid</th>
                     <th className="p-2 text-right">Unpaid</th>
                     <th className="p-2 text-right border-l">Open</th>
                     <th className="p-2 text-right">Cr</th>
@@ -391,10 +388,7 @@ export function AutoLopDialog({
                               </div>
                             ) : null}
                           </td>
-                          <td className="p-2 text-right tabular-nums border-l">{num(slices.cl)}</td>
-                          <td className="p-2 text-right tabular-nums">{num(slices.sl)}</td>
-                          <td className="p-2 text-right tabular-nums">{num(slices.compoff)}</td>
-                          <td className="p-2 text-right tabular-nums">{num(slices.otherPaid)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(slices.otherPaid)}</td>
                           <td className="p-2 text-right tabular-nums">{num(slices.unpaid)}</td>
                           <td className="p-2 text-right tabular-nums border-l">{num(clL.opening)}</td>
                           <td className="p-2 text-right tabular-nums">{num(clL.credited)}</td>
@@ -428,7 +422,7 @@ export function AutoLopDialog({
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">
                             <td />
-                            <td colSpan={32} className="p-3">
+                            <td colSpan={29} className="p-3">
                               <div className="grid gap-4 md:grid-cols-3 text-xs">
                                 <div>
                                   <p className="font-semibold mb-1">Leave consumed this month</p>

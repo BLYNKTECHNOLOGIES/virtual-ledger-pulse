@@ -581,13 +581,15 @@ export default function PayrollInputsPage() {
           </Card>
 
 
-          <Card>
-            <CardHeader className="flex flex-row items-start justify-between gap-2 flex-wrap space-y-0">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-row items-start justify-between gap-2 flex-wrap space-y-0 bg-muted/40 border-b">
               <div>
                 <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} — {periodLabel}</CardTitle>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {pendingRows.length} pending · {pushedRows.length} pushed · {inr(sum(visibleRows as any[]))} total
-                </p>
+                <div className="flex items-center gap-2 mt-1.5 text-xs">
+                  <Badge variant="outline" className="font-normal text-muted-foreground">{pendingRows.length} pending</Badge>
+                  <Badge className="bg-success/10 text-success hover:bg-success/10 font-normal">{pushedRows.length} pushed</Badge>
+                  <span className="text-muted-foreground tabular-nums">{inr(sum(visibleRows as any[]))} total</span>
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap justify-end">
                 {selectedPending.length > 0 && (
@@ -664,9 +666,11 @@ export default function PayrollInputsPage() {
                     </td></tr>
                   ) : visibleRows.length === 0 ? (
                     <tr><td colSpan={7} className="p-10 text-center">
-                      <Layers className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
-                      <p className="text-sm font-medium">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {periodLabel}</p>
-                      <p className="text-xs text-muted-foreground mt-1">Stage a line above{tab === "deduction" ? ", or auto-calculate LOP from attendance" : ""} to get started.</p>
+                      <div className="inline-flex flex-col items-center rounded-xl border border-dashed border-border bg-muted/20 px-8 py-6">
+                        <Layers className="h-6 w-6 text-muted-foreground/50 mb-2" />
+                        <p className="text-sm font-medium">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {periodLabel}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Stage a line above{tab === "deduction" ? ", or auto-calculate LOP from attendance" : ""}.</p>
+                      </div>
                     </td></tr>
                   ) : visibleRows.map((r) => (
                     <tr key={r.id} className={`border-b transition-colors hover:bg-muted/40 ${selected[r.id] ? "bg-primary/5" : ""}`}>

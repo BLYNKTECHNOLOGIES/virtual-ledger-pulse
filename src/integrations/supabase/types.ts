@@ -28705,6 +28705,13 @@ export type Database = {
         Args: { p_employee_id?: string }
         Returns: Json
       }
+      hr_apply_cl_lop_absorption: {
+        Args: { p_absorptions: Json; p_period_month: string }
+        Returns: {
+          days_booked: number
+          employee_id: string
+        }[]
+      }
       hr_apply_deposit_collection: {
         Args: { p_razorpay_input_id?: string; p_schedule_id: string }
         Returns: undefined
@@ -28885,6 +28892,14 @@ export type Database = {
       hr_can_manage_payroll_config: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      hr_cl_available: {
+        Args: { p_employee_ids: string[]; p_period_month: string }
+        Returns: {
+          cl_auto_booked: number
+          cl_available: number
+          employee_id: string
+        }[]
       }
       hr_classify_drift_row: {
         Args: {

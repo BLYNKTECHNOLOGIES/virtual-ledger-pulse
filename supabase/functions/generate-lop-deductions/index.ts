@@ -13,7 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";
-import { fetchCompoffPool, splitCompoff } from "../_shared/compoff.ts";
+import { fetchCompoffPool, absorbLop } from "../_shared/compoff.ts";
 
 
 const corsHeaders = {
@@ -134,6 +134,26 @@ Deno.serve(async (req) => {
     // generate-compoff-encashment). Both engines share this math.
     const compoffPool = await fetchCompoffPool(supabase, roster.map((r: any) => r.hr_employee_id), periodStr);
 
+    // Casual-leave balance available to absorb LOP (owner policy: CL is applied
+    // automatically, no request needed). Already-booked auto absorption for this
+    // month is added back by the RPC so previews stay stable.
+    const clByEmp = new Map<string, { available: number; booked: number }>();
+    {
+      const { data: clRows, error: clErr } = await supabase.rpc("hr_cl_available", {
+        p_employee_ids: roster.map((r: any) => r.hr_employee_id),
+        p_period_month: periodStr,
+      });
+      if (clErr) throw clErr;
+      for (const r of ((clRows ?? []) as any[])) {
+        clByEmp.set(r.employee_id, {
+          available: Number(r.cl_available ?? 0),
+          booked: Number(r.cl_auto_booked ?? 0),
+        });
+      }
+    }
+    const absorptions: { employee_id: string; days: number }[] = [];
+
+
 
     // Existing staged deductions for the period.
     const { data: existing, error: exErr } = await supabase
@@ -160,16 +180,19 @@ Deno.serve(async (req) => {
 
       const pool = compoffPool.get(map.hr_employee_id) ?? { days_earned: 0, days_opening: 0, days_taken: 0, days_available: 0 };
       const rawLopDays = Number(lop?.lop_days ?? 0);
-      const split = splitCompoff(pool.days_available, rawLopDays);
+      const clPool = clByEmp.get(map.hr_employee_id) ?? { available: 0, booked: 0 };
+      // Comp-off first, then casual leave — both applied automatically.
+      const split = absorbLop(pool.days_available, clPool.available, rawLopDays);
 
       const gap = gapByEmp.get(map.hr_employee_id);
       const monthWorkingDays = Number(gap?.month_working_days ?? 0);
       const gapDays = Number(gap?.gap_working_days ?? 0);
-      // Charge days = genuine absence (after comp-off) + days not employed.
+      // Charge days = genuine absence (after comp-off + CL) + days not employed.
       const chargeDays = Math.min(
         Math.round((split.lop_after_offset + gapDays) * 100) / 100,
         monthWorkingDays > 0 ? monthWorkingDays : split.lop_after_offset + gapDays,
       );
+
 
       const base: any = {
         hr_employee_id: map.hr_employee_id,
@@ -201,7 +224,9 @@ Deno.serve(async (req) => {
         compoff_earned: pool.days_earned,
         compoff_opening: pool.days_opening,
         compoff_taken: pool.days_taken,
-        compoff_offset_days: split.offset_days,
+        compoff_offset_days: split.compoff_offset_days,
+        cl_available: clPool.available,
+        cl_offset_days: split.cl_offset_days,
         absence_lop_days: split.lop_after_offset,
         proration_days: gapDays,
         employment_from: gap?.emp_from ?? null,
@@ -239,14 +264,19 @@ Deno.serve(async (req) => {
         continue;
       }
 
+      if (split.cl_offset_days > 0) {
+        absorptions.push({ employee_id: map.hr_employee_id, days: split.cl_offset_days });
+      }
+
       // Absence LOP (after comp-off) + employment-window proration days.
       const absenceDays = split.lop_after_offset;
       const lopDays = chargeDays;
 
       if (lopDays <= 0) {
-        const offsetNote = split.offset_days > 0
-          ? `${split.offset_days} LOP day${split.offset_days === 1 ? "" : "s"} cancelled by comp-off`
-          : null;
+        const offsetBits: string[] = [];
+        if (split.compoff_offset_days > 0) offsetBits.push(`${split.compoff_offset_days} by comp-off`);
+        if (split.cl_offset_days > 0) offsetBits.push(`${split.cl_offset_days} by casual leave`);
+        const offsetNote = offsetBits.length ? `LOP cancelled: ${offsetBits.join(", ")}` : null;
         if (existingAuto && !existingAuto.pushed_at) {
           rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
           toDelete.push(existingAuto.id);
@@ -295,7 +325,8 @@ Deno.serve(async (req) => {
       const labelParts: string[] = [];
       if (absenceDays > 0) labelParts.push(`${dayWord(absenceDays)} absence`);
       if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} not employed`);
-      if (split.offset_days > 0) labelParts.push(`${dayWord(split.offset_days)} offset by comp-off`);
+      if (split.compoff_offset_days > 0) labelParts.push(`${dayWord(split.compoff_offset_days)} offset by comp-off`);
+      if (split.cl_offset_days > 0) labelParts.push(`${dayWord(split.cl_offset_days)} offset by casual leave`);
 
       const row: any = {
         ...base,
@@ -358,7 +389,17 @@ Deno.serve(async (req) => {
     let staged = 0;
     let removed = 0;
 
+    let clBooked = 0;
     if (!dryRun) {
+      // Book the automatic casual-leave consumption FIRST. The RPC reverses any
+      // previous auto booking for this month, so re-running never double-spends.
+      const { data: absData, error: absErr } = await supabase.rpc("hr_apply_cl_lop_absorption", {
+        p_absorptions: absorptions,
+        p_period_month: periodStr,
+      });
+      if (absErr) throw absErr;
+      clBooked = ((absData ?? []) as any[]).reduce((s, r) => s + Number(r.days_booked ?? 0), 0);
+
       for (const upd of toUpdate) {
         const { id, ...patch } = upd;
         const { error: updErr } = await supabase
@@ -400,6 +441,9 @@ Deno.serve(async (req) => {
       not_applicable: rows.filter((r) => r.status === "not_applicable").length,
       pushed_locked: rows.filter((r) => r.status === "pushed").length,
       pushed_stale: rows.filter((r) => r.stale_pushed === true).length,
+      cl_offset_days: Number(rows.reduce((s, r) => s + Number(r.cl_offset_days ?? 0), 0).toFixed(2)),
+      cl_booked_days: Number(clBooked.toFixed(2)),
+      compoff_offset_days: Number(rows.reduce((s, r) => s + Number(r.compoff_offset_days ?? 0), 0).toFixed(2)),
       total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),
     };
 

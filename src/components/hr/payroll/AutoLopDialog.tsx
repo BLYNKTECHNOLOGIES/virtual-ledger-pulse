@@ -47,6 +47,8 @@ type PreviewRow = {
   compoff_opening?: number;
   compoff_taken?: number;
   compoff_offset_days?: number;
+  cl_available?: number;
+  cl_offset_days?: number;
   absence_lop_days?: number;
   proration_days?: number;
   employment_from?: string | null;
@@ -146,7 +148,7 @@ export function AutoLopDialog({
       "CL opening", "CL credited", "CL used", "CL balance",
       "SL opening", "SL credited", "SL used", "SL balance",
       "CO opening", "CO credited", "CO used", "CO set-off against LOP", "CO encashed", "CO balance",
-      "Raw LOP", "Comp-off set-off", "Proration days", "Charged LOP days",
+      "Raw LOP", "Comp-off set-off", "CL set-off (auto)", "CL available", "Proration days", "Charged LOP days",
       "Monthly base", "LOP amount", "Status",
     ];
     const lines = [head.join(",")];
@@ -161,7 +163,7 @@ export function AutoLopDialog({
         num(cl.opening), num(cl.credited), num(cl.used), num(cl.closing),
         num(sl.opening), num(sl.credited), num(sl.used), num(sl.closing),
         num(co.opening), num(co.credited), num(co.used), num(co.offset_lop), num(co.encashed), num(co.closing),
-        num(r.raw_lop_days), num(r.compoff_offset_days), num(r.proration_days), num(r.lop_days),
+        num(r.raw_lop_days), num(r.compoff_offset_days), num(r.cl_offset_days), num(r.cl_available), num(r.proration_days), num(r.lop_days),
         num(r.monthly_base), num(r.amount), STATUS_META[r.status]?.label ?? r.status,
       ].join(","));
     }
@@ -280,7 +282,7 @@ export function AutoLopDialog({
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Casual leave balance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Sick leave balance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={6}>Comp-off balance</th>
-                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Loss of pay</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Loss of pay</th>
 
                     <th className="px-2 pt-2 text-center border-l" colSpan={2}>Amount</th>
                     <th className="px-2 pt-2 border-l" />
@@ -323,6 +325,7 @@ export function AutoLopDialog({
                     <th className="p-2 text-right border-l">Raw</th>
 
                     <th className="p-2 text-right">C/off set-off</th>
+                    <th className="p-2 text-right">CL set-off</th>
                     <th className="p-2 text-right">Proration</th>
                     <th className="p-2 text-right">Charged</th>
                     <th className="p-2 text-right border-l">Monthly base</th>
@@ -410,6 +413,7 @@ export function AutoLopDialog({
 
                           <td className="p-2 text-right tabular-nums border-l">{num(r.raw_lop_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.compoff_offset_days)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(r.cl_offset_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.proration_days)}</td>
                           <td className="p-2 text-right tabular-nums font-medium">{num(r.lop_days)}</td>
                           <td className="p-2 text-right tabular-nums border-l">{r.monthly_base ? inr(r.monthly_base) : "—"}</td>
@@ -424,7 +428,7 @@ export function AutoLopDialog({
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">
                             <td />
-                            <td colSpan={31} className="p-3">
+                            <td colSpan={32} className="p-3">
                               <div className="grid gap-4 md:grid-cols-3 text-xs">
                                 <div>
                                   <p className="font-semibold mb-1">Leave consumed this month</p>
@@ -458,6 +462,11 @@ export function AutoLopDialog({
                                   </p>
                                   <p className="text-muted-foreground">
                                     Available {num(r.compoff_available)} · Used to cancel LOP {num(r.compoff_offset_days)}
+                                  </p>
+                                  <p className="font-semibold pt-1">Automatic casual-leave set-off</p>
+                                  <p className="text-muted-foreground">
+                                    Available {num(r.cl_available)} · Auto-applied to cancel LOP {num(r.cl_offset_days)}
+                                    {(r.cl_offset_days ?? 0) > 0 ? " — booked as approved casual leave on staging" : ""}
                                   </p>
                                   <p className="font-semibold pt-1">Worked on weekly off / holiday</p>
                                   <p className="text-muted-foreground">

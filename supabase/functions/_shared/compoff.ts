@@ -47,3 +47,23 @@ export function splitCompoff(available: number, lopDays: number) {
     encash_days: Number((pool - offset).toFixed(2)),
   };
 }
+
+/**
+ * Owner policy (2026-09-04): absence LOP is absorbed by comp-off first and then
+ * by ANY available casual-leave balance, whether or not the employee filed a
+ * leave request. Only the remainder is charged as loss of pay. Sick leave is
+ * never auto-applied — it always requires an explicit request.
+ */
+export function absorbLop(compoffAvailable: number, clAvailable: number, lopDays: number) {
+  const co = splitCompoff(compoffAvailable, lopDays);
+  const cl = Math.max(0, Number(clAvailable) || 0);
+  const clOffset = Number(Math.min(cl, co.lop_after_offset).toFixed(2));
+  return {
+    compoff_offset_days: co.offset_days,
+    compoff_encash_days: co.encash_days,
+    cl_offset_days: clOffset,
+    cl_available: cl,
+    lop_after_offset: Number((co.lop_after_offset - clOffset).toFixed(2)),
+  };
+}
+

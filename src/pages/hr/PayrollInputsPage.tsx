@@ -823,13 +823,17 @@ export default function PayrollInputsPage() {
                 <tr key={r.hr_employee_id} className={`border-b hover:bg-muted/30 ${dnpAt ? "bg-muted/40" : ""}`}>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={dnpAt ? "text-muted-foreground" : ""}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      <span className="h-7 w-7 shrink-0 rounded-full bg-muted text-muted-foreground grid place-items-center text-[10px] font-semibold">
+                        {`${r.hr_employees?.first_name?.[0] ?? ""}${r.hr_employees?.last_name?.[0] ?? ""}`.toUpperCase() || "–"}
+                      </span>
+                      <span className={dnpAt ? "text-muted-foreground" : "font-medium"}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
                       {inactive && <Badge variant="muted">Inactive in RazorpayX</Badge>}
                       {dnpAt && <Badge variant="muted">Do-Not-Pay applied · {new Date(dnpAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Badge>}
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-end">
+
                       <Button
                         size="sm"
                         variant={dnpAt ? "secondary" : "outline"}

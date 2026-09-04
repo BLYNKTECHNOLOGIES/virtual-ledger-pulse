@@ -413,10 +413,10 @@ export default function PayrollInputsPage() {
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
-        title={lopFocus ? "LOP Deductions — push to RazorpayX" : "Payroll Inputs"}
+        title={lopFocus ? "LOP Deductions" : "Payroll Inputs"}
         description={lopFocus
-          ? "Cockpit step 3: stage loss-of-pay deductions for the period and push them to RazorpayX. This view handles LOP only."
-          : "Stage one-off additions, deductions, do-not-pay and reset-modifications, then push to RazorpayX. RazorpayX computes payroll; HRMS is the input feeder."}
+          ? `Loss-of-pay deductions for ${periodLabel} — stage, then push to RazorpayX.`
+          : "Stage one-off additions and deductions, then push to RazorpayX."}
         actions={<DashboardLink />}
       />
 
@@ -424,7 +424,7 @@ export default function PayrollInputsPage() {
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
         <SourceTag source="razorpay" />
         <span className="text-muted-foreground">
-          These inputs land in RazorpayX and are applied on the next payroll run there. Pay-run and payslip PDFs live on the RazorpayX dashboard.
+          Inputs apply on the next RazorpayX payroll run; payslips live on the RazorpayX dashboard.
         </span>
       </div>
 

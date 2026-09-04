@@ -13,3 +13,8 @@ Owner ruling (05 Sep 2026, IST). In the Aug 2026 LOP reconciliation these items 
 
 **Mid-month increment mechanism is confirmed correct**: monthly base = calendar-day weighted average of all APPLIED CTCs in force during the month; LOP charged on that blended base.
 - **Devang Singh Parihar (badge 57)** — `total_salary` ₹1,92,000 vs components ₹1,20,000 is NOT a defect: 1,92,000 is the future CTC (revision effective **01 Sep 2026**, training completion), 1,20,000 is the live August training structure. August correctly pays on ₹10,000/month; no mid-month adjustment (adjustments only apply when the effective date is after the 1st). Open item: RazorpayX still holds ₹1,20,000 for Devang and ₹1,20,000 for Jay Vishnoi (badge 59, should be ₹1,68,000) — push before the September run.
+
+Owner ruling (05 Sep 2026, 02:25 IST) — further CLOSED items, HRMS correct, HR sheet wrong:
+- **Comp-off treatment (B1)**: comp-off offsets the same month's LOP first; only the leftover is encashed in that month; nothing carries forward. Encashing a comp-off day *and* waiving the matching LOP (HR's Lokesh/Uday rows) is double payment and is rejected.
+- **Half-day calls (B4)**: Aarti Pawaiya 31 Aug (4.73 h) = 0.5 day, not 1.0; Archita Damle 13 Aug (6.50 h) = 0.5 day at the current threshold; Amit Dangi has no short day in August, so HR's extra 0.5 is dropped.
+- Still open as of this ruling: B3 only — sick-leave auto-absorption (Q1), approved-leave days beyond balance (Q2), and the unreproducible HR figures for Lokesh/Virendra/Honey (Q3).

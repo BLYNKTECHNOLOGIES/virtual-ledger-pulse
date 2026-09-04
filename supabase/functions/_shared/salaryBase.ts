@@ -38,10 +38,99 @@ export interface SalaryBaseResult {
   razorpayMonthly?: number;
   /** True when the resolved base disagrees with the RazorpayX salary. */
   mismatch?: boolean;
+  /** Set when an in-month CTC revision made the base a time-weighted figure. */
+  revisionNote?: string;
 }
 
 /** Fraction of the RazorpayX salary a fallback base may differ by. */
 const BASE_TOLERANCE = 0.01;
+
+/**
+ * CTC actually in force during the period (Sept 2026 owner ruling).
+ *
+ * `hr_employees.total_salary` mirrors the LATEST RazorpayX CTC, which for an
+ * employee whose increment starts next month is the FUTURE salary — deducting
+ * LOP against it over-charges the whole month (Aug 2026: Jay Vishnoi 14,000 and
+ * Devang Parihar 16,000 used, while their training CTC of 10,000/month was what
+ * August actually paid; the increment is effective 01-Sep).
+ *
+ * So the base is the calendar-day weighted average of the CTC in force across
+ * the month, derived from APPLIED salary revisions. A revision effective
+ * mid-month therefore yields a blended base — exactly what the part-month CTC
+ * transition recovery/arrear assumes.
+ */
+async function revisionWeightedMonthly(
+  supabase: any,
+  employeeId: string,
+  periodStr: string,
+  monthEndStr: string,
+  latestMonthly: number,
+): Promise<{ monthly: number; note?: string } | null> {
+  const { data: revs, error } = await supabase
+    .from("hr_salary_revisions")
+    .select("previous_total, new_total, effective_from, status")
+    .eq("employee_id", employeeId)
+    .not("new_total", "is", null)
+    .order("effective_from", { ascending: true });
+  if (error || !revs?.length) return null;
+
+  const applied = (revs as any[]).filter(
+    (r) => !r.status || ["APPLIED", "applied"].includes(String(r.status)),
+  );
+  if (!applied.length) return null;
+
+  const monthStart = new Date(`${periodStr}T00:00:00Z`);
+  const monthEnd = new Date(`${monthEndStr}T00:00:00Z`);
+  const days = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86400000) + 1;
+
+  // CTC in force on day 1 = the newest revision effective on/before month start,
+  // falling back to the "previous_total" of the next revision to come — that is
+  // exactly the salary this month was paid on.
+  const before = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) <= monthStart);
+  const inMonth = applied.filter((r) => {
+    const d = new Date(`${r.effective_from}T00:00:00Z`);
+    return d > monthStart && d <= monthEnd;
+  });
+  const future = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) > monthEnd);
+
+  const openingAnnual = before.length
+    ? Number(before[before.length - 1].new_total ?? 0)
+    : Number(inMonth[0]?.previous_total ?? future[0]?.previous_total ?? 0);
+  if (!(openingAnnual > 0)) return null;
+
+
+  if (!inMonth.length) {
+    const monthly = Math.round(openingAnnual / 12);
+    if (!(monthly > 0)) return null;
+    return {
+      monthly,
+      note:
+        Math.abs(monthly - latestMonthly) > 1
+          ? `CTC in force this month is ₹${openingAnnual.toLocaleString("en-IN")}/yr; the ₹${(latestMonthly * 12).toLocaleString("en-IN")}/yr on record starts later.`
+          : undefined,
+    };
+  }
+
+  // Weight each CTC by the calendar days it applies to.
+  let weighted = 0;
+  let cursor = 1;
+  let current = openingAnnual;
+  for (const r of inMonth) {
+    const startDay = new Date(`${r.effective_from}T00:00:00Z`).getUTCDate();
+    weighted += (current / 12) * (startDay - cursor);
+    cursor = startDay;
+    current = Number(r.new_total ?? current);
+  }
+  weighted += (current / 12) * (days - cursor + 1);
+  const monthly = Math.round(weighted / days);
+  if (!(monthly > 0)) return null;
+  return {
+    monthly,
+    note: `CTC changed mid-month — base is the day-weighted average of ₹${openingAnnual.toLocaleString("en-IN")} and ₹${Number(current).toLocaleString("en-IN")} per year.`,
+  };
+}
+
+
 
 
 export async function resolveMonthlyGross(
@@ -75,10 +164,23 @@ export async function resolveMonthlyGross(
   let monthlyGross = 0;
   let source: SalaryBaseSource = "none";
   let mismatch = false;
+  let revisionNote: string | undefined;
 
   if (razorpayMonthly > 0) {
     monthlyGross = razorpayMonthly;
     source = "razorpay_ctc";
+    // The CTC actually in force this month wins over the latest cached CTC.
+    const inForce = await revisionWeightedMonthly(
+      supabase,
+      employeeId,
+      periodStr,
+      monthEndStr,
+      razorpayMonthly,
+    );
+    if (inForce && inForce.monthly > 0) {
+      monthlyGross = inForce.monthly;
+      revisionNote = inForce.note;
+    }
     // Flag (but do not follow) a local assignment that disagrees with payroll.
     const assigned = Number(salaryAssignArr?.[0]?.annual_ctc ?? 0) / 12;
     if (assigned > 0 && Math.abs(assigned - razorpayMonthly) > razorpayMonthly * BASE_TOLERANCE) {
@@ -88,6 +190,7 @@ export async function resolveMonthlyGross(
     monthlyGross = Number(salaryAssignArr[0]?.annual_ctc ?? 0) / 12;
     if (monthlyGross > 0) source = "structure_assignment";
   }
+
 
 
   if (!(monthlyGross > 0)) {
@@ -164,7 +267,7 @@ export async function resolveMonthlyGross(
 
   monthlyGross = Math.round(monthlyGross);
   if (!(monthlyGross > 0)) return { monthlyGross: 0, source: "none", razorpayMonthly };
-  return { monthlyGross, source, razorpayMonthly, mismatch };
+  return { monthlyGross, source, razorpayMonthly, mismatch, revisionNote };
 }
 
 

@@ -186,12 +186,19 @@ Deno.serve(async (req) => {
 
       const gap = gapByEmp.get(map.hr_employee_id);
       const monthWorkingDays = Number(gap?.month_working_days ?? 0);
-      const gapDays = Number(gap?.gap_working_days ?? 0);
+      const monthCalendarDays = Number(gap?.month_calendar_days ?? totalDays) || totalDays;
+      // Proration is CALENDAR-based (Sept 2026 owner ruling): the day rate is
+      // salary ÷ calendar days, so the un-served part of a joining/relieving
+      // month must be counted in calendar days too. The joining day itself is
+      // always payable (the SQL helper only counts days strictly before DOJ).
+      const gapDays = Number(gap?.gap_calendar_days ?? 0);
+      const gapWorkingDays = Number(gap?.gap_working_days ?? 0);
       // Charge days = genuine absence (after comp-off + CL) + days not employed.
       const chargeDays = Math.min(
         Math.round((split.lop_after_offset + gapDays) * 100) / 100,
-        monthWorkingDays > 0 ? monthWorkingDays : split.lop_after_offset + gapDays,
+        monthCalendarDays,
       );
+
 
 
       const base: any = {
@@ -218,7 +225,26 @@ Deno.serve(async (req) => {
         unprocessed_off_dates: bd?.unprocessed_off_dates ?? [],
         compoff_credit_days: Number(bd?.compoff_credit_days ?? 0),
         compoff_credits: bd?.compoff_credits ?? [],
-        leave_ledger: bd?.leave_ledger ?? null,
+        // Ledger reflects the automatic set-offs this run applies, so the
+        // preview/CSV closing balances match what payroll will actually book
+        // (the RPC only sees absorption that is already committed).
+        leave_ledger: (() => {
+          const led = bd?.leave_ledger ? JSON.parse(JSON.stringify(bd.leave_ledger)) : null;
+          if (!led) return null;
+          const clExtra = Math.max(0, split.cl_offset_days - (clPool.booked ?? 0));
+          if (led.cl && clExtra > 0) {
+            led.cl.used = Number(((led.cl.used ?? 0) + clExtra).toFixed(2));
+            led.cl.closing = Number(((led.cl.closing ?? 0) - clExtra).toFixed(2));
+          }
+          if (led.co && split.compoff_offset_days > 0) {
+            led.co.offset_lop = split.compoff_offset_days;
+            led.co.closing = Number(
+              Math.max(0, (led.co.closing ?? 0) - split.compoff_offset_days).toFixed(2),
+            );
+          }
+          return led;
+        })(),
+
         raw_lop_days: rawLopDays,
         compoff_available: pool.days_available,
         compoff_earned: pool.days_earned,
@@ -272,13 +298,30 @@ Deno.serve(async (req) => {
       const absenceDays = split.lop_after_offset;
       const lopDays = chargeDays;
 
+      // The salary base is resolved for EVERY payable employee, including the
+      // zero-LOP ones, so the exported audit sheet always shows what the
+      // deduction would have been computed against.
+      const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
+      // Day rate = full-month salary ÷ CALENDAR days in the month (Sept 2026
+      // owner ruling, matching the HR reconciliation sheet): RazorpayX pays the
+      // whole month, and one day of pay is 1/31st of it in a 31-day month.
+      const divisor = monthCalendarDays > 0 ? monthCalendarDays : totalDays;
+      if (salary.monthlyGross > 0) {
+        base.monthly_base = salary.monthlyGross;
+        base.base_source = salary.source;
+        base.base_source_label = SALARY_BASE_LABELS[salary.source];
+        base.base_mismatch = !!salary.mismatch;
+        base.base_note = salary.revisionNote ?? null;
+        base.divisor = divisor;
+      }
+
       if (lopDays <= 0) {
         const offsetBits: string[] = [];
         if (split.compoff_offset_days > 0) offsetBits.push(`${split.compoff_offset_days} by comp-off`);
         if (split.cl_offset_days > 0) offsetBits.push(`${split.cl_offset_days} by casual leave`);
         const offsetNote = offsetBits.length ? `LOP cancelled: ${offsetBits.join(", ")}` : null;
         if (existingAuto && !existingAuto.pushed_at) {
-          rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0, base_source: null });
+          rows.push({ ...base, status: "remove", reason: offsetNote ? `${offsetNote} — stale auto row will be removed` : "No LOP days — stale auto row will be removed", amount: 0 });
           toDelete.push(existingAuto.id);
         } else if (existingAuto?.pushed_at) {
           // Attendance now says no LOP but a row is already pushed — flag it,
@@ -293,51 +336,59 @@ Deno.serve(async (req) => {
               ? `Pushed row (₹${Number(existingAuto.amount)}) disagrees with current attendance (no LOP) — correct it in RazorpayX`
               : "Already pushed to RazorpayX — left untouched",
             amount: Number(existingAuto.amount),
-            base_source: null,
           });
         } else {
-          rows.push({ ...base, status: "no_lop", reason: offsetNote ?? "No loss of pay this month", amount: 0, base_source: null });
+          rows.push({ ...base, status: "no_lop", reason: offsetNote ?? "No loss of pay this month", amount: 0 });
         }
         continue;
       }
 
-
-      const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
       if (salary.error) {
-        rows.push({ ...base, status: "skipped", reason: salary.error, amount: 0, base_source: null });
+        rows.push({ ...base, status: "skipped", reason: salary.error, amount: 0 });
         continue;
       }
       if (!(salary.monthlyGross > 0)) {
-        rows.push({ ...base, status: "skipped", reason: "No salary base could be resolved", amount: 0, base_source: null });
+        rows.push({ ...base, status: "skipped", reason: "No salary base could be resolved", amount: 0 });
         continue;
       }
 
-      // Day rate = full-month salary ÷ FULL-month working days. RazorpayX pays
-      // the whole month, so the divisor must describe the whole month too;
-      // using the employment-clipped count would inflate every joiner's day
-      // rate (July 2026: 12 clipped days made one day worth ~2.2x the truth).
-      const divisor = monthWorkingDays > 0
-        ? monthWorkingDays
-        : (base.working_days > 0 ? base.working_days : totalDays);
-      const amount = Math.round(salary.monthlyGross * (lopDays / divisor));
+      const dayRate = salary.monthlyGross / divisor;
+      // Compliant split: attendance loss vs. days not employed (proration).
+      const attendanceAmount = Math.round(dayRate * Math.min(absenceDays, lopDays));
+      const amount = Math.round(dayRate * lopDays);
+      const prorationAmount = Math.max(0, amount - attendanceAmount);
 
       const dayWord = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
       const labelParts: string[] = [];
       if (absenceDays > 0) labelParts.push(`${dayWord(absenceDays)} absence`);
-      if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} not employed`);
+      if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} pre-joining/post-exit proration`);
       if (split.compoff_offset_days > 0) labelParts.push(`${dayWord(split.compoff_offset_days)} offset by comp-off`);
       if (split.cl_offset_days > 0) labelParts.push(`${dayWord(split.cl_offset_days)} offset by casual leave`);
+
+      // RazorpayX accepts one deduction line per employee per cycle for this
+      // input; the statutory heading names both components so the payslip and
+      // the register stay self-explanatory.
+      const heading = absenceDays > 0 && gapDays > 0
+        ? "Loss of Pay - Attendance & Proration"
+        : gapDays > 0
+          ? "Loss of Pay - Pre-joining days (proration)"
+          : "Loss of Pay - Attendance";
 
       const row: any = {
         ...base,
         amount,
+        attendance_amount: attendanceAmount,
+        proration_amount: prorationAmount,
+        proration_working_days: gapWorkingDays,
         monthly_base: salary.monthlyGross,
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],
         base_mismatch: !!salary.mismatch,
+        base_note: salary.revisionNote ?? null,
         divisor,
-        label: `LOP — ${dayWord(lopDays)}${labelParts.length ? ` (${labelParts.join(", ")})` : ""}`,
+        label: `${heading} — ${dayWord(lopDays)}${labelParts.length ? ` (${labelParts.join(", ")})` : ""}`,
       };
+
 
 
       if (existingAuto?.pushed_at) {

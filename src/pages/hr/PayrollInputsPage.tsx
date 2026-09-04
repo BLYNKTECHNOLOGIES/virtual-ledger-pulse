@@ -414,19 +414,9 @@ export default function PayrollInputsPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title={lopFocus ? "LOP Deductions" : "Payroll Inputs"}
-        description={lopFocus
-          ? `Loss-of-pay deductions for ${periodLabel} — stage, then push to RazorpayX.`
-          : "Stage one-off additions and deductions, then push to RazorpayX."}
         actions={<DashboardLink />}
       />
 
-      {/* Doctrine strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
-        <SourceTag source="razorpay" />
-        <span className="text-muted-foreground">
-          Inputs apply on the next RazorpayX payroll run; payslips live on the RazorpayX dashboard.
-        </span>
-      </div>
 
       {!gateOpen && (
         <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
@@ -485,11 +475,11 @@ export default function PayrollInputsPage() {
       </div>
 
       {lopFocus && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs">
           <Badge className="bg-primary/10 text-primary hover:bg-primary/10">LOP-only view</Badge>
-          <span>Additions and other deductions are hidden here — manage them from Payroll Inputs in the cockpit tools.</span>
         </div>
       )}
+
 
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
@@ -568,10 +558,8 @@ export default function PayrollInputsPage() {
                   </div>
                 ) : <div />}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t">
-                <p className="text-xs text-muted-foreground">
-                  {tab === "addition" ? "Increases" : "Reduces"} net pay for <span className="font-medium text-foreground">{periodLabel}</span> — nothing reaches RazorpayX until pushed.
-                </p>
+              <div className="flex flex-wrap items-center justify-end gap-2 mt-4 pt-3 border-t">
+
                 <Button onClick={() => stageMutation.mutate()} disabled={stageMutation.isPending} size="sm">
                   {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-1" />}
                   Stage {tab}

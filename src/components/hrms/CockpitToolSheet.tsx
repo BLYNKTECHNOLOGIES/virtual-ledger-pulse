@@ -53,10 +53,14 @@ export const COCKPIT_TOOL_TITLES = Object.fromEntries(
 export function CockpitToolSheet({
   tool,
   month,
+  stepNo,
+  stepLabel,
   onClose,
 }: {
   tool: CockpitToolKey | null;
   month?: string;
+  stepNo?: number;
+  stepLabel?: string;
   onClose: () => void;
 }) {
   const entry = tool ? TOOLS[tool] : null;

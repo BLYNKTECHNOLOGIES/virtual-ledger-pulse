@@ -35,11 +35,13 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
   const startDay = getDay(monthStart);
 
   const { data: complianceSettings } = useComplianceSettings();
+  const { data: holidays = {} } = useMonthHolidays(format(monthStart, "yyyy-MM-dd"), format(monthEnd, "yyyy-MM-dd"));
   const { data: engineDays = [], isLoading } = useAttendanceDayRange(
     employeeId ? [employeeId] : [],
     format(monthStart, "yyyy-MM-dd"),
     format(monthEnd, "yyyy-MM-dd"),
   );
+
 
   const byDate = useMemo(() => {
     const map: Record<string, AttendanceDay> = {};

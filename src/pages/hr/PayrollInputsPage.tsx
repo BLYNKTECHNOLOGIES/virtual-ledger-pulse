@@ -503,11 +503,19 @@ export default function PayrollInputsPage() {
 
         <TabsContent value={tab} className="space-y-4 mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-sm">{lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}</CardTitle></CardHeader>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <PlusCircle className="h-4 w-4 text-primary" />
+                {lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Staging only records the line in HRMS. Nothing reaches RazorpayX until you push it.
+              </p>
+            </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                <div className="md:col-span-2">
-                  <Label className="text-xs">Employee</Label>
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-start">
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Employee</Label>
                   <Select value={form.hr_employee_id} onValueChange={(v) => setForm({ ...form, hr_employee_id: v })}>
                     <SelectTrigger className="text-foreground"><SelectValue placeholder="Pick a mapped employee" /></SelectTrigger>
                     <SelectContent>
@@ -518,19 +526,23 @@ export default function PayrollInputsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-[10px] text-muted-foreground">Only RazorpayX-mapped active employees are listed.</p>
                 </div>
-                <div>
-                  <Label className="text-xs">Label</Label>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Label {lopFocus ? "" : "(appears on the payslip)"}</Label>
                   <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
-                  {lopFocus && <p className="text-[10px] text-muted-foreground mt-1">Locked to the LOP head so the row stays inside this view.</p>}
+                  {lopFocus && <p className="text-[10px] text-muted-foreground">Locked to the LOP head so the row stays inside this view.</p>}
                 </div>
-                <div>
-                  <Label className="text-xs">Amount (₹)</Label>
-                  <Input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
+                    <Input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" className="pl-6 text-right tabular-nums text-foreground" />
+                  </div>
                 </div>
                 {tab === "addition" ? (
-                  <div>
-                    <Label className="text-xs">Type</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Type</Label>
                     <Select value={form.addition_type} onValueChange={(v) => setForm({ ...form, addition_type: v })}>
                       <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -541,7 +553,7 @@ export default function PayrollInputsPage() {
                       </SelectContent>
                     </Select>
                     {form.addition_type === "bonus" && enabledBonusTypes.length > 0 && (
-                      <div className="mt-2">
+                      <div className="pt-1">
                         <Label className="text-[10px] text-muted-foreground">Bonus subtype (mirrors Razorpay)</Label>
                         <Select
                           value=""
@@ -562,14 +574,18 @@ export default function PayrollInputsPage() {
                   </div>
                 ) : <div />}
               </div>
-              <div className="flex justify-end mt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t">
+                <p className="text-xs text-muted-foreground">
+                  {tab === "addition" ? "Additions increase net pay" : "Deductions reduce net pay"} for <span className="font-medium text-foreground">{periodLabel}</span>.
+                </p>
                 <Button onClick={() => stageMutation.mutate()} disabled={stageMutation.isPending} size="sm">
-                  {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                  Stage
+                  {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-1" />}
+                  Stage {tab}
                 </Button>
               </div>
             </CardContent>
           </Card>
+
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">

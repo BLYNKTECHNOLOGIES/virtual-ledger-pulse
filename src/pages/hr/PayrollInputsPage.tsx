@@ -377,10 +377,37 @@ export default function PayrollInputsPage() {
   const pendingRows = useMemo(() => (visibleRows as any[]).filter((r) => !r.pushed_at), [visibleRows]);
   const selectedPending = useMemo(() => pendingRows.filter((r: any) => selected[r.id]), [pendingRows, selected]);
 
+  // Presentation-only roll-ups for the summary strip.
+  const sum = (list: any[]) => list.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const pushedRows = useMemo(() => (visibleRows as any[]).filter((r) => !!r.pushed_at), [visibleRows]);
+  const unverifiedRows = useMemo(
+    () => (visibleRows as any[]).filter((r) => r.pushed_at && !r.readback_verified_at),
+    [visibleRows],
+  );
+  const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+  // Month stepper for the period toolbar (same YYYY-MM contract as the input).
+  const shiftPeriod = (delta: number) => {
+    const [y, m] = period.split("-").map(Number);
+    if (!y || !m) return;
+    const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+    setPeriod(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  };
+  const periodLabel = (() => {
+    const [y, m] = period.split("-").map(Number);
+    if (!y || !m) return period;
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+  })();
+
   const empLabel = (r: any) => {
     const e = empById.get(r.hr_employee_id)?.hr_employees;
     return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : r.razorpay_employee_id;
   };
+  const initials = (r: any) => {
+    const e = empById.get(r.hr_employee_id)?.hr_employees;
+    return `${e?.first_name?.[0] ?? ""}${e?.last_name?.[0] ?? ""}`.toUpperCase() || "–";
+  };
+
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">

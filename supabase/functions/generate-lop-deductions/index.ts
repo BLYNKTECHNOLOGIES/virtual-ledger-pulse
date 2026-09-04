@@ -195,6 +195,7 @@ Deno.serve(async (req) => {
         unprocessed_off_dates: bd?.unprocessed_off_dates ?? [],
         compoff_credit_days: Number(bd?.compoff_credit_days ?? 0),
         compoff_credits: bd?.compoff_credits ?? [],
+        leave_ledger: bd?.leave_ledger ?? null,
         raw_lop_days: rawLopDays,
         compoff_available: pool.days_available,
         compoff_earned: pool.days_earned,

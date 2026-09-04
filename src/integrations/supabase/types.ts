@@ -29149,6 +29149,7 @@ export type Database = {
           compoff_leave_total: number
           employee_id: string
           leave_breakdown: Json
+          leave_ledger: Json
           paid_leave_total: number
           unpaid_leave_total: number
           unprocessed_off_dates: string[]

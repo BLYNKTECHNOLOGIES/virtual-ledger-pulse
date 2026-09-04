@@ -40,6 +40,7 @@ type PreviewRow = {
   unprocessed_off_dates?: string[];
   compoff_credit_days?: number;
   compoff_credits?: CompoffCredit[];
+  leave_ledger?: LeaveLedger | null;
   raw_lop_days?: number;
   compoff_available?: number;
   compoff_earned?: number;
@@ -68,6 +69,21 @@ type CompoffCredit = {
   notes?: string | null;
   duplicate?: boolean;
 };
+
+/** Opening → credited → used → closing balance ledger per leave category. */
+type LedgerLeg = {
+  opening?: number;
+  credited?: number;
+  used?: number;
+  closing?: number;
+  offset_lop?: number;
+  encashed?: number;
+};
+type LeaveLedger = { cl?: LedgerLeg; sl?: LedgerLeg; co?: LedgerLeg };
+
+const EMPTY_LEG: LedgerLeg = { opening: 0, credited: 0, used: 0, closing: 0 };
+const leg = (r: PreviewRow, k: "cl" | "sl" | "co"): LedgerLeg => r.leave_ledger?.[k] ?? EMPTY_LEG;
+
 
 type LeaveSlice = {
   name: string;
@@ -127,21 +143,29 @@ export function AutoLopDialog({
     const head = [
       "Employee", "Badge", "Working days", "Present", "Half days", "Absent", "Held harmless", "Unverified",
       "CL", "SL", "Comp-off leave", "Other paid leave", "Unpaid leave", "Worked on off/holiday", "Comp-off credits earned", "Punched but unprocessed",
+      "CL opening", "CL credited", "CL used", "CL balance",
+      "SL opening", "SL credited", "SL used", "SL balance",
+      "CO opening", "CO credited", "CO used", "CO set-off against LOP", "CO encashed", "CO balance",
       "Raw LOP", "Comp-off set-off", "Proration days", "Charged LOP days",
       "Monthly base", "LOP amount", "Status",
     ];
     const lines = [head.join(",")];
     for (const r of rows ?? []) {
       const s = leaveSlices(r);
+      const cl = leg(r, "cl"), sl = leg(r, "sl"), co = leg(r, "co");
       lines.push([
         `"${(r.name || "").replace(/"/g, "'")}"`, `"${r.badge_id ?? ""}"`,
         num(r.working_days), num(r.present_days), num(r.half_days), num(r.absent_days),
         num(r.held_harmless_days), num(r.unverified_days),
         num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid), num(r.worked_off_days), num(r.compoff_credit_days), num(r.unprocessed_off_days),
+        num(cl.opening), num(cl.credited), num(cl.used), num(cl.closing),
+        num(sl.opening), num(sl.credited), num(sl.used), num(sl.closing),
+        num(co.opening), num(co.credited), num(co.used), num(co.offset_lop), num(co.encashed), num(co.closing),
         num(r.raw_lop_days), num(r.compoff_offset_days), num(r.proration_days), num(r.lop_days),
         num(r.monthly_base), num(r.amount), STATUS_META[r.status]?.label ?? r.status,
       ].join(","));
     }
+
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -252,8 +276,12 @@ export function AutoLopDialog({
                   <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
                     <th className="px-2 pt-2" colSpan={2} />
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Attendance</th>
-                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave (days)</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave used (days)</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Casual leave balance</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={4}>Sick leave balance</th>
+                    <th className="px-2 pt-2 text-center border-l" colSpan={6}>Comp-off balance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Loss of pay</th>
+
                     <th className="px-2 pt-2 text-center border-l" colSpan={2}>Amount</th>
                     <th className="px-2 pt-2 border-l" />
                   </tr>
@@ -278,7 +306,22 @@ export function AutoLopDialog({
                     <th className="p-2 text-right">Comp-off</th>
                     <th className="p-2 text-right">Other paid</th>
                     <th className="p-2 text-right">Unpaid</th>
+                    <th className="p-2 text-right border-l">Open</th>
+                    <th className="p-2 text-right">Cr</th>
+                    <th className="p-2 text-right">Used</th>
+                    <th className="p-2 text-right">Bal</th>
+                    <th className="p-2 text-right border-l">Open</th>
+                    <th className="p-2 text-right">Cr</th>
+                    <th className="p-2 text-right">Used</th>
+                    <th className="p-2 text-right">Bal</th>
+                    <th className="p-2 text-right border-l">Open</th>
+                    <th className="p-2 text-right">Cr</th>
+                    <th className="p-2 text-right">Used</th>
+                    <th className="p-2 text-right">LOP set-off</th>
+                    <th className="p-2 text-right">Encashed</th>
+                    <th className="p-2 text-right">Bal</th>
                     <th className="p-2 text-right border-l">Raw</th>
+
                     <th className="p-2 text-right">C/off set-off</th>
                     <th className="p-2 text-right">Proration</th>
                     <th className="p-2 text-right">Charged</th>
@@ -292,6 +335,8 @@ export function AutoLopDialog({
                     const meta = STATUS_META[r.status] ?? STATUS_META.skipped;
                     const canSelect = ["new", "changed", "unchanged"].includes(r.status);
                     const slices = leaveSlices(r);
+                    const clL = leg(r, "cl"), slL = leg(r, "sl"), coL = leg(r, "co");
+
                     const isOpen = !!expanded[r.hr_employee_id];
                     const mismatch =
                       Math.abs((r.leave_paid_total ?? 0) - (r.paid_leave_days ?? 0)) > 0.01;
@@ -348,6 +393,21 @@ export function AutoLopDialog({
                           <td className="p-2 text-right tabular-nums">{num(slices.compoff)}</td>
                           <td className="p-2 text-right tabular-nums">{num(slices.otherPaid)}</td>
                           <td className="p-2 text-right tabular-nums">{num(slices.unpaid)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(clL.opening)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(clL.credited)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(clL.used)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(clL.closing)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(slL.opening)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slL.credited)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(slL.used)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(slL.closing)}</td>
+                          <td className="p-2 text-right tabular-nums border-l">{num(coL.opening)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.credited)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.used)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.offset_lop)}</td>
+                          <td className="p-2 text-right tabular-nums">{num(coL.encashed)}</td>
+                          <td className="p-2 text-right tabular-nums font-medium">{num(coL.closing)}</td>
+
                           <td className="p-2 text-right tabular-nums border-l">{num(r.raw_lop_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.compoff_offset_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.proration_days)}</td>
@@ -364,7 +424,7 @@ export function AutoLopDialog({
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">
                             <td />
-                            <td colSpan={17} className="p-3">
+                            <td colSpan={31} className="p-3">
                               <div className="grid gap-4 md:grid-cols-3 text-xs">
                                 <div>
                                   <p className="font-semibold mb-1">Leave consumed this month</p>
@@ -425,7 +485,34 @@ export function AutoLopDialog({
                                   )}
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="font-semibold">Employment window</p>
+                                  <p className="font-semibold">Leave balance ledger</p>
+                                  <table className="w-full">
+                                    <thead>
+                                      <tr className="text-muted-foreground text-left">
+                                        <th className="pr-2 font-medium">Type</th>
+                                        <th className="font-medium text-right">Open</th>
+                                        <th className="font-medium text-right">Cr</th>
+                                        <th className="font-medium text-right">Used</th>
+                                        <th className="font-medium text-right">Bal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {([["Casual (CL)", clL], ["Sick (SL)", slL], ["Comp-off (CO)", coL]] as const).map(([label, l]) => (
+                                        <tr key={label}>
+                                          <td className="pr-2 py-0.5">{label}</td>
+                                          <td className="py-0.5 text-right tabular-nums">{num(l.opening)}</td>
+                                          <td className="py-0.5 text-right tabular-nums">{num(l.credited)}</td>
+                                          <td className="py-0.5 text-right tabular-nums">{num(l.used)}</td>
+                                          <td className="py-0.5 text-right tabular-nums font-medium">{num(l.closing)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                  <p className="text-muted-foreground">
+                                    Comp-off set off against LOP {num(coL.offset_lop)} · encashed {num(coL.encashed)}
+                                  </p>
+                                  <p className="font-semibold pt-1">Employment window</p>
+
                                   <p className="text-muted-foreground">
                                     {r.employment_from ?? "—"} → {r.employment_to ?? "—"} · proration {num(r.proration_days)} day(s)
                                   </p>

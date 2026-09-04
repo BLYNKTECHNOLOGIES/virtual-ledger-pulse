@@ -29577,7 +29577,7 @@ export type Database = {
       hr_settle_compoff_credits: {
         Args: { p_period_month: string; p_rows: Json }
         Returns: {
-          employee_id: string
+          out_employee_id: string
           settled_encash: number
           settled_offset: number
         }[]

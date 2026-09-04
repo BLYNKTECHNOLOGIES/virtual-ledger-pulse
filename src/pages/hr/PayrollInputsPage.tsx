@@ -501,15 +501,12 @@ export default function PayrollInputsPage() {
         )}
 
         <TabsContent value={tab} className="space-y-4 mt-4">
-          <Card>
-            <CardHeader className="pb-3">
+          <Card className="overflow-hidden border-l-2 border-l-primary/60">
+            <CardHeader className="pb-3 bg-muted/40 border-b">
               <CardTitle className="text-sm flex items-center gap-1.5">
                 <PlusCircle className="h-4 w-4 text-primary" />
                 {lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}
               </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Staging only records the line in HRMS. Nothing reaches RazorpayX until you push it.
-              </p>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-start">
@@ -525,12 +522,10 @@ export default function PayrollInputsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-[10px] text-muted-foreground">Only RazorpayX-mapped active employees are listed.</p>
                 </div>
                 <div className="md:col-span-2 space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">Label {lopFocus ? "" : "(appears on the payslip)"}</Label>
+                  <Label className="text-xs text-muted-foreground">{lopFocus ? "Label" : "Payslip label"}</Label>
                   <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
-                  {lopFocus && <p className="text-[10px] text-muted-foreground">Locked to the LOP head so the row stays inside this view.</p>}
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Amount</Label>
@@ -575,7 +570,7 @@ export default function PayrollInputsPage() {
               </div>
               <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t">
                 <p className="text-xs text-muted-foreground">
-                  {tab === "addition" ? "Additions increase net pay" : "Deductions reduce net pay"} for <span className="font-medium text-foreground">{periodLabel}</span>.
+                  {tab === "addition" ? "Increases" : "Reduces"} net pay for <span className="font-medium text-foreground">{periodLabel}</span> — nothing reaches RazorpayX until pushed.
                 </p>
                 <Button onClick={() => stageMutation.mutate()} disabled={stageMutation.isPending} size="sm">
                   {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-1" />}

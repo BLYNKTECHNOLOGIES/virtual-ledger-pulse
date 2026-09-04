@@ -18,6 +18,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
+import { useMonthHolidays } from "@/hooks/hrms/useMonthHolidays";
+
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
 import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
@@ -262,13 +264,17 @@ export default function AttendanceCalendarPage() {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
                       const weeklyOff = isWeeklyOff(day, complianceSettings);
-                      // Weekly off wins when the engine has nothing to report.
+                      const holidayName = holidays[dateStr];
+                      // Engine status wins; then declared holiday; then weekly off.
                       const status: AttendanceDayStatus =
                         record?.status && record.status !== "no_data"
                           ? record.status
-                          : weeklyOff
-                            ? "week_off"
-                            : "no_data";
+                          : holidayName
+                            ? "holiday"
+                            : weeklyOff
+                              ? "week_off"
+                              : "no_data";
+
                       const today = isToday(day);
                       const hasDetail = !!record && record.status !== "no_data";
 
@@ -298,7 +304,7 @@ export default function AttendanceCalendarPage() {
                             <DayTileTooltip
                               day={record}
                               dateLabel={format(day, "EEE, MMM d")}
-                              fallback={weeklyOff ? "Weekly off" : status === "holiday" ? "Holiday" : "No punch recorded"}
+                              fallback={holidayName ? `Holiday — ${holidayName}` : weeklyOff ? "Weekly off" : "No punch recorded"}
                             />
                           </TooltipContent>
                         </Tooltip>

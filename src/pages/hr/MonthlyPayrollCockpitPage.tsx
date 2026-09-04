@@ -705,7 +705,12 @@ export default function MonthlyPayrollCockpitPage() {
                           <Button
                             variant="outline"
                             className="h-10 w-full justify-between gap-1.5"
-                            onClick={() => openTool(target.tool, target.params)}
+                            onClick={() =>
+                              openTool(target.tool, target.params, {
+                                no: step.step_no,
+                                label: step.step_label,
+                              })
+                            }
                           >
                             {target.label} <ChevronRight className="h-3.5 w-3.5" />
                           </Button>

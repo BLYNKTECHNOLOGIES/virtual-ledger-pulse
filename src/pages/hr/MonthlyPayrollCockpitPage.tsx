@@ -367,14 +367,20 @@ export default function MonthlyPayrollCockpitPage() {
 
 
   // Embedded tools read the URL (tab / focus / period), so the cockpit sets them before opening.
-  function openTool(key: CockpitToolKey, params?: Record<string, string>) {
+  function openTool(
+    key: CockpitToolKey,
+    params?: Record<string, string>,
+    step?: { no: number; label: string },
+  ) {
     const next = new URLSearchParams(params ?? {});
     next.set("period", month.slice(0, 7));
     setSearchParams(next, { replace: true });
+    setToolStep(step ?? null);
     setTool(key);
   }
   function closeTool() {
     setTool(null);
+    setToolStep(null);
     setSearchParams(new URLSearchParams(), { replace: true });
     // A tool may have changed revisions / inputs / recoveries — re-evaluate the
     // live step status and the step-5 gate instead of serving the 30s cache.

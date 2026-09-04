@@ -12,3 +12,4 @@ Owner ruling (05 Sep 2026, IST). In the Aug 2026 LOP reconciliation these items 
 - **Ghost present-day rows** (Khurram, Abhishek dev, Harmeet, Ishank, Neelanchal, Urvashi) — fixed in the attendance engine, both sides agree.
 
 **Mid-month increment mechanism is confirmed correct**: monthly base = calendar-day weighted average of all APPLIED CTCs in force during the month; LOP charged on that blended base.
+- **Devang Singh Parihar (badge 57)** — `total_salary` ₹1,92,000 vs components ₹1,20,000 is NOT a defect: 1,92,000 is the future CTC (revision effective **01 Sep 2026**, training completion), 1,20,000 is the live August training structure. August correctly pays on ₹10,000/month; no mid-month adjustment (adjustments only apply when the effective date is after the 1st). Open item: RazorpayX still holds ₹1,20,000 for Devang and ₹1,20,000 for Jay Vishnoi (badge 59, should be ₹1,68,000) — push before the September run.

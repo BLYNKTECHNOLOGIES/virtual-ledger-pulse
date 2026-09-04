@@ -271,10 +271,10 @@ export function AutoLopDialog({
             )}
 
             <div className="flex-1 min-h-0 overflow-auto rounded-md border">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm border-separate border-spacing-0">
                 <thead className="bg-muted/50 sticky top-0 z-10">
                   <tr className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    <th className="px-2 pt-2" colSpan={2} />
+                    <th className="px-2 pt-2 sticky left-0 z-20 bg-muted/50 border-r border-border" colSpan={2} />
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Attendance</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={5}>Leave used (days)</th>
                     <th className="px-2 pt-2 text-center border-l" colSpan={4}>Casual leave balance</th>
@@ -286,7 +286,7 @@ export function AutoLopDialog({
                     <th className="px-2 pt-2 border-l" />
                   </tr>
                   <tr className="text-left">
-                    <th className="p-2 w-8">
+                    <th className="p-2 w-8 sticky left-0 z-20 bg-muted/50 border-r border-border">
                       <Checkbox
                         checked={allSelected}
                         onCheckedChange={(v) => {
@@ -296,7 +296,7 @@ export function AutoLopDialog({
                         }}
                       />
                     </th>
-                    <th className="p-2">Employee</th>
+                    <th className="p-2 sticky left-[48px] z-20 bg-muted/50 border-r border-border">Employee</th>
                     <th className="p-2 text-right border-l">Working</th>
                     <th className="p-2 text-right">Present</th>
                     <th className="p-2 text-right">Half</th>

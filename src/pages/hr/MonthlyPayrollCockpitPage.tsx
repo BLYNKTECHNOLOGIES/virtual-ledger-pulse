@@ -832,7 +832,13 @@ export default function MonthlyPayrollCockpitPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <CockpitToolSheet tool={tool} month={month} onClose={closeTool} />
+      <CockpitToolSheet
+        tool={tool}
+        month={month}
+        stepNo={toolStep?.no}
+        stepLabel={toolStep?.label}
+        onClose={closeTool}
+      />
     </div>
   );
 }

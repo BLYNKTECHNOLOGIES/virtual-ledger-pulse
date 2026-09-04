@@ -150,7 +150,7 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
                     <DayTileTooltip
                       day={record}
                       dateLabel={format(day, "EEE, MMM d")}
-                      fallback={weeklyOff ? "Weekly off" : status === "holiday" ? "Holiday" : "No punch recorded"}
+                      fallback={holidayName ? `Holiday — ${holidayName}` : weeklyOff ? "Weekly off" : "No punch recorded"}
                     />
                   </TooltipContent>
                 </Tooltip>

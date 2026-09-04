@@ -230,6 +230,16 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
                             >
                               Approve &amp; push
                             </Button>
+                            {r.provisional && r.source_revision_id && (
+                              <Button
+                                size="sm" variant="outline" className="h-7 text-xs"
+                                disabled={recheck.isPending}
+                                title="Re-derive from the revision: unlocks it if the CTC push has landed, removes it if nothing is owed any more."
+                                onClick={() => recheck.mutate(r)}
+                              >
+                                {recheck.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}Re-check
+                              </Button>
+                            )}
                             <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
                                     onClick={() => dismiss.mutate(r)}>
                               Dismiss

@@ -71,7 +71,6 @@ async function revisionWeightedMonthly(
     .select("previous_total, new_total, effective_from, status")
     .eq("employee_id", employeeId)
     .not("new_total", "is", null)
-    .lte("effective_from", monthEndStr)
     .order("effective_from", { ascending: true });
   if (error || !revs?.length) return null;
 
@@ -85,17 +84,20 @@ async function revisionWeightedMonthly(
   const days = Math.round((monthEnd.getTime() - monthStart.getTime()) / 86400000) + 1;
 
   // CTC in force on day 1 = the newest revision effective on/before month start,
-  // falling back to that revision's "previous_total".
+  // falling back to the "previous_total" of the next revision to come — that is
+  // exactly the salary this month was paid on.
   const before = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) <= monthStart);
   const inMonth = applied.filter((r) => {
     const d = new Date(`${r.effective_from}T00:00:00Z`);
     return d > monthStart && d <= monthEnd;
   });
+  const future = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) > monthEnd);
 
-  let openingAnnual = before.length
+  const openingAnnual = before.length
     ? Number(before[before.length - 1].new_total ?? 0)
-    : Number(inMonth[0]?.previous_total ?? 0);
+    : Number(inMonth[0]?.previous_total ?? future[0]?.previous_total ?? 0);
   if (!(openingAnnual > 0)) return null;
+
 
   if (!inMonth.length) {
     const monthly = Math.round(openingAnnual / 12);

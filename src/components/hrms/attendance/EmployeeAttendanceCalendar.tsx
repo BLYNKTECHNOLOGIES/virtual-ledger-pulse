@@ -117,8 +117,12 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
               const dateStr = format(day, "yyyy-MM-dd");
               const record = byDate[dateStr];
               const weeklyOff = isWeeklyOff(day, complianceSettings);
+              const holidayName = holidays[dateStr];
               const status: AttendanceDayStatus =
-                record?.status && record.status !== "no_data" ? record.status : weeklyOff ? "week_off" : "no_data";
+                record?.status && record.status !== "no_data"
+                  ? record.status
+                  : holidayName ? "holiday" : weeklyOff ? "week_off" : "no_data";
+
               const hasDetail = !!record && record.status !== "no_data";
 
               return (

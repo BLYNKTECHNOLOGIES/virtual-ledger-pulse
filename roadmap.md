@@ -1,0 +1,2 @@
+- [x] Auto-absorb LOP with comp-off then casual leave (no request needed); SL still requires a request
+- [x] Remove duplicated CL/SL/Comp-off "leave used" columns from Auto-LOP table + CSV (balance groups already show Used)

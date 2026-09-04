@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { UserMinus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { UserMinus, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+
 
 /**
  * Full & Final settlement lines for this payroll cycle.

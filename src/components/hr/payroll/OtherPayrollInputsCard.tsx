@@ -26,7 +26,7 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from("hr_salary_revisions")
-        .select("id, employee_id, revision_type, one_time_amount, payout_month, status, notes, revision_reason, razorpay_pushed_at, razorpay_verified_at, razorpay_push_error, hr_employees:employee_id(first_name,last_name,badge_id)")
+        .select("id, employee_id, revision_type, one_time_amount, payout_month, status, notes, revision_reason, razorpay_pushed_at, razorpay_verified_at, razorpay_push_error, payout_channel, payout_paid_on, hr_employees:employee_id(first_name,last_name,badge_id)")
         .eq("payout_month", periodDate)
         .in("revision_type", ONE_TIME_KINDS)
         .order("created_at", { ascending: false });

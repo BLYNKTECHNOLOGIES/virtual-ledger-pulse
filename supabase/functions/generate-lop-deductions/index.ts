@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
       }
     }
     const absorptions: { employee_id: string; days: number }[] = [];
+    const creditSettlements: { employee_id: string; offset_days: number; encash_days: number }[] = [];
 
 
 

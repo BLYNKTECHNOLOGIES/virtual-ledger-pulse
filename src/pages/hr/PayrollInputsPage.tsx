@@ -470,12 +470,12 @@ export default function PayrollInputsPage() {
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-border">
           {[
-            { label: "Pending to push", value: `${pendingRows.length}`, sub: inr(sum(pendingRows)), tone: "text-foreground" },
-            { label: "Verified on run", value: `${pushedRows.length - unverifiedRows.length}`, sub: inr(sum(pushedRows.filter((r) => r.readback_verified_at))), tone: "text-success" },
-            { label: "Pushed · unverified", value: `${unverifiedRows.length}`, sub: inr(sum(unverifiedRows)), tone: unverifiedRows.length ? "text-warning" : "text-muted-foreground" },
-            { label: `Total staged ${tab}s`, value: `${visibleRows.length}`, sub: inr(sum(visibleRows as any[])), tone: "text-foreground" },
+            { label: "Pending to push", value: `${pendingRows.length}`, sub: inr(sum(pendingRows)), tone: "text-foreground", tint: pendingRows.length ? "bg-primary/5" : "" },
+            { label: "Verified on run", value: `${pushedRows.length - unverifiedRows.length}`, sub: inr(sum(pushedRows.filter((r) => r.readback_verified_at))), tone: "text-success", tint: "bg-success/5" },
+            { label: "Pushed · unverified", value: `${unverifiedRows.length}`, sub: inr(sum(unverifiedRows)), tone: unverifiedRows.length ? "text-warning" : "text-muted-foreground", tint: unverifiedRows.length ? "bg-warning/5" : "" },
+            { label: `Total staged ${tab}s`, value: `${visibleRows.length}`, sub: inr(sum(visibleRows as any[])), tone: "text-foreground", tint: "" },
           ].map((s) => (
-            <div key={s.label} className="p-3">
+            <div key={s.label} className={`p-3 ${s.tint}`}>
               <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
               <p className={`text-xl font-bold tabular-nums leading-tight ${s.tone}`}>{s.value}</p>
               <p className="text-xs text-muted-foreground tabular-nums">{s.sub}</p>
@@ -485,11 +485,9 @@ export default function PayrollInputsPage() {
       </div>
 
       {lopFocus && (
-        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
-          <div className="font-medium">LOP-only view</div>
-          <div className="text-muted-foreground mt-1">
-            Only loss-of-pay deductions for {period} are staged, listed and pushed here. Additions, bonuses and other deductions are intentionally hidden — open Payroll Inputs from the cockpit tools to manage those.
-          </div>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Badge className="bg-primary/10 text-primary hover:bg-primary/10">LOP-only view</Badge>
+          <span>Additions and other deductions are hidden here — manage them from Payroll Inputs in the cockpit tools.</span>
         </div>
       )}
 

@@ -369,10 +369,15 @@ export function AutoLopDialog({
                             </div>
                             {r.reason && <div className="text-xs text-muted-foreground mt-0.5">{r.reason}</div>}
                             {mismatch && (
-                              <div className="text-[11px] text-destructive mt-0.5">
-                                Leave breakdown ({num(r.leave_paid_total)}) ≠ engine paid leave ({num(r.paid_leave_days)})
+                              <div
+                                className="text-[11px] text-warning mt-0.5"
+                                title={`Leave register: ${num(r.leave_paid_total)} paid leave day(s) approved in this month. Attendance: only ${num(r.paid_leave_days)} of them fall on working days — the rest land on a weekly off or holiday, or on a day already credited as attended. LOP is charged on working days only, so this does not change the deduction.`}
+                              >
+                                {num((r.leave_paid_total ?? 0) - (r.paid_leave_days ?? 0))} paid-leave day(s) on a
+                                non-working day — no effect on LOP
                               </div>
                             )}
+
                           </td>
                           <td className="p-2 text-right tabular-nums border-l">{num(r.working_days)}</td>
                           <td className="p-2 text-right tabular-nums">{num(r.present_days)}</td>

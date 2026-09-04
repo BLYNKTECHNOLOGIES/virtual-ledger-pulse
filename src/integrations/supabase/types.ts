@@ -29574,6 +29574,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      hr_settle_compoff_credits: {
+        Args: { p_period_month: string; p_rows: Json }
+        Returns: {
+          employee_id: string
+          settled_encash: number
+          settled_offset: number
+        }[]
+      }
       hr_settle_deposit_installment: {
         Args: { p_schedule_id: string }
         Returns: undefined

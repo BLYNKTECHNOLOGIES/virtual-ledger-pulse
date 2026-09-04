@@ -152,6 +152,7 @@ Deno.serve(async (req) => {
       }
     }
     const absorptions: { employee_id: string; days: number }[] = [];
+    const creditSettlements: { employee_id: string; offset_days: number; encash_days: number }[] = [];
 
 
 
@@ -293,6 +294,18 @@ Deno.serve(async (req) => {
       if (split.cl_offset_days > 0) {
         absorptions.push({ employee_id: map.hr_employee_id, days: split.cl_offset_days });
       }
+
+      // Comp-off spent on this month's LOP (and whatever is left for the
+      // encashment engine) is marked settled so those credits can never come
+      // back as an opening balance and be paid a second time.
+      if (split.compoff_offset_days > 0 || split.compoff_encash_days > 0) {
+        creditSettlements.push({
+          employee_id: map.hr_employee_id,
+          offset_days: split.compoff_offset_days,
+          encash_days: split.compoff_encash_days,
+        });
+      }
+
 
       // Absence LOP (after comp-off) + employment-window proration days.
       const absenceDays = split.lop_after_offset;
@@ -450,6 +463,14 @@ Deno.serve(async (req) => {
       });
       if (absErr) throw absErr;
       clBooked = ((absData ?? []) as any[]).reduce((s, r) => s + Number(r.days_booked ?? 0), 0);
+
+      if (creditSettlements.length) {
+        const { error: credErr } = await supabase.rpc("hr_settle_compoff_credits", {
+          p_period_month: periodStr,
+          p_rows: creditSettlements,
+        });
+        if (credErr) throw credErr;
+      }
 
       for (const upd of toUpdate) {
         const { id, ...patch } = upd;

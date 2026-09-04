@@ -103,6 +103,10 @@ Deno.serve(async (req) => {
     const toUpsert: any[] = [];
     const toDelete: string[] = [];
     const settlements: any[] = [];
+    // Ledger closure: every comp-off day consumed this month — whether it
+    // cancelled LOP or was encashed — must be marked settled so it can never
+    // reappear as an opening balance (and be paid again) in a later month.
+    const creditSettlements: any[] = [];
 
     for (const map of roster as any[]) {
       const emp = map.hr_employees;
@@ -113,6 +117,15 @@ Deno.serve(async (req) => {
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const split = splitCompoff(pool.days_available, rawLopDays);
       const workingDays = Number(lop?.working_days ?? 0);
+      if (split.offset_days > 0 || split.encash_days > 0) {
+        creditSettlements.push({
+          employee_id: map.hr_employee_id,
+          offset_days: split.offset_days,
+          encash_days: split.encash_days,
+        });
+      }
+
+
 
       const base: any = {
         hr_employee_id: map.hr_employee_id,
@@ -242,6 +255,13 @@ Deno.serve(async (req) => {
           .from("hr_compoff_settlements")
           .upsert(settlements, { onConflict: "employee_id,period_month", ignoreDuplicates: false });
         if (setErr) throw setErr;
+      }
+      if (creditSettlements.length) {
+        const { error: credErr } = await supabase.rpc("hr_settle_compoff_credits", {
+          p_period_month: periodStr,
+          p_rows: creditSettlements,
+        });
+        if (credErr) throw credErr;
       }
     }
 

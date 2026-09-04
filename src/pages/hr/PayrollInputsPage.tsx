@@ -773,7 +773,7 @@ export default function PayrollInputsPage() {
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 flex-wrap">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 flex-wrap bg-muted/40 border-b">
           <div>
             <CardTitle className="text-sm">Per-employee actions — {periodLabel}</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">

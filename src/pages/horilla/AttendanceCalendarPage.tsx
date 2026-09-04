@@ -94,6 +94,8 @@ export default function AttendanceCalendarPage() {
   const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const startDay = getDay(monthStart); // 0=Sun
   const { data: complianceSettings } = useComplianceSettings();
+  const { data: holidays = {} } = useMonthHolidays(format(monthStart, "yyyy-MM-dd"), format(monthEnd, "yyyy-MM-dd"));
+
 
   const filteredEmps = useMemo(() => employees.filter((e: any) => {
     if (selectedEmp !== "all" && e.id !== selectedEmp) return false;

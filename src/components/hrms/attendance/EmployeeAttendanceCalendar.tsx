@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
+import { useMonthHolidays } from "@/hooks/hrms/useMonthHolidays";
+
 import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
 import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";

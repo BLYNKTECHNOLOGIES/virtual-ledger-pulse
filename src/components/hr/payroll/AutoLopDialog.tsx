@@ -485,7 +485,34 @@ export function AutoLopDialog({
                                   )}
                                 </div>
                                 <div className="space-y-1">
-                                  <p className="font-semibold">Employment window</p>
+                                  <p className="font-semibold">Leave balance ledger</p>
+                                  <table className="w-full">
+                                    <thead>
+                                      <tr className="text-muted-foreground text-left">
+                                        <th className="pr-2 font-medium">Type</th>
+                                        <th className="font-medium text-right">Open</th>
+                                        <th className="font-medium text-right">Cr</th>
+                                        <th className="font-medium text-right">Used</th>
+                                        <th className="font-medium text-right">Bal</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {([["Casual (CL)", clL], ["Sick (SL)", slL], ["Comp-off (CO)", coL]] as const).map(([label, l]) => (
+                                        <tr key={label}>
+                                          <td className="pr-2 py-0.5">{label}</td>
+                                          <td className="py-0.5 text-right tabular-nums">{num(l.opening)}</td>
+                                          <td className="py-0.5 text-right tabular-nums">{num(l.credited)}</td>
+                                          <td className="py-0.5 text-right tabular-nums">{num(l.used)}</td>
+                                          <td className="py-0.5 text-right tabular-nums font-medium">{num(l.closing)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                  <p className="text-muted-foreground">
+                                    Comp-off set off against LOP {num(coL.offset_lop)} · encashed {num(coL.encashed)}
+                                  </p>
+                                  <p className="font-semibold pt-1">Employment window</p>
+
                                   <p className="text-muted-foreground">
                                     {r.employment_from ?? "—"} → {r.employment_to ?? "—"} · proration {num(r.proration_days)} day(s)
                                   </p>

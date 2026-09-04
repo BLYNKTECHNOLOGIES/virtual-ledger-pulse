@@ -46,9 +46,7 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
             F&amp;F settlement {kind === "addition" ? "additions (dues)" : "deductions (recoveries)"} — {period}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Consolidated Full &amp; Final lines for leavers whose settlement was assigned to this payroll cycle.
-            They are pushed by the F&amp;F approval itself and cannot be staged or re-pushed here.
-            Expand a row to see the component-wise settlement breakdown.
+            Pushed by the F&amp;F approval itself — read-only here. Expand a row for the breakdown.
           </p>
         </div>
         <div className="text-right">

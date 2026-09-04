@@ -9,9 +9,9 @@
 //  - dry_run false: upserts auto addition rows, deletes stale un-pushed rows
 //
 // Rows already pushed to RazorpayX (pushed_at set) are never touched.
-// Per-day value = monthly gross / working days — identical base and divisor to
-// generate-lop-deductions, so a day offset and a day encashed are worth the
-// same rupee amount.
+// Per-day value = monthly gross / calendar days of the month — identical base
+// and divisor to generate-lop-deductions, so a day offset and a day encashed
+// are worth the same rupee amount.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";

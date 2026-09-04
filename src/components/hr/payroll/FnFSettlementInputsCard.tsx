@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { UserMinus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { UserMinus, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+
 
 /**
  * Full & Final settlement lines for this payroll cycle.
@@ -45,6 +48,7 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
           <p className="text-xs text-muted-foreground mt-1">
             Consolidated Full &amp; Final lines for leavers whose settlement was assigned to this payroll cycle.
             They are pushed by the F&amp;F approval itself and cannot be staged or re-pushed here.
+            Expand a row to see the component-wise settlement breakdown.
           </p>
         </div>
         <div className="text-right">
@@ -56,36 +60,182 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
+              <th className="w-10 px-2 py-2" />
               {["Employee", "Line", "Amount", "Status"].map((h) => (
                 <th key={h} className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {(rows as any[]).map((r) => {
-              const e = r.hr_employees;
-              return (
-                <tr key={r.id} className="border-b hover:bg-muted/30">
-                  <td className="px-3 py-2">
-                    {e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : r.razorpay_employee_id}
-                  </td>
-                  <td className="px-3 py-2">{r.label}</td>
-                  <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
-                  <td className="px-3 py-2">
-                    {r.readback_verified_at ? (
-                      <Badge className="bg-success/10 text-success">Verified on run</Badge>
-                    ) : r.pushed_at ? (
-                      <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
-                    ) : (
-                      <Badge variant="outline">Not on the run</Badge>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+            {(rows as any[]).map((r) => (
+              <FnFRow key={r.id} row={r} kind={kind} />
+            ))}
           </tbody>
         </table>
       </CardContent>
     </Card>
+  );
+
+}
+
+const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+/** One consolidated F&F payroll line, expandable into its settlement components. */
+function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
+  const [open, setOpen] = useState(false);
+  const e = row.hr_employees;
+  const settlementId = row.push_response?.settlement_id ?? null;
+
+  const { data: settlement, isLoading } = useQuery({
+    queryKey: ["fnf_settlement_detail", settlementId],
+    enabled: open && !!settlementId,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .select("*")
+        .eq("id", settlementId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const b: any = settlement?.breakdown || {};
+  const components: { label: string; amount: number; note?: string }[] = settlement
+    ? kind === "addition"
+      ? [
+          { label: "Security deposit refund", amount: Number(settlement.deposit_refund || 0) },
+          { label: "Bonus / ex-gratia", amount: Number(settlement.bonus_amount || 0) },
+        ]
+      : [
+          { label: "Loan / advance recovery", amount: Number(settlement.loan_recovery || 0) },
+          { label: "Penalty deductions", amount: Number(settlement.penalty_deductions || 0) },
+          { label: "Notice-period shortfall recovery", amount: Number(b.notice_pay_recovery || 0) },
+          {
+            label: "Other deductions",
+            amount: Number(settlement.other_deductions || 0),
+            note: settlement.other_deductions_notes || undefined,
+          },
+        ]
+    : [];
+  const componentTotal = components.reduce((s, c) => s + c.amount, 0);
+
+  return (
+    <>
+      <tr className="border-b hover:bg-muted/30">
+        <td className="px-2 py-2 align-middle">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6"
+            aria-label={open ? "Hide breakdown" : "Show breakdown"}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          </Button>
+        </td>
+        <td className="px-3 py-2">
+          {e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : row.razorpay_employee_id}
+        </td>
+        <td className="px-3 py-2">{row.label}</td>
+        <td className="px-3 py-2 tabular-nums">{inr(row.amount)}</td>
+        <td className="px-3 py-2">
+          {row.readback_verified_at ? (
+            <Badge className="bg-success/10 text-success">Verified on run</Badge>
+          ) : row.pushed_at ? (
+            <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
+          ) : (
+            <Badge variant="outline">Not on the run</Badge>
+          )}
+        </td>
+      </tr>
+      {open && (
+        <tr className="border-b bg-muted/20">
+          <td />
+          <td colSpan={4} className="px-3 py-3">
+            {!settlementId ? (
+              <p className="text-xs text-muted-foreground">
+                This line has no linked settlement record, so no component breakdown is available.
+              </p>
+            ) : isLoading ? (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading settlement breakdown…
+              </p>
+            ) : !settlement ? (
+              <p className="text-xs text-muted-foreground">Settlement record not found.</p>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid gap-2 sm:grid-cols-4 text-xs">
+                  <div>
+                    <p className="text-muted-foreground">Last working day</p>
+                    <p className="font-medium">{settlement.last_working_day || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Payroll cycle</p>
+                    <p className="font-medium">{String(settlement.payroll_month || "").slice(0, 7) || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Settlement status</p>
+                    <p className="font-medium capitalize">{settlement.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Net payable (settlement)</p>
+                    <p className="font-medium tabular-nums">{inr(settlement.net_payable)}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-md border bg-background overflow-hidden">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 border-b">
+                      <tr>
+                        <th className="px-3 py-1.5 text-left font-medium text-muted-foreground uppercase tracking-wide">Component</th>
+                        <th className="px-3 py-1.5 text-right font-medium text-muted-foreground uppercase tracking-wide">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {components.map((c) => (
+                        <tr key={c.label} className={`border-b last:border-0 ${c.amount ? "" : "text-muted-foreground"}`}>
+                          <td className="px-3 py-1.5">
+                            {c.label}
+                            {c.note && <span className="block text-[11px] text-muted-foreground">{c.note}</span>}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums">{inr(c.amount)}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-muted/40 font-semibold">
+                        <td className="px-3 py-1.5">Total pushed on this line</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums">{inr(componentTotal)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {Math.abs(componentTotal - Number(row.amount || 0)) > 0.5 && (
+                  <p className="text-[11px] text-warning">
+                    Components ({inr(componentTotal)}) differ from the pushed amount ({inr(row.amount)}) —
+                    the settlement was edited after the push.
+                  </p>
+                )}
+
+                <div className="grid gap-2 sm:grid-cols-3 text-[11px] text-muted-foreground">
+                  <div>Pending salary: <span className="text-foreground tabular-nums">{inr(settlement.pending_salary)}</span></div>
+                  <div>
+                    Leave encashment: <span className="text-foreground tabular-nums">{inr(settlement.leave_encashment_amount)}</span>
+                    {settlement.leave_encashment_days ? ` (${settlement.leave_encashment_days} d)` : ""}
+                  </div>
+                  <div>RazorpayX push: <span className="text-foreground">{settlement.razorpay_push_status}</span></div>
+                </div>
+
+                {settlement.notes && (
+                  <p className="text-[11px] text-muted-foreground">Notes: {settlement.notes}</p>
+                )}
+              </div>
+            )}
+          </td>
+        </tr>
+      )}
+    </>
   );
 }

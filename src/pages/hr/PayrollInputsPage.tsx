@@ -558,10 +558,8 @@ export default function PayrollInputsPage() {
                   </div>
                 ) : <div />}
               </div>
-              <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t">
-                <p className="text-xs text-muted-foreground">
-                  {tab === "addition" ? "Increases" : "Reduces"} net pay for <span className="font-medium text-foreground">{periodLabel}</span> — nothing reaches RazorpayX until pushed.
-                </p>
+              <div className="flex flex-wrap items-center justify-end gap-2 mt-4 pt-3 border-t">
+
                 <Button onClick={() => stageMutation.mutate()} disabled={stageMutation.isPending} size="sm">
                   {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-1" />}
                   Stage {tab}

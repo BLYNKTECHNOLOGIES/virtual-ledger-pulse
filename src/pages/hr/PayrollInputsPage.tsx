@@ -588,12 +588,17 @@ export default function PayrollInputsPage() {
 
 
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-              <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
-              <div className="flex items-center gap-2">
+            <CardHeader className="flex flex-row items-start justify-between gap-2 flex-wrap space-y-0">
+              <div>
+                <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} — {periodLabel}</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pendingRows.length} pending · {pushedRows.length} pushed · {inr(sum(visibleRows as any[]))} total
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 {selectedPending.length > 0 && (
                   <>
-                    <span className="text-xs text-muted-foreground">{selectedPending.length} selected</span>
+                    <Badge variant="secondary" className="text-xs">{selectedPending.length} selected · {inr(sum(selectedPending))}</Badge>
                     <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => setBulkPushConfirm(true)} title={gateOpen ? "" : "Payroll-write gate locked"}>
                       {bulkPush.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />} Push selected
                     </Button>
@@ -634,7 +639,7 @@ export default function PayrollInputsPage() {
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b">
+                <thead className="bg-muted/50 border-b sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2 w-8">
                       <Checkbox
@@ -646,19 +651,32 @@ export default function PayrollInputsPage() {
                         aria-label="Select all pending"
                       />
                     </th>
-                    {["Employee", "Label", tab === "addition" ? "Type" : "", "Amount", "Status", "Actions"].filter(Boolean).map((h) => (
-                      <th key={h as string} className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground text-left">{h}</th>
+                    {[
+                      { h: "Employee", align: "text-left" },
+                      { h: "Label", align: "text-left" },
+                      ...(tab === "addition" ? [{ h: "Type", align: "text-left" }] : []),
+                      { h: "Amount", align: "text-right" },
+                      { h: "Status", align: "text-left" },
+                      { h: "Actions", align: "text-right" },
+                    ].map(({ h, align }) => (
+                      <th key={h} className={`px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${align}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
+                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading staged rows…
+                    </td></tr>
                   ) : visibleRows.length === 0 ? (
-                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
+                    <tr><td colSpan={7} className="p-10 text-center">
+                      <Layers className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm font-medium">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {periodLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Stage a line above{tab === "deduction" ? ", or auto-calculate LOP from attendance" : ""} to get started.</p>
+                    </td></tr>
                   ) : visibleRows.map((r) => (
-                    <tr key={r.id} className="border-b hover:bg-muted/30">
-                      <td className="px-3 py-2">
+                    <tr key={r.id} className={`border-b transition-colors hover:bg-muted/40 ${selected[r.id] ? "bg-primary/5" : ""}`}>
+                      <td className="px-3 py-2 align-middle">
                         {!r.pushed_at && (
                           <Checkbox
                             checked={!!selected[r.id]}
@@ -667,27 +685,40 @@ export default function PayrollInputsPage() {
                           />
                         )}
                       </td>
-                      <td className="px-3 py-2">{empLabel(r)}</td>
-                      <td className="px-3 py-2">{r.label}</td>
-                      {tab === "addition" && <td className="px-3 py-2 capitalize">{additionTypeSlug(r.addition_type)}{r.taxable === false ? " · non-tax" : ""}</td>}
-                      <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
                       <td className="px-3 py-2">
-                        {r.readback_verified_at ? (
-                          <Badge className="bg-success/10 text-success" title={`Verified on the RazorpayX run at ${new Date(r.readback_verified_at).toLocaleString("en-IN")}`}>Verified on run</Badge>
-                        ) : r.pushed_at ? (
-                          <Badge className="bg-warning/10 text-warning" title={String(r.readback_diff?.error || "Pushed, but not confirmed on the run read-back")}>Pushed · unverified</Badge>
-                        ) : <Badge variant="outline">Pending</Badge>}
-
+                        <div className="flex items-center gap-2">
+                          <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-[10px] font-semibold">
+                            {initials(r)}
+                          </span>
+                          <span className="font-medium">{empLabel(r)}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">{r.label}</td>
+                      {tab === "addition" && (
+                        <td className="px-3 py-2">
+                          <Badge variant="outline" className="capitalize font-normal">{additionTypeSlug(r.addition_type)}</Badge>
+                          {r.taxable === false && <span className="ml-1 text-[10px] text-muted-foreground">non-tax</span>}
+                        </td>
+                      )}
+                      <td className={`px-3 py-2 text-right tabular-nums font-semibold ${tab === "deduction" ? "text-destructive" : "text-success"}`}>
+                        {tab === "deduction" ? "−" : "+"}{inr(r.amount)}
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex gap-1">
+                        {r.readback_verified_at ? (
+                          <Badge className="bg-success/10 text-success hover:bg-success/10" title={`Verified on the RazorpayX run at ${new Date(r.readback_verified_at).toLocaleString("en-IN")}`}>Verified on run</Badge>
+                        ) : r.pushed_at ? (
+                          <Badge className="bg-warning/10 text-warning hover:bg-warning/10" title={String(r.readback_diff?.error || "Pushed, but not confirmed on the run read-back")}>Pushed · unverified</Badge>
+                        ) : <Badge variant="outline" className="text-muted-foreground">Pending</Badge>}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1 justify-end">
                           {!r.pushed_at && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setPushConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setPushConfirm(r)} title={gateOpen ? "Push this line to RazorpayX" : "Payroll-write gate locked"}>
                               <Send className="h-3 w-3 mr-1" /> Push
                             </Button>
                           )}
                           {!r.pushed_at && (
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => deleteRow.mutate(r.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Delete staged row" onClick={() => deleteRow.mutate(r.id)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
@@ -699,7 +730,17 @@ export default function PayrollInputsPage() {
                     </tr>
                   ))}
                 </tbody>
+                {visibleRows.length > 0 && (
+                  <tfoot className="bg-muted/40 border-t">
+                    <tr>
+                      <td colSpan={tab === "addition" ? 4 : 3} className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-bold">{inr(sum(visibleRows as any[]))}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
+
             </CardContent>
           </Card>
         </TabsContent>

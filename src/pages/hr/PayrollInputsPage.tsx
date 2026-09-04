@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Search } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
@@ -51,6 +51,7 @@ export default function PayrollInputsPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [autoLopOpen, setAutoLopOpen] = useState(false);
   const [compoffOpen, setCompoffOpen] = useState(false);
+  const [empSearch, setEmpSearch] = useState("");
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
@@ -377,10 +378,37 @@ export default function PayrollInputsPage() {
   const pendingRows = useMemo(() => (visibleRows as any[]).filter((r) => !r.pushed_at), [visibleRows]);
   const selectedPending = useMemo(() => pendingRows.filter((r: any) => selected[r.id]), [pendingRows, selected]);
 
+  // Presentation-only roll-ups for the summary strip.
+  const sum = (list: any[]) => list.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const pushedRows = useMemo(() => (visibleRows as any[]).filter((r) => !!r.pushed_at), [visibleRows]);
+  const unverifiedRows = useMemo(
+    () => (visibleRows as any[]).filter((r) => r.pushed_at && !r.readback_verified_at),
+    [visibleRows],
+  );
+  const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+  // Month stepper for the period toolbar (same YYYY-MM contract as the input).
+  const shiftPeriod = (delta: number) => {
+    const [y, m] = period.split("-").map(Number);
+    if (!y || !m) return;
+    const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+    setPeriod(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
+  };
+  const periodLabel = (() => {
+    const [y, m] = period.split("-").map(Number);
+    if (!y || !m) return period;
+    return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+  })();
+
   const empLabel = (r: any) => {
     const e = empById.get(r.hr_employee_id)?.hr_employees;
     return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : r.razorpay_employee_id;
   };
+  const initials = (r: any) => {
+    const e = empById.get(r.hr_employee_id)?.hr_employees;
+    return `${e?.first_name?.[0] ?? ""}${e?.last_name?.[0] ?? ""}`.toUpperCase() || "–";
+  };
+
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -393,7 +421,7 @@ export default function PayrollInputsPage() {
       />
 
       {/* Doctrine strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
         <SourceTag source="razorpay" />
         <span className="text-muted-foreground">
           These inputs land in RazorpayX and are applied on the next payroll run there. Pay-run and payslip PDFs live on the RazorpayX dashboard.
@@ -401,7 +429,7 @@ export default function PayrollInputsPage() {
       </div>
 
       {!gateOpen && (
-        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 mt-0.5 text-warning" />
             <div>
@@ -414,18 +442,50 @@ export default function PayrollInputsPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
-          <CardTitle className="text-sm">Period</CardTitle>
+      {/* Period toolbar — month stepper plus this period's roll-up at a glance */}
+      <div className="rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 border-b">
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Month (YYYY-MM)</Label>
-            <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-07" className="w-32 h-8" />
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Payroll period</p>
+              <p className="text-sm font-semibold leading-tight">{periodLabel}</p>
+            </div>
           </div>
-        </CardHeader>
-      </Card>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous month" onClick={() => shiftPeriod(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Input
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              placeholder="2026-07"
+              aria-label="Payroll month (YYYY-MM)"
+              className="w-28 h-8 text-center font-mono text-foreground"
+            />
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next month" onClick={() => shiftPeriod(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-border">
+          {[
+            { label: "Pending to push", value: `${pendingRows.length}`, sub: inr(sum(pendingRows)), tone: "text-foreground" },
+            { label: "Verified on run", value: `${pushedRows.length - unverifiedRows.length}`, sub: inr(sum(pushedRows.filter((r) => r.readback_verified_at))), tone: "text-success" },
+            { label: "Pushed · unverified", value: `${unverifiedRows.length}`, sub: inr(sum(unverifiedRows)), tone: unverifiedRows.length ? "text-warning" : "text-muted-foreground" },
+            { label: `Total staged ${tab}s`, value: `${visibleRows.length}`, sub: inr(sum(visibleRows as any[])), tone: "text-foreground" },
+          ].map((s) => (
+            <div key={s.label} className="p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className={`text-xl font-bold tabular-nums leading-tight ${s.tone}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {lopFocus && (
-        <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
           <div className="font-medium">LOP-only view</div>
           <div className="text-muted-foreground mt-1">
             Only loss-of-pay deductions for {period} are staged, listed and pushed here. Additions, bonuses and other deductions are intentionally hidden — open Payroll Inputs from the cockpit tools to manage those.
@@ -433,9 +493,10 @@ export default function PayrollInputsPage() {
         </div>
       )}
 
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
         {!lopFocus && (
-          <TabsList>
+          <TabsList className="grid w-full max-w-sm grid-cols-2">
             <TabsTrigger value="addition">Additions</TabsTrigger>
             <TabsTrigger value="deduction">Deductions</TabsTrigger>
           </TabsList>
@@ -443,11 +504,19 @@ export default function PayrollInputsPage() {
 
         <TabsContent value={tab} className="space-y-4 mt-4">
           <Card>
-            <CardHeader><CardTitle className="text-sm">{lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}</CardTitle></CardHeader>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-1.5">
+                <PlusCircle className="h-4 w-4 text-primary" />
+                {lopFocus ? "Stage a manual LOP deduction" : `Stage a new ${tab}`}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Staging only records the line in HRMS. Nothing reaches RazorpayX until you push it.
+              </p>
+            </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-                <div className="md:col-span-2">
-                  <Label className="text-xs">Employee</Label>
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-start">
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Employee</Label>
                   <Select value={form.hr_employee_id} onValueChange={(v) => setForm({ ...form, hr_employee_id: v })}>
                     <SelectTrigger className="text-foreground"><SelectValue placeholder="Pick a mapped employee" /></SelectTrigger>
                     <SelectContent>
@@ -458,19 +527,23 @@ export default function PayrollInputsPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-[10px] text-muted-foreground">Only RazorpayX-mapped active employees are listed.</p>
                 </div>
-                <div>
-                  <Label className="text-xs">Label</Label>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Label {lopFocus ? "" : "(appears on the payslip)"}</Label>
                   <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
-                  {lopFocus && <p className="text-[10px] text-muted-foreground mt-1">Locked to the LOP head so the row stays inside this view.</p>}
+                  {lopFocus && <p className="text-[10px] text-muted-foreground">Locked to the LOP head so the row stays inside this view.</p>}
                 </div>
-                <div>
-                  <Label className="text-xs">Amount (₹)</Label>
-                  <Input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" />
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">Amount</Label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">₹</span>
+                    <Input inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0" className="pl-6 text-right tabular-nums text-foreground" />
+                  </div>
                 </div>
                 {tab === "addition" ? (
-                  <div>
-                    <Label className="text-xs">Type</Label>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Type</Label>
                     <Select value={form.addition_type} onValueChange={(v) => setForm({ ...form, addition_type: v })}>
                       <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -481,7 +554,7 @@ export default function PayrollInputsPage() {
                       </SelectContent>
                     </Select>
                     {form.addition_type === "bonus" && enabledBonusTypes.length > 0 && (
-                      <div className="mt-2">
+                      <div className="pt-1">
                         <Label className="text-[10px] text-muted-foreground">Bonus subtype (mirrors Razorpay)</Label>
                         <Select
                           value=""
@@ -502,22 +575,31 @@ export default function PayrollInputsPage() {
                   </div>
                 ) : <div />}
               </div>
-              <div className="flex justify-end mt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-4 pt-3 border-t">
+                <p className="text-xs text-muted-foreground">
+                  {tab === "addition" ? "Additions increase net pay" : "Deductions reduce net pay"} for <span className="font-medium text-foreground">{periodLabel}</span>.
+                </p>
                 <Button onClick={() => stageMutation.mutate()} disabled={stageMutation.isPending} size="sm">
-                  {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
-                  Stage
+                  {stageMutation.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <PlusCircle className="h-4 w-4 mr-1" />}
+                  Stage {tab}
                 </Button>
               </div>
             </CardContent>
           </Card>
 
+
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-              <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} for {period}</CardTitle>
-              <div className="flex items-center gap-2">
+            <CardHeader className="flex flex-row items-start justify-between gap-2 flex-wrap space-y-0">
+              <div>
+                <CardTitle className="text-sm">Staged {lopFocus ? "LOP deductions" : `${tab}s`} — {periodLabel}</CardTitle>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pendingRows.length} pending · {pushedRows.length} pushed · {inr(sum(visibleRows as any[]))} total
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
                 {selectedPending.length > 0 && (
                   <>
-                    <span className="text-xs text-muted-foreground">{selectedPending.length} selected</span>
+                    <Badge variant="secondary" className="text-xs">{selectedPending.length} selected · {inr(sum(selectedPending))}</Badge>
                     <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => setBulkPushConfirm(true)} title={gateOpen ? "" : "Payroll-write gate locked"}>
                       {bulkPush.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />} Push selected
                     </Button>
@@ -558,7 +640,7 @@ export default function PayrollInputsPage() {
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-muted/50 border-b">
+                <thead className="bg-muted/50 border-b sticky top-0 z-10">
                   <tr>
                     <th className="px-3 py-2 w-8">
                       <Checkbox
@@ -570,19 +652,32 @@ export default function PayrollInputsPage() {
                         aria-label="Select all pending"
                       />
                     </th>
-                    {["Employee", "Label", tab === "addition" ? "Type" : "", "Amount", "Status", "Actions"].filter(Boolean).map((h) => (
-                      <th key={h as string} className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground text-left">{h}</th>
+                    {[
+                      { h: "Employee", align: "text-left" },
+                      { h: "Label", align: "text-left" },
+                      ...(tab === "addition" ? [{ h: "Type", align: "text-left" }] : []),
+                      { h: "Amount", align: "text-right" },
+                      { h: "Status", align: "text-left" },
+                      { h: "Actions", align: "text-right" },
+                    ].map(({ h, align }) => (
+                      <th key={h} className={`px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${align}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
-                    <tr><td colSpan={7} className="p-4 text-center text-muted-foreground">Loading…</td></tr>
+                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" /> Loading staged rows…
+                    </td></tr>
                   ) : visibleRows.length === 0 ? (
-                    <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {period}.</td></tr>
+                    <tr><td colSpan={7} className="p-10 text-center">
+                      <Layers className="h-6 w-6 mx-auto text-muted-foreground/50 mb-2" />
+                      <p className="text-sm font-medium">No staged {lopFocus && tab === "deduction" ? "LOP deductions" : `${tab}s`} for {periodLabel}</p>
+                      <p className="text-xs text-muted-foreground mt-1">Stage a line above{tab === "deduction" ? ", or auto-calculate LOP from attendance" : ""} to get started.</p>
+                    </td></tr>
                   ) : visibleRows.map((r) => (
-                    <tr key={r.id} className="border-b hover:bg-muted/30">
-                      <td className="px-3 py-2">
+                    <tr key={r.id} className={`border-b transition-colors hover:bg-muted/40 ${selected[r.id] ? "bg-primary/5" : ""}`}>
+                      <td className="px-3 py-2 align-middle">
                         {!r.pushed_at && (
                           <Checkbox
                             checked={!!selected[r.id]}
@@ -591,27 +686,40 @@ export default function PayrollInputsPage() {
                           />
                         )}
                       </td>
-                      <td className="px-3 py-2">{empLabel(r)}</td>
-                      <td className="px-3 py-2">{r.label}</td>
-                      {tab === "addition" && <td className="px-3 py-2 capitalize">{additionTypeSlug(r.addition_type)}{r.taxable === false ? " · non-tax" : ""}</td>}
-                      <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
                       <td className="px-3 py-2">
-                        {r.readback_verified_at ? (
-                          <Badge className="bg-success/10 text-success" title={`Verified on the RazorpayX run at ${new Date(r.readback_verified_at).toLocaleString("en-IN")}`}>Verified on run</Badge>
-                        ) : r.pushed_at ? (
-                          <Badge className="bg-warning/10 text-warning" title={String(r.readback_diff?.error || "Pushed, but not confirmed on the run read-back")}>Pushed · unverified</Badge>
-                        ) : <Badge variant="outline">Pending</Badge>}
-
+                        <div className="flex items-center gap-2">
+                          <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-[10px] font-semibold">
+                            {initials(r)}
+                          </span>
+                          <span className="font-medium">{empLabel(r)}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2">{r.label}</td>
+                      {tab === "addition" && (
+                        <td className="px-3 py-2">
+                          <Badge variant="outline" className="capitalize font-normal">{additionTypeSlug(r.addition_type)}</Badge>
+                          {r.taxable === false && <span className="ml-1 text-[10px] text-muted-foreground">non-tax</span>}
+                        </td>
+                      )}
+                      <td className={`px-3 py-2 text-right tabular-nums font-semibold ${tab === "deduction" ? "text-destructive" : "text-success"}`}>
+                        {tab === "deduction" ? "−" : "+"}{inr(r.amount)}
                       </td>
                       <td className="px-3 py-2">
-                        <div className="flex gap-1">
+                        {r.readback_verified_at ? (
+                          <Badge className="bg-success/10 text-success hover:bg-success/10" title={`Verified on the RazorpayX run at ${new Date(r.readback_verified_at).toLocaleString("en-IN")}`}>Verified on run</Badge>
+                        ) : r.pushed_at ? (
+                          <Badge className="bg-warning/10 text-warning hover:bg-warning/10" title={String(r.readback_diff?.error || "Pushed, but not confirmed on the run read-back")}>Pushed · unverified</Badge>
+                        ) : <Badge variant="outline" className="text-muted-foreground">Pending</Badge>}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1 justify-end">
                           {!r.pushed_at && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setPushConfirm(r)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                            <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setPushConfirm(r)} title={gateOpen ? "Push this line to RazorpayX" : "Payroll-write gate locked"}>
                               <Send className="h-3 w-3 mr-1" /> Push
                             </Button>
                           )}
                           {!r.pushed_at && (
-                            <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive" onClick={() => deleteRow.mutate(r.id)}>
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Delete staged row" onClick={() => deleteRow.mutate(r.id)}>
                               <Trash2 className="h-3 w-3" />
                             </Button>
                           )}
@@ -623,7 +731,17 @@ export default function PayrollInputsPage() {
                     </tr>
                   ))}
                 </tbody>
+                {visibleRows.length > 0 && (
+                  <tfoot className="bg-muted/40 border-t">
+                    <tr>
+                      <td colSpan={tab === "addition" ? 4 : 3} className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-bold">{inr(sum(visibleRows as any[]))}</td>
+                      <td colSpan={2} />
+                    </tr>
+                  </tfoot>
+                )}
               </table>
+
             </CardContent>
           </Card>
         </TabsContent>
@@ -658,35 +776,64 @@ export default function PayrollInputsPage() {
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-          <CardTitle className="text-sm">Per-employee actions for {period}</CardTitle>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportPayableList}>
-            <Download className="h-3 w-3 mr-1" /> Export payable list
-          </Button>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 flex-wrap">
+          <div>
+            <CardTitle className="text-sm">Per-employee actions — {periodLabel}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Do-Not-Pay excludes someone from this month's RazorpayX run; Reset clears every modification pushed for them this month.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={empSearch}
+                onChange={(e) => setEmpSearch(e.target.value)}
+                placeholder="Search employee…"
+                aria-label="Search employees"
+                className="h-8 w-48 pl-8 text-xs text-foreground"
+              />
+            </div>
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={exportPayableList}>
+              <Download className="h-3 w-3 mr-1" /> Export payable list
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
                 <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Employee</th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
+                <th className="px-3 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {(employees as any[]).slice(0, 200).map((r) => {
+              {(employees as any[])
+                .filter((r) => {
+                  const q = empSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""} ${r.hr_employees?.badge_id || ""}`.toLowerCase();
+                  return name.includes(q);
+                })
+                .slice(0, 200).map((r) => {
+
                 const dnpAt = (dnpMarks as Record<string, string>)[String(r.razorpay_employee_id)];
                 const inactive = r.last_pull_snapshot?.is_active === false;
                 return (
                 <tr key={r.hr_employee_id} className={`border-b hover:bg-muted/30 ${dnpAt ? "bg-muted/40" : ""}`}>
                   <td className="px-3 py-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={dnpAt ? "text-muted-foreground" : ""}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      <span className="h-7 w-7 shrink-0 rounded-full bg-muted text-muted-foreground grid place-items-center text-[10px] font-semibold">
+                        {`${r.hr_employees?.first_name?.[0] ?? ""}${r.hr_employees?.last_name?.[0] ?? ""}`.toUpperCase() || "–"}
+                      </span>
+                      <span className={dnpAt ? "text-muted-foreground" : "font-medium"}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
                       {inactive && <Badge variant="muted">Inactive in RazorpayX</Badge>}
                       {dnpAt && <Badge variant="muted">Do-Not-Pay applied · {new Date(dnpAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Badge>}
                     </div>
                   </td>
                   <td className="px-3 py-2">
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 justify-end">
+
                       <Button
                         size="sm"
                         variant={dnpAt ? "secondary" : "outline"}

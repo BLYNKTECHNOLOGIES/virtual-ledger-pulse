@@ -26515,6 +26515,7 @@ export type Database = {
           early_minutes: number | null
           employee_id: string | null
           engine_version: string | null
+          evidence_backed: boolean | null
           first_in: string | null
           is_late: boolean | null
           last_out: string | null
@@ -26534,6 +26535,7 @@ export type Database = {
           early_minutes?: never
           employee_id?: string | null
           engine_version?: string | null
+          evidence_backed?: never
           first_in?: string | null
           is_late?: never
           last_out?: string | null
@@ -26553,6 +26555,7 @@ export type Database = {
           early_minutes?: never
           employee_id?: string | null
           engine_version?: string | null
+          evidence_backed?: never
           first_in?: string | null
           is_late?: never
           last_out?: string | null
@@ -28780,6 +28783,7 @@ export type Database = {
           early_minutes: number | null
           employee_id: string | null
           engine_version: string | null
+          evidence_backed: boolean | null
           first_in: string | null
           is_late: boolean | null
           last_out: string | null

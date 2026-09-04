@@ -18,6 +18,7 @@ is the ONLY LOP calculator that payroll (shadow + real) is allowed to consume.
 | **day worked during approved leave** (`hr_leave_worked_days`) | **0 — counted as attendance only, never as leave** |
 | **day already fully credited as attended** | **overlapping approved leave adds nothing (no double credit); half-days still allow half work + half leave** |
 | **approved regularisation** | **credited once, through the day's final marked status — an approved regularisation does not additionally excuse the day** |
+| **day marked present/half-day with NO biometric punch** | **credited as attended (0 LOP) — owner decision 2026-09-05; covers pre-enrolment windows. Reported as `unverified` for audit only** |
 | **day with an OPEN watchdog session** | **0 (held harmless)** |
 | **policy late occurrences** | **1 LOP day per `late_count_for_lop` distinct late DATES** (only if threshold > 0; currently 0 = disabled) |
 | **policy half-day occurrences** | **disabled by owner decision (2026-09-02): `half_day_count_for_lop = 0`, so a half-day costs 0.5 day and nothing more** |

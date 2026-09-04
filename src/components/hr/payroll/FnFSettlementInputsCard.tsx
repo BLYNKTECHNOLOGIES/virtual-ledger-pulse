@@ -48,6 +48,7 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
           <p className="text-xs text-muted-foreground mt-1">
             Consolidated Full &amp; Final lines for leavers whose settlement was assigned to this payroll cycle.
             They are pushed by the F&amp;F approval itself and cannot be staged or re-pushed here.
+            Expand a row to see the component-wise settlement breakdown.
           </p>
         </div>
         <div className="text-right">
@@ -59,36 +60,20 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b">
             <tr>
+              <th className="w-10 px-2 py-2" />
               {["Employee", "Line", "Amount", "Status"].map((h) => (
                 <th key={h} className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {(rows as any[]).map((r) => {
-              const e = r.hr_employees;
-              return (
-                <tr key={r.id} className="border-b hover:bg-muted/30">
-                  <td className="px-3 py-2">
-                    {e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() + (e.badge_id ? ` · ${e.badge_id}` : "") : r.razorpay_employee_id}
-                  </td>
-                  <td className="px-3 py-2">{r.label}</td>
-                  <td className="px-3 py-2 tabular-nums">₹{Number(r.amount).toLocaleString("en-IN")}</td>
-                  <td className="px-3 py-2">
-                    {r.readback_verified_at ? (
-                      <Badge className="bg-success/10 text-success">Verified on run</Badge>
-                    ) : r.pushed_at ? (
-                      <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
-                    ) : (
-                      <Badge variant="outline">Not on the run</Badge>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
+            {(rows as any[]).map((r) => (
+              <FnFRow key={r.id} row={r} kind={kind} />
+            ))}
           </tbody>
         </table>
       </CardContent>
     </Card>
   );
+
 }

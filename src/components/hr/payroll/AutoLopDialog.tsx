@@ -426,108 +426,169 @@ export function AutoLopDialog({
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">
                             <td />
-                            <td colSpan={29} className="p-3">
-                              <div className="grid gap-4 md:grid-cols-3 text-xs">
-                                <div>
-                                  <p className="font-semibold mb-1">Leave consumed this month</p>
-                                  {(r.leave_breakdown ?? []).length === 0 ? (
-                                    <p className="text-muted-foreground">No leave consumed.</p>
-                                  ) : (
-                                    <table className="w-full">
-                                      <thead>
-                                        <tr className="text-muted-foreground text-left">
-                                          <th className="pr-2 font-medium">Type</th>
-                                          <th className="pr-2 font-medium">Paid?</th>
-                                          <th className="font-medium text-right">Days</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {(r.leave_breakdown ?? []).map((s, i) => (
-                                          <tr key={i}>
-                                            <td className="pr-2 py-0.5">{s.name}{s.code && s.code !== "—" ? ` (${s.code})` : ""}</td>
-                                            <td className="pr-2 py-0.5">{s.is_paid ? "Paid" : "Unpaid"}</td>
-                                            <td className="py-0.5 text-right tabular-nums">{num(s.days)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="font-semibold">Comp-off pool</p>
-                                  <p className="text-muted-foreground">
-                                    Opening {num(r.compoff_opening)} · Earned {num(r.compoff_earned)} · Taken {num(r.compoff_taken)}
-                                  </p>
-                                  <p className="text-muted-foreground">
-                                    Available {num(r.compoff_available)} · Used to cancel LOP {num(r.compoff_offset_days)}
-                                  </p>
-                                  <p className="font-semibold pt-1">Automatic casual-leave set-off</p>
-                                  <p className="text-muted-foreground">
-                                    Available {num(r.cl_available)} · Auto-applied to cancel LOP {num(r.cl_offset_days)}
-                                    {(r.cl_offset_days ?? 0) > 0 ? " — booked as approved casual leave on staging" : ""}
-                                  </p>
-                                  <p className="font-semibold pt-1">Worked on weekly off / holiday</p>
-                                  <p className="text-muted-foreground">
-                                    {num(r.worked_off_days)} day{r.worked_off_days === 1 ? "" : "s"}
-                                    {(r.worked_off_dates ?? []).length ? ` — ${(r.worked_off_dates ?? []).join(", ")}` : ""}
-                                  </p>
-                                  <p className="font-semibold pt-1">Comp-off credits earned ({num(r.compoff_credit_days)})</p>
-                                  {(r.compoff_credits ?? []).length === 0 ? (
-                                    <p className="text-muted-foreground">None</p>
-                                  ) : (
-                                    <ul className="text-muted-foreground space-y-0.5">
-                                      {(r.compoff_credits ?? []).map((c, i) => (
-                                        <li key={`${c.date}-${i}`}>
-                                          {c.date} · {c.type} · {num(c.days)}d
-                                          {c.duplicate ? <span className="ml-1 text-warning">(same-day duplicate)</span> : null}
-                                        </li>
+                            <td colSpan={29} className="p-0">
+                              <div className="p-4 space-y-4 text-xs">
+                                {/* How the charged LOP was arrived at */}
+                                <section className="rounded-lg border bg-background">
+                                  <header className="px-3 py-2 border-b bg-muted/40 font-semibold text-[11px] uppercase tracking-wide">
+                                    How the charged LOP was arrived at
+                                  </header>
+                                  <div className="p-3 space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      {([
+                                        ["Raw LOP", r.raw_lop_days, ""],
+                                        ["− Comp-off set-off", r.compoff_offset_days, "text-success"],
+                                        ["− Casual-leave set-off", r.cl_offset_days, "text-success"],
+                                        ["+ Proration (pre-joining)", r.proration_days, "text-warning"],
+                                      ] as const).map(([label, val, tone]) => (
+                                        <span key={label} className="rounded-md border px-2 py-1 bg-muted/30">
+                                          <span className="text-muted-foreground">{label} </span>
+                                          <span className={`font-semibold tabular-nums ${tone}`}>{num(val)}</span>
+                                        </span>
                                       ))}
-                                    </ul>
-                                  )}
-                                  {(r.unprocessed_off_days ?? 0) > 0 && (
-                                    <p className="text-warning">
-                                      Punched but not processed by the engine: {num(r.unprocessed_off_days)} day(s)
-                                      {(r.unprocessed_off_dates ?? []).length ? ` — ${(r.unprocessed_off_dates ?? []).join(", ")}` : ""}
+                                      <span className="rounded-md border border-primary/40 bg-primary/5 px-2 py-1">
+                                        <span className="text-muted-foreground">= Charged </span>
+                                        <span className="font-semibold tabular-nums">{num(r.lop_days)} day(s)</span>
+                                      </span>
+                                    </div>
+                                    <p className="text-muted-foreground">
+                                      Monthly base {r.monthly_base ? inr(r.monthly_base) : "—"}
+                                      {r.base_source_label ? ` (${r.base_source_label})` : ""} ·
+                                      {" "}Deduction <span className="font-semibold text-foreground">{r.amount ? inr(r.amount) : "₹0"}</span>
                                     </p>
-                                  )}
-                                </div>
-                                <div className="space-y-1">
-                                  <p className="font-semibold">Leave balance ledger</p>
-                                  <table className="w-full">
-                                    <thead>
-                                      <tr className="text-muted-foreground text-left">
-                                        <th className="pr-2 font-medium">Type</th>
-                                        <th className="font-medium text-right">Open</th>
-                                        <th className="font-medium text-right">Cr</th>
-                                        <th className="font-medium text-right">Used</th>
-                                        <th className="font-medium text-right">Bal</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {([["Casual (CL)", clL], ["Sick (SL)", slL], ["Comp-off (CO)", coL]] as const).map(([label, l]) => (
-                                        <tr key={label}>
-                                          <td className="pr-2 py-0.5">{label}</td>
-                                          <td className="py-0.5 text-right tabular-nums">{num(l.opening)}</td>
-                                          <td className="py-0.5 text-right tabular-nums">{num(l.credited)}</td>
-                                          <td className="py-0.5 text-right tabular-nums">{num(l.used)}</td>
-                                          <td className="py-0.5 text-right tabular-nums font-medium">{num(l.closing)}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                  <p className="text-muted-foreground">
-                                    Comp-off set off against LOP {num(coL.offset_lop)} · encashed {num(coL.encashed)}
-                                  </p>
-                                  <p className="font-semibold pt-1">Employment window</p>
+                                    {mismatch && (
+                                      <p className="text-warning">
+                                        Leave register shows {num(r.leave_paid_total)} approved paid-leave day(s) this
+                                        month, but only {num(r.paid_leave_days)} fall on working days — the rest sit on a
+                                        weekly off, a holiday, or a day already credited as attended. LOP counts working
+                                        days only, so the deduction is unaffected.
+                                      </p>
+                                    )}
+                                    {r.formula && (
+                                      <p className="text-[11px] text-muted-foreground break-words font-mono">{r.formula}</p>
+                                    )}
+                                  </div>
+                                </section>
 
-                                  <p className="text-muted-foreground">
-                                    {r.employment_from ?? "—"} → {r.employment_to ?? "—"} · proration {num(r.proration_days)} day(s)
-                                  </p>
-                                  <p className="font-semibold pt-1">Engine formula</p>
-                                  <p className="text-muted-foreground break-words">{r.formula ?? "—"}</p>
+                                <div className="grid gap-4 lg:grid-cols-3">
+                                  {/* Leave consumed */}
+                                  <section className="rounded-lg border bg-background">
+                                    <header className="px-3 py-2 border-b bg-muted/40 font-semibold text-[11px] uppercase tracking-wide">
+                                      Leave consumed this month
+                                    </header>
+                                    <div className="p-3">
+                                      {(r.leave_breakdown ?? []).length === 0 ? (
+                                        <p className="text-muted-foreground">No leave consumed.</p>
+                                      ) : (
+                                        <table className="w-full">
+                                          <thead>
+                                            <tr className="text-muted-foreground text-left border-b">
+                                              <th className="pr-2 pb-1 font-medium">Type</th>
+                                              <th className="pr-2 pb-1 font-medium">Paid?</th>
+                                              <th className="pb-1 font-medium text-right">Days</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {(r.leave_breakdown ?? []).map((s, i) => (
+                                              <tr key={i} className="border-b last:border-0">
+                                                <td className="pr-2 py-1">{s.name}{s.code && s.code !== "—" ? ` (${s.code})` : ""}</td>
+                                                <td className="pr-2 py-1">
+                                                  <Badge variant={s.is_paid ? "outline" : "secondary"} className="text-[10px] px-1.5 py-0">
+                                                    {s.is_paid ? "Paid" : "Unpaid"}
+                                                  </Badge>
+                                                </td>
+                                                <td className="py-1 text-right tabular-nums font-medium">{num(s.days)}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      )}
+                                    </div>
+                                  </section>
+
+                                  {/* Leave balance ledger */}
+                                  <section className="rounded-lg border bg-background">
+                                    <header className="px-3 py-2 border-b bg-muted/40 font-semibold text-[11px] uppercase tracking-wide">
+                                      Leave balance ledger
+                                    </header>
+                                    <div className="p-3 space-y-2">
+                                      <table className="w-full">
+                                        <thead>
+                                          <tr className="text-muted-foreground text-left border-b">
+                                            <th className="pr-2 pb-1 font-medium">Type</th>
+                                            <th className="pb-1 font-medium text-right">Open</th>
+                                            <th className="pb-1 font-medium text-right">Cr</th>
+                                            <th className="pb-1 font-medium text-right">Used</th>
+                                            <th className="pb-1 font-medium text-right">Bal</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {([["Casual (CL)", clL], ["Sick (SL)", slL], ["Comp-off (CO)", coL]] as const).map(([label, l]) => (
+                                            <tr key={label} className="border-b last:border-0">
+                                              <td className="pr-2 py-1">{label}</td>
+                                              <td className="py-1 text-right tabular-nums">{num(l.opening)}</td>
+                                              <td className="py-1 text-right tabular-nums">{num(l.credited)}</td>
+                                              <td className="py-1 text-right tabular-nums">{num(l.used)}</td>
+                                              <td className="py-1 text-right tabular-nums font-semibold">{num(l.closing)}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                      <p className="text-muted-foreground">
+                                        Comp-off set off against LOP {num(coL.offset_lop)} · encashed {num(coL.encashed)}
+                                      </p>
+                                      <p className="text-muted-foreground">
+                                        Casual leave available {num(r.cl_available)} · auto-applied to cancel LOP{" "}
+                                        {num(r.cl_offset_days)}
+                                        {(r.cl_offset_days ?? 0) > 0 ? " (booked as approved casual leave on staging)" : ""}
+                                      </p>
+                                    </div>
+                                  </section>
+
+                                  {/* Attendance evidence */}
+                                  <section className="rounded-lg border bg-background">
+                                    <header className="px-3 py-2 border-b bg-muted/40 font-semibold text-[11px] uppercase tracking-wide">
+                                      Attendance evidence &amp; employment
+                                    </header>
+                                    <div className="p-3 space-y-2">
+                                      <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1">
+                                        <dt className="text-muted-foreground">Worked on weekly off / holiday</dt>
+                                        <dd className="text-right tabular-nums font-medium">{num(r.worked_off_days)}</dd>
+                                        <dt className="text-muted-foreground">Comp-off credits earned</dt>
+                                        <dd className="text-right tabular-nums font-medium">{num(r.compoff_credit_days)}</dd>
+                                        <dt className="text-muted-foreground">Employment window</dt>
+                                        <dd className="text-right">{r.employment_from ?? "—"} → {r.employment_to ?? "—"}</dd>
+                                        <dt className="text-muted-foreground">Proration days</dt>
+                                        <dd className="text-right tabular-nums font-medium">{num(r.proration_days)}</dd>
+                                      </dl>
+                                      {(r.worked_off_dates ?? []).length > 0 && (
+                                        <p className="text-muted-foreground">
+                                          Off-day work: {(r.worked_off_dates ?? []).join(", ")}
+                                        </p>
+                                      )}
+                                      {(r.compoff_credits ?? []).length > 0 && (
+                                        <ul className="text-muted-foreground space-y-0.5">
+                                          {(r.compoff_credits ?? []).map((c, i) => (
+                                            <li key={`${c.date}-${i}`}>
+                                              {c.date} · {c.type} · {num(c.days)}d
+                                              {c.duplicate ? <span className="ml-1 text-warning">(same-day duplicate)</span> : null}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                      {(r.unprocessed_off_days ?? 0) > 0 && (
+                                        <p className="text-warning">
+                                          Punched on an off day but below the half-day credit threshold:{" "}
+                                          {num(r.unprocessed_off_days)} day(s)
+                                          {(r.unprocessed_off_dates ?? []).length ? ` — ${(r.unprocessed_off_dates ?? []).join(", ")}` : ""}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </section>
                                 </div>
                               </div>
                             </td>
+
                           </tr>
                         )}
                       </Fragment>

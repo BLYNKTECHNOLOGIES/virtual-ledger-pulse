@@ -29018,6 +29018,10 @@ export type Database = {
         Args: { p_effective: string; p_is_training: boolean; p_kind: string }
         Returns: string
       }
+      hr_ctc_revision_is_live: {
+        Args: { p_revision_id: string }
+        Returns: boolean
+      }
       hr_ctc_transition_adjustment: {
         Args: { p_revision_id: string }
         Returns: Json

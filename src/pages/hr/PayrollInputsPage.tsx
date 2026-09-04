@@ -776,22 +776,47 @@ export default function PayrollInputsPage() {
       {/* Per-employee do-not-pay / reset — operate on RazorpayX directly for the current period */}
       {!lopFocus && (
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 space-y-0">
-          <CardTitle className="text-sm">Per-employee actions for {period}</CardTitle>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={exportPayableList}>
-            <Download className="h-3 w-3 mr-1" /> Export payable list
-          </Button>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0 flex-wrap">
+          <div>
+            <CardTitle className="text-sm">Per-employee actions — {periodLabel}</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Do-Not-Pay excludes someone from this month's RazorpayX run; Reset clears every modification pushed for them this month.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={empSearch}
+                onChange={(e) => setEmpSearch(e.target.value)}
+                placeholder="Search employee…"
+                aria-label="Search employees"
+                className="h-8 w-48 pl-8 text-xs text-foreground"
+              />
+            </div>
+            <Button size="sm" variant="outline" className="h-8 text-xs" onClick={exportPayableList}>
+              <Download className="h-3 w-3 mr-1" /> Export payable list
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted/50 border-b">
               <tr>
                 <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Employee</th>
-                <th className="px-3 py-2 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
+                <th className="px-3 py-2 text-right text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {(employees as any[]).slice(0, 200).map((r) => {
+              {(employees as any[])
+                .filter((r) => {
+                  const q = empSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  const name = `${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""} ${r.hr_employees?.badge_id || ""}`.toLowerCase();
+                  return name.includes(q);
+                })
+                .slice(0, 200).map((r) => {
+
                 const dnpAt = (dnpMarks as Record<string, string>)[String(r.razorpay_employee_id)];
                 const inactive = r.last_pull_snapshot?.is_active === false;
                 return (

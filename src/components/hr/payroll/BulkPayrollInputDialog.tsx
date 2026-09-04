@@ -345,7 +345,7 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
           </TabsContent>
 
           <TabsContent value="paste" className="space-y-2 mt-3">
-            <Label className="text-xs">One line per employee — <code>badge_id, amount</code> (optional third column overrides the label)</Label>
+            <Label className="text-xs text-muted-foreground"><code>badge_id, amount</code> — optional third column overrides the label</Label>
             <Textarea
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
@@ -353,13 +353,13 @@ export function BulkPayrollInputDialog({ open, onOpenChange, kind, period, emplo
               className="font-mono text-xs"
               placeholder={"BVT001, 5000\nBVT002, 2500, Attendance bonus"}
             />
-            <div className="text-xs text-muted-foreground">Unmapped badges and bad amounts are skipped and reported.</div>
           </TabsContent>
         </Tabs>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-1 rounded-md border bg-muted/30 p-3">
           <div className="md:col-span-1">
-            <Label className="text-xs">Label{mode === "select" ? "" : " (default for blank rows)"}</Label>
+            <Label className="text-xs">Label</Label>
+
             {kind === "addition" && additionType === "bonus" && mode !== "rows" ? (
               <Select value={BONUS_LABELS.includes(label) ? label : ""} onValueChange={setLabel}>
                 <SelectTrigger className="text-foreground"><SelectValue placeholder="Select bonus label" /></SelectTrigger>

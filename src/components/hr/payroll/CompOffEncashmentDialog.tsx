@@ -130,23 +130,21 @@ export function CompOffEncashmentDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-[97vw] max-w-[97vw] md:w-[95vw] md:max-w-[1500px] max-h-[92dvh] md:max-h-[92vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Gift className="h-4 w-4" /> Comp-off encashment — {period}
+        <DialogHeader className="pb-1">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Gift className="h-4 w-4 text-muted-foreground" /> Comp-off encashment — {period}
           </DialogTitle>
-          <DialogDescription>
-            Comp-off does not carry forward. Days earned are first taken as leave, then used to cancel this month's loss
-            of pay, and the remainder is encashed here at the same per-day rate the LOP engine uses (monthly base ÷
-            working days). Run Auto-LOP first. Nothing is saved until you stage it; rows already pushed to RazorpayX are
-            never overwritten.
+          <DialogDescription className="text-xs">
+            Leftover comp-off after LOP offset, at monthly base ÷ working days. Run Auto-LOP first; nothing saves until you stage.
           </DialogDescription>
         </DialogHeader>
 
         {preview.isPending && (
           <div className="flex items-center gap-2 p-8 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Reading the comp-off ledger, attendance and salary bases…
+            <Loader2 className="h-4 w-4 animate-spin" /> Calculating…
           </div>
         )}
+
 
         {!preview.isPending && rows && (
           <>

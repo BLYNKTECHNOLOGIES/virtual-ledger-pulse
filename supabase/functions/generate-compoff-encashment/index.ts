@@ -117,6 +117,15 @@ Deno.serve(async (req) => {
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const split = splitCompoff(pool.days_available, rawLopDays);
       const workingDays = Number(lop?.working_days ?? 0);
+      if (split.offset_days > 0 || split.encash_days > 0) {
+        creditSettlements.push({
+          employee_id: map.hr_employee_id,
+          offset_days: split.offset_days,
+          encash_days: split.encash_days,
+        });
+      }
+
+
 
       const base: any = {
         hr_employee_id: map.hr_employee_id,

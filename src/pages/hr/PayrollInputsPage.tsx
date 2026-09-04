@@ -420,7 +420,7 @@ export default function PayrollInputsPage() {
       />
 
       {/* Doctrine strip */}
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/30 p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs">
         <SourceTag source="razorpay" />
         <span className="text-muted-foreground">
           These inputs land in RazorpayX and are applied on the next payroll run there. Pay-run and payslip PDFs live on the RazorpayX dashboard.
@@ -428,7 +428,7 @@ export default function PayrollInputsPage() {
       </div>
 
       {!gateOpen && (
-        <div className="rounded-md border border-warning/40 bg-warning/5 p-3 text-sm">
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-sm">
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 mt-0.5 text-warning" />
             <div>
@@ -441,24 +441,57 @@ export default function PayrollInputsPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
-          <CardTitle className="text-sm">Period</CardTitle>
+      {/* Period toolbar — month stepper plus this period's roll-up at a glance */}
+      <div className="rounded-xl border bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 border-b">
           <div className="flex items-center gap-2">
-            <Label className="text-xs text-muted-foreground">Month (YYYY-MM)</Label>
-            <Input value={period} onChange={(e) => setPeriod(e.target.value)} placeholder="2026-07" className="w-32 h-8" />
+            <CalendarDays className="h-4 w-4 text-primary" />
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Payroll period</p>
+              <p className="text-sm font-semibold leading-tight">{periodLabel}</p>
+            </div>
           </div>
-        </CardHeader>
-      </Card>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Previous month" onClick={() => shiftPeriod(-1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Input
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              placeholder="2026-07"
+              aria-label="Payroll month (YYYY-MM)"
+              className="w-28 h-8 text-center font-mono text-foreground"
+            />
+            <Button variant="outline" size="icon" className="h-8 w-8" aria-label="Next month" onClick={() => shiftPeriod(1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-y lg:divide-y-0 divide-border">
+          {[
+            { label: "Pending to push", value: `${pendingRows.length}`, sub: inr(sum(pendingRows)), tone: "text-foreground" },
+            { label: "Verified on run", value: `${pushedRows.length - unverifiedRows.length}`, sub: inr(sum(pushedRows.filter((r) => r.readback_verified_at))), tone: "text-success" },
+            { label: "Pushed · unverified", value: `${unverifiedRows.length}`, sub: inr(sum(unverifiedRows)), tone: unverifiedRows.length ? "text-warning" : "text-muted-foreground" },
+            { label: `Total staged ${tab}s`, value: `${visibleRows.length}`, sub: inr(sum(visibleRows as any[])), tone: "text-foreground" },
+          ].map((s) => (
+            <div key={s.label} className="p-3">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+              <p className={`text-xl font-bold tabular-nums leading-tight ${s.tone}`}>{s.value}</p>
+              <p className="text-xs text-muted-foreground tabular-nums">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {lopFocus && (
-        <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+        <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm">
           <div className="font-medium">LOP-only view</div>
           <div className="text-muted-foreground mt-1">
             Only loss-of-pay deductions for {period} are staged, listed and pushed here. Additions, bonuses and other deductions are intentionally hidden — open Payroll Inputs from the cockpit tools to manage those.
           </div>
         </div>
       )}
+
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
         {!lopFocus && (

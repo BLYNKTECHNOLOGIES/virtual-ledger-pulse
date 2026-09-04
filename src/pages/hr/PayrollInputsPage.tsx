@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Search } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
@@ -51,6 +51,7 @@ export default function PayrollInputsPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
   const [autoLopOpen, setAutoLopOpen] = useState(false);
   const [compoffOpen, setCompoffOpen] = useState(false);
+  const [empSearch, setEmpSearch] = useState("");
 
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
@@ -495,7 +496,7 @@ export default function PayrollInputsPage() {
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Kind)}>
         {!lopFocus && (
-          <TabsList>
+          <TabsList className="grid w-full max-w-sm grid-cols-2">
             <TabsTrigger value="addition">Additions</TabsTrigger>
             <TabsTrigger value="deduction">Deductions</TabsTrigger>
           </TabsList>

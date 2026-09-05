@@ -8201,11 +8201,56 @@ Deno.serve(async (req) => {
               }
             }
             const expectedDeductionTotal = modExpect.reduce((sum, item) => sum + item.amount, 0);
-            const echoedDeductionTotal = Number(rbBody?.["deduction-amount"]);
+            let echoedDeductionTotal = Number(rbBody?.["deduction-amount"]);
+
+            // ── Deduction split · verdict + repair ─────────────────────────
+            // If we attempted a gross+net split, the run must now hold the
+            // combined figure. If Opfin collapsed the two writes into one
+            // aggregate (its documented behaviour: one deduction-amount per
+            // employee/month), the second write replaced the first — repair by
+            // re-sending the combined total against Net Pay and report the
+            // gross portion that HR must flip on the dashboard.
+            if (action === "payroll_add_deduction" && dedSplit?.attempt) {
+              const combined = dedSplit.combined;
+              if (Number.isFinite(echoedDeductionTotal) && Math.abs(echoedDeductionTotal - combined) < 1) {
+                dedSplit.status = "split_applied";
+              } else {
+                const repair = await sendAddDeduction(
+                  combined,
+                  `${dedSplit.netRemarks}; ${dedSplit.grossRemarks}`,
+                  "net",
+                );
+                dedSplit.status = "collapsed_to_single_line";
+                dedSplit.repair_call = { ok: repair.ok, status: repair.status };
+                dedSplit.note = `RazorpayX keeps only one deduction line per employee per month, so the gross-pay portion (₹${dedSplit.grossTotal}) could not be kept separate. The full ₹${combined} is now on one line — switch that line's "Deduct From" to Gross Pay for ₹${dedSplit.grossTotal} on the RazorpayX dashboard if the split matters.`;
+                try {
+                  const rr = await fetch(`${BASE}/payroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    body: JSON.stringify({
+                      auth: authBlock(),
+                      request: { type: "payroll", "sub-type": "view-payroll" },
+                      data: rbEmail ? { email: rbEmail, "payroll-month": rbMonth }
+                                    : { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
+                    }),
+                  });
+                  const rrBody = await rr.json().catch(() => null);
+                  if (rrBody && Number.isFinite(Number(rrBody["deduction-amount"]))) {
+                    echoedDeductionTotal = Number(rrBody["deduction-amount"]);
+                  }
+                } catch { /* keep the pre-repair read */ }
+              }
+            }
+            // What the run should hold: with a split attempt it is the combined
+            // figure, otherwise the single aggregate we sent.
+            const targetDeductionTotal = action === "payroll_add_deduction" && dedSplit
+              ? dedSplit.combined
+              : expectedDeductionTotal;
             const aggregateDeductionMatch = action === "payroll_add_deduction"
               && Number.isFinite(echoedDeductionTotal)
-              && (Math.abs(echoedDeductionTotal - expectedDeductionTotal) < 1
-                || Math.abs(echoedDeductionTotal - expectedDeductionTotal * 100) < 1);
+              && (Math.abs(echoedDeductionTotal - targetDeductionTotal) < 1
+                || Math.abs(echoedDeductionTotal - targetDeductionTotal * 100) < 1);
+
             const matched = modExpect.map((e) => {
               // add-deduction is aggregate-only: Opfin canonicalizes any remarks
               // into "Gross pay deduction", so verify its documented

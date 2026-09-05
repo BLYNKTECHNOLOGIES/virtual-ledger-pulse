@@ -627,6 +627,27 @@ export default function LoansPage() {
                 )}
               </div>
 
+              {selectedLoan.disbursement_mode === "razorpay_advance" &&
+                !selectedLoan.razorpay_advance_salary_id &&
+                ["approved", "active", "paused"].includes(selectedLoan.status) && (
+                <div className="border-t pt-4 space-y-2">
+                  <p className="text-xs text-warning">
+                    This advance is approved here, but it was not created in RazorpayX yet — the earlier attempt did not go
+                    through. Retry once the RazorpayX payout route is available.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={approveMutation.isPending}
+                    onClick={() => approveMutation.mutate({ id: selectedLoan.id, action: "approved" })}
+                  >
+                    Retry creating advance in RazorpayX
+                  </Button>
+                </div>
+              )}
+
+
+
               {["active", "approved", "paused"].includes(selectedLoan.status) && (
                 <div className="border-t pt-4 space-y-3">
                   <h4 className="text-sm font-semibold">Record repayment received outside payroll</h4>

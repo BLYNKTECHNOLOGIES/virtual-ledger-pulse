@@ -45,7 +45,7 @@ export function usePayrollStepGate(month: string) {
   const lopRows = (lop.data ?? []) as any[];
   const recRows = (rec.data ?? []) as any[];
 
-  const lopPending = lopRows.filter((r) => !r.readback_verified_at);
+  const lopPending = lopRows.filter((r) => !r.pushed_at || !r.readback_verified_at);
   const recPending = recRows.filter(
     (r) => !["pushed", "paid", "collected", "cancelled"].includes(String(r.status)),
   );

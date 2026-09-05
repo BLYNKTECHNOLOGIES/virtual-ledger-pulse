@@ -172,7 +172,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   };
 
   // Every money figure below comes from exactly what the cockpit steps hold:
-  //   Step 4/5 engines (dry-run) → day-level detail
+  //   Step 5/6 engines (dry-run) → day-level detail
   //   hr_payroll_input_additions / _deductions → the money that will be pushed
   //   hr_payroll_auto_recoveries → recoveries (own push channel, not payroll inputs)
   // F&F and deposits are deliberately NOT read from their own tables: whatever is

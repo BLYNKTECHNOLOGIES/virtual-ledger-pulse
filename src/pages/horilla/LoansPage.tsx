@@ -108,6 +108,7 @@ export default function LoansPage() {
         emi_amount: emiAmount,
         tenure_months: tenure,
         disbursement_mode: form.disbursement_mode,
+        payroll_addition_month: form.disbursement_mode === "payroll_addition" ? `${form.payout_month}-01` : null,
 
         interest_rate: Number(form.interest_rate) || 0,
         start_emi_date: form.start_emi_date,

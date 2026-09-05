@@ -165,7 +165,7 @@ export function AutoLopDialog({
       ["CASUAL LEAVE BALANCE", ["Opening", "Credited", "Used", "Set-off against LOP", "Closing"]],
       ["SICK LEAVE BALANCE", ["Opening", "Credited", "Used", "Closing"]],
       ["COMP-OFF BALANCE", ["Opening", "Earned", "Used as leave", "Set-off against LOP", "Encashed", "Closing"]],
-      ["LOSS OF PAY (days)", ["Raw", "Comp-off set-off", "Casual leave set-off", "Proration", "Chargeable"]],
+      ["LOSS OF PAY (days)", ["Raw", "Comp-off set-off", "Casual leave set-off", "Not employed (RazorpayX prorates)", "Chargeable"]],
       ["MONEY", ["Monthly base", "Per-day rate", "LOP amount"]],
       ["AUDIT", ["Formula applied", "Worked off/holiday dates", "Leave detail"]],
     ];
@@ -385,7 +385,7 @@ export function AutoLopDialog({
 
                     <th className="p-2 text-right">C/off set-off</th>
                     <th className="p-2 text-right">CL set-off</th>
-                    <th className="p-2 text-right">Proration</th>
+                    <th className="p-2 text-right">Not employed</th>
                     <th className="p-2 text-right">Charged</th>
                     <th className="p-2 text-right border-l">Monthly base</th>
                     <th className="p-2 text-right">LOP amount</th>
@@ -502,7 +502,7 @@ export function AutoLopDialog({
                                         ["Raw LOP", r.raw_lop_days, ""],
                                         ["− Comp-off set-off", r.compoff_offset_days, "text-success"],
                                         ["− Casual-leave set-off", r.cl_offset_days, "text-success"],
-                                        ["+ Proration (pre-joining)", r.proration_days, "text-warning"],
+                                        ["Not employed (RazorpayX prorates, not charged)", r.proration_days, "text-muted-foreground"],
                                       ] as const).map(([label, val, tone]) => (
                                         <span key={label} className="rounded-md border px-2 py-1 bg-muted/30">
                                           <span className="text-muted-foreground">{label} </span>
@@ -621,7 +621,7 @@ export function AutoLopDialog({
                                         <dd className="text-right tabular-nums font-medium">{num(r.compoff_credit_days)}</dd>
                                         <dt className="text-muted-foreground">Employment window</dt>
                                         <dd className="text-right">{r.employment_from ?? "—"} → {r.employment_to ?? "—"}</dd>
-                                        <dt className="text-muted-foreground">Proration days</dt>
+                                        <dt className="text-muted-foreground">Days not employed (not charged)</dt>
                                         <dd className="text-right tabular-nums font-medium">{num(r.proration_days)}</dd>
                                       </dl>
                                       {(r.worked_off_dates ?? []).length > 0 && (

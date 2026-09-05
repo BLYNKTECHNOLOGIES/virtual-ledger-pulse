@@ -100,14 +100,14 @@ Deno.serve(async (req) => {
     const lopByEmp = new Map<string, any>();
     for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
 
-    // Employment-window proration (Model B).
+    // Employment window — REPORTING ONLY (Model A, owner ruling 05-Sep-2026).
     //
-    // RazorpayX pays the FULL monthly salary in the joining/relieving month
-    // (payroll:view-payroll returns isProRated: false), so the working days a
-    // person was not employed for must be charged back as LOP days — otherwise
-    // a 13th-of-the-month joiner is paid a whole month. The canonical LOP
-    // engine deliberately clips to the employment window, so those days are
-    // counted here and added on top.
+    // Proven live against payroll:view-payroll for the Aug-2026 mid-month
+    // joiners (badges 12/13/16/19/21/25): RazorpayX already prorates the
+    // joining month itself — e.g. a 17-Aug joiner on ₹10,000/month is paid
+    // ₹4,839 (15/31). Charging the pre-joining days back as LOP therefore
+    // DOUBLE-deducts and wipes the joining-month pay to zero. Days outside the
+    // employment window are now surfaced for audit only and never charged.
     const { data: gapRows, error: gapErr } = await supabase.rpc("hr_employment_gap_working_days", {
       p_employee_ids: roster.map((r: any) => r.hr_employee_id),
       p_period_month: periodStr,
@@ -188,15 +188,14 @@ Deno.serve(async (req) => {
       const gap = gapByEmp.get(map.hr_employee_id);
       const monthWorkingDays = Number(gap?.month_working_days ?? 0);
       const monthCalendarDays = Number(gap?.month_calendar_days ?? totalDays) || totalDays;
-      // Proration is CALENDAR-based (Sept 2026 owner ruling): the day rate is
-      // salary ÷ calendar days, so the un-served part of a joining/relieving
-      // month must be counted in calendar days too. The joining day itself is
-      // always payable (the SQL helper only counts days strictly before DOJ).
+      // Days the person was NOT employed in this month. RazorpayX prorates the
+      // joining/relieving month on its own, so these are reported but NEVER
+      // charged (owner ruling 05-Sep-2026, verified on the live payroll).
       const gapDays = Number(gap?.gap_calendar_days ?? 0);
       const gapWorkingDays = Number(gap?.gap_working_days ?? 0);
-      // Charge days = genuine absence (after comp-off + CL) + days not employed.
+      // Charge days = genuine absence within the employment window only.
       const chargeDays = Math.min(
-        Math.round((split.lop_after_offset + gapDays) * 100) / 100,
+        Math.round(split.lop_after_offset * 100) / 100,
         monthCalendarDays,
       );
 
@@ -256,6 +255,7 @@ Deno.serve(async (req) => {
         cl_offset_days: split.cl_offset_days,
         absence_lop_days: split.lop_after_offset,
         proration_days: gapDays,
+        not_employed_days: gapDays,
         employment_from: gap?.emp_from ?? null,
         employment_to: gap?.emp_to ?? null,
         lop_days: chargeDays,
@@ -278,7 +278,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (monthWorkingDays > 0 && gapDays >= monthWorkingDays) {
+      if (monthCalendarDays > 0 && gapDays >= monthCalendarDays) {
         rows.push({ ...base, status: "skipped", reason: "Not employed during this period — no payroll expected", amount: 0, base_source: null });
         continue;
       }
@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
 
 
 
-      // Absence LOP (after comp-off) + employment-window proration days.
+      // Absence LOP (after comp-off/CL). Not-employed days are never charged.
       const absenceDays = split.lop_after_offset;
       const lopDays = chargeDays;
 
@@ -367,26 +367,21 @@ Deno.serve(async (req) => {
       }
 
       const dayRate = salary.monthlyGross / divisor;
-      // Compliant split: attendance loss vs. days not employed (proration).
-      const attendanceAmount = Math.round(dayRate * Math.min(absenceDays, lopDays));
-      const amount = Math.round(dayRate * lopDays);
-      const prorationAmount = Math.max(0, amount - attendanceAmount);
+      // Only genuine absence is charged. Days outside the employment window are
+      // handled by RazorpayX's own joining/relieving-month proration.
+      const attendanceAmount = Math.round(dayRate * lopDays);
+      const amount = attendanceAmount;
+      const prorationAmount = 0;
 
       const dayWord = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
       const labelParts: string[] = [];
       if (absenceDays > 0) labelParts.push(`${dayWord(absenceDays)} absence`);
-      if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} pre-joining/post-exit proration`);
       if (split.compoff_offset_days > 0) labelParts.push(`${dayWord(split.compoff_offset_days)} offset by comp-off`);
       if (split.cl_offset_days > 0) labelParts.push(`${dayWord(split.cl_offset_days)} offset by casual leave`);
 
       // RazorpayX accepts one deduction line per employee per cycle for this
-      // input; the statutory heading names both components so the payslip and
-      // the register stay self-explanatory.
-      const heading = absenceDays > 0 && gapDays > 0
-        ? "Loss of Pay - Attendance & Proration"
-        : gapDays > 0
-          ? "Loss of Pay - Pre-joining days (proration)"
-          : "Loss of Pay - Attendance";
+      // input; the heading names the attendance loss only.
+      const heading = "Loss of Pay - Attendance";
 
       const row: any = {
         ...base,
@@ -394,6 +389,7 @@ Deno.serve(async (req) => {
         attendance_amount: attendanceAmount,
         proration_amount: prorationAmount,
         proration_working_days: gapWorkingDays,
+        not_employed_days: gapDays,
         monthly_base: salary.monthlyGross,
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],

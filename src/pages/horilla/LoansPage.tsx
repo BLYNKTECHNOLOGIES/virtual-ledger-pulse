@@ -72,16 +72,16 @@ export default function LoansPage() {
     mutationFn: async () => {
       const amount = Number(form.amount);
       const emiAmount = Number(form.emi_amount);
-      const tenure = Number(form.tenure_months) || 0;
+      let tenure = Number(form.tenure_months) || 0;
       if (!form.employee_id || !amount || !emiAmount || !form.start_emi_date) throw new Error("Fill all required fields");
       if (amount <= 0 || emiAmount <= 0 || tenure <= 0) throw new Error("Amount, EMI and tenure must be greater than zero");
-      // Recovery must fully cover the principal within the stated tenure.
-      if (emiAmount * tenure < amount - 0.01) {
-        throw new Error(
-          `EMI × tenure (₹${(emiAmount * tenure).toLocaleString("en-IN")}) is less than the loan amount (₹${amount.toLocaleString("en-IN")}). Raise the EMI or the tenure.`,
-        );
-      }
       if (emiAmount > amount) throw new Error("EMI cannot exceed the loan amount");
+      // If the EMI does not cover the principal within the stated tenure, extend the
+      // tenure automatically — the final month absorbs the remainder (e.g. 6500 @ 2000
+      // becomes 4 months: 2000/2000/2000/500). The DB schedule builder does the same.
+      const needed = Math.ceil((amount - 0.01) / emiAmount);
+      const extended = needed > tenure;
+      if (extended) tenure = needed;
       const { error } = await (supabase as any).from("hr_loans").insert({
         employee_id: form.employee_id,
         loan_type: form.loan_type,
@@ -89,6 +89,7 @@ export default function LoansPage() {
         outstanding_balance: amount,
         emi_amount: emiAmount,
         tenure_months: tenure,
+
         interest_rate: Number(form.interest_rate) || 0,
         start_emi_date: form.start_emi_date,
         reason: form.reason || null,

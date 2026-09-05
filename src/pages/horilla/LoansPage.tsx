@@ -30,6 +30,19 @@ export default function LoansPage() {
     tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "",
     disbursement_mode: "outside_payroll",
   });
+  // EMI is derived from amount / tenure / interest until HR types their own figure.
+  const [emiTouched, setEmiTouched] = useState(false);
+
+  const autoEmi = (amount: string, tenure: string, rate: string) => {
+    const a = Number(amount) || 0;
+    const t = Math.max(0, Math.floor(Number(tenure) || 0));
+    const r = Number(rate) || 0;
+    if (a <= 0 || t <= 0) return "";
+    const total = a + (a * (r / 100) * (t / 12)); // flat annual interest, pro-rated over tenure
+    return String(Math.ceil(total / t));
+  };
+
+
 
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [manual, setManual] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });

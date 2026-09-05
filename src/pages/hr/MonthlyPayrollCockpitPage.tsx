@@ -53,6 +53,8 @@ import {
   type CockpitStep,
 } from "@/hooks/hrms/useCockpit";
 import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
+import { useMandatoryRecalcs } from "@/hooks/hrms/useMandatoryRecalcs";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 const STEP_ICONS: Record<string, any> = {

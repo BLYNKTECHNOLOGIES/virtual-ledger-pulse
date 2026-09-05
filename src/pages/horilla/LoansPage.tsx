@@ -91,6 +91,7 @@ export default function LoansPage() {
         outstanding_balance: amount,
         emi_amount: emiAmount,
         tenure_months: tenure,
+        disbursement_mode: form.disbursement_mode,
 
         interest_rate: Number(form.interest_rate) || 0,
         start_emi_date: form.start_emi_date,
@@ -103,7 +104,7 @@ export default function LoansPage() {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
       setShowCreate(false);
-      setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "" });
+      setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "", disbursement_mode: "outside_payroll" });
       toast.success(
         r?.extended
           ? `Loan created — tenure extended to ${r.tenure} months, last installment ₹${Math.round(r.last).toLocaleString("en-IN")}. Pending approval.`
@@ -119,8 +120,16 @@ export default function LoansPage() {
       if (action === "rejected") {
         const { error } = await (supabase as any).from("hr_loans").update({ status: "rejected" }).eq("id", id);
         if (error) throw error;
-        return;
+        return { pushed: false as boolean, advanceId: null as number | null };
       }
+      const { data: loan, error: loadErr } = await (supabase as any)
+        .from("hr_loans")
+        .select("id, employee_id, amount, emi_amount, reason, disbursement_mode, razorpay_advance_salary_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loan) throw new Error("Loan not found");
+
       // State machine: pending -> approved -> active (the DB trigger rejects a direct jump).
       // Disbursement is stamped at approval, not at creation.
       const { error: e1 } = await (supabase as any)
@@ -133,6 +142,49 @@ export default function LoansPage() {
       // Build the month-by-month EMI plan so the daily scheduler can push it to RazorpayX
       const { error: e3 } = await (supabase as any).rpc("hr_rebuild_loan_schedule", { p_loan_id: id });
       if (e3) throw e3;
+
+      // Payout leg. Only for advances the owner chose to route through the
+      // official RazorpayX Advance Salary API (POST /api/advanceSalary).
+      // RazorpayX auto-approves the request, the payment itself is released
+      // from the RazorpayX dashboard, and RazorpayX recovers the EMI — so the
+      // HRMS scheduler deliberately skips staging deductions for these loans.
+      if (loan.disbursement_mode !== "razorpay_advance" || loan.razorpay_advance_salary_id) {
+        return { pushed: false as boolean, advanceId: null as number | null };
+      }
+      const { data: map, error: mapErr } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", loan.employee_id)
+        .maybeSingle();
+      if (mapErr) throw mapErr;
+      if (!map?.razorpay_employee_id) {
+        throw new Error("This employee is not mapped to RazorpayX yet — the advance cannot be created there.");
+      }
+      const { data: res, error: fnErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: {
+          action: "advance_salary_create",
+          data: {
+            "employee-id": Number(map.razorpay_employee_id),
+            amount: Number(loan.amount),
+            "emi-amount": Number(loan.emi_amount),
+            reason: loan.reason || "Salary advance",
+          },
+        },
+      });
+      if (fnErr) throw new Error(fnErr.message || "RazorpayX call failed");
+      if (res && typeof res === "object" && "ok" in res && !(res as any).ok) {
+        throw new Error((res as any).error || "RazorpayX rejected the advance");
+      }
+      const advanceId = Number(
+        (res as any)?.body?.["advance-salary-id"] ?? (res as any)?.body?.advance_salary_id ?? 0,
+      ) || null;
+      const { error: stampErr } = await (supabase as any)
+        .from("hr_loans")
+        .update({ razorpay_advance_salary_id: advanceId, razorpay_pushed_at: new Date().toISOString() })
+        .eq("id", id);
+      if (stampErr) throw stampErr;
+      return { pushed: true as boolean, advanceId };
+
     },
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });

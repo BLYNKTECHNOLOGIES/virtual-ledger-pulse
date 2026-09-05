@@ -220,12 +220,13 @@ export default function AttendanceCalendarPage() {
         ) : (
           filteredEmps.map((emp: any) => {
             const empAttendance = attendanceMap[emp.id] || {};
-            const values = Object.values(empAttendance);
-            const empPresent = values.filter((d) => d.status === "present").length;
-            const empHalf = values.filter((d) => d.status === "half_day").length;
-            const empAbsent = values.filter((d) => d.status === "absent").length;
+            const values = Object.values(empAttendance).filter(countsTowardAttendance);
+            const statuses = values.map((d) => resolveDayStatus(d));
+            const empPresent = statuses.filter((s) => s === "present").length;
+            const empHalf = statuses.filter((s) => s === "half_day").length;
+            const empAbsent = statuses.filter((s) => s === "absent").length;
             const empLate = values.filter((d) => d.is_late).length;
-            const empBase = values.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status)).length;
+            const empBase = values.length;
             const rate = empBase > 0 ? Math.round(((empPresent + empHalf * 0.5) / empBase) * 100) : 0;
 
             return (

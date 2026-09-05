@@ -145,6 +145,7 @@ export function AutoRecoveriesCard({ period }: Props) {
 
   const statusMeta = (
     r: any,
+    staged?: any,
   ): { tone: PillTone; label: string; icon: JSX.Element; tip: string } => {
     switch (r.status) {
       case "collected":
@@ -177,9 +178,30 @@ export function AutoRecoveriesCard({ period }: Props) {
           tip: "No longer recovered",
         };
       default:
+        if (staged?.readback_verified_at)
+          return {
+            tone: "emerald",
+            label: "Verified on run",
+            icon: <CheckCircle2 className="h-3 w-3" />,
+            tip: `Pushed to RazorpayX and read back on the ${periodLabel} run.`,
+          };
+        if (staged?.pushed_at)
+          return {
+            tone: "info",
+            label: "Pushed",
+            icon: <Clock className="h-3 w-3" />,
+            tip: `Pushed to the ${periodLabel} RazorpayX run — read-back verification pending.`,
+          };
+        if (staged)
+          return {
+            tone: "info",
+            label: "Staged for review",
+            icon: <CalendarClock className="h-3 w-3" />,
+            tip: `Deduction row created in Payroll Inputs → Deductions for ${timing}. HR pushes it from there.`,
+          };
         return {
           tone: "amber",
-          label: "Awaiting HR push",
+          label: "Not staged yet",
           icon: <CalendarClock className="h-3 w-3" />,
           tip: `Staged as a deduction for ${timing} — HR reviews and pushes it from Payroll Inputs → Deductions. Nothing is sent to RazorpayX automatically.`,
         };
@@ -244,7 +266,8 @@ export function AutoRecoveriesCard({ period }: Props) {
                 </tr>
               ) : (
                 (rows as any[]).map((r) => {
-                  const s = statusMeta(r);
+                  const staged = stagedByRef.get(r.id);
+                  const s = statusMeta(r, staged);
                   const totalAmt = Number(r.total_amount || 0);
                   const collected = Number(r.collected_amount || 0);
                   const afterThis = Math.max(0, totalAmt - collected - Number(r.amount || 0));
@@ -305,7 +328,7 @@ export function AutoRecoveriesCard({ period }: Props) {
                             </TooltipTrigger>
                             <TooltipContent className="text-xs max-w-[240px]">{s.tip}</TooltipContent>
                           </Tooltip>
-                          {r.status === "scheduled" && (
+                          {r.status === "scheduled" && !staged && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button

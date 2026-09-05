@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
+      const salary: any = salaryByEmp.get(map.hr_employee_id) ?? { monthlyGross: 0, source: "none", error: "Salary base not resolved" };
       if (salary.error) {
         rows.push({ ...base, status: "skipped", reason: salary.error, amount: 0, base_source: null });
         settleCredits(0);

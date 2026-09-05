@@ -34,6 +34,33 @@ export function AutoRecoveriesCard({ period }: Props) {
     },
   });
 
+  const qc = useQueryClient();
+
+  // "Awaiting HR push" rows whose deduction hasn't been staged yet (the
+  // nightly staging job hasn't run) can be staged on demand — this only
+  // creates the review row in Payroll Inputs → Deductions; HR still pushes.
+  const stageNow = useMutation({
+    mutationFn: async (r: any) => {
+      const { data: res, error } = await (supabase as any).functions.invoke("hr-schedule-deposits", {
+        body: { kind: r.source_kind, id: r.parent_id },
+      });
+      if (error) throw error;
+      if (!res?.ok) throw new Error(res?.error || "Staging failed");
+      const mine = (res.results || []).filter((x: any) => x.ok && (x.staged || x.already_staged));
+      if (!mine.length) {
+        const skipped = (res.results || []).map((x: any) => x.skipped || x.error).filter(Boolean);
+        throw new Error(skipped[0] || "Nothing was staged for this recovery");
+      }
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Staged in Payroll Inputs → Deductions — review and push it there");
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Could not stage this recovery"),
+  });
+
   const total = useMemo(
     () => (rows as any[]).reduce((s, r) => s + Number(r.amount || 0), 0),
     [rows],

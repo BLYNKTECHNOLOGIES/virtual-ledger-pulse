@@ -910,6 +910,9 @@ export default function MonthlyPayrollCockpitPage() {
         stepLabel={toolStep?.label}
         onClose={closeTool}
       />
+
+      <VerificationPackDialog open={packOpen} onOpenChange={setPackOpen} period={month} />
+
     </div>
   );
 }

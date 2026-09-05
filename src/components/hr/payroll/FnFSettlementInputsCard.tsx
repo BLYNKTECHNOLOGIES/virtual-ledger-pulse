@@ -172,14 +172,34 @@ function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
         <td className="px-3 py-2">{row.label}</td>
         <td className="px-3 py-2 tabular-nums">{inr(row.amount)}</td>
         <td className="px-3 py-2">
-          {row.pushed_at && row.readback_verified_at ? (
-            <Badge className="bg-success/10 text-success">Verified on run</Badge>
-          ) : row.pushed_at ? (
-            <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
-          ) : (
-            <Badge variant="outline">Not on the run</Badge>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {row.pushed_at && row.readback_verified_at ? (
+              <Badge className="bg-success/10 text-success">Verified on run</Badge>
+            ) : row.pushed_at ? (
+              <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
+            ) : (
+              <Badge variant="outline">Not on the run</Badge>
+            )}
+            {!isPushed && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7"
+                disabled={!settlementId || pushMutation.isPending}
+                onClick={() => pushMutation.mutate()}
+              >
+                {pushMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                <span className="ml-1.5">Push to RazorpayX</span>
+              </Button>
+            )}
+          </div>
         </td>
+
       </tr>
       {open && (
         <tr className="border-b bg-muted/20">

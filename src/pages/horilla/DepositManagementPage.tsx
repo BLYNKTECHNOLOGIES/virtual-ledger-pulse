@@ -753,12 +753,12 @@ export default function DepositManagementPage() {
       />
 
       {/* Category tabs */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-full sm:w-fit overflow-x-auto">
         {(["security", "error_recovery"] as DepositType[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
           >
             {TYPE_LABEL[t]}
             <span className="ml-2 text-xs text-muted-foreground">
@@ -769,17 +769,20 @@ export default function DepositManagementPage() {
       </div>
 
       {/* Lifecycle sub-tabs */}
-      <div className="flex flex-wrap gap-2">
-        {SUB_TABS.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setSubTab(s.key)}
-            className={`px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
-          >
-            {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
-          </button>
-        ))}
+      <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
+        <div className="flex gap-2 w-max md:w-auto md:flex-wrap">
+          {SUB_TABS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSubTab(s.key)}
+              className={`whitespace-nowrap px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
       </div>
+
 
       {/* Summary */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

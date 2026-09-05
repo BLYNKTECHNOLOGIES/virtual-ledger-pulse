@@ -20,9 +20,11 @@ import {
   Scale,
   Flag,
   ExternalLink,
+  FileSpreadsheet,
   UserCheck,
   Bot,
 } from "lucide-react";
+import { VerificationPackDialog } from "@/components/hr/payroll/VerificationPackDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

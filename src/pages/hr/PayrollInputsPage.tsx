@@ -764,12 +764,13 @@ export default function PayrollInputsPage() {
                         {tab === "deduction" ? "−" : "+"}{inr(r.amount)}
                       </td>
                       <td className="px-3 py-2">
-                        {r.readback_verified_at ? (
+                        {r.pushed_at && r.readback_verified_at ? (
                           <Badge className="bg-success/10 text-success hover:bg-success/10" title={`Verified on the RazorpayX run at ${new Date(r.readback_verified_at).toLocaleString("en-IN")}`}>Verified on run</Badge>
                         ) : r.pushed_at ? (
                           <Badge className="bg-warning/10 text-warning hover:bg-warning/10" title={String(r.readback_diff?.error || "Pushed, but not confirmed on the run read-back")}>Pushed · unverified</Badge>
                         ) : <Badge variant="outline" className="text-muted-foreground">Pending</Badge>}
                       </td>
+
                       <td className="px-3 py-2">
                         <div className="flex gap-1 justify-end">
                           {!r.pushed_at && (

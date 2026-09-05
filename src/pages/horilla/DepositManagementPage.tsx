@@ -1230,7 +1230,10 @@ export default function DepositManagementPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteAcknowledged(false); } }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -1251,11 +1254,41 @@ export default function DepositManagementPage() {
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {pushedInstallments.length > 0 && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm space-y-2">
+              <p className="font-medium text-destructive">
+                Already sent to RazorpayX — money is live on payroll
+              </p>
+              <ul className="space-y-0.5 text-muted-foreground">
+                {pushedInstallments.map((i: any) => (
+                  <li key={i.id}>
+                    {String(i.period_month).slice(0, 7)} — {inr(i.amount)}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-muted-foreground">
+                RazorpayX has no way to delete a single deduction from here. Remove or reset the deduction for that
+                month in RazorpayX first, otherwise the employee will still be deducted. These installments stay in the
+                record for audit; only the pending ones are removed.
+              </p>
+              <label className="flex items-start gap-2 text-foreground">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={deleteAcknowledged}
+                  onChange={(e) => setDeleteAcknowledged(e.target.checked)}
+                />
+                <span>I have reversed it in RazorpayX (or accept it stays deducted there).</span>
+              </label>
+            </div>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || (pushedInstallments.length > 0 && !deleteAcknowledged)}
               onClick={(e) => { e.preventDefault(); deleteMutation.mutate(deleteTarget); }}
             >
               {Number(deleteTarget?.collected_amount || 0) > 0 ? "Cancel remaining" : "Delete"}
@@ -1263,6 +1296,7 @@ export default function DepositManagementPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
     </div>
 
   );

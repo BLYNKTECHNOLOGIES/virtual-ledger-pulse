@@ -114,7 +114,12 @@ export default function AttendancePeriodLockPage({ month }: { month?: string }) 
         .from('hr_razorpay_employee_map')
         .select('hr_employee_id, razorpay_employee_id, hr_employees!hr_razorpay_employee_map_hr_employee_id_fkey(first_name, last_name, badge_id, is_active)')
         .not('razorpay_employee_id', 'is', null);
-      return (data || []).filter((r: any) => r.hr_employees?.is_active);
+      return (data || [])
+        .filter((r: any) => r.hr_employees?.is_active)
+        .sort((a: any, b: any) =>
+          `${a.hr_employees?.first_name ?? ""} ${a.hr_employees?.last_name ?? ""}`.trim()
+            .localeCompare(`${b.hr_employees?.first_name ?? ""} ${b.hr_employees?.last_name ?? ""}`.trim(), "en", { sensitivity: "base" }));
+
     },
     enabled: !!verifyLock,
   });

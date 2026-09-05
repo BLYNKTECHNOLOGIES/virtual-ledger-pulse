@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Search } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Search, Undo2 } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
@@ -63,6 +63,8 @@ export default function PayrollInputsPage() {
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
+  const [unpushConfirm, setUnpushConfirm] = useState<any>(null);
+
   const [bulkOpen, setBulkOpen] = useState(false);
   const [autoLopOpen, setAutoLopOpen] = useState(false);
   const [compoffOpen, setCompoffOpen] = useState(false);
@@ -280,27 +282,30 @@ export default function PayrollInputsPage() {
   // Single push primitive. The proxy converts additions to RazorpayX's array
   // contract and deductions to its email + aggregate deduction-amount contract.
   // Amounts stay in rupees, and view-payroll read-back proves each live write.
-  async function pushGroup(rowsIn: any[]) {
+  async function pushGroup(rowsIn: any[], kindIn?: Kind) {
     const group = Array.isArray(rowsIn) ? rowsIn : [rowsIn];
     if (!group.length) return null;
+    const kind: Kind = kindIn ?? tab;
+    const tbl = kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
     const first = group[0];
-    const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
-    const items = group.map((r) => (tab === "addition"
+    const action = kind === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
+    const items = group.map((r) => (kind === "addition"
       ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
       : { label: r.label, amount: Number(r.amount) }));
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),
       "employee-type": "employee",
       "payroll-month": String(first.period_month).slice(0, 7),
-      ...(tab === "addition" ? { additions: items } : { deductions: items }),
+      ...(kind === "addition" ? { additions: items } : { deductions: items }),
     };
+
     const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
       body: {
         action,
         payload: {
           data,
           readback_ids: group.map((r) => r.id),
-          readback_table: tab === "addition" ? "additions" : "deductions",
+          readback_table: kind === "addition" ? "additions" : "deductions",
         },
       },
     });
@@ -322,15 +327,16 @@ export default function PayrollInputsPage() {
     // pending here so they can be retried, never silently marked pushed.
     const verified = res?.readback ? res.readback.verified_on_run !== false : true;
     if (!verified) {
-      await (supabase as any).from(table)
+      await (supabase as any).from(tbl)
         .update({ push_response: res.body ?? {} })
         .in("id", group.map((r) => r.id));
       throw new Error(res.readback?.error || "Pushed, but not visible on the RazorpayX run — retry or verify in the dashboard.");
     }
-    const { error: uErr } = await (supabase as any).from(table)
+    const { error: uErr } = await (supabase as any).from(tbl)
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })
       .in("id", group.map((r) => r.id));
     if (uErr) throw uErr;
+
 
     // Automatic recoveries (security deposit / error recovery / loan EMI) are
     // staged by the nightly job and only settle in the ledger once HR has
@@ -409,7 +415,85 @@ export default function PayrollInputsPage() {
   });
 
 
+  // ── Un-push ────────────────────────────────────────────────────────────────
+  // RazorpayX has NO endpoint that deletes a single addition/deduction from a
+  // run (verified against the Payroll API contract). The only documented way to
+  // take one line off the run is `payroll/reset-modifications`, which clears
+  // EVERY modification for that employee in that payroll month. So un-pushing
+  // one line = reset the employee's month, then re-push the lines that must
+  // stay — additions and deductions alike. Any line that fails to go back is
+  // left visibly pending so nothing is silently lost.
+  const unpushRow = useMutation({
+    mutationFn: async (row: any) => {
+      const empId = row.razorpay_employee_id;
+      if (!empId) throw new Error("This row has no RazorpayX employee mapping.");
+
+      const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "payroll_reset_modifications", payload: { data: { "employee-id": empId, "payroll-month": period } } },
+      });
+      if (error) throw new Error(error.message || "RazorpayX rejected the reset request");
+      if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+
+      // Everything this employee had on the run for this month is now gone.
+      const tables: { tbl: string; kind: Kind }[] = [
+        { tbl: "hr_payroll_input_additions", kind: "addition" },
+        { tbl: "hr_payroll_input_deductions", kind: "deduction" },
+      ];
+      const survivors: { rows: any[]; kind: Kind }[] = [];
+      for (const { tbl, kind } of tables) {
+        const { data: pushed } = await (supabase as any)
+          .from(tbl).select("*")
+          .eq("razorpay_employee_id", empId)
+          .eq("period_month", periodDate)
+          .not("pushed_at", "is", null);
+        const list = (pushed || []) as any[];
+        if (list.length) {
+          await (supabase as any).from(tbl)
+            .update({ pushed_at: null, readback_verified_at: null, push_response: null })
+            .in("id", list.map((r) => r.id));
+        }
+        const keep = list.filter((r) => r.id !== row.id);
+        if (keep.length) survivors.push({ rows: keep, kind });
+      }
+
+      // Roll the recovery ledger back for the line being pulled off the run.
+      if (row.recovery_kind && row.recovery_ref_id) {
+        const { error: rpcErr } = row.recovery_kind === "loan"
+          ? await (supabase as any).rpc("hr_revert_loan_push", { p_repayment_id: row.recovery_ref_id })
+          : await (supabase as any).rpc("hr_revert_deposit_collection", { p_schedule_id: row.recovery_ref_id });
+        if (rpcErr) throw new Error(`Taken off the run, but the recovery ledger did not roll back: ${rpcErr.message}`);
+      }
+
+      const failures: string[] = [];
+      let restored = 0;
+      for (const { rows: group, kind } of survivors) {
+        try { await pushGroup(group, kind); restored += group.length; }
+        catch (e: any) { failures.push(`${group.length} ${kind}(s): ${e.message}`); }
+      }
+      return { restored, failures };
+    },
+    onSuccess: async ({ restored, failures }) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      setUnpushConfirm(null);
+      if (failures.length) {
+        toast.error("Taken off the run, but some other lines could not be put back", { description: failures.join(" | ") });
+      } else {
+        toast.success(restored ? `Taken off the RazorpayX run — ${restored} other line(s) put back` : "Taken off the RazorpayX run");
+      }
+    },
+    onError: async (e: any) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
+      setUnpushConfirm(null);
+      toast.error(e.message);
+    },
+  });
+
   const doNotPay = useMutation({
+
     mutationFn: async (empRow: any) => {
       if (empRow?.last_pull_snapshot?.is_active === false) {
         throw new Error("This employee is inactive in RazorpayX. Do-Not-Pay is unavailable because RazorpayX cannot locate inactive employees in a monthly payroll run.");
@@ -784,8 +868,14 @@ export default function PayrollInputsPage() {
                             </Button>
                           )}
                           {r.pushed_at && (
-                            <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
+                            <>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || unpushRow.isPending} onClick={() => setUnpushConfirm(r)} title="Take this line off the RazorpayX run">
+                                <Undo2 className="h-3 w-3 mr-1" /> Unpush
+                              </Button>
+                              <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
+                            </>
                           )}
+
                         </div>
                       </td>
                     </tr>
@@ -915,8 +1005,14 @@ export default function PayrollInputsPage() {
                             </>
                           )}
                           {r.pushed_at && (
-                            <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
+                            <>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || unpushRow.isPending} onClick={() => setUnpushConfirm(r)} title="Take this line off the RazorpayX run">
+                                <Undo2 className="h-3 w-3 mr-1" /> Unpush
+                              </Button>
+                              <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
+                            </>
                           )}
+
                         </div>
                       </td>
                     </tr>
@@ -1077,6 +1173,37 @@ export default function PayrollInputsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!unpushConfirm} onOpenChange={(o) => !o && setUnpushConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Take this line off the RazorpayX run?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <strong>{empLabel(unpushConfirm || {})}</strong> · {unpushConfirm?.label} · {inr(unpushConfirm?.amount)} for <strong>{period}</strong>.
+                </div>
+                <div>
+                  RazorpayX cannot delete one line on its own. This clears <em>all</em> of this employee's additions and
+                  deductions for {period} on the run, then immediately puts every other line back and confirms each one
+                  on the run. Anything that fails to go back is left showing as pending here so you can retry it.
+                </div>
+                <div>
+                  If this line was a deposit or loan installment, it returns to "scheduled" — unless it has already been
+                  recovered, in which case it cannot be pulled back.
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => unpushConfirm && unpushRow.mutate(unpushConfirm)} disabled={unpushRow.isPending}>
+              {unpushRow.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Unpush
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={bulkPushConfirm} onOpenChange={setBulkPushConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

@@ -29553,6 +29553,14 @@ export type Database = {
         }
         Returns: Json
       }
+      hr_revert_deposit_collection: {
+        Args: { p_schedule_id: string }
+        Returns: undefined
+      }
+      hr_revert_loan_push: {
+        Args: { p_repayment_id: string }
+        Returns: undefined
+      }
       hr_revision_push_window: {
         Args: { p_revision_id: string }
         Returns: Json

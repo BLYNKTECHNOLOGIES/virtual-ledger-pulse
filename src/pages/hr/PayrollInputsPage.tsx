@@ -303,7 +303,7 @@ export default function PayrollInputsPage() {
         payload: {
           data,
           readback_ids: group.map((r) => r.id),
-          readback_table: tab === "addition" ? "additions" : "deductions",
+          readback_table: kind === "addition" ? "additions" : "deductions",
         },
       },
     });

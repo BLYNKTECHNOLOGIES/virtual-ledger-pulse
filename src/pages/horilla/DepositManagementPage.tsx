@@ -742,13 +742,14 @@ export default function DepositManagementPage() {
         title="Deposit Management"
         description="Security deposits and error recoveries — deduction, holding and pay-back in one place"
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowSeed(true)} className="h-9">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button variant="outline" onClick={() => setShowSeed(true)} className="h-9 w-full sm:w-auto">
               <Wallet className="h-4 w-4 mr-1" /> Seed existing {TYPE_LABEL[tab].toLowerCase()}
             </Button>
-            <Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>
+            <Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 w-full sm:w-auto bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>
           </div>
         }
+
       />
 
       {/* Category tabs */}

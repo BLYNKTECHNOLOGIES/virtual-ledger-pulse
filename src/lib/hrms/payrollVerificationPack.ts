@@ -463,6 +463,22 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
 
   summaryRows.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
 
+  // Grand totals — the expected net pay column is what should be credited in
+  // total to all employees for this payroll run.
+  const colSum = (idx: number) => n2(summaryRows.reduce((a, row) => a + (Number(row[idx]) || 0), 0));
+  const totalBase = colSum(24), totalAddAll = colSum(26), totalDedAll = colSum(27), totalNet = colSum(28);
+  summaryRows.push([]);
+  summaryRows.push([
+    "", "TOTAL — all employees", "", "", "",
+    "", "", "", "", "",
+    "", "", "", "",
+    "", "",
+    "", "", "", "",
+    "", "", colSum(22), colSum(23),
+    totalBase, "", totalAddAll, totalDedAll, totalNet,
+    `${summaryRows.length - 1} employees`,
+  ]);
+
   const staleLop = lopRows.filter((r) => ["new", "changed", "remove"].includes(String(r.status))).length;
   const staleCo = coRows.filter((r) => ["new", "changed", "remove"].includes(String(r.status))).length;
   if (staleLop) warnings.push(`${staleLop} loss-of-pay row(s) in Step 5 are not staged with the current attendance — recalculate and stage before running payroll.`);

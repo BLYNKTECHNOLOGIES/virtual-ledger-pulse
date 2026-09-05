@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Loader2, Send, Trash2, Ban, RotateCcw, Info, ExternalLink, Layers, Calculator, Download, Gift, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Search, Undo2 } from "lucide-react";
+import { Loader2, Send, Trash2, Ban, RotateCcw, Info, Layers, Calculator, Download, Gift, CalendarDays, ChevronLeft, ChevronRight, PlusCircle, Search, Undo2 } from "lucide-react";
 import { SourceTag, DashboardLink } from "@/components/hr/payroll/SourceTag";
 import { BulkPayrollInputDialog } from "@/components/hr/payroll/BulkPayrollInputDialog";
 import { AutoLopDialog } from "@/components/hr/payroll/AutoLopDialog";
@@ -872,7 +872,6 @@ export default function PayrollInputsPage() {
                               <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || unpushRow.isPending} onClick={() => setUnpushConfirm(r)} title="Take this line off the RazorpayX run">
                                 <Undo2 className="h-3 w-3 mr-1" /> Unpush
                               </Button>
-                              <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
                             </>
                           )}
 
@@ -1009,7 +1008,6 @@ export default function PayrollInputsPage() {
                               <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || unpushRow.isPending} onClick={() => setUnpushConfirm(r)} title="Take this line off the RazorpayX run">
                                 <Undo2 className="h-3 w-3 mr-1" /> Unpush
                               </Button>
-                              <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
                             </>
                           )}
 

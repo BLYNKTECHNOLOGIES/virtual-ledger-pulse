@@ -295,16 +295,17 @@ Deno.serve(async (req) => {
         absorptions.push({ employee_id: map.hr_employee_id, days: split.cl_offset_days });
       }
 
-      // Comp-off spent on this month's LOP (and whatever is left for the
-      // encashment engine) is marked settled so those credits can never come
-      // back as an opening balance and be paid a second time.
-      if (split.compoff_offset_days > 0 || split.compoff_encash_days > 0) {
+      // Comp-off actually SPENT on this month's LOP is settled here. Days that
+      // merely remain available are NOT stamped as encashed — only the
+      // encashment engine may do that, and only once it has staged the payout.
+      if (split.compoff_offset_days > 0) {
         creditSettlements.push({
           employee_id: map.hr_employee_id,
           offset_days: split.compoff_offset_days,
-          encash_days: split.compoff_encash_days,
+          encash_days: 0,
         });
       }
+
 
 
       // Absence LOP (after comp-off) + employment-window proration days.

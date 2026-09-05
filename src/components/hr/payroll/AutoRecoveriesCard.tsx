@@ -79,14 +79,15 @@ export function AutoRecoveriesCard({ period }: Props) {
     onSuccess: () => {
       toast.success("Staged in Payroll Inputs → Deductions — review and push it there");
       qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recovery_staged"] });
       qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
     },
     onError: (e: any) => toast.error(e.message || "Could not stage this recovery"),
   });
 
   const pendingRows = useMemo(
-    () => (rows as any[]).filter((r) => r.status === "scheduled"),
-    [rows],
+    () => (rows as any[]).filter((r) => r.status === "scheduled" && !stagedByRef.has(r.id)),
+    [rows, stagedByRef],
   );
 
   // Bulk staging — same per-row contract, run sequentially so each recovery
@@ -119,6 +120,7 @@ export function AutoRecoveriesCard({ period }: Props) {
       if (staged) toast.success(`${staged} recover${staged === 1 ? "y" : "ies"} staged in Payroll Inputs → Deductions`);
       if (failures.length) toast.error(`${failures.length} could not be staged — ${failures[0]}`);
       qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recovery_staged"] });
       qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
     },
     onError: (e: any) => toast.error(e.message || "Bulk staging failed"),

@@ -597,6 +597,34 @@ export default function MonthlyPayrollCockpitPage() {
         </CardContent>
       </Card>
 
+      {bankGate.blocked && (
+        <Card className="border-destructive/40 bg-destructive/[0.04]">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="min-w-0 space-y-1">
+              <div className="text-sm font-medium text-destructive">
+                Payroll run is blocked — {bankGate.count} bank account change{" "}
+                {plural(bankGate.count, "request")} pending
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {bankGate.names.join(", ")}. Salary must not be paid while an account change is
+                unresolved. Approve or reject each request, then return here.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs mt-1"
+                onClick={() => navigate("/hrms/requests?type=bank_change")}
+              >
+                Review bank change requests
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {error ? (
         <Card className="border-destructive/40">
           <CardContent className="p-6 text-sm text-destructive">

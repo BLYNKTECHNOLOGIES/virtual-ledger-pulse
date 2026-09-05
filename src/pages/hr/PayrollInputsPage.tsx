@@ -844,7 +844,28 @@ export default function PayrollInputsPage() {
                           <span className="font-medium">{empLabel(r)}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2">{r.label}</td>
+                      <td className="px-3 py-2">
+                        {r.label}
+                        {tab === "deduction" && (
+                          <div className="mt-1">
+                            {r.pushed_at ? (
+                              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                                {r.deduct_from === "gross" ? "off Gross Pay" : "off Net Pay"}
+                              </Badge>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-[10px] rounded border px-1.5 py-0.5 text-muted-foreground hover:bg-muted"
+                                title="Net Pay keeps the employee's CTC/gross intact (recoveries, EMIs, LOP). Gross Pay is for mid-joiner salary normalisation."
+                                onClick={() => setDeductTarget.mutate({ id: r.id, target: r.deduct_from === "gross" ? "net" : "gross" })}
+                              >
+                                Deduct from: <span className="font-semibold text-foreground">{r.deduct_from === "gross" ? "Gross Pay" : "Net Pay"}</span> · change
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
                       {tab === "addition" && (
                         <td className="px-3 py-2">
                           <Badge variant="outline" className="capitalize font-normal">{additionTypeSlug(r.addition_type)}</Badge>

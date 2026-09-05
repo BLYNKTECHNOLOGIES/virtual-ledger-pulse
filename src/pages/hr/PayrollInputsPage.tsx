@@ -292,6 +292,29 @@ export default function PayrollInputsPage() {
     const items = group.map((r) => (kind === "addition"
       ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
       : { label: r.label, amount: Number(r.amount) }));
+
+    // RazorpayX deduction contract is a SINGLE aggregate `deduction-amount`
+    // per employee/month — every add-deduction call REPLACES the previous
+    // total (verified: Dilkhush Thakur Aug-2026, ₹720 push overwritten by a
+    // later ₹1,452 push). So any deduction push must carry this employee's
+    // FULL month total: the rows being pushed now plus every row already
+    // pushed for the same employee/month. Additions are a labelled array and
+    // upsert per label, so they need no such merge.
+    if (kind === "deduction") {
+      const ids = new Set(group.map((r) => r.id));
+      const { data: alreadyPushed, error: apErr } = await (supabase as any)
+        .from("hr_payroll_input_deductions")
+        .select("id,label,amount")
+        .eq("razorpay_employee_id", first.razorpay_employee_id)
+        .eq("period_month", first.period_month)
+        .not("pushed_at", "is", null);
+      if (apErr) throw apErr;
+      for (const r of alreadyPushed || []) {
+        if (ids.has(r.id)) continue;
+        items.push({ label: r.label, amount: Number(r.amount) } as any);
+      }
+    }
+
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),
       "employee-type": "employee",

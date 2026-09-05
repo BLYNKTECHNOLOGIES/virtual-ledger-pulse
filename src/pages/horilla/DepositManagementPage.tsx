@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2, Trash2 } from "lucide-react";
+import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2, Trash2, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -67,6 +67,7 @@ export default function DepositManagementPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<DepositType>("security");
   const [subTab, setSubTab] = useState<SubTab>("active");
+  const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showSeed, setShowSeed] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -123,10 +124,18 @@ export default function DepositManagementPage() {
     return c;
   }, [typeDeposits]);
 
-  const deposits = useMemo(
-    () => (subTab === "all" ? typeDeposits : typeDeposits.filter((d: any) => lifecycleOf(d) === subTab)),
-    [typeDeposits, subTab],
-  );
+  const deposits = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = subTab === "all" ? typeDeposits : typeDeposits.filter((d: any) => lifecycleOf(d) === subTab);
+    if (q) {
+      list = list.filter((d: any) => {
+        const e = d.hr_employees || {};
+        const name = `${e.first_name || ""} ${e.last_name || ""}`.toLowerCase();
+        return name.includes(q) || String(e.badge_id || "").toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [typeDeposits, subTab, search]);
 
   // One row per employee, entries nested underneath
   const groups = useMemo(() => {
@@ -768,18 +777,29 @@ export default function DepositManagementPage() {
         ))}
       </div>
 
-      {/* Lifecycle sub-tabs */}
-      <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
-        <div className="flex gap-2 w-max md:w-auto md:flex-wrap">
-          {SUB_TABS.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setSubTab(s.key)}
-              className={`whitespace-nowrap px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
-            >
-              {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
-            </button>
-          ))}
+      {/* Lifecycle sub-tabs + employee search */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
+          <div className="flex gap-2 w-max md:w-auto md:flex-wrap">
+            {SUB_TABS.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSubTab(s.key)}
+                className={`whitespace-nowrap px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="relative w-full md:w-64 shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search employee or badge…"
+            className="pl-8 h-9"
+          />
         </div>
       </div>
 

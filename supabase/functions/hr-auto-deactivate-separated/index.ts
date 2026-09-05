@@ -156,13 +156,57 @@ Deno.serve(async (req) => {
 
   if (error) return json({ ok: false, error: error.message }, 500);
 
+  // F&F state for everyone in scope — one read, no per-employee round trips.
+  const dueIds = (due || []).map((e: any) => e.id);
+  const fnfByEmployee = new Map<string, any[]>();
+  if (dueIds.length > 0) {
+    const { data: fnfRows } = await svc
+      .from("hr_fnf_settlements")
+      .select("employee_id, status, razorpay_push_status")
+      .in("employee_id", dueIds);
+    for (const r of fnfRows || []) {
+      const list = fnfByEmployee.get(r.employee_id) || [];
+      list.push(r);
+      fnfByEmployee.set(r.employee_id, list);
+    }
+  }
+
+  /** Why this employee may NOT be dismissed yet, or null when they are clear. */
+  function fnfHoldReason(empId: string): string | null {
+    const rows = (fnfByEmployee.get(empId) || []).filter(
+      (r) => String(r.status || "").toLowerCase() !== "cancelled",
+    );
+    if (rows.length === 0) return "No Full & Final settlement exists — create and settle it before dismissal.";
+    const settled = rows.find((r) => String(r.status).toLowerCase() === "paid");
+    if (!settled) {
+      const worst = rows[0];
+      return `Full & Final is still '${worst.status}' — dismissing now would close the RazorpayX payroll record before the dues are paid.`;
+    }
+    if (!["pushed", "nothing_to_push"].includes(String(settled.razorpay_push_status || ""))) {
+      return "Full & Final is marked paid but its RazorpayX push has not landed — clear the push first.";
+    }
+    return null;
+  }
+
   const results: any[] = [];
   for (const emp of due || []) {
     const name = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
+    const hold = fnfHoldReason(emp.id);
+    if (hold) {
+      results.push({
+        id: emp.id,
+        name,
+        last_working_day: emp.last_working_day,
+        action: "held_fnf_unsettled",
+        reason: hold,
+      });
+      continue;
+    }
     if (dryRun) {
       results.push({ id: emp.id, name, last_working_day: emp.last_working_day, action: "would_deactivate" });
       continue;
     }
+
 
     const { error: updErr } = await svc
       .from("hr_employees")

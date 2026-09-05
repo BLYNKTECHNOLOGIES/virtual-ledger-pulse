@@ -525,6 +525,67 @@ export default function PayrollInputsPage() {
     },
   });
 
+  // ── Rebuild the month on RazorpayX ─────────────────────────────────────────
+  // Wipes every modification RazorpayX holds for this month (the only documented
+  // way to remove a line) and writes all pushed additions + deductions back in
+  // one clean pass — so earlier pushes that overwrote each other, and lines that
+  // sat on the wrong Gross/Net bucket, are corrected in one go.
+  const rebuildMonth = useMutation({
+    mutationFn: async () => {
+      const [{ data: adds }, { data: deds }] = await Promise.all([
+        (supabase as any).from("hr_payroll_input_additions").select("*").eq("period_month", periodDate).not("pushed_at", "is", null),
+        (supabase as any).from("hr_payroll_input_deductions").select("*").eq("period_month", periodDate).not("pushed_at", "is", null),
+      ]);
+      const all = [...(adds || []), ...(deds || [])] as any[];
+      const empIds = [...new Set(all.map((r) => r.razorpay_employee_id).filter(Boolean))];
+      if (!empIds.length) throw new Error("Nothing is on the RazorpayX run for this month.");
+
+      const failures: string[] = [];
+      let repushed = 0;
+      for (const empId of empIds) {
+        try {
+          const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
+            body: { action: "payroll_reset_modifications", payload: { data: { "employee-id": empId, "payroll-month": period } } },
+          });
+          if (error) throw new Error(error.message || "reset rejected");
+          if (!res?.ok) throw new Error(res?.error || `reset HTTP ${res?.http_status}`);
+
+          const groups: { rows: any[]; kind: Kind; tbl: string }[] = [
+            { rows: (adds || []).filter((r: any) => r.razorpay_employee_id === empId), kind: "addition", tbl: "hr_payroll_input_additions" },
+            { rows: (deds || []).filter((r: any) => r.razorpay_employee_id === empId), kind: "deduction", tbl: "hr_payroll_input_deductions" },
+          ];
+          for (const g of groups) {
+            if (!g.rows.length) continue;
+            // Clear the stamps first: if the re-push fails the line stays
+            // visibly pending instead of pretending to be on the run.
+            await (supabase as any).from(g.tbl)
+              .update({ pushed_at: null, readback_verified_at: null, push_response: null })
+              .in("id", g.rows.map((r: any) => r.id));
+            await pushGroup(g.rows, g.kind);
+            repushed += g.rows.length;
+          }
+        } catch (e: any) {
+          failures.push(`Employee ${empId}: ${e.message}`);
+        }
+      }
+      return { employees: empIds.length, repushed, failures };
+    },
+    onSuccess: async ({ employees, repushed, failures }) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
+      setRebuildConfirm(false);
+      if (failures.length) toast.error(`Rebuilt ${repushed} line(s), but ${failures.length} employee(s) failed`, { description: failures.slice(0, 4).join(" | "), duration: 15000 });
+      else toast.success(`RazorpayX run rebuilt — ${repushed} line(s) across ${employees} employee(s), each verified on the run`);
+    },
+    onError: async (e: any) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
+      setRebuildConfirm(false);
+      toast.error(e.message);
+    },
+  });
+
+
   const doNotPay = useMutation({
 
     mutationFn: async (empRow: any) => {

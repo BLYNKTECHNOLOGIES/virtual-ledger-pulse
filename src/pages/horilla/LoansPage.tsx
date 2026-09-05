@@ -395,6 +395,19 @@ export default function LoansPage() {
               <div><Label>Amount (₹) *</Label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
               <div><Label>EMI Amount (₹) *</Label><Input type="number" value={form.emi_amount} onChange={(e) => setForm({ ...form, emi_amount: e.target.value })} /></div>
             </div>
+            {(() => {
+              const a = Number(form.amount), e = Number(form.emi_amount), t = Number(form.tenure_months) || 0;
+              if (!(a > 0 && e > 0 && e <= a)) return null;
+              const need = Math.ceil((a - 0.01) / e);
+              if (need <= t) return null;
+              const last = a - e * (need - 1);
+              return (
+                <p className="text-xs text-muted-foreground">
+                  Tenure will extend to {need} months — last installment ₹{Math.round(last).toLocaleString("en-IN")}.
+                </p>
+              );
+            })()}
+
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Interest Rate (%)</Label><Input type="number" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: e.target.value })} /></div>
               <div><Label>Start EMI Date *</Label><Input type="date" value={form.start_emi_date} onChange={(e) => setForm({ ...form, start_emi_date: e.target.value })} /></div>

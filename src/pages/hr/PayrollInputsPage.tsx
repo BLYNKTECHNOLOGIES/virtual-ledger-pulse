@@ -28,6 +28,21 @@ import { FnFSettlementInputsCard } from "@/components/hr/payroll/FnFSettlementIn
 import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
+// Razorpay's fixed bonus catalogue (Payroll Settings → Bonus Types) — the only
+// subtypes Razorpay accepts for a Bonus addition.
+const RAZORPAY_BONUS_TYPES = [
+  { key: "joining", label: "Joining Bonus" },
+  { key: "retention", label: "Retention Bonus" },
+  { key: "work_anniversary", label: "Work Anniversary Bonus" },
+  { key: "end_of_year", label: "End of year Bonus" },
+  { key: "retirement", label: "Retirement Bonus" },
+  { key: "profit_sharing", label: "Profit-Sharing Bonus" },
+  { key: "diwali", label: "Diwali Bonus" },
+  { key: "sign_on", label: "Sign-On Bonus" },
+  { key: "performance", label: "Performance Bonus" },
+  { key: "overtime", label: "Overtime" },
+];
+
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
 const currentPeriod = () => {
   const d = new Date();

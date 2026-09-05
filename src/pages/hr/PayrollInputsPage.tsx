@@ -51,6 +51,25 @@ const currentPeriod = () => {
 
 type Kind = "addition" | "deduction";
 
+const PAYROLL_PROXY_TIMEOUT_MS = 120_000;
+
+async function invokePayrollProxy(body: Record<string, unknown>) {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (supabase as any).functions.invoke("razorpay-payroll-proxy", { body }),
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error("RazorpayX did not respond within 2 minutes. This employee was left pending; retry after checking RazorpayX.")),
+          PAYROLL_PROXY_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 export default function PayrollInputsPage() {
   const qc = useQueryClient();
   const [searchParams] = useSearchParams();
@@ -65,6 +84,7 @@ export default function PayrollInputsPage() {
   const [resetConfirm, setResetConfirm] = useState<any>(null);
   const [unpushConfirm, setUnpushConfirm] = useState<any>(null);
   const [rebuildConfirm, setRebuildConfirm] = useState(false);
+  const [rebuildProgress, setRebuildProgress] = useState({ completed: 0, total: 0, current: "" });
 
 
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -311,15 +331,13 @@ export default function PayrollInputsPage() {
       ...(kind === "addition" ? { additions: items } : { deductions: items }),
     };
 
-    const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
-      body: {
+    const { data: res, error } = await invokePayrollProxy({
         action,
         payload: {
           data,
           readback_ids: group.map((r) => r.id),
           readback_table: kind === "addition" ? "additions" : "deductions",
         },
-      },
     });
     if (error) {
       let detail = "";
@@ -534,48 +552,75 @@ export default function PayrollInputsPage() {
   // sat on the wrong Gross/Net bucket, are corrected in one go.
   const rebuildMonth = useMutation({
     mutationFn: async () => {
-      const [{ data: adds }, { data: deds }] = await Promise.all([
+      const [{ data: adds, error: addsError }, { data: deds, error: dedsError }] = await Promise.all([
         (supabase as any).from("hr_payroll_input_additions").select("*").eq("period_month", periodDate).not("pushed_at", "is", null),
         (supabase as any).from("hr_payroll_input_deductions").select("*").eq("period_month", periodDate).not("pushed_at", "is", null),
       ]);
+      if (addsError) throw addsError;
+      if (dedsError) throw dedsError;
       const all = [...(adds || []), ...(deds || [])] as any[];
-      const empIds = [...new Set(all.map((r) => r.razorpay_employee_id).filter(Boolean))];
+      const empIds = [...new Set(all.map((r) => String(r.razorpay_employee_id || "")).filter(Boolean))];
       if (!empIds.length) throw new Error("Nothing is on the RazorpayX run for this month.");
 
       const failures: string[] = [];
       let repushed = 0;
-      for (const empId of empIds) {
+      let completed = 0;
+      let nextIndex = 0;
+      setRebuildProgress({ completed: 0, total: empIds.length, current: "Starting…" });
+
+      const rebuildEmployee = async (empId: string) => {
+        const mapped = (employees as any[]).find((r) => String(r.razorpay_employee_id) === empId);
+        const employeeName = `${mapped?.hr_employees?.first_name || ""} ${mapped?.hr_employees?.last_name || ""}`.trim() || `Employee ${empId}`;
+        setRebuildProgress((p) => ({ ...p, current: employeeName }));
         try {
-          const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
-            body: { action: "payroll_reset_modifications", payload: { data: { "employee-id": empId, "payroll-month": period } } },
+          const { data: res, error } = await invokePayrollProxy({
+            action: "payroll_reset_modifications",
+            payload: { data: { "employee-id": empId, "payroll-month": period } },
           });
           if (error) throw new Error(error.message || "reset rejected");
           if (!res?.ok) throw new Error(res?.error || `reset HTTP ${res?.http_status}`);
 
           const groups: { rows: any[]; kind: Kind; tbl: string }[] = [
-            { rows: (adds || []).filter((r: any) => r.razorpay_employee_id === empId), kind: "addition", tbl: "hr_payroll_input_additions" },
-            { rows: (deds || []).filter((r: any) => r.razorpay_employee_id === empId), kind: "deduction", tbl: "hr_payroll_input_deductions" },
+            { rows: (adds || []).filter((r: any) => String(r.razorpay_employee_id) === empId), kind: "addition", tbl: "hr_payroll_input_additions" },
+            { rows: (deds || []).filter((r: any) => String(r.razorpay_employee_id) === empId), kind: "deduction", tbl: "hr_payroll_input_deductions" },
           ];
           for (const g of groups) {
             if (!g.rows.length) continue;
             // Clear the stamps first: if the re-push fails the line stays
             // visibly pending instead of pretending to be on the run.
-            await (supabase as any).from(g.tbl)
+            const { error: clearError } = await (supabase as any).from(g.tbl)
               .update({ pushed_at: null, readback_verified_at: null, push_response: null })
               .in("id", g.rows.map((r: any) => r.id));
+            if (clearError) throw clearError;
             await pushGroup(g.rows, g.kind);
             repushed += g.rows.length;
           }
         } catch (e: any) {
-          failures.push(`Employee ${empId}: ${e.message}`);
+          failures.push(`${employeeName}: ${e.message}`);
+        } finally {
+          completed += 1;
+          setRebuildProgress((p) => ({ ...p, completed }));
         }
-      }
+      };
+
+      // Two employees at a time keeps the operation fast without flooding the
+      // RazorpayX proxy. Every provider call has a hard timeout, so the UI can
+      // no longer spin forever when one upstream request stalls.
+      const worker = async () => {
+        while (nextIndex < empIds.length) {
+          const empId = empIds[nextIndex];
+          nextIndex += 1;
+          await rebuildEmployee(empId);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(2, empIds.length) }, () => worker()));
       return { employees: empIds.length, repushed, failures };
     },
     onSuccess: async ({ employees, repushed, failures }) => {
       await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
       await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
       setRebuildConfirm(false);
+      setRebuildProgress({ completed: 0, total: 0, current: "" });
       if (failures.length) toast.error(`Rebuilt ${repushed} line(s), but ${failures.length} employee(s) failed`, { description: failures.slice(0, 4).join(" | "), duration: 15000 });
       else toast.success(`RazorpayX run rebuilt — ${repushed} line(s) across ${employees} employee(s), each verified on the run`);
     },
@@ -583,6 +628,7 @@ export default function PayrollInputsPage() {
       await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
       await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
       setRebuildConfirm(false);
+      setRebuildProgress({ completed: 0, total: 0, current: "" });
       toast.error(e.message);
     },
   });
@@ -881,7 +927,10 @@ export default function PayrollInputsPage() {
                   title={gateOpen ? "Wipe this month in RazorpayX and re-send every pushed line" : "Payroll-write gate locked"}
                   onClick={() => setRebuildConfirm(true)}
                 >
-                  {rebuildMonth.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Undo2 className="h-3 w-3 mr-1" />} Clear &amp; re-send month
+                  {rebuildMonth.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Undo2 className="h-3 w-3 mr-1" />}
+                  {rebuildMonth.isPending && rebuildProgress.total
+                    ? `Re-sending ${rebuildProgress.completed}/${rebuildProgress.total}`
+                    : "Clear & re-send month"}
                 </Button>
 
               </div>
@@ -1347,13 +1396,28 @@ export default function PayrollInputsPage() {
                   for mid-joiner salary normalisation).
                 </div>
                 <div>Nothing is paid out by this. Anything that fails to go back is left showing as pending here.</div>
+                {rebuildMonth.isPending && rebuildProgress.total > 0 && (
+                  <div className="rounded-md border bg-muted/40 p-3 text-foreground" aria-live="polite">
+                    <div className="font-medium">Re-sending employee {Math.min(rebuildProgress.completed + 1, rebuildProgress.total)} of {rebuildProgress.total}</div>
+                    <div className="mt-1 text-muted-foreground">{rebuildProgress.current}</div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full bg-primary transition-all"
+                        style={{ width: `${Math.round((rebuildProgress.completed / rebuildProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => rebuildMonth.mutate()} disabled={rebuildMonth.isPending}>
-              {rebuildMonth.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Clear and re-send
+              {rebuildMonth.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}
+              {rebuildMonth.isPending && rebuildProgress.total
+                ? `${rebuildProgress.completed}/${rebuildProgress.total} complete`
+                : "Clear and re-send"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

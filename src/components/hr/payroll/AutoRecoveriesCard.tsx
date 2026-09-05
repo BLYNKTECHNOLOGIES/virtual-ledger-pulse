@@ -170,9 +170,27 @@ export function AutoRecoveriesCard({ period }: Props) {
             <Lock className="h-3.5 w-3.5 text-muted-foreground" />
             Automatic recoveries · {periodLabel}
           </CardTitle>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {(rows as any[]).length} · {inr(total)}
-          </span>
+          <div className="flex items-center gap-3">
+            {pendingRows.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2.5 text-[11px]"
+                disabled={stageAll.isPending || stageNow.isPending}
+                onClick={() => stageAll.mutate(pendingRows)}
+              >
+                {stageAll.isPending ? (
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <Send className="h-3 w-3 mr-1" />
+                )}
+                Stage all pending ({pendingRows.length})
+              </Button>
+            )}
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {(rows as any[]).length} · {inr(total)}
+            </span>
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <table className="w-full text-sm">

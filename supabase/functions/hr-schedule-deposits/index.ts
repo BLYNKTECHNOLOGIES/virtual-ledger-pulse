@@ -17,23 +17,19 @@ const json = (body: unknown, status = 200) =>
     status,
   });
 
-// RazorpayX payroll:add-deduction contract (via proxy):
-//   data = { "employee-id": <razorpay numeric id>, "employee-type": "employee",
-//            "payroll-month": "YYYY-MM", deductions: [{ label, amount }] }
-// Sending hr_employee_id/period_month/code/amount is rejected with
-// "Missing required payroll deductions field(s): ...".
-//
-// Opfin's add-deduction is aggregate-only: it returns no per-input id and
-// canonicalises our label into "Gross pay deduction". The proxy therefore
-// performs a payroll:view-payroll read-back and reports whether the amount is
-// actually visible on the live run. We treat "pushed" as true only when that
-// read-back verifies — no fabricated ids, no optimistic success.
-async function pushDeduction(
+// HR REVIEW GATE (owner rule, Sep 2026): this cron NEVER pushes money to
+// RazorpayX by itself. It only STAGES each due installment as a pending row in
+// hr_payroll_input_deductions (source='auto_recovery'), where HR reviews it in
+// the Deductions tab of Payroll Inputs and pushes it manually. The ledger RPCs
+// (hr_apply_deposit_collection / hr_apply_loan_push) run only after that
+// operator push is verified on the RazorpayX run.
+async function stageDeduction(
   svc: any,
   input: {
     hr_employee_id: string;
     period_month: string;
-    code: string;
+    kind: "loan" | "deposit";
+    ref_id: string;
     amount: number;
     description: string;
   },
@@ -45,38 +41,39 @@ async function pushDeduction(
     .maybeSingle();
   const rpEid = mapRow?.razorpay_employee_id;
   if (!rpEid) {
-    return { ok: false, http: 0, inputId: null, error: "No RazorpayX employee mapping" };
+    return { ok: false, staged: false, error: "No RazorpayX employee mapping" };
   }
 
-  const resp = await fetch(`${SUPABASE_URL}/functions/v1/razorpay-payroll-proxy`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${SERVICE_ROLE}`,
-    },
-    body: JSON.stringify({
-      action: "payroll_add_deduction",
-      payload: {
-        data: {
-          "employee-id": Number(rpEid),
-          "employee-type": "employee",
-          "payroll-month": String(input.period_month).slice(0, 7),
-          deductions: [{ label: input.description, amount: Number(input.amount) }],
-        },
-      },
-    }),
-  });
-  const body = await resp.json().catch(() => ({}));
-  const httpOk = resp.ok && body?.ok !== false;
-  const rb = body?.readback ?? null;
-  // Verified only when RazorpayX itself echoes the deduction back on the run.
-  const verified = httpOk && rb?.ok === true;
-  const inputId = body?.razorpay_input_id ?? body?.response?.data?.id ?? null;
-  const error = !httpOk
-    ? (body?.error ?? `HTTP ${resp.status}`)
-    : (verified ? null : (rb?.error ?? "Pushed, but not visible on the RazorpayX read-back"));
-  return { ok: verified, http: resp.status, inputId, error, readback: rb };
+  // Already staged (or already pushed by HR)? Leave it alone — idempotent cron.
+  const { data: existing } = await svc
+    .from("hr_payroll_input_deductions")
+    .select("id, pushed_at")
+    .eq("recovery_kind", input.kind)
+    .eq("recovery_ref_id", input.ref_id)
+    .maybeSingle();
+  if (existing) {
+    return { ok: true, staged: false, alreadyStaged: true, deductionId: existing.id, error: null };
+  }
+
+  const { data: inserted, error } = await svc
+    .from("hr_payroll_input_deductions")
+    .insert({
+      hr_employee_id: input.hr_employee_id,
+      razorpay_employee_id: String(rpEid),
+      period_month: String(input.period_month).slice(0, 10),
+      label: input.description,
+      amount: Number(input.amount),
+      source: "auto_recovery",
+      recovery_kind: input.kind,
+      recovery_ref_id: input.ref_id,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (error) return { ok: false, staged: false, error: error.message };
+  return { ok: true, staged: true, deductionId: inserted?.id ?? null, error: null };
 }
+
 
 
 

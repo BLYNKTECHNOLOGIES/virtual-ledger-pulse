@@ -1173,6 +1173,37 @@ export default function PayrollInputsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!unpushConfirm} onOpenChange={(o) => !o && setUnpushConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Take this line off the RazorpayX run?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <strong>{empLabel(unpushConfirm || {})}</strong> · {unpushConfirm?.label} · {inr(unpushConfirm?.amount)} for <strong>{period}</strong>.
+                </div>
+                <div>
+                  RazorpayX cannot delete one line on its own. This clears <em>all</em> of this employee's additions and
+                  deductions for {period} on the run, then immediately puts every other line back and confirms each one
+                  on the run. Anything that fails to go back is left showing as pending here so you can retry it.
+                </div>
+                <div>
+                  If this line was a deposit or loan installment, it returns to "scheduled" — unless it has already been
+                  recovered, in which case it cannot be pulled back.
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => unpushConfirm && unpushRow.mutate(unpushConfirm)} disabled={unpushRow.isPending}>
+              {unpushRow.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Unpush
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={bulkPushConfirm} onOpenChange={setBulkPushConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

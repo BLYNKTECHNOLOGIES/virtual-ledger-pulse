@@ -142,39 +142,102 @@ export function AutoLopDialog({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   function exportCsv() {
-    const head = [
-      "Employee", "Badge", "Working days", "Present", "Half days", "Absent", "Held harmless", "Unverified",
-      "Other paid leave", "Unpaid leave", "Worked on off/holiday", "Comp-off credits earned", "Punched but unprocessed",
-      "CL opening", "CL credited", "CL used", "CL balance",
-      "SL opening", "SL credited", "SL used", "SL balance",
-      "CO opening", "CO credited", "CO used", "CO set-off against LOP", "CO encashed", "CO balance",
-      "Raw LOP", "Comp-off set-off", "CL set-off (auto)", "CL available", "Proration days", "Charged LOP days",
-      "Monthly base", "LOP amount", "Status",
+    const src = rows ?? [];
+    // Escaped cell — quotes everything textual so Excel never mangles a value.
+    const cell = (v: unknown) => {
+      if (v === null || v === undefined) return "";
+      const s = String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const line = (arr: unknown[]) => arr.map(cell).join(",");
+    const dmy = (d?: string | null) =>
+      d ? `${String(d).slice(8, 10)}-${String(d).slice(5, 7)}-${String(d).slice(0, 4)}` : "";
+    const monthLabel = new Date(`${period}-01T00:00:00`).toLocaleString("en-IN", {
+      month: "long", year: "numeric",
+    });
+    const generatedAt = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", hour12: false }) + " IST";
+
+    // Grouped two-row header so the arithmetic reads left to right.
+    const groups: [string, string[]][] = [
+      ["", ["Badge", "Employee", "Employee type", "Employment from", "Employment to", "Status", "Note"]],
+      ["ATTENDANCE (days)", ["Working", "Present", "Half day", "Absent", "Held harmless", "Unverified", "Worked on off/holiday", "Punched but unprocessed"]],
+      ["LEAVE USED (days)", ["Casual", "Sick", "Comp-off", "Other paid", "Unpaid"]],
+      ["CASUAL LEAVE BALANCE", ["Opening", "Credited", "Used", "Set-off against LOP", "Closing"]],
+      ["SICK LEAVE BALANCE", ["Opening", "Credited", "Used", "Closing"]],
+      ["COMP-OFF BALANCE", ["Opening", "Earned", "Used as leave", "Set-off against LOP", "Encashed", "Closing"]],
+      ["LOSS OF PAY (days)", ["Raw", "Comp-off set-off", "Casual leave set-off", "Proration", "Chargeable"]],
+      ["MONEY", ["Monthly base", "Per-day rate", "LOP amount"]],
+      ["AUDIT", ["Formula applied", "Worked off/holiday dates", "Leave detail"]],
     ];
-    const lines = [head.join(",")];
-    for (const r of rows ?? []) {
+    const groupRow: string[] = [];
+    const headRow: string[] = [];
+    for (const [g, cols] of groups) cols.forEach((c, i) => { groupRow.push(i === 0 ? g : ""); headRow.push(c); });
+
+    const out: string[] = [
+      line(["Blynk HRMS — Loss of pay breakdown"]),
+      line(["Cycle month", monthLabel]),
+      line(["Generated on", generatedAt]),
+      line(["Employees", src.length, "With LOP", src.filter((r) => Number(r.lop_days) > 0).length]),
+      line(["Source", "Step 5 auto-LOP engine (dry run) — nothing here is staged or pushed"]),
+      line(["Note", "Amounts in rupees, no symbol. Dates DD-MM-YYYY. LOP per-day rate = monthly base ÷ calendar days of the month."]),
+      "",
+      line(groupRow),
+      line(headRow),
+    ];
+
+    const sorted = [...src].sort(
+      (a, b) => Number(b.lop_days || 0) - Number(a.lop_days || 0) || (a.name || "").localeCompare(b.name || ""),
+    );
+
+    let tDays = 0, tAmt = 0, tCoOff = 0, tClOff = 0;
+    for (const r of sorted) {
       const s = leaveSlices(r);
       const cl = leg(r, "cl"), sl = leg(r, "sl"), co = leg(r, "co");
-      lines.push([
-        `"${(r.name || "").replace(/"/g, "'")}"`, `"${r.badge_id ?? ""}"`,
+      const days = Number(r.lop_days) || 0;
+      const amt = Number(r.amount) || 0;
+      tDays += days; tAmt += amt;
+      tCoOff += Number(r.compoff_offset_days) || 0;
+      tClOff += Number(r.cl_offset_days) || 0;
+      const perDay = days > 0 && amt > 0 ? Math.round((amt / days) * 100) / 100 : "";
+      const leaveDetail = (r.leave_breakdown ?? [])
+        .filter((x) => Number(x.days) > 0)
+        .map((x) => `${x.name || x.code}: ${num(x.days)}${x.is_paid ? "" : " (unpaid)"}`)
+        .join(" | ");
+
+      out.push(line([
+        r.badge_id ?? "", r.name ?? "", r.employee_type ?? "",
+        dmy(r.employment_from), dmy(r.employment_to),
+        STATUS_META[r.status]?.label ?? r.status, r.reason ?? "",
         num(r.working_days), num(r.present_days), num(r.half_days), num(r.absent_days),
-        num(r.held_harmless_days), num(r.unverified_days),
-        num(s.otherPaid), num(s.unpaid), num(r.worked_off_days), num(r.compoff_credit_days), num(r.unprocessed_off_days),
-        num(cl.opening), num(cl.credited), num(cl.used), num(cl.closing),
+        num(r.held_harmless_days), num(r.unverified_days), num(r.worked_off_days), num(r.unprocessed_off_days),
+        num(s.cl), num(s.sl), num(s.compoff), num(s.otherPaid), num(s.unpaid),
+        num(cl.opening), num(cl.credited), num(cl.used), num(r.cl_offset_days), num(cl.closing),
         num(sl.opening), num(sl.credited), num(sl.used), num(sl.closing),
         num(co.opening), num(co.credited), num(co.used), num(co.offset_lop), num(co.encashed), num(co.closing),
-        num(r.raw_lop_days), num(r.compoff_offset_days), num(r.cl_offset_days), num(r.cl_available), num(r.proration_days), num(r.lop_days),
-        num(r.monthly_base), num(r.amount), STATUS_META[r.status]?.label ?? r.status,
-      ].join(","));
+        num(r.raw_lop_days), num(r.compoff_offset_days), num(r.cl_offset_days), num(r.proration_days), num(r.lop_days),
+        num(r.monthly_base), perDay, num(r.amount),
+        r.formula ?? "", (r.worked_off_dates ?? []).map(dmy).join(" | "), leaveDetail,
+      ]));
     }
 
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
+    // Totals row aligned to the same columns.
+    const blanks = (n: number) => Array(n).fill("");
+    out.push("");
+    out.push(line([
+      "", `TOTAL — ${sorted.length} employees`, ...blanks(5),
+      ...blanks(8), ...blanks(5), ...blanks(5), ...blanks(4), ...blanks(6),
+      "", num(tCoOff), num(tClOff), "", num(tDays),
+      "", "", num(tAmt),
+    ]));
+
+    const blob = new Blob([`\uFEFF${out.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `lop_breakdown_${period}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
+
 
   const stageable = useMemo(
     () => (rows ?? []).filter((r) => ["new", "changed", "unchanged"].includes(r.status)),

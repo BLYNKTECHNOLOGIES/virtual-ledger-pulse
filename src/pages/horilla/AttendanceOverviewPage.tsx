@@ -43,7 +43,7 @@ export default function AttendanceOverviewPage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
     queryFn: async () => {
-      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").eq("is_active", true));
+      const data = await fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name, is_active").eq("is_active", true).order("first_name").order("last_name"));
       return data || [];
     },
   });

@@ -38,6 +38,8 @@ import { missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
 import { finalizeSeparation } from "@/lib/finalizeSeparation";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { useAuth } from "@/hooks/useAuth";
+import { fnfEditLock, invalidateFnFEverywhere } from "@/lib/fnfEditLock";
+import { useEffect } from "react";
 
 /**
  * Cockpit Step 3 — Separations & Full & Final for the selected payroll cycle.
@@ -128,6 +130,22 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       return data || [];
     },
   });
+
+  // Live sync: an F&F edited anywhere else (Full & Final page, exit checklist)
+  // refreshes this cockpit step immediately instead of on the next navigation.
+  useEffect(() => {
+    const channel = supabase
+      .channel("cockpit-fnf-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "hr_fnf_settlements" },
+        () => invalidateFnFEverywhere(qc),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [qc]);
 
   const { data: activeEmployees = [] } = useQuery({
     queryKey: ["active-employees-for-resignation"],
@@ -228,7 +246,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     },
     onSuccess: () => {
       toast.success(`Payroll cycle set to ${cycleLabel}`);
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -245,7 +263,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     },
     onSuccess: () => {
       toast.success("Submitted — settlement is now awaiting approval");
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -300,7 +318,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       } else {
         toast.success("Approved and verified on the RazorpayX payroll run");
       }
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     },
     onError: (e: any) => toast.error(e.message),
@@ -346,7 +364,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
         `Settled and separation completed for ${res.name}${res.erp?.deactivated ? " — ERP login disabled" : ""}.`,
       );
       setDismissPrompt({ employee_id: res.employee_id, name: res.name, lwd: res.lwd, reason: res.reason });
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_separated_employees_cockpit"] });
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     },
@@ -651,6 +669,8 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                           size="sm"
                           variant="outline"
                           className="h-8 gap-1.5"
+                          disabled={fnfEditLock(s).locked}
+                          title={fnfEditLock(s).reason || undefined}
                           onClick={() => setDialogFor({ mode: "edit", settlement: s })}
                         >
                           <Pencil className="h-3.5 w-3.5" /> Edit

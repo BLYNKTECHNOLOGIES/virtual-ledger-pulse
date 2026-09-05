@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSettings";
 import { useMonthHolidays } from "@/hooks/hrms/useMonthHolidays";
 
-import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { useAttendanceDayRange, resolveDayStatus, countsTowardAttendance, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
 import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";
 
@@ -50,13 +50,14 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
   }, [engineDays]);
 
   const stats = useMemo(() => {
-    const rows = engineDays as AttendanceDay[];
-    const base = rows.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status)).length;
-    const present = rows.filter((d) => d.status === "present").length;
-    const half = rows.filter((d) => d.status === "half_day").length;
-    const absent = rows.filter((d) => d.status === "absent").length;
+    const rows = (engineDays as AttendanceDay[]).filter(countsTowardAttendance);
+    const st = rows.map((d) => resolveDayStatus(d));
+    const base = rows.length;
+    const present = st.filter((s) => s === "present").length;
+    const half = st.filter((s) => s === "half_day").length;
+    const absent = st.filter((s) => s === "absent").length;
     const late = rows.filter((d) => d.is_late).length;
-    const worked = rows.reduce((s, d) => s + (Number(d.worked_minutes) || 0), 0);
+    const worked = (engineDays as AttendanceDay[]).reduce((s, d) => s + (Number(d.worked_minutes) || 0), 0);
     return {
       base, present, half, absent, late,
       rate: base > 0 ? (((present + half * 0.5) / base) * 100).toFixed(1) : "0",
@@ -116,12 +117,11 @@ export function EmployeeAttendanceCalendar({ employeeId, employeeName, badgeId }
             {days.map((day) => {
               const dateStr = format(day, "yyyy-MM-dd");
               const record = byDate[dateStr];
-              const weeklyOff = isWeeklyOff(day, complianceSettings);
-              const holidayName = holidays[dateStr];
-              const status: AttendanceDayStatus =
-                record?.status && record.status !== "no_data"
-                  ? record.status
-                  : holidayName ? "holiday" : weeklyOff ? "week_off" : "no_data";
+              const weeklyOff = record ? record.is_week_off : isWeeklyOff(day, complianceSettings);
+              const holidayName = holidays[dateStr] ?? (record?.is_holiday ? "Company holiday" : undefined);
+              const status: AttendanceDayStatus = record
+                ? resolveDayStatus(record)
+                : holidayName ? "holiday" : weeklyOff ? "week_off" : "no_data";
 
               const hasDetail = !!record && record.status !== "no_data";
 

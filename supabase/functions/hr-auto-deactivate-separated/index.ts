@@ -2,10 +2,18 @@
 // to inactive in HRMS, kill their ERP login, and dismiss them in RazorpayX with
 // that exact last working day.
 //
+// F&F GATE (money safety): dismissing someone in RazorpayX closes their payroll
+// record, so any Full & Final dues that were not pushed yet can never reach a
+// run. The sweep therefore HOLDS an employee whenever their F&F is not settled —
+// i.e. there is no settlement at all, or the settlement is not 'paid', or its
+// RazorpayX push has not landed. Held employees are reported back (and stay
+// visible on cockpit Step 3) so HR finishes the settlement first.
+//
 // Idempotent: only touches employees still is_active = true with a
 // last_working_day strictly in the past. Razorpay dismissal is best-effort and
 // logged to hr_razorpay_pushback_log — a provider failure never blocks the
 // local separation.
+
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";

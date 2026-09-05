@@ -178,6 +178,38 @@ export default function DepositManagementPage() {
     enabled: !!showTransactions,
   });
 
+  /**
+   * Installments of the record being deleted that have ALREADY gone to RazorpayX.
+   * RazorpayX has no delete endpoint for a single payroll deduction, so once an
+   * installment is pushed the money is live on that month's payroll — deleting
+   * the HRMS record silently would leave an orphan deduction there.
+   */
+  const { data: pushedInstallments = [] } = useQuery({
+    queryKey: ["hr_deposit_pushed_installments", deleteTarget?.id],
+    queryFn: async () => {
+      const { data: sched } = await (supabase as any)
+        .from("hr_employee_deposit_schedule")
+        .select("id, period_month, amount, status")
+        .eq("deposit_id", deleteTarget.id);
+      const rows = (sched || []) as any[];
+      const ids = rows.map((r) => r.id);
+      let pushedRefs = new Set<string>();
+      if (ids.length) {
+        const { data: ded } = await (supabase as any)
+          .from("hr_payroll_input_deductions")
+          .select("recovery_ref_id, pushed_at, amount, period_month")
+          .eq("recovery_kind", "deposit")
+          .in("recovery_ref_id", ids)
+          .not("pushed_at", "is", null);
+        pushedRefs = new Set((ded || []).map((d: any) => d.recovery_ref_id));
+      }
+      return rows.filter((r) => r.status === "pushed" || pushedRefs.has(r.id));
+    },
+    enabled: !!deleteTarget?.id,
+  });
+
+
+
   const addMutation = useMutation({
     mutationFn: async () => {
       const totalAmt = Number(form.total_deposit_amount);

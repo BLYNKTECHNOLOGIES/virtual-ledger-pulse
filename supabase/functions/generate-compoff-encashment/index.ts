@@ -117,13 +117,19 @@ Deno.serve(async (req) => {
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const split = splitCompoff(pool.days_available, rawLopDays);
       const workingDays = Number(lop?.working_days ?? 0);
-      if (split.offset_days > 0 || split.encash_days > 0) {
-        creditSettlements.push({
-          employee_id: map.hr_employee_id,
-          offset_days: split.offset_days,
-          encash_days: split.encash_days,
-        });
-      }
+      // Comp-off spent cancelling LOP is settled unconditionally. Days meant to
+      // be encashed are only settled once a payout row actually exists for the
+      // employee — otherwise a skipped employee would lose the days unpaid.
+      const settleCredits = (encashDays: number) => {
+        if (split.offset_days > 0 || encashDays > 0) {
+          creditSettlements.push({
+            employee_id: map.hr_employee_id,
+            offset_days: split.offset_days,
+            encash_days: encashDays,
+          });
+        }
+      };
+
 
 
 
@@ -160,18 +166,22 @@ Deno.serve(async (req) => {
               : "No comp-off balance this month",
           });
         }
+        settleCredits(existingAuto?.pushed_at ? split.encash_days : 0);
         continue;
       }
 
       const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
       if (salary.error) {
         rows.push({ ...base, status: "skipped", reason: salary.error, amount: 0, base_source: null });
+        settleCredits(0);
         continue;
       }
       if (!(salary.monthlyGross > 0)) {
         rows.push({ ...base, status: "skipped", reason: "No salary base could be resolved", amount: 0, base_source: null });
+        settleCredits(0);
         continue;
       }
+
 
       // Divisor MUST match generate-lop-deductions: calendar days of the month,
       // not working days. A day cancelled and a day encashed must be worth the
@@ -195,6 +205,7 @@ Deno.serve(async (req) => {
         row.status = "pushed";
         row.reason = "Already pushed to RazorpayX — left untouched";
         rows.push(row);
+        settleCredits(split.encash_days);
         continue;
       }
 
@@ -226,8 +237,13 @@ Deno.serve(async (req) => {
           amount,
           base_source: salary.source,
         });
+        settleCredits(split.encash_days);
+      } else {
+        // Nothing payable — the days stay open rather than being written off.
+        settleCredits(0);
       }
     }
+
 
     let staged = 0;
     let removed = 0;

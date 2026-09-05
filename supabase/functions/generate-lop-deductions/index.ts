@@ -295,16 +295,17 @@ Deno.serve(async (req) => {
         absorptions.push({ employee_id: map.hr_employee_id, days: split.cl_offset_days });
       }
 
-      // Comp-off spent on this month's LOP (and whatever is left for the
-      // encashment engine) is marked settled so those credits can never come
-      // back as an opening balance and be paid a second time.
-      if (split.compoff_offset_days > 0 || split.compoff_encash_days > 0) {
+      // Comp-off actually SPENT on this month's LOP is settled here. Days that
+      // merely remain available are NOT stamped as encashed — only the
+      // encashment engine may do that, and only once it has staged the payout.
+      if (split.compoff_offset_days > 0) {
         creditSettlements.push({
           employee_id: map.hr_employee_id,
           offset_days: split.compoff_offset_days,
-          encash_days: split.compoff_encash_days,
+          encash_days: 0,
         });
       }
+
 
 
       // Absence LOP (after comp-off) + employment-window proration days.
@@ -457,9 +458,12 @@ Deno.serve(async (req) => {
     if (!dryRun) {
       // Book the automatic casual-leave consumption FIRST. The RPC reverses any
       // previous auto booking for this month, so re-running never double-spends.
+      // The reversal is scoped to the employees in THIS run — a partial staging
+      // run must never cancel casual leave booked for anyone else.
       const { data: absData, error: absErr } = await supabase.rpc("hr_apply_cl_lop_absorption", {
         p_absorptions: absorptions,
         p_period_month: periodStr,
+        p_scope_employee_ids: (roster as any[]).map((r: any) => r.hr_employee_id),
       });
       if (absErr) throw absErr;
       clBooked = ((absData ?? []) as any[]).reduce((s, r) => s + Number(r.days_booked ?? 0), 0);
@@ -468,9 +472,11 @@ Deno.serve(async (req) => {
         const { error: credErr } = await supabase.rpc("hr_settle_compoff_credits", {
           p_period_month: periodStr,
           p_rows: creditSettlements,
+          p_settle_encash: false,
         });
         if (credErr) throw credErr;
       }
+
 
       for (const upd of toUpdate) {
         const { id, ...patch } = upd;

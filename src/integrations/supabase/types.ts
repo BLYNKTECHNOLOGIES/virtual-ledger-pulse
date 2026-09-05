@@ -28709,7 +28709,11 @@ export type Database = {
         Returns: Json
       }
       hr_apply_cl_lop_absorption: {
-        Args: { p_absorptions: Json; p_period_month: string }
+        Args: {
+          p_absorptions: Json
+          p_period_month: string
+          p_scope_employee_ids?: string[]
+        }
         Returns: {
           days_booked: number
           employee_id: string
@@ -29575,7 +29579,11 @@ export type Database = {
         }
       }
       hr_settle_compoff_credits: {
-        Args: { p_period_month: string; p_rows: Json }
+        Args: {
+          p_period_month: string
+          p_rows: Json
+          p_settle_encash?: boolean
+        }
         Returns: {
           out_employee_id: string
           settled_encash: number

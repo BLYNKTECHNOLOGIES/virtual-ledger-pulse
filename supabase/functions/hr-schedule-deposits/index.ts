@@ -152,33 +152,30 @@ Deno.serve(async (req) => {
         continue;
       }
       const isRecovery = inst.deposit_type === "error_recovery";
-      const push = await pushDeduction(svc, {
+      const staged = await stageDeduction(svc, {
         hr_employee_id: inst.employee_id,
         period_month: inst.period_month,
-        code: `${isRecovery ? "ERROR_RECOVERY" : "SECURITY_DEPOSIT"}_M${inst.installment_no}`,
+        kind: "deposit",
+        ref_id: inst.id,
         amount: Number(inst.amount),
         description: isRecovery
           ? `Error recovery installment ${inst.installment_no}`
           : `Security deposit installment ${inst.installment_no} (Clause 6b)`,
       });
 
-      if (push.ok) {
-        const { error: rpcErr } = await svc.rpc("hr_apply_deposit_collection", {
-          p_schedule_id: inst.id,
-          p_razorpay_input_id: push.inputId,
+      if (staged.ok) {
+        results.push({
+          kind: "deposit", id: inst.id, ok: true,
+          staged: staged.staged, already_staged: !!staged.alreadyStaged,
+          awaiting: "HR review + push in Payroll Inputs → Deductions",
         });
-        if (rpcErr) {
-          await svc.from("hr_employee_deposit_schedule")
-            .update({ status: "failed", failure_reason: `ledger: ${rpcErr.message}` })
-            .eq("id", inst.id);
-        }
-        results.push({ kind: "deposit", id: inst.id, ok: !rpcErr, error: rpcErr?.message ?? null });
       } else {
         await svc.from("hr_employee_deposit_schedule")
-          .update({ status: "failed", failure_reason: push.error })
+          .update({ status: "failed", failure_reason: staged.error })
           .eq("id", inst.id);
-        results.push({ kind: "deposit", id: inst.id, ok: false, http: push.http, error: push.error });
+        results.push({ kind: "deposit", id: inst.id, ok: false, error: staged.error });
       }
+
     }
   }
 

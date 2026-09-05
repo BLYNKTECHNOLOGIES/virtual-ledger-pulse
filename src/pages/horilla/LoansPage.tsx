@@ -544,15 +544,22 @@ export default function LoansPage() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="outside_payroll">Paid outside payroll (bank transfer / cash)</SelectItem>
-                  <SelectItem value="razorpay_advance">Through RazorpayX Advance Salary</SelectItem>
+                  <SelectItem value="payroll_addition">Pay through payroll (staged addition)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="mt-1 text-xs text-muted-foreground">
-                {form.disbursement_mode === "razorpay_advance"
-                  ? "On approval the advance is created in RazorpayX (you release the payment from the RazorpayX dashboard). RazorpayX also recovers the EMI, so HRMS will not stage its own monthly deduction."
+                {form.disbursement_mode === "payroll_addition"
+                  ? "On approval the payout is staged as an addition in the month you pick below. HR reviews and pushes it in Payroll Inputs → Additions; EMIs are then recovered as usual."
                   : "HRMS pays nothing out. From the next cycle each EMI is staged in Payroll Inputs → Deductions for HR to review and push."}
               </p>
             </div>
+            {form.disbursement_mode === "payroll_addition" && (
+              <div>
+                <Label>Pay in payroll month *</Label>
+                <Input type="month" value={form.payout_month} onChange={(e) => setForm({ ...form, payout_month: e.target.value })} />
+              </div>
+            )}
+
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Purpose of loan/advance..." /></div>
 
           </div>

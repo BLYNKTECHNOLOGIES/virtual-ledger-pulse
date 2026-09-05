@@ -325,15 +325,16 @@ export default function PayrollInputsPage() {
     // pending here so they can be retried, never silently marked pushed.
     const verified = res?.readback ? res.readback.verified_on_run !== false : true;
     if (!verified) {
-      await (supabase as any).from(table)
+      await (supabase as any).from(tbl)
         .update({ push_response: res.body ?? {} })
         .in("id", group.map((r) => r.id));
       throw new Error(res.readback?.error || "Pushed, but not visible on the RazorpayX run — retry or verify in the dashboard.");
     }
-    const { error: uErr } = await (supabase as any).from(table)
+    const { error: uErr } = await (supabase as any).from(tbl)
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })
       .in("id", group.map((r) => r.id));
     if (uErr) throw uErr;
+
 
     // Automatic recoveries (security deposit / error recovery / loan EMI) are
     // staged by the nightly job and only settle in the ledger once HR has

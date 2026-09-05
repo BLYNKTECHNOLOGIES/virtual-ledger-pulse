@@ -38,6 +38,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useTerminalAlerts } from '@/hooks/useTerminalAlerts';
 import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 import { focusPageSearch } from '@/lib/focus-page-search';
+import { pollWhenVisible } from '@/lib/poll-when-visible';
 
 
 /** Convert numeric orderStatus to string */
@@ -425,8 +426,12 @@ function TerminalOrdersContent() {
 
       return all;
     },
-    staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000, // Poll every 15s for recent status transitions
+    staleTime: 25 * 1000,
+    // Each run walks up to 3 pages of Binance history. At 15s that queued up
+    // behind the 5s active-order poll on the same proxy and made the page
+    // stutter; 30s (paused when hidden) keeps statuses fresh without the churn.
+    refetchInterval: pollWhenVisible(30 * 1000),
+    placeholderData: (prev: any) => prev,
   });
 
   // Only show loading if BOTH sources are still loading
@@ -726,7 +731,7 @@ function TerminalOrdersContent() {
   // Revalidate older active-like orders via getOrderDetail (authoritative single-order status).
   const staleRecheckCandidates = useMemo(() => {
     const now = Date.now();
-    const maxOrders = 30;
+    const maxOrders = 12;
     const minAgeMs = 30 * 60 * 1000; // 30 minutes (reduced from 6h to catch stale statuses faster)
 
     const activeLike = rawOrders.filter((o: any) => {
@@ -854,8 +859,12 @@ function TerminalOrdersContent() {
       return next;
     },
     enabled: staleRecheckCandidates.length > 0,
-    staleTime: 15 * 1000,
-    refetchInterval: 30 * 1000, // Recheck every 30s for faster stale resolution
+    staleTime: 2 * 60 * 1000,
+    // This is by far the heaviest poll: one getOrderDetail per candidate plus
+    // history cross-checks. Every 30s it saturated the proxy. Stale statuses are
+    // an edge case, so recheck every 3 minutes and only while the tab is visible.
+    refetchInterval: pollWhenVisible(3 * 60 * 1000),
+    placeholderData: (prev: any) => prev,
   });
 
   // Persist authoritative terminal statuses discovered by stale recheck.
@@ -1129,7 +1138,8 @@ function TerminalOrdersContent() {
       if (error) throw error;
       return (data || []) as any[];
     },
-    refetchInterval: 30000,
+    refetchInterval: pollWhenVisible(60000),
+    placeholderData: (prev: any) => prev,
   });
 
   const releaseMonitorByOrder = useMemo(() => {

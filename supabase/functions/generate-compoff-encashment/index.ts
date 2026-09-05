@@ -166,18 +166,22 @@ Deno.serve(async (req) => {
               : "No comp-off balance this month",
           });
         }
+        settleCredits(existingAuto?.pushed_at ? split.encash_days : 0);
         continue;
       }
 
       const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
       if (salary.error) {
         rows.push({ ...base, status: "skipped", reason: salary.error, amount: 0, base_source: null });
+        settleCredits(0);
         continue;
       }
       if (!(salary.monthlyGross > 0)) {
         rows.push({ ...base, status: "skipped", reason: "No salary base could be resolved", amount: 0, base_source: null });
+        settleCredits(0);
         continue;
       }
+
 
       // Divisor MUST match generate-lop-deductions: calendar days of the month,
       // not working days. A day cancelled and a day encashed must be worth the

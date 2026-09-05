@@ -364,14 +364,37 @@ export default function PayrollInputsPage() {
 
   const pushOne = (row: any) => pushGroup([row]);
 
+  // Net vs Gross target for a staged deduction (editable until it is pushed).
+  const setDeductTarget = useMutation({
+    mutationFn: async ({ id, target }: { id: string; target: "net" | "gross" }) => {
+      const { data: live, error: rErr } = await (supabase as any)
+        .from("hr_payroll_input_deductions").select("id,pushed_at").eq("id", id).maybeSingle();
+      if (rErr) throw rErr;
+      if (!live) throw new Error("This line no longer exists.");
+      if (live.pushed_at) throw new Error("Already on the RazorpayX run — unpush it first to change where it is deducted from.");
+      const { error } = await (supabase as any).from("hr_payroll_input_deductions").update({ deduct_from: target }).eq("id", id);
+      if (error) throw error;
+      return target;
+    },
+    onSuccess: (t) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success(`Will be deducted from ${t === "gross" ? "Gross Pay" : "Net Pay"}`); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Surface how RazorpayX actually recorded a mixed gross/net push.
+  function reportSplit(res: any) {
+    const s = res?.readback?.deduction_split;
+    if (s?.status === "collapsed_to_single_line" && s?.note) toast.warning(s.note, { duration: 12000 });
+  }
+
   const pushRow = useMutation({
     mutationFn: pushOne,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed and verified on the RazorpayX run"); setPushConfirm(null); },
+    onSuccess: (res) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed and verified on the RazorpayX run"); reportSplit(res); setPushConfirm(null); },
     onError: (e: any) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.error(e.message); setPushConfirm(null); },
   });
 
   // Bulk push — one call per employee (all their rows merged into a single
   // modifications map), sequential so RazorpayX rate limits stay happy.
+
   const bulkPush = useMutation({
     mutationFn: async (rowsToPush: any[]) => {
       const byEmp = new Map<string, any[]>();

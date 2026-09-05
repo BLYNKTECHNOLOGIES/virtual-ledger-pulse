@@ -67,7 +67,7 @@ export function OtherPayrollInputsCard({ period }: { period: string }) {
             >
               Paid outside payroll{r.payout_paid_on ? ` · ${new Date(r.payout_paid_on).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}` : ""}
             </Badge>
-          ) : r.razorpay_verified_at ? (
+          ) : r.razorpay_pushed_at && r.razorpay_verified_at ? (
             <Badge className="bg-success/10 text-success">Verified on run</Badge>
           ) : r.razorpay_pushed_at ? (
             <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>

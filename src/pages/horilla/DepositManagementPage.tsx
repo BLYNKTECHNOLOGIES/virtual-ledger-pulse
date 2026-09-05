@@ -742,22 +742,23 @@ export default function DepositManagementPage() {
         title="Deposit Management"
         description="Security deposits and error recoveries — deduction, holding and pay-back in one place"
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowSeed(true)} className="h-9">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button variant="outline" onClick={() => setShowSeed(true)} className="h-9 w-full sm:w-auto">
               <Wallet className="h-4 w-4 mr-1" /> Seed existing {TYPE_LABEL[tab].toLowerCase()}
             </Button>
-            <Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>
+            <Button onClick={() => { setForm({ ...emptyForm, deposit_type: tab }); setShowAdd(true); }} className="h-9 w-full sm:w-auto bg-[#E8604C] hover:bg-[#d4553f]"><Plus className="h-4 w-4 mr-1" /> Add {TYPE_LABEL[tab]}</Button>
           </div>
         }
+
       />
 
       {/* Category tabs */}
-      <div className="flex gap-1 rounded-lg bg-muted p-1 w-fit">
+      <div className="flex gap-1 rounded-lg bg-muted p-1 w-full sm:w-fit overflow-x-auto">
         {(["security", "error_recovery"] as DepositType[]).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+            className={`flex-1 sm:flex-none whitespace-nowrap px-4 py-1.5 text-sm rounded-md transition-colors ${tab === t ? "bg-background text-foreground shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
           >
             {TYPE_LABEL[t]}
             <span className="ml-2 text-xs text-muted-foreground">
@@ -768,32 +769,167 @@ export default function DepositManagementPage() {
       </div>
 
       {/* Lifecycle sub-tabs */}
-      <div className="flex flex-wrap gap-2">
-        {SUB_TABS.map((s) => (
-          <button
-            key={s.key}
-            onClick={() => setSubTab(s.key)}
-            className={`px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
-          >
-            {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
-          </button>
-        ))}
+      <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
+        <div className="flex gap-2 w-max md:w-auto md:flex-wrap">
+          {SUB_TABS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setSubTab(s.key)}
+              className={`whitespace-nowrap px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+            >
+              {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
+
       {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {summaryTiles.map((s) => (
           <Card key={s.label}>
-            <CardContent className="p-4 flex items-center gap-3">
+            <CardContent className="p-3 md:p-4 flex items-center gap-2 md:gap-3">
               <div className={`p-2 rounded-lg ${s.bg}`}><s.icon className={`h-5 w-5 ${s.color}`} /></div>
-              <div><p className="text-xl font-bold">{s.value}</p><p className="text-xs text-muted-foreground">{s.label}</p></div>
+              <div className="min-w-0"><p className="text-base md:text-xl font-bold truncate">{s.value}</p><p className="text-[11px] md:text-xs text-muted-foreground truncate">{s.label}</p></div>
             </CardContent>
           </Card>
         ))}
       </div>
 
+      {/* Mobile list — same data, filters and actions as the desktop table */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <Card><CardContent className="p-4"><TableSkeleton rows={4} columns={2} /></CardContent></Card>
+        ) : groups.length === 0 ? (
+          <Card><CardContent className="p-4"><EmptyState icon={Wallet} title="Nothing here" description={`No ${TYPE_LABEL[tab].toLowerCase()} records in this state.`} /></CardContent></Card>
+        ) : (
+          groups.map((g) => {
+            const open = !!expanded[g.employee_id];
+            const progress = g.total > 0 ? Math.round((g.collected / g.total) * 100) : 0;
+            return (
+              <Card key={g.employee_id}>
+                <CardContent className="p-3 space-y-3">
+                  <button className="w-full text-left" onClick={() => setExpanded((e) => ({ ...e, [g.employee_id]: !open }))}>
+                    <div className="flex items-start gap-2">
+                      {open ? <ChevronDown className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-sm truncate">
+                          {g.employee?.first_name} {g.employee?.last_name}
+                          <span className="text-xs text-muted-foreground ml-1">({g.employee?.badge_id})</span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] ${LIFECYCLE_BADGE[lifecycleOf(g.rows[0])].cls}`}>
+                            {LIFECYCLE_BADGE[lifecycleOf(g.rows[0])].label}
+                          </span>
+                          {g.rows.length > 1 && <span className="text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{g.rows.length} entries</span>}
+                          {g.employee?.is_active === false && <span className="text-[11px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Exited</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                      <div><p className="text-muted-foreground">Total</p><p className="tabular-nums font-medium">{inr(g.total)}</p></div>
+                      <div><p className="text-muted-foreground">Collected</p><p className="tabular-nums text-success">{inr(g.collected)}</p></div>
+                      <div><p className="text-muted-foreground">Balance</p><p className="tabular-nums text-primary">{inr(g.balance)}</p></div>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Progress value={progress} className="h-2 flex-1" />
+                      <span className="text-[11px] text-muted-foreground">{progress}%</span>
+                    </div>
+                    {g.refunded > 0 && (
+                      <p className="mt-2 text-[11px] text-primary">{inr(g.refunded)} paid back{g.withheld > 0 ? ` · ${inr(g.withheld)} withheld` : ""}</p>
+                    )}
+                  </button>
+
+                  {open && (
+                    <div className="space-y-2 border-t border-border pt-2">
+                      {g.rows.map((d: any) => {
+                        const state = lifecycleOf(d);
+                        const locked = isFnfLocked(d);
+                        const p = d.total_deposit_amount > 0 ? Math.round((d.collected_amount / d.total_deposit_amount) * 100) : 0;
+                        const canRefund = state !== "refunded" && !locked && Number(d.collected_amount || 0) > 0;
+                        return (
+                          <div key={d.id} className="rounded-md bg-muted/30 p-2 space-y-2">
+                            <div className="flex items-center justify-between gap-2 text-xs">
+                              <span className="text-muted-foreground">{d.deduction_start_month || (d.created_at ? String(d.created_at).slice(0, 10) : "—")}</span>
+                              <span className="tabular-nums font-medium">{inr(d.total_deposit_amount)}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-[11px]">
+                              <div><p className="text-muted-foreground">Collected</p><p className="tabular-nums text-success">{inr(d.collected_amount)}</p></div>
+                              <div><p className="text-muted-foreground">Balance</p><p className="tabular-nums text-primary">{inr(d.current_balance)}</p></div>
+                              <div><p className="text-muted-foreground">Mode</p><p>{modeLabel(d.deduction_mode)} · {isPct(d.deduction_mode) ? `${d.deduction_value}%` : inr(d.deduction_value)}</p></div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress value={p} className="h-1.5 flex-1" />
+                              <span className="text-[11px] text-muted-foreground">{p}%</span>
+                            </div>
+                            {tab === "error_recovery" && (
+                              <p className="text-[11px] text-muted-foreground">Incident: {d.incident_reference || "—"} {d.incident_date ? `· ${d.incident_date}` : ""}</p>
+                            )}
+                            <div className="flex flex-wrap gap-1">
+                              <span className={`px-2 py-0.5 rounded-full text-[11px] ${LIFECYCLE_BADGE[state].cls}`}>{LIFECYCLE_BADGE[state].label}</span>
+                              {d.is_paused && state === "active" && <span className="px-2 py-0.5 rounded-full text-[11px] bg-warning/10 text-warning">Paused</span>}
+                              {locked && (
+                                <span className="px-2 py-0.5 rounded-full text-[11px] bg-primary/10 text-primary">
+                                  {d.fnf_state === "closed" ? "Settled in F&F" : "Reserved in F&F"}
+                                </span>
+                              )}
+                            </div>
+                            {state === "refunded" && (
+                              <p className="text-[11px] text-primary">
+                                {inr(d.refund_amount)} paid back
+                                {Number(d.withheld_amount) > 0 ? ` · ${inr(d.withheld_amount)} withheld — ${d.withheld_reason || "—"}` : ""}
+                                {d.refund_period_month ? ` · ${String(d.refund_period_month).slice(0, 7)}` : ""}
+                              </p>
+                            )}
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setShowTransactions(d.id)}>
+                                <Eye className="h-3 w-3 mr-1" /> Ledger
+                              </Button>
+                              {state !== "refunded" && locked && (
+                                <span className="text-[11px] text-muted-foreground self-center px-1">Handled in F&amp;F</span>
+                              )}
+                              {state !== "refunded" && !locked && (
+                                <>
+                                  <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openEdit(d)}>
+                                    <Edit2 className="h-3 w-3 mr-1" /> Edit
+                                  </Button>
+                                  {!d.is_fully_collected && (
+                                    d.is_paused ? (
+                                      <Button size="sm" variant="outline" className="h-8 text-xs text-info" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: "resume" })}>
+                                        <Play className="h-3 w-3 mr-1" /> Resume
+                                      </Button>
+                                    ) : (
+                                      <Button size="sm" variant="outline" className="h-8 text-xs text-warning" onClick={() => pauseResumeMutation.mutate({ deposit: d, action: "pause" })}>
+                                        <Pause className="h-3 w-3 mr-1" /> Pause
+                                      </Button>
+                                    )
+                                  )}
+                                  {canRefund && (
+                                    <Button size="sm" variant="outline" className="h-8 text-xs text-primary" onClick={() => openRefund(d)}>
+                                      <Undo2 className="h-3 w-3 mr-1" /> Pay back
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="outline" className="h-8 text-xs text-destructive" onClick={() => setDeleteTarget(d)}>
+                                    <Trash2 className="h-3 w-3 mr-1" /> {Number(d.collected_amount || 0) > 0 ? "Cancel EMIs" : "Delete"}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
       {/* Grouped table */}
-      <Card>
+      <Card className="hidden md:block">
+
         <CardHeader><CardTitle className="text-sm">{TYPE_LABEL[tab]} — {SUB_TABS.find((s) => s.key === subTab)?.label}</CardTitle></CardHeader>
         <CardContent className="p-0 overflow-x-auto">
           <Table>

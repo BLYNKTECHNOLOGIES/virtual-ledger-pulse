@@ -7769,6 +7769,9 @@ Deno.serve(async (req) => {
       //                    "Please specify the deduction".
       // Amounts are RUPEES, never paise.
       let modExpect: Array<{ label: string; amount: number }> = [];
+      // Net/Gross deduction split state (payroll_add_deduction only).
+      let dedSplit: any = null;
+
       if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
         const missing: string[] = [];

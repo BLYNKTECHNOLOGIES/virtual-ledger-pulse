@@ -266,17 +266,16 @@ export default function AttendanceCalendarPage() {
                     {days.map(day => {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
-                      const weeklyOff = isWeeklyOff(day, complianceSettings);
-                      const holidayName = holidays[dateStr];
-                      // Engine status wins; then declared holiday; then weekly off.
-                      const status: AttendanceDayStatus =
-                        record?.status && record.status !== "no_data"
-                          ? record.status
-                          : holidayName
-                            ? "holiday"
-                            : weeklyOff
-                              ? "week_off"
-                              : "no_data";
+                      const weeklyOff = record ? record.is_week_off : isWeeklyOff(day, complianceSettings);
+                      const holidayName = holidays[dateStr] ?? (record?.is_holiday ? "Company holiday" : undefined);
+                      // Server truth (per-employee weekly off, holidays, approved leave).
+                      const status: AttendanceDayStatus = record
+                        ? resolveDayStatus(record)
+                        : holidayName
+                          ? "holiday"
+                          : weeklyOff
+                            ? "week_off"
+                            : "no_data";
 
                       const today = isToday(day);
                       const hasDetail = !!record && record.status !== "no_data";

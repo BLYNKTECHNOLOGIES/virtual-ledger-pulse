@@ -34,6 +34,33 @@ export function AutoRecoveriesCard({ period }: Props) {
     },
   });
 
+  const qc = useQueryClient();
+
+  // "Awaiting HR push" rows whose deduction hasn't been staged yet (the
+  // nightly staging job hasn't run) can be staged on demand — this only
+  // creates the review row in Payroll Inputs → Deductions; HR still pushes.
+  const stageNow = useMutation({
+    mutationFn: async (r: any) => {
+      const { data: res, error } = await (supabase as any).functions.invoke("hr-schedule-deposits", {
+        body: { kind: r.source_kind, id: r.parent_id },
+      });
+      if (error) throw error;
+      if (!res?.ok) throw new Error(res?.error || "Staging failed");
+      const mine = (res.results || []).filter((x: any) => x.ok && (x.staged || x.already_staged));
+      if (!mine.length) {
+        const skipped = (res.results || []).map((x: any) => x.skipped || x.error).filter(Boolean);
+        throw new Error(skipped[0] || "Nothing was staged for this recovery");
+      }
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Staged in Payroll Inputs → Deductions — review and push it there");
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Could not stage this recovery"),
+  });
+
   const total = useMemo(
     () => (rows as any[]).reduce((s, r) => s + Number(r.amount || 0), 0),
     [rows],
@@ -186,14 +213,41 @@ export function AutoRecoveriesCard({ period }: Props) {
                         </Tooltip>
                       </td>
                       <td className="px-3 py-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex">
-                              <StatusPill tone={s.tone} icon={s.icon}>{s.label}</StatusPill>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-xs max-w-[240px]">{s.tip}</TooltipContent>
-                        </Tooltip>
+                        <div className="flex items-center gap-1.5">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex">
+                                <StatusPill tone={s.tone} icon={s.icon}>{s.label}</StatusPill>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent className="text-xs max-w-[240px]">{s.tip}</TooltipContent>
+                          </Tooltip>
+                          {r.status === "scheduled" && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[11px]"
+                                  disabled={stageNow.isPending}
+                                  onClick={() => stageNow.mutate(r)}
+                                >
+                                  {stageNow.isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                  ) : (
+                                    <Send className="h-3 w-3 mr-1" />
+                                  )}
+                                  Stage now
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-xs max-w-[240px]">
+                                Creates the review row in Payroll Inputs → Deductions right now
+                                (the nightly job hasn't staged it yet). You still push it manually
+                                from there.
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

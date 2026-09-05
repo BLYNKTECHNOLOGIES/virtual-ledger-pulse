@@ -407,6 +407,8 @@ export default function MonthlyPayrollCockpitPage() {
   const stepGate = usePayrollStepGate(month);
   const recalc = useMandatoryRecalcs(month);
   const bankGate = usePendingBankChanges();
+  const navigate = useNavigate();
+
 
   /** Recalculations that MUST have been run and staged before a step is confirmed. */
   function recalcReasonsFor(stepKey: string): string[] {

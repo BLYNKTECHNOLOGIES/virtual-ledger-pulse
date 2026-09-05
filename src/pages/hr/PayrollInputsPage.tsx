@@ -873,6 +873,17 @@ export default function PayrollInputsPage() {
                     <Layers className="h-3 w-3 mr-1" /> Bulk stage {tab}s
                   </Button>
                 )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  disabled={!gateOpen || rebuildMonth.isPending}
+                  title={gateOpen ? "Wipe this month in RazorpayX and re-send every pushed line" : "Payroll-write gate locked"}
+                  onClick={() => setRebuildConfirm(true)}
+                >
+                  {rebuildMonth.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Undo2 className="h-3 w-3 mr-1" />} Clear &amp; re-send month
+                </Button>
+
               </div>
             </CardHeader>
             <CardContent className="p-0 overflow-x-auto">

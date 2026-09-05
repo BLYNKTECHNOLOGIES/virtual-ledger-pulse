@@ -513,6 +513,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       fileName: `payroll_${period.slice(0, 7)}_3_payroll_summary`,
       meta: metaFor("Sheet 3 of 3 — Per-employee attendance, loss of pay and money summary", [
         ["Employees flagged for review", String(flagged)],
+        ["Expected net pay — TOTAL to be credited", String(totalNet)],
         ...warnMeta,
       ]),
       header: summaryHeader,

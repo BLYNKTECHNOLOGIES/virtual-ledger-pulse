@@ -114,7 +114,31 @@ Deno.serve(async (req) => {
     // reappear as an opening balance (and be paid again) in a later month.
     const creditSettlements: any[] = [];
 
+    // Salary bases are resolved UP FRONT and in parallel batches. Resolving
+    // them one-by-one inside the loop meant ~6 sequential round trips per
+    // encashing employee, which pushed the whole run past the edge-function
+    // wall-clock limit (the request then dies with a non-2xx and no log line).
+    const salaryByEmp = new Map<string, any>();
+    const needSalary = (roster as any[]).filter((map) => {
+      const pool = pools.get(map.hr_employee_id);
+      const lopDays = Number(lopByEmp.get(map.hr_employee_id)?.lop_days ?? 0);
+      return splitCompoff(pool?.days_available ?? 0, lopDays).encash_days > 0;
+    });
+    const CONCURRENCY = 8;
+    for (let i = 0; i < needSalary.length; i += CONCURRENCY) {
+      const slice = needSalary.slice(i, i + CONCURRENCY);
+      const resolved = await Promise.all(
+        slice.map((map: any) =>
+          resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr).catch(
+            (e: any) => ({ monthlyGross: 0, source: "none", error: `salary_lookup: ${e?.message ?? e}` }),
+          ),
+        ),
+      );
+      slice.forEach((map: any, idx: number) => salaryByEmp.set(map.hr_employee_id, resolved[idx]));
+    }
+
     for (const map of roster as any[]) {
+
       const emp = map.hr_employees;
       const name = `${emp.first_name ?? ""} ${emp.last_name ?? ""}`.trim() || emp.badge_id || "—";
       const lop = lopByEmp.get(map.hr_employee_id);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fnfEditLock, invalidateFnFEverywhere } from "@/lib/fnfEditLock";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,6 +186,16 @@ export function FnFSettlementDialog({ open, onOpenChange, employees = [], settle
       const payload = buildFnFPayload(selectedEmpId, form as any, details, calcNote, finalMonth as any);
 
       if (editingId) {
+        // Re-check the lock against the live row: another user may have pushed
+        // this F&F into the monthly payroll run while this dialog was open.
+        const { data: current } = await (supabase as any)
+          .from("hr_fnf_settlements")
+          .select("status, razorpay_push_status")
+          .eq("id", editingId)
+          .maybeSingle();
+        const lock = fnfEditLock(current);
+        if (lock.locked) throw new Error(lock.reason);
+
         const { error } = await (supabase as any)
           .from("hr_fnf_settlements")
           .update({ ...payload, updated_at: new Date().toISOString() })
@@ -209,10 +220,7 @@ export function FnFSettlementDialog({ open, onOpenChange, employees = [], settle
       await syncFnFDepositReservations(created.id);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
-      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
-      qc.invalidateQueries({ queryKey: ["resignation-fnf"] });
-      qc.invalidateQueries({ queryKey: ["resignation-checklist"] });
+      invalidateFnFEverywhere(qc);
       toast.success(editingId ? "F&F Settlement updated" : "F&F Settlement created");
       onOpenChange(false);
       onSaved?.();

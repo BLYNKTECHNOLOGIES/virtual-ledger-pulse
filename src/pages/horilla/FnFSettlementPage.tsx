@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { dismissInRazorpay } from "@/lib/razorpayPushback";
+import { fnfEditLock, invalidateFnFEverywhere } from "@/lib/fnfEditLock";
 import { SourceTag } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
 import { syncFnFDepositReservations, missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
@@ -177,7 +178,7 @@ export default function FnFSettlementPage() {
     },
 
     onSuccess: (result: any) => {
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["resignation-employees"] });
       toast.success("Status updated");
@@ -201,7 +202,7 @@ export default function FnFSettlementPage() {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       toast.success("Pushed to RazorpayX and verified on the run");
     },
     onError: (e: any) => toast.error(e.message),
@@ -224,7 +225,7 @@ export default function FnFSettlementPage() {
       return data as any;
     },
     onSuccess: (res: any) => {
-      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
       qc.invalidateQueries({ queryKey: ["resignation-fnf"] });
       qc.invalidateQueries({ queryKey: ["resignation-checklist"] });
@@ -353,27 +354,22 @@ export default function FnFSettlementPage() {
                     )}
 
                     {(() => {
-                      // Draft/calculated are always editable. An approved settlement
-                      // can still be corrected as long as its lines are not live on a
-                      // RazorpayX payroll run — the DB state machine only restricts
-                      // status transitions, not amount edits.
-                      const isPushed = s.razorpay_push_status === "pushed";
-                      const canEdit = EDITABLE_STATUSES.includes(s.status) || (s.status === "approved" && !isPushed && s.status !== "paid");
-                      if (canEdit) {
+                      // Shared lock rule: a settlement stops being editable once
+                      // its money is live on the monthly payroll run (pushed to
+                      // RazorpayX) or it has been paid/cancelled.
+                      const lock = fnfEditLock(s);
+                      if (!lock.locked) {
                         return (
                           <Button size="sm" variant="outline" className="h-8" onClick={() => openEdit(s)}>
                             Edit
                           </Button>
                         );
                       }
-                      if (s.status === "approved" && isPushed) {
-                        return (
-                          <Button size="sm" variant="outline" className="h-8" disabled title="Already pushed to RazorpayX — remove the F&F lines there before editing">
-                            Edit
-                          </Button>
-                        );
-                      }
-                      return null;
+                      return (
+                        <Button size="sm" variant="outline" className="h-8" disabled title={lock.reason}>
+                          Edit
+                        </Button>
+                      );
                     })()}
 
                     {s.status === "draft" && (

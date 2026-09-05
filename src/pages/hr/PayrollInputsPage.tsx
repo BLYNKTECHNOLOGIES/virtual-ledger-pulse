@@ -221,12 +221,25 @@ export default function PayrollInputsPage() {
 
   const deleteRow = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from(table).delete().eq("id", id);
+      // `.select()` makes the silent case visible: if permissions hide the row,
+      // PostgREST reports success with zero rows removed.
+      const { data, error } = await (supabase as any).from(table).delete().eq("id", id).select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Nothing was removed — the row no longer exists or you do not have permission to remove it. The list has been refreshed.");
+      }
+      return data.length;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }),
-    onError: (e: any) => toast.error(e.message),
+    onSuccess: async () => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
+      toast.success("Staged row deleted");
+    },
+    onError: async (e: any) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
+      toast.error(e.message);
+    },
   });
+
 
   // Single push primitive. The proxy converts additions to RazorpayX's array
   // contract and deductions to its email + aggregate deduction-amount contract.

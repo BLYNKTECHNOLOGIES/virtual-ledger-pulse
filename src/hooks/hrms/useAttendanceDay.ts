@@ -49,6 +49,37 @@ export interface AttendanceDay {
   engine_version: string | null;
   lop_contribution: number;
   watchdog_held: boolean;
+  /** Declared company holiday (includes recurring holidays). */
+  is_holiday: boolean;
+  /** Weekly off for THIS employee (per-employee pattern, tenant default otherwise). */
+  is_week_off: boolean;
+  /** Day counted by the payroll/LOP engine (not a holiday, not a weekly off). */
+  is_working_day: boolean;
+  /** Covered by an approved leave request. */
+  on_approved_leave: boolean;
+  leave_is_paid: boolean;
+}
+
+/**
+ * Status shown on a calendar tile, aligned with the payroll summary engine:
+ * holidays and weekly offs read as such unless the employee actually worked,
+ * and approved leave fills days the engine left blank.
+ */
+export function resolveDayStatus(day?: AttendanceDay | null): AttendanceDayStatus {
+  if (!day) return "no_data";
+  const s = day.status;
+  const worked = s === "present" || s === "half_day" || s === "in_progress" || s === "incomplete";
+  if (!worked) {
+    if (day.is_holiday) return "holiday";
+    if (day.is_week_off) return "week_off";
+    if (day.on_approved_leave) return "on_leave";
+  }
+  return s === "no_data" && day.on_approved_leave ? "on_leave" : s;
+}
+
+/** Does this day count towards attendance/LOP maths? Mirrors hr_lop_days. */
+export function countsTowardAttendance(day: AttendanceDay): boolean {
+  return !!day.is_working_day;
 }
 
 /**

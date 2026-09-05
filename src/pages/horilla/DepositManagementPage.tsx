@@ -124,10 +124,18 @@ export default function DepositManagementPage() {
     return c;
   }, [typeDeposits]);
 
-  const deposits = useMemo(
-    () => (subTab === "all" ? typeDeposits : typeDeposits.filter((d: any) => lifecycleOf(d) === subTab)),
-    [typeDeposits, subTab],
-  );
+  const deposits = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = subTab === "all" ? typeDeposits : typeDeposits.filter((d: any) => lifecycleOf(d) === subTab);
+    if (q) {
+      list = list.filter((d: any) => {
+        const e = d.hr_employees || {};
+        const name = `${e.first_name || ""} ${e.last_name || ""}`.toLowerCase();
+        return name.includes(q) || String(e.badge_id || "").toLowerCase().includes(q);
+      });
+    }
+    return list;
+  }, [typeDeposits, subTab, search]);
 
   // One row per employee, entries nested underneath
   const groups = useMemo(() => {

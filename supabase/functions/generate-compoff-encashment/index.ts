@@ -37,12 +37,18 @@ Deno.serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (!token) return json({ error: "unauthorized" }, 401);
+    if (!token) {
+      console.error("compoff: no bearer token on request");
+      return json({ error: "unauthorized", message: "No authorization token" }, 401);
+    }
     const authClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: userRes, error: userErr } = await authClient.auth.getUser(token);
-    if (userErr || !userRes?.user) return json({ error: "unauthorized" }, 401);
+    if (userErr || !userRes?.user) {
+      console.error("compoff: getUser failed", userErr?.message ?? "no user");
+      return json({ error: "unauthorized", message: userErr?.message ?? "Session invalid — sign in again" }, 401);
+    }
     const callerId = userRes.user.id;
 
     const body = await req.json().catch(() => ({}));

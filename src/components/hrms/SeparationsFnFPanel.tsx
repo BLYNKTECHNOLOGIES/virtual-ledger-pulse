@@ -188,6 +188,36 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     [live, cycle],
   );
 
+  // Dismissal governance. The nightly sweep only deactivates + dismisses an
+  // employee once their F&F is paid and pushed; anyone past their last working
+  // day with an unsettled F&F is held back, and any already-deactivated leaver
+  // whose F&F never reached 'paid' is a historic integrity flag.
+  const settlementByEmployee = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const s of live) if (!m.has(s.employee_id)) m.set(s.employee_id, s);
+    return m;
+  }, [live]);
+
+  const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+
+  const dismissalHeld = useMemo(
+    () =>
+      separated
+        .filter((e: any) => e.is_active && e.last_working_day && e.last_working_day < todayIst)
+        .map((e: any) => ({ e, s: settlementByEmployee.get(e.id) }))
+        .filter(({ s }) => String(s?.status || "") !== "paid"),
+    [separated, settlementByEmployee, todayIst],
+  );
+
+  const dismissedBeforeSettlement = useMemo(
+    () =>
+      separated
+        .filter((e: any) => !e.is_active)
+        .map((e: any) => ({ e, s: settlementByEmployee.get(e.id) }))
+        .filter(({ s }) => !s || String(s.status) !== "paid"),
+    [separated, settlementByEmployee],
+  );
+
   const retag = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any)
@@ -510,6 +540,59 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {(dismissalHeld.length > 0 || dismissedBeforeSettlement.length > 0) && (
+        <div className="space-y-2.5">
+          <SectionHead
+            icon={UserMinus}
+            title="Dismissal governance"
+            count={dismissalHeld.length + dismissedBeforeSettlement.length}
+            tone="warning"
+          />
+          {dismissalHeld.length > 0 && (
+            <Card className="border-warning/40 bg-warning/5">
+              <CardContent className="p-3 space-y-1.5">
+                <p className="text-xs font-medium">
+                  Auto-dismissal held — {dismissalHeld.length} leaver(s) past their last working day
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  They stay active in HRMS and RazorpayX on purpose: dismissing before the F&amp;F is paid
+                  would close their payroll record and block the final run. Finish the settlement here.
+                </p>
+                {dismissalHeld.map(({ e, s }: any) => (
+                  <p key={e.id} className="text-[11px] tabular-nums">
+                    <span className="font-medium text-foreground">
+                      {e.first_name} {e.last_name} · {e.badge_id}
+                    </span>{" "}
+                    — LWD {e.last_working_day} · F&amp;F {s ? String(s.status).replace("_", " ") : "not created"}
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          {dismissedBeforeSettlement.length > 0 && (
+            <Card className="border-destructive/30 bg-destructive/[0.03]">
+              <CardContent className="p-3 space-y-1.5">
+                <p className="text-xs font-medium text-destructive">
+                  Deactivated with an unsettled F&amp;F — {dismissedBeforeSettlement.length} leaver(s)
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  These exits were closed before their settlement reached "paid". Check whether anything is
+                  still owed; RazorpayX may no longer accept payroll lines for them.
+                </p>
+                {dismissedBeforeSettlement.map(({ e, s }: any) => (
+                  <p key={e.id} className="text-[11px] tabular-nums">
+                    <span className="font-medium text-foreground">
+                      {e.first_name} {e.last_name} · {e.badge_id}
+                    </span>{" "}
+                    — LWD {e.last_working_day || "—"} · F&amp;F {s ? String(s.status).replace("_", " ") : "not created"}
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* 1) Settlements scheduled for this cycle */}

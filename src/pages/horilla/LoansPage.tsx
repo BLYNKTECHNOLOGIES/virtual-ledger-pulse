@@ -117,7 +117,9 @@ export default function LoansPage() {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
       setShowCreate(false);
+      setEmiTouched(false);
       setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "", disbursement_mode: "outside_payroll" });
+
       toast.success(
         r?.extended
           ? `Loan created — tenure extended to ${r.tenure} months, last installment ₹${Math.round(r.last).toLocaleString("en-IN")}. Pending approval.`

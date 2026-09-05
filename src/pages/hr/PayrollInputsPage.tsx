@@ -292,6 +292,13 @@ export default function PayrollInputsPage() {
     const items = group.map((r) => (kind === "addition"
       ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
       : { label: r.label, amount: Number(r.amount) }));
+
+    // NOTE: RazorpayX's deduction contract is a SINGLE aggregate
+    // `deduction-amount` per employee/month — every call REPLACES the previous
+    // total. The proxy merges this employee's already-pushed rows for the same
+    // month into the envelope, so partial pushes can no longer wipe each other.
+
+
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),
       "employee-type": "employee",

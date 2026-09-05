@@ -7775,7 +7775,43 @@ Deno.serve(async (req) => {
         if (!data["employee-id"]) missing.push("employee-id");
         if (!data["payroll-month"]) missing.push("payroll-month");
         const allowZero = directPayload?.allow_zero === true;
+        // ── Aggregate-contract guard (deductions only) ────────────────────
+        // Opfin exposes ONE aggregate `deduction-amount` per employee/month.
+        // Each add-deduction call REPLACES the month's whole deduction figure
+        // (verified: Dilkhush Thakur, Aug-2026 — a ₹720 LOP push was silently
+        // wiped by a later ₹1,452 CTC-recovery push, leaving the run short).
+        // So every deduction envelope must carry the employee's FULL month
+        // total: the incoming rows plus every row already pushed for the same
+        // employee/month. Additions are a labelled array that Opfin upserts by
+        // label, so they need no merge.
+        if (action === "payroll_add_deduction" && !allowZero && directPayload?.skip_merge !== true) {
+          try {
+            const rpEid = String(data["employee-id"]);
+            const monthStart = `${String(data["payroll-month"]).slice(0, 7)}-01`;
+            const incoming = Array.isArray(data.deductions)
+              ? data.deductions
+              : (data.deductions && typeof data.deductions === "object")
+                ? Object.entries(data.deductions).map(([k, v]: [string, any]) => (v && typeof v === "object" ? { label: v.name ?? k, amount: v.amount } : { label: k, amount: v }))
+                : [];
+            const incomingLabels = new Set(incoming.map((i: any) => String(i?.label ?? i?.name ?? "").trim()));
+            const skipIds = new Set<string>((directPayload?.readback_ids || []).map(String));
+            const { data: pushedRows } = await svc
+              .from("hr_payroll_input_deductions")
+              .select("id,label,amount,pushed_at")
+              .eq("razorpay_employee_id", rpEid)
+              .eq("period_month", monthStart)
+              .not("pushed_at", "is", null);
+            const merged = [...incoming];
+            for (const r of pushedRows || []) {
+              if (skipIds.has(String(r.id))) continue;
+              if (incomingLabels.has(String(r.label || "").trim())) continue;
+              merged.push({ label: r.label, amount: Number(r.amount) });
+            }
+            data.deductions = merged;
+          } catch (_) { /* merge is best-effort; the incoming envelope still applies */ }
+        }
         const { map, expect } = normalizePayrollModifications(data[kind], kind as any, allowZero);
+
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
         if (action === "payroll_add_additions") {

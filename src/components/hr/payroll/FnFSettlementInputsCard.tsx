@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateFnFEverywhere } from "@/lib/fnfEditLock";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { UserMinus, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { UserMinus, ChevronDown, ChevronRight, Loader2, Upload } from "lucide-react";
+
 
 
 /**
@@ -46,7 +49,8 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
             F&amp;F settlement {kind === "addition" ? "additions (dues)" : "deductions (recoveries)"} — {period}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Pushed by the F&amp;F approval itself — read-only here. Expand a row for the breakdown.
+            Staged by the F&amp;F approval. Lines marked &quot;Not on the run&quot; have not reached RazorpayX yet —
+            push them from here. Expand a row for the breakdown.
           </p>
         </div>
         <div className="text-right">
@@ -81,22 +85,51 @@ const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximu
 /** One consolidated F&F payroll line, expandable into its settlement components. */
 function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
   const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
   const e = row.hr_employees;
-  const settlementId = row.push_response?.settlement_id ?? null;
+  const linkedId = row.push_response?.settlement_id ?? null;
+  const isPushed = !!row.pushed_at;
 
+  // Legacy/mirror rows can be missing the settlement link. Fall back to the
+  // approved settlement of the same employee on the same payroll cycle so the
+  // breakdown — and the retry push — still work.
   const { data: settlement, isLoading } = useQuery({
-    queryKey: ["fnf_settlement_detail", settlementId],
-    enabled: open && !!settlementId,
+    queryKey: ["fnf_settlement_detail", linkedId || `${row.hr_employee_id}:${row.period_month}`],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_fnf_settlements")
-        .select("*")
-        .eq("id", settlementId)
-        .maybeSingle();
+      const q = (supabase as any).from("hr_fnf_settlements").select("*");
+      const { data, error } = linkedId
+        ? await q.eq("id", linkedId).maybeSingle()
+        : await q
+            .eq("employee_id", row.hr_employee_id)
+            .eq("payroll_month", row.period_month)
+            .neq("status", "cancelled")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
+
+  const settlementId = linkedId || settlement?.id || null;
+
+  const pushMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).functions.invoke("hr-push-fnf", {
+        body: { settlement_id: settlementId },
+      });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.error || "Push did not verify on the RazorpayX read-back");
+      return data;
+    },
+    onSuccess: () => {
+      invalidateFnFEverywhere(qc);
+      qc.invalidateQueries({ queryKey: ["fnf_payroll_inputs"] });
+      toast.success("Pushed to RazorpayX and verified on the run");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
 
   const b: any = settlement?.breakdown || {};
   const components: { label: string; amount: number; note?: string }[] = settlement
@@ -140,14 +173,34 @@ function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
         <td className="px-3 py-2">{row.label}</td>
         <td className="px-3 py-2 tabular-nums">{inr(row.amount)}</td>
         <td className="px-3 py-2">
-          {row.pushed_at && row.readback_verified_at ? (
-            <Badge className="bg-success/10 text-success">Verified on run</Badge>
-          ) : row.pushed_at ? (
-            <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
-          ) : (
-            <Badge variant="outline">Not on the run</Badge>
-          )}
+          <div className="flex items-center gap-2 flex-wrap">
+            {row.pushed_at && row.readback_verified_at ? (
+              <Badge className="bg-success/10 text-success">Verified on run</Badge>
+            ) : row.pushed_at ? (
+              <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
+            ) : (
+              <Badge variant="outline">Not on the run</Badge>
+            )}
+            {!isPushed && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-7"
+                disabled={!settlementId || pushMutation.isPending}
+                onClick={() => pushMutation.mutate()}
+              >
+                {pushMutation.isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                <span className="ml-1.5">Push to RazorpayX</span>
+              </Button>
+            )}
+          </div>
         </td>
+
       </tr>
       {open && (
         <tr className="border-b bg-muted/20">

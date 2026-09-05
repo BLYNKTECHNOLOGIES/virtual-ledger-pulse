@@ -196,7 +196,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       fetchAllPaginated<any>(() =>
         (supabase as any).from("hr_employee_work_info").select("employee_id,department_id,joining_date,employee_type").order("id"),
       ),
-      fetchAllPaginated<any>(() => (supabase as any).from("departments").select("id,department").order("id")),
+      fetchAllPaginated<any>(() => (supabase as any).from("departments").select("id,name").order("id")),
       fetchAllPaginated<any>(() =>
         (supabase as any).from("hr_razorpay_employee_map").select("hr_employee_id,razorpay_employee_id,sync_status").order("hr_employee_id"),
       ),
@@ -209,7 +209,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const coBy = new Map(coRows.map((r) => [r.hr_employee_id, r]));
   const lopBy = new Map(lopRows.map((r) => [r.hr_employee_id, r]));
 
-  const deptName = new Map(depts.map((d: any) => [d.id, d.department]));
+  const deptName = new Map(depts.map((d: any) => [d.id, d.name]));
   const wi = new Map(workInfo.map((w: any) => [w.employee_id, w]));
   const emp = new Map(employees.map((e: any) => [e.id, e]));
   const mapped = new Map(rzpMap.map((m: any) => [m.hr_employee_id, m]));

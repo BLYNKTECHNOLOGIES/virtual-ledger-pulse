@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEngine } from "@/lib/hrms/invokeEngine";
 
 /**
  * Mandatory recalculation gate for the payroll cockpit.
@@ -23,12 +23,8 @@ const PENDING = new Set(["new", "changed", "remove"]);
 type Preview = { rows: any[]; summary?: Record<string, any> };
 
 async function runPreview(fn: string, period: string): Promise<Preview> {
-  const { data, error } = await supabase.functions.invoke(fn, {
-    body: { period, dry_run: true },
-  });
-  if (error) throw error;
-  if ((data as any)?.error) throw new Error(String((data as any).error));
-  return { rows: (data as any)?.rows ?? [], summary: (data as any)?.summary };
+  const data = await invokeEngine<any>(fn, { period, dry_run: true });
+  return { rows: data?.rows ?? [], summary: data?.summary };
 }
 
 function pendingOf(p?: Preview) {

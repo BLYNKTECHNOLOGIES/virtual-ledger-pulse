@@ -845,6 +845,7 @@ export default function MonthlyPayrollCockpitPage() {
                   });
                   return;
                 }
+                ack.mutate(
                   { step_no: ackStep.step_no, status: "done", notes: ackNotes || undefined },
                   { onSuccess: () => setAckStep(null) }
                 );

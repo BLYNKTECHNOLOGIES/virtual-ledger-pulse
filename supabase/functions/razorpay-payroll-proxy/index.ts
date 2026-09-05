@@ -2180,6 +2180,12 @@ Deno.serve(async (req) => {
             month: ym, http: res.status,
             error: body?.error || body?.message || null,
             salary: body?.salary ?? null,
+            // Read-only enrichment: the live modification state on the run, so a
+            // reversal can be proven (deduction back to 0) without a write.
+            deduction_amount: body?.["deduction-amount"] ?? null,
+            deductions: body?.deductions ?? null,
+            additions: body?.additions ?? null,
+            do_not_pay: body?.["do-not-pay"] ?? null,
             keys: body && typeof body === "object" ? Object.keys(body).slice(0, 15) : null,
           });
         } catch (e) {

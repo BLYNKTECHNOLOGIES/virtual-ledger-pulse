@@ -872,7 +872,6 @@ export default function PayrollInputsPage() {
                               <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || unpushRow.isPending} onClick={() => setUnpushConfirm(r)} title="Take this line off the RazorpayX run">
                                 <Undo2 className="h-3 w-3 mr-1" /> Unpush
                               </Button>
-                              <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
                             </>
                           )}
 
@@ -1009,7 +1008,6 @@ export default function PayrollInputsPage() {
                               <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen || unpushRow.isPending} onClick={() => setUnpushConfirm(r)} title="Take this line off the RazorpayX run">
                                 <Undo2 className="h-3 w-3 mr-1" /> Unpush
                               </Button>
-                              <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
                             </>
                           )}
 

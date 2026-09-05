@@ -100,14 +100,14 @@ Deno.serve(async (req) => {
     const lopByEmp = new Map<string, any>();
     for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
 
-    // Employment-window proration (Model B).
+    // Employment window — REPORTING ONLY (Model A, owner ruling 05-Sep-2026).
     //
-    // RazorpayX pays the FULL monthly salary in the joining/relieving month
-    // (payroll:view-payroll returns isProRated: false), so the working days a
-    // person was not employed for must be charged back as LOP days — otherwise
-    // a 13th-of-the-month joiner is paid a whole month. The canonical LOP
-    // engine deliberately clips to the employment window, so those days are
-    // counted here and added on top.
+    // Proven live against payroll:view-payroll for the Aug-2026 mid-month
+    // joiners (badges 12/13/16/19/21/25): RazorpayX already prorates the
+    // joining month itself — e.g. a 17-Aug joiner on ₹10,000/month is paid
+    // ₹4,839 (15/31). Charging the pre-joining days back as LOP therefore
+    // DOUBLE-deducts and wipes the joining-month pay to zero. Days outside the
+    // employment window are now surfaced for audit only and never charged.
     const { data: gapRows, error: gapErr } = await supabase.rpc("hr_employment_gap_working_days", {
       p_employee_ids: roster.map((r: any) => r.hr_employee_id),
       p_period_month: periodStr,

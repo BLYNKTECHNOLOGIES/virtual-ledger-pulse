@@ -188,15 +188,14 @@ Deno.serve(async (req) => {
       const gap = gapByEmp.get(map.hr_employee_id);
       const monthWorkingDays = Number(gap?.month_working_days ?? 0);
       const monthCalendarDays = Number(gap?.month_calendar_days ?? totalDays) || totalDays;
-      // Proration is CALENDAR-based (Sept 2026 owner ruling): the day rate is
-      // salary ÷ calendar days, so the un-served part of a joining/relieving
-      // month must be counted in calendar days too. The joining day itself is
-      // always payable (the SQL helper only counts days strictly before DOJ).
+      // Days the person was NOT employed in this month. RazorpayX prorates the
+      // joining/relieving month on its own, so these are reported but NEVER
+      // charged (owner ruling 05-Sep-2026, verified on the live payroll).
       const gapDays = Number(gap?.gap_calendar_days ?? 0);
       const gapWorkingDays = Number(gap?.gap_working_days ?? 0);
-      // Charge days = genuine absence (after comp-off + CL) + days not employed.
+      // Charge days = genuine absence within the employment window only.
       const chargeDays = Math.min(
-        Math.round((split.lop_after_offset + gapDays) * 100) / 100,
+        Math.round(split.lop_after_offset * 100) / 100,
         monthCalendarDays,
       );
 

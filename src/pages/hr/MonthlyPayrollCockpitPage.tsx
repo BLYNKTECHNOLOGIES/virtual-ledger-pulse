@@ -400,6 +400,14 @@ export default function MonthlyPayrollCockpitPage() {
 
   const { data: steps = [], isLoading, error } = useCockpitMonth(month);
   const stepGate = usePayrollStepGate(month);
+  const recalc = useMandatoryRecalcs(month);
+
+  /** Recalculations that MUST have been run and staged before a step is confirmed. */
+  function recalcReasonsFor(stepKey: string): string[] {
+    if (stepKey === "lop_push") return recalc.lopReasons;
+    if (stepKey === "inputs_push") return recalc.compoffReasons;
+    return [];
+  }
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 

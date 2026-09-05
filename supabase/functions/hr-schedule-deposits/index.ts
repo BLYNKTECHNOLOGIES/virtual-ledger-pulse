@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
     if (loanIds.length) {
       const { data: loans } = await svc
         .from("hr_loans")
-        .select("id, status, loan_type, advance_type")
+        .select("id, status, loan_type, advance_type, disbursement_mode")
         .in("id", loanIds);
       for (const l of (loans ?? []) as any[]) loanMeta.set(l.id, l);
     }
@@ -211,7 +211,14 @@ Deno.serve(async (req) => {
         results.push({ kind: "loan", id: r.id, skipped: `loan status ${loan?.status ?? "missing"}` });
         continue;
       }
+      // Advances created through the RazorpayX Advance Salary API are recovered
+      // by RazorpayX itself. Staging our own EMI deduction would double-recover.
+      if (loan.disbursement_mode === "razorpay_advance") {
+        results.push({ kind: "loan", id: r.id, skipped: "RazorpayX advance — EMI recovered by RazorpayX" });
+        continue;
+      }
       const isAdvance = (loan.loan_type || "").includes("advance");
+
       const staged = await stageDeduction(svc, {
         hr_employee_id: r.employee_id,
         period_month: r.period_month,

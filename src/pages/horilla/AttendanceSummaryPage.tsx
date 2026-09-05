@@ -260,26 +260,96 @@ export default function AttendanceSummaryPage() {
     const rows = filtered as any[];
     if (!rows.length) return;
     const esc = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const nowIst = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).format(new Date());
+    const monthLabel = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", month: "long", year: "numeric" })
+      .format(new Date(`${month}-01T00:00:00Z`));
+
+    const lines: string[] = [];
+    lines.push(["Attendance Summary"].map(esc).join(","));
+    lines.push(["Period", monthLabel].map(esc).join(","));
+    lines.push(["Generated (IST)", nowIst].map(esc).join(","));
+    lines.push(["Source", "hr_attendance_month_summary — same engine as the calendar view and the on-screen summary"].map(esc).join(","));
+    lines.push(["Scope", "Active employees, contractors excluded"].map(esc).join(","));
+    lines.push(
+      ["Note", "Present (credited) counts each half day as 0.5. Present (full days) + Half days x 0.5 = Present (credited)."]
+        .map(esc).join(","),
+    );
+    lines.push("");
+
     const header = [
-      "Employee", "Badge ID", "Working Days", "Present", "Paid Leave", "Not Counted",
-      "Loss of Pay", "Overtime (h)", "Late (min)", "Early Out (min)", "Attendance %",
+      "Employee", "Badge ID", "Department", "Shift",
+      "Working Days", "Present (full days)", "Half Days", "Present (credited)",
+      "Paid Leave", "Unpaid Leave", "Absent", "Not Counted (held harmless)", "Unverified",
+      "Loss of Pay (days)", "Attendance %",
+      "Overtime (h)", "Late (min)", "Early Out (min)",
+      "Days with Biometric Evidence", "Biometric Signal", "LOP Formula", "Config Warnings",
     ];
-    const lines = [header.map(esc).join(",")];
-    for (const s of rows) {
+    lines.push(header.map(esc).join(","));
+
+    const sorted = [...rows].sort((a, b) =>
+      `${a.employee?.first_name ?? ""} ${a.employee?.last_name ?? ""}`.trim().toLowerCase()
+        .localeCompare(`${b.employee?.first_name ?? ""} ${b.employee?.last_name ?? ""}`.trim().toLowerCase()),
+    );
+
+    const t = { wd: 0, full: 0, half: 0, credited: 0, pl: 0, ul: 0, ab: 0, hh: 0, uv: 0, lop: 0, ot: 0, late: 0, early: 0, ev: 0 };
+
+    for (const s of sorted) {
+      const half = Number(s.half_days) || 0;
+      const credited = Number(s.present_days) || 0;
+      const full = credited - half * 0.5;
+      t.wd += Number(s.working_days) || 0;
+      t.full += full;
+      t.half += half;
+      t.credited += credited;
+      t.pl += Number(s.paid_leave_days) || 0;
+      t.ul += Number(s.unpaid_leave_days) || 0;
+      t.ab += Number(s.absent_days) || 0;
+      t.hh += Number(s.held_harmless_days) || 0;
+      t.uv += Number(s.unverified_days) || 0;
+      t.lop += Number(s.lop_days) || 0;
+      t.ot += Number(s.ot_hours) || 0;
+      t.late += Number(s.late_minutes) || 0;
+      t.early += Number(s.early_minutes) || 0;
+      t.ev += Number(s.evidence_days) || 0;
+
       lines.push([
         `${s.employee?.first_name ?? ""} ${s.employee?.last_name ?? ""}`.trim(),
         s.employee?.badge_id ?? "",
+        deptByEmployee.get(s.employee_id) ?? "",
+        shiftNameByEmployee.get(s.employee_id) ?? "",
         Number(s.working_days),
-        Number(s.present_days),
+        full,
+        half,
+        credited,
         Number(s.paid_leave_days),
+        Number(s.unpaid_leave_days),
+        Number(s.absent_days),
         Number(s.held_harmless_days),
+        Number(s.unverified_days),
         Number(s.lop_days),
-        Number(s.ot_hours).toFixed(1),
+        s.rate.toFixed(1),
+        Number(s.ot_hours).toFixed(2),
         Number(s.late_minutes),
         Number(s.early_minutes),
-        s.rate.toFixed(1),
+        Number(s.evidence_days),
+        s.no_biometric_signal ? "No punches recorded" : "Present",
+        s.formula ?? "",
+        (s.config_errors || []).join("; "),
       ].map(esc).join(","));
     }
+
+    const totalRate = t.wd > 0 ? Math.min(100, ((t.credited + t.pl + t.hh) / t.wd) * 100) : 0;
+    lines.push("");
+    lines.push([
+      `TOTAL (${sorted.length} employees)`, "", "", "",
+      t.wd, t.full, t.half, t.credited, t.pl, t.ul, t.ab, t.hh, t.uv, t.lop,
+      totalRate.toFixed(1), t.ot.toFixed(2), t.late, t.early, t.ev, "", "", "",
+    ].map(esc).join(","));
+
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -288,6 +358,7 @@ export default function AttendanceSummaryPage() {
     a.click();
     URL.revokeObjectURL(url);
   };
+
 
   return (
     <TooltipProvider delayDuration={150}>

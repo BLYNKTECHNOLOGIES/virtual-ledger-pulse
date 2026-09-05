@@ -412,7 +412,23 @@ export default function LoansPage() {
               <div><Label>Interest Rate (%)</Label><Input type="number" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: e.target.value })} /></div>
               <div><Label>Start EMI Date *</Label><Input type="date" value={form.start_emi_date} onChange={(e) => setForm({ ...form, start_emi_date: e.target.value })} /></div>
             </div>
+            <div>
+              <Label>How is the money paid out? *</Label>
+              <Select value={form.disbursement_mode} onValueChange={(v) => setForm({ ...form, disbursement_mode: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="outside_payroll">Paid outside payroll (bank transfer / cash)</SelectItem>
+                  <SelectItem value="razorpay_advance">Through RazorpayX Advance Salary</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.disbursement_mode === "razorpay_advance"
+                  ? "On approval the advance is created in RazorpayX (you release the payment from the RazorpayX dashboard). RazorpayX also recovers the EMI, so HRMS will not stage its own monthly deduction."
+                  : "HRMS pays nothing out. From the next cycle each EMI is staged in Payroll Inputs → Deductions for HR to review and push."}
+              </p>
+            </div>
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Purpose of loan/advance..." /></div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>

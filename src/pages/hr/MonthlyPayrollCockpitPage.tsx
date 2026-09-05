@@ -771,6 +771,20 @@ export default function MonthlyPayrollCockpitPage() {
                             <CheckCircle2 className="h-4 w-4" /> Confirm anyway
                           </Button>
                         )}
+                        {stepRecalcReasons.length > 0 && !closed && (
+                          <Button
+                            variant="outline"
+                            className="h-10 w-full gap-1.5 border-warning/40 text-warning hover:text-warning"
+                            onClick={() =>
+                              toast.error("This step cannot be confirmed yet", {
+                                description: `${stepRecalcReasons.join(". ")}. Run the calculation and stage the rows first.`,
+                              })
+                            }
+                          >
+                            <Lock className="h-4 w-4" /> Mark done
+                          </Button>
+                        )}
+
                         {step.ack_status === "done" && !closed && !isCloseStep(step) && (
 
                           <Button

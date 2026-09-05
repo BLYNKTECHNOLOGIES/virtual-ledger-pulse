@@ -255,6 +255,7 @@ Deno.serve(async (req) => {
         cl_offset_days: split.cl_offset_days,
         absence_lop_days: split.lop_after_offset,
         proration_days: gapDays,
+        not_employed_days: gapDays,
         employment_from: gap?.emp_from ?? null,
         employment_to: gap?.emp_to ?? null,
         lop_days: chargeDays,
@@ -277,7 +278,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (monthWorkingDays > 0 && gapDays >= monthWorkingDays) {
+      if (monthCalendarDays > 0 && gapDays >= monthCalendarDays) {
         rows.push({ ...base, status: "skipped", reason: "Not employed during this period — no payroll expected", amount: 0, base_source: null });
         continue;
       }
@@ -307,7 +308,7 @@ Deno.serve(async (req) => {
 
 
 
-      // Absence LOP (after comp-off) + employment-window proration days.
+      // Absence LOP (after comp-off/CL). Not-employed days are never charged.
       const absenceDays = split.lop_after_offset;
       const lopDays = chargeDays;
 

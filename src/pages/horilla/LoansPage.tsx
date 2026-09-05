@@ -186,10 +186,16 @@ export default function LoansPage() {
       return { pushed: true as boolean, advanceId };
 
     },
-    onSuccess: (_d, vars) => {
+    onSuccess: (d: any, vars) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
-      toast.success(vars.action === "approved" ? "Loan approved — EMI schedule generated" : "Loan rejected");
+      if (vars.action !== "approved") { toast.success("Loan rejected"); return; }
+      toast.success(
+        d?.pushed
+          ? `Approved — advance created in RazorpayX${d.advanceId ? ` (id ${d.advanceId})` : ""}. Release the payment from the RazorpayX dashboard; RazorpayX will recover the EMI.`
+          : "Loan approved — EMI schedule generated. Each instalment will appear in Payroll Inputs → Deductions for HR to push.",
+      );
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

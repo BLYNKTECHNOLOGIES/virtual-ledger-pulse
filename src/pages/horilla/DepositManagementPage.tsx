@@ -85,6 +85,8 @@ export default function DepositManagementPage() {
 
   // Delete / cancel remaining EMIs
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteAcknowledged, setDeleteAcknowledged] = useState(false);
+
 
 
 

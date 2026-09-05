@@ -364,7 +364,9 @@ export default function MonthlyPayrollCockpitPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
   const [toolStep, setToolStep] = useState<{ no: number; label: string } | null>(null);
+  const [packOpen, setPackOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+
 
   const [, setSearchParams] = useSearchParams();
   const qc = useQueryClient();

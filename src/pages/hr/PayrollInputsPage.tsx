@@ -71,6 +71,10 @@ export default function PayrollInputsPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  // Comp-off encashment block keeps its own selection (its rows are excluded from the main list).
+  const [coSelected, setCoSelected] = useState<Record<string, boolean>>({});
+  const [coPushConfirm, setCoPushConfirm] = useState(false);
+  const [coDeleteConfirm, setCoDeleteConfirm] = useState(false);
 
   // Persist the single-entry staging form across refreshes.
   const { clearDraft: clearFormDraftState } = useFormDraftPersistence(
@@ -370,7 +374,9 @@ export default function PayrollInputsPage() {
     onSuccess: ({ ok, failures }) => {
       qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
       setBulkPushConfirm(false);
+      setCoPushConfirm(false);
       setSelected({});
+      setCoSelected({});
       if (failures.length) {
         toast.error(`${ok} pushed, ${failures.length} failed`, { description: failures.slice(0, 3).join(" | ") });
         console.warn("Bulk push failures:", failures);
@@ -392,12 +398,12 @@ export default function PayrollInputsPage() {
     },
     onSuccess: async (n) => {
       await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
-      setSelected({}); setBulkDeleteConfirm(false);
+      setSelected({}); setCoSelected({}); setBulkDeleteConfirm(false); setCoDeleteConfirm(false);
       toast.success(`Deleted ${n} staged row${n === 1 ? "" : "s"}`);
     },
     onError: async (e: any) => {
       await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
-      setSelected({}); setBulkDeleteConfirm(false);
+      setSelected({}); setCoSelected({}); setBulkDeleteConfirm(false); setCoDeleteConfirm(false);
       toast.error(e.message);
     },
   });
@@ -443,6 +449,8 @@ export default function PayrollInputsPage() {
 
   const pendingRows = useMemo(() => (visibleRows as any[]).filter((r) => !r.pushed_at), [visibleRows]);
   const selectedPending = useMemo(() => pendingRows.filter((r: any) => selected[r.id]), [pendingRows, selected]);
+  const compoffPending = useMemo(() => (compoffRows as any[]).filter((r) => !r.pushed_at), [compoffRows]);
+  const compoffSelected = useMemo(() => compoffPending.filter((r: any) => coSelected[r.id]), [compoffPending, coSelected]);
 
   // Presentation-only roll-ups for the summary strip.
   const sum = (list: any[]) => list.reduce((s, r) => s + Number(r.amount || 0), 0);
@@ -813,9 +821,27 @@ export default function PayrollInputsPage() {
                 the remaining balance is encashed at monthly base ÷ working days and staged as an addition.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setCompoffOpen(true)}>
-              <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {compoffSelected.length > 0 && (
+                <>
+                  <Badge variant="secondary" className="text-xs">{compoffSelected.length} selected · {inr(sum(compoffSelected))}</Badge>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => setCoPushConfirm(true)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                    {bulkPush.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />} Push selected
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive" disabled={bulkDelete.isPending} onClick={() => setCoDeleteConfirm(true)}>
+                    <Trash2 className="h-3 w-3 mr-1" /> Delete selected
+                  </Button>
+                </>
+              )}
+              {compoffSelected.length === 0 && compoffPending.length > 0 && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => { setCoSelected(Object.fromEntries(compoffPending.map((r: any) => [r.id, true]))); setCoPushConfirm(true); }} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                  <Send className="h-3 w-3 mr-1" /> Push all pending ({compoffPending.length})
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setCompoffOpen(true)}>
+                <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0 border-t overflow-x-auto">
             {compoffRows.length === 0 ? (
@@ -826,6 +852,16 @@ export default function PayrollInputsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
+                    <th className="px-3 py-2 w-10">
+                      <Checkbox
+                        checked={compoffPending.length > 0 && compoffSelected.length === compoffPending.length}
+                        onCheckedChange={(v) =>
+                          setCoSelected(v ? Object.fromEntries(compoffPending.map((r: any) => [r.id, true])) : {})
+                        }
+                        disabled={compoffPending.length === 0}
+                        aria-label="Select all pending comp-off encashment rows"
+                      />
+                    </th>
                     {[
                       { h: "Employee", a: "text-left" },
                       { h: "Detail", a: "text-left" },
@@ -839,7 +875,16 @@ export default function PayrollInputsPage() {
                 </thead>
                 <tbody>
                   {compoffRows.map((r: any) => (
-                    <tr key={r.id} className="border-b hover:bg-muted/40 transition-colors">
+                    <tr key={r.id} className={`border-b hover:bg-muted/40 transition-colors ${coSelected[r.id] ? "bg-primary/5" : ""}`}>
+                      <td className="px-3 py-2">
+                        {!r.pushed_at && (
+                          <Checkbox
+                            checked={!!coSelected[r.id]}
+                            onCheckedChange={(v) => setCoSelected((prev) => ({ ...prev, [r.id]: !!v }))}
+                            aria-label={`Select ${empLabel(r)}`}
+                          />
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-[10px] font-semibold">{initials(r)}</span>
@@ -877,7 +922,7 @@ export default function PayrollInputsPage() {
                 </tbody>
                 <tfoot className="bg-muted/40 border-t">
                   <tr>
-                    <td colSpan={2} className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Total · {compoffRows.length} line(s)</td>
+                    <td colSpan={3} className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Total · {compoffRows.length} line(s)</td>
                     <td className="px-3 py-2 text-right tabular-nums font-bold">{inr(sum(compoffRows as any[]))}</td>
                     <td colSpan={2} />
                   </tr>
@@ -1042,6 +1087,40 @@ export default function PayrollInputsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => bulkPush.mutate(selectedPending)} disabled={bulkPush.isPending}>
               {bulkPush.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Push all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={coPushConfirm} onOpenChange={setCoPushConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Push {compoffSelected.length} comp-off encashment row{compoffSelected.length === 1 ? "" : "s"} to RazorpayX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Total {inr(sum(compoffSelected))} for period <strong>{period}</strong>. Rows are pushed one employee at a time and read back from the RazorpayX payroll run — a row is marked Pushed only after that verification succeeds.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkPush.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkPush.mutate(compoffSelected)} disabled={bulkPush.isPending}>
+              {bulkPush.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Push
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={coDeleteConfirm} onOpenChange={setCoDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {compoffSelected.length} staged comp-off row{compoffSelected.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These encashment lines will be removed from staging for {period}. Nothing already pushed to RazorpayX is affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDelete.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => bulkDelete.mutate(compoffSelected.map((r: any) => r.id))} disabled={bulkDelete.isPending}>
+              {bulkDelete.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

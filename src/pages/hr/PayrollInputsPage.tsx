@@ -781,7 +781,76 @@ export default function PayrollInputsPage() {
               <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
             </Button>
           </CardHeader>
+          <CardContent className="p-0 border-t overflow-x-auto">
+            {compoffRows.length === 0 ? (
+              <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+                Nothing staged yet for {periodLabel}. Run the calculation to stage encashment lines here.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 border-b">
+                  <tr>
+                    {[
+                      { h: "Employee", a: "text-left" },
+                      { h: "Detail", a: "text-left" },
+                      { h: "Amount", a: "text-right" },
+                      { h: "Status", a: "text-left" },
+                      { h: "Actions", a: "text-right" },
+                    ].map(({ h, a }) => (
+                      <th key={h} className={`px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground ${a}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {compoffRows.map((r: any) => (
+                    <tr key={r.id} className="border-b hover:bg-muted/40 transition-colors">
+                      <td className="px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-[10px] font-semibold">{initials(r)}</span>
+                          <span className="font-medium">{empLabel(r)}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.label}</td>
+                      <td className="px-3 py-2 text-right tabular-nums font-semibold text-success">+{inr(r.amount)}</td>
+                      <td className="px-3 py-2">
+                        {r.readback_verified_at ? (
+                          <Badge className="bg-success/10 text-success hover:bg-success/10">Verified on run</Badge>
+                        ) : r.pushed_at ? (
+                          <Badge className="bg-warning/10 text-warning hover:bg-warning/10">Pushed · unverified</Badge>
+                        ) : <Badge variant="outline" className="text-muted-foreground">Pending</Badge>}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1 justify-end">
+                          {!r.pushed_at && (
+                            <>
+                              <Button size="sm" variant="outline" className="h-7 text-xs" disabled={!gateOpen} onClick={() => setPushConfirm(r)} title={gateOpen ? "Push this line to RazorpayX" : "Payroll-write gate locked"}>
+                                <Send className="h-3 w-3 mr-1" /> Push
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" title="Delete staged row" onClick={() => deleteRow.mutate(r.id)}>
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </>
+                          )}
+                          {r.pushed_at && (
+                            <a className="text-xs underline text-muted-foreground inline-flex items-center gap-1" href="https://x.razorpay.com/payroll" target="_blank" rel="noreferrer">verify <ExternalLink className="h-3 w-3" /></a>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-muted/40 border-t">
+                  <tr>
+                    <td colSpan={2} className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Total · {compoffRows.length} line(s)</td>
+                    <td className="px-3 py-2 text-right tabular-nums font-bold">{inr(sum(compoffRows as any[]))}</td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </CardContent>
         </Card>
+
       )}
 
 

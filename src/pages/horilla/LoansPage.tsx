@@ -639,24 +639,50 @@ export default function LoansPage() {
                 )}
               </div>
 
-              {selectedLoan.disbursement_mode === "razorpay_advance" &&
-                !selectedLoan.razorpay_advance_salary_id &&
+              {["razorpay_advance", "payroll_addition"].includes(selectedLoan.disbursement_mode) &&
+                !selectedLoan.payroll_addition_id &&
                 ["approved", "active", "paused"].includes(selectedLoan.status) && (
                 <div className="border-t pt-4 space-y-2">
                   <p className="text-xs text-warning">
-                    This advance is approved here, but it was not created in RazorpayX yet — the earlier attempt did not go
-                    through. Retry once the RazorpayX payout route is available.
+                    The payout for this advance has not been staged in payroll yet. Pick the payroll month and stage it —
+                    it will appear in Payroll Inputs → Additions for HR to push.
                   </p>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={approveMutation.isPending}
-                    onClick={() => approveMutation.mutate({ id: selectedLoan.id, action: "approved" })}
-                  >
-                    Retry creating advance in RazorpayX
-                  </Button>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <div>
+                      <Label className="text-xs">Payroll month</Label>
+                      <Input type="month" className="h-9" value={stageMonth} onChange={(e) => setStageMonth(e.target.value)} />
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={approveMutation.isPending || !stageMonth}
+                      onClick={async () => {
+                        if (selectedLoan.disbursement_mode !== "payroll_addition") {
+                          const { error } = await (supabase as any)
+                            .from("hr_loans")
+                            .update({ disbursement_mode: "payroll_addition" })
+                            .eq("id", selectedLoan.id);
+                          if (error) { toast.error(error.message); return; }
+                        }
+                        approveMutation.mutate({ id: selectedLoan.id, action: "approved", month: stageMonth });
+                      }}
+                    >
+                      Stage payout in payroll
+                    </Button>
+                  </div>
                 </div>
               )}
+
+              {selectedLoan.payroll_addition_id && (
+                <div className="border-t pt-4">
+                  <p className="text-xs text-muted-foreground">
+                    Payout staged as a payroll addition for{" "}
+                    {selectedLoan.payroll_addition_month ? format(new Date(selectedLoan.payroll_addition_month), "MMM yyyy") : "—"} —
+                    review and push it in Payroll Inputs → Additions.
+                  </p>
+                </div>
+              )}
+
 
 
 

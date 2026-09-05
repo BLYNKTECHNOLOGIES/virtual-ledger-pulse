@@ -61,7 +61,7 @@ async function schedulerSecretMatches(provided: string): Promise<boolean> {
   }
 }
 
-async function requireAuth(req: Request): Promise<{ userId: string | null; serviceRole: boolean } | Response> {
+async function requireAuth(req: Request): Promise<{ userId: string | null; serviceRole: boolean; email?: string | null } | Response> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.toLowerCase().startsWith("bearer ")) return json(401, { error: "Unauthorized" });
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -73,8 +73,9 @@ async function requireAuth(req: Request): Promise<{ userId: string | null; servi
   const c = createClient(SUPA_URL, ANON, { global: { headers: { Authorization: authHeader } } });
   const { data, error } = await c.auth.getUser();
   if (error || !data?.user?.id) return json(401, { error: "Unauthorized" });
-  return { userId: data.user.id, serviceRole: false };
+  return { userId: data.user.id, serviceRole: false, email: data.user.email ?? null };
 }
+
 
 async function requirePermission(userId: string, svc: SupabaseClient) {
   const { data, error } = await svc.rpc("user_has_permission", {
@@ -7789,6 +7790,29 @@ Deno.serve(async (req) => {
         data["employee-id"] = Number(data["employee-id"]);
         if (!data["employee-type"]) data["employee-type"] = "employee";
       }
+
+      // ---- advance-salary:create
+      // Official Postman contract: { from, employee-id, amount, emi-amount, reason? }
+      // `from` is the requesting admin's email; default it to the signed-in HR user.
+      // RazorpayX auto-approves the request and recovers the EMI itself — the
+      // actual payout is released from the RazorpayX dashboard.
+      if (action === "advance_salary_create") {
+        if (!data.from && authed.email) data.from = String(authed.email).trim();
+        const missing: string[] = [];
+        if (!data.from) missing.push("from");
+        if (!data["employee-id"]) missing.push("employee-id");
+        if (!Number(data.amount)) missing.push("amount");
+        if (!Number(data["emi-amount"])) missing.push("emi-amount");
+        if (missing.length) {
+          return json(400, { ok: false, error: `Missing required advance-salary field(s): ${missing.join(", ")}` });
+        }
+        data["employee-id"] = Number(data["employee-id"]);
+        data.amount = Number(data.amount);
+        data["emi-amount"] = Number(data["emi-amount"]);
+        if (data.reason != null) data.reason = String(data.reason).slice(0, 250);
+      }
+
+
 
       // payroll:add-deduction identifies the person by email, not employee-id.
       // Resolve it from the canonical Razorpay mapping so callers remain keyed

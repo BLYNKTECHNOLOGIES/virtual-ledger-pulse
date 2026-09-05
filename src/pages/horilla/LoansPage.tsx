@@ -28,7 +28,9 @@ export default function LoansPage() {
   const [form, setForm] = useState({
     employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "",
     tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "",
+    disbursement_mode: "outside_payroll",
   });
+
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [manual, setManual] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
   const [closeConfirm, setCloseConfirm] = useState<"settled" | "written_off" | null>(null);
@@ -89,6 +91,7 @@ export default function LoansPage() {
         outstanding_balance: amount,
         emi_amount: emiAmount,
         tenure_months: tenure,
+        disbursement_mode: form.disbursement_mode,
 
         interest_rate: Number(form.interest_rate) || 0,
         start_emi_date: form.start_emi_date,
@@ -101,7 +104,7 @@ export default function LoansPage() {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
       setShowCreate(false);
-      setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "" });
+      setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "", disbursement_mode: "outside_payroll" });
       toast.success(
         r?.extended
           ? `Loan created — tenure extended to ${r.tenure} months, last installment ₹${Math.round(r.last).toLocaleString("en-IN")}. Pending approval.`
@@ -117,8 +120,16 @@ export default function LoansPage() {
       if (action === "rejected") {
         const { error } = await (supabase as any).from("hr_loans").update({ status: "rejected" }).eq("id", id);
         if (error) throw error;
-        return;
+        return { pushed: false as boolean, advanceId: null as number | null };
       }
+      const { data: loan, error: loadErr } = await (supabase as any)
+        .from("hr_loans")
+        .select("id, employee_id, amount, emi_amount, reason, disbursement_mode, razorpay_advance_salary_id")
+        .eq("id", id)
+        .maybeSingle();
+      if (loadErr) throw loadErr;
+      if (!loan) throw new Error("Loan not found");
+
       // State machine: pending -> approved -> active (the DB trigger rejects a direct jump).
       // Disbursement is stamped at approval, not at creation.
       const { error: e1 } = await (supabase as any)
@@ -131,11 +142,60 @@ export default function LoansPage() {
       // Build the month-by-month EMI plan so the daily scheduler can push it to RazorpayX
       const { error: e3 } = await (supabase as any).rpc("hr_rebuild_loan_schedule", { p_loan_id: id });
       if (e3) throw e3;
+
+      // Payout leg. Only for advances the owner chose to route through the
+      // official RazorpayX Advance Salary API (POST /api/advanceSalary).
+      // RazorpayX auto-approves the request, the payment itself is released
+      // from the RazorpayX dashboard, and RazorpayX recovers the EMI — so the
+      // HRMS scheduler deliberately skips staging deductions for these loans.
+      if (loan.disbursement_mode !== "razorpay_advance" || loan.razorpay_advance_salary_id) {
+        return { pushed: false as boolean, advanceId: null as number | null };
+      }
+      const { data: map, error: mapErr } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id")
+        .eq("hr_employee_id", loan.employee_id)
+        .maybeSingle();
+      if (mapErr) throw mapErr;
+      if (!map?.razorpay_employee_id) {
+        throw new Error("This employee is not mapped to RazorpayX yet — the advance cannot be created there.");
+      }
+      const { data: res, error: fnErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: {
+          action: "advance_salary_create",
+          data: {
+            "employee-id": Number(map.razorpay_employee_id),
+            amount: Number(loan.amount),
+            "emi-amount": Number(loan.emi_amount),
+            reason: loan.reason || "Salary advance",
+          },
+        },
+      });
+      if (fnErr) throw new Error(fnErr.message || "RazorpayX call failed");
+      if (res && typeof res === "object" && "ok" in res && !(res as any).ok) {
+        throw new Error((res as any).error || "RazorpayX rejected the advance");
+      }
+      const advanceId = Number(
+        (res as any)?.body?.["advance-salary-id"] ?? (res as any)?.body?.advance_salary_id ?? 0,
+      ) || null;
+      const { error: stampErr } = await (supabase as any)
+        .from("hr_loans")
+        .update({ razorpay_advance_salary_id: advanceId, razorpay_pushed_at: new Date().toISOString() })
+        .eq("id", id);
+      if (stampErr) throw stampErr;
+      return { pushed: true as boolean, advanceId };
+
     },
-    onSuccess: (_d, vars) => {
+    onSuccess: (d: any, vars) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
-      toast.success(vars.action === "approved" ? "Loan approved — EMI schedule generated" : "Loan rejected");
+      if (vars.action !== "approved") { toast.success("Loan rejected"); return; }
+      toast.success(
+        d?.pushed
+          ? `Approved — advance created in RazorpayX${d.advanceId ? ` (id ${d.advanceId})` : ""}. Release the payment from the RazorpayX dashboard; RazorpayX will recover the EMI.`
+          : "Loan approved — EMI schedule generated. Each instalment will appear in Payroll Inputs → Deductions for HR to push.",
+      );
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -412,7 +472,23 @@ export default function LoansPage() {
               <div><Label>Interest Rate (%)</Label><Input type="number" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: e.target.value })} /></div>
               <div><Label>Start EMI Date *</Label><Input type="date" value={form.start_emi_date} onChange={(e) => setForm({ ...form, start_emi_date: e.target.value })} /></div>
             </div>
+            <div>
+              <Label>How is the money paid out? *</Label>
+              <Select value={form.disbursement_mode} onValueChange={(v) => setForm({ ...form, disbursement_mode: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="outside_payroll">Paid outside payroll (bank transfer / cash)</SelectItem>
+                  <SelectItem value="razorpay_advance">Through RazorpayX Advance Salary</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {form.disbursement_mode === "razorpay_advance"
+                  ? "On approval the advance is created in RazorpayX (you release the payment from the RazorpayX dashboard). RazorpayX also recovers the EMI, so HRMS will not stage its own monthly deduction."
+                  : "HRMS pays nothing out. From the next cycle each EMI is staged in Payroll Inputs → Deductions for HR to review and push."}
+              </p>
+            </div>
             <div><Label>Reason</Label><Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Purpose of loan/advance..." /></div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>

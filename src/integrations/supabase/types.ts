@@ -11983,6 +11983,7 @@ export type Database = {
           approved_by: string | null
           created_at: string | null
           disbursement_date: string
+          disbursement_mode: string
           emi_amount: number
           employee_id: string
           id: string
@@ -12007,6 +12008,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           disbursement_date?: string
+          disbursement_mode?: string
           emi_amount: number
           employee_id: string
           id?: string
@@ -12031,6 +12033,7 @@ export type Database = {
           approved_by?: string | null
           created_at?: string | null
           disbursement_date?: string
+          disbursement_mode?: string
           emi_amount?: number
           employee_id?: string
           id?: string

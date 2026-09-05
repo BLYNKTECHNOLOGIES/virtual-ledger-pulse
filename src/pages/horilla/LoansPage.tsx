@@ -30,6 +30,19 @@ export default function LoansPage() {
     tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "",
     disbursement_mode: "outside_payroll",
   });
+  // EMI is derived from amount / tenure / interest until HR types their own figure.
+  const [emiTouched, setEmiTouched] = useState(false);
+
+  const autoEmi = (amount: string, tenure: string, rate: string) => {
+    const a = Number(amount) || 0;
+    const t = Math.max(0, Math.floor(Number(tenure) || 0));
+    const r = Number(rate) || 0;
+    if (a <= 0 || t <= 0) return "";
+    const total = a + (a * (r / 100) * (t / 12)); // flat annual interest, pro-rated over tenure
+    return String(Math.ceil(total / t));
+  };
+
+
 
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [manual, setManual] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
@@ -104,7 +117,9 @@ export default function LoansPage() {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
       setShowCreate(false);
+      setEmiTouched(false);
       setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "", disbursement_mode: "outside_payroll" });
+
       toast.success(
         r?.extended
           ? `Loan created — tenure extended to ${r.tenure} months, last installment ₹${Math.round(r.last).toLocaleString("en-IN")}. Pending approval.`
@@ -448,12 +463,35 @@ export default function LoansPage() {
               </div>
               <div>
                 <Label>Tenure (months)</Label>
-                <Input type="number" value={form.tenure_months} onChange={(e) => setForm({ ...form, tenure_months: e.target.value })} />
+                <Input type="number" value={form.tenure_months} onChange={(e) => {
+                  const tenure_months = e.target.value;
+                  setForm({ ...form, tenure_months, emi_amount: emiTouched ? form.emi_amount : autoEmi(form.amount, tenure_months, form.interest_rate) });
+                }} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Amount (₹) *</Label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
-              <div><Label>EMI Amount (₹) *</Label><Input type="number" value={form.emi_amount} onChange={(e) => setForm({ ...form, emi_amount: e.target.value })} /></div>
+              <div><Label>Amount (₹) *</Label><Input type="number" value={form.amount} onChange={(e) => {
+                const amount = e.target.value;
+                setForm({ ...form, amount, emi_amount: emiTouched ? form.emi_amount : autoEmi(amount, form.tenure_months, form.interest_rate) });
+              }} /></div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label>EMI Amount (₹) *</Label>
+                  {emiTouched && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-primary hover:underline"
+                      onClick={() => { setEmiTouched(false); setForm({ ...form, emi_amount: autoEmi(form.amount, form.tenure_months, form.interest_rate) }); }}
+                    >
+                      Auto-calculate
+                    </button>
+                  )}
+                </div>
+                <Input type="number" value={form.emi_amount} onChange={(e) => { setEmiTouched(true); setForm({ ...form, emi_amount: e.target.value }); }} />
+                {!emiTouched && Number(form.emi_amount) > 0 && (
+                  <p className="text-[11px] text-muted-foreground mt-1">Auto-calculated from amount ÷ tenure{Number(form.interest_rate) > 0 ? " (incl. interest)" : ""} — edit to override.</p>
+                )}
+              </div>
             </div>
             {(() => {
               const a = Number(form.amount), e = Number(form.emi_amount), t = Number(form.tenure_months) || 0;
@@ -469,7 +507,11 @@ export default function LoansPage() {
             })()}
 
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Interest Rate (%)</Label><Input type="number" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: e.target.value })} /></div>
+              <div><Label>Interest Rate (%)</Label><Input type="number" value={form.interest_rate} onChange={(e) => {
+                const interest_rate = e.target.value;
+                setForm({ ...form, interest_rate, emi_amount: emiTouched ? form.emi_amount : autoEmi(form.amount, form.tenure_months, interest_rate) });
+              }} /></div>
+
               <div><Label>Start EMI Date *</Label><Input type="date" value={form.start_emi_date} onChange={(e) => setForm({ ...form, start_emi_date: e.target.value })} /></div>
             </div>
             <div>

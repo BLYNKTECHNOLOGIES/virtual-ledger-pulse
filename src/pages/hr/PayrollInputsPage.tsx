@@ -303,9 +303,21 @@ export default function PayrollInputsPage() {
       .update({ pushed_at: new Date().toISOString(), push_response: res.body ?? {} })
       .in("id", group.map((r) => r.id));
     if (uErr) throw uErr;
+
+    // Automatic recoveries (security deposit / error recovery / loan EMI) are
+    // staged by the nightly job and only settle in the ledger once HR has
+    // reviewed and pushed them here, and the push is verified on the run.
+    for (const r of group) {
+      if (!r.recovery_kind || !r.recovery_ref_id) continue;
+      const { error: rpcErr } = r.recovery_kind === "loan"
+        ? await (supabase as any).rpc("hr_apply_loan_push", { p_repayment_id: r.recovery_ref_id, p_razorpay_input_id: null })
+        : await (supabase as any).rpc("hr_apply_deposit_collection", { p_schedule_id: r.recovery_ref_id, p_razorpay_input_id: null });
+      if (rpcErr) toast.error(`Pushed, but the recovery ledger did not update: ${rpcErr.message}`);
+    }
     return res;
 
   }
+
   const pushOne = (row: any) => pushGroup([row]);
 
   const pushRow = useMutation({

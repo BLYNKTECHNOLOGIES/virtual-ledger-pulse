@@ -13358,6 +13358,8 @@ export type Database = {
           razorpay_employee_id: string
           readback_diff: Json | null
           readback_verified_at: string | null
+          recovery_kind: string | null
+          recovery_ref_id: string | null
           source: string
           source_revision_id: string | null
           updated_at: string
@@ -13378,6 +13380,8 @@ export type Database = {
           razorpay_employee_id: string
           readback_diff?: Json | null
           readback_verified_at?: string | null
+          recovery_kind?: string | null
+          recovery_ref_id?: string | null
           source?: string
           source_revision_id?: string | null
           updated_at?: string
@@ -13398,6 +13402,8 @@ export type Database = {
           razorpay_employee_id?: string
           readback_diff?: Json | null
           readback_verified_at?: string | null
+          recovery_kind?: string | null
+          recovery_ref_id?: string | null
           source?: string
           source_revision_id?: string | null
           updated_at?: string

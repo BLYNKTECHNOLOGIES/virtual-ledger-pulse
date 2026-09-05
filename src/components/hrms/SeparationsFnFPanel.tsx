@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { AlertTriangle, UserMinus, Plus, Pencil, CalendarClock, Send, CheckCircle2 } from "lucide-react";
 import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { finalizeSeparation } from "@/lib/finalizeSeparation";
+import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
@@ -85,6 +87,11 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
   >(null);
   const [showInitiate, setShowInitiate] = useState(false);
   const [confirmSettlement, setConfirmSettlement] = useState<any | null>(null);
+  const [payPrompt, setPayPrompt] = useState<any | null>(null);
+  const [dismissPrompt, setDismissPrompt] = useState<
+    { employee_id: string; name: string; lwd: string; reason: string | null } | null
+  >(null);
+  const [dismissing, setDismissing] = useState(false);
   const [form, setForm] = useState({
     employee_id: "",
     resignation_date: "",
@@ -268,6 +275,73 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Approved → paid. This is the ONLY moment a separation is finalised: the
+  // employee is deactivated, their ERP login and biometrics are removed, and the
+  // RazorpayX dismissal is offered. Dismissing earlier would close the payroll
+  // record before the final run, so the push must be verified first.
+  const markPaid = useMutation({
+    mutationFn: async (settlement: any) => {
+      if (!["pushed", "nothing_to_push"].includes(String(settlement.razorpay_push_status || ""))) {
+        throw new Error(
+          "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
+        );
+      }
+      const { error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", settlement.id);
+      if (error) throw error;
+
+      const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", {
+        p_settlement_id: settlement.id,
+      });
+      if (closeErr) toast.error(`Paid, but closing loans/penalties/deposits failed: ${closeErr.message}`);
+
+      const fin = await finalizeSeparation(settlement.employee_id);
+      return {
+        employee_id: settlement.employee_id,
+        name: fin.name,
+        lwd:
+          settlement.last_working_day ||
+          fin.lwd ||
+          new Date().toISOString().slice(0, 10),
+        reason: fin.separationReason,
+        erp: fin.erp,
+      };
+    },
+    onSuccess: (res) => {
+      setPayPrompt(null);
+      toast.success(
+        `Settled and separation completed for ${res.name}${res.erp?.deactivated ? " — ERP login disabled" : ""}.`,
+      );
+      setDismissPrompt({ employee_id: res.employee_id, name: res.name, lwd: res.lwd, reason: res.reason });
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_separated_employees_cockpit"] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const confirmDismiss = async () => {
+    if (!dismissPrompt) return;
+    setDismissing(true);
+    try {
+      const res = await dismissInRazorpay(dismissPrompt.employee_id, {
+        dateOfDismissal: dismissPrompt.lwd,
+        reason: dismissPrompt.reason || "F&F settled",
+        triggeredFrom: "fnf_paid",
+      });
+      if (res.ok) toast.success("Dismissal propagated to RazorpayX");
+      else if (res.skipped) toast.info("Employee is not linked to RazorpayX — nothing to propagate.");
+      else if (res.manualRequired)
+        toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account. Logged in Data Health.");
+      else toast.error(res.error || "RazorpayX dismissal failed");
+    } finally {
+      setDismissing(false);
+      setDismissPrompt(null);
+    }
+  };
 
   const initiate = useMutation({
 
@@ -528,10 +602,26 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Confirm F&amp;F
                       </Button>
+                    ) : String(s.status) === "approved" ? (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1.5"
+                        disabled={
+                          markPaid.isPending ||
+                          !["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""))
+                        }
+                        title={
+                          ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""))
+                            ? "Mark settled, deactivate the employee and offer the RazorpayX dismissal"
+                            : "Push the F&F lines to RazorpayX first"
+                        }
+                        onClick={() => setPayPrompt(s)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid &amp; finalise
+                      </Button>
                     ) : (
-
                       <span className="text-[11px] text-muted-foreground">
-                        Locked — manage on the F&amp;F page
+                        Settled — dismissal handled on payment
                       </span>
                     )}
                   </div>

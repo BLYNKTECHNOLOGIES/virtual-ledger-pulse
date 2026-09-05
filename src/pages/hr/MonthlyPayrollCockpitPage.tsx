@@ -782,7 +782,7 @@ export default function MonthlyPayrollCockpitPage() {
                               setAckNotes(step.ack_notes ?? "");
                             }}
                           >
-                            <CheckCircle2 className="h-4 w-4" /> Confirm anyway
+                            <CheckCircle2 className="h-4 w-4" /> Confirm
                           </Button>
                         )}
                         {stepRecalcReasons.length > 0 && !closed && (

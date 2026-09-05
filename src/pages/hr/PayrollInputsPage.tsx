@@ -182,12 +182,20 @@ export default function PayrollInputsPage() {
     const all = ((rows as any[]) ?? []).filter(
       (r) => r.source !== "training_ctc_adjustment"
         && r.source !== "ctc_transition_adjustment"
-        && r.source !== "fnf_settlement",
+        && r.source !== "fnf_settlement"
+        && r.source !== "auto_compoff",
     );
 
     if (!lopFocus || tab !== "deduction") return all;
     return all.filter((r) => /lop|loss of pay|loss-of-pay/i.test(String(r.label ?? "")));
   }, [rows, lopFocus, tab]);
+
+  // Comp-off encashment lines live in their own block below.
+  const compoffRows = useMemo(
+    () => ((rows as any[]) ?? []).filter((r) => r.source === "auto_compoff"),
+    [rows],
+  );
+
 
 
 

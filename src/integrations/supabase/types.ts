@@ -28708,13 +28708,25 @@ export type Database = {
         Args: { p_employee_id?: string }
         Returns: Json
       }
-      hr_apply_cl_lop_absorption: {
-        Args: { p_absorptions: Json; p_period_month: string }
-        Returns: {
-          days_booked: number
-          employee_id: string
-        }[]
-      }
+      hr_apply_cl_lop_absorption:
+        | {
+            Args: { p_absorptions: Json; p_period_month: string }
+            Returns: {
+              days_booked: number
+              employee_id: string
+            }[]
+          }
+        | {
+            Args: {
+              p_absorptions: Json
+              p_period_month: string
+              p_scope_employee_ids?: string[]
+            }
+            Returns: {
+              days_booked: number
+              employee_id: string
+            }[]
+          }
       hr_apply_deposit_collection: {
         Args: { p_razorpay_input_id?: string; p_schedule_id: string }
         Returns: undefined
@@ -29574,14 +29586,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      hr_settle_compoff_credits: {
-        Args: { p_period_month: string; p_rows: Json }
-        Returns: {
-          out_employee_id: string
-          settled_encash: number
-          settled_offset: number
-        }[]
-      }
+      hr_settle_compoff_credits:
+        | {
+            Args: { p_period_month: string; p_rows: Json }
+            Returns: {
+              out_employee_id: string
+              settled_encash: number
+              settled_offset: number
+            }[]
+          }
+        | {
+            Args: {
+              p_period_month: string
+              p_rows: Json
+              p_settle_encash?: boolean
+            }
+            Returns: {
+              out_employee_id: string
+              settled_encash: number
+              settled_offset: number
+            }[]
+          }
       hr_settle_deposit_installment: {
         Args: { p_schedule_id: string }
         Returns: undefined

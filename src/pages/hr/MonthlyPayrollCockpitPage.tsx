@@ -389,6 +389,9 @@ export default function MonthlyPayrollCockpitPage() {
     qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     qc.invalidateQueries({ queryKey: ["gate_lop"] });
     qc.invalidateQueries({ queryKey: ["gate_auto_recoveries"] });
+    // Mandatory recalculations (LOP / comp-off encashment) may now be staged.
+    qc.invalidateQueries({ queryKey: ["recalc_gate_lop"] });
+    qc.invalidateQueries({ queryKey: ["recalc_gate_compoff"] });
   }
 
   const monthDate = useMemo(() => new Date(month + "T00:00:00Z"), [month]);

@@ -212,36 +212,30 @@ Deno.serve(async (req) => {
         continue;
       }
       const isAdvance = (loan.loan_type || "").includes("advance");
-      const push = await pushDeduction(svc, {
+      const staged = await stageDeduction(svc, {
         hr_employee_id: r.employee_id,
         period_month: r.period_month,
-        code: `LOAN_EMI_M${r.installment_no}`,
+        kind: "loan",
+        ref_id: r.id,
         amount: Number(r.amount),
         description: isAdvance
           ? `Salary advance recovery — installment ${r.installment_no}`
           : `Loan EMI — installment ${r.installment_no}`,
       });
 
-      if (push.ok) {
-        // Two-stage life: 'pushed' now (money is on the RazorpayX run), 'paid'
-        // only when that payroll month is actually locked/processed.
-        const { error: rpcErr } = await svc.rpc("hr_apply_loan_push", {
-          p_repayment_id: r.id,
-          p_razorpay_input_id: push.inputId,
+      if (staged.ok) {
+        results.push({
+          kind: "loan", id: r.id, ok: true,
+          staged: staged.staged, already_staged: !!staged.alreadyStaged,
+          awaiting: "HR review + push in Payroll Inputs → Deductions",
         });
-
-        if (rpcErr) {
-          await svc.from("hr_loan_repayments")
-            .update({ status: "failed", failure_reason: `ledger: ${rpcErr.message}` })
-            .eq("id", r.id);
-        }
-        results.push({ kind: "loan", id: r.id, ok: !rpcErr, error: rpcErr?.message ?? null });
       } else {
         await svc.from("hr_loan_repayments")
-          .update({ status: "failed", failure_reason: push.error })
+          .update({ status: "failed", failure_reason: staged.error })
           .eq("id", r.id);
-        results.push({ kind: "loan", id: r.id, ok: false, http: push.http, error: push.error });
+        results.push({ kind: "loan", id: r.id, ok: false, error: staged.error });
       }
+
     }
   }
 

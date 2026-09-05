@@ -374,7 +374,9 @@ export default function PayrollInputsPage() {
     onSuccess: ({ ok, failures }) => {
       qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
       setBulkPushConfirm(false);
+      setCoPushConfirm(false);
       setSelected({});
+      setCoSelected({});
       if (failures.length) {
         toast.error(`${ok} pushed, ${failures.length} failed`, { description: failures.slice(0, 3).join(" | ") });
         console.warn("Bulk push failures:", failures);
@@ -396,12 +398,12 @@ export default function PayrollInputsPage() {
     },
     onSuccess: async (n) => {
       await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
-      setSelected({}); setBulkDeleteConfirm(false);
+      setSelected({}); setCoSelected({}); setBulkDeleteConfirm(false); setCoDeleteConfirm(false);
       toast.success(`Deleted ${n} staged row${n === 1 ? "" : "s"}`);
     },
     onError: async (e: any) => {
       await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
-      setSelected({}); setBulkDeleteConfirm(false);
+      setSelected({}); setCoSelected({}); setBulkDeleteConfirm(false); setCoDeleteConfirm(false);
       toast.error(e.message);
     },
   });
@@ -447,6 +449,8 @@ export default function PayrollInputsPage() {
 
   const pendingRows = useMemo(() => (visibleRows as any[]).filter((r) => !r.pushed_at), [visibleRows]);
   const selectedPending = useMemo(() => pendingRows.filter((r: any) => selected[r.id]), [pendingRows, selected]);
+  const compoffPending = useMemo(() => (compoffRows as any[]).filter((r) => !r.pushed_at), [compoffRows]);
+  const compoffSelected = useMemo(() => compoffPending.filter((r: any) => coSelected[r.id]), [compoffPending, coSelected]);
 
   // Presentation-only roll-ups for the summary strip.
   const sum = (list: any[]) => list.reduce((s, r) => s + Number(r.amount || 0), 0);

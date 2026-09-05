@@ -838,7 +838,13 @@ export default function MonthlyPayrollCockpitPage() {
             <AlertDialogAction
               onClick={() => {
                 if (!ackStep) return;
-                ack.mutate(
+                const blocking = recalcReasonsFor(ackStep.step_key);
+                if (blocking.length) {
+                  toast.error("This step cannot be confirmed yet", {
+                    description: `${blocking.join(". ")}. Run the calculation and stage the rows first.`,
+                  });
+                  return;
+                }
                   { step_no: ackStep.step_no, status: "done", notes: ackNotes || undefined },
                   { onSuccess: () => setAckStep(null) }
                 );

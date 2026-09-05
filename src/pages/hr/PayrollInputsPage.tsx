@@ -65,12 +65,15 @@ export default function PayrollInputsPage() {
     { isEmpty: (v: any) => !v?.hr_employee_id && !v?.amount && (!v?.label || (lopFocus && v.label === "Loss of Pay")) },
   );
 
-  // Mirror of Razorpay bonus catalogue — filters the Bonus subtype dropdown.
+  // Razorpay supports a FIXED catalogue of exactly 10 bonus types — the
+  // subtype picker must offer these and nothing else. The settings mirror
+  // supplies enabled flags; types missing from the mirror default to enabled
+  // (Razorpay's own defaults) so the list is always the complete catalogue.
   const { data: complianceSettings } = useComplianceSettings();
-  const enabledBonusTypes = useMemo(
-    () => (complianceSettings?.bonus_types ?? []).filter(b => b.enabled),
-    [complianceSettings],
-  );
+  const enabledBonusTypes = useMemo(() => {
+    const mirror = new Map((complianceSettings?.bonus_types ?? []).map(b => [b.key, b.enabled]));
+    return RAZORPAY_BONUS_TYPES.map(b => ({ ...b, enabled: mirror.get(b.key) ?? true })).filter(b => b.enabled);
+  }, [complianceSettings]);
 
   // Envelope gate — payroll writes require push_payroll_endpoint_verified on razorpay settings.
   const { data: settings } = useQuery({

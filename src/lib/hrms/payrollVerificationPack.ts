@@ -283,7 +283,11 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     const clCheck = n2(n2(cl.opening) + n2(cl.credited) - n2(cl.used) - n2(cl.offset_lop) - n2(cl.closing));
     const checks: string[] = [];
     if (Math.abs(clCheck) > 0.01) checks.push("CL ledger mismatch");
-    if (Math.abs(coClosing) > 0.01) checks.push(`Comp-off ${coClosing} day(s) unsettled`);
+    if (coClosing < -0.01)
+      checks.push(
+        `Comp-off over-consumed by ${Math.abs(coClosing)} day(s) — leave was set off against comp-off credits that are no longer valid (voided/expired). Reclassify those day(s) as casual leave or LOP.`,
+      );
+    else if (coClosing > 0.01) checks.push(`Comp-off ${coClosing} day(s) unsettled`);
     if (!stagedCoRow && n2(cor?.amount) > 0) checks.push("Comp-off encashment calculated but not staged in Step 6");
     if (stagedCoRow && Math.abs(n2(stagedCoRow.amount) - n2(cor?.amount)) > 0.01 && cor?.status !== "pushed")
       checks.push(`Staged ₹${n2(stagedCoRow.amount)} differs from current calculation ₹${n2(cor?.amount)}`);

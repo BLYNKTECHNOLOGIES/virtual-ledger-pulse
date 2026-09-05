@@ -35,6 +35,8 @@ import { toast } from "sonner";
 import { AlertTriangle, UserMinus, Plus, Pencil, CalendarClock, Send, CheckCircle2 } from "lucide-react";
 import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { missingDecisionReasons, type DepositDecision } from "@/lib/fnfEngine";
+import { finalizeSeparation } from "@/lib/finalizeSeparation";
+import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
@@ -85,6 +87,11 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
   >(null);
   const [showInitiate, setShowInitiate] = useState(false);
   const [confirmSettlement, setConfirmSettlement] = useState<any | null>(null);
+  const [payPrompt, setPayPrompt] = useState<any | null>(null);
+  const [dismissPrompt, setDismissPrompt] = useState<
+    { employee_id: string; name: string; lwd: string; reason: string | null } | null
+  >(null);
+  const [dismissing, setDismissing] = useState(false);
   const [form, setForm] = useState({
     employee_id: "",
     resignation_date: "",
@@ -181,6 +188,36 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     [live, cycle],
   );
 
+  // Dismissal governance. The nightly sweep only deactivates + dismisses an
+  // employee once their F&F is paid and pushed; anyone past their last working
+  // day with an unsettled F&F is held back, and any already-deactivated leaver
+  // whose F&F never reached 'paid' is a historic integrity flag.
+  const settlementByEmployee = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const s of live) if (!m.has(s.employee_id)) m.set(s.employee_id, s);
+    return m;
+  }, [live]);
+
+  const todayIst = new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+
+  const dismissalHeld = useMemo(
+    () =>
+      separated
+        .filter((e: any) => e.is_active && e.last_working_day && e.last_working_day < todayIst)
+        .map((e: any) => ({ e, s: settlementByEmployee.get(e.id) }))
+        .filter(({ s }) => String(s?.status || "") !== "paid"),
+    [separated, settlementByEmployee, todayIst],
+  );
+
+  const dismissedBeforeSettlement = useMemo(
+    () =>
+      separated
+        .filter((e: any) => !e.is_active)
+        .map((e: any) => ({ e, s: settlementByEmployee.get(e.id) }))
+        .filter(({ s }) => !s || String(s.status) !== "paid"),
+    [separated, settlementByEmployee],
+  );
+
   const retag = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await (supabase as any)
@@ -268,6 +305,73 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     },
     onError: (e: any) => toast.error(e.message),
   });
+
+  // Approved → paid. This is the ONLY moment a separation is finalised: the
+  // employee is deactivated, their ERP login and biometrics are removed, and the
+  // RazorpayX dismissal is offered. Dismissing earlier would close the payroll
+  // record before the final run, so the push must be verified first.
+  const markPaid = useMutation({
+    mutationFn: async (settlement: any) => {
+      if (!["pushed", "nothing_to_push"].includes(String(settlement.razorpay_push_status || ""))) {
+        throw new Error(
+          "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
+        );
+      }
+      const { error } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq("id", settlement.id);
+      if (error) throw error;
+
+      const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", {
+        p_settlement_id: settlement.id,
+      });
+      if (closeErr) toast.error(`Paid, but closing loans/penalties/deposits failed: ${closeErr.message}`);
+
+      const fin = await finalizeSeparation(settlement.employee_id);
+      return {
+        employee_id: settlement.employee_id,
+        name: fin.name,
+        lwd:
+          settlement.last_working_day ||
+          fin.lwd ||
+          new Date().toISOString().slice(0, 10),
+        reason: fin.separationReason,
+        erp: fin.erp,
+      };
+    },
+    onSuccess: (res) => {
+      setPayPrompt(null);
+      toast.success(
+        `Settled and separation completed for ${res.name}${res.erp?.deactivated ? " — ERP login disabled" : ""}.`,
+      );
+      setDismissPrompt({ employee_id: res.employee_id, name: res.name, lwd: res.lwd, reason: res.reason });
+      qc.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+      qc.invalidateQueries({ queryKey: ["hr_separated_employees_cockpit"] });
+      qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const confirmDismiss = async () => {
+    if (!dismissPrompt) return;
+    setDismissing(true);
+    try {
+      const res = await dismissInRazorpay(dismissPrompt.employee_id, {
+        dateOfDismissal: dismissPrompt.lwd,
+        reason: dismissPrompt.reason || "F&F settled",
+        triggeredFrom: "fnf_paid",
+      });
+      if (res.ok) toast.success("Dismissal propagated to RazorpayX");
+      else if (res.skipped) toast.info("Employee is not linked to RazorpayX — nothing to propagate.");
+      else if (res.manualRequired)
+        toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account. Logged in Data Health.");
+      else toast.error(res.error || "RazorpayX dismissal failed");
+    } finally {
+      setDismissing(false);
+      setDismissPrompt(null);
+    }
+  };
 
   const initiate = useMutation({
 
@@ -438,6 +542,59 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
         </Card>
       )}
 
+      {(dismissalHeld.length > 0 || dismissedBeforeSettlement.length > 0) && (
+        <div className="space-y-2.5">
+          <SectionHead
+            icon={UserMinus}
+            title="Dismissal governance"
+            count={dismissalHeld.length + dismissedBeforeSettlement.length}
+            tone="warning"
+          />
+          {dismissalHeld.length > 0 && (
+            <Card className="border-warning/40 bg-warning/5">
+              <CardContent className="p-3 space-y-1.5">
+                <p className="text-xs font-medium">
+                  Auto-dismissal held — {dismissalHeld.length} leaver(s) past their last working day
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  They stay active in HRMS and RazorpayX on purpose: dismissing before the F&amp;F is paid
+                  would close their payroll record and block the final run. Finish the settlement here.
+                </p>
+                {dismissalHeld.map(({ e, s }: any) => (
+                  <p key={e.id} className="text-[11px] tabular-nums">
+                    <span className="font-medium text-foreground">
+                      {e.first_name} {e.last_name} · {e.badge_id}
+                    </span>{" "}
+                    — LWD {e.last_working_day} · F&amp;F {s ? String(s.status).replace("_", " ") : "not created"}
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+          {dismissedBeforeSettlement.length > 0 && (
+            <Card className="border-destructive/30 bg-destructive/[0.03]">
+              <CardContent className="p-3 space-y-1.5">
+                <p className="text-xs font-medium text-destructive">
+                  Deactivated with an unsettled F&amp;F — {dismissedBeforeSettlement.length} leaver(s)
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  These exits were closed before their settlement reached "paid". Check whether anything is
+                  still owed; RazorpayX may no longer accept payroll lines for them.
+                </p>
+                {dismissedBeforeSettlement.map(({ e, s }: any) => (
+                  <p key={e.id} className="text-[11px] tabular-nums">
+                    <span className="font-medium text-foreground">
+                      {e.first_name} {e.last_name} · {e.badge_id}
+                    </span>{" "}
+                    — LWD {e.last_working_day || "—"} · F&amp;F {s ? String(s.status).replace("_", " ") : "not created"}
+                  </p>
+                ))}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* 1) Settlements scheduled for this cycle */}
       <div className="space-y-2.5">
         <SectionHead
@@ -528,10 +685,26 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                       >
                         <CheckCircle2 className="h-3.5 w-3.5" /> Confirm F&amp;F
                       </Button>
+                    ) : String(s.status) === "approved" ? (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1.5"
+                        disabled={
+                          markPaid.isPending ||
+                          !["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""))
+                        }
+                        title={
+                          ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""))
+                            ? "Mark settled, deactivate the employee and offer the RazorpayX dismissal"
+                            : "Push the F&F lines to RazorpayX first"
+                        }
+                        onClick={() => setPayPrompt(s)}
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid &amp; finalise
+                      </Button>
                     ) : (
-
                       <span className="text-[11px] text-muted-foreground">
-                        Locked — manage on the F&amp;F page
+                        Settled — dismissal handled on payment
                       </span>
                     )}
                   </div>
@@ -565,6 +738,55 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
               }}
             >
               {approveSettlement.isPending ? "Confirming…" : "Confirm F&F"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(payPrompt)}
+        onOpenChange={(open) => { if (!open && !markPaid.isPending) setPayPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this settlement paid and finalise the exit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This closes the loans, penalties and deposits the settlement covered, deactivates{" "}
+              {payPrompt?.hr_employees?.first_name || "the employee"} in HRMS, removes their ERP login and
+              biometrics, and then offers the RazorpayX dismissal. Do this only once the money is on the run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={markPaid.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!payPrompt || markPaid.isPending}
+              onClick={(event) => { event.preventDefault(); if (payPrompt) markPaid.mutate(payPrompt); }}
+            >
+              {markPaid.isPending ? "Finalising…" : "Mark paid & finalise"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(dismissPrompt)}
+        onOpenChange={(open) => { if (!open && !dismissing) setDismissPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dismiss {dismissPrompt?.name} in RazorpayX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The dismissal date will be their last working day ({dismissPrompt?.lwd}). After this, no further
+              payroll can be run for them in RazorpayX.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dismissing}>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={dismissing}
+              onClick={(event) => { event.preventDefault(); confirmDismiss(); }}
+            >
+              {dismissing ? "Dismissing…" : "Dismiss in RazorpayX"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

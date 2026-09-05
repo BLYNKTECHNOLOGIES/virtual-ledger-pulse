@@ -660,6 +660,55 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog
+        open={Boolean(payPrompt)}
+        onOpenChange={(open) => { if (!open && !markPaid.isPending) setPayPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark this settlement paid and finalise the exit?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This closes the loans, penalties and deposits the settlement covered, deactivates{" "}
+              {payPrompt?.hr_employees?.first_name || "the employee"} in HRMS, removes their ERP login and
+              biometrics, and then offers the RazorpayX dismissal. Do this only once the money is on the run.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={markPaid.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!payPrompt || markPaid.isPending}
+              onClick={(event) => { event.preventDefault(); if (payPrompt) markPaid.mutate(payPrompt); }}
+            >
+              {markPaid.isPending ? "Finalising…" : "Mark paid & finalise"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(dismissPrompt)}
+        onOpenChange={(open) => { if (!open && !dismissing) setDismissPrompt(null); }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Dismiss {dismissPrompt?.name} in RazorpayX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The dismissal date will be their last working day ({dismissPrompt?.lwd}). After this, no further
+              payroll can be run for them in RazorpayX.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={dismissing}>Not now</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={dismissing}
+              onClick={(event) => { event.preventDefault(); confirmDismiss(); }}
+            >
+              {dismissing ? "Dismissing…" : "Dismiss in RazorpayX"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* 2) Exits in this month with no F&F */}
       {exitsWithoutFnF.length > 0 && (
         <div className="space-y-2.5">

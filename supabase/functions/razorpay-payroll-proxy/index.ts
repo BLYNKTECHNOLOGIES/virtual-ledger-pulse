@@ -8075,7 +8075,49 @@ Deno.serve(async (req) => {
         data.email = dismissalEmail;
         data.dateOfDismissal = dateOfDismissal;
       }
+
+      // ── Deduction split · pass 1 (gross bucket) ──────────────────────────
+      // When a month mixes a mid-joiner salary normalisation (gross) with
+      // ordinary recoveries (net), we first write the gross bucket, then let
+      // the main call below write the net bucket. The read-back decides whether
+      // Opfin kept both lines or collapsed them into one aggregate.
+      async function sendAddDeduction(amount: number, remarks: string, target: "net" | "gross") {
+        const body = {
+          auth: authBlock(),
+          request: { type: "payroll", "sub-type": "add-deduction" },
+          data: {
+            email: String(data.email || "").trim(),
+            "payroll-month": String(data["payroll-month"]).slice(0, 7),
+            "deduction-amount": amount,
+            remarks: (remarks || "Payroll deduction").slice(0, 250),
+            "deduct-from": target,
+            deductFrom: target === "gross" ? 1 : 2,
+          },
+        };
+        const c = new AbortController();
+        const to = setTimeout(() => c.abort(), 20000);
+        try {
+          const r = await fetch(`${BASE}/payroll`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body),
+            signal: c.signal,
+          });
+          const raw = await r.text();
+          let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
+          return { ok: r.ok && !(b?.error || b?.message), status: r.status, body: b };
+        } catch (e) {
+          return { ok: false, status: 0, body: { error: `NETWORK: ${(e as Error).message}` } };
+        } finally { clearTimeout(to); }
+      }
+      if (action === "payroll_add_deduction" && dedSplit?.attempt) {
+        dedSplit.email = String(data.email || "").trim();
+        const pre = await sendAddDeduction(dedSplit.grossTotal, dedSplit.grossRemarks, "gross");
+        dedSplit.gross_call = { ok: pre.ok, status: pre.status };
+      }
+
       const ctrl = new AbortController();
+
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
       try {

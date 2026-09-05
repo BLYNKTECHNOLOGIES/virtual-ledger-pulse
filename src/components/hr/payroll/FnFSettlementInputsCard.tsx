@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateFnFEverywhere } from "@/lib/fnfEditLock";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { UserMinus, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { UserMinus, ChevronDown, ChevronRight, Loader2, Upload } from "lucide-react";
+
 
 
 /**

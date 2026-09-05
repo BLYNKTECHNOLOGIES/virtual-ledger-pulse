@@ -205,6 +205,7 @@ Deno.serve(async (req) => {
         row.status = "pushed";
         row.reason = "Already pushed to RazorpayX — left untouched";
         rows.push(row);
+        settleCredits(split.encash_days);
         continue;
       }
 
@@ -236,8 +237,13 @@ Deno.serve(async (req) => {
           amount,
           base_source: salary.source,
         });
+        settleCredits(split.encash_days);
+      } else {
+        // Nothing payable — the days stay open rather than being written off.
+        settleCredits(0);
       }
     }
+
 
     let staged = 0;
     let removed = 0;

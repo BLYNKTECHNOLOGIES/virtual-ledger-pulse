@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEngine } from "@/lib/hrms/invokeEngine";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import * as XLSX from "xlsx";
 
@@ -164,12 +165,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const generatedAt = istNow();
   const warnings: string[] = [];
 
-  const dry = async (fn: string) => {
-    const { data, error } = await supabase.functions.invoke(fn, { body: { period, dry_run: true } });
-    if (error) throw new Error(`${fn}: ${error.message}`);
-    if ((data as any)?.error) throw new Error((data as any).message || (data as any).error);
-    return data as any;
-  };
+  const dry = async (fn: string) => invokeEngine<any>(fn, { period, dry_run: true });
 
   // Every money figure below comes from exactly what the cockpit steps hold:
   //   Step 5/6 engines (dry-run) → day-level detail

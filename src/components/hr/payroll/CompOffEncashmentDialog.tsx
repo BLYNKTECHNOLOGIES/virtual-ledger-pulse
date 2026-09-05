@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeEngine } from "@/lib/hrms/invokeEngine";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -78,12 +79,7 @@ export function CompOffEncashmentDialog({
 
   const preview = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("generate-compoff-encashment", {
-        body: { period, dry_run: true },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).message || (data as any).error);
-      return data as any;
+      return await invokeEngine<any>("generate-compoff-encashment", { period, dry_run: true });
     },
     onSuccess: (data) => {
       const r = (data.rows ?? []) as PreviewRow[];
@@ -100,12 +96,7 @@ export function CompOffEncashmentDialog({
     mutationFn: async () => {
       const ids = [...selectedIds, ...removable.map((r) => r.hr_employee_id)];
       if (!ids.length) throw new Error("Nothing selected to stage");
-      const { data, error } = await supabase.functions.invoke("generate-compoff-encashment", {
-        body: { period, dry_run: false, employee_ids: ids },
-      });
-      if (error) throw error;
-      if ((data as any)?.error) throw new Error((data as any).message || (data as any).error);
-      return data as any;
+      return await invokeEngine<any>("generate-compoff-encashment", { period, dry_run: false, employee_ids: ids });
     },
     onSuccess: (data) => {
       const s = data.summary ?? {};

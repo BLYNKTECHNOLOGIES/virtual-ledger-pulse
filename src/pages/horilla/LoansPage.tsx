@@ -96,13 +96,19 @@ export default function LoansPage() {
         notes: form.notes || null,
       });
       if (error) throw error;
+      return { tenure, extended, last: amount - emiAmount * (tenure - 1) };
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
       setShowCreate(false);
       setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "" });
-      toast.success("Loan/advance created — pending approval");
+      toast.success(
+        r?.extended
+          ? `Loan created — tenure extended to ${r.tenure} months, last installment ₹${Math.round(r.last).toLocaleString("en-IN")}. Pending approval.`
+          : "Loan/advance created — pending approval",
+      );
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 

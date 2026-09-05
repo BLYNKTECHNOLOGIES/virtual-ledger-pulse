@@ -413,7 +413,85 @@ export default function PayrollInputsPage() {
   });
 
 
+  // ── Un-push ────────────────────────────────────────────────────────────────
+  // RazorpayX has NO endpoint that deletes a single addition/deduction from a
+  // run (verified against the Payroll API contract). The only documented way to
+  // take one line off the run is `payroll/reset-modifications`, which clears
+  // EVERY modification for that employee in that payroll month. So un-pushing
+  // one line = reset the employee's month, then re-push the lines that must
+  // stay — additions and deductions alike. Any line that fails to go back is
+  // left visibly pending so nothing is silently lost.
+  const unpushRow = useMutation({
+    mutationFn: async (row: any) => {
+      const empId = row.razorpay_employee_id;
+      if (!empId) throw new Error("This row has no RazorpayX employee mapping.");
+
+      const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "payroll_reset_modifications", payload: { data: { "employee-id": empId, "payroll-month": period } } },
+      });
+      if (error) throw new Error(error.message || "RazorpayX rejected the reset request");
+      if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+
+      // Everything this employee had on the run for this month is now gone.
+      const tables: { tbl: string; kind: Kind }[] = [
+        { tbl: "hr_payroll_input_additions", kind: "addition" },
+        { tbl: "hr_payroll_input_deductions", kind: "deduction" },
+      ];
+      const survivors: { rows: any[]; kind: Kind }[] = [];
+      for (const { tbl, kind } of tables) {
+        const { data: pushed } = await (supabase as any)
+          .from(tbl).select("*")
+          .eq("razorpay_employee_id", empId)
+          .eq("period_month", periodDate)
+          .not("pushed_at", "is", null);
+        const list = (pushed || []) as any[];
+        if (list.length) {
+          await (supabase as any).from(tbl)
+            .update({ pushed_at: null, readback_verified_at: null, push_response: null })
+            .in("id", list.map((r) => r.id));
+        }
+        const keep = list.filter((r) => r.id !== row.id);
+        if (keep.length) survivors.push({ rows: keep, kind });
+      }
+
+      // Roll the recovery ledger back for the line being pulled off the run.
+      if (row.recovery_kind && row.recovery_ref_id) {
+        const { error: rpcErr } = row.recovery_kind === "loan"
+          ? await (supabase as any).rpc("hr_revert_loan_push", { p_repayment_id: row.recovery_ref_id })
+          : await (supabase as any).rpc("hr_revert_deposit_collection", { p_schedule_id: row.recovery_ref_id });
+        if (rpcErr) throw new Error(`Taken off the run, but the recovery ledger did not roll back: ${rpcErr.message}`);
+      }
+
+      const failures: string[] = [];
+      let restored = 0;
+      for (const { rows: group, kind } of survivors) {
+        try { await pushGroup(group, kind); restored += group.length; }
+        catch (e: any) { failures.push(`${group.length} ${kind}(s): ${e.message}`); }
+      }
+      return { restored, failures };
+    },
+    onSuccess: async ({ restored, failures }) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_deposits"] });
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      setUnpushConfirm(null);
+      if (failures.length) {
+        toast.error("Taken off the run, but some other lines could not be put back", { description: failures.join(" | ") });
+      } else {
+        toast.success(restored ? `Taken off the RazorpayX run — ${restored} other line(s) put back` : "Taken off the RazorpayX run");
+      }
+    },
+    onError: async (e: any) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_additions", period] });
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", "hr_payroll_input_deductions", period] });
+      setUnpushConfirm(null);
+      toast.error(e.message);
+    },
+  });
+
   const doNotPay = useMutation({
+
     mutationFn: async (empRow: any) => {
       if (empRow?.last_pull_snapshot?.is_active === false) {
         throw new Error("This employee is inactive in RazorpayX. Do-Not-Pay is unavailable because RazorpayX cannot locate inactive employees in a monthly payroll run.");

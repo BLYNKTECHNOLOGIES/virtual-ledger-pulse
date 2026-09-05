@@ -61,6 +61,46 @@ export function AutoRecoveriesCard({ period }: Props) {
     onError: (e: any) => toast.error(e.message || "Could not stage this recovery"),
   });
 
+  const pendingRows = useMemo(
+    () => (rows as any[]).filter((r) => r.status === "scheduled"),
+    [rows],
+  );
+
+  // Bulk staging — same per-row contract, run sequentially so each recovery
+  // gets its own result and one failure never hides the rest.
+  const stageAll = useMutation({
+    mutationFn: async (list: any[]) => {
+      let staged = 0;
+      const failures: string[] = [];
+      for (const r of list) {
+        try {
+          const { data: res, error } = await (supabase as any).functions.invoke(
+            "hr-schedule-deposits",
+            { body: { kind: r.source_kind, id: r.parent_id } },
+          );
+          if (error) throw error;
+          if (!res?.ok) throw new Error(res?.error || "Staging failed");
+          const mine = (res.results || []).filter((x: any) => x.ok && (x.staged || x.already_staged));
+          if (!mine.length) {
+            const skipped = (res.results || []).map((x: any) => x.skipped || x.error).filter(Boolean);
+            throw new Error(skipped[0] || "Nothing was staged");
+          }
+          staged += 1;
+        } catch (e: any) {
+          failures.push(`${r.employee_name || "—"}: ${e?.message || "failed"}`);
+        }
+      }
+      return { staged, failures };
+    },
+    onSuccess: ({ staged, failures }) => {
+      if (staged) toast.success(`${staged} recover${staged === 1 ? "y" : "ies"} staged in Payroll Inputs → Deductions`);
+      if (failures.length) toast.error(`${failures.length} could not be staged — ${failures[0]}`);
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
+    },
+    onError: (e: any) => toast.error(e.message || "Bulk staging failed"),
+  });
+
   const total = useMemo(
     () => (rows as any[]).reduce((s, r) => s + Number(r.amount || 0), 0),
     [rows],

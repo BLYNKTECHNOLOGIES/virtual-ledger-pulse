@@ -28,7 +28,9 @@ export default function LoansPage() {
   const [form, setForm] = useState({
     employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "",
     tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "",
+    disbursement_mode: "outside_payroll",
   });
+
   const [selectedLoan, setSelectedLoan] = useState<any>(null);
   const [manual, setManual] = useState({ amount: "", date: new Date().toISOString().slice(0, 10), notes: "" });
   const [closeConfirm, setCloseConfirm] = useState<"settled" | "written_off" | null>(null);

@@ -13355,6 +13355,7 @@ export type Database = {
           amount: number
           created_at: string
           created_by: string | null
+          deduct_from: string
           finalized_at: string | null
           hr_employee_id: string | null
           id: string
@@ -13377,6 +13378,7 @@ export type Database = {
           amount: number
           created_at?: string
           created_by?: string | null
+          deduct_from?: string
           finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
@@ -13399,6 +13401,7 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          deduct_from?: string
           finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string

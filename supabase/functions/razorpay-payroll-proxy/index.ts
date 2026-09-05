@@ -7769,6 +7769,9 @@ Deno.serve(async (req) => {
       //                    "Please specify the deduction".
       // Amounts are RUPEES, never paise.
       let modExpect: Array<{ label: string; amount: number }> = [];
+      // Net/Gross deduction split state (payroll_add_deduction only).
+      let dedSplit: any = null;
+
       if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
         const missing: string[] = [];
@@ -7791,13 +7794,13 @@ Deno.serve(async (req) => {
             const incoming = Array.isArray(data.deductions)
               ? data.deductions
               : (data.deductions && typeof data.deductions === "object")
-                ? Object.entries(data.deductions).map(([k, v]: [string, any]) => (v && typeof v === "object" ? { label: v.name ?? k, amount: v.amount } : { label: k, amount: v }))
+                ? Object.entries(data.deductions).map(([k, v]: [string, any]) => (v && typeof v === "object" ? { label: v.name ?? k, amount: v.amount, deductFrom: v.deductFrom } : { label: k, amount: v }))
                 : [];
             const incomingLabels = new Set(incoming.map((i: any) => String(i?.label ?? i?.name ?? "").trim()));
             const skipIds = new Set<string>((directPayload?.readback_ids || []).map(String));
             const { data: pushedRows } = await svc
               .from("hr_payroll_input_deductions")
-              .select("id,label,amount,pushed_at")
+              .select("id,label,amount,pushed_at,deduct_from")
               .eq("razorpay_employee_id", rpEid)
               .eq("period_month", monthStart)
               .not("pushed_at", "is", null);
@@ -7805,7 +7808,22 @@ Deno.serve(async (req) => {
             for (const r of pushedRows || []) {
               if (skipIds.has(String(r.id))) continue;
               if (incomingLabels.has(String(r.label || "").trim())) continue;
-              merged.push({ label: r.label, amount: Number(r.amount) });
+              merged.push({ label: r.label, amount: Number(r.amount), deductFrom: r.deduct_from || "net" });
+            }
+            // Attach the stored target to the rows being pushed now, so the
+            // net/gross split below reflects each row's own setting.
+            const stagedIds = [...skipIds];
+            if (stagedIds.length) {
+              const { data: stagedRows } = await svc
+                .from("hr_payroll_input_deductions")
+                .select("label,deduct_from")
+                .in("id", stagedIds);
+              const byLabel = new Map((stagedRows || []).map((r: any) => [String(r.label || "").trim(), r.deduct_from || "net"]));
+              for (const m of merged) {
+                if (m.deductFrom) continue;
+                const t = byLabel.get(String(m.label ?? m.name ?? "").trim());
+                if (t) m.deductFrom = t;
+              }
             }
             data.deductions = merged;
           } catch (_) { /* merge is best-effort; the incoming envelope still applies */ }
@@ -7817,11 +7835,48 @@ Deno.serve(async (req) => {
         if (action === "payroll_add_additions") {
           data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
         } else {
-          data["deduction-amount"] = expect.reduce((sum, item) => sum + item.amount, 0);
-          data.remarks = expect.map((item) => item.label).join("; ").slice(0, 250) || "Payroll deduction";
+          // ── Net vs Gross split ────────────────────────────────────────────
+          // Recoveries, LOP, loan EMIs and deposits must come off NET pay so the
+          // employee's CTC/gross stays intact. Only mid-joiner / post-training
+          // salary normalisation is a GROSS-pay deduction.
+          // Opfin's documented add-deduction contract is a single aggregate
+          // amount with no target field, so we attempt the split (gross bucket
+          // first, then the net bucket) and let the read-back prove what the
+          // run actually holds; if Opfin collapses them we repair to one
+          // combined line and report it honestly.
+          for (const [label, v] of Object.entries(map) as any) {
+            const t = String((v as any).deductFrom ?? "net").toLowerCase();
+            (v as any).deductFrom = t === "gross" || t === "1" ? "gross" : "net";
+            (v as any).name = label;
+          }
+          const grossItems = Object.values(map).filter((v: any) => v.deductFrom === "gross") as any[];
+          const netItems = Object.values(map).filter((v: any) => v.deductFrom !== "gross") as any[];
+          const grossTotal = grossItems.reduce((s, v) => s + Number(v.amount || 0), 0);
+          const netTotal = netItems.reduce((s, v) => s + Number(v.amount || 0), 0);
+          dedSplit = {
+            attempt: grossTotal > 0 && netTotal > 0,
+            grossTotal,
+            netTotal,
+            combined: grossTotal + netTotal,
+            grossRemarks: grossItems.map((v) => v.name).join("; ").slice(0, 250),
+            netRemarks: netItems.map((v) => v.name).join("; ").slice(0, 250),
+            email: "",
+            month: String(data["payroll-month"]).slice(0, 7),
+            status: "pending",
+          };
+          const primaryTotal = dedSplit.attempt ? netTotal : (netTotal + grossTotal);
+          const primaryTarget = netTotal > 0 ? "net" : "gross";
+          data["deduction-amount"] = primaryTotal;
+          data.remarks = (dedSplit.attempt ? dedSplit.netRemarks : expect.map((item) => item.label).join("; ")).slice(0, 250) || "Payroll deduction";
+          // Undocumented target hints — Opfin's dashboard exposes a
+          // "Deduct From?" column (Gross Pay / Net Pay); the API contract does
+          // not document it, so we send the hint and verify the outcome.
+          data["deduct-from"] = primaryTarget;
+          data.deductFrom = primaryTarget === "gross" ? 1 : 2;
           delete data.deductions;
         }
         modExpect = expect;
+
 
         data["employee-id"] = Number(data["employee-id"]);
         if (!data["employee-type"]) data["employee-type"] = "employee";
@@ -8020,7 +8075,49 @@ Deno.serve(async (req) => {
         data.email = dismissalEmail;
         data.dateOfDismissal = dateOfDismissal;
       }
+
+      // ── Deduction split · pass 1 (gross bucket) ──────────────────────────
+      // When a month mixes a mid-joiner salary normalisation (gross) with
+      // ordinary recoveries (net), we first write the gross bucket, then let
+      // the main call below write the net bucket. The read-back decides whether
+      // Opfin kept both lines or collapsed them into one aggregate.
+      async function sendAddDeduction(amount: number, remarks: string, target: "net" | "gross") {
+        const body = {
+          auth: authBlock(),
+          request: { type: "payroll", "sub-type": "add-deduction" },
+          data: {
+            email: String(data.email || "").trim(),
+            "payroll-month": String(data["payroll-month"]).slice(0, 7),
+            "deduction-amount": amount,
+            remarks: (remarks || "Payroll deduction").slice(0, 250),
+            "deduct-from": target,
+            deductFrom: target === "gross" ? 1 : 2,
+          },
+        };
+        const c = new AbortController();
+        const to = setTimeout(() => c.abort(), 20000);
+        try {
+          const r = await fetch(`${BASE}/payroll`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify(body),
+            signal: c.signal,
+          });
+          const raw = await r.text();
+          let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 400) }; }
+          return { ok: r.ok && !(b?.error || b?.message), status: r.status, body: b };
+        } catch (e) {
+          return { ok: false, status: 0, body: { error: `NETWORK: ${(e as Error).message}` } };
+        } finally { clearTimeout(to); }
+      }
+      if (action === "payroll_add_deduction" && dedSplit?.attempt) {
+        dedSplit.email = String(data.email || "").trim();
+        const pre = await sendAddDeduction(dedSplit.grossTotal, dedSplit.grossRemarks, "gross");
+        dedSplit.gross_call = { ok: pre.ok, status: pre.status };
+      }
+
       const ctrl = new AbortController();
+
       const t = setTimeout(() => ctrl.abort(), 25000);
       let httpStatus = 0; let bodyOut: any = null; let errText: string | null = null;
       try {
@@ -8104,11 +8201,56 @@ Deno.serve(async (req) => {
               }
             }
             const expectedDeductionTotal = modExpect.reduce((sum, item) => sum + item.amount, 0);
-            const echoedDeductionTotal = Number(rbBody?.["deduction-amount"]);
+            let echoedDeductionTotal = Number(rbBody?.["deduction-amount"]);
+
+            // ── Deduction split · verdict + repair ─────────────────────────
+            // If we attempted a gross+net split, the run must now hold the
+            // combined figure. If Opfin collapsed the two writes into one
+            // aggregate (its documented behaviour: one deduction-amount per
+            // employee/month), the second write replaced the first — repair by
+            // re-sending the combined total against Net Pay and report the
+            // gross portion that HR must flip on the dashboard.
+            if (action === "payroll_add_deduction" && dedSplit?.attempt) {
+              const combined = dedSplit.combined;
+              if (Number.isFinite(echoedDeductionTotal) && Math.abs(echoedDeductionTotal - combined) < 1) {
+                dedSplit.status = "split_applied";
+              } else {
+                const repair = await sendAddDeduction(
+                  combined,
+                  `${dedSplit.netRemarks}; ${dedSplit.grossRemarks}`,
+                  "net",
+                );
+                dedSplit.status = "collapsed_to_single_line";
+                dedSplit.repair_call = { ok: repair.ok, status: repair.status };
+                dedSplit.note = `RazorpayX keeps only one deduction line per employee per month, so the gross-pay portion (₹${dedSplit.grossTotal}) could not be kept separate. The full ₹${combined} is now on one line — switch that line's "Deduct From" to Gross Pay for ₹${dedSplit.grossTotal} on the RazorpayX dashboard if the split matters.`;
+                try {
+                  const rr = await fetch(`${BASE}/payroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Accept: "application/json" },
+                    body: JSON.stringify({
+                      auth: authBlock(),
+                      request: { type: "payroll", "sub-type": "view-payroll" },
+                      data: rbEmail ? { email: rbEmail, "payroll-month": rbMonth }
+                                    : { "employee-id": Number(rbEid), "payroll-month": rbMonth, "employee-type": "employee" },
+                    }),
+                  });
+                  const rrBody = await rr.json().catch(() => null);
+                  if (rrBody && Number.isFinite(Number(rrBody["deduction-amount"]))) {
+                    echoedDeductionTotal = Number(rrBody["deduction-amount"]);
+                  }
+                } catch { /* keep the pre-repair read */ }
+              }
+            }
+            // What the run should hold: with a split attempt it is the combined
+            // figure, otherwise the single aggregate we sent.
+            const targetDeductionTotal = action === "payroll_add_deduction" && dedSplit
+              ? dedSplit.combined
+              : expectedDeductionTotal;
             const aggregateDeductionMatch = action === "payroll_add_deduction"
               && Number.isFinite(echoedDeductionTotal)
-              && (Math.abs(echoedDeductionTotal - expectedDeductionTotal) < 1
-                || Math.abs(echoedDeductionTotal - expectedDeductionTotal * 100) < 1);
+              && (Math.abs(echoedDeductionTotal - targetDeductionTotal) < 1
+                || Math.abs(echoedDeductionTotal - targetDeductionTotal * 100) < 1);
+
             const matched = modExpect.map((e) => {
               // add-deduction is aggregate-only: Opfin canonicalizes any remarks
               // into "Gross pay deduction", so verify its documented
@@ -8142,6 +8284,8 @@ Deno.serve(async (req) => {
                 : matched,
               error: rbErr ? String(rbErr).slice(0, 200) : (allMatched ? null : "Pushed, but the modification was not visible on the RazorpayX run read-back."),
               snapshot_keys: rbBody && typeof rbBody === "object" ? Object.keys(rbBody).slice(0, 20) : [],
+              deduction_split: dedSplit,
+
             };
             const rbIds: string[] = Array.isArray(directPayload?.readback_ids)
               ? directPayload.readback_ids.map((x: any) => String(x)).filter(Boolean)

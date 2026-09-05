@@ -291,7 +291,10 @@ export default function PayrollInputsPage() {
     const action = kind === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
     const items = group.map((r) => (kind === "addition"
       ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
-      : { label: r.label, amount: Number(r.amount) }));
+      // deductFrom: recoveries/LOP/EMIs come off NET pay so the CTC stays
+      // intact; only mid-joiner salary normalisation comes off GROSS.
+      : { label: r.label, amount: Number(r.amount), deductFrom: r.deduct_from === "gross" ? "gross" : "net" }));
+
 
     // NOTE: RazorpayX's deduction contract is a SINGLE aggregate
     // `deduction-amount` per employee/month — every call REPLACES the previous
@@ -361,14 +364,37 @@ export default function PayrollInputsPage() {
 
   const pushOne = (row: any) => pushGroup([row]);
 
+  // Net vs Gross target for a staged deduction (editable until it is pushed).
+  const setDeductTarget = useMutation({
+    mutationFn: async ({ id, target }: { id: string; target: "net" | "gross" }) => {
+      const { data: live, error: rErr } = await (supabase as any)
+        .from("hr_payroll_input_deductions").select("id,pushed_at").eq("id", id).maybeSingle();
+      if (rErr) throw rErr;
+      if (!live) throw new Error("This line no longer exists.");
+      if (live.pushed_at) throw new Error("Already on the RazorpayX run — unpush it first to change where it is deducted from.");
+      const { error } = await (supabase as any).from("hr_payroll_input_deductions").update({ deduct_from: target }).eq("id", id);
+      if (error) throw error;
+      return target;
+    },
+    onSuccess: (t) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success(`Will be deducted from ${t === "gross" ? "Gross Pay" : "Net Pay"}`); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Surface how RazorpayX actually recorded a mixed gross/net push.
+  function reportSplit(res: any) {
+    const s = res?.readback?.deduction_split;
+    if (s?.status === "collapsed_to_single_line" && s?.note) toast.warning(s.note, { duration: 12000 });
+  }
+
   const pushRow = useMutation({
     mutationFn: pushOne,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed and verified on the RazorpayX run"); setPushConfirm(null); },
+    onSuccess: (res) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success("Pushed and verified on the RazorpayX run"); reportSplit(res); setPushConfirm(null); },
     onError: (e: any) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.error(e.message); setPushConfirm(null); },
   });
 
   // Bulk push — one call per employee (all their rows merged into a single
   // modifications map), sequential so RazorpayX rate limits stay happy.
+
   const bulkPush = useMutation({
     mutationFn: async (rowsToPush: any[]) => {
       const byEmp = new Map<string, any[]>();
@@ -844,7 +870,28 @@ export default function PayrollInputsPage() {
                           <span className="font-medium">{empLabel(r)}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2">{r.label}</td>
+                      <td className="px-3 py-2">
+                        {r.label}
+                        {tab === "deduction" && (
+                          <div className="mt-1">
+                            {r.pushed_at ? (
+                              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
+                                {r.deduct_from === "gross" ? "off Gross Pay" : "off Net Pay"}
+                              </Badge>
+                            ) : (
+                              <button
+                                type="button"
+                                className="text-[10px] rounded border px-1.5 py-0.5 text-muted-foreground hover:bg-muted"
+                                title="Net Pay keeps the employee's CTC/gross intact (recoveries, EMIs, LOP). Gross Pay is for mid-joiner salary normalisation."
+                                onClick={() => setDeductTarget.mutate({ id: r.id, target: r.deduct_from === "gross" ? "net" : "gross" })}
+                              >
+                                Deduct from: <span className="font-semibold text-foreground">{r.deduct_from === "gross" ? "Gross Pay" : "Net Pay"}</span> · change
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
                       {tab === "addition" && (
                         <td className="px-3 py-2">
                           <Badge variant="outline" className="capitalize font-normal">{additionTypeSlug(r.addition_type)}</Badge>

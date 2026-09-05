@@ -53,6 +53,8 @@ import {
   type CockpitStep,
 } from "@/hooks/hrms/useCockpit";
 import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
+import { useMandatoryRecalcs } from "@/hooks/hrms/useMandatoryRecalcs";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 const STEP_ICONS: Record<string, any> = {
@@ -387,6 +389,9 @@ export default function MonthlyPayrollCockpitPage() {
     qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
     qc.invalidateQueries({ queryKey: ["gate_lop"] });
     qc.invalidateQueries({ queryKey: ["gate_auto_recoveries"] });
+    // Mandatory recalculations (LOP / comp-off encashment) may now be staged.
+    qc.invalidateQueries({ queryKey: ["recalc_gate_lop"] });
+    qc.invalidateQueries({ queryKey: ["recalc_gate_compoff"] });
   }
 
   const monthDate = useMemo(() => new Date(month + "T00:00:00Z"), [month]);
@@ -395,6 +400,14 @@ export default function MonthlyPayrollCockpitPage() {
 
   const { data: steps = [], isLoading, error } = useCockpitMonth(month);
   const stepGate = usePayrollStepGate(month);
+  const recalc = useMandatoryRecalcs(month);
+
+  /** Recalculations that MUST have been run and staged before a step is confirmed. */
+  function recalcReasonsFor(stepKey: string): string[] {
+    if (stepKey === "lop_push") return recalc.lopReasons;
+    if (stepKey === "inputs_push") return recalc.compoffReasons;
+    return [];
+  }
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 
@@ -591,15 +604,22 @@ export default function MonthlyPayrollCockpitPage() {
           {steps.map((step) => {
             const Icon = STEP_ICONS[step.step_key] ?? Circle;
             const target = STEP_TARGET[step.step_key];
+            // Mandatory recalculations (LOP, comp-off encashment) must be run
+            // and staged before their step can be confirmed.
+            const stepRecalcReasons = step.ack_status === "done" ? [] : recalcReasonsFor(step.step_key);
             // Step 5 stays sealed until step 4 is genuinely finished.
-            const gated = step.step_key === "inputs_push" && stepGate.blocked && step.ack_status !== "done";
+            const gated =
+              step.ack_status !== "done" &&
+              ((step.step_key === "inputs_push" && stepGate.blocked) || stepRecalcReasons.length > 0);
             const canAck =
               !isCloseStep(step) &&
               !gated &&
               (step.live_status === "complete" || step.step_key === "run_on_razorpay");
             // Steps stay skippable per the close-month policy: a step the system
             // still reports as pending can be confirmed deliberately with a note.
+            // A missing mandatory recalculation is NOT skippable.
             const canAckAnyway = !isCloseStep(step) && !gated && !canAck;
+
 
 
             const settled = isSettled(step);
@@ -688,15 +708,19 @@ export default function MonthlyPayrollCockpitPage() {
                               <Lock className="h-3 w-3 shrink-0" /> This step cannot be confirmed yet
                             </div>
                             <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                              {stepGate.lopReasons.map((r) => (
-                                <li key={r}>Pending in Step 4: {r}.</li>
+                              {stepRecalcReasons.map((r) => (
+                                <li key={r}>{r}. Open the tool, run the calculation and stage the rows.</li>
                               ))}
-                              {stepGate.recoveryReasons.map((r) => (
-                                <li key={r}>{r}. Open the tool to push {stepGate.recPending === 1 ? "it" : "them"}.</li>
-                              ))}
+                              {step.step_key === "inputs_push" &&
+                                stepGate.lopReasons.map((r) => <li key={r}>Pending in Step 4: {r}.</li>)}
+                              {step.step_key === "inputs_push" &&
+                                stepGate.recoveryReasons.map((r) => (
+                                  <li key={r}>{r}. Open the tool to push {stepGate.recPending === 1 ? "it" : "them"}.</li>
+                                ))}
                             </ul>
                           </div>
                         )}
+
                       </div>
 
                       {/* Actions */}
@@ -747,6 +771,20 @@ export default function MonthlyPayrollCockpitPage() {
                             <CheckCircle2 className="h-4 w-4" /> Confirm anyway
                           </Button>
                         )}
+                        {stepRecalcReasons.length > 0 && !closed && (
+                          <Button
+                            variant="outline"
+                            className="h-10 w-full gap-1.5 border-warning/40 text-warning hover:text-warning"
+                            onClick={() =>
+                              toast.error("This step cannot be confirmed yet", {
+                                description: `${stepRecalcReasons.join(". ")}. Run the calculation and stage the rows first.`,
+                              })
+                            }
+                          >
+                            <Lock className="h-4 w-4" /> Mark done
+                          </Button>
+                        )}
+
                         {step.ack_status === "done" && !closed && !isCloseStep(step) && (
 
                           <Button
@@ -800,6 +838,13 @@ export default function MonthlyPayrollCockpitPage() {
             <AlertDialogAction
               onClick={() => {
                 if (!ackStep) return;
+                const blocking = recalcReasonsFor(ackStep.step_key);
+                if (blocking.length) {
+                  toast.error("This step cannot be confirmed yet", {
+                    description: `${blocking.join(". ")}. Run the calculation and stage the rows first.`,
+                  });
+                  return;
+                }
                 ack.mutate(
                   { step_no: ackStep.step_no, status: "done", notes: ackNotes || undefined },
                   { onSuccess: () => setAckStep(null) }

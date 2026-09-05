@@ -61,7 +61,7 @@ async function schedulerSecretMatches(provided: string): Promise<boolean> {
   }
 }
 
-async function requireAuth(req: Request): Promise<{ userId: string | null; serviceRole: boolean } | Response> {
+async function requireAuth(req: Request): Promise<{ userId: string | null; serviceRole: boolean; email?: string | null } | Response> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.toLowerCase().startsWith("bearer ")) return json(401, { error: "Unauthorized" });
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -73,8 +73,9 @@ async function requireAuth(req: Request): Promise<{ userId: string | null; servi
   const c = createClient(SUPA_URL, ANON, { global: { headers: { Authorization: authHeader } } });
   const { data, error } = await c.auth.getUser();
   if (error || !data?.user?.id) return json(401, { error: "Unauthorized" });
-  return { userId: data.user.id, serviceRole: false };
+  return { userId: data.user.id, serviceRole: false, email: data.user.email ?? null };
 }
+
 
 async function requirePermission(userId: string, svc: SupabaseClient) {
   const { data, error } = await svc.rpc("user_has_permission", {

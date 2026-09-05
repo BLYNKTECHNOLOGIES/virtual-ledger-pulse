@@ -400,11 +400,14 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Surface how RazorpayX actually recorded a mixed gross/net push.
+  // Surface how RazorpayX actually recorded the deduction. Verified live:
+  // the Payroll API books every deduction as one "Gross pay deduction" line
+  // and exposes no Net Pay target — that switch is dashboard-only.
   function reportSplit(res: any) {
     const s = res?.readback?.deduction_split;
-    if (s?.status === "collapsed_to_single_line" && s?.note) toast.warning(s.note, { duration: 12000 });
+    if (s?.note) toast.warning(s.note, { duration: 15000 });
   }
+
 
   const pushRow = useMutation({
     mutationFn: pushOne,

@@ -11991,6 +11991,8 @@ export type Database = {
           loan_type: string
           notes: string | null
           outstanding_balance: number
+          payroll_addition_id: string | null
+          payroll_addition_month: string | null
           razorpay_advance_salary_id: number | null
           razorpay_pushed_at: string | null
           reason: string | null
@@ -12016,6 +12018,8 @@ export type Database = {
           loan_type?: string
           notes?: string | null
           outstanding_balance: number
+          payroll_addition_id?: string | null
+          payroll_addition_month?: string | null
           razorpay_advance_salary_id?: number | null
           razorpay_pushed_at?: string | null
           reason?: string | null
@@ -12041,6 +12045,8 @@ export type Database = {
           loan_type?: string
           notes?: string | null
           outstanding_balance?: number
+          payroll_addition_id?: string | null
+          payroll_addition_month?: string | null
           razorpay_advance_salary_id?: number | null
           razorpay_pushed_at?: string | null
           reason?: string | null

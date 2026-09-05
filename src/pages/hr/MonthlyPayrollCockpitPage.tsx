@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { CockpitToolSheet, type CockpitToolKey } from "@/components/hrms/CockpitToolSheet";
 import {
   CheckCircle2,
@@ -56,6 +56,7 @@ import {
 } from "@/hooks/hrms/useCockpit";
 import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
 import { useMandatoryRecalcs } from "@/hooks/hrms/useMandatoryRecalcs";
+import { usePendingBankChanges } from "@/hooks/hrms/usePendingBankChanges";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 

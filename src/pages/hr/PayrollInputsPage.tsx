@@ -71,6 +71,10 @@ export default function PayrollInputsPage() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [bulkPushConfirm, setBulkPushConfirm] = useState(false);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  // Comp-off encashment block keeps its own selection (its rows are excluded from the main list).
+  const [coSelected, setCoSelected] = useState<Record<string, boolean>>({});
+  const [coPushConfirm, setCoPushConfirm] = useState(false);
+  const [coDeleteConfirm, setCoDeleteConfirm] = useState(false);
 
   // Persist the single-entry staging form across refreshes.
   const { clearDraft: clearFormDraftState } = useFormDraftPersistence(

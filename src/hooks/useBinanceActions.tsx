@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { pollWhenVisible } from '@/lib/poll-when-visible';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
@@ -236,8 +237,10 @@ export function useBinanceActiveOrders(filters?: {
       return { data: merged };
     },
     staleTime: 2 * 1000,
-    refetchInterval: 5 * 1000, // Poll every 5s for snappy order reflection
-    refetchIntervalInBackground: true,
+    // Poll every 5s while the operator is looking at the page; pause in hidden
+    // tabs so background terminals stop competing for the shared Binance proxy.
+    refetchInterval: pollWhenVisible(5 * 1000),
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   });
@@ -364,7 +367,7 @@ export function useBinanceOrderHistory() {
       return (data || []).map(mapOrderRow);
     },
     staleTime: 20 * 1000,
-    refetchInterval: 30 * 1000,
+    refetchInterval: pollWhenVisible(30 * 1000),
   });
 
   // Phase 2: Full background load – keyset paginated, no heavy JSON, no polling

@@ -777,18 +777,29 @@ export default function DepositManagementPage() {
         ))}
       </div>
 
-      {/* Lifecycle sub-tabs */}
-      <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
-        <div className="flex gap-2 w-max md:w-auto md:flex-wrap">
-          {SUB_TABS.map((s) => (
-            <button
-              key={s.key}
-              onClick={() => setSubTab(s.key)}
-              className={`whitespace-nowrap px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
-            >
-              {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
-            </button>
-          ))}
+      {/* Lifecycle sub-tabs + employee search */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div className="-mx-4 px-4 md:mx-0 md:px-0 overflow-x-auto">
+          <div className="flex gap-2 w-max md:w-auto md:flex-wrap">
+            {SUB_TABS.map((s) => (
+              <button
+                key={s.key}
+                onClick={() => setSubTab(s.key)}
+                className={`whitespace-nowrap px-3 py-1 text-xs rounded-full border transition-colors ${subTab === s.key ? "border-primary bg-primary/10 text-primary font-medium" : "border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                {s.label} <span className="ml-1 tabular-nums">{counts[s.key] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="relative w-full md:w-64 shrink-0">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search employee or badge…"
+            className="pl-8 h-9"
+          />
         </div>
       </div>
 

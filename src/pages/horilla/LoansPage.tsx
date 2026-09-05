@@ -72,16 +72,16 @@ export default function LoansPage() {
     mutationFn: async () => {
       const amount = Number(form.amount);
       const emiAmount = Number(form.emi_amount);
-      const tenure = Number(form.tenure_months) || 0;
+      let tenure = Number(form.tenure_months) || 0;
       if (!form.employee_id || !amount || !emiAmount || !form.start_emi_date) throw new Error("Fill all required fields");
       if (amount <= 0 || emiAmount <= 0 || tenure <= 0) throw new Error("Amount, EMI and tenure must be greater than zero");
-      // Recovery must fully cover the principal within the stated tenure.
-      if (emiAmount * tenure < amount - 0.01) {
-        throw new Error(
-          `EMI × tenure (₹${(emiAmount * tenure).toLocaleString("en-IN")}) is less than the loan amount (₹${amount.toLocaleString("en-IN")}). Raise the EMI or the tenure.`,
-        );
-      }
       if (emiAmount > amount) throw new Error("EMI cannot exceed the loan amount");
+      // If the EMI does not cover the principal within the stated tenure, extend the
+      // tenure automatically — the final month absorbs the remainder (e.g. 6500 @ 2000
+      // becomes 4 months: 2000/2000/2000/500). The DB schedule builder does the same.
+      const needed = Math.ceil((amount - 0.01) / emiAmount);
+      const extended = needed > tenure;
+      if (extended) tenure = needed;
       const { error } = await (supabase as any).from("hr_loans").insert({
         employee_id: form.employee_id,
         loan_type: form.loan_type,
@@ -89,19 +89,26 @@ export default function LoansPage() {
         outstanding_balance: amount,
         emi_amount: emiAmount,
         tenure_months: tenure,
+
         interest_rate: Number(form.interest_rate) || 0,
         start_emi_date: form.start_emi_date,
         reason: form.reason || null,
         notes: form.notes || null,
       });
       if (error) throw error;
+      return { tenure, extended, last: amount - emiAmount * (tenure - 1) };
     },
-    onSuccess: () => {
+    onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
       setShowCreate(false);
       setForm({ employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "", tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "" });
-      toast.success("Loan/advance created — pending approval");
+      toast.success(
+        r?.extended
+          ? `Loan created — tenure extended to ${r.tenure} months, last installment ₹${Math.round(r.last).toLocaleString("en-IN")}. Pending approval.`
+          : "Loan/advance created — pending approval",
+      );
     },
+
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -388,6 +395,19 @@ export default function LoansPage() {
               <div><Label>Amount (₹) *</Label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
               <div><Label>EMI Amount (₹) *</Label><Input type="number" value={form.emi_amount} onChange={(e) => setForm({ ...form, emi_amount: e.target.value })} /></div>
             </div>
+            {(() => {
+              const a = Number(form.amount), e = Number(form.emi_amount), t = Number(form.tenure_months) || 0;
+              if (!(a > 0 && e > 0 && e <= a)) return null;
+              const need = Math.ceil((a - 0.01) / e);
+              if (need <= t) return null;
+              const last = a - e * (need - 1);
+              return (
+                <p className="text-xs text-muted-foreground">
+                  Tenure will extend to {need} months — last installment ₹{Math.round(last).toLocaleString("en-IN")}.
+                </p>
+              );
+            })()}
+
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Interest Rate (%)</Label><Input type="number" value={form.interest_rate} onChange={(e) => setForm({ ...form, interest_rate: e.target.value })} /></div>
               <div><Label>Start EMI Date *</Label><Input type="date" value={form.start_emi_date} onChange={(e) => setForm({ ...form, start_emi_date: e.target.value })} /></div>

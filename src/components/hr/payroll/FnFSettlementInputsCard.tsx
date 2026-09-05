@@ -84,22 +84,51 @@ const inr = (n: number) => `₹${Number(n || 0).toLocaleString("en-IN", { maximu
 /** One consolidated F&F payroll line, expandable into its settlement components. */
 function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
   const [open, setOpen] = useState(false);
+  const qc = useQueryClient();
   const e = row.hr_employees;
-  const settlementId = row.push_response?.settlement_id ?? null;
+  const linkedId = row.push_response?.settlement_id ?? null;
+  const isPushed = !!row.pushed_at;
 
+  // Legacy/mirror rows can be missing the settlement link. Fall back to the
+  // approved settlement of the same employee on the same payroll cycle so the
+  // breakdown — and the retry push — still work.
   const { data: settlement, isLoading } = useQuery({
-    queryKey: ["fnf_settlement_detail", settlementId],
-    enabled: open && !!settlementId,
+    queryKey: ["fnf_settlement_detail", linkedId || `${row.hr_employee_id}:${row.period_month}`],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_fnf_settlements")
-        .select("*")
-        .eq("id", settlementId)
-        .maybeSingle();
+      const q = (supabase as any).from("hr_fnf_settlements").select("*");
+      const { data, error } = linkedId
+        ? await q.eq("id", linkedId).maybeSingle()
+        : await q
+            .eq("employee_id", row.hr_employee_id)
+            .eq("payroll_month", row.period_month)
+            .neq("status", "cancelled")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
       if (error) throw error;
       return data;
     },
   });
+
+  const settlementId = linkedId || settlement?.id || null;
+
+  const pushMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await (supabase as any).functions.invoke("hr-push-fnf", {
+        body: { settlement_id: settlementId },
+      });
+      if (error) throw error;
+      if (data?.ok === false) throw new Error(data?.error || "Push did not verify on the RazorpayX read-back");
+      return data;
+    },
+    onSuccess: () => {
+      invalidateFnFEverywhere(qc);
+      qc.invalidateQueries({ queryKey: ["fnf_payroll_inputs"] });
+      toast.success("Pushed to RazorpayX and verified on the run");
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
 
   const b: any = settlement?.breakdown || {};
   const components: { label: string; amount: number; note?: string }[] = settlement

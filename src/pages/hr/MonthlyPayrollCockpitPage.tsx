@@ -20,9 +20,11 @@ import {
   Scale,
   Flag,
   ExternalLink,
+  FileSpreadsheet,
   UserCheck,
   Bot,
 } from "lucide-react";
+import { VerificationPackDialog } from "@/components/hr/payroll/VerificationPackDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -362,7 +364,9 @@ export default function MonthlyPayrollCockpitPage() {
   const [closeOpen, setCloseOpen] = useState(false);
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
   const [toolStep, setToolStep] = useState<{ no: number; label: string } | null>(null);
+  const [packOpen, setPackOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+
 
   const [, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
@@ -747,6 +751,16 @@ export default function MonthlyPayrollCockpitPage() {
                             </a>
                           </Button>
                         )}
+                        {step.step_key === "run_on_razorpay" && (
+                          <Button
+                            variant="outline"
+                            className="h-10 w-full justify-between gap-1.5"
+                            onClick={() => setPackOpen(true)}
+                          >
+                            Download verification pack <FileSpreadsheet className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+
                         {canAck && step.ack_status !== "done" && !closed && (
                           <Button
                             className="h-10 w-full gap-1.5"
@@ -896,6 +910,9 @@ export default function MonthlyPayrollCockpitPage() {
         stepLabel={toolStep?.label}
         onClose={closeTool}
       />
+
+      <VerificationPackDialog open={packOpen} onOpenChange={setPackOpen} period={month} />
+
     </div>
   );
 }

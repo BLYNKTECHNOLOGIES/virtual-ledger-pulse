@@ -49,6 +49,8 @@ export interface AttendanceDay {
   engine_version: string | null;
   lop_contribution: number;
   watchdog_held: boolean;
+  /** Any punch/session evidence exists for the day. */
+  evidence_backed: boolean;
   /** Declared company holiday (includes recurring holidays). */
   is_holiday: boolean;
   /** Weekly off for THIS employee (per-employee pattern, tenant default otherwise). */

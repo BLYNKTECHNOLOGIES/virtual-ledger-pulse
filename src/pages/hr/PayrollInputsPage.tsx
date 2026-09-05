@@ -291,7 +291,10 @@ export default function PayrollInputsPage() {
     const action = kind === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
     const items = group.map((r) => (kind === "addition"
       ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
-      : { label: r.label, amount: Number(r.amount) }));
+      // deductFrom: recoveries/LOP/EMIs come off NET pay so the CTC stays
+      // intact; only mid-joiner salary normalisation comes off GROSS.
+      : { label: r.label, amount: Number(r.amount), deductFrom: r.deduct_from === "gross" ? "gross" : "net" }));
+
 
     // NOTE: RazorpayX's deduction contract is a SINGLE aggregate
     // `deduction-amount` per employee/month — every call REPLACES the previous

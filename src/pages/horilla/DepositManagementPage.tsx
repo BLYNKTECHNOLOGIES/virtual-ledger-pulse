@@ -365,13 +365,39 @@ export default function DepositManagementPage() {
     mutationFn: async (d: any) => {
       const collected = Number(d.collected_amount || 0);
 
-      // Always drop only the not-yet-collected schedule rows.
+      // Re-check live: an installment already pushed to RazorpayX must never be
+      // wiped silently — the deduction stays live on that month's payroll.
+      const { data: liveSched } = await (supabase as any)
+        .from("hr_employee_deposit_schedule")
+        .select("id, status")
+        .eq("deposit_id", d.id);
+      const liveIds = ((liveSched || []) as any[]).map((r) => r.id);
+      let livePushed = ((liveSched || []) as any[]).filter((r) => r.status === "pushed").map((r) => r.id);
+      if (liveIds.length) {
+        const { data: ded } = await (supabase as any)
+          .from("hr_payroll_input_deductions")
+          .select("recovery_ref_id")
+          .eq("recovery_kind", "deposit")
+          .in("recovery_ref_id", liveIds)
+          .not("pushed_at", "is", null);
+        livePushed = [...new Set([...livePushed, ...((ded || []) as any[]).map((x) => x.recovery_ref_id)])];
+      }
+      if (livePushed.length > 0 && !deleteAcknowledged) {
+        throw new Error(
+          `${livePushed.length} installment(s) of this record are already pushed to RazorpayX. Reverse them in RazorpayX first, then confirm the acknowledgement.`,
+        );
+      }
+
+      // Never destroy collected or already-pushed installments.
       const { error: schedErr } = await (supabase as any)
         .from("hr_employee_deposit_schedule")
         .delete()
         .eq("deposit_id", d.id)
-        .neq("status", "collected");
+        .neq("status", "collected")
+        .neq("status", "pushed");
       if (schedErr) throw schedErr;
+
+
 
       if (collected <= 0) {
         await (supabase as any).from("hr_deposit_transactions").delete().eq("deposit_id", d.id);

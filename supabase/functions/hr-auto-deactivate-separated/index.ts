@@ -237,5 +237,13 @@ Deno.serve(async (req) => {
     });
   }
 
-  return json({ ok: true, today, scanned: due?.length || 0, dry_run: dryRun, results });
+  const held = results.filter((r) => r.action === "held_fnf_unsettled");
+  return json({
+    ok: true,
+    today,
+    scanned: due?.length || 0,
+    dry_run: dryRun,
+    held_for_fnf: held.length,
+    results,
+  });
 });

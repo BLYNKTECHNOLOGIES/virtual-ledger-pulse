@@ -338,17 +338,26 @@ export default function PayrollInputsPage() {
 
   const bulkDelete = useMutation({
     mutationFn: async (ids: string[]) => {
-      const { error } = await (supabase as any).from(table).delete().in("id", ids);
+      const { data, error } = await (supabase as any).from(table).delete().in("id", ids).select("id");
       if (error) throw error;
-      return ids.length;
+      const n = (data ?? []).length;
+      if (n === 0) {
+        throw new Error("Nothing was removed — those rows no longer exist or you do not have permission to remove them. The list has been refreshed.");
+      }
+      return n;
     },
-    onSuccess: (n) => {
-      qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
+    onSuccess: async (n) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
       setSelected({}); setBulkDeleteConfirm(false);
       toast.success(`Deleted ${n} staged row${n === 1 ? "" : "s"}`);
     },
-    onError: (e: any) => { toast.error(e.message); setBulkDeleteConfirm(false); },
+    onError: async (e: any) => {
+      await qc.refetchQueries({ queryKey: ["payroll_inputs", table, period] });
+      setSelected({}); setBulkDeleteConfirm(false);
+      toast.error(e.message);
+    },
   });
+
 
   const doNotPay = useMutation({
     mutationFn: async (empRow: any) => {

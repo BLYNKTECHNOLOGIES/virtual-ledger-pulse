@@ -708,15 +708,19 @@ export default function MonthlyPayrollCockpitPage() {
                               <Lock className="h-3 w-3 shrink-0" /> This step cannot be confirmed yet
                             </div>
                             <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                              {stepGate.lopReasons.map((r) => (
-                                <li key={r}>Pending in Step 4: {r}.</li>
+                              {stepRecalcReasons.map((r) => (
+                                <li key={r}>{r}. Open the tool, run the calculation and stage the rows.</li>
                               ))}
-                              {stepGate.recoveryReasons.map((r) => (
-                                <li key={r}>{r}. Open the tool to push {stepGate.recPending === 1 ? "it" : "them"}.</li>
-                              ))}
+                              {step.step_key === "inputs_push" &&
+                                stepGate.lopReasons.map((r) => <li key={r}>Pending in Step 4: {r}.</li>)}
+                              {step.step_key === "inputs_push" &&
+                                stepGate.recoveryReasons.map((r) => (
+                                  <li key={r}>{r}. Open the tool to push {stepGate.recPending === 1 ? "it" : "them"}.</li>
+                                ))}
                             </ul>
                           </div>
                         )}
+
                       </div>
 
                       {/* Actions */}

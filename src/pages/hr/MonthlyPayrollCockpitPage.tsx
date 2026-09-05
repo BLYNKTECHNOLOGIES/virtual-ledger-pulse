@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { CockpitToolSheet, type CockpitToolKey } from "@/components/hrms/CockpitToolSheet";
 import {
   CheckCircle2,
@@ -56,6 +56,7 @@ import {
 } from "@/hooks/hrms/useCockpit";
 import { usePayrollStepGate } from "@/hooks/hrms/usePayrollStepGate";
 import { useMandatoryRecalcs } from "@/hooks/hrms/useMandatoryRecalcs";
+import { usePendingBankChanges } from "@/hooks/hrms/usePendingBankChanges";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -405,13 +406,18 @@ export default function MonthlyPayrollCockpitPage() {
   const { data: steps = [], isLoading, error } = useCockpitMonth(month);
   const stepGate = usePayrollStepGate(month);
   const recalc = useMandatoryRecalcs(month);
+  const bankGate = usePendingBankChanges();
+  const navigate = useNavigate();
+
 
   /** Recalculations that MUST have been run and staged before a step is confirmed. */
   function recalcReasonsFor(stepKey: string): string[] {
     if (stepKey === "lop_push") return recalc.lopReasons;
-    if (stepKey === "inputs_push") return recalc.compoffReasons;
+    if (stepKey === "inputs_push") return [...recalc.compoffReasons, ...bankGate.reasons];
+    if (stepKey === "run_on_razorpay") return bankGate.reasons;
     return [];
   }
+
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 
@@ -593,6 +599,34 @@ export default function MonthlyPayrollCockpitPage() {
           ))}
         </CardContent>
       </Card>
+
+      {bankGate.blocked && (
+        <Card className="border-destructive/40 bg-destructive/[0.04]">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Lock className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+            <div className="min-w-0 space-y-1">
+              <div className="text-sm font-medium text-destructive">
+                Payroll run is blocked — {bankGate.count} bank account change{" "}
+                {plural(bankGate.count, "request")} pending
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {bankGate.names.join(", ")}. Salary must not be paid while an account change is
+                unresolved. Approve or reject each request, then return here.
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs mt-1"
+                onClick={() => navigate("/hrms/requests?type=bank_change")}
+              >
+                Review bank change requests
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
 
       {error ? (
         <Card className="border-destructive/40">

@@ -225,7 +225,12 @@ export default function LoansPage() {
       );
     },
 
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => {
+      // The status legs may have succeeded before a later leg failed — always
+      // resync so the list never shows a stale "pending" row.
+      qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      toast.error(e.message);
+    },
   });
 
   // Repayment received outside payroll (cash / bank transfer)

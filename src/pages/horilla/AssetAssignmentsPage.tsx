@@ -49,7 +49,7 @@ export default function AssetAssignmentsPage() {
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_list"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true);
+      const { data, error } = await (supabase as any).from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name").order("last_name");
       if (error) throw error;
       return data || [];
     },

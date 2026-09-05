@@ -37,7 +37,7 @@ export default function LeaveLedgerHistoryPage() {
       const [employees, leaveTypes, allocations, accruals, compoffCredits, compoffSettlements, consumption, requests] =
         await Promise.all([
           fetchAllPaginated<any>(() =>
-            (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name")
+            (supabase as any).from("hr_employees").select("id, badge_id, first_name, last_name").order("first_name").order("last_name")
           ),
           (supabase as any).from("hr_leave_types").select("id, name, code, color").then((r: any) => r.data || []),
           fetchAllPaginated<any>(() =>

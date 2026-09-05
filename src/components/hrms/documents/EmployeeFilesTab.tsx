@@ -33,7 +33,7 @@ export function EmployeeFilesTab() {
     queryKey: ["hr_doc_studio_employee_names"],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from("hr_employees").select("id, first_name, last_name, badge_id").limit(2000);
+        .from("hr_employees").select("id, first_name, last_name, badge_id").order("first_name").order("last_name").limit(2000);
       if (error) throw error;
       return data || [];
     },

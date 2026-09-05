@@ -92,7 +92,13 @@ export default function PayrollInputsPage() {
         .not("hr_employee_id", "is", null)
         .not("razorpay_employee_id", "is", null);
       if (error) throw error;
-      return (data || []).filter((r: any) => r.hr_employees && r.hr_employees.is_active !== false);
+      return (data || [])
+        .filter((r: any) => r.hr_employees && r.hr_employees.is_active !== false)
+        // Employee pickers are always alphabetical by full name.
+        .sort((a: any, b: any) =>
+          `${a.hr_employees?.first_name ?? ""} ${a.hr_employees?.last_name ?? ""}`.trim()
+            .localeCompare(`${b.hr_employees?.first_name ?? ""} ${b.hr_employees?.last_name ?? ""}`.trim(), "en", { sensitivity: "base" }));
+
     },
   });
   const empById = useMemo(() => {

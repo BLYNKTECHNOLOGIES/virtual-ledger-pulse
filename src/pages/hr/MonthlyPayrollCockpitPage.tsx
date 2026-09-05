@@ -405,13 +405,16 @@ export default function MonthlyPayrollCockpitPage() {
   const { data: steps = [], isLoading, error } = useCockpitMonth(month);
   const stepGate = usePayrollStepGate(month);
   const recalc = useMandatoryRecalcs(month);
+  const bankGate = usePendingBankChanges();
 
   /** Recalculations that MUST have been run and staged before a step is confirmed. */
   function recalcReasonsFor(stepKey: string): string[] {
     if (stepKey === "lop_push") return recalc.lopReasons;
-    if (stepKey === "inputs_push") return recalc.compoffReasons;
+    if (stepKey === "inputs_push") return [...recalc.compoffReasons, ...bankGate.reasons];
+    if (stepKey === "run_on_razorpay") return bankGate.reasons;
     return [];
   }
+
   const ack = useAckCockpitStep(month);
   const close = useCloseMonth(month);
 

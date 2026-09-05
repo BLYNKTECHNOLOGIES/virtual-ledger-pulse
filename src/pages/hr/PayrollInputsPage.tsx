@@ -280,20 +280,23 @@ export default function PayrollInputsPage() {
   // Single push primitive. The proxy converts additions to RazorpayX's array
   // contract and deductions to its email + aggregate deduction-amount contract.
   // Amounts stay in rupees, and view-payroll read-back proves each live write.
-  async function pushGroup(rowsIn: any[]) {
+  async function pushGroup(rowsIn: any[], kindIn?: Kind) {
     const group = Array.isArray(rowsIn) ? rowsIn : [rowsIn];
     if (!group.length) return null;
+    const kind: Kind = kindIn ?? tab;
+    const tbl = kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
     const first = group[0];
-    const action = tab === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
-    const items = group.map((r) => (tab === "addition"
+    const action = kind === "addition" ? "payroll_add_additions" : "payroll_add_deduction";
+    const items = group.map((r) => (kind === "addition"
       ? { label: r.label, amount: Number(r.amount), taxable: r.taxable !== false, type: additionTypeSlug(r.addition_type) }
       : { label: r.label, amount: Number(r.amount) }));
     const data: any = {
       "employee-id": Number(first.razorpay_employee_id),
       "employee-type": "employee",
       "payroll-month": String(first.period_month).slice(0, 7),
-      ...(tab === "addition" ? { additions: items } : { deductions: items }),
+      ...(kind === "addition" ? { additions: items } : { deductions: items }),
     };
+
     const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
       body: {
         action,

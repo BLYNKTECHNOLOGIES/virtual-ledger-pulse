@@ -34,7 +34,30 @@ export function AutoRecoveriesCard({ period }: Props) {
     },
   });
 
+  // Staged deduction rows for this period, keyed by the recovery they came from.
+  // The recovery row itself stays "scheduled" until RazorpayX settles it, so the
+  // staging state has to be read from Payroll Inputs → Deductions.
+  const { data: stagedRows = [] } = useQuery({
+    queryKey: ["payroll_auto_recovery_staged", periodDate],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_payroll_input_deductions")
+        .select("id, recovery_ref_id, recovery_kind, amount, pushed_at, readback_verified_at")
+        .eq("source", "auto_recovery")
+        .eq("period_month", periodDate);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const stagedByRef = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const d of stagedRows as any[]) if (d.recovery_ref_id) m.set(d.recovery_ref_id, d);
+    return m;
+  }, [stagedRows]);
+
   const qc = useQueryClient();
+
 
   // "Awaiting HR push" rows whose deduction hasn't been staged yet (the
   // nightly staging job hasn't run) can be staged on demand — this only
@@ -56,14 +79,15 @@ export function AutoRecoveriesCard({ period }: Props) {
     onSuccess: () => {
       toast.success("Staged in Payroll Inputs → Deductions — review and push it there");
       qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recovery_staged"] });
       qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
     },
     onError: (e: any) => toast.error(e.message || "Could not stage this recovery"),
   });
 
   const pendingRows = useMemo(
-    () => (rows as any[]).filter((r) => r.status === "scheduled"),
-    [rows],
+    () => (rows as any[]).filter((r) => r.status === "scheduled" && !stagedByRef.has(r.id)),
+    [rows, stagedByRef],
   );
 
   // Bulk staging — same per-row contract, run sequentially so each recovery
@@ -96,6 +120,7 @@ export function AutoRecoveriesCard({ period }: Props) {
       if (staged) toast.success(`${staged} recover${staged === 1 ? "y" : "ies"} staged in Payroll Inputs → Deductions`);
       if (failures.length) toast.error(`${failures.length} could not be staged — ${failures[0]}`);
       qc.invalidateQueries({ queryKey: ["payroll_auto_recoveries"] });
+      qc.invalidateQueries({ queryKey: ["payroll_auto_recovery_staged"] });
       qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
     },
     onError: (e: any) => toast.error(e.message || "Bulk staging failed"),
@@ -120,6 +145,7 @@ export function AutoRecoveriesCard({ period }: Props) {
 
   const statusMeta = (
     r: any,
+    staged?: any,
   ): { tone: PillTone; label: string; icon: JSX.Element; tip: string } => {
     switch (r.status) {
       case "collected":
@@ -152,9 +178,30 @@ export function AutoRecoveriesCard({ period }: Props) {
           tip: "No longer recovered",
         };
       default:
+        if (staged?.readback_verified_at)
+          return {
+            tone: "emerald",
+            label: "Verified on run",
+            icon: <CheckCircle2 className="h-3 w-3" />,
+            tip: `Pushed to RazorpayX and read back on the ${periodLabel} run.`,
+          };
+        if (staged?.pushed_at)
+          return {
+            tone: "info",
+            label: "Pushed",
+            icon: <Clock className="h-3 w-3" />,
+            tip: `Pushed to the ${periodLabel} RazorpayX run — read-back verification pending.`,
+          };
+        if (staged)
+          return {
+            tone: "info",
+            label: "Staged for review",
+            icon: <CalendarClock className="h-3 w-3" />,
+            tip: `Deduction row created in Payroll Inputs → Deductions for ${timing}. HR pushes it from there.`,
+          };
         return {
           tone: "amber",
-          label: "Awaiting HR push",
+          label: "Not staged yet",
           icon: <CalendarClock className="h-3 w-3" />,
           tip: `Staged as a deduction for ${timing} — HR reviews and pushes it from Payroll Inputs → Deductions. Nothing is sent to RazorpayX automatically.`,
         };
@@ -219,7 +266,8 @@ export function AutoRecoveriesCard({ period }: Props) {
                 </tr>
               ) : (
                 (rows as any[]).map((r) => {
-                  const s = statusMeta(r);
+                  const staged = stagedByRef.get(r.id);
+                  const s = statusMeta(r, staged);
                   const totalAmt = Number(r.total_amount || 0);
                   const collected = Number(r.collected_amount || 0);
                   const afterThis = Math.max(0, totalAmt - collected - Number(r.amount || 0));
@@ -280,7 +328,7 @@ export function AutoRecoveriesCard({ period }: Props) {
                             </TooltipTrigger>
                             <TooltipContent className="text-xs max-w-[240px]">{s.tip}</TooltipContent>
                           </Tooltip>
-                          {r.status === "scheduled" && (
+                          {r.status === "scheduled" && !staged && (
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button

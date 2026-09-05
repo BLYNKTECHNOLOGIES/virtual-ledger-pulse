@@ -747,6 +747,16 @@ export default function MonthlyPayrollCockpitPage() {
                             </a>
                           </Button>
                         )}
+                        {step.step_key === "run_on_razorpay" && (
+                          <Button
+                            variant="outline"
+                            className="h-10 w-full justify-between gap-1.5"
+                            onClick={() => setPackOpen(true)}
+                          >
+                            Download verification pack <FileSpreadsheet className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+
                         {canAck && step.ack_status !== "done" && !closed && (
                           <Button
                             className="h-10 w-full gap-1.5"

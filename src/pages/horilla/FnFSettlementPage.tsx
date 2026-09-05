@@ -352,11 +352,29 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
 
-                    {EDITABLE_STATUSES.includes(s.status) && (
-                      <Button size="sm" variant="outline" className="h-8" onClick={() => openEdit(s)}>
-                        Edit
-                      </Button>
-                    )}
+                    {(() => {
+                      // Draft/calculated are always editable. An approved settlement
+                      // can still be corrected as long as its lines are not live on a
+                      // RazorpayX payroll run — the DB state machine only restricts
+                      // status transitions, not amount edits.
+                      const isPushed = s.razorpay_push_status === "pushed";
+                      const canEdit = EDITABLE_STATUSES.includes(s.status) || (s.status === "approved" && !isPushed && s.status !== "paid");
+                      if (canEdit) {
+                        return (
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => openEdit(s)}>
+                            Edit
+                          </Button>
+                        );
+                      }
+                      if (s.status === "approved" && isPushed) {
+                        return (
+                          <Button size="sm" variant="outline" className="h-8" disabled title="Already pushed to RazorpayX — remove the F&F lines there before editing">
+                            Edit
+                          </Button>
+                        );
+                      }
+                      return null;
+                    })()}
 
                     {s.status === "draft" && (
                       <Button size="sm" variant="outline" className="h-8" onClick={() => updateStatusMutation.mutate({ id: s.id, status: "calculated" })}>
@@ -399,8 +417,8 @@ export default function FnFSettlementPage() {
 
                     <Button
                       size="sm"
-                      variant="ghost"
-                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                      variant="outline"
+                      className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
                       title={
                         s.razorpay_push_status === "pushed"
                           ? "Already pushed to RazorpayX — remove it there first"

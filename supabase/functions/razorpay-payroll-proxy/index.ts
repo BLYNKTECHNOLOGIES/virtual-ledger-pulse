@@ -8284,6 +8284,8 @@ Deno.serve(async (req) => {
                 : matched,
               error: rbErr ? String(rbErr).slice(0, 200) : (allMatched ? null : "Pushed, but the modification was not visible on the RazorpayX run read-back."),
               snapshot_keys: rbBody && typeof rbBody === "object" ? Object.keys(rbBody).slice(0, 20) : [],
+              deduction_split: dedSplit,
+
             };
             const rbIds: string[] = Array.isArray(directPayload?.readback_ids)
               ? directPayload.readback_ids.map((x: any) => String(x)).filter(Boolean)

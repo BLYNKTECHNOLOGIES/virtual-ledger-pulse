@@ -51,3 +51,13 @@ gate and the day re-enters the LOP calculation on the next payroll pass.
   `hr_lop_days` — do NOT add new call sites; migrate them.
 - Any client-side LOP tally is a bug. If you see one, replace it with an RPC
   call to `hr_lop_days`.
+
+## Employment window (joiners / leavers) — owner ruling 05-Sep-2026
+
+RazorpayX prorates the joining/relieving month itself (verified live via
+`payroll:view-payroll`: a 17-Aug joiner on ₹10,000/month shows `salary: 4839`).
+Therefore HRMS **must not** charge pre-joining / post-exit days as LOP — doing
+so double-deducts. `hr_employment_gap_working_days` output is now reporting only
+(`not_employed_days`), shown in the LOP table and CSV as "Not employed
+(RazorpayX prorates)". Only genuine absence inside the employment window is
+charged, at monthly salary ÷ calendar days.

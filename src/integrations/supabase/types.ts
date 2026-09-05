@@ -28782,31 +28782,30 @@ export type Database = {
       hr_attendance_day_range: {
         Args: { p_employee_ids: string[]; p_from: string; p_to: string }
         Returns: {
-          break_minutes: number | null
-          date: string | null
-          early_minutes: number | null
-          employee_id: string | null
-          engine_version: string | null
-          evidence_backed: boolean | null
-          first_in: string | null
-          is_late: boolean | null
-          last_out: string | null
-          late_minutes: number | null
-          lop_contribution: number | null
-          lunch_minutes: number | null
-          session_count: number | null
-          status: string | null
-          suppressed_count: number | null
-          total_hours: number | null
-          watchdog_held: boolean | null
-          worked_minutes: number | null
+          break_minutes: number
+          date: string
+          early_minutes: number
+          employee_id: string
+          engine_version: string
+          evidence_backed: boolean
+          first_in: string
+          is_holiday: boolean
+          is_late: boolean
+          is_week_off: boolean
+          is_working_day: boolean
+          last_out: string
+          late_minutes: number
+          leave_is_paid: boolean
+          lop_contribution: number
+          lunch_minutes: number
+          on_approved_leave: boolean
+          session_count: number
+          status: string
+          suppressed_count: number
+          total_hours: number
+          watchdog_held: boolean
+          worked_minutes: number
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "hr_attendance_day_v"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
       hr_attendance_month_summary: {
         Args: { p_employee_ids: string[]; p_period_month: string }

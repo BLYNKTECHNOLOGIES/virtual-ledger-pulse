@@ -21,7 +21,7 @@ import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSe
 import { useMonthHolidays } from "@/hooks/hrms/useMonthHolidays";
 
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
-import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { useAttendanceDayRange, resolveDayStatus, countsTowardAttendance, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
 import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";
 
@@ -129,15 +129,15 @@ export default function AttendanceCalendarPage() {
   const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
   const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
 
-  // Monthly stats — engine statuses only.
+  // Monthly stats — working days only, exactly the days the payroll/LOP engine counts.
   const monthStats = useMemo(() => {
-    const rows = engineDays as AttendanceDay[];
-    const counted = rows.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status));
-    const present = rows.filter((d) => d.status === "present").length;
-    const half = rows.filter((d) => d.status === "half_day").length;
-    const absent = rows.filter((d) => d.status === "absent").length;
+    const rows = (engineDays as AttendanceDay[]).filter(countsTowardAttendance);
+    const st = rows.map((d) => resolveDayStatus(d));
+    const present = st.filter((s) => s === "present").length;
+    const half = st.filter((s) => s === "half_day").length;
+    const absent = st.filter((s) => s === "absent").length;
     const late = rows.filter((d) => d.is_late).length;
-    const base = counted.length;
+    const base = rows.length;
     return {
       total: base,
       present,
@@ -220,12 +220,13 @@ export default function AttendanceCalendarPage() {
         ) : (
           filteredEmps.map((emp: any) => {
             const empAttendance = attendanceMap[emp.id] || {};
-            const values = Object.values(empAttendance);
-            const empPresent = values.filter((d) => d.status === "present").length;
-            const empHalf = values.filter((d) => d.status === "half_day").length;
-            const empAbsent = values.filter((d) => d.status === "absent").length;
+            const values = Object.values(empAttendance).filter(countsTowardAttendance);
+            const statuses = values.map((d) => resolveDayStatus(d));
+            const empPresent = statuses.filter((s) => s === "present").length;
+            const empHalf = statuses.filter((s) => s === "half_day").length;
+            const empAbsent = statuses.filter((s) => s === "absent").length;
             const empLate = values.filter((d) => d.is_late).length;
-            const empBase = values.filter((d) => !["week_off", "holiday", "no_data"].includes(d.status)).length;
+            const empBase = values.length;
             const rate = empBase > 0 ? Math.round(((empPresent + empHalf * 0.5) / empBase) * 100) : 0;
 
             return (
@@ -265,17 +266,16 @@ export default function AttendanceCalendarPage() {
                     {days.map(day => {
                       const dateStr = format(day, "yyyy-MM-dd");
                       const record = empAttendance[dateStr];
-                      const weeklyOff = isWeeklyOff(day, complianceSettings);
-                      const holidayName = holidays[dateStr];
-                      // Engine status wins; then declared holiday; then weekly off.
-                      const status: AttendanceDayStatus =
-                        record?.status && record.status !== "no_data"
-                          ? record.status
-                          : holidayName
-                            ? "holiday"
-                            : weeklyOff
-                              ? "week_off"
-                              : "no_data";
+                      const weeklyOff = record ? record.is_week_off : isWeeklyOff(day, complianceSettings);
+                      const holidayName = holidays[dateStr] ?? (record?.is_holiday ? "Company holiday" : undefined);
+                      // Server truth (per-employee weekly off, holidays, approved leave).
+                      const status: AttendanceDayStatus = record
+                        ? resolveDayStatus(record)
+                        : holidayName
+                          ? "holiday"
+                          : weeklyOff
+                            ? "week_off"
+                            : "no_data";
 
                       const today = isToday(day);
                       const hasDetail = !!record && record.status !== "no_data";

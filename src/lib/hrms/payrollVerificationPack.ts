@@ -209,7 +209,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const coBy = new Map(coRows.map((r) => [r.hr_employee_id, r]));
   const lopBy = new Map(lopRows.map((r) => [r.hr_employee_id, r]));
 
-  const deptName = new Map(depts.map((d: any) => [d.id, d.department]));
+  const deptName = new Map(depts.map((d: any) => [d.id, d.name]));
   const wi = new Map(workInfo.map((w: any) => [w.employee_id, w]));
   const emp = new Map(employees.map((e: any) => [e.id, e]));
   const mapped = new Map(rzpMap.map((m: any) => [m.hr_employee_id, m]));

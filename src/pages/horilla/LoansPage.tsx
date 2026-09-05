@@ -135,15 +135,15 @@ export default function LoansPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: "approved" | "rejected" }) => {
+    mutationFn: async ({ id, action, month }: { id: string; action: "approved" | "rejected"; month?: string }) => {
       if (action === "rejected") {
         const { error } = await (supabase as any).from("hr_loans").update({ status: "rejected" }).eq("id", id);
         if (error) throw error;
-        return { pushed: false as boolean, advanceId: null as number | null };
+        return { staged: false as boolean, month: null as string | null };
       }
       const { data: loan, error: loadErr } = await (supabase as any)
         .from("hr_loans")
-        .select("id, employee_id, amount, emi_amount, reason, status, disbursement_mode, razorpay_advance_salary_id")
+        .select("id, employee_id, amount, emi_amount, reason, status, disbursement_mode, payroll_addition_month, payroll_addition_id")
         .eq("id", id)
         .maybeSingle();
       if (loadErr) throw loadErr;
@@ -154,7 +154,7 @@ export default function LoansPage() {
 
       // State machine: pending -> approved -> active (the DB trigger rejects a direct jump).
       // Resumable: a previous attempt may have already advanced the status and only
-      // failed on the RazorpayX leg, so each step is skipped when already done.
+      // failed on the payout leg, so each step is skipped when already done.
       if (loan.status === "pending") {
         const { error: e1 } = await (supabase as any)
           .from("hr_loans")
@@ -170,20 +170,21 @@ export default function LoansPage() {
           .eq("id", id)
           .eq("status", "approved");
         if (e2) throw e2;
-        // Build the month-by-month EMI plan so the daily scheduler can push it to RazorpayX
+        // Build the month-by-month EMI plan so the daily scheduler can stage it
         const { error: e3 } = await (supabase as any).rpc("hr_rebuild_loan_schedule", { p_loan_id: id });
         if (e3) throw e3;
       }
 
-
-      // Payout leg. Only for advances the owner chose to route through the
-      // official RazorpayX Advance Salary API (POST /api/advanceSalary).
-      // RazorpayX auto-approves the request, the payment itself is released
-      // from the RazorpayX dashboard, and RazorpayX recovers the EMI — so the
-      // HRMS scheduler deliberately skips staging deductions for these loans.
-      if (loan.disbursement_mode !== "razorpay_advance" || loan.razorpay_advance_salary_id) {
-        return { pushed: false as boolean, advanceId: null as number | null };
+      // Payout leg — the advance is paid through payroll as a staged ADDITION
+      // in the chosen month. RazorpayX has no usable create-advance route for
+      // us, so HRMS stages the payout and HR pushes it from
+      // Payroll Inputs → Additions, exactly like every other payroll figure.
+      // Recovery still runs through the normal EMI deduction schedule.
+      if (loan.disbursement_mode !== "payroll_addition" || loan.payroll_addition_id) {
+        return { staged: false as boolean, month: null as string | null };
       }
+      const periodMonth = `${(month || String(loan.payroll_addition_month || "").slice(0, 7) || new Date().toISOString().slice(0, 7))}-01`;
+
       const { data: map, error: mapErr } = await (supabase as any)
         .from("hr_razorpay_employee_map")
         .select("razorpay_employee_id")
@@ -191,43 +192,43 @@ export default function LoansPage() {
         .maybeSingle();
       if (mapErr) throw mapErr;
       if (!map?.razorpay_employee_id) {
-        throw new Error("This employee is not mapped to RazorpayX yet — the advance cannot be created there.");
+        throw new Error("This employee is not mapped to RazorpayX yet — the payout addition cannot be staged.");
       }
-      const { data: res, error: fnErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
-        body: {
-          action: "advance_salary_create",
-          data: {
-            "employee-id": Number(map.razorpay_employee_id),
-            amount: Number(loan.amount),
-            "emi-amount": Number(loan.emi_amount),
-            reason: loan.reason || "Salary advance",
-          },
-        },
-      });
-      if (fnErr) throw new Error(fnErr.message || "RazorpayX call failed");
-      if (res && typeof res === "object" && "ok" in res && !(res as any).ok) {
-        throw new Error((res as any).error || "RazorpayX rejected the advance");
-      }
-      const advanceId = Number(
-        (res as any)?.body?.["advance-salary-id"] ?? (res as any)?.body?.advance_salary_id ?? 0,
-      ) || null;
+
+      const { data: inserted, error: insErr } = await (supabase as any)
+        .from("hr_payroll_input_additions")
+        .insert({
+          hr_employee_id: loan.employee_id,
+          razorpay_employee_id: String(map.razorpay_employee_id),
+          period_month: periodMonth,
+          label: loan.reason ? `Salary advance — ${loan.reason}` : "Salary advance payout",
+          amount: Number(loan.amount),
+          addition_type: 0, // Opfin: 0 = bonus/other
+          taxable: false,   // an advance is repaid, not income
+          source: "loan_advance",
+        })
+        .select("id")
+        .maybeSingle();
+      if (insErr) throw insErr;
+
       const { error: stampErr } = await (supabase as any)
         .from("hr_loans")
-        .update({ razorpay_advance_salary_id: advanceId, razorpay_pushed_at: new Date().toISOString() })
+        .update({ payroll_addition_id: inserted?.id ?? null, payroll_addition_month: periodMonth })
         .eq("id", id);
       if (stampErr) throw stampErr;
-      return { pushed: true as boolean, advanceId };
-
+      return { staged: true as boolean, month: periodMonth };
     },
     onSuccess: (d: any, vars) => {
       qc.invalidateQueries({ queryKey: ["hr_loans"] });
+      qc.invalidateQueries({ queryKey: ["hr_payroll_input_additions"] });
       if (vars.action !== "approved") { toast.success("Loan rejected"); return; }
       toast.success(
-        d?.pushed
-          ? `Approved — advance created in RazorpayX${d.advanceId ? ` (id ${d.advanceId})` : ""}. Release the payment from the RazorpayX dashboard; RazorpayX will recover the EMI.`
+        d?.staged
+          ? `Approved — ₹ payout staged in ${format(new Date(d.month), "MMM yyyy")} payroll additions. Review and push it in Payroll Inputs → Additions.`
           : "Loan approved — EMI schedule generated. Each instalment will appear in Payroll Inputs → Deductions for HR to push.",
       );
     },
+
 
     onError: (e: any) => {
       // The status legs may have succeeded before a later leg failed — always

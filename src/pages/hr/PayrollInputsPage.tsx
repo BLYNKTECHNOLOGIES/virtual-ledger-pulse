@@ -1319,6 +1319,37 @@ export default function PayrollInputsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <AlertDialog open={rebuildConfirm} onOpenChange={setRebuildConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear and re-send everything to RazorpayX for {periodLabel}?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <div>
+                  This wipes every addition and deduction RazorpayX currently holds for {periodLabel} — for every
+                  employee who has anything on the run — and immediately writes them all back, one employee at a time,
+                  confirming each on the live run.
+                </div>
+                <div>
+                  Use this to repair the month: earlier pushes that replaced each other are restored in full, and each
+                  line lands on the bucket it is now set to (Net Pay for recoveries, LOP, EMIs and deposits; Gross Pay
+                  for mid-joiner salary normalisation).
+                </div>
+                <div>Nothing is paid out by this. Anything that fails to go back is left showing as pending here.</div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => rebuildMonth.mutate()} disabled={rebuildMonth.isPending}>
+              {rebuildMonth.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Clear and re-send
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+
+
       <AlertDialog open={bulkPushConfirm} onOpenChange={setBulkPushConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>

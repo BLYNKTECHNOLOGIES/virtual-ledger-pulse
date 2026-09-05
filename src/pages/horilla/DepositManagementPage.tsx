@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2, Trash2 } from "lucide-react";
+import { Plus, Wallet, Eye, Edit2, CheckCircle, BadgeIndianRupee, Shield, Pause, Play, ChevronRight, ChevronDown, Undo2, Trash2, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -67,6 +67,7 @@ export default function DepositManagementPage() {
   const qc = useQueryClient();
   const [tab, setTab] = useState<DepositType>("security");
   const [subTab, setSubTab] = useState<SubTab>("active");
+  const [search, setSearch] = useState("");
   const [showAdd, setShowAdd] = useState(false);
   const [showSeed, setShowSeed] = useState(false);
   const [showEdit, setShowEdit] = useState(false);

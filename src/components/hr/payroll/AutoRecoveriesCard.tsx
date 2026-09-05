@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { StatusPill, type PillTone } from "@/components/hrms/primitives/StatusPill";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Lock, CalendarClock, Clock, CheckCircle2, AlertTriangle, Ban } from "lucide-react";
+import { toast } from "sonner";
+import { Lock, CalendarClock, Clock, CheckCircle2, AlertTriangle, Ban, Send, Loader2 } from "lucide-react";
 
 type Props = { period: string }; // YYYY-MM
 

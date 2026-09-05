@@ -821,9 +821,27 @@ export default function PayrollInputsPage() {
                 the remaining balance is encashed at monthly base ÷ working days and staged as an addition.
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => setCompoffOpen(true)}>
-              <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {compoffSelected.length > 0 && (
+                <>
+                  <Badge variant="secondary" className="text-xs">{compoffSelected.length} selected · {inr(sum(compoffSelected))}</Badge>
+                  <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => setCoPushConfirm(true)} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                    {bulkPush.isPending ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Send className="h-3 w-3 mr-1" />} Push selected
+                  </Button>
+                  <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive" disabled={bulkDelete.isPending} onClick={() => setCoDeleteConfirm(true)}>
+                    <Trash2 className="h-3 w-3 mr-1" /> Delete selected
+                  </Button>
+                </>
+              )}
+              {compoffSelected.length === 0 && compoffPending.length > 0 && (
+                <Button size="sm" variant="outline" className="h-8 text-xs" disabled={!gateOpen || bulkPush.isPending} onClick={() => { setCoSelected(Object.fromEntries(compoffPending.map((r: any) => [r.id, true]))); setCoPushConfirm(true); }} title={gateOpen ? "" : "Payroll-write gate locked"}>
+                  <Send className="h-3 w-3 mr-1" /> Push all pending ({compoffPending.length})
+                </Button>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setCompoffOpen(true)}>
+                <Gift className="h-4 w-4 mr-1.5" /> Calculate comp-off encashment
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-0 border-t overflow-x-auto">
             {compoffRows.length === 0 ? (

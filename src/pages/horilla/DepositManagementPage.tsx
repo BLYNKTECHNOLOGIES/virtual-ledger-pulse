@@ -399,12 +399,13 @@ export default function DepositManagementPage() {
 
 
 
-      if (collected <= 0) {
+      if (collected <= 0 && livePushed.length === 0) {
         await (supabase as any).from("hr_deposit_transactions").delete().eq("deposit_id", d.id);
         const { error } = await (supabase as any).from("hr_employee_deposits").delete().eq("id", d.id);
         if (error) throw error;
         return { hardDeleted: true };
       }
+
 
       await (supabase as any).from("hr_deposit_transactions").insert({
         employee_id: d.employee_id,

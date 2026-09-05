@@ -85,10 +85,11 @@ export function AutoRecoveriesCard({ period }: Props) {
       default:
         return {
           tone: "amber",
-          label: "Scheduled",
+          label: "Awaiting HR push",
           icon: <CalendarClock className="h-3 w-3" />,
-          tip: `Will be deducted in ${timing}`,
+          tip: `Staged as a deduction for ${timing} — HR reviews and pushes it from Payroll Inputs → Deductions. Nothing is sent to RazorpayX automatically.`,
         };
+
     }
   };
 

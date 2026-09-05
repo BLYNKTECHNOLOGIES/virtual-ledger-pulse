@@ -1,4 +1,4 @@
-import type { AttendanceDay, AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { resolveDayStatus, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 
 export const DAY_STATUS_LABEL: Record<AttendanceDayStatus, string> = {
   present: "Present",
@@ -79,7 +79,13 @@ export function DayTileTooltip({
   dateLabel: string;
   fallback?: string;
 }) {
-  const status = (day?.status || "no_data") as AttendanceDayStatus;
+  const status = resolveDayStatus(day) as AttendanceDayStatus;
+  // Payroll parity: the LOP engine credits a punched-but-unclosed day as attended,
+  // and never counts holidays / weekly offs at all.
+  const countsAsPresentInPayroll =
+    !!day && day.is_working_day && day.evidence_backed &&
+    ["incomplete", "in_progress", "no_punch", "no_data"].includes(day.status);
+  const notCounted = !!day && !day.is_working_day;
   const inT = istTime(day?.first_in);
   const outT = istTime(day?.last_out);
   const outNextDay = !!(day?.last_out && istDate(day.last_out) !== day.date);
@@ -116,6 +122,12 @@ export function DayTileTooltip({
         </div>
       )}
 
+      {countsAsPresentInPayroll && (
+        <div className="text-success">Counted as present in payroll (punch evidence)</div>
+      )}
+      {notCounted && (
+        <div className="text-muted-foreground">Not counted in payroll ({day?.is_holiday ? "holiday" : "weekly off"})</div>
+      )}
       {day?.watchdog_held && <div className="text-destructive">Held — watchdog</div>}
       {day && day.suppressed_count > 0 && (
         <div className="text-muted-foreground">{day.suppressed_count} punch(es) suppressed</div>

@@ -852,6 +852,16 @@ export default function PayrollInputsPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/50 border-b">
                   <tr>
+                    <th className="px-3 py-2 w-10">
+                      <Checkbox
+                        checked={compoffPending.length > 0 && compoffSelected.length === compoffPending.length}
+                        onCheckedChange={(v) =>
+                          setCoSelected(v ? Object.fromEntries(compoffPending.map((r: any) => [r.id, true])) : {})
+                        }
+                        disabled={compoffPending.length === 0}
+                        aria-label="Select all pending comp-off encashment rows"
+                      />
+                    </th>
                     {[
                       { h: "Employee", a: "text-left" },
                       { h: "Detail", a: "text-left" },
@@ -865,7 +875,16 @@ export default function PayrollInputsPage() {
                 </thead>
                 <tbody>
                   {compoffRows.map((r: any) => (
-                    <tr key={r.id} className="border-b hover:bg-muted/40 transition-colors">
+                    <tr key={r.id} className={`border-b hover:bg-muted/40 transition-colors ${coSelected[r.id] ? "bg-primary/5" : ""}`}>
+                      <td className="px-3 py-2">
+                        {!r.pushed_at && (
+                          <Checkbox
+                            checked={!!coSelected[r.id]}
+                            onCheckedChange={(v) => setCoSelected((prev) => ({ ...prev, [r.id]: !!v }))}
+                            aria-label={`Select ${empLabel(r)}`}
+                          />
+                        )}
+                      </td>
                       <td className="px-3 py-2">
                         <div className="flex items-center gap-2">
                           <span className="h-7 w-7 shrink-0 rounded-full bg-primary/10 text-primary grid place-items-center text-[10px] font-semibold">{initials(r)}</span>
@@ -903,7 +922,7 @@ export default function PayrollInputsPage() {
                 </tbody>
                 <tfoot className="bg-muted/40 border-t">
                   <tr>
-                    <td colSpan={2} className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Total · {compoffRows.length} line(s)</td>
+                    <td colSpan={3} className="px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Total · {compoffRows.length} line(s)</td>
                     <td className="px-3 py-2 text-right tabular-nums font-bold">{inr(sum(compoffRows as any[]))}</td>
                     <td colSpan={2} />
                   </tr>
@@ -1068,6 +1087,40 @@ export default function PayrollInputsPage() {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => bulkPush.mutate(selectedPending)} disabled={bulkPush.isPending}>
               {bulkPush.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Push all
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={coPushConfirm} onOpenChange={setCoPushConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Push {compoffSelected.length} comp-off encashment row{compoffSelected.length === 1 ? "" : "s"} to RazorpayX?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Total {inr(sum(compoffSelected))} for period <strong>{period}</strong>. Rows are pushed one employee at a time and read back from the RazorpayX payroll run — a row is marked Pushed only after that verification succeeds.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkPush.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkPush.mutate(compoffSelected)} disabled={bulkPush.isPending}>
+              {bulkPush.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Push
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={coDeleteConfirm} onOpenChange={setCoDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {compoffSelected.length} staged comp-off row{compoffSelected.length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              These encashment lines will be removed from staging for {period}. Nothing already pushed to RazorpayX is affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDelete.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground" onClick={() => bulkDelete.mutate(compoffSelected.map((r: any) => r.id))} disabled={bulkDelete.isPending}>
+              {bulkDelete.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : null}Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -34,7 +34,30 @@ export function AutoRecoveriesCard({ period }: Props) {
     },
   });
 
+  // Staged deduction rows for this period, keyed by the recovery they came from.
+  // The recovery row itself stays "scheduled" until RazorpayX settles it, so the
+  // staging state has to be read from Payroll Inputs → Deductions.
+  const { data: stagedRows = [] } = useQuery({
+    queryKey: ["payroll_auto_recovery_staged", periodDate],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_payroll_input_deductions")
+        .select("id, recovery_ref_id, recovery_kind, amount, pushed_at, readback_verified_at")
+        .eq("source", "auto_recovery")
+        .eq("period_month", periodDate);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const stagedByRef = useMemo(() => {
+    const m = new Map<string, any>();
+    for (const d of stagedRows as any[]) if (d.recovery_ref_id) m.set(d.recovery_ref_id, d);
+    return m;
+  }, [stagedRows]);
+
   const qc = useQueryClient();
+
 
   // "Awaiting HR push" rows whose deduction hasn't been staged yet (the
   // nightly staging job hasn't run) can be staged on demand — this only

@@ -29,7 +29,10 @@ export default function LoansPage() {
     employee_id: "", loan_type: "salary_advance", amount: "", emi_amount: "",
     tenure_months: "1", interest_rate: "0", start_emi_date: "", reason: "", notes: "",
     disbursement_mode: "outside_payroll",
+    payout_month: new Date().toISOString().slice(0, 7),
   });
+  // Month used when staging a payout addition from the loan detail dialog
+  const [stageMonth, setStageMonth] = useState(new Date().toISOString().slice(0, 7));
   // EMI is derived from amount / tenure / interest until HR types their own figure.
   const [emiTouched, setEmiTouched] = useState(false);
 

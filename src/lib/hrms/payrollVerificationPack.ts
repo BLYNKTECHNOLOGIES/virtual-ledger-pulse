@@ -412,7 +412,8 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     "Employment from", "Employment to",
     "Raw LOP days", "Absorbed by comp-off", "Absorbed by casual leave", "Chargeable LOP days",
     "Per-day rate (LOP engine)", "Divisor (calendar days)", "LOP amount (staged)", "LOP amount (current calculation)",
-    "Monthly gross base", "Base source", "Total additions (staged)", "Total deductions (staged)", "Expected net effect vs base",
+    "Monthly gross base", "Base source", "Total additions (staged)", "Total deductions (staged)",
+    "Expected net pay (gross + additions − deductions)",
     "Flags",
   ];
 

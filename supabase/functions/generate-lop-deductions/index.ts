@@ -366,26 +366,21 @@ Deno.serve(async (req) => {
       }
 
       const dayRate = salary.monthlyGross / divisor;
-      // Compliant split: attendance loss vs. days not employed (proration).
-      const attendanceAmount = Math.round(dayRate * Math.min(absenceDays, lopDays));
-      const amount = Math.round(dayRate * lopDays);
-      const prorationAmount = Math.max(0, amount - attendanceAmount);
+      // Only genuine absence is charged. Days outside the employment window are
+      // handled by RazorpayX's own joining/relieving-month proration.
+      const attendanceAmount = Math.round(dayRate * lopDays);
+      const amount = attendanceAmount;
+      const prorationAmount = 0;
 
       const dayWord = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
       const labelParts: string[] = [];
       if (absenceDays > 0) labelParts.push(`${dayWord(absenceDays)} absence`);
-      if (gapDays > 0) labelParts.push(`${dayWord(gapDays)} pre-joining/post-exit proration`);
       if (split.compoff_offset_days > 0) labelParts.push(`${dayWord(split.compoff_offset_days)} offset by comp-off`);
       if (split.cl_offset_days > 0) labelParts.push(`${dayWord(split.cl_offset_days)} offset by casual leave`);
 
       // RazorpayX accepts one deduction line per employee per cycle for this
-      // input; the statutory heading names both components so the payslip and
-      // the register stay self-explanatory.
-      const heading = absenceDays > 0 && gapDays > 0
-        ? "Loss of Pay - Attendance & Proration"
-        : gapDays > 0
-          ? "Loss of Pay - Pre-joining days (proration)"
-          : "Loss of Pay - Attendance";
+      // input; the heading names the attendance loss only.
+      const heading = "Loss of Pay - Attendance";
 
       const row: any = {
         ...base,
@@ -393,6 +388,7 @@ Deno.serve(async (req) => {
         attendance_amount: attendanceAmount,
         proration_amount: prorationAmount,
         proration_working_days: gapWorkingDays,
+        not_employed_days: gapDays,
         monthly_base: salary.monthlyGross,
         base_source: salary.source,
         base_source_label: SALARY_BASE_LABELS[salary.source],

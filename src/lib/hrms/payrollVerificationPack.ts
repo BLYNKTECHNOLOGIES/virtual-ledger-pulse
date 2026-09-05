@@ -196,7 +196,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       fetchAllPaginated<any>(() =>
         (supabase as any).from("hr_employee_work_info").select("employee_id,department_id,joining_date,employee_type").order("id"),
       ),
-      fetchAllPaginated<any>(() => (supabase as any).from("departments").select("id,department").order("id")),
+      fetchAllPaginated<any>(() => (supabase as any).from("departments").select("id,name").order("id")),
       fetchAllPaginated<any>(() =>
         (supabase as any).from("hr_razorpay_employee_map").select("hr_employee_id,razorpay_employee_id,sync_status").order("hr_employee_id"),
       ),

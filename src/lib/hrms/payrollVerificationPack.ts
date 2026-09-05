@@ -338,7 +338,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       prov: row.provisional ? "Provisional" : "Final",
       payable: !outsidePayroll(row),
       pushed: row.pushed_at ? "Yes" : "No", pushedAt: istStamp(row.pushed_at),
-      verified: row.readback_verified_at ? "Verified" : row.pushed_at ? "Not verified" : "—",
+      verified: row.pushed_at ? (row.readback_verified_at ? "Verified" : "Not verified") : "—",
       notes: outsidePayroll(row) ? "Recorded only — already paid outside payroll" : (row.readback_diff ? `Read-back difference: ${JSON.stringify(row.readback_diff)}` : ""),
     });
   }
@@ -350,7 +350,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       prov: row.provisional ? "Provisional" : "Final",
       payable: !outsidePayroll(row),
       pushed: row.pushed_at ? "Yes" : "No", pushedAt: istStamp(row.pushed_at),
-      verified: row.readback_verified_at ? "Verified" : row.pushed_at ? "Not verified" : "—",
+      verified: row.pushed_at ? (row.readback_verified_at ? "Verified" : "Not verified") : "—",
       notes: [row.lop_days ? `${n2(row.lop_days)} LOP day(s)` : "", row.readback_diff ? `Read-back difference: ${JSON.stringify(row.readback_diff)}` : ""].filter(Boolean).join("; "),
     });
   }

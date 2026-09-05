@@ -140,7 +140,7 @@ function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
         <td className="px-3 py-2">{row.label}</td>
         <td className="px-3 py-2 tabular-nums">{inr(row.amount)}</td>
         <td className="px-3 py-2">
-          {row.readback_verified_at ? (
+          {row.pushed_at && row.readback_verified_at ? (
             <Badge className="bg-success/10 text-success">Verified on run</Badge>
           ) : row.pushed_at ? (
             <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>

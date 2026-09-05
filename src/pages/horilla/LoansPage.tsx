@@ -139,24 +139,38 @@ export default function LoansPage() {
       }
       const { data: loan, error: loadErr } = await (supabase as any)
         .from("hr_loans")
-        .select("id, employee_id, amount, emi_amount, reason, disbursement_mode, razorpay_advance_salary_id")
+        .select("id, employee_id, amount, emi_amount, reason, status, disbursement_mode, razorpay_advance_salary_id")
         .eq("id", id)
         .maybeSingle();
       if (loadErr) throw loadErr;
       if (!loan) throw new Error("Loan not found");
+      if (["rejected", "closed"].includes(String(loan.status))) {
+        throw new Error(`This loan is already ${loan.status} — it can no longer be approved.`);
+      }
 
       // State machine: pending -> approved -> active (the DB trigger rejects a direct jump).
-      // Disbursement is stamped at approval, not at creation.
-      const { error: e1 } = await (supabase as any)
-        .from("hr_loans")
-        .update({ status: "approved", approved_at: new Date().toISOString(), disbursement_date: new Date().toISOString().slice(0, 10) })
-        .eq("id", id);
-      if (e1) throw e1;
-      const { error: e2 } = await (supabase as any).from("hr_loans").update({ status: "active" }).eq("id", id);
-      if (e2) throw e2;
-      // Build the month-by-month EMI plan so the daily scheduler can push it to RazorpayX
-      const { error: e3 } = await (supabase as any).rpc("hr_rebuild_loan_schedule", { p_loan_id: id });
-      if (e3) throw e3;
+      // Resumable: a previous attempt may have already advanced the status and only
+      // failed on the RazorpayX leg, so each step is skipped when already done.
+      if (loan.status === "pending") {
+        const { error: e1 } = await (supabase as any)
+          .from("hr_loans")
+          .update({ status: "approved", approved_at: new Date().toISOString(), disbursement_date: new Date().toISOString().slice(0, 10) })
+          .eq("id", id)
+          .eq("status", "pending");
+        if (e1) throw e1;
+      }
+      if (["pending", "approved"].includes(String(loan.status))) {
+        const { error: e2 } = await (supabase as any)
+          .from("hr_loans")
+          .update({ status: "active" })
+          .eq("id", id)
+          .eq("status", "approved");
+        if (e2) throw e2;
+        // Build the month-by-month EMI plan so the daily scheduler can push it to RazorpayX
+        const { error: e3 } = await (supabase as any).rpc("hr_rebuild_loan_schedule", { p_loan_id: id });
+        if (e3) throw e3;
+      }
+
 
       // Payout leg. Only for advances the owner chose to route through the
       // official RazorpayX Advance Salary API (POST /api/advanceSalary).

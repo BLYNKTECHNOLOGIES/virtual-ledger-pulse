@@ -21,7 +21,7 @@ import { useComplianceSettings, isWeeklyOff } from "@/hooks/hrms/useComplianceSe
 import { useMonthHolidays } from "@/hooks/hrms/useMonthHolidays";
 
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
-import { useAttendanceDayRange, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { useAttendanceDayRange, resolveDayStatus, countsTowardAttendance, type AttendanceDay, type AttendanceDayStatus } from "@/hooks/hrms/useAttendanceDay";
 import { DayTileTooltip, DAY_STATUS_DOT, DAY_STATUS_LABEL, DAY_STATUS_TILE } from "@/components/hrms/attendance/DayTileTooltip";
 import { AttendanceDayDialog } from "@/components/hrms/attendance/AttendanceDayDialog";
 

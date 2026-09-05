@@ -49,7 +49,8 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
             F&amp;F settlement {kind === "addition" ? "additions (dues)" : "deductions (recoveries)"} — {period}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Pushed by the F&amp;F approval itself — read-only here. Expand a row for the breakdown.
+            Staged by the F&amp;F approval. Lines marked &quot;Not on the run&quot; have not reached RazorpayX yet —
+            push them from here. Expand a row for the breakdown.
           </p>
         </div>
         <div className="text-right">

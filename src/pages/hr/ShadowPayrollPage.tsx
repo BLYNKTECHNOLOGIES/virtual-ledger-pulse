@@ -61,9 +61,12 @@ function diff(a: number, b: number | null | undefined, tolerance = DRIFT_TOLERAN
   };
 }
 
-export default function ShadowPayrollPage() {
+export default function ShadowPayrollPage({ month }: { month?: string } = {}) {
   const qc = useQueryClient();
-  const [period, setPeriod] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-01"));
+  // Default to the cockpit's selected month when opened from the cockpit.
+  const [period, setPeriod] = useState<string>(
+    month ? `${month.slice(0, 7)}-01` : format(startOfMonth(new Date()), "yyyy-MM-01"),
+  );
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: readiness, isLoading: readinessLoading } = useShadowReadiness(period);
@@ -88,7 +91,7 @@ export default function ShadowPayrollPage() {
   const { data: trainingAdj } = useQuery({
     queryKey: ["shadow_training_adjustments", period],
     queryFn: async () => {
-      const periodDate = `${period}-01`;
+      const periodDate = `${period.slice(0, 7)}-01`;
       const [ded, add] = await Promise.all([
         (supabase as any).from("hr_payroll_input_deductions")
           .select("hr_employee_id, amount, pushed_at")
@@ -236,27 +239,18 @@ export default function ShadowPayrollPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-4 max-w-7xl mx-auto page-mount">
-      {/* Big loud banner — this page is advisory only */}
-      <div className="rounded-xl border-2 border-warning/50 bg-warning/10 p-4 flex items-start gap-3">
-        <TestTube2 className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-        <div>
-          <div className="text-sm font-semibold text-foreground">Payroll Calculation (Building) — advisory only</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            This engine computes payroll locally using the RazorpayX compliance mirror to compare with Razorpay's numbers.
-            <strong className="text-foreground"> RazorpayX remains the payout authority.</strong> Nothing on this page is
-            used by employee profiles, payslips, or the payroll dashboard. Use it to catch drift while we validate
-            the shadow logic over the next 2–3 months.
-          </p>
+      <div className="rounded-xl border-2 border-warning/50 bg-warning/10 p-3 flex items-center gap-3">
+        <TestTube2 className="h-5 w-5 text-warning shrink-0" />
+        <div className="text-sm font-semibold text-foreground">
+          Advisory only — RazorpayX remains the payout authority.
         </div>
       </div>
 
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-semibold text-foreground">Shadow Payroll Calculator</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Second-opinion engine · Razorpay-mirror rules · isolated from HRMS payout flows
-          </p>
         </div>
+
         <div className="flex items-center gap-2">
           <Input
             type="month"

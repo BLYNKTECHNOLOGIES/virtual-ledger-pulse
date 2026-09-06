@@ -22,6 +22,7 @@ import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
 import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
+import { finalizeSeparation } from "@/lib/finalizeSeparation";
 
 type ResignationEmployee = {
   id: string;
@@ -1145,6 +1146,7 @@ export function ResignationTab() {
               else if (type === 'reject') rejectResignation.mutate(id);
               else if (type === 'withdraw') withdrawResignation.mutate(id);
               else if (type === 'complete') completeResignation.mutate(id);
+              else if (type === 'finalise') finaliseSeparationNow.mutate(id);
               setConfirmAction(null);
             }}>Confirm</AlertDialogAction>
           </AlertDialogFooter>

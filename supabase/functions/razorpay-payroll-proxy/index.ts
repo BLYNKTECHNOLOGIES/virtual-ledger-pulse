@@ -7835,15 +7835,18 @@ Deno.serve(async (req) => {
         if (action === "payroll_add_additions") {
           data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
         } else {
-          // ── Net vs Gross split ────────────────────────────────────────────
-          // Recoveries, LOP, loan EMIs and deposits must come off NET pay so the
-          // employee's CTC/gross stays intact. Only mid-joiner / post-training
-          // salary normalisation is a GROSS-pay deduction.
-          // Opfin's documented add-deduction contract is a single aggregate
-          // amount with no target field, so we attempt the split (gross bucket
-          // first, then the net bucket) and let the read-back prove what the
-          // run actually holds; if Opfin collapses them we repair to one
-          // combined line and report it honestly.
+          // ── Net vs Gross: OUT OF RAZORPAYX API SCOPE ──────────────────────
+          // Verified live against the tenant on 2026-09-06 (IST): the
+          // documented `payroll:add-deduction` contract accepts only
+          // { email, payroll-month, deduction-amount, remarks }. Every target
+          // hint we probed — `deduct-from` ("net"/2/"NET_PAY"), `deductFrom`
+          // (2/"net_pay"), `deduct_from`, `deduct-from-net`, a `deductions`
+          // collection, `net-deduction-amount` — either returned
+          // "Please specify the deduction" or returned HTTP 200 while the
+          // read-back still showed a single line named "Gross pay deduction"
+          // with deductFrom=1. Net-pay deduction lines are dashboard-only.
+          // So: send one honest aggregate, and report which portion the owner
+          // must flip to Net Pay on the RazorpayX dashboard.
           for (const [label, v] of Object.entries(map) as any) {
             const t = String((v as any).deductFrom ?? "net").toLowerCase();
             (v as any).deductFrom = t === "gross" || t === "1" ? "gross" : "net";
@@ -7854,7 +7857,8 @@ Deno.serve(async (req) => {
           const grossTotal = grossItems.reduce((s, v) => s + Number(v.amount || 0), 0);
           const netTotal = netItems.reduce((s, v) => s + Number(v.amount || 0), 0);
           dedSplit = {
-            attempt: grossTotal > 0 && netTotal > 0,
+            attempt: false,
+            api_supports_target: false,
             grossTotal,
             netTotal,
             combined: grossTotal + netTotal,
@@ -7862,19 +7866,16 @@ Deno.serve(async (req) => {
             netRemarks: netItems.map((v) => v.name).join("; ").slice(0, 250),
             email: "",
             month: String(data["payroll-month"]).slice(0, 7),
-            status: "pending",
+            status: netTotal > 0 ? "net_not_supported_by_api" : "gross_only",
+            note: netTotal > 0
+              ? `RazorpayX Payroll's API books every deduction as one "Gross pay deduction" line — it exposes no Net Pay target (verified live). ₹${netTotal} of this month's ₹${grossTotal + netTotal} should sit on Net Pay: open RazorpayX → Run Payroll → this employee → Edit Salary and switch the line's "Deduct From" to Net Pay (splitting the line if ₹${grossTotal} must stay on Gross Pay).`
+              : null,
           };
-          const primaryTotal = dedSplit.attempt ? netTotal : (netTotal + grossTotal);
-          const primaryTarget = netTotal > 0 ? "net" : "gross";
-          data["deduction-amount"] = primaryTotal;
-          data.remarks = (dedSplit.attempt ? dedSplit.netRemarks : expect.map((item) => item.label).join("; ")).slice(0, 250) || "Payroll deduction";
-          // Undocumented target hints — Opfin's dashboard exposes a
-          // "Deduct From?" column (Gross Pay / Net Pay); the API contract does
-          // not document it, so we send the hint and verify the outcome.
-          data["deduct-from"] = primaryTarget;
-          data.deductFrom = primaryTarget === "gross" ? 1 : 2;
+          data["deduction-amount"] = grossTotal + netTotal;
+          data.remarks = (expect.map((item) => item.label).join("; ")).slice(0, 250) || "Payroll deduction";
           delete data.deductions;
         }
+
         modExpect = expect;
 
 

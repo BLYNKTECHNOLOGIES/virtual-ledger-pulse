@@ -400,11 +400,14 @@ export default function PayrollInputsPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Surface how RazorpayX actually recorded a mixed gross/net push.
+  // Surface how RazorpayX actually recorded the deduction. Verified live:
+  // the Payroll API books every deduction as one "Gross pay deduction" line
+  // and exposes no Net Pay target — that switch is dashboard-only.
   function reportSplit(res: any) {
     const s = res?.readback?.deduction_split;
-    if (s?.status === "collapsed_to_single_line" && s?.note) toast.warning(s.note, { duration: 12000 });
+    if (s?.note) toast.warning(s.note, { duration: 15000 });
   }
+
 
   const pushRow = useMutation({
     mutationFn: pushOne,
@@ -998,19 +1001,27 @@ export default function PayrollInputsPage() {
                         {tab === "deduction" && (
                           <div className="mt-1">
                             {r.pushed_at ? (
-                              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
-                                {r.deduct_from === "gross" ? "off Gross Pay" : "off Net Pay"}
+                              <Badge
+
+                                variant="outline"
+                                className={`text-[10px] font-normal ${r.deduct_from === "gross" ? "text-muted-foreground" : "border-amber-500/40 text-amber-600 dark:text-amber-400"}`}
+                                title={r.deduct_from === "gross" ? undefined : "RazorpayX's Payroll API can only create a Gross Pay deduction line. Switch this line to Net Pay in RazorpayX → Run Payroll → Edit Salary."}
+                              >
+                                {r.deduct_from === "gross"
+                                  ? "off Gross Pay"
+                                  : "wanted Net Pay · RazorpayX booked Gross (change on dashboard)"}
                               </Badge>
                             ) : (
                               <button
                                 type="button"
                                 className="text-[10px] rounded border px-1.5 py-0.5 text-muted-foreground hover:bg-muted"
-                                title="Net Pay keeps the employee's CTC/gross intact (recoveries, EMIs, LOP). Gross Pay is for mid-joiner salary normalisation."
+                                title="Net Pay keeps the employee's CTC/gross intact (recoveries, EMIs, LOP). Gross Pay is for mid-joiner salary normalisation. Note: RazorpayX's API only creates Gross Pay lines — Net Pay must be switched on the RazorpayX dashboard."
                                 onClick={() => setDeductTarget.mutate({ id: r.id, target: r.deduct_from === "gross" ? "net" : "gross" })}
                               >
                                 Deduct from: <span className="font-semibold text-foreground">{r.deduct_from === "gross" ? "Gross Pay" : "Net Pay"}</span> · change
                               </button>
                             )}
+
                           </div>
                         )}
                       </td>

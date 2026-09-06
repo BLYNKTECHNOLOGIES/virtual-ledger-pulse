@@ -507,9 +507,16 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
 
   const staleLop = lopRows.filter((r) => ["new", "changed", "remove"].includes(String(r.status))).length;
   const staleCo = coRows.filter((r) => ["new", "changed", "remove"].includes(String(r.status))).length;
+  // Already-pushed rows are never restaged, so a difference against the current
+  // engine must be shouted about — it can only be corrected in RazorpayX.
+  const pushedDriftLop = lopRows.filter((r) => r.status === "pushed" && (r as any).stale_pushed).length;
+  const pushedDriftCo = coRows.filter((r) => r.status === "pushed" && (r as any).stale_pushed).length;
   if (staleLop) warnings.push(`${staleLop} loss-of-pay row(s) in Step 5 are not staged with the current attendance — recalculate and stage before running payroll.`);
   if (staleCo) warnings.push(`${staleCo} comp-off encashment row(s) in Step 6 are not staged with the current calculation.`);
+  if (pushedDriftLop) warnings.push(`${pushedDriftLop} loss-of-pay row(s) were already pushed with an amount that no longer matches current attendance — see the Flags column in Sheet 3 and correct them in RazorpayX.`);
+  if (pushedDriftCo) warnings.push(`${pushedDriftCo} comp-off encashment row(s) were already pushed with an amount that no longer matches the current calculation — correct them in RazorpayX.`);
   if (unverified) warnings.push(`${unverified} pushed line(s) have not been read back and verified in RazorpayX.`);
+
 
   const warnMeta: string[][] = warnings.length
     ? [["Attention"], ...warnings.map((w) => ["", w])]

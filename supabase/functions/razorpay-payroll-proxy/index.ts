@@ -1244,6 +1244,22 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({ query: "query { __typename }", auth: authBlock() }),
         });
+        // Safe oracle: fake email so nothing is ever created; compare error text
+        // to distinguish "unknown sub-type" from "sub-type ok, employee missing".
+        const subTypes = ["add-deduction", "add-net-deduction", "add-net-pay-deduction",
+          "add-deduction-net", "add-netpay-deduction", "net-deduction", "add-deductions-net",
+          "bulk-add-deduction", "bulk-upload", "add-deduction-v2"];
+        for (const st of subTypes) {
+          await tryCall(`subtype:${st}`, `${origin}/api/payroll`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              auth: authBlock(),
+              request: { type: "payroll", "sub-type": st },
+              data: { email: "zzz-probe-nonexistent@example.invalid", "payroll-month": "2020-12", "deduction-amount": 1, remarks: "probe" },
+            }),
+          });
+        }
         return json(200, { ok: true, results });
       }
       return json(400, { error: "unknown probe" });

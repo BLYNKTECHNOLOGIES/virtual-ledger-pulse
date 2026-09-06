@@ -16,10 +16,10 @@ import { wrapHrEmail } from "../_shared/hrSignature.ts"
 const CONTENT = `
     <div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;color:#64748b;">Pay period 01 Jul 2026 &ndash; 31 Jul 2026</div>
 
-    <p style="margin:0 0 14px;font-size:15px;color:#0f172a;">Dear <strong>Rahul Sharma</strong>,</p>
+    <p style="margin:0 0 14px;font-size:15px;color:#0f172a;">Dear <strong>Aarav Mehta</strong>,</p>
     <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.65;">
       Your salary for <strong style="color:#0f172a;">July 2026</strong> has been processed and credited to your registered
-      bank account <strong style="color:#0f172a;">XXXXXX4821 &middot; HDFC Bank</strong> on <strong style="color:#0f172a;">05 Aug 2026</strong>.
+      bank account <strong style="color:#0f172a;">XXXXXX7734 &middot; ICICI Bank</strong> on <strong style="color:#0f172a;">05 Aug 2026</strong>.
       A detailed payslip is attached to this email.
     </p>
 
@@ -27,7 +27,7 @@ const CONTENT = `
     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:10px;margin:0 0 22px;">
       <tr><td style="padding:20px 24px;">
         <div style="font-size:11px;letter-spacing:1.6px;color:#8fd8f2;text-transform:uppercase;font-weight:600;">Net pay credited</div>
-        <div style="font-size:30px;font-weight:700;color:#ffffff;margin-top:6px;letter-spacing:-.5px;">INR 57,501.61</div>
+        <div style="font-size:30px;font-weight:700;color:#ffffff;margin-top:6px;letter-spacing:-.5px;">INR 61,248.00</div>
       </td></tr>
     </table>
 
@@ -35,15 +35,15 @@ const CONTENT = `
     <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
       <tr>
         <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Gross earnings</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">INR 64,300.00</td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">INR 72,000.00</td>
       </tr>
       <tr>
         <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Total deductions</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">INR 6,798.39</td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">INR 7,252.00</td>
       </tr>
       <tr>
         <td style="padding:12px 16px;color:#64748b;">Paid days</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;">29.0 of 31.0</td>
+        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;">29.5 of 31.0</td>
       </tr>
     </table>
 
@@ -53,7 +53,7 @@ const CONTENT = `
         <td style="width:4px;background:#f59e0b;border-radius:4px 0 0 4px;"></td>
         <td style="background:#fffbeb;padding:16px 18px;border:1px solid #fde68a;border-left:0;border-radius:0 8px 8px 0;">
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#b45309;">Loss of pay</div>
-          <div style="font-size:15px;font-weight:700;color:#78350f;margin-top:6px;">2.0 day(s) &middot; INR 3,548.39</div>
+          <div style="font-size:15px;font-weight:700;color:#78350f;margin-top:6px;">1.5 day(s) &middot; INR 3,483.87</div>
           <div style="font-size:13.5px;color:#92400e;line-height:1.6;margin-top:6px;">
             Recorded for July 2026 as per biometric attendance and approved leave records for the pay period.
           </div>
@@ -69,16 +69,34 @@ const CONTENT = `
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#15803d;">Congratulations</div>
           <div style="font-size:15px;font-weight:700;color:#14532d;margin-top:6px;">A bonus has been added to your July salary</div>
           <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#166534;margin-top:12px;">
-            <tr><td style="padding:6px 0;">Performance bonus</td><td align="right" style="padding:6px 0;font-weight:600;">INR 7,500.00</td></tr>
-            <tr><td style="padding:6px 0;">Overtime bonus</td><td align="right" style="padding:6px 0;font-weight:600;">INR 2,000.00</td></tr>
+            <tr><td style="padding:6px 0;">Performance bonus</td><td align="right" style="padding:6px 0;font-weight:600;">INR 6,000.00</td></tr>
+            <tr><td style="padding:6px 0;">Overtime bonus</td><td align="right" style="padding:6px 0;font-weight:600;">INR 2,500.00</td></tr>
             <tr>
               <td style="padding:10px 0 0;border-top:1px solid #bbf7d0;font-weight:700;color:#14532d;">Total bonus</td>
-              <td align="right" style="padding:10px 0 0;border-top:1px solid #bbf7d0;font-weight:700;color:#14532d;">INR 9,500.00</td>
+              <td align="right" style="padding:10px 0 0;border-top:1px solid #bbf7d0;font-weight:700;color:#14532d;">INR 8,500.00</td>
             </tr>
           </table>
           <div style="font-size:13.5px;color:#166534;line-height:1.6;margin-top:12px;">
             Thank you for the effort and ownership you have shown this month. Your contribution is genuinely valued by the team.
           </div>
+        </td>
+      </tr>
+    </table>
+
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+      <tr>
+        <td style="width:4px;background:#0284c7;border-radius:4px 0 0 4px;"></td>
+        <td style="background:#f0f9ff;padding:18px;border:1px solid #bae6fd;border-left:0;border-radius:0 8px 8px 0;">
+          <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#0369a1;">Other additions</div>
+          <div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-top:6px;">Additional amounts included in this month&#39;s pay</div>
+          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#075985;margin-top:12px;">
+            <tr><td style="padding:6px 0;">Comp-off encashment (2 days)</td><td align="right" style="padding:6px 0;font-weight:600;">INR 4,645.16</td></tr>
+            <tr><td style="padding:6px 0;">Travel reimbursement</td><td align="right" style="padding:6px 0;font-weight:600;">INR 1,850.00</td></tr>
+            <tr>
+              <td style="padding:10px 0 0;border-top:1px solid #bae6fd;font-weight:700;color:#0c4a6e;">Total other additions</td>
+              <td align="right" style="padding:10px 0 0;border-top:1px solid #bae6fd;font-weight:700;color:#0c4a6e;">INR 6,495.16</td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>
@@ -116,7 +134,7 @@ Deno.serve(async (req) => {
       content: 'Please view this email in an HTML-compatible client.',
       html: tidyMailHtml(HTML),
       attachments: [{
-        filename: 'Payslip_July_2026_Rahul_Sharma_SAMPLE.pdf',
+        filename: 'Payslip_July_2026_Aarav_Mehta_SAMPLE.pdf',
         content: PDF_B64,
         encoding: 'base64',
         contentType: 'application/pdf',

@@ -16,6 +16,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { requireAuth } from "../_shared/require-auth.ts";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";
+import { fetchLopAbsorption } from "../_shared/lopAbsorption.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -198,6 +199,12 @@ Deno.serve(async (req) => {
       if (lopErr) console.error("hr_compute_lop_days", lopErr);
       for (const r of (lopRows ?? []) as any[]) lopByEmp.set(r.employee_id, r);
     }
+    const lopAbsorption = await fetchLopAbsorption(
+      supabase,
+      (employees ?? []).map((e: any) => e.id),
+      periodStr,
+      new Map(Array.from(lopByEmp, ([id, row]) => [id, Number(row.lop_days ?? 0)])),
+    );
 
     // Do-not-pay register (mirrored from RazorpayX) — unpaid months show zeroes.
     const doNotPay = new Set<string>();
@@ -279,8 +286,9 @@ Deno.serve(async (req) => {
       const preLta = Math.round(monthlyCtc * (pct.lta / 100));
       const regularBase = monthlyCtc;
 
-      const lopDays = Number(lop?.lop_days ?? 0);
-      const lopAmount = workingDays > 0 ? Math.round(regularBase * (lopDays / workingDays)) : 0;
+      const absorption = lopAbsorption.get(emp.id);
+      const lopDays = Number(absorption?.chargeable_lop_days ?? lop?.lop_days ?? 0);
+      const lopAmount = totalDays > 0 ? Math.round(regularBase * (lopDays / totalDays)) : 0;
       const kpiLoss = kpiLossByEmp.get(emp.id) ?? 0;
       const factor = regularBase > 0 ? Math.max(0, 1 - (lopAmount + kpiLoss) / regularBase) : 1;
       const ctcPost = Math.round(regularBase * factor);
@@ -352,6 +360,9 @@ Deno.serve(async (req) => {
         vpf, pt, tds, loan_emi: loanEmi, deposit_recovery: depositRecovery, other_recovery: otherRecovery,
         off_payroll_payouts: offPayrollByEmp.get(emp.id)?.amount ?? 0,
         off_payroll_labels: offPayrollByEmp.get(emp.id)?.labels ?? [],
+        raw_lop_days: absorption?.raw_lop_days ?? Number(lop?.lop_days ?? 0),
+        compoff_offset_days: absorption?.compoff_offset_days ?? 0,
+        cl_offset_days: absorption?.cl_offset_days ?? 0,
         lop_days: lopDays, lop_amount: lopAmount, kpi_loss: kpiLoss,
         net_pay: netPay,
         pf_enrolled: pfEnrolled, esi_enrolled: esiEnrolled, pt_enrolled: ptEnrolled,

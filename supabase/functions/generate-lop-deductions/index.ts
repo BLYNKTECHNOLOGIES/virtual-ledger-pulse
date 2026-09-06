@@ -291,23 +291,6 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      if (split.cl_offset_days > 0) {
-        absorptions.push({ employee_id: map.hr_employee_id, days: split.cl_offset_days });
-      }
-
-      // Comp-off actually SPENT on this month's LOP is settled here. Days that
-      // merely remain available are NOT stamped as encashed — only the
-      // encashment engine may do that, and only once it has staged the payout.
-      if (split.compoff_offset_days > 0) {
-        creditSettlements.push({
-          employee_id: map.hr_employee_id,
-          offset_days: split.compoff_offset_days,
-          encash_days: 0,
-        });
-      }
-
-
-
       // Absence LOP (after comp-off/CL). Not-employed days are never charged.
       const absenceDays = split.lop_after_offset;
       const lopDays = chargeDays;
@@ -413,6 +396,20 @@ Deno.serve(async (req) => {
           : "Already pushed to RazorpayX — left untouched";
         rows.push(row);
         continue;
+      }
+
+      // Never spend leave against an immutable pushed payroll row. A changed
+      // pushed row is reported as stale above and must be reset before its
+      // leave settlement can be recalculated and committed.
+      if (split.cl_offset_days > 0) {
+        absorptions.push({ employee_id: map.hr_employee_id, days: split.cl_offset_days });
+      }
+      if (split.compoff_offset_days > 0) {
+        creditSettlements.push({
+          employee_id: map.hr_employee_id,
+          offset_days: split.compoff_offset_days,
+          encash_days: 0,
+        });
       }
 
       if (existingAuto) {

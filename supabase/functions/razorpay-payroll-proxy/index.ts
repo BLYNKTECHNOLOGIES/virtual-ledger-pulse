@@ -401,6 +401,67 @@ function normalizePayrollModifications(
   return { map, expect };
 }
 
+// ---------------------------------------------------------------------------
+// Deduction remarks
+// ---------------------------------------------------------------------------
+// Opfin renames every deduction line to the canonical "Gross pay deduction",
+// so `remarks` is the ONLY place the payslip can say what the money was for.
+// Keep it short, ASCII-only (Opfin's PHP layer mangles em-dashes / rupee signs)
+// and always carry the LOP day count + per-item amounts.
+function asciiRemark(s: string): string {
+  return String(s || "")
+    .replace(/[\u2012-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u20B9/g, "Rs ")
+    .replace(/[^\x20-\x7E]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function shortDeductionLabel(rawLabel: string): string {
+  const label = asciiRemark(rawLabel);
+  // "Loss of Pay - Attendance - 4 days (4 days absence, 3 days offset by comp-off...)"
+  const lop = /loss of pay|^lop\b/i.test(label);
+  if (lop) {
+    const days = /(\d+(?:\.\d+)?)\s*days?/i.exec(label)?.[1];
+    return days ? `LOP ${days} day(s)` : "LOP";
+  }
+  if (/security deposit/i.test(label)) {
+    const inst = /installment\s*(\d+)/i.exec(label)?.[1];
+    return inst ? `Security deposit inst ${inst}` : "Security deposit";
+  }
+  if (/loan emi|advance/i.test(label)) {
+    const inst = /installment\s*(\d+)/i.exec(label)?.[1];
+    return inst ? `Loan EMI inst ${inst}` : "Loan/advance recovery";
+  }
+  if (/salary recovery|ctc revision|part-month/i.test(label)) {
+    const wef = /w\.e\.f\.?\s*([^)]+)/i.exec(label)?.[1];
+    return wef ? `Salary recovery (w.e.f. ${wef.trim()})` : "Salary recovery";
+  }
+  return label.length > 48 ? `${label.slice(0, 45)}...` : label;
+}
+function buildDeductionRemarks(items: Array<{ label: string; amount: number }>): string {
+  const parts = items
+    .filter((i) => i && Number.isFinite(Number(i.amount)))
+    .map((i) => `${shortDeductionLabel(i.label)} Rs ${Math.round(Number(i.amount))}`);
+  if (parts.length === 0) return "Payroll deduction";
+  let out = parts.join("; ");
+  if (out.length > 240) {
+    // Keep the first items readable, summarise the tail.
+    const kept: string[] = [];
+    let len = 0;
+    for (const p of parts) {
+      if (len + p.length + 2 > 200) break;
+      kept.push(p); len += p.length + 2;
+    }
+    const rest = parts.length - kept.length;
+    out = `${kept.join("; ")}${rest > 0 ? `; +${rest} more` : ""}`;
+  }
+  return asciiRemark(out).slice(0, 250) || "Payroll deduction";
+}
+
+
+
 
 
 

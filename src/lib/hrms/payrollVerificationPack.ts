@@ -371,7 +371,14 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     });
   }
 
-  for (const row of recoveries) {
+  // A recovery instalment that HR has already staged as a payroll-input deduction
+  // is the SAME money as the deduction line above (the deduction carries
+  // recovery_ref_id = recovery.id). Listing both double-counted it in the sheet,
+  // so only recoveries with no staged deduction of their own are added here.
+  const stagedRecoveryIds = new Set(
+    (deductions as any[]).map((d) => String(d.recovery_ref_id ?? "")).filter(Boolean),
+  );
+  for (const row of (recoveries as any[]).filter((r) => !stagedRecoveryIds.has(String(r.id)))) {
     lines.push({
       badge: row.badge_id ?? empBadge(row.employee_id), name: row.employee_name ?? empName(row.employee_id),
       dir: "Deduction", cat: "Recovery instalment",

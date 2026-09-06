@@ -33,6 +33,8 @@ interface DispatchRow {
   lop_amount: number;
   bonuses: { label: string; amount: number }[];
   bonus_total: number;
+  other_additions?: { label: string; amount: number }[];
+  other_additions_total?: number;
   paid_days: number | null;
   month_days: number;
   bank_last4: string | null;
@@ -694,6 +696,11 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                     </td>
                     <td className="p-2 text-right align-top tabular-nums">
                       {r.bonus_total > 0 ? inr(r.bonus_total) : "—"}
+                      {(r.other_additions_total ?? 0) > 0 && (
+                        <div className="text-[11px] text-muted-foreground">
+                          +{inr(r.other_additions_total ?? 0)} other additions
+                        </div>
+                      )}
                     </td>
                     <td className="p-2 align-top">
                       {r.pdf_path ? (

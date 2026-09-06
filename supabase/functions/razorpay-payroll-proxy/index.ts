@@ -7950,7 +7950,10 @@ Deno.serve(async (req) => {
             const clean = shortAdditionLabel(label);
             return { ...v, name: clean, label: clean };
           });
+          // Keep the read-back expectation aligned with what we actually sent.
+          for (const e of expect) e.label = shortAdditionLabel(e.label);
           data.remarks = buildAdditionRemarks(expect);
+
         } else {
 
         } else {

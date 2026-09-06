@@ -536,7 +536,30 @@ export function AutoLopDialog({
                               <div className="text-xs text-muted-foreground">was {inr(r.existing_amount)}</div>
                             )}
                           </td>
-                          <td className="p-2 border-l"><Badge variant={meta.variant} className="text-[11px]">{meta.label}</Badge></td>
+                          <td className="p-2 border-l" onClick={(e) => e.stopPropagation()}>
+                            <Badge variant={r.stale_pushed ? "destructive" : meta.variant} className="text-[11px]">
+                              {r.stale_pushed ? "Pushed value out of date" : meta.label}
+                            </Badge>
+                            {r.stale_pushed && (
+                              <div className="mt-1 space-y-1">
+                                <div className="text-[11px] text-muted-foreground">
+                                  On the run: {inr(r.pushed_amount ?? 0)}
+                                  {r.pushed_lop_days != null ? ` (${num(r.pushed_lop_days)} day(s))` : ""} · should be {inr(r.amount)} ({num(r.lop_days)} day(s))
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  disabled={correctPushed.isPending || !r.razorpay_employee_id}
+                                  onClick={() => correctPushed.mutate(r)}
+                                  title="Clears this employee's month on RazorpayX and restages LOP at the current figure. Nothing is re-sent until you press Push in Payroll Inputs."
+                                >
+                                  {correctPushed.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                                  Correct on RazorpayX
+                                </Button>
+                              </div>
+                            )}
+                          </td>
                         </tr>
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">

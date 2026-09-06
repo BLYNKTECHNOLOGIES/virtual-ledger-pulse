@@ -348,7 +348,13 @@ Deno.serve(async (req) => {
 
 
       const empDeds = (dedRows ?? []).filter((d: any) => d.hr_employee_id === p.hr_employee_id)
-      const lopRows = empDeds.filter((d: any) => String(d.label || '').toLowerCase().includes('lop') && d.readback_verified_at)
+      // LOP rows are labelled "Loss of Pay - Attendance — ..." by the engine and
+      // "LOP" when staged manually; match both, plus the auto_lop source.
+      const lopRows = empDeds.filter((d: any) => {
+        if (!d.readback_verified_at) return false
+        const l = String(d.label || '').toLowerCase()
+        return String(d.source || '') === 'auto_lop' || l.includes('lop') || l.includes('loss of pay')
+      })
       const engineLopDays = effectiveLopByEmp.get(p.hr_employee_id) ?? 0
       const storedLopDays = lopRows.reduce((s: number, d: any) => s + (Number(d.lop_days) || 0), 0)
       // Prefer the day count stored with the pushed deduction; if that column was

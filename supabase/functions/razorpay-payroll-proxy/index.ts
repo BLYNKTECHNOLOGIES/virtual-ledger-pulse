@@ -7981,7 +7981,7 @@ Deno.serve(async (req) => {
               : null,
           };
           data["deduction-amount"] = grossTotal + netTotal;
-          data.remarks = (expect.map((item) => item.label).join("; ")).slice(0, 250) || "Payroll deduction";
+          data.remarks = buildDeductionRemarks(expect);
           delete data.deductions;
         }
 

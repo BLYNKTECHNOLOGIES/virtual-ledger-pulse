@@ -7942,7 +7942,17 @@ Deno.serve(async (req) => {
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
         if (action === "payroll_add_additions") {
-          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
+          // Opfin shows the addition's own label on the payslip, so make it a
+          // clean, ASCII, human-readable reason ("Comp-off encashment 2 day(s)")
+          // instead of the raw internal string. `remarks` carries the itemised
+          // summary for the receipt/audit trail.
+          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => {
+            const clean = shortAdditionLabel(label);
+            return { ...v, name: clean, label: clean };
+          });
+          data.remarks = buildAdditionRemarks(expect);
+        } else {
+
         } else {
           // ── Net vs Gross: OUT OF RAZORPAYX API SCOPE ──────────────────────
           // Verified live against the tenant on 2026-09-06 (IST): the

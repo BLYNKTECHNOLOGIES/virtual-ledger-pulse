@@ -429,7 +429,10 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (!outsidePayroll(row)) bump(dedByEmp, row.hr_employee_id, n2(row.amount));
     if (!row.pushed_at) bump(stagedUnpushed, row.hr_employee_id, 1);
   }
-  for (const row of recoveries) bump(dedByEmp, row.employee_id, n2(row.amount));
+  for (const row of (recoveries as any[])) {
+    if (stagedRecoveryIds.has(String(row.id))) continue; // already counted as a staged deduction
+    bump(dedByEmp, row.employee_id, n2(row.amount));
+  }
 
   const daysInMonth = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).getUTCDate();
 

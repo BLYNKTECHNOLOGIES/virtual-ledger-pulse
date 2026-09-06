@@ -138,14 +138,14 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
   // its own line in the net-pay arithmetic, never as a statutory deduction.
   const oneTimeRow = row.one_time_recovery > 0 ? `
       <tr>
-        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Less: one-time payments already paid to you<br/><span style="font-size:12px;color:#94a3b8;">Paid outside this payroll run &mdash; recovered here so it is not paid twice</span></td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.one_time_recovery)}</td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Less: one-time payments already paid<br/><span style="display:block;margin-top:3px;font-size:11px;line-height:1.45;color:#94a3b8;">Recovered here to prevent duplicate payment</span></td>
+        <td align="right" style="padding:15px 16px;color:#be123c;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">&minus;&nbsp;${inr(row.one_time_recovery)}</td>
       </tr>` : ''
 
   const paidDaysRow = row.paid_days !== null ? `
       <tr>
-        <td style="padding:12px 16px;color:#64748b;">Paid days</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;">${row.paid_days.toFixed(1)} of ${row.month_days.toFixed(1)}</td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;">Paid days</td>
+        <td align="right" style="padding:15px 16px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;">${row.paid_days.toFixed(1)} / ${row.month_days.toFixed(1)}</td>
       </tr>` : ''
 
 

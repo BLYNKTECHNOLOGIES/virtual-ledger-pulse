@@ -83,7 +83,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#b45309;">Loss of pay</div>
           <div style="font-size:15px;font-weight:700;color:#78350f;margin-top:6px;">${row.lop_days.toFixed(1)} day(s) &middot; ${inr(row.lop_amount)}</div>
           <div style="font-size:13.5px;color:#92400e;line-height:1.6;margin-top:6px;">
-            Recorded for ${esc(label)} as per biometric attendance and approved leave records for the pay period.
+            As per attendance and approved leave for ${esc(label)}.
           </div>
         </td>
       </tr>
@@ -98,7 +98,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
         <td style="width:4px;background:#0ea5e9;border-radius:4px 0 0 4px;"></td>
         <td style="background:#f0f9ff;padding:18px;border:1px solid #bae6fd;border-left:0;border-radius:0 8px 8px 0;">
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#0369a1;">Other additions</div>
-          <div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-top:6px;">Additional amounts included in this month's pay</div>
+          <div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-top:6px;">Included in this month&#39;s pay</div>
           <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#075985;margin-top:12px;">${otherAddRows}
             <tr>
               <td style="padding:10px 0 0;border-top:1px solid #bae6fd;font-weight:700;color:#0c4a6e;">Total other additions</td>
@@ -118,7 +118,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
         <td style="width:4px;background:#16a34a;border-radius:4px 0 0 4px;"></td>
         <td style="background:#f0fdf4;padding:18px;border:1px solid #bbf7d0;border-left:0;border-radius:0 8px 8px 0;">
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#15803d;">Congratulations</div>
-          <div style="font-size:15px;font-weight:700;color:#14532d;margin-top:6px;">A bonus has been added to your ${esc(label.split(' ')[0])} salary</div>
+          <div style="font-size:15px;font-weight:700;color:#14532d;margin-top:6px;">Bonus added to your ${esc(label.split(' ')[0])} salary</div>
           <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#166534;margin-top:12px;">${bonusRows}
             <tr>
               <td style="padding:10px 0 0;border-top:1px solid #bbf7d0;font-weight:700;color:#14532d;">Total bonus</td>
@@ -126,7 +126,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
             </tr>
           </table>
           <div style="font-size:13.5px;color:#166534;line-height:1.6;margin-top:12px;">
-            Thank you for the effort and ownership you have shown this month. Your contribution is genuinely valued by the team.
+            Thank you for your contribution this month.
           </div>
         </td>
       </tr>
@@ -138,7 +138,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
   // its own line in the net-pay arithmetic, never as a statutory deduction.
   const oneTimeRow = row.one_time_recovery > 0 ? `
       <tr>
-        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Less: one-time payments already paid<br/><span style="display:block;margin-top:3px;font-size:11px;line-height:1.45;color:#94a3b8;">Recovered here to prevent duplicate payment</span></td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Less: one-time payments already paid<br/><span style="display:block;margin-top:3px;font-size:11px;line-height:1.45;color:#94a3b8;">Already paid outside payroll</span></td>
         <td align="right" style="padding:15px 16px;color:#be123c;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">&minus;&nbsp;${inr(row.one_time_recovery)}</td>
       </tr>` : ''
 
@@ -153,8 +153,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
     <div style="display:inline-block;padding:6px 10px;border-radius:999px;background:#f1f5f9;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.2;text-transform:uppercase;font-weight:700;color:#64748b;">Pay period &nbsp;${first} &ndash; ${last}</div>
     <p style="margin:24px 0 12px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:17px;line-height:1.45;font-weight:600;color:#0f172a;">Dear <strong style="color:#0284c7;">${esc(row.name)}</strong>,</p>
     <p style="margin:0 0 26px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;color:#526176;line-height:1.75;">
-      Your salary for <strong style="color:#0f172a;font-weight:700;">${esc(label)}</strong> has been processed and successfully credited to your registered
-      bank account${bankBit}${creditedBit}. The detailed payslip is attached for your records.
+      Your salary for <strong style="color:#0f172a;font-weight:700;">${esc(label)}</strong> has been credited to your bank account${bankBit}${creditedBit}. Payslip attached.
     </p>
 
     <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:12px;margin:0 0 26px;">
@@ -177,8 +176,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
 
 ${lopBlock}${bonusBlock}${otherAddBlock}
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">
-      Please retain the attached payslip for your records. It contains the complete break-up of your earnings,
-      deductions and statutory contributions (PF / ESIC / PT / TDS).
+      The attached payslip carries the full break-up, including PF / ESIC / PT / TDS.
     </p>`
 
   return wrapHrEmail(content, {

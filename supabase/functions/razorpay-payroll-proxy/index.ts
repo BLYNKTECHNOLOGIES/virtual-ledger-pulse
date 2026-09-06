@@ -7875,7 +7875,7 @@ Deno.serve(async (req) => {
         if (!data["employee-id"]) return json(400, { ok: false, error: "Missing required field: employee-id" });
         if (!data["payroll-month"]) return json(400, { ok: false, error: "Missing required field: payroll-month" });
         data["deduction-days"] = Number(data["deduction-days"]);
-        data.remarks = String(data.remarks || "Loss of Pay").slice(0, 250);
+        data.remarks = asciiRemark(String(data.remarks || `LOP ${data["deduction-days"]} day(s)`)).slice(0, 250);
         delete data["deduction-amount"];
         delete data.deductions;
         data["employee-id"] = Number(data["employee-id"]);

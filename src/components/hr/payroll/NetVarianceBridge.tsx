@@ -117,17 +117,24 @@ export function buildVarianceBridge(l: BridgeLine): {
   // recoveries). Anything paired here is NOT drift — both sides know the money.
   const hrms = (notes.hrms_inputs ?? {}) as any;
   const hrmsAdd = (hrms.additions ?? {}) as any;
-  const rzEarnAdditions = r0(n0(l.rz_one_time_payments) + n0(l.rz_overtime) + n0(l.rz_performance_incentive));
+  const rzExtras = (notes.rz_register_extras ?? {}) as any;
+  const rzOneTimePos = Math.max(0, n0(l.rz_one_time_payments));
+  const rzOneTimeRecovery = r0(n0(rzExtras.one_time_recovery) || Math.max(0, -n0(l.rz_one_time_payments)));
+  const rzEarnAdditions = r0(
+    n0(rzExtras.extra_variable_total) + n0(rzExtras.one_time_total) +
+    n0(l.rz_overtime) + n0(l.rz_performance_incentive) + rzOneTimePos,
+  );
 
   heads.push({
     key: "one_time",
     label: "One-time payouts / bonuses",
-    hint: "Bonuses, comp-off encashment, arrears, reimbursements and other one-off additions staged in the HRMS payroll step, matched against the one-time payout / overtime / incentive heads on the Razorpay register. Only the unmatched part is drift.",
+    hint: "Bonuses, comp-off encashment, arrears, reimbursements and other one-off additions staged in the HRMS payroll step, matched against the register's variable / one-time / overtime / incentive earnings. Only the unmatched part is drift.",
     group: "earnings",
     shadow: addPositive,
     razorpay: rzEarnAdditions,
     delta: r0(addPositive - rzEarnAdditions),
   });
+
 
 
   // --- Deduction side ---------------------------------------------------

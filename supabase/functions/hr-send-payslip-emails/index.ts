@@ -480,11 +480,9 @@ Deno.serve(async (req) => {
     }
 
     const ids: string[] = Array.isArray(body.employee_ids) ? body.employee_ids : []
-    const force = !!body.force_resend
 
     // Hard stop: never email a payslip to somebody whose salary was not
     // processed this month (do-not-pay, absent from the register, zero net).
-    // This is enforced even when force_resend is set.
     const unprocessed = rows.filter((r) => ids.includes(r.employee_id) && r.not_processed)
     if (unprocessed.length > 0) {
       return json({
@@ -493,10 +491,14 @@ Deno.serve(async (req) => {
       }, 400)
     }
 
+    // One payslip email per employee per month — no re-send path exists, and a
+    // partial unique index on hr_email_send_log enforces it at the database
+    // level even if two dispatch runs overlap.
     let targets = rows.filter((r) => ids.includes(r.employee_id) && r.sendable && !r.not_processed)
-    if (!force) targets = targets.filter((r) => !r.already_sent_at)
+    if (mode === 'send') targets = targets.filter((r) => !r.already_sent_at)
     if (mode === 'preview') targets = targets.slice(0, 1)
     if (targets.length === 0) return json({ error: 'No sendable recipients in the selection' }, 400)
+
 
     // Chunked dispatch: attaching + base64-encoding PDFs is CPU heavy and a large
     // batch trips the edge CPU limit mid-run, which used to leave sends unlogged

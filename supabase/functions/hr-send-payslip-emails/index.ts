@@ -454,9 +454,11 @@ Deno.serve(async (req) => {
     }
 
     // ---- SMTP -------------------------------------------------------------
-    const smtpHost = Deno.env.get('HR_SMTP_HOST')
-    const smtpUser = Deno.env.get('HR_SMTP_USER')
-    const smtpPass = Deno.env.get('HR_SMTP_PASS')
+    const smtpHost = (Deno.env.get('HR_SMTP_HOST') || '').trim()
+    const smtpUser = (Deno.env.get('HR_SMTP_USER') || '').trim()
+    // Gmail app passwords are shown in 4-char groups; any stored spaces/newlines
+    // make Google reject the login with "535 5.7.8 Username and Password not accepted".
+    const smtpPass = (Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
     if (!smtpHost || !smtpUser || !smtpPass) return json({ error: 'HR SMTP is not configured' }, 500)
 
     if (!registerPresent) {

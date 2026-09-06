@@ -60,14 +60,14 @@ Deno.serve(async (req) => {
   if (step === "view") return json(200, { view: await view(), summary: deductionSummary(await view()) });
 
   if (step === "restore") {
-    const r = await reset();
-    const ded = await call("payroll", "payroll", "add-deduction", {
+    const r = body.skipReset ? { status: 0 } : await reset();
+    const ded = body.skipReset ? { status: 0 } : await call("payroll", "payroll", "add-deduction", {
       email: EMAIL, "payroll-month": MONTH, "deduction-amount": CANON_AMOUNT,
       remarks: "Loss of Pay - Attendance (10 days)",
     });
     const add = await call("payroll", "payroll", "add-additions", {
       email: EMAIL, "payroll-month": MONTH,
-      additions: [{ name: "Reimbursement", amount: REIMB, taxable: true }],
+      additions: [{ label: "Reimbursement", amount: REIMB, taxable: true }],
     });
     const v = await view();
     return json(200, { reset: r.status, ded: ded.status, add: add.status, summary: deductionSummary(v), additions: v?.body?.additions });

@@ -529,7 +529,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Salary Register CSV must be imported before payslip emails can be sent.' }, 400)
     }
 
-    const ids: string[] = Array.isArray(body.employee_ids) ? body.employee_ids : []
+    const ids: string[] = selectedIds
 
     // Hard stop: never email a payslip to somebody whose salary was not
     // processed this month (do-not-pay, absent from the register, zero net).

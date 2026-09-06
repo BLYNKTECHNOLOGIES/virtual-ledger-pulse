@@ -502,7 +502,6 @@ export function ResignationTab() {
             status: "paid",
             paid_at: new Date().toISOString(),
             payment_reference: inferredRef,
-            payment_method: "razorpay_payroll",
             updated_at: new Date().toISOString(),
           })
           .eq("id", s.id);

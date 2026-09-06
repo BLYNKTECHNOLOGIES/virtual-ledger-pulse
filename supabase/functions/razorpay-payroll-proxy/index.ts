@@ -434,12 +434,49 @@ function shortDeductionLabel(rawLabel: string): string {
     const inst = /installment\s*(\d+)/i.exec(label)?.[1];
     return inst ? `Loan EMI inst ${inst}` : "Loan/advance recovery";
   }
-  if (/salary recovery|ctc revision|part-month/i.test(label)) {
+  if (/salary recovery|ctc revision|part-month|normalis|normaliz|training/i.test(label)) {
     const wef = /w\.e\.f\.?\s*([^)]+)/i.exec(label)?.[1];
     return wef ? `Salary recovery (w.e.f. ${wef.trim()})` : "Salary recovery";
   }
+  if (/error|shortage|penalt/i.test(label)) {
+    const inst = /installment\s*(\d+)/i.exec(label)?.[1];
+    return inst ? `Error recovery inst ${inst}` : "Error recovery";
+  }
+  if (/notice period/i.test(label)) return "Notice period recovery";
+  if (/asset|equipment/i.test(label)) return "Asset recovery";
+  if (/excess|overpaid|overpayment/i.test(label)) return "Excess pay recovery";
   return label.length > 48 ? `${label.slice(0, 45)}...` : label;
 }
+// Additions keep their own line + label on the Opfin payslip, so the label
+// itself must read as a reason ("Comp-off encashment 2 day(s)").
+function shortAdditionLabel(rawLabel: string): string {
+  const label = asciiRemark(rawLabel);
+  if (/comp[- ]?off/i.test(label)) {
+    const days = /(\d+(?:\.\d+)?)\s*days?/i.exec(label)?.[1];
+    return days ? `Comp-off encashment ${days} day(s)` : "Comp-off encashment";
+  }
+  if (/arrear/i.test(label)) {
+    const wef = /w\.e\.f\.?\s*([^)]+)/i.exec(label)?.[1] || /eff(?:ective)?\.?\s*([0-9-\/]+)/i.exec(label)?.[1];
+    return wef ? `Salary arrears (w.e.f. ${wef.trim()})` : "Salary arrears";
+  }
+  if (/loan|advance/i.test(label)) return "Salary advance payout";
+  if (/reimburse/i.test(label)) {
+    const what = /reimbursement[\s-]*(?:for|:)?\s*([A-Za-z ]{2,24})/i.exec(label)?.[1]?.trim();
+    return what ? `Reimbursement - ${what}` : "Reimbursement";
+  }
+  if (/incentive|bonus|overtime|gratuity|leave encash/i.test(label)) {
+    return label.length > 48 ? `${label.slice(0, 45)}...` : label;
+  }
+  return label.length > 48 ? `${label.slice(0, 45)}...` : label;
+}
+function buildAdditionRemarks(items: Array<{ label: string; amount: number }>): string {
+  const parts = items
+    .filter((i) => i && Number.isFinite(Number(i.amount)))
+    .map((i) => `${shortAdditionLabel(i.label)} Rs ${Math.round(Number(i.amount))}`);
+  if (parts.length === 0) return "Payroll addition";
+  return asciiRemark(parts.join("; ")).slice(0, 250) || "Payroll addition";
+}
+
 function buildDeductionRemarks(items: Array<{ label: string; amount: number }>): string {
   const parts = items
     .filter((i) => i && Number.isFinite(Number(i.amount)))
@@ -7942,8 +7979,19 @@ Deno.serve(async (req) => {
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
         if (action === "payroll_add_additions") {
-          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ ...v, label }));
+          // Opfin shows the addition's own label on the payslip, so make it a
+          // clean, ASCII, human-readable reason ("Comp-off encashment 2 day(s)")
+          // instead of the raw internal string. `remarks` carries the itemised
+          // summary for the receipt/audit trail.
+          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => {
+            const clean = shortAdditionLabel(label);
+            return { ...v, name: clean, label: clean };
+          });
+          // Keep the read-back expectation aligned with what we actually sent.
+          for (const e of expect) e.label = shortAdditionLabel(e.label);
+          data.remarks = buildAdditionRemarks(expect);
         } else {
+
           // ── Net vs Gross: OUT OF RAZORPAYX API SCOPE ──────────────────────
           // Verified live against the tenant on 2026-09-06 (IST): the
           // documented `payroll:add-deduction` contract accepts only

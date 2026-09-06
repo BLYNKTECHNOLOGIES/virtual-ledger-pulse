@@ -453,7 +453,7 @@ export function ResignationTab() {
     queryFn: async () => {
       const { data } = await (supabase as any)
         .from("hr_fnf_settlements")
-        .select("id, employee_id, status, razorpay_push_status, net_payable")
+        .select("id, employee_id, status, razorpay_push_status, net_payable, payroll_month, razorpay_pushed_at, payment_reference")
         .in("employee_id", activeIds)
         .neq("status", "cancelled");
       const map: Record<string, any> = {};

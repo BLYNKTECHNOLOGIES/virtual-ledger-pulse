@@ -380,7 +380,8 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
         reason: dismissPrompt.reason || "F&F settled",
         triggeredFrom: "fnf_paid",
       });
-      if (res.ok) toast.success("Dismissal propagated to RazorpayX");
+      if (res.scheduled) toast.success(`RazorpayX dismissal scheduled for ${new Date(`${res.effectiveDate}T00:00:00`).toLocaleDateString("en-IN")}`);
+      else if (res.ok) toast.success("Dismissal propagated to RazorpayX");
       else if (res.skipped) toast.info("Employee is not linked to RazorpayX — nothing to propagate.");
       else if (res.manualRequired)
         toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account. Logged in Data Health.");

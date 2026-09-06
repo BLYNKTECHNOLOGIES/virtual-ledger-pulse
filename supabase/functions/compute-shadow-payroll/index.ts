@@ -179,13 +179,32 @@ Deno.serve(async (req) => {
     const { data: ptSlabs, error: ptErr } = await supabase.from("hr_pt_slabs").select("*");
     if (ptErr) throw ptErr;
 
-    // 2. Active employees + per-employee statutory flags + custom split + provenance
+    // 2. Employees IN SCOPE FOR THE PERIOD = currently active
+    //    ∪ anyone who was actually paid in this month (register row present)
+    //    ∪ anyone terminated on/after the period start (mid-month leaver).
+    //    Dismissed employees who drew August salary must still be compared,
+    //    otherwise their pay shows up as unexplained Razorpay-side drift.
+    const paidThisPeriod = new Set<string>();
+    {
+      const { data: paidRows, error: paidErr } = await supabase
+        .from("hr_razorpay_payslip_records")
+        .select("hr_employee_id")
+        .eq("period_month", periodStr);
+      if (paidErr) console.error("period register scope err", paidErr);
+      for (const r of paidRows ?? []) if (r.hr_employee_id) paidThisPeriod.add(r.hr_employee_id);
+    }
+
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date")
-      .eq("is_active", true);
+      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date");
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
-    const { data: employees, error: empErr } = await empQ;
+    const { data: allEmployees, error: empErr } = await empQ;
     if (empErr) throw empErr;
+    const employees = (allEmployees ?? []).filter((e: any) =>
+      e.is_active === true ||
+      paidThisPeriod.has(e.id) ||
+      (e.termination_date && String(e.termination_date) >= periodStr)
+    );
+
 
     // 2b. Effective-dated statutory profiles active for THIS period month.
     //     Latest row with effective_from <= period start wins (history preserved).

@@ -29,7 +29,8 @@ async function call(urlPath: string, type: string, subType: string, data: Record
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
-  const { step = "view", days = 10 } = await req.json().catch(() => ({}));
+  const reqBody: any = await req.json().catch(() => ({}));
+  const { step = "view", days = 10, amount = 0 } = reqBody;
   let out: unknown;
   if (step === "view") {
     out = await call("payroll", "payroll", "view-payroll", { "employee-id": EMP_ID, "payroll-month": MONTH });
@@ -46,7 +47,7 @@ Deno.serve(async (req) => {
     out = await call("payroll", "payroll", "add-deduction", {
       email: EMAIL,
       "payroll-month": MONTH,
-      "deduction-amount": Number((await req.json().catch(() => ({}))).amount ?? 13710),
+      "deduction-amount": Number(amount),
       remarks: "Loss of Pay - Attendance",
     });
   } else {

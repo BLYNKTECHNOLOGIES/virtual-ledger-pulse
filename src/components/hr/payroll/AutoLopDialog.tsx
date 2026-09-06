@@ -380,6 +380,7 @@ export function AutoLopDialog({
                 <Badge variant="outline">{summary.to_stage} to stage</Badge>
                 {summary.to_remove > 0 && <Badge variant="destructive">{summary.to_remove} stale to remove</Badge>}
                 {summary.pushed_locked > 0 && <Badge variant="secondary">{summary.pushed_locked} locked (pushed)</Badge>}
+                {summary.pushed_stale > 0 && <Badge variant="destructive">{summary.pushed_stale} pushed value(s) out of date</Badge>}
                 {summary.skipped > 0 && <Badge variant="destructive">{summary.skipped} skipped</Badge>}
                 {summary.not_applicable > 0 && <Badge variant="secondary">{summary.not_applicable} LOP not applicable (contract)</Badge>}
                 <Badge>{inr(summary.total_amount)} total</Badge>

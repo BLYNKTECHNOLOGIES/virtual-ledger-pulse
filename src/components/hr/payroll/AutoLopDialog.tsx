@@ -296,6 +296,54 @@ export function AutoLopDialog({
     onError: (e: any) => toast.error(e.message || "Staging failed"),
   });
 
+  // ── Correct a row that is already on the RazorpayX run but out of date ─────
+  // RazorpayX has no endpoint that edits or deletes a single line, so the only
+  // documented way to correct one is `payroll/reset-modifications` for that
+  // employee + month. We reset the employee's month, clear the local push
+  // stamps for every line of theirs, then restage LOP at the current figure.
+  // Nothing is re-sent automatically — HR pushes the corrected lines from
+  // Payroll Inputs, so no money moves without a human pressing Push.
+  const correctPushed = useMutation({
+    mutationFn: async (row: PreviewRow) => {
+      const empId = row.razorpay_employee_id;
+      if (!empId) throw new Error("This employee has no RazorpayX mapping.");
+
+      const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "payroll_reset_modifications", payload: { data: { "employee-id": empId, "payroll-month": period } } },
+      });
+      if (error) throw new Error(error.message || "RazorpayX rejected the reset request");
+      if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+
+      const periodDate = `${period}-01`;
+      for (const tbl of ["hr_payroll_input_additions", "hr_payroll_input_deductions"]) {
+        const { error: upErr } = await (supabase as any).from(tbl)
+          .update({ pushed_at: null, readback_verified_at: null, push_response: null })
+          .eq("razorpay_employee_id", empId)
+          .eq("period_month", periodDate)
+          .not("pushed_at", "is", null);
+        if (upErr) throw new Error(upErr.message);
+      }
+
+      const { data: gen, error: genErr } = await supabase.functions.invoke("generate-lop-deductions", {
+        body: { period, dry_run: false, employee_ids: [row.hr_employee_id] },
+      });
+      if (genErr) throw genErr;
+      if ((gen as any)?.error) throw new Error((gen as any).message || (gen as any).error);
+      return gen as any;
+    },
+    onSuccess: () => {
+      toast.success("Taken off the RazorpayX run and restaged at the current figure", {
+        description: "Push the corrected lines from Payroll Inputs — all of this employee's lines for the month need re-sending.",
+      });
+      qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
+      qc.invalidateQueries({ queryKey: ["cockpit_month"] });
+      preview.mutate();
+    },
+    onError: (e: any) => toast.error(e.message || "Could not correct the pushed row"),
+  });
+
+
+
   function handleOpenChange(o: boolean) {
     onOpenChange(o);
     if (!o) { setRows(null); setSummary(null); setSelected({}); }

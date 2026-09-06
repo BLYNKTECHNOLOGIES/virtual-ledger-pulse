@@ -481,9 +481,30 @@ export function ResignationTab() {
       if (!readiness.ready) throw new Error(readiness.why);
 
       if (s && String(s.status) !== "paid") {
+        // The settlement money already travelled through the monthly payroll
+        // cockpit (pushed + read-back verified), so the payment reference is
+        // inferable — no manual reference typing needed here.
+        const cycle = s.payroll_month
+          ? new Date(String(s.payroll_month) + "T00:00:00Z").toLocaleString("en-IN", { month: "short", year: "numeric" })
+          : "payroll cycle";
+        const pushedIst = s.razorpay_pushed_at
+          ? new Date(s.razorpay_pushed_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) + " IST"
+          : null;
+        const inferredRef =
+          s.payment_reference ||
+          (String(s.razorpay_push_status) === "nothing_to_push"
+            ? `No payout due — settled in RazorpayX payroll ${cycle}`
+            : `RazorpayX payroll ${cycle}${pushedIst ? ` — F&F lines verified ${pushedIst}` : ""}`);
+
         const { error } = await (supabase as any)
           .from("hr_fnf_settlements")
-          .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            payment_reference: inferredRef,
+            payment_method: "razorpay_payroll",
+            updated_at: new Date().toISOString(),
+          })
           .eq("id", s.id);
         if (error) throw error;
         const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: s.id });

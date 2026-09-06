@@ -67,16 +67,30 @@ export function downloadCsv(s: Sheet) {
 export function downloadWorkbook(sheets: Sheet[], fileName: string) {
   const wb = XLSX.utils.book_new();
   for (const s of sheets) {
-    const aoa = [...s.meta, [], s.header, ...s.rows];
+    const numericCols = s.header
+      .map((h, i) => (/badge/i.test(String(h)) ? i : -1))
+      .filter((i) => i >= 0);
+    const rows = numericCols.length
+      ? s.rows.map((r) => {
+          const c = [...r];
+          for (const i of numericCols) {
+            const v = c[i];
+            if (typeof v === "string" && /^\d+$/.test(v.trim())) c[i] = Number(v.trim());
+          }
+          return c;
+        })
+      : s.rows;
+    const aoa = [...s.meta, [], s.header, ...rows];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws["!cols"] = s.header.map((h, i) => ({
       wch: Math.min(
         34,
-        Math.max(10, h.length + 2, ...s.rows.slice(0, 200).map((r) => String(r[i] ?? "").length + 2)),
+        Math.max(10, h.length + 2, ...rows.slice(0, 200).map((r) => String(r[i] ?? "").length + 2)),
       ),
     }));
     XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0, 31));
   }
+
   const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
   triggerDownload(new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), fileName + ".xlsx");
 }

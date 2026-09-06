@@ -8327,7 +8327,7 @@ Deno.serve(async (req) => {
               } else {
                 const repair = await sendAddDeduction(
                   combined,
-                  `${dedSplit.netRemarks}; ${dedSplit.grossRemarks}`,
+                  asciiRemark([dedSplit.netRemarks, dedSplit.grossRemarks].filter(Boolean).join("; ")).slice(0, 250),
                   "net",
                 );
                 dedSplit.status = "collapsed_to_single_line";

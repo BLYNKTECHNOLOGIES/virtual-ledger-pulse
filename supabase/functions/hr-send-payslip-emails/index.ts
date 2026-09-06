@@ -529,7 +529,7 @@ Deno.serve(async (req) => {
         const to = mode === 'preview' ? previewTo! : row.email!
 
         await client.send({
-          from: `HR - Blynk Virtual Technologies <${smtpUser}>`,
+          from: `${fromName} <${fromAddress}>`,
           to,
           subject,
           content: 'Please view this email in an HTML-compatible client.',

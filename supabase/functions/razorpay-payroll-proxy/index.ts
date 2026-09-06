@@ -1247,6 +1247,39 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, base_url_active: BASE, is_sandbox: BASE !== BASE_DEFAULT });
     }
 
+    // ---------- probe_v2_bulk_upload (read-only capability probe) ----------
+    if (action === "probe_v2_bulk_upload") {
+      if (!KEY_ID || !KEY_SECRET) return json(500, { error: "missing creds" });
+      const origin = "https://payroll.razorpay.com";
+      const results: Record<string, unknown> = {};
+      const tryCall = async (label: string, url: string, init: RequestInit) => {
+        try {
+          const r = await fetch(url, init);
+          const txt = await r.text();
+          results[label] = { status: r.status, body_preview: txt.slice(0, 300) };
+        } catch (e) { results[label] = { error: String(e) }; }
+      };
+      await tryCall("auth_body", `${origin}/v2/api/bulk-uploads/get-by-type`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ auth: authBlock(), type: "addition-deduction-lop" }),
+      });
+      await tryCall("basic_auth", `${origin}/v2/api/bulk-uploads/get-by-type`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json", Accept: "application/json",
+          Authorization: `Basic ${btoa(`${KEY_ID}:${KEY_SECRET}`)}`,
+        },
+        body: JSON.stringify({ type: "addition-deduction-lop" }),
+      });
+      await tryCall("graphql_auth_body", `${origin}/v2/api/graphql`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query: "query { __typename }", auth: authBlock() }),
+      });
+      return json(200, { ok: true, results });
+    }
+
     // ---------- validate_creds / introspect_envelope ----------
     if (action === "validate_creds" || action === "introspect_envelope") {
       const eid = Number(payload?.employee_id ?? 1);

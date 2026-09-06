@@ -271,7 +271,7 @@ serve(async (req) => {
   try {
     let empQuery: any = supa
       .from("hr_employees")
-      .select("id, first_name, last_name, email, phone, dob, gender, pan_number, badge_id, is_active, total_salary");
+      .select("id, first_name, last_name, email, phone, dob, gender, pan_number, badge_id, is_active, total_salary, last_working_day, termination_date");
     if (employeeIdFilter) empQuery = empQuery.eq("id", employeeIdFilter);
     const { data: employees, error: empErr } = await empQuery;
     if (empErr) throw empErr;
@@ -530,6 +530,20 @@ serve(async (req) => {
       const salary = salaryByEmp.get(emp.id);
       const rzp = rzpByEmp.get(emp.id);
       const esslUser = emp.badge_id ? esslByPin.get(String(emp.badge_id).trim()) : null;
+      const todayIst = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+      const separationEffectiveDate = emp.last_working_day || emp.termination_date || null;
+      // HRMS access may be closed as soon as F&F is complete, while a dismissal
+      // accepted by RazorpayX remains deliberately future-effective until LWD.
+      // That temporary active/inactive difference is expected, not a critical
+      // drift. Start enforcing parity on the effective date itself.
+      const futureEffectiveSeparation = emp.is_active === false &&
+        typeof separationEffectiveDate === "string" &&
+        separationEffectiveDate > todayIst;
 
       // Dismissed-in-RazorpayX employees: their snapshot is frozen/partial, so
       // field-level drift is noise. Suppress everything except the pending
@@ -570,6 +584,25 @@ serve(async (req) => {
       }
 
       for (const spec of FIELDS) {
+        if (spec.field === "active_state" && futureEffectiveSeparation) {
+          const { data: existing } = await supa
+            .from("hr_drift_alerts")
+            .select("id")
+            .eq("hr_employee_id", emp.id)
+            .in("field", ["active_state", "dismissal_state"])
+            .is("resolved_at", null);
+          if (existing?.length) {
+            const { error } = await supa
+              .from("hr_drift_alerts")
+              .update({
+                resolved_at: new Date().toISOString(),
+                resolution_note: `Auto-resolved: RazorpayX dismissal is scheduled for ${separationEffectiveDate}; active status is expected before that date.`,
+              })
+              .in("id", existing.map((row: any) => row.id));
+            if (!error) resolved += existing.length;
+          }
+          continue;
+        }
         // Never assert an active/dismissed verdict from a snapshot we could not
         // refresh — a stale cached "active" is exactly the false alarm we hit.
         if (spec.field === "active_state" && rzpStale.has(emp.id)) continue;

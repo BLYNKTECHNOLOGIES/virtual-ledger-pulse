@@ -62,6 +62,10 @@ type PreviewRow = {
   status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped" | "not_applicable";
   reason?: string;
   existing_amount?: number | null;
+  razorpay_employee_id?: string | null;
+  stale_pushed?: boolean;
+  pushed_amount?: number | null;
+  pushed_lop_days?: number | null;
 };
 
 type CompoffCredit = {
@@ -292,6 +296,54 @@ export function AutoLopDialog({
     onError: (e: any) => toast.error(e.message || "Staging failed"),
   });
 
+  // ── Correct a row that is already on the RazorpayX run but out of date ─────
+  // RazorpayX has no endpoint that edits or deletes a single line, so the only
+  // documented way to correct one is `payroll/reset-modifications` for that
+  // employee + month. We reset the employee's month, clear the local push
+  // stamps for every line of theirs, then restage LOP at the current figure.
+  // Nothing is re-sent automatically — HR pushes the corrected lines from
+  // Payroll Inputs, so no money moves without a human pressing Push.
+  const correctPushed = useMutation({
+    mutationFn: async (row: PreviewRow) => {
+      const empId = row.razorpay_employee_id;
+      if (!empId) throw new Error("This employee has no RazorpayX mapping.");
+
+      const { data: res, error } = await (supabase as any).functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "payroll_reset_modifications", payload: { data: { "employee-id": empId, "payroll-month": period } } },
+      });
+      if (error) throw new Error(error.message || "RazorpayX rejected the reset request");
+      if (!res?.ok) throw new Error(res?.error || `HTTP ${res?.http_status}`);
+
+      const periodDate = `${period}-01`;
+      for (const tbl of ["hr_payroll_input_additions", "hr_payroll_input_deductions"]) {
+        const { error: upErr } = await (supabase as any).from(tbl)
+          .update({ pushed_at: null, readback_verified_at: null, push_response: null })
+          .eq("razorpay_employee_id", empId)
+          .eq("period_month", periodDate)
+          .not("pushed_at", "is", null);
+        if (upErr) throw new Error(upErr.message);
+      }
+
+      const { data: gen, error: genErr } = await supabase.functions.invoke("generate-lop-deductions", {
+        body: { period, dry_run: false, employee_ids: [row.hr_employee_id] },
+      });
+      if (genErr) throw genErr;
+      if ((gen as any)?.error) throw new Error((gen as any).message || (gen as any).error);
+      return gen as any;
+    },
+    onSuccess: () => {
+      toast.success("Taken off the RazorpayX run and restaged at the current figure", {
+        description: "Push the corrected lines from Payroll Inputs — all of this employee's lines for the month need re-sending.",
+      });
+      qc.invalidateQueries({ queryKey: ["payroll_inputs"] });
+      qc.invalidateQueries({ queryKey: ["cockpit_month"] });
+      preview.mutate();
+    },
+    onError: (e: any) => toast.error(e.message || "Could not correct the pushed row"),
+  });
+
+
+
   function handleOpenChange(o: boolean) {
     onOpenChange(o);
     if (!o) { setRows(null); setSummary(null); setSelected({}); }
@@ -328,6 +380,7 @@ export function AutoLopDialog({
                 <Badge variant="outline">{summary.to_stage} to stage</Badge>
                 {summary.to_remove > 0 && <Badge variant="destructive">{summary.to_remove} stale to remove</Badge>}
                 {summary.pushed_locked > 0 && <Badge variant="secondary">{summary.pushed_locked} locked (pushed)</Badge>}
+                {summary.pushed_stale > 0 && <Badge variant="destructive">{summary.pushed_stale} pushed value(s) out of date</Badge>}
                 {summary.skipped > 0 && <Badge variant="destructive">{summary.skipped} skipped</Badge>}
                 {summary.not_applicable > 0 && <Badge variant="secondary">{summary.not_applicable} LOP not applicable (contract)</Badge>}
                 <Badge>{inr(summary.total_amount)} total</Badge>
@@ -484,7 +537,30 @@ export function AutoLopDialog({
                               <div className="text-xs text-muted-foreground">was {inr(r.existing_amount)}</div>
                             )}
                           </td>
-                          <td className="p-2 border-l"><Badge variant={meta.variant} className="text-[11px]">{meta.label}</Badge></td>
+                          <td className="p-2 border-l" onClick={(e) => e.stopPropagation()}>
+                            <Badge variant={r.stale_pushed ? "destructive" : meta.variant} className="text-[11px]">
+                              {r.stale_pushed ? "Pushed value out of date" : meta.label}
+                            </Badge>
+                            {r.stale_pushed && (
+                              <div className="mt-1 space-y-1">
+                                <div className="text-[11px] text-muted-foreground">
+                                  On the run: {inr(r.pushed_amount ?? 0)}
+                                  {r.pushed_lop_days != null ? ` (${num(r.pushed_lop_days)} day(s))` : ""} · should be {inr(r.amount)} ({num(r.lop_days)} day(s))
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-xs"
+                                  disabled={correctPushed.isPending || !r.razorpay_employee_id}
+                                  onClick={() => correctPushed.mutate(r)}
+                                  title="Clears this employee's month on RazorpayX and restages LOP at the current figure. Nothing is re-sent until you press Push in Payroll Inputs."
+                                >
+                                  {correctPushed.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                                  Correct on RazorpayX
+                                </Button>
+                              </div>
+                            )}
+                          </td>
                         </tr>
                         {isOpen && (
                           <tr className="bg-muted/20 border-t">

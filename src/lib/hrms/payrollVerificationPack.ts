@@ -463,8 +463,13 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (net < 0) flags.push("Negative net");
     if ((stagedUnpushed.get(r.hr_employee_id) ?? 0) > 0) flags.push(`${stagedUnpushed.get(r.hr_employee_id)} staged line(s) not pushed`);
     if (!stagedLopRow && engineLop > 0) flags.push("LOP calculated but not staged in Step 5");
-    if (stagedLopRow && Math.abs(stagedLopAmt - engineLop) > 0.01 && r.status !== "pushed")
-      flags.push(`Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`);
+    if (stagedLopRow && Math.abs(stagedLopAmt - engineLop) > 0.01)
+      flags.push(
+        r.status === "pushed"
+          ? `Pushed LOP ₹${stagedLopAmt}${stagedLopRow.lop_days !== null && stagedLopRow.lop_days !== undefined ? ` (${n2(stagedLopRow.lop_days)} day(s))` : ""} disagrees with current attendance ₹${engineLop} (${lopDays} day(s)) — correct it in RazorpayX`
+          : `Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`,
+      );
+
     if (r.status === "skipped") flags.push(`LOP skipped: ${r.reason ?? "see Step 5"}`);
     if (cor?.status === "skipped") flags.push(`Comp-off skipped: ${cor.reason ?? "see Step 6"}`);
     if (flags.length) flagged++;

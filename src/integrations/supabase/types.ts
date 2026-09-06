@@ -30118,6 +30118,7 @@ export type Database = {
         Returns: number
       }
       hr_rebuild_loan_schedule: { Args: { p_loan_id: string }; Returns: number }
+      hr_reconcile_holiday_date: { Args: { p_date: string }; Returns: Json }
       hr_reconcile_late_early: {
         Args: { _from: string; _to: string }
         Returns: {
@@ -30360,6 +30361,7 @@ export type Database = {
           still_open: number
         }[]
       }
+      hr_withdraw_holiday_credits: { Args: { p_date: string }; Returns: Json }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {

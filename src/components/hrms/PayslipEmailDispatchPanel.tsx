@@ -195,41 +195,71 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
 
   const send = useMutation({
     mutationFn: async (args: { ids: string[]; mode: "send" | "preview" }) => {
-      // Sends run in small server-side chunks (PDF attach is CPU heavy). Loop until
-      // the server reports nothing remaining; each chunk is logged, so a crash can
-      // never cause a duplicate send on retry. A single failing chunk (edge restart,
-      // SMTP hiccup) must not abandon the rest of the run — retry it a few times and
-      // keep going, since already-sent people are skipped by the database guard.
       const agg = { sent: 0, failed: 0, results: [] as { name: string; ok: boolean; error?: string }[] };
-      let guard = 0;
-      let chunkAttempts = 0;
-      for (;;) {
-        let d: { sent: number; failed: number; remaining?: number; results: any[] } | null = null;
-        try {
-          const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
-            body: { mode: args.mode, period_month: month, employee_ids: args.ids },
-          });
-          if (error) throw error;
-          if ((data as any)?.error) throw new Error((data as any).error);
-          d = data as any;
-        } catch (e: any) {
-          const msg = e?.message || "Send chunk failed";
-          // "No sendable recipients" simply means everyone selected is done.
-          if (/no sendable recipients/i.test(msg)) break;
-          if (args.mode === "preview" || ++chunkAttempts >= 3) throw e;
-          toast.message(`Retrying remaining payslips… (${chunkAttempts}/3)`);
-          await new Promise((r) => setTimeout(r, 3000));
-          continue;
+
+      const invoke = async (ids: string[]) => {
+        let lastError: unknown;
+        for (let attempt = 1; attempt <= 3; attempt += 1) {
+          try {
+            const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
+              body: { mode: args.mode, period_month: month, employee_ids: ids, chunk_size: ids.length },
+            });
+            if (error) throw error;
+            if ((data as any)?.error) throw new Error((data as any).error);
+            return data as { sent: number; failed: number; results: { name: string; ok: boolean; error?: string }[] };
+          } catch (error) {
+            lastError = error;
+            const message = error instanceof Error ? error.message : "Send batch failed";
+            if (/no sendable recipients/i.test(message)) return { sent: 0, failed: 0, results: [] };
+            if (args.mode === "preview" || attempt === 3) break;
+            toast.message(`Retrying a payslip batch… (${attempt}/3)`);
+            await new Promise((resolve) => setTimeout(resolve, 3000));
+          }
         }
-        chunkAttempts = 0;
-        agg.sent += d.sent ?? 0;
-        agg.failed += d.failed ?? 0;
-        agg.results.push(...(d.results ?? []));
-        if (args.mode === "preview") break;
-        if (!d.remaining || d.remaining <= 0) break;
-        toast.message(`Sent ${agg.sent}… ${d.remaining} to go`);
-        if (++guard > 60) break;
+        throw lastError;
+      };
+
+      if (args.mode === "preview") {
+        const result = await invoke(args.ids.slice(0, 1));
+        agg.sent = result.sent ?? 0;
+        agg.failed = result.failed ?? 0;
+        agg.results.push(...(result.results ?? []));
+        return agg;
       }
+
+      // A sequential mobile run could exceed the browser request window after
+      // three batches and leave the final recipients untouched. Keep each Edge
+      // invocation small, but use two workers so the complete selection finishes
+      // well inside that window. Database claims still prevent duplicate emails.
+      const batches: string[][] = [];
+      for (let i = 0; i < args.ids.length; i += 3) batches.push(args.ids.slice(i, i + 3));
+      let nextBatch = 0;
+      const worker = async () => {
+        for (;;) {
+          const index = nextBatch;
+          nextBatch += 1;
+          const ids = batches[index];
+          if (!ids) return;
+          try {
+            const result = await invoke(ids);
+            agg.sent += result.sent ?? 0;
+            agg.failed += result.failed ?? 0;
+            agg.results.push(...(result.results ?? []));
+            toast.message(`Sent ${agg.sent} of ${args.ids.length}…`);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Send batch failed";
+            agg.failed += ids.length;
+            for (const id of ids) {
+              agg.results.push({
+                name: rows.find((row) => row.employee_id === id)?.name ?? "Employee",
+                ok: false,
+                error: message,
+              });
+            }
+          }
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(2, batches.length) }, () => worker()));
       return agg;
     },
 

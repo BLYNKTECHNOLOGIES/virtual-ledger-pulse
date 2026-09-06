@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
-import { hrSignatureHtml } from '../_shared/hrSignature.ts'
+import { wrapHrEmail } from '../_shared/hrSignature.ts'
 import { tidyMailHtml, tidyMailText } from '../_shared/mailBody.ts'
 
 const corsHeaders = {

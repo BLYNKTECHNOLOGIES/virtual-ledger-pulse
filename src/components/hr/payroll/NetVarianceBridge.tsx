@@ -182,14 +182,20 @@ export function buildVarianceBridge(l: BridgeLine): {
 
   // Named recovery heads. The shadow side now comes from the HRMS payroll-step
   // inputs the engine consumes, so an amount HR already staged is matched, not drift.
+  // The register lumps loan / deposit / misc instalments into its one-time
+  // recovery column when it does not carry a dedicated loan head, so fold the
+  // matching HRMS-staged recoveries into the same bucket.
+  const rzLoan = r0(n0(l.rz_loan_emi));
+  const hrmsLoan = r0(n0(hrms.loan_emi));
+  const loanInBucket = rzLoan === 0;
   const regHeads: Array<[string, string, string, number, number]> = [
     ["advance_salary", "Salary advance recovery", "Advance-salary recovery. Shadow side is the advance recovery staged in the HRMS payroll step; Razorpay side is the register amount.", r0(n0(hrms.advance_recovery)), r0(n0(l.rz_advance_salary))],
-    ["loan_emi", "Loan EMI recovery", "Loan instalment. Shadow side is the HRMS auto-recovery instalment staged for the month.", r0(n0(hrms.loan_emi)), r0(n0(l.rz_loan_emi))],
-    ["deposit_recovery", "Security deposit & one-time recoveries", "Security-deposit instalments and other one-time recoveries. Shadow side is what HR staged in the payroll step; Razorpay side is the register's one-time recovery column.", r0(n0(hrms.deposit_recovery) + n0(hrms.other_recovery)), rzOneTimeRecovery],
-
+    ...(loanInBucket ? [] : [["loan_emi", "Loan EMI recovery", "Loan instalment. Shadow side is the HRMS auto-recovery instalment staged for the month.", hrmsLoan, rzLoan] as [string, string, string, number, number]]),
+    ["deposit_recovery", "Deposit / loan / one-time recoveries", "Security-deposit instalments, loan EMI and other one-time recoveries. Shadow side is what HR staged in the payroll step; Razorpay side is the register's one-time recovery column.", r0(n0(hrms.deposit_recovery) + n0(hrms.other_recovery) + (loanInBucket ? hrmsLoan : 0)), rzOneTimeRecovery],
     ["lwf", "Labour Welfare Fund", "Employee LWF contribution from the register. The shadow engine does not model LWF.", 0, r0(n0(l.rz_lwf_ee))],
     ["security_deposit", "Security deposit refund", "Security-deposit refund paid back (an earning, so it shows as a negative deduction).", -r0(n0(hrmsAdd.deposit_refund)), -r0(n0(l.rz_refund_security_deposit))],
   ];
+
   let regTotal = 0;
   const namedShadowRecoveries = regHeads.reduce((s, h) => s + h[3], 0);
   for (const [key, label, hint, shadow, rz] of regHeads) {

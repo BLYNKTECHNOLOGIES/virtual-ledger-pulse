@@ -516,7 +516,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                   Save
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">Stated in the email as the actual credit date.</p>
+              
             </div>
 
             <div className="space-y-1">
@@ -533,9 +533,6 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
               <Button size="sm" disabled={!!zipBusy} onClick={() => zipRef.current?.click()}>
                 {zipBusy ?? "Import ZIP"}
               </Button>
-              <p className="text-[11px] text-muted-foreground">
-                Upload the monthly export as-is — matched by employee code, not by name.
-              </p>
             </div>
 
             <div className="space-y-1">
@@ -550,17 +547,17 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
               >
                 {pullMonth.isPending ? "Pulling…" : "Pull payroll"}
               </Button>
-              <p className="text-[11px] text-muted-foreground">
-                {rows.length === 0
-                  ? "No payroll pulled for this month yet — pull it so the register and payslips can match."
-                  : "Re-read this month's figures from RazorpayX. Read-only."}
-              </p>
+              {rows.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  No payroll pulled for this month yet.
+                </p>
+              )}
             </div>
 
 
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1.5">
-                <Upload className="h-3.5 w-3.5" /> Individual PDFs (manual fix)
+                <Upload className="h-3.5 w-3.5" /> Individual PDFs
               </Label>
               <input
                 ref={fileRef}

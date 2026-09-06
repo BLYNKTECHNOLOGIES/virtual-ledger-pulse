@@ -7990,10 +7990,8 @@ Deno.serve(async (req) => {
           // Keep the read-back expectation aligned with what we actually sent.
           for (const e of expect) e.label = shortAdditionLabel(e.label);
           data.remarks = buildAdditionRemarks(expect);
-
         } else {
 
-        } else {
           // ── Net vs Gross: OUT OF RAZORPAYX API SCOPE ──────────────────────
           // Verified live against the tenant on 2026-09-06 (IST): the
           // documented `payroll:add-deduction` contract accepts only

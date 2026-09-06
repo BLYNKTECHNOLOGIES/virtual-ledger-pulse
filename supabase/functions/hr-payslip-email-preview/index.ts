@@ -55,7 +55,7 @@ const CONTENT = `
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#b45309;">Loss of pay</div>
           <div style="font-size:15px;font-weight:700;color:#78350f;margin-top:6px;">1.5 day(s) &middot; INR 3,483.87</div>
           <div style="font-size:13.5px;color:#92400e;line-height:1.6;margin-top:6px;">
-            Recorded for July 2026 as per biometric attendance and approved leave records for the pay period.
+            As per attendance and approved leave for July 2026.
           </div>
         </td>
       </tr>
@@ -67,7 +67,7 @@ const CONTENT = `
         <td style="width:4px;background:#16a34a;border-radius:4px 0 0 4px;"></td>
         <td style="background:#f0fdf4;padding:18px;border:1px solid #bbf7d0;border-left:0;border-radius:0 8px 8px 0;">
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#15803d;">Congratulations</div>
-          <div style="font-size:15px;font-weight:700;color:#14532d;margin-top:6px;">A bonus has been added to your July salary</div>
+          <div style="font-size:15px;font-weight:700;color:#14532d;margin-top:6px;">Bonus added to your July salary</div>
           <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#166534;margin-top:12px;">
             <tr><td style="padding:6px 0;">Performance bonus</td><td align="right" style="padding:6px 0;font-weight:600;">INR 6,000.00</td></tr>
             <tr><td style="padding:6px 0;">Overtime bonus</td><td align="right" style="padding:6px 0;font-weight:600;">INR 2,500.00</td></tr>
@@ -77,7 +77,7 @@ const CONTENT = `
             </tr>
           </table>
           <div style="font-size:13.5px;color:#166534;line-height:1.6;margin-top:12px;">
-            Thank you for the effort and ownership you have shown this month. Your contribution is genuinely valued by the team.
+            Thank you for your contribution this month.
           </div>
         </td>
       </tr>
@@ -88,7 +88,7 @@ const CONTENT = `
         <td style="width:4px;background:#0284c7;border-radius:4px 0 0 4px;"></td>
         <td style="background:#f0f9ff;padding:18px;border:1px solid #bae6fd;border-left:0;border-radius:0 8px 8px 0;">
           <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#0369a1;">Other additions</div>
-          <div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-top:6px;">Additional amounts included in this month&#39;s pay</div>
+          <div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-top:6px;">Included in this month&#39;s pay</div>
           <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#075985;margin-top:12px;">
             <tr><td style="padding:6px 0;">Comp-off encashment (2 days)</td><td align="right" style="padding:6px 0;font-weight:600;">INR 4,645.16</td></tr>
             <tr><td style="padding:6px 0;">Travel reimbursement</td><td align="right" style="padding:6px 0;font-weight:600;">INR 1,850.00</td></tr>
@@ -102,8 +102,7 @@ const CONTENT = `
     </table>
 
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">
-      Please retain the attached payslip for your records. It contains the complete break-up of your earnings,
-      deductions and statutory contributions (PF / ESIC / PT / TDS).
+      The attached payslip carries the full break-up, including PF / ESIC / PT / TDS.
     </p>
 
     `

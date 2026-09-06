@@ -289,3 +289,4 @@ Append here whenever the owner commands a significant state change (data wipes, 
 - 2026-09-06 23:51 IST: Payslip email redesigned with polished mobile-first typography, aligned tabular payroll figures, refined pay-period and net-pay hierarchy, and matching live/sample templates; payroll data and one-send guard unchanged.
 - 2026-09-07 00:12 IST: Payslip email copy tightened (shorter intro, LOP/bonus/other-additions notes, closing line); hr-send-payslip-emails + hr-payslip-email-preview redeployed, sample sent.
 - 2026-09-07 00:45 IST: Payslip email LOP detection fixed — engine labels ('Loss of Pay - Attendance …') and source=auto_lop now recognised, so paid days and the LOP block render (e.g. Amit Dangi 30/31, INR 484).
+- 2026-09-07 01:05 IST: Payslip emails now take LOP days strictly from the pushed/verified chargeable LOP (stored lop_days → engine label day count → post-settlement engine value); raw absence days are never shown.

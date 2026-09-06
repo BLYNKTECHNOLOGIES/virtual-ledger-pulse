@@ -5163,6 +5163,13 @@ export type Database = {
             foreignKeyName: "hr_asset_assignments_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_asset_assignments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -5257,6 +5264,13 @@ export type Database = {
             foreignKeyName: "hr_assets_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_assets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -5346,6 +5360,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_attendance_employee_id_fkey"
@@ -5516,6 +5537,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_attendance_daily_employee_id_fkey"
@@ -5717,6 +5745,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_attendance_notice_log_employee_id_fkey"
@@ -5945,6 +5980,13 @@ export type Database = {
             foreignKeyName: "hr_attendance_punches_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_punches_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -6168,6 +6210,13 @@ export type Database = {
             foreignKeyName: "hr_attendance_regularization_requests_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -6205,6 +6254,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_attendance_regularization_requests_manager_id_fkey"
@@ -6397,6 +6453,13 @@ export type Database = {
             foreignKeyName: "hr_attendance_stale_sessions_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_stale_sessions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -6520,6 +6583,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_bank_change_requests_employee_id_fkey"
@@ -7009,6 +7079,13 @@ export type Database = {
             foreignKeyName: "hr_biometric_pin_history_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_biometric_pin_history_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -7110,6 +7187,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_candidate_ratings_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_candidate_ratings_employee_id_fkey"
@@ -7368,6 +7452,13 @@ export type Database = {
             foreignKeyName: "hr_candidates_referral_id_fkey"
             columns: ["referral_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_candidates_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -7544,6 +7635,13 @@ export type Database = {
             foreignKeyName: "hr_compoff_credits_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_credits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -7633,6 +7731,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_compoff_settlements_employee_id_fkey"
@@ -7764,6 +7869,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_deposit_transactions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_deposit_transactions_employee_id_fkey"
@@ -8456,6 +8568,13 @@ export type Database = {
             foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -8596,6 +8715,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_bank_details_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_bank_details_employee_id_fkey"
@@ -8802,6 +8928,13 @@ export type Database = {
             foreignKeyName: "hr_employee_deposits_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_deposits_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -8894,6 +9027,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_documents_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_documents_employee_id_fkey"
@@ -8993,6 +9133,13 @@ export type Database = {
             foreignKeyName: "hr_employee_id_rekey_log_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_id_rekey_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -9063,6 +9210,13 @@ export type Database = {
             foreignKeyName: "hr_employee_notes_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_notes_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -9100,6 +9254,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_notes_updated_by_fkey"
@@ -9319,6 +9480,13 @@ export type Database = {
             foreignKeyName: "hr_employee_onboarding_reporting_manager_id_fkey"
             columns: ["reporting_manager_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_onboarding_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -9482,6 +9650,13 @@ export type Database = {
             foreignKeyName: "hr_employee_salary_structures_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_salary_structures_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -9553,6 +9728,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_shift_schedule_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_shift_schedule_employee_id_fkey"
@@ -9665,6 +9847,13 @@ export type Database = {
             foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_statutory_profiles_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -9751,6 +9940,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_weekly_off_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_weekly_off_employee_id_fkey"
@@ -9915,6 +10111,13 @@ export type Database = {
             foreignKeyName: "hr_employee_work_info_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_employee_work_info_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -9959,6 +10162,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_employee_work_info_reporting_manager_id_fkey"
+            columns: ["reporting_manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_employee_work_info_reporting_manager_id_fkey"
@@ -10252,6 +10462,13 @@ export type Database = {
             foreignKeyName: "hr_esi_contribution_periods_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_esi_contribution_periods_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -10356,6 +10573,13 @@ export type Database = {
             foreignKeyName: "hr_essl_pushback_log_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_essl_pushback_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -10447,6 +10671,13 @@ export type Database = {
             foreignKeyName: "hr_feedback_360_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_feedback_360_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -10484,6 +10715,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_feedback_360_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_feedback_360_reviewer_id_fkey"
@@ -10661,6 +10899,13 @@ export type Database = {
             foreignKeyName: "hr_fnf_settlements_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_fnf_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -10749,6 +10994,13 @@ export type Database = {
             foreignKeyName: "hr_helpdesk_tickets_assigned_to_fkey"
             columns: ["assigned_to"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_helpdesk_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -10786,6 +11038,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_helpdesk_tickets_raised_by_fkey"
+            columns: ["raised_by"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_helpdesk_tickets_raised_by_fkey"
@@ -10907,6 +11166,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_hour_accounts_employee_id_fkey"
@@ -11092,6 +11358,13 @@ export type Database = {
             foreignKeyName: "hr_late_come_early_out_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_late_come_early_out_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -11177,6 +11450,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_accrual_log_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_leave_accrual_log_employee_id_fkey"
@@ -11351,6 +11631,13 @@ export type Database = {
             foreignKeyName: "hr_leave_allocation_requests_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_allocation_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -11447,6 +11734,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_allocations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_leave_allocations_employee_id_fkey"
@@ -11640,6 +11934,13 @@ export type Database = {
             foreignKeyName: "hr_leave_requests_approved_by_fkey"
             columns: ["approved_by"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -11677,6 +11978,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_leave_requests_employee_id_fkey"
@@ -11849,6 +12157,13 @@ export type Database = {
             foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_leave_worked_days_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -11944,6 +12259,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_loan_repayments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_loan_repayments_employee_id_fkey"
@@ -12085,6 +12407,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_loans_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_loans_employee_id_fkey"
@@ -12535,6 +12864,13 @@ export type Database = {
             foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: true
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_new_joiner_readiness_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -12678,6 +13014,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_notifications_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_notifications_employee_id_fkey"
@@ -12994,6 +13337,13 @@ export type Database = {
             foreignKeyName: "hr_onboarding_stage_managers_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_onboarding_stage_managers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -13104,6 +13454,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_onboarding_task_employees_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_onboarding_task_employees_employee_id_fkey"
@@ -13338,6 +13695,13 @@ export type Database = {
             foreignKeyName: "hr_payroll_input_additions_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_input_additions_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -13448,6 +13812,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_input_deductions_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_payroll_input_deductions_hr_employee_id_fkey"
@@ -13593,6 +13964,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payroll_runs_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_payroll_runs_processed_by_fkey"
@@ -13820,6 +14198,13 @@ export type Database = {
             foreignKeyName: "hr_payslips_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -13925,6 +14310,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_penalties_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_penalties_employee_id_fkey"
@@ -14181,6 +14573,13 @@ export type Database = {
             foreignKeyName: "hr_razorpay_contractor_payments_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_contractor_payments_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -14267,6 +14666,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_employee_map_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_razorpay_employee_map_hr_employee_id_fkey"
@@ -14598,6 +15004,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payout_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_razorpay_payout_records_hr_employee_id_fkey"
@@ -15056,6 +15469,13 @@ export type Database = {
             foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -15146,6 +15566,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_pushback_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_razorpay_pushback_log_hr_employee_id_fkey"
@@ -15581,6 +16008,13 @@ export type Database = {
             foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -15678,6 +16112,13 @@ export type Database = {
             foreignKeyName: "hr_razorpay_taxdoc_records_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_taxdoc_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -15737,6 +16178,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_recruitment_managers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_recruitment_managers_employee_id_fkey"
@@ -15939,6 +16387,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_resignation_checklist_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_resignation_checklist_employee_id_fkey"
@@ -16243,6 +16698,13 @@ export type Database = {
             foreignKeyName: "hr_salary_revisions_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_salary_revisions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -16540,6 +17002,13 @@ export type Database = {
             foreignKeyName: "hr_shadow_payroll_lines_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_shadow_payroll_lines_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -16800,6 +17269,13 @@ export type Database = {
             foreignKeyName: "hr_stage_managers_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_stage_managers_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -16891,6 +17367,13 @@ export type Database = {
             foreignKeyName: "hr_stage_notes_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_stage_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -16959,6 +17442,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_stages_manager_id_fkey"
+            columns: ["manager_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_stages_manager_id_fkey"
@@ -25540,6 +26030,13 @@ export type Database = {
             foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -25598,6 +26095,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_leave_allocations_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_leave_allocations_employee_id_fkey"
@@ -25735,6 +26239,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_payslips_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_payslips_employee_id_fkey"
@@ -26250,13 +26761,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "fin_entity_master_v"
@@ -26265,13 +26769,20 @@ export type Database = {
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["counter_subsidiary_id"]
+            columns: ["subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
@@ -26620,6 +27131,13 @@ export type Database = {
             foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -26721,6 +27239,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
@@ -26832,6 +27357,13 @@ export type Database = {
             foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_drift_alerts_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -26917,6 +27449,13 @@ export type Database = {
             foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
             columns: ["hr_employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_sync_log_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -26970,6 +27509,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_attendance_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_attendance_employee_id_fkey"
@@ -27046,6 +27592,13 @@ export type Database = {
             foreignKeyName: "hr_hour_accounts_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hour_accounts_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
@@ -27079,6 +27632,27 @@ export type Database = {
           status: string | null
           total_amount: number | null
           total_installments: number | null
+        }
+        Relationships: []
+      }
+      hr_payroll_lop_drift: {
+        Row: {
+          badge_id: string | null
+          chargeable_lop_days: number | null
+          cl_available: number | null
+          cl_offset_days: number | null
+          compoff_available: number | null
+          compoff_offset_days: number | null
+          deduction_id: string | null
+          drift_status: string | null
+          employee_id: string | null
+          employee_name: string | null
+          is_pushed: boolean | null
+          period_month: string | null
+          pushed_at: string | null
+          raw_lop_days: number | null
+          staged_amount: number | null
+          staged_lop_days: number | null
         }
         Relationships: []
       }
@@ -27122,6 +27696,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
@@ -27240,6 +27821,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_razorpay_payslip_records_hr_employee_id_fkey"
@@ -27367,6 +27955,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_razorpay_employee_map_hr_employee_id_fkey"
+            columns: ["hr_employee_id"]
+            isOneToOne: true
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
           },
           {
             foreignKeyName: "hr_razorpay_employee_map_hr_employee_id_fkey"

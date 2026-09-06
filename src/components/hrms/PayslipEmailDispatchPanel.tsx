@@ -197,25 +197,42 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
     mutationFn: async (args: { ids: string[]; mode: "send" | "preview" }) => {
       // Sends run in small server-side chunks (PDF attach is CPU heavy). Loop until
       // the server reports nothing remaining; each chunk is logged, so a crash can
-      // never cause a duplicate send on retry.
+      // never cause a duplicate send on retry. A single failing chunk (edge restart,
+      // SMTP hiccup) must not abandon the rest of the run — retry it a few times and
+      // keep going, since already-sent people are skipped by the database guard.
       const agg = { sent: 0, failed: 0, results: [] as { name: string; ok: boolean; error?: string }[] };
       let guard = 0;
+      let chunkAttempts = 0;
       for (;;) {
-        const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
-          body: { mode: args.mode, period_month: month, employee_ids: args.ids },
-        });
-        if (error) throw error;
-        if ((data as any)?.error) throw new Error((data as any).error);
-        const d = data as { sent: number; failed: number; remaining?: number; results: any[] };
+        let d: { sent: number; failed: number; remaining?: number; results: any[] } | null = null;
+        try {
+          const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
+            body: { mode: args.mode, period_month: month, employee_ids: args.ids },
+          });
+          if (error) throw error;
+          if ((data as any)?.error) throw new Error((data as any).error);
+          d = data as any;
+        } catch (e: any) {
+          const msg = e?.message || "Send chunk failed";
+          // "No sendable recipients" simply means everyone selected is done.
+          if (/no sendable recipients/i.test(msg)) break;
+          if (args.mode === "preview" || ++chunkAttempts >= 3) throw e;
+          toast.message(`Retrying remaining payslips… (${chunkAttempts}/3)`);
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        chunkAttempts = 0;
         agg.sent += d.sent ?? 0;
         agg.failed += d.failed ?? 0;
         agg.results.push(...(d.results ?? []));
         if (args.mode === "preview") break;
         if (!d.remaining || d.remaining <= 0) break;
+        toast.message(`Sent ${agg.sent}… ${d.remaining} to go`);
         if (++guard > 60) break;
       }
       return agg;
     },
+
     onSuccess: (r, vars) => {
       if (vars.mode === "preview") toast.success("Preview sent to your email");
       else {

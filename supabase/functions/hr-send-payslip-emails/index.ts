@@ -150,28 +150,28 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
 
 
   const content = `
-    <div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;color:#64748b;">Pay period ${first} &ndash; ${last}</div>
-    <p style="margin:14px 0 14px;font-size:15px;color:#0f172a;">Dear <strong>${esc(row.name)}</strong>,</p>
-    <p style="margin:0 0 22px;font-size:14px;color:#475569;line-height:1.65;">
-      Your salary for <strong style="color:#0f172a;">${esc(label)}</strong> has been processed and credited to your registered
-      bank account${bankBit}${creditedBit}. A detailed payslip is attached to this email.
+    <div style="display:inline-block;padding:6px 10px;border-radius:999px;background:#f1f5f9;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.2;text-transform:uppercase;font-weight:700;color:#64748b;">Pay period &nbsp;${first} &ndash; ${last}</div>
+    <p style="margin:24px 0 12px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:17px;line-height:1.45;font-weight:600;color:#0f172a;">Dear <strong style="color:#0284c7;">${esc(row.name)}</strong>,</p>
+    <p style="margin:0 0 26px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;color:#526176;line-height:1.75;">
+      Your salary for <strong style="color:#0f172a;font-weight:700;">${esc(label)}</strong> has been processed and successfully credited to your registered
+      bank account${bankBit}${creditedBit}. The detailed payslip is attached for your records.
     </p>
 
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:10px;margin:0 0 22px;">
-      <tr><td style="padding:20px 24px;">
-        <div style="font-size:11px;letter-spacing:1.6px;color:#8fd8f2;text-transform:uppercase;font-weight:600;">Net pay credited</div>
-        <div style="font-size:30px;font-weight:700;color:#ffffff;margin-top:6px;letter-spacing:-.5px;">${inr(row.net)}</div>
+    <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:12px;margin:0 0 26px;">
+      <tr><td style="padding:24px;">
+        <div style="font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.3;color:#7dd3fc;text-transform:uppercase;font-weight:700;">Net pay credited</div>
+        <div style="margin-top:9px;font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#ffffff;white-space:nowrap;"><span style="font-size:17px;font-weight:500;color:#94a3b8;vertical-align:baseline;">INR</span>&nbsp;&nbsp;<span style="font-size:30px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums;vertical-align:baseline;">${inr(row.net).replace('INR ', '')}</span></div>
       </td></tr>
     </table>
 
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin:0 0 24px;">
+    <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;border-spacing:0;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;border:1px solid #e8edf3;border-radius:10px;overflow:hidden;margin:0 0 26px;">
       <tr>
-        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Gross earnings</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.gross)}</td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Gross earnings</td>
+        <td align="right" style="padding:15px 16px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">${inr(row.gross)}</td>
       </tr>
       <tr>
-        <td style="padding:12px 16px;color:#64748b;border-bottom:1px solid #e2e8f0;">Total deductions</td>
-        <td align="right" style="padding:12px 16px;color:#0f172a;font-weight:600;border-bottom:1px solid #e2e8f0;">${inr(row.deductions)}</td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Total deductions</td>
+        <td align="right" style="padding:15px 16px;color:#be123c;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">&minus;&nbsp;${inr(row.deductions)}</td>
       </tr>${oneTimeRow}${paidDaysRow}
     </table>
 

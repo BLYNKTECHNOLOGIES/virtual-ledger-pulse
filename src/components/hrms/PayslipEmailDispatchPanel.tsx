@@ -334,13 +334,18 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           continue;
         }
 
-        const row = rows.find((r) => String(r.razorpay_employee_id ?? "") === code);
-        if (!row) {
+        // Match on the roster first; fall back to the durable RazorpayX code map
+        // so the archive can be imported before this month's payroll pull.
+        const rosterRow = rows.find((r) => String(r.razorpay_employee_id ?? "") === code);
+        const mapped = rosterRow
+          ? { employee_id: rosterRow.employee_id, name: rosterRow.name }
+          : codeMapQ.data?.get(code);
+        if (!mapped) {
           report.unmapped.push({ code, name: e.folderName ?? e.fileName, group: e.group });
           continue;
         }
 
-        const path = `${month}/${row.employee_id}.pdf`;
+        const path = `${month}/${mapped.employee_id}.pdf`;
         const blob = new Blob([e.bytes.slice().buffer as ArrayBuffer], { type: "application/pdf" });
         const up = await supabase.storage.from("payslips").upload(path, blob, {
           upsert: true, contentType: "application/pdf",
@@ -349,16 +354,24 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
           report.failures.push({ file: e.path, reason: up.error.message });
           continue;
         }
-        const { error } = await supabase
+        // Upsert, not update: when the month has not been pulled yet there is no
+        // record row to attach the PDF to, and a silent 0-row update would look
+        // like success while linking nothing.
+        const { error } = await (supabase as any)
           .from("hr_razorpay_payslip_records")
-          .update({ pdf_storage_path: path })
-          .eq("period_month", month)
-          .eq("hr_employee_id", row.employee_id);
+          .upsert({
+            period_month: month,
+            razorpay_employee_id: code,
+            hr_employee_id: mapped.employee_id,
+            employee_name_snapshot: mapped.name,
+            pdf_storage_path: path,
+          }, { onConflict: "period_month,razorpay_employee_id" });
         if (error) {
           report.failures.push({ file: e.path, reason: error.message });
           continue;
         }
-        report.matched.push({ code, name: row.name, group: e.group, verified: !!pdfCode });
+        report.matched.push({ code, name: mapped.name, group: e.group, verified: !!pdfCode });
+
       }
 
       const codesInZip = new Set(entries.map((e) => e.folderCode ?? e.fileCode).filter(Boolean) as string[]);

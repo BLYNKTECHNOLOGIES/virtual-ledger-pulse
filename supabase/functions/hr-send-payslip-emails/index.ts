@@ -454,12 +454,26 @@ Deno.serve(async (req) => {
     }
 
     // ---- SMTP -------------------------------------------------------------
-    const smtpHost = (Deno.env.get('HR_SMTP_HOST') || '').trim()
-    const smtpUser = (Deno.env.get('HR_SMTP_USER') || '').trim()
-    // Gmail app passwords are shown in 4-char groups; any stored spaces/newlines
+    // Use the active HR mailbox's own secret names (same source the rest of the
+    // HR mail stack uses); fall back to the legacy HR_SMTP_* variables.
+    const { data: hrMailbox } = await admin
+      .from('hr_mailboxes')
+      .select('from_address, from_name, smtp_host_secret, smtp_user_secret, smtp_pass_secret')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    const smtpHost = (Deno.env.get(hrMailbox?.smtp_host_secret || '') || Deno.env.get('HR_SMTP_HOST') || '').trim()
+    const smtpUser = (Deno.env.get(hrMailbox?.smtp_user_secret || '') || Deno.env.get('HR_SMTP_USER') || '').trim()
+    // Gmail app passwords are displayed in 4-char groups; stored spaces/newlines
     // make Google reject the login with "535 5.7.8 Username and Password not accepted".
-    const smtpPass = (Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
+    const smtpPass = (Deno.env.get(hrMailbox?.smtp_pass_secret || '') || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
+    const fromAddress = (hrMailbox?.from_address || smtpUser).trim()
+    const fromName = hrMailbox?.from_name || 'HR - Blynk Virtual Technologies'
     if (!smtpHost || !smtpUser || !smtpPass) return json({ error: 'HR SMTP is not configured' }, 500)
+
+
 
     if (!registerPresent) {
       return json({ error: 'Salary Register CSV must be imported before payslip emails can be sent.' }, 400)

@@ -44,14 +44,24 @@ export function useShadowReadiness(periodMonth: string) {
       end.setUTCDate(0);
       const endStr = end.toISOString().slice(0, 10);
 
-      // active employees (with statutory flag state)
+      // employees in scope for THIS month = currently active ∪ paid this month
+      // ∪ terminated on/after the period start (mid-month leavers still drew pay).
+      const { data: paidRows0 } = await (supabase as any)
+        .from("hr_razorpay_payslip_records")
+        .select("hr_employee_id")
+        .eq("period_month", periodMonth);
+      const paidIds = new Set((paidRows0 ?? []).map((r: any) => r.hr_employee_id).filter(Boolean));
+
       const { data: emps } = await (supabase as any)
         .from("hr_employees")
-        .select("id, pf_enabled, esi_enabled, pt_enabled")
-        .eq("is_active", true);
-      const active = emps ?? [];
+        .select("id, pf_enabled, esi_enabled, pt_enabled, is_active, termination_date");
+      const active = (emps ?? []).filter((e: any) =>
+        e.is_active === true || paidIds.has(e.id) ||
+        (e.termination_date && String(e.termination_date) >= periodMonth)
+      );
       const activeCount = active.length;
       const ids = active.map((e: any) => e.id);
+
 
       // attendance coverage — hr_attendance_daily uses employee_id (not hr_employee_id)
       let attendanceCoveragePct = 0;

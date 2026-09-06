@@ -30099,6 +30099,10 @@ export type Database = {
         }[]
       }
       hr_queue_attlog_resweep: { Args: never; Returns: number }
+      hr_razorpay_month_salary: {
+        Args: { p_employee: string; p_month: string }
+        Returns: number
+      }
       hr_razorpay_sandbox_auto_revoke: {
         Args: never
         Returns: {

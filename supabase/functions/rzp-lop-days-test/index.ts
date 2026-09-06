@@ -50,6 +50,13 @@ Deno.serve(async (req) => {
       "deduction-amount": Number(amount),
       remarks: "Loss of Pay - Attendance",
     });
+  } else if (step === "add_addition") {
+    out = await call("payroll", "payroll", "add-additions", {
+      email: EMAIL,
+      "payroll-month": MONTH,
+      additions: [{ label: String(reqBody.label || "Reimbursement"), amount: Number(reqBody.amount || 0) }],
+      remarks: String(reqBody.label || "Reimbursement"),
+    });
   } else {
     out = { error: "unknown step" };
   }

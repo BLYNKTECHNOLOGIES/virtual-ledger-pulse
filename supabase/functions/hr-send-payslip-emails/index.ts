@@ -516,8 +516,48 @@ Deno.serve(async (req) => {
       connection: { hostname: smtpHost, port: 465, tls: true, auth: { username: smtpUser, password: smtpPass } },
     })
 
-    const results: { employee_id: string; name: string; ok: boolean; error?: string }[] = []
+    const results: { employee_id: string; name: string; ok: boolean; error?: string; skipped?: boolean }[] = []
     for (const row of targets) {
+      const label = monthLabel(month)
+      const subject = `${mode === 'preview' ? '[PREVIEW] ' : ''}Your Payslip — ${label} | Blynk Virtual Technologies`
+      const to = mode === 'preview' ? previewTo! : row.email!
+      let claimId: string | null = null
+
+      // Claim the slot BEFORE sending. The partial unique index makes this the
+      // single source of truth for "already emailed"; a duplicate claim means
+      // somebody (or another overlapping run) already sent this payslip.
+      if (mode === 'send') {
+        const claim = await admin.from('hr_email_send_log').insert({
+          template_name: TEMPLATE,
+          recipient_email: to,
+          subject,
+          status: 'sent',
+          metadata: {
+            employee_id: row.employee_id,
+            period_month: month,
+            net: row.net,
+            gross: row.gross,
+            deductions: row.deductions,
+            lop_days: row.lop_days,
+            bonus_total: row.bonus_total,
+            basis: row.basis,
+            sent_by: userRes.user.id,
+          },
+        }).select('id').single()
+        if (claim.error) {
+          const dup = (claim.error as any).code === '23505'
+          results.push({
+            employee_id: row.employee_id,
+            name: row.name,
+            ok: false,
+            skipped: dup,
+            error: dup ? 'Payslip email already sent for this month' : claim.error.message,
+          })
+          continue
+        }
+        claimId = (claim.data as any).id
+      }
+
       try {
         const dl = await admin.storage.from('payslips').download(row.pdf_path!)
         if (dl.error || !dl.data) throw new Error(`Could not read payslip PDF: ${dl.error?.message || 'missing'}`)
@@ -525,10 +565,6 @@ Deno.serve(async (req) => {
         let bin = ''
         for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192))
         const b64 = btoa(bin)
-
-        const label = monthLabel(month)
-        const subject = `${mode === 'preview' ? '[PREVIEW] ' : ''}Your Payslip — ${label} | Blynk Virtual Technologies`
-        const to = mode === 'preview' ? previewTo! : row.email!
 
         await client.send({
           from: `${fromName} <${fromAddress}>`,
@@ -544,30 +580,13 @@ Deno.serve(async (req) => {
           }] as any,
         })
 
-        if (mode === 'send') {
-          await admin.from('hr_email_send_log').insert({
-            template_name: TEMPLATE,
-            recipient_email: to,
-            subject,
-            status: 'sent',
-            metadata: {
-              employee_id: row.employee_id,
-              period_month: month,
-              net: row.net,
-              gross: row.gross,
-              deductions: row.deductions,
-              lop_days: row.lop_days,
-              bonus_total: row.bonus_total,
-              basis: row.basis,
-              sent_by: userRes.user.id,
-            },
-          })
-        }
         results.push({ employee_id: row.employee_id, name: row.name, ok: true })
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         console.error('payslip email failed', row.employee_id, msg)
         if (mode === 'send') {
+          // Release the claim so a genuine failure stays retryable.
+          if (claimId) await admin.from('hr_email_send_log').delete().eq('id', claimId)
           await admin.from('hr_email_send_log').insert({
             template_name: TEMPLATE,
             recipient_email: row.email,
@@ -580,6 +599,7 @@ Deno.serve(async (req) => {
         results.push({ employee_id: row.employee_id, name: row.name, ok: false, error: msg })
       }
     }
+
     await client.close()
 
     return json({

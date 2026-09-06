@@ -118,6 +118,54 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   const registerPresent = rosterQ.data?.register_present ?? false;
   const processedOn = rosterQ.data?.processed_on ?? null;
 
+  /**
+   * Fallback identity map: RazorpayX employee code -> HRMS employee.
+   * The archive import must not depend on this month's payroll having been
+   * pulled already — the code map is the durable matcher.
+   */
+  const codeMapQ = useQuery({
+    queryKey: ["razorpay_code_map"],
+    queryFn: async () => {
+      const [{ data: map, error }, { data: emps }] = await Promise.all([
+        (supabase as any).from("hr_razorpay_employee_map").select("razorpay_employee_id, hr_employee_id"),
+        supabase.from("hr_employees").select("id, first_name, last_name"),
+      ]);
+      if (error) throw error;
+      const nameById = new Map((emps ?? []).map((e: any) => [e.id, `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim()]));
+      const out = new Map<string, { employee_id: string; name: string }>();
+      for (const m of map ?? []) {
+        const code = String((m as any).razorpay_employee_id ?? "").trim();
+        if (!code || !(m as any).hr_employee_id) continue;
+        out.set(code, { employee_id: (m as any).hr_employee_id, name: nameById.get((m as any).hr_employee_id) || code });
+      }
+      return out;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  /** Seed the run + pull this month's payroll from RazorpayX (read-only pull). */
+  const pullMonth = useMutation({
+    mutationFn: async () => {
+      const ym = month.slice(0, 7);
+      await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "discover_and_seed_runs", period_from: ym, period_to: ym },
+      });
+      const { data, error } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+        body: { action: "pull_payslips_for_period", period_month: ym },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      return data as any;
+    },
+    onSuccess: (d) => {
+      const s = d?.summary;
+      toast.success(s ? `Pulled ${s.pulled ?? s.total ?? 0} payslip record(s) from RazorpayX` : "Payroll pulled");
+      qc.invalidateQueries({ queryKey: ["payslip_email_roster", month] });
+    },
+    onError: (e: any) => toast.error(e?.message || "Could not pull this month from RazorpayX"),
+  });
+
+
   const sendable = useMemo(() => rows.filter((r) => r.sendable && !r.already_sent_at), [rows]);
   // Employees whose salary was not processed this month are not payslip recipients
   // at all — keep them out of the roster unless HR explicitly asks to see them.

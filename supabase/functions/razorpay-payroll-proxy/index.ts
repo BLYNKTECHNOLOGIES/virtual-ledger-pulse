@@ -7805,7 +7805,22 @@ Deno.serve(async (req) => {
       // Net/Gross deduction split state (payroll_add_deduction only).
       let dedSplit: any = null;
 
-      if (action === "payroll_add_additions" || action === "payroll_add_deduction") {
+      // ── LOP-days mode (payroll:add-deduction with `deduction-days`) ──────
+      // The Opfin add-deduction contract also accepts `deduction-days` instead
+      // of `deduction-amount`: RazorpayX then computes the LOP itself from the
+      // employee's salary. Caller opts in by sending data["deduction-days"].
+      const daysMode = action === "payroll_add_deduction" && data["deduction-days"] != null;
+      if (daysMode) {
+        if (!data["employee-id"]) return json(400, { ok: false, error: "Missing required field: employee-id" });
+        if (!data["payroll-month"]) return json(400, { ok: false, error: "Missing required field: payroll-month" });
+        data["deduction-days"] = Number(data["deduction-days"]);
+        data.remarks = String(data.remarks || "Loss of Pay").slice(0, 250);
+        delete data["deduction-amount"];
+        delete data.deductions;
+        data["employee-id"] = Number(data["employee-id"]);
+      }
+
+      if (!daysMode && (action === "payroll_add_additions" || action === "payroll_add_deduction")) {
         const kind = action === "payroll_add_additions" ? "additions" : "deductions";
         const missing: string[] = [];
         if (!data["employee-id"]) missing.push("employee-id");

@@ -289,8 +289,13 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       );
     else if (coClosing > 0.01) checks.push(`Comp-off ${coClosing} day(s) unsettled`);
     if (!stagedCoRow && n2(cor?.amount) > 0) checks.push("Comp-off encashment calculated but not staged in Step 6");
-    if (stagedCoRow && Math.abs(n2(stagedCoRow.amount) - n2(cor?.amount)) > 0.01 && cor?.status !== "pushed")
-      checks.push(`Staged ₹${n2(stagedCoRow.amount)} differs from current calculation ₹${n2(cor?.amount)}`);
+    if (stagedCoRow && Math.abs(n2(stagedCoRow.amount) - n2(cor?.amount)) > 0.01)
+      checks.push(
+        cor?.status === "pushed"
+          ? `Pushed ₹${n2(stagedCoRow.amount)} disagrees with current calculation ₹${n2(cor?.amount)} — correct it in RazorpayX`
+          : `Staged ₹${n2(stagedCoRow.amount)} differs from current calculation ₹${n2(cor?.amount)}`,
+      );
+
 
     leaveRows.push([
       empBadge(r.hr_employee_id), r.name, deptName.get(w.department_id) ?? "", dmy(w.joining_date), dmy(e.last_working_day),
@@ -343,6 +348,13 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     });
   }
   for (const row of deductions) {
+    // A pushed row is frozen; if the current engine now says something else, the
+    // sheet must say so instead of presenting the frozen figure as agreed.
+    const lopEngine = String(row.source) === "auto_lop" ? lopBy.get(row.hr_employee_id) : undefined;
+    const lopDrift =
+      lopEngine && Math.abs(n2(lopEngine.amount) - n2(row.amount)) > 0.01
+        ? `Current calculation says ₹${n2(lopEngine.amount)} for ${n2(lopEngine.lop_days)} day(s) — this staged line is ₹${n2(row.amount)}${row.lop_days !== null && row.lop_days !== undefined ? ` for ${n2(row.lop_days)} day(s)` : ""}`
+        : "";
     lines.push({
       badge: empBadge(row.hr_employee_id), name: empName(row.hr_employee_id),
       dir: "Deduction", cat: categoryOf(row.source, row.label), label: row.label ?? "",
@@ -351,9 +363,14 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       payable: !outsidePayroll(row),
       pushed: row.pushed_at ? "Yes" : "No", pushedAt: istStamp(row.pushed_at),
       verified: row.pushed_at ? (row.readback_verified_at ? "Verified" : "Not verified") : "—",
-      notes: [row.lop_days ? `${n2(row.lop_days)} LOP day(s)` : "", row.readback_diff ? `Read-back difference: ${JSON.stringify(row.readback_diff)}` : ""].filter(Boolean).join("; "),
+      notes: [
+        row.lop_days ? `${n2(row.lop_days)} LOP day(s)` : "",
+        lopDrift,
+        row.readback_diff ? `Read-back difference: ${JSON.stringify(row.readback_diff)}` : "",
+      ].filter(Boolean).join("; "),
     });
   }
+
   for (const row of recoveries) {
     lines.push({
       badge: row.badge_id ?? empBadge(row.employee_id), name: row.employee_name ?? empName(row.employee_id),
@@ -446,8 +463,13 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (net < 0) flags.push("Negative net");
     if ((stagedUnpushed.get(r.hr_employee_id) ?? 0) > 0) flags.push(`${stagedUnpushed.get(r.hr_employee_id)} staged line(s) not pushed`);
     if (!stagedLopRow && engineLop > 0) flags.push("LOP calculated but not staged in Step 5");
-    if (stagedLopRow && Math.abs(stagedLopAmt - engineLop) > 0.01 && r.status !== "pushed")
-      flags.push(`Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`);
+    if (stagedLopRow && Math.abs(stagedLopAmt - engineLop) > 0.01)
+      flags.push(
+        r.status === "pushed"
+          ? `Pushed LOP ₹${stagedLopAmt}${stagedLopRow.lop_days !== null && stagedLopRow.lop_days !== undefined ? ` (${n2(stagedLopRow.lop_days)} day(s))` : ""} disagrees with current attendance ₹${engineLop} (${lopDays} day(s)) — correct it in RazorpayX`
+          : `Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`,
+      );
+
     if (r.status === "skipped") flags.push(`LOP skipped: ${r.reason ?? "see Step 5"}`);
     if (cor?.status === "skipped") flags.push(`Comp-off skipped: ${cor.reason ?? "see Step 6"}`);
     if (flags.length) flagged++;
@@ -485,9 +507,16 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
 
   const staleLop = lopRows.filter((r) => ["new", "changed", "remove"].includes(String(r.status))).length;
   const staleCo = coRows.filter((r) => ["new", "changed", "remove"].includes(String(r.status))).length;
+  // Already-pushed rows are never restaged, so a difference against the current
+  // engine must be shouted about — it can only be corrected in RazorpayX.
+  const pushedDriftLop = lopRows.filter((r) => r.status === "pushed" && (r as any).stale_pushed).length;
+  const pushedDriftCo = coRows.filter((r) => r.status === "pushed" && (r as any).stale_pushed).length;
   if (staleLop) warnings.push(`${staleLop} loss-of-pay row(s) in Step 5 are not staged with the current attendance — recalculate and stage before running payroll.`);
   if (staleCo) warnings.push(`${staleCo} comp-off encashment row(s) in Step 6 are not staged with the current calculation.`);
+  if (pushedDriftLop) warnings.push(`${pushedDriftLop} loss-of-pay row(s) were already pushed with an amount that no longer matches current attendance — see the Flags column in Sheet 3 and correct them in RazorpayX.`);
+  if (pushedDriftCo) warnings.push(`${pushedDriftCo} comp-off encashment row(s) were already pushed with an amount that no longer matches the current calculation — correct them in RazorpayX.`);
   if (unverified) warnings.push(`${unverified} pushed line(s) have not been read back and verified in RazorpayX.`);
+
 
   const warnMeta: string[][] = warnings.length
     ? [["Attention"], ...warnings.map((w) => ["", w])]

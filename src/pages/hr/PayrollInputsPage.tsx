@@ -1001,8 +1001,8 @@ export default function PayrollInputsPage() {
                         {tab === "deduction" && (
                           <div className="mt-1">
                             {r.pushed_at ? (
-                              <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground">
                               <Badge
+
                                 variant="outline"
                                 className={`text-[10px] font-normal ${r.deduct_from === "gross" ? "text-muted-foreground" : "border-amber-500/40 text-amber-600 dark:text-amber-400"}`}
                                 title={r.deduct_from === "gross" ? undefined : "RazorpayX's Payroll API can only create a Gross Pay deduction line. Switch this line to Net Pay in RazorpayX → Run Payroll → Edit Salary."}

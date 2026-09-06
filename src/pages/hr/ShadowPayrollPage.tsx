@@ -61,9 +61,12 @@ function diff(a: number, b: number | null | undefined, tolerance = DRIFT_TOLERAN
   };
 }
 
-export default function ShadowPayrollPage() {
+export default function ShadowPayrollPage({ month }: { month?: string } = {}) {
   const qc = useQueryClient();
-  const [period, setPeriod] = useState<string>(format(startOfMonth(new Date()), "yyyy-MM-01"));
+  // Default to the cockpit's selected month when opened from the cockpit.
+  const [period, setPeriod] = useState<string>(
+    month ? `${month.slice(0, 7)}-01` : format(startOfMonth(new Date()), "yyyy-MM-01"),
+  );
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: readiness, isLoading: readinessLoading } = useShadowReadiness(period);
@@ -88,7 +91,7 @@ export default function ShadowPayrollPage() {
   const { data: trainingAdj } = useQuery({
     queryKey: ["shadow_training_adjustments", period],
     queryFn: async () => {
-      const periodDate = `${period}-01`;
+      const periodDate = `${period.slice(0, 7)}-01`;
       const [ded, add] = await Promise.all([
         (supabase as any).from("hr_payroll_input_deductions")
           .select("hr_employee_id, amount, pushed_at")

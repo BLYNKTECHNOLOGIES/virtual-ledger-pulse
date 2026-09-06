@@ -158,15 +158,15 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
 
     <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:12px;margin:0 0 26px;">
       <tr><td style="padding:24px;">
-        <div style="font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.3;color:#7dd3fc;text-transform:uppercase;font-weight:700;">Net pay credited</div>
-        <div style="margin-top:9px;font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#ffffff;white-space:nowrap;"><span style="font-size:17px;font-weight:500;color:#94a3b8;vertical-align:baseline;">INR</span>&nbsp;&nbsp;<span style="font-size:30px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums;vertical-align:baseline;">${inr(row.net).replace('INR ', '')}</span></div>
+        <div style="font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.3;color:#7dd3fc;text-transform:uppercase;font-weight:700;">Gross earnings</div>
+        <div style="margin-top:9px;font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#ffffff;white-space:nowrap;"><span style="font-size:17px;font-weight:500;color:#94a3b8;vertical-align:baseline;">INR</span>&nbsp;&nbsp;<span style="font-size:30px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums;vertical-align:baseline;">${inr(row.gross).replace('INR ', '')}</span></div>
       </td></tr>
     </table>
 
     <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;border-spacing:0;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;border:1px solid #e8edf3;border-radius:10px;overflow:hidden;margin:0 0 26px;">
       <tr>
-        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Gross earnings</td>
-        <td align="right" style="padding:15px 16px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">${inr(row.gross)}</td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Net pay credited</td>
+        <td align="right" style="padding:15px 16px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">${inr(row.net)}</td>
       </tr>
       <tr>
         <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Total deductions</td>
@@ -181,7 +181,7 @@ ${lopBlock}${bonusBlock}${otherAddBlock}
 
   return wrapHrEmail(content, {
     title: `Payslip &mdash; ${esc(label)}`,
-    preheader: `Your ${esc(label)} payslip and net pay summary`,
+    preheader: `Your ${esc(label)} payslip and gross pay summary`,
     refNote: `Payslip notice &middot; ${month}`,
   }).replace(/[ \t]+$/gm, '')
 }

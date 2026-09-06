@@ -21,19 +21,19 @@ const CONTENT = `
       Your salary for <strong style="color:#0f172a;font-weight:700;">July 2026</strong> has been credited to your bank account <strong style="color:#0f172a;font-weight:700;">XXXXXX7734 &middot; ICICI Bank</strong> on <strong style="color:#0f172a;font-weight:700;">05 Aug 2026</strong>. Payslip attached.
     </p>
 
-    <!-- NET PAY HERO -->
+    <!-- GROSS PAY HERO -->
     <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:12px;margin:0 0 26px;">
       <tr><td style="padding:24px;">
-        <div style="font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.3;color:#7dd3fc;text-transform:uppercase;font-weight:700;">Net pay credited</div>
-        <div style="margin-top:9px;font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#ffffff;white-space:nowrap;"><span style="font-size:17px;font-weight:500;color:#94a3b8;vertical-align:baseline;">INR</span>&nbsp;&nbsp;<span style="font-size:30px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums;vertical-align:baseline;">61,248.00</span></div>
+        <div style="font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:10px;line-height:1.3;color:#7dd3fc;text-transform:uppercase;font-weight:700;">Gross earnings</div>
+        <div style="margin-top:9px;font-family:Aptos,'Segoe UI',Arial,sans-serif;color:#ffffff;white-space:nowrap;"><span style="font-size:17px;font-weight:500;color:#94a3b8;vertical-align:baseline;">INR</span>&nbsp;&nbsp;<span style="font-size:30px;line-height:1.15;font-weight:800;font-variant-numeric:tabular-nums;vertical-align:baseline;">72,000.00</span></div>
       </td></tr>
     </table>
 
     <!-- SUMMARY -->
     <table cellpadding="0" cellspacing="0" role="presentation" style="width:100%;border-collapse:separate;border-spacing:0;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;border:1px solid #e8edf3;border-radius:10px;overflow:hidden;margin:0 0 26px;">
       <tr>
-        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Gross earnings</td>
-        <td align="right" style="padding:15px 16px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">INR 72,000.00</td>
+        <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Net pay credited</td>
+        <td align="right" style="padding:15px 16px;color:#0f172a;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;border-bottom:1px solid #e8edf3;">INR 61,248.00</td>
       </tr>
       <tr>
         <td style="padding:15px 16px;color:#64748b;font-weight:500;border-bottom:1px solid #e8edf3;">Total deductions</td>
@@ -105,7 +105,7 @@ const CONTENT = `
 
     `
 
-const HTML = wrapHrEmail(CONTENT, { title: "Payslip &mdash; July 2026", preheader: "Your July 2026 payslip and net pay summary", refNote: "Payslip notice &middot; 2026-07 (sample)" })
+const HTML = wrapHrEmail(CONTENT, { title: "Payslip &mdash; July 2026", preheader: "Your July 2026 payslip and gross pay summary", refNote: "Payslip notice &middot; 2026-07 (sample)" })
 
 
 Deno.serve(async (req) => {

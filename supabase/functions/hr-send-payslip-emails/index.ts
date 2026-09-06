@@ -240,11 +240,19 @@ Deno.serve(async (req) => {
     // ---- effective (chargeable) LOP straight from our own engine -----------
     // Paid days on the payslip must agree with the LOP we actually computed and
     // pushed — never with the register's working-days column.
+    // In send/preview mode only the selected employees matter: running the four
+    // engine RPCs over the whole roster on every chunk is what used to blow the
+    // per-invocation CPU/time budget and abort a bulk dispatch mid-way.
+    const selectedIds: string[] = Array.isArray(body.employee_ids) ? body.employee_ids : []
     const effectiveLopByEmp = new Map<string, number>()
     const employmentGapCalendarDaysByEmp = new Map<string, number>()
     try {
-      const empIds = (employees ?? []).map((e: any) => e.id)
+      const allIds = (employees ?? []).map((e: any) => e.id)
+      const empIds = mode === 'roster' || selectedIds.length === 0
+        ? allIds
+        : allIds.filter((id: string) => selectedIds.includes(id))
       if (empIds.length) {
+
         const [{ data: att }, { data: cl }, { data: pool }, { data: employmentGaps }] = await Promise.all([
           admin.rpc('hr_attendance_month_summary', { p_employee_ids: empIds, p_period_month: month }),
           admin.rpc('hr_cl_available', { p_employee_ids: empIds, p_period_month: month }),

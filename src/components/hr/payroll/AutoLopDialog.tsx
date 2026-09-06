@@ -62,6 +62,10 @@ type PreviewRow = {
   status: "new" | "changed" | "unchanged" | "pushed" | "remove" | "no_lop" | "skipped" | "not_applicable";
   reason?: string;
   existing_amount?: number | null;
+  razorpay_employee_id?: string | null;
+  stale_pushed?: boolean;
+  pushed_amount?: number | null;
+  pushed_lop_days?: number | null;
 };
 
 type CompoffCredit = {

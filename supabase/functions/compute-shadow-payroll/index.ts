@@ -30,6 +30,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross } from "../_shared/salaryBase.ts";
 import { requireCaller } from "../_shared/require-caller.ts";
+import { fetchLopAbsorption } from "../_shared/lopAbsorption.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -338,6 +339,12 @@ Deno.serve(async (req) => {
         }
       }
     }
+    const lopAbsorption = await fetchLopAbsorption(
+      supabase,
+      (employees ?? []).map((e: any) => e.id),
+      periodStr,
+      new Map(Array.from(lopByEmp, ([id, row]) => [id, row.lop_days])),
+    );
 
     // Do-Not-Pay register for this period. When HR marks an employee do-not-pay
     // (pushed to RazorpayX and mirrored back onto the payslip record), the ERP
@@ -485,8 +492,9 @@ Deno.serve(async (req) => {
         skipped.push({ employee_id: emp.id, name: empName, reason: "leave_config_error", detail: lopErrors.join(" ") });
         continue;
       }
-      const lopDays = lopUnavailable ? 0 : Number(lop?.lop_days ?? 0);
-      const lopDivisor = Number(lop?.working_days ?? 0) > 0 ? Number(lop!.working_days) : totalDays;
+      const absorption = lopAbsorption.get(emp.id);
+      const lopDays = lopUnavailable ? 0 : Number(absorption?.chargeable_lop_days ?? lop?.lop_days ?? 0);
+      const lopDivisor = totalDays;
       const lopAmount = lopDivisor > 0 ? Math.round(regularBase * (lopDays / lopDivisor)) : 0;
 
 
@@ -678,6 +686,9 @@ Deno.serve(async (req) => {
           lop_not_pushed: lopNotPushed,
           employment_window: employmentWindow,
           compute_notes: {
+            raw_lop_days: absorption?.raw_lop_days ?? Number(lop?.lop_days ?? 0),
+            compoff_offset_days: absorption?.compoff_offset_days ?? 0,
+            cl_offset_days: absorption?.cl_offset_days ?? 0,
             regime, monthsRemaining, annualBasePreLop, ytdTdsPaid, annualTax,
             pct, factor, kpiLossAmount, pfEnrolled, esiEnrolled, ptEnrolled,
             pf_wage_basis: pfBasis ?? "settings_default",

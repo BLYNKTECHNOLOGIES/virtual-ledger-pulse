@@ -521,6 +521,26 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
 
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1.5">
+                <RefreshCw className="h-3.5 w-3.5" /> This month from RazorpayX
+              </Label>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={pullMonth.isPending}
+                onClick={() => pullMonth.mutate()}
+              >
+                {pullMonth.isPending ? "Pulling…" : "Pull payroll"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                {rows.length === 0
+                  ? "No payroll pulled for this month yet — pull it so the register and payslips can match."
+                  : "Re-read this month's figures from RazorpayX. Read-only."}
+              </p>
+            </div>
+
+
+            <div className="space-y-1">
+              <Label className="text-xs flex items-center gap-1.5">
                 <Upload className="h-3.5 w-3.5" /> Individual PDFs (manual fix)
               </Label>
               <input

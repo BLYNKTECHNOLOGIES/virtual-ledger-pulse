@@ -241,13 +241,15 @@ Deno.serve(async (req) => {
     // Paid days on the payslip must agree with the LOP we actually computed and
     // pushed — never with the register's working-days column.
     const effectiveLopByEmp = new Map<string, number>()
+    const employmentGapCalendarDaysByEmp = new Map<string, number>()
     try {
       const empIds = (employees ?? []).map((e: any) => e.id)
       if (empIds.length) {
-        const [{ data: att }, { data: cl }, { data: pool }] = await Promise.all([
+        const [{ data: att }, { data: cl }, { data: pool }, { data: employmentGaps }] = await Promise.all([
           admin.rpc('hr_attendance_month_summary', { p_employee_ids: empIds, p_period_month: month }),
           admin.rpc('hr_cl_available', { p_employee_ids: empIds, p_period_month: month }),
           admin.rpc('hr_compoff_month_pool', { p_employee_ids: empIds, p_period_month: month }),
+          admin.rpc('hr_employment_gap_working_days', { p_employee_ids: empIds, p_period_month: month }),
         ])
         const clBy = new Map((cl ?? []).map((r: any) => [r.employee_id, Number(r.cl_available ?? 0)]))
         const coBy = new Map((pool ?? []).map((r: any) => [r.employee_id, Number(r.days_available ?? 0)]))
@@ -257,6 +259,9 @@ Deno.serve(async (req) => {
           const afterCo = raw - co
           const clUsed = Math.min(Math.max(0, clBy.get(r.employee_id) ?? 0), afterCo)
           effectiveLopByEmp.set(r.employee_id, Math.round((afterCo - clUsed) * 100) / 100)
+        }
+        for (const r of (employmentGaps ?? []) as any[]) {
+          employmentGapCalendarDaysByEmp.set(r.employee_id, Math.max(0, Number(r.gap_calendar_days ?? 0)))
         }
       }
     } catch (e) {
@@ -404,9 +409,11 @@ Deno.serve(async (req) => {
       const other_additions = verifiedAdds.filter((a) => !isBonus(a)).map((a) => ({ label: a.label, amount: a.amount }))
       const other_additions_total = other_additions.reduce((s, b) => s + b.amount, 0)
 
-      // Paid days must reflect OUR verified effective (chargeable) LOP — the same
-      // days the pushed deduction was computed from, on a calendar-day basis.
-      const paid_days = Math.max(0, Math.round((mDays - lop_days) * 100) / 100)
+      // Paid days are calendar days inside the employee's employment window,
+      // less OUR verified effective (chargeable) LOP. Pre-joining/post-exit days
+      // are excluded but never presented as LOP because RazorpayX prorates them.
+      const employmentGapDays = employmentGapCalendarDaysByEmp.get(p.hr_employee_id) ?? 0
+      const paid_days = Math.max(0, Math.round((mDays - employmentGapDays - lop_days) * 100) / 100)
 
 
       // --- "Was this person's salary actually processed this month?" -------

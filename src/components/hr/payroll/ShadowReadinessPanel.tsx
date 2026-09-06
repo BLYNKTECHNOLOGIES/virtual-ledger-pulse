@@ -79,10 +79,8 @@ export function ShadowReadinessPanel({
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <div className="text-sm font-semibold text-foreground">Shadow readiness · {period.slice(0, 7)}</div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Inputs available for this month.
-          </p>
         </div>
+
         <Badge variant="outline" className={cn("gap-1.5", tierMeta.className)}>
           {tierMeta.icon}
           <span className="font-semibold">{tierMeta.label}</span>

@@ -32,7 +32,7 @@ export function hrHeaderHtml(): string {
  * @param refNote optional small footer line (e.g. "Automated notice · Ref XYZ")
  */
 export function hrSignatureHtml(refNote?: string): string {
-  return `<div style="margin-top:22px;padding-top:16px;border-top:1px solid #eef2f7;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  return `<div style="margin-top:26px;padding-top:18px;border-top:1px solid #e8edf3;font-family:Aptos,'Segoe UI',Arial,sans-serif;">
     <div style="font-size:15px;font-weight:800;color:#5b62d6;line-height:1.2;">${B.hrName}</div>
     <div style="font-size:11.5px;font-weight:700;color:${B.ink};padding-bottom:4px;border-bottom:1.5px solid #5b62d6;">${B.hrTitle} &nbsp;|&nbsp; <a href="https://${B.site}" style="color:${B.ink};text-decoration:underline;">${B.site}</a></div>
     <table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="width:100%;margin-top:10px;border-collapse:collapse;"><tr>
@@ -94,7 +94,7 @@ export function wrapHrEmail(
 
   const content = innerBody(contentHtml);
   const sig = opts.showSignature === false ? "" : hrSignatureHtml(opts.refNote);
-  const title = opts.title ? `<h1 class="h1" style="margin:0 0 16px;padding:0;font-size:19px;line-height:1.35;font-weight:800;color:${B.ink};text-align:left;">${opts.title}</h1>` : "";
+  const title = opts.title ? `<h1 class="h1" style="margin:0 0 14px;padding:0;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:22px;line-height:1.3;font-weight:800;color:${B.ink};text-align:left;">${opts.title}</h1>` : "";
   const pre = opts.preheader
     ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${opts.preheader}</div>`
     : "";
@@ -125,7 +125,7 @@ ${pre}
   <tr><td align="center">
     <table width="640" cellpadding="0" cellspacing="0" border="0" class="shell" style="width:100%;max-width:640px;background:#ffffff;border:1px solid #e6ebf2;border-radius:10px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0B1524;">
       <tr><td>${hrHeaderHtml()}</td></tr>
-      <tr><td align="left" class="body-pad" style="padding:24px 24px 12px;font-size:14px;line-height:1.65;color:#1f2937;text-align:left;">${title}${content}${sig}</td></tr>
+      <tr><td align="left" class="body-pad" style="padding:26px 24px 14px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;line-height:1.65;color:#1f2937;text-align:left;">${title}${content}${sig}</td></tr>
       <tr><td align="left" class="foot-pad" style="background:#f8fafc;border-top:1px solid #e6ebf2;padding:14px 24px;font-size:10.5px;line-height:1.55;color:#8a94a6;text-align:left;">This message was sent by the HR desk of ${B.company}, ${B.address}. It may contain confidential information intended only for the addressee - if you received it in error, please delete it and notify <a href="mailto:${B.hrEmail}" style="color:#8a94a6;">${B.hrEmail}</a>.</td></tr>
 
     </table>

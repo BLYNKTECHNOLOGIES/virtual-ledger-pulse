@@ -22,6 +22,7 @@ import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
 import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
+import { finalizeSeparation } from "@/lib/finalizeSeparation";
 
 type ResignationEmployee = {
   id: string;
@@ -443,6 +444,83 @@ export function ResignationTab() {
   const activeResignations = resigningEmployees?.filter(e => e.resignation_status === "notice_period") || [];
   const completedResignations = resigningEmployees?.filter(e => e.resignation_status === "completed") || [];
 
+  // Settlement state for everyone on notice, so the row can offer the final
+  // "Complete separation" step once the F&F is verified on RazorpayX.
+  const activeIds = activeResignations.map(e => e.id);
+  const { data: fnfByEmployee } = useQuery({
+    queryKey: ["resignation-fnf-map", activeIds.join(",")],
+    enabled: activeIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_fnf_settlements")
+        .select("id, employee_id, status, razorpay_push_status, net_payable")
+        .in("employee_id", activeIds)
+        .neq("status", "cancelled");
+      const map: Record<string, any> = {};
+      (data || []).forEach((r: any) => { map[r.employee_id] = r; });
+      return map;
+    },
+  });
+
+  const separationReadiness = (empId: string) => {
+    const s = fnfByEmployee?.[empId];
+    if (!s) return { ready: false, why: "No F&F settlement created yet" };
+    if (String(s.status) === "paid") return { ready: true, why: "F&F already paid" };
+    if (String(s.status) !== "approved") return { ready: false, why: `F&F is still ${s.status} — confirm it first` };
+    if (!["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || "")))
+      return { ready: false, why: "F&F lines are not verified on the RazorpayX payroll run yet" };
+    return { ready: true, why: "F&F approved and verified on RazorpayX" };
+  };
+
+  // Final step: mark the verified settlement paid, close its sources, complete the
+  // separation (deactivate + ERP + biometrics) and dismiss in RazorpayX.
+  const finaliseSeparationNow = useMutation({
+    mutationFn: async (employeeId: string) => {
+      const s = fnfByEmployee?.[employeeId];
+      const readiness = separationReadiness(employeeId);
+      if (!readiness.ready) throw new Error(readiness.why);
+
+      if (s && String(s.status) !== "paid") {
+        const { error } = await (supabase as any)
+          .from("hr_fnf_settlements")
+          .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", s.id);
+        if (error) throw error;
+        const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: s.id });
+        if (closeErr) toast.error(`Paid, but closing loans/deposits failed: ${closeErr.message}`);
+      }
+
+      const fin = await finalizeSeparation(employeeId);
+      let dismissal: any = null;
+      if (fin.lwd) {
+        try {
+          dismissal = await dismissInRazorpay(employeeId, {
+            dateOfDismissal: fin.lwd,
+            reason: fin.separationReason || "F&F settled",
+            triggeredFrom: "fnf_paid",
+          });
+        } catch (e: any) {
+          dismissal = { ok: false, error: e?.message || "RazorpayX dismissal failed" };
+        }
+      } else {
+        dismissal = { ok: false, error: "No last working day on record — dismiss in RazorpayX manually." };
+      }
+      return { fin, dismissal };
+    },
+    onSuccess: ({ fin, dismissal }: any) => {
+      toast.success(`Separation completed for ${fin.name}${fin.erp?.deactivated ? " — ERP login disabled" : ""}`);
+      if (dismissal?.ok) toast.success("Dismissal propagated to RazorpayX");
+      else if (dismissal?.skipped) toast.info("Employee is not linked to RazorpayX — nothing to propagate.");
+      else if (dismissal?.manualRequired) toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account.");
+      else if (dismissal?.error) toast.warning(dismissal.error);
+      queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
+      queryClient.invalidateQueries({ queryKey: ["resignation-fnf-map"] });
+      queryClient.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+
   const openChecklist = (emp: ResignationEmployee) => {
     setSelectedEmployee(emp);
     setShowChecklistDialog(true);
@@ -644,10 +722,23 @@ export function ResignationTab() {
                         </div>
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         <Button size="sm" variant="outline" onClick={() => openChecklist(emp)}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Checklist
                         </Button>
+                        <Button
+                          size="sm"
+                          disabled={!separationReadiness(emp.id).ready || finaliseSeparationNow.isPending}
+                          title={separationReadiness(emp.id).why}
+                          onClick={() => setConfirmAction({
+                            type: 'finalise',
+                            id: emp.id,
+                            label: `Complete the separation for ${emp.first_name} ${emp.last_name}? The settlement is marked paid, the employee is deactivated, the ERP login and biometrics are removed and the RazorpayX dismissal is sent with last working day ${emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN") : "—"}.`,
+                          })}
+                        >
+                          <LogOut className="h-4 w-4 mr-1" /> Complete separation
+                        </Button>
+
                         <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
                           setConfirmAction({ type: 'withdraw', id: emp.id, label: 'Withdraw this resignation?' });
                         }}>
@@ -1055,6 +1146,7 @@ export function ResignationTab() {
               else if (type === 'reject') rejectResignation.mutate(id);
               else if (type === 'withdraw') withdrawResignation.mutate(id);
               else if (type === 'complete') completeResignation.mutate(id);
+              else if (type === 'finalise') finaliseSeparationNow.mutate(id);
               setConfirmAction(null);
             }}>Confirm</AlertDialogAction>
           </AlertDialogFooter>

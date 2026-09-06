@@ -356,11 +356,25 @@ Deno.serve(async (req) => {
         return String(d.source || '') === 'auto_lop' || l.includes('lop') || l.includes('loss of pay')
       })
       const engineLopDays = effectiveLopByEmp.get(p.hr_employee_id) ?? 0
-      const storedLopDays = lopRows.reduce((s: number, d: any) => s + (Number(d.lop_days) || 0), 0)
-      // Prefer the day count stored with the pushed deduction; if that column was
-      // never filled, fall back to the engine's chargeable LOP for the month.
-      const lop_days = storedLopDays > 0 ? storedLopDays : (lopRows.length > 0 ? engineLopDays : 0)
+      // Chargeable days actually used to compute the pushed deduction. Order of
+      // truth: the day count stored with the pushed row → the day count written
+      // into the engine's own label ("... — 1.5 days (…)") → the engine's
+      // post-settlement (comp-off, then casual leave) chargeable LOP. Raw
+      // absence days are never used.
+      const daysFromLabel = (label: string): number => {
+        const m = String(label || '').match(/—\s*([\d.]+)\s*days?/i)
+        return m ? Number(m[1]) || 0 : 0
+      }
+      const storedLopDays = lopRows.reduce((s: number, d: any) => {
+        const stored = Number(d.lop_days)
+        if (Number.isFinite(stored) && stored > 0) return s + stored
+        return s + daysFromLabel(d.label)
+      }, 0)
+      const lop_days = storedLopDays > 0
+        ? Math.round(storedLopDays * 100) / 100
+        : (lopRows.length > 0 ? engineLopDays : 0)
       const lop_amount = lopRows.reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0)
+
 
 
       // Only genuine discretionary bonuses / incentives may be presented as a

@@ -272,3 +272,4 @@ Append here whenever the owner commands a significant state change (data wipes, 
 - 2026-09-06: Verification pack fixes — leave ledger now counts a CL/SL credit in the month it was RECORDED (matches hr_cl_available; Dilkhush's Sep-created CL no longer shows as an Aug credit), and already-pushed LOP/comp-off rows that disagree with the current engine are now flagged in Sheets 1/2/3 and in the header instead of reading 'staged figures match'. No payroll math changed.
 
 - 2026-09-06: LOP calculation made deterministic across Auto-LOP, shadow payroll, projected register, and verification paths: raw attendance excludes synthetic absorption; historical CL eligibility follows accrual_date; pushed rows cannot consume leave until reset; fixed order remains comp-off → CL → chargeable LOP.
+- 2026-09-06: Razorpay deduction remarks now short + ASCII-safe (e.g. "LOP 4 day(s) Rs 1548; Loan EMI inst 1 Rs 6944"); proxy redeployed.

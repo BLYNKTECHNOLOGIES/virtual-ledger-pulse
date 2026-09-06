@@ -24,6 +24,8 @@ type Row = {
   lop_amount: number
   bonuses: { label: string; amount: number }[]
   bonus_total: number
+  other_additions: { label: string; amount: number }[]
+  other_additions_total: number
   paid_days: number | null
   month_days: number
   bank_last4: string | null
@@ -83,6 +85,26 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
           <div style="font-size:13.5px;color:#92400e;line-height:1.6;margin-top:6px;">
             Recorded for ${esc(label)} as per biometric attendance and approved leave records for the pay period.
           </div>
+        </td>
+      </tr>
+    </table>` : ''
+
+  const otherAddRows = row.other_additions.map((b) => `
+            <tr><td style="padding:6px 0;">${esc(b.label)}</td><td align="right" style="padding:6px 0;font-weight:600;">${inr(b.amount)}</td></tr>`).join('')
+
+  const otherAddBlock = row.other_additions.length > 0 ? `
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 24px;">
+      <tr>
+        <td style="width:4px;background:#0ea5e9;border-radius:4px 0 0 4px;"></td>
+        <td style="background:#f0f9ff;padding:18px;border:1px solid #bae6fd;border-left:0;border-radius:0 8px 8px 0;">
+          <div style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;font-weight:700;color:#0369a1;">Other additions</div>
+          <div style="font-size:15px;font-weight:700;color:#0c4a6e;margin-top:6px;">Additional amounts included in this month's pay</div>
+          <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;font-size:14px;color:#075985;margin-top:12px;">${otherAddRows}
+            <tr>
+              <td style="padding:10px 0 0;border-top:1px solid #bae6fd;font-weight:700;color:#0c4a6e;">Total other additions</td>
+              <td align="right" style="padding:10px 0 0;border-top:1px solid #bae6fd;font-weight:700;color:#0c4a6e;">${inr(row.other_additions_total)}</td>
+            </tr>
+          </table>
         </td>
       </tr>
     </table>` : ''
@@ -164,7 +186,7 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
     </table>
 
 
-${lopBlock}${bonusBlock}
+${lopBlock}${bonusBlock}${otherAddBlock}
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">
       Please retain the attached payslip for your records. It contains the complete break-up of your earnings,
       deductions and statutory contributions (PF / ESIC / PT / TDS).
@@ -214,7 +236,7 @@ Deno.serve(async (req) => {
         admin.from('hr_razorpay_payslip_records').select('*').eq('period_month', month),
         admin.from('hr_employees').select('id, first_name, last_name, email, is_active, badge_id'),
         admin.from('hr_payroll_input_deductions').select('hr_employee_id, label, amount, lop_days, source, readback_verified_at, pushed_at').eq('period_month', month),
-        admin.from('hr_payroll_input_additions').select('hr_employee_id, label, amount, readback_verified_at, pushed_at').eq('period_month', month),
+        admin.from('hr_payroll_input_additions').select('hr_employee_id, label, amount, source, readback_verified_at, pushed_at').eq('period_month', month),
         admin.from('hr_email_send_log').select('metadata, created_at, status').eq('template_name', TEMPLATE).filter('metadata->>period_month', 'eq', month),
         admin.from('hr_payroll_month_meta').select('processed_on').eq('period_month', month).maybeSingle(),
       ])
@@ -321,10 +343,32 @@ Deno.serve(async (req) => {
       const lop_days = lopRows.reduce((s: number, d: any) => s + (Number(d.lop_days) || 0), 0)
       const lop_amount = lopRows.reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0)
 
-      const bonuses = (addRows ?? [])
+      // Only genuine discretionary bonuses / incentives may be presented as a
+      // "bonus". F&F dues, salary-advance payouts, comp-off encashment, CTC
+      // arrears, reimbursements and deposit refunds are additions to pay, but
+      // they are NOT bonuses and must never be congratulated as such.
+      const verifiedAdds = (addRows ?? [])
         .filter((a: any) => a.hr_employee_id === p.hr_employee_id && a.readback_verified_at)
-        .map((a: any) => ({ label: String(a.label || 'Bonus'), amount: Number(a.amount) || 0 }))
+        .map((a: any) => ({
+          label: String(a.label || 'Addition'),
+          amount: Number(a.amount) || 0,
+          source: String(a.source || '').toLowerCase(),
+        }))
+      const isBonus = (a: { label: string; source: string }) => {
+        const NON_BONUS_SOURCES = new Set([
+          'fnf_settlement', 'loan_advance', 'auto_compoff', 'compoff_encashment',
+          'ctc_transition_adjustment', 'arrears', 'reimbursement', 'deposit_refund',
+          'security_deposit_refund', 'error_recovery', 'loan_recovery',
+        ])
+        if (NON_BONUS_SOURCES.has(a.source)) return false
+        const l = a.label.toLowerCase()
+        if (/f&f|f & f|full and final|advance|comp-?off|arrear|reimburs|deposit|recovery|settlement|refund/.test(l)) return false
+        return /bonus|incentive|reward|ex-?gratia/.test(l) || a.source === '' || a.source === 'bonus' || a.source === 'one_time'
+      }
+      const bonuses = verifiedAdds.filter(isBonus).map((a) => ({ label: a.label, amount: a.amount }))
       const bonus_total = bonuses.reduce((s, b) => s + b.amount, 0)
+      const other_additions = verifiedAdds.filter((a) => !isBonus(a)).map((a) => ({ label: a.label, amount: a.amount }))
+      const other_additions_total = other_additions.reduce((s, b) => s + b.amount, 0)
 
       const paid_days = p.reg_working_days !== null && p.reg_working_days !== undefined
         ? Number(p.reg_working_days)
@@ -385,6 +429,8 @@ Deno.serve(async (req) => {
         lop_amount,
         bonuses,
         bonus_total,
+        other_additions,
+        other_additions_total,
         paid_days,
         month_days: mDays,
         bank_last4: p.reg_bank_acc_no ? String(p.reg_bank_acc_no).slice(-4) : null,

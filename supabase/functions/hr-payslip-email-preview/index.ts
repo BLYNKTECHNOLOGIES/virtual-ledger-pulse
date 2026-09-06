@@ -116,9 +116,9 @@ const HTML = `
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const smtpHost = Deno.env.get('HR_SMTP_HOST')
-  const smtpUser = Deno.env.get('HR_SMTP_USER')
-  const smtpPass = Deno.env.get('HR_SMTP_PASS')
+  const smtpHost = (Deno.env.get('HR_GMAIL_HOST') || Deno.env.get('HR_SMTP_HOST') || '').trim()
+  const smtpUser = (Deno.env.get('HR_GMAIL_USER') || Deno.env.get('HR_SMTP_USER') || '').trim()
+  const smtpPass = (Deno.env.get('HR_GMAIL_APP_PASSWORD') || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
   if (!smtpHost || !smtpUser || !smtpPass) {
     return new Response(JSON.stringify({ error: 'SMTP not configured' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },

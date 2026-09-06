@@ -17,7 +17,7 @@ import { CardSkeleton } from "@/components/ui/skeleton";
 
 const EMPTY_FORM = {
   name: "", leave_type_id: "", accrual_period: "monthly", accrual_amount: 1,
-  accrual_day: 25, start_trigger: "joining", cycle_basis: "calendar",
+  accrual_day: 15, start_trigger: "joining", cycle_basis: "calendar",
   max_accrual: "", applicable_to: "all", department_id: "", is_active: true, effective_from: new Date().toISOString().slice(0, 10),
 };
 

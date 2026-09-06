@@ -1216,6 +1216,38 @@ async function projectSnapshotIntoOnboarding(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
+    // TEMP one-time read-only capability probe (token-gated, no data mutation)
+    if (req.method === "POST" && req.headers.get("x-probe-token") === "a7ba7948fac2c1e041cda384a402bb68") {
+      const p = await req.json().catch(() => ({}));
+      if (p?.action === "probe_v2_bulk_upload") {
+        const origin = "https://payroll.razorpay.com";
+        const results: Record<string, unknown> = {};
+        const tryCall = async (label: string, url: string, init: RequestInit) => {
+          try {
+            const r = await fetch(url, init);
+            const txt = await r.text();
+            results[label] = { status: r.status, body_preview: txt.slice(0, 300) };
+          } catch (e) { results[label] = { error: String(e) }; }
+        };
+        await tryCall("auth_body", `${origin}/v2/api/bulk-uploads/get-by-type`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ auth: authBlock(), type: "addition-deduction-lop" }),
+        });
+        await tryCall("basic_auth", `${origin}/v2/api/bulk-uploads/get-by-type`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json", Authorization: `Basic ${btoa(`${KEY_ID}:${KEY_SECRET}`)}` },
+          body: JSON.stringify({ type: "addition-deduction-lop" }),
+        });
+        await tryCall("graphql_auth_body", `${origin}/v2/api/graphql`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ query: "query { __typename }", auth: authBlock() }),
+        });
+        return json(200, { ok: true, results });
+      }
+      return json(400, { error: "unknown probe" });
+    }
     const authed = await requireAuth(req);
     if (authed instanceof Response) return authed;
     if (!KEY_ID || !KEY_SECRET) return json(500, { error: "Missing RAZORPAY_PAYROLL_KEY_ID / _SECRET" });

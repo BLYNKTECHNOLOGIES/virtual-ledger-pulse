@@ -721,10 +721,23 @@ export function ResignationTab() {
                         </div>
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
                         <Button size="sm" variant="outline" onClick={() => openChecklist(emp)}>
                           <CheckCircle2 className="h-4 w-4 mr-1" /> Checklist
                         </Button>
+                        <Button
+                          size="sm"
+                          disabled={!separationReadiness(emp.id).ready || finaliseSeparationNow.isPending}
+                          title={separationReadiness(emp.id).why}
+                          onClick={() => setConfirmAction({
+                            type: 'finalise',
+                            id: emp.id,
+                            label: `Complete the separation for ${emp.first_name} ${emp.last_name}? The settlement is marked paid, the employee is deactivated, the ERP login and biometrics are removed and the RazorpayX dismissal is sent with last working day ${emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN") : "—"}.`,
+                          })}
+                        >
+                          <LogOut className="h-4 w-4 mr-1" /> Complete separation
+                        </Button>
+
                         <Button size="sm" variant="ghost" className="text-destructive" onClick={() => {
                           setConfirmAction({ type: 'withdraw', id: emp.id, label: 'Withdraw this resignation?' });
                         }}>

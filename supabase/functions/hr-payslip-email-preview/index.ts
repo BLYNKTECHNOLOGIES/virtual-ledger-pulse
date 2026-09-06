@@ -18,9 +18,7 @@ const CONTENT = `
 
     <p style="margin:24px 0 12px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:17px;line-height:1.45;font-weight:600;color:#0f172a;">Dear <strong style="color:#0284c7;">Aarav Mehta</strong>,</p>
     <p style="margin:0 0 26px;font-family:Aptos,'Segoe UI',Arial,sans-serif;font-size:14px;color:#526176;line-height:1.75;">
-      Your salary for <strong style="color:#0f172a;font-weight:700;">July 2026</strong> has been processed and successfully credited to your registered
-      bank account <strong style="color:#0f172a;font-weight:700;">XXXXXX7734 &middot; ICICI Bank</strong> on <strong style="color:#0f172a;font-weight:700;">05 Aug 2026</strong>.
-      The detailed payslip is attached for your records.
+      Your salary for <strong style="color:#0f172a;font-weight:700;">July 2026</strong> has been credited to your bank account <strong style="color:#0f172a;font-weight:700;">XXXXXX7734 &middot; ICICI Bank</strong> on <strong style="color:#0f172a;font-weight:700;">05 Aug 2026</strong>. Payslip attached.
     </p>
 
     <!-- NET PAY HERO -->

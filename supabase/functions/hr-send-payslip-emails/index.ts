@@ -349,8 +349,13 @@ Deno.serve(async (req) => {
 
       const empDeds = (dedRows ?? []).filter((d: any) => d.hr_employee_id === p.hr_employee_id)
       const lopRows = empDeds.filter((d: any) => String(d.label || '').toLowerCase().includes('lop') && d.readback_verified_at)
-      const lop_days = lopRows.reduce((s: number, d: any) => s + (Number(d.lop_days) || 0), 0)
+      const engineLopDays = effectiveLopByEmp.get(p.hr_employee_id) ?? 0
+      const storedLopDays = lopRows.reduce((s: number, d: any) => s + (Number(d.lop_days) || 0), 0)
+      // Prefer the day count stored with the pushed deduction; if that column was
+      // never filled, fall back to the engine's chargeable LOP for the month.
+      const lop_days = storedLopDays > 0 ? storedLopDays : (lopRows.length > 0 ? engineLopDays : 0)
       const lop_amount = lopRows.reduce((s: number, d: any) => s + (Number(d.amount) || 0), 0)
+
 
       // Only genuine discretionary bonuses / incentives may be presented as a
       // "bonus". F&F dues, salary-advance payouts, comp-off encashment, CTC

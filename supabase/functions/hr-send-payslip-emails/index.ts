@@ -528,6 +528,7 @@ Deno.serve(async (req) => {
       // somebody (or another overlapping run) already sent this payslip.
       if (mode === 'send') {
         const claim = await admin.from('hr_email_send_log').insert({
+          message_id: crypto.randomUUID(),
           template_name: TEMPLATE,
           recipient_email: to,
           subject,

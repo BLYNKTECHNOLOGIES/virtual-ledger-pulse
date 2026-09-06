@@ -375,7 +375,9 @@ Deno.serve(async (req) => {
         .select(
           "employee_id, gross, regular_gross, net, pf_amount, esi_amount, professional_tax, tds_amount, " +
           "has_register, source, lwf_ee, advance_salary, loan_emi, refund_security_deposit, " +
-          "one_time_payments, overtime, performance_incentive, working_days, has_left, relieving_date, reg_hire_date",
+          "one_time_payments, one_time_total, one_time_recovery, extra_variable_total, " +
+          "overtime, performance_incentive, working_days, has_left, relieving_date, reg_hire_date",
+
         )
         .eq("period_month", periodStr);
       if (rzErr) console.error("razorpay payslip view fetch err", rzErr);
@@ -499,20 +501,46 @@ Deno.serve(async (req) => {
 
 
 
-      // KPI-Loss / other gross-side recoveries — matched on label since the
-      // hr_payroll_input_deductions table has no category column.
+      // ---- HRMS-STAGED PAYROLL INPUTS (owner directive 2026-09-07) ----
+      // The engine must INFER the month from the same inputs HR already entered
+      // in the payroll step (LOP, deposit/loan/advance recoveries, one-time
+      // payment corrections, bonuses, comp-off encashment, arrears...). Anything
+      // staged here is real payroll, so it belongs on the shadow stack; leaving
+      // it out was what made Razorpay's identical figures look like drift.
       const { data: deds, error: dedsErr } = await supabase
         .from("hr_payroll_input_deductions")
-        .select("amount, label")
+        .select("amount, label, source, recovery_kind, lop_days")
         .eq("hr_employee_id", emp.id)
         .eq("period_month", periodStr);
       if (dedsErr) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `deductions: ${dedsErr.message}` });
         continue;
       }
-      const kpiLossAmount = (deds ?? [])
-        .filter((r: any) => /kpi/i.test(String(r.label ?? "")))
-        .reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+      const dedRows = (deds ?? []) as any[];
+      const amt = (r: any) => Number(r.amount ?? 0);
+      const isKpi = (r: any) => /kpi/i.test(String(r.label ?? ""));
+      const isStagedLop = (r: any) =>
+        String(r.source ?? "") === "auto_lop" || /loss of pay|^lop\b/i.test(String(r.label ?? ""));
+
+      const kpiLossAmount = dedRows.filter(isKpi).reduce((s, r) => s + amt(r), 0);
+      const stagedLopAmount = dedRows.filter(isStagedLop).reduce((s, r) => s + amt(r), 0);
+
+      // Net-side staged recoveries, named by kind so the variance bridge can
+      // pair each one with its Razorpay register head instead of calling it drift.
+      const netDed = dedRows.filter((r) => !isKpi(r) && !isStagedLop(r));
+      const sumWhere = (fn: (r: any) => boolean) => netDed.filter(fn).reduce((s, r) => s + amt(r), 0);
+      const hrmsLoanEmi = sumWhere((r) => r.recovery_kind === "loan" || /loan emi/i.test(String(r.label ?? "")));
+      const hrmsDeposit = sumWhere((r) => r.recovery_kind === "deposit" || /security deposit/i.test(String(r.label ?? "")));
+      const hrmsAdvanceRec = sumWhere((r) => r.recovery_kind === "advance" || /advance/i.test(String(r.label ?? "")));
+      const hrmsTrainingAdj = sumWhere((r) => String(r.source ?? "") === "training_ctc_adjustment");
+      const hrmsOtherRec = sumWhere(
+        (r) =>
+          !(r.recovery_kind === "loan" || /loan emi/i.test(String(r.label ?? ""))) &&
+          !(r.recovery_kind === "deposit" || /security deposit/i.test(String(r.label ?? ""))) &&
+          !(r.recovery_kind === "advance" || /advance/i.test(String(r.label ?? ""))) &&
+          String(r.source ?? "") !== "training_ctc_adjustment",
+      );
+      const stagedRecoveryTotal = hrmsLoanEmi + hrmsDeposit + hrmsAdvanceRec + hrmsTrainingAdj + hrmsOtherRec;
 
       const totalReduction = lopAmount + kpiLossAmount;
       const factor = regularBase > 0 ? Math.max(0, 1 - totalReduction / regularBase) : 1;
@@ -525,14 +553,50 @@ Deno.serve(async (req) => {
 
       const { data: adds, error: addsErr } = await supabase
         .from("hr_payroll_input_additions")
-        .select("amount")
+        .select("amount, label, source, addition_type")
         .eq("hr_employee_id", emp.id)
         .eq("period_month", periodStr);
       if (addsErr) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `additions: ${addsErr.message}` });
         continue;
       }
-      const additions = (adds ?? []).reduce((s: number, r: any) => s + Number(r.amount ?? 0), 0);
+      const addRows = (adds ?? []) as any[];
+      const additions = addRows.reduce((s, r) => s + amt(r), 0);
+      const addWhere = (fn: (r: any) => boolean) => addRows.filter(fn).reduce((s, r) => s + amt(r), 0);
+      const lbl = (r: any) => String(r.label ?? "");
+      const hrmsBonus = addWhere((r) => /bonus|incentive|reward|ex-?gratia/i.test(lbl(r)));
+      const hrmsOvertime = addWhere((r) => /overtime|\bot\b/i.test(lbl(r)));
+      const hrmsCompoff = addWhere((r) => String(r.source ?? "") === "auto_compoff" || /comp-?off/i.test(lbl(r)));
+      const hrmsArrears = addWhere((r) => Number(r.addition_type) === 1 || /arrear/i.test(lbl(r)));
+      const hrmsReimb = addWhere((r) => Number(r.addition_type) === 2 || /reimburse/i.test(lbl(r)));
+      const hrmsFnf = addWhere((r) => String(r.source ?? "") === "fnf_settlement" || /f&f|full\s*&\s*final/i.test(lbl(r)));
+      const hrmsAdvancePay = addWhere((r) => String(r.source ?? "") === "loan_advance" || /salary advance/i.test(lbl(r)));
+      const hrmsDepositRefund = addWhere((r) => /deposit refund|refund.*deposit/i.test(lbl(r)));
+      const hrmsOtherAdd = additions - (hrmsBonus + hrmsOvertime + hrmsCompoff + hrmsArrears + hrmsReimb + hrmsFnf + hrmsAdvancePay + hrmsDepositRefund);
+
+      const hrmsInputs = {
+        lop_staged: Math.round(stagedLopAmount),
+        kpi_loss: Math.round(kpiLossAmount),
+        advance_recovery: Math.round(hrmsAdvanceRec),
+        loan_emi: Math.round(hrmsLoanEmi),
+        deposit_recovery: Math.round(hrmsDeposit),
+        training_ctc_adjustment: Math.round(hrmsTrainingAdj),
+        other_recovery: Math.round(hrmsOtherRec),
+        recovery_total: Math.round(stagedRecoveryTotal),
+        additions: {
+          bonus_incentive: Math.round(hrmsBonus),
+          overtime: Math.round(hrmsOvertime),
+          compoff_encashment: Math.round(hrmsCompoff),
+          arrears: Math.round(hrmsArrears),
+          reimbursement: Math.round(hrmsReimb),
+          fnf_settlement: Math.round(hrmsFnf),
+          advance_payout: Math.round(hrmsAdvancePay),
+          deposit_refund: Math.round(hrmsDepositRefund),
+          other: Math.round(hrmsOtherAdd),
+          total: Math.round(additions),
+        },
+      };
+
 
       // Per-employee statutory enrollment.
       // Priority: effective-dated statutory profile → hr_employees cache → global toggle.
@@ -604,7 +668,7 @@ Deno.serve(async (req) => {
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
       const earningsTotal = grossEarnings + addPositive;
-      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative;
+      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative + Math.round(stagedRecoveryTotal);
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
@@ -704,6 +768,14 @@ Deno.serve(async (req) => {
             employment_window: employmentWindow,
             window_factor: Number(windowFactor.toFixed(6)),
             lop_unavailable: lopUnavailable,
+            hrms_inputs: hrmsInputs,
+            rz_register_extras: {
+              extra_variable_total: num(rz?.extra_variable_total),
+              one_time_total: num(rz?.one_time_total),
+              one_time_recovery: num(rz?.one_time_recovery),
+            },
+
+
 
           },
 
@@ -729,7 +801,13 @@ Deno.serve(async (req) => {
         { key: "vpf", label: "Voluntary PF (VPF)", type: "deduction", amount: vpfAmount },
         { key: "esi_employee", label: "ESI (Employee)", type: "deduction", amount: esi.employee },
         { key: "other_recovery", label: "Other recovery", type: "deduction", amount: addNegative },
+        { key: "advance_recovery_staged", label: "Salary advance recovery (HRMS input)", type: "deduction", amount: Math.round(hrmsAdvanceRec) },
+        { key: "loan_emi_staged", label: "Loan EMI (HRMS input)", type: "deduction", amount: Math.round(hrmsLoanEmi) },
+        { key: "deposit_recovery_staged", label: "Security deposit recovery (HRMS input)", type: "deduction", amount: Math.round(hrmsDeposit) },
+        { key: "training_ctc_staged", label: "Training CTC adjustment (HRMS input)", type: "deduction", amount: Math.round(hrmsTrainingAdj) },
+        { key: "other_recovery_staged", label: "Other staged recovery (HRMS input)", type: "deduction", amount: Math.round(hrmsOtherRec) },
         { key: "pt", label: "Professional Tax", type: "deduction", amount: pt },
+
         { key: "tds", label: "TDS", type: "deduction", amount: tds },
       ].filter((c) => c.amount !== 0);
 

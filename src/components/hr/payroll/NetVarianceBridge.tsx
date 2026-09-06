@@ -111,16 +111,31 @@ export function buildVarianceBridge(l: BridgeLine): {
       razorpay: 0,
       delta: -employerCarve,
     },
-    {
-      key: "one_time",
-      label: "One-time payouts / bonuses",
-      hint: "Additions booked in HRMS payroll inputs that sit outside the CTC. Razorpay regular gross excludes one-time payouts, so anything here is a shadow-side add.",
-      group: "earnings",
-      shadow: addPositive,
-      razorpay: 0,
-      delta: addPositive,
-    },
   ];
+
+  // HRMS payroll-step inputs the engine now consumes (staged additions and
+  // recoveries). Anything paired here is NOT drift — both sides know the money.
+  const hrms = (notes.hrms_inputs ?? {}) as any;
+  const hrmsAdd = (hrms.additions ?? {}) as any;
+  const rzExtras = (notes.rz_register_extras ?? {}) as any;
+  const rzOneTimePos = Math.max(0, n0(l.rz_one_time_payments));
+  const rzOneTimeRecovery = r0(n0(rzExtras.one_time_recovery) || Math.max(0, -n0(l.rz_one_time_payments)));
+  const rzEarnAdditions = r0(
+    n0(rzExtras.extra_variable_total) + n0(rzExtras.one_time_total) +
+    n0(l.rz_overtime) + n0(l.rz_performance_incentive) + rzOneTimePos,
+  );
+
+  heads.push({
+    key: "one_time",
+    label: "One-time payouts / bonuses",
+    hint: "Bonuses, comp-off encashment, arrears, reimbursements and other one-off additions staged in the HRMS payroll step, matched against the register's variable / one-time / overtime / incentive earnings. Only the unmatched part is drift.",
+    group: "earnings",
+    shadow: addPositive,
+    razorpay: rzEarnAdditions,
+    delta: r0(addPositive - rzEarnAdditions),
+  });
+
+
 
   // --- Deduction side ---------------------------------------------------
   const dedHead = (
@@ -165,25 +180,37 @@ export function buildVarianceBridge(l: BridgeLine): {
     ));
   }
 
-  // Register-only heads, now named individually instead of being swept into
-  // the catch-all bucket. Shadow side is 0 for each — HRMS does not stage them.
-  const regHeads: Array<[string, string, string, number]> = [
-    ["advance_salary", "Salary advance recovery", "Advance-salary recovery taken by RazorpayX on the imported register. HRMS does not stage this input, so the whole amount is a Razorpay-side deduction.", r0(n0(l.rz_advance_salary))],
-    ["loan_emi", "Loan EMI recovery", "Loan instalment recovered on the Razorpay register.", r0(n0(l.rz_loan_emi))],
-    ["lwf", "Labour Welfare Fund", "Employee LWF contribution from the register. The shadow engine does not model LWF.", r0(n0(l.rz_lwf_ee))],
-    ["security_deposit", "Security deposit refund", "Security-deposit refund paid back on the register (an earning, so it shows as a negative deduction).", -r0(n0(l.rz_refund_security_deposit))],
-    ["one_time_payments", "One-time payments (register)", "One-time payouts or recoveries booked directly on the Razorpay register. Positive register amounts are payouts; negative amounts are recoveries.", -r0(n0(l.rz_one_time_payments))],
-    ["overtime_reg", "Overtime (register)", "Overtime paid on the register and not mirrored into HRMS payroll inputs.", -r0(n0(l.rz_overtime))],
-    ["incentive_reg", "Performance incentive (register)", "Performance incentive paid on the register and not mirrored into HRMS payroll inputs.", -r0(n0(l.rz_performance_incentive))],
+  // Named recovery heads. The shadow side now comes from the HRMS payroll-step
+  // inputs the engine consumes, so an amount HR already staged is matched, not drift.
+  // The register lumps loan / deposit / misc instalments into its one-time
+  // recovery column when it does not carry a dedicated loan head, so fold the
+  // matching HRMS-staged recoveries into the same bucket.
+  const rzLoan = r0(n0(l.rz_loan_emi));
+  const hrmsLoan = r0(n0(hrms.loan_emi));
+  const loanInBucket = rzLoan === 0;
+  const regHeads: Array<[string, string, string, number, number]> = [
+    ["advance_salary", "Salary advance recovery", "Advance-salary recovery. Shadow side is the advance recovery staged in the HRMS payroll step; Razorpay side is the register amount.", r0(n0(hrms.advance_recovery)), r0(n0(l.rz_advance_salary))],
+    ...(loanInBucket ? [] : [["loan_emi", "Loan EMI recovery", "Loan instalment. Shadow side is the HRMS auto-recovery instalment staged for the month.", hrmsLoan, rzLoan] as [string, string, string, number, number]]),
+    ["deposit_recovery", "Deposit / loan / one-time recoveries", "Security-deposit instalments, loan EMI and other one-time recoveries. Shadow side is what HR staged in the payroll step; Razorpay side is the register's one-time recovery column.", r0(n0(hrms.deposit_recovery) + n0(hrms.other_recovery) + (loanInBucket ? hrmsLoan : 0)), rzOneTimeRecovery],
+    ["lwf", "Labour Welfare Fund", "Employee LWF contribution from the register. The shadow engine does not model LWF.", 0, r0(n0(l.rz_lwf_ee))],
+    ["security_deposit", "Security deposit refund", "Security-deposit refund paid back (an earning, so it shows as a negative deduction).", -r0(n0(hrmsAdd.deposit_refund)), -r0(n0(l.rz_refund_security_deposit))],
   ];
-  let regTotal = 0;
-  for (const [key, label, hint, amt] of regHeads) {
-    if (amt === 0) continue;
-    regTotal += amt;
-    heads.push(dedHead(key, label, hint, 0, amt));
-  }
 
-  const shadowOther = r0(n0(l.deductions_total) - (shadowPf + shadowEsi + shadowPt + shadowTds) - trainingAdj);
+  let regTotal = 0;
+  const namedShadowRecoveries = regHeads.reduce((s, h) => s + h[3], 0);
+  for (const [key, label, hint, shadow, rz] of regHeads) {
+    if (shadow === 0 && rz === 0) continue;
+    regTotal += rz;
+    heads.push(dedHead(key, label, hint, shadow, rz));
+  }
+  // One-time / overtime / incentive register earnings are paired inside the
+  // "One-time payouts / bonuses" earnings head above; keep them out of the residual.
+  regTotal += -rzEarnAdditions;
+
+  const shadowOther = r0(
+    n0(l.deductions_total) - (shadowPf + shadowEsi + shadowPt + shadowTds) - trainingAdj - namedShadowRecoveries,
+  );
+
   const rzOther = r0((rzGross - rzNet) - (rzPf + rzEsi + rzPt + rzTds) - trainingRzp - regTotal);
 
   heads.push(dedHead(

@@ -1248,7 +1248,7 @@ Deno.serve(async (req) => {
         // to distinguish "unknown sub-type" from "sub-type ok, employee missing".
         const subTypes = ["add-deduction", "add-net-deduction", "add-net-pay-deduction",
           "add-deduction-net", "add-netpay-deduction", "net-deduction", "add-deductions-net",
-          "bulk-add-deduction", "bulk-upload", "add-deduction-v2"];
+          "bulk-add-deduction", "bulk-upload", "add-deduction-v2", "zzz-nonsense-probe"];
         for (const st of subTypes) {
           await tryCall(`subtype:${st}`, `${origin}/api/payroll`, {
             method: "POST",

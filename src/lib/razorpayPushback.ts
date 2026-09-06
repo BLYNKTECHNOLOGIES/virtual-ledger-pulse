@@ -495,7 +495,7 @@ export const pushEmploymentToRazorpay = (id: string, opts?: { triggeredFrom?: st
 export async function dismissInRazorpay(
   hrEmployeeId: string,
   opts: { dateOfDismissal: string; reason?: string | null; triggeredFrom?: string },
-): Promise<{ ok: boolean; skipped?: boolean; manualRequired?: boolean; error?: string; razorpay_employee_id?: string }> {
+): Promise<{ ok: boolean; scheduled?: boolean; effectiveDate?: string; skipped?: boolean; manualRequired?: boolean; error?: string; razorpay_employee_id?: string }> {
   const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
   if (!razorpayId) {
     await logPushback({
@@ -585,6 +585,22 @@ export async function dismissInRazorpay(
 
     if (res.ok === false) throw new Error(res.error || "Razorpay rejected the dismissal");
 
+    // RazorpayX accepts a future Date of Dismissal immediately but correctly
+    // keeps the employee active until that date. An immediate people:view is
+    // therefore expected to show the old active state; treating that as a
+    // failed write creates a false drift and encourages duplicate pushes.
+    const todayIst = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const effectiveIso = iso ? opts.dateOfDismissal : (() => {
+      const match = /^(\d{2})[\/-](\d{2})[\/-](\d{4})$/.exec(opts.dateOfDismissal);
+      return match ? `${match[3]}-${match[2]}-${match[1]}` : opts.dateOfDismissal;
+    })();
+    const isFutureEffective = /^\d{4}-\d{2}-\d{2}$/.test(effectiveIso) && effectiveIso > todayIst;
+
     await logPushback({
       hr_employee_id: hrEmployeeId,
       razorpay_employee_id: razorpayId,
@@ -592,9 +608,23 @@ export async function dismissInRazorpay(
       action: "people_dismiss",
       status: "success",
       request_snapshot: auditPayload,
-      response_snapshot: data ?? null,
+      response_snapshot: isFutureEffective
+        ? { ...(data ?? {}), scheduled: true, effective_date: effectiveIso, verification_due_on: effectiveIso }
+        : data ?? null,
       triggered_from: opts.triggeredFrom,
     });
+
+    if (isFutureEffective) {
+      toast.success(`RazorpayX accepted dismissal for ${ddmmyyyy}`, {
+        description: "The employee remains active there until the effective date; read-back will be checked on or after that date.",
+      });
+      return {
+        ok: true,
+        scheduled: true,
+        effectiveDate: effectiveIso,
+        razorpay_employee_id: String(razorpayId),
+      };
+    }
 
     const verifyResult = await verifyAndFinalize({
       kind: "dismissal",

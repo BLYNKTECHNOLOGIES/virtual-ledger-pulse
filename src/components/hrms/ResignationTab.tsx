@@ -529,7 +529,8 @@ export function ResignationTab() {
     },
     onSuccess: ({ fin, dismissal }: any) => {
       toast.success(`Separation completed for ${fin.name}${fin.erp?.deactivated ? " — ERP login disabled" : ""}`);
-      if (dismissal?.ok) toast.success("Dismissal propagated to RazorpayX");
+      if (dismissal?.scheduled) toast.success(`RazorpayX dismissal scheduled for ${new Date(`${dismissal.effectiveDate}T00:00:00`).toLocaleDateString("en-IN")}`);
+      else if (dismissal?.ok) toast.success("Dismissal propagated to RazorpayX");
       else if (dismissal?.skipped) toast.info("Employee is not linked to RazorpayX — nothing to propagate.");
       else if (dismissal?.manualRequired) toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account.");
       else if (dismissal?.error) toast.warning(dismissal.error);

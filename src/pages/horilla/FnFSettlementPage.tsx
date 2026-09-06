@@ -257,7 +257,8 @@ export default function FnFSettlementPage() {
         reason: dismissPrompt.reason || "F&F settled",
         triggeredFrom: "fnf_paid",
       });
-      if (res.ok) toast.success("Dismissal propagated to Razorpay");
+      if (res.scheduled) toast.success(`RazorpayX dismissal scheduled for ${new Date(`${res.effectiveDate}T00:00:00`).toLocaleDateString("en-IN")}`);
+      else if (res.ok) toast.success("Dismissal propagated to Razorpay");
       else if (res.skipped) toast.info("Employee is not linked to Razorpay — nothing to propagate.");
       else if (res.manualRequired) toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account, so the dismiss API cannot resolve them. Logged in Data Health.");
     } finally {

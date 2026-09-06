@@ -237,6 +237,33 @@ Deno.serve(async (req) => {
     const mDays = daysInMonth(month)
     const processedOn = (meta as any)?.processed_on ?? null
 
+    // ---- effective (chargeable) LOP straight from our own engine -----------
+    // Paid days on the payslip must agree with the LOP we actually computed and
+    // pushed — never with the register's working-days column.
+    const effectiveLopByEmp = new Map<string, number>()
+    try {
+      const empIds = (employees ?? []).map((e: any) => e.id)
+      if (empIds.length) {
+        const [{ data: att }, { data: cl }, { data: pool }] = await Promise.all([
+          admin.rpc('hr_attendance_month_summary', { p_employee_ids: empIds, p_period_month: month }),
+          admin.rpc('hr_cl_available', { p_employee_ids: empIds, p_period_month: month }),
+          admin.rpc('hr_compoff_month_pool', { p_employee_ids: empIds, p_period_month: month }),
+        ])
+        const clBy = new Map((cl ?? []).map((r: any) => [r.employee_id, Number(r.cl_available ?? 0)]))
+        const coBy = new Map((pool ?? []).map((r: any) => [r.employee_id, Number(r.days_available ?? 0)]))
+        for (const r of (att ?? []) as any[]) {
+          const raw = Math.max(0, Number(r.lop_days ?? 0))
+          const co = Math.min(Math.max(0, coBy.get(r.employee_id) ?? 0), raw)
+          const afterCo = raw - co
+          const clUsed = Math.min(Math.max(0, clBy.get(r.employee_id) ?? 0), afterCo)
+          effectiveLopByEmp.set(r.employee_id, Math.round((afterCo - clUsed) * 100) / 100)
+        }
+      }
+    } catch (e) {
+      console.error('effective LOP lookup failed', e)
+    }
+
+
     // Classified custom pay heads for this month (one-time vs variable).
     const { data: headLines } = await admin
       .from('hr_payslip_pay_head_lines')

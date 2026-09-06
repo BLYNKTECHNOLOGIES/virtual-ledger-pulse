@@ -343,6 +343,13 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     });
   }
   for (const row of deductions) {
+    // A pushed row is frozen; if the current engine now says something else, the
+    // sheet must say so instead of presenting the frozen figure as agreed.
+    const lopEngine = String(row.source) === "auto_lop" ? lopBy.get(row.hr_employee_id) : undefined;
+    const lopDrift =
+      lopEngine && Math.abs(n2(lopEngine.amount) - n2(row.amount)) > 0.01
+        ? `Current calculation says ₹${n2(lopEngine.amount)} for ${n2(lopEngine.lop_days)} day(s) — this staged line is ₹${n2(row.amount)}${row.lop_days !== null && row.lop_days !== undefined ? ` for ${n2(row.lop_days)} day(s)` : ""}`
+        : "";
     lines.push({
       badge: empBadge(row.hr_employee_id), name: empName(row.hr_employee_id),
       dir: "Deduction", cat: categoryOf(row.source, row.label), label: row.label ?? "",
@@ -351,9 +358,14 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       payable: !outsidePayroll(row),
       pushed: row.pushed_at ? "Yes" : "No", pushedAt: istStamp(row.pushed_at),
       verified: row.pushed_at ? (row.readback_verified_at ? "Verified" : "Not verified") : "—",
-      notes: [row.lop_days ? `${n2(row.lop_days)} LOP day(s)` : "", row.readback_diff ? `Read-back difference: ${JSON.stringify(row.readback_diff)}` : ""].filter(Boolean).join("; "),
+      notes: [
+        row.lop_days ? `${n2(row.lop_days)} LOP day(s)` : "",
+        lopDrift,
+        row.readback_diff ? `Read-back difference: ${JSON.stringify(row.readback_diff)}` : "",
+      ].filter(Boolean).join("; "),
     });
   }
+
   for (const row of recoveries) {
     lines.push({
       badge: row.badge_id ?? empBadge(row.employee_id), name: row.employee_name ?? empName(row.employee_id),

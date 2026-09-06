@@ -265,6 +265,31 @@ code 41, `Please specify the deduction`.
 **Response:** same as `add-additions` — HTTP 200 opaque body; failure body carries
 `error`/`message`. Nothing surfaces to the UI beyond a success toast.
 
+### Net Pay deduction capability boundary (verified 6 September 2026 IST)
+
+The legacy credentialed endpoint above cannot choose the deduction target. Live
+permutation tests with `deduct-from`, `deductFrom`, `deduct_from`, numeric `2`,
+`NET_PAY`, nested deduction collections, and negative additions were either
+ignored or rejected; accepted writes read back as `deductFrom: 1` (Gross Pay).
+
+The current RazorpayX dashboard uses a separate authenticated GraphQL interface
+at `/v2/api/graphql`. Its published frontend bundle defines:
+
+- `DeductFrom.GROSS_PAY = 1`
+- `DeductFrom.NET_PAY = 2`
+- salary-component settings at `deductionDetails.deductFrom`
+- `payrollUpdateEmployeeAdditionsDeductions`, which assigns component IDs and
+  amounts to an employee for an effective period
+
+This proves Net Pay is implemented through a **deduction component configured as
+`NET_PAY` and then assigned to the employee/month**, not as an extra field on
+`payroll:add-deduction`. The GraphQL endpoint requires an interactive RazorpayX
+dashboard session plus CSRF token. The existing server API ID/key, Basic auth,
+Bearer auth, API-key headers, and CSRF-key substitution all returned HTTP 401.
+Therefore it must not be called from HRMS until Razorpay provides supported
+service authentication for this interface. Browser session cookies must not be
+stored or replayed by the ERP.
+
 ---
 
 ## 5. `POST /api/payroll` — `payroll:reset-modifications`

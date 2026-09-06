@@ -1260,6 +1260,25 @@ Deno.serve(async (req) => {
             }),
           });
         }
+        // Second-stage oracle: REAL employee + invalid month 1900-01. Employee is
+        // found, so the response distinguishes unknown sub-type from valid sub-type.
+        const realEmail = String(p?.probe_email ?? "").trim();
+        if (realEmail) {
+          const candidates = ["add-deduction", "add-net-deduction", "add-net-pay-deduction",
+            "add-deduction-net", "add-netpay-deduction", "net-deduction", "add-deductions-net",
+            "bulk-add-deduction", "bulk-upload", "add-deduction-v2", "zzz-nonsense-probe"];
+          for (const st of candidates) {
+            await tryCall(`real:${st}`, `${origin}/api/payroll`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({
+                auth: authBlock(),
+                request: { type: "payroll", "sub-type": st },
+                data: { email: realEmail, "payroll-month": "1900-01", "deduction-amount": 1, remarks: "capability probe" },
+              }),
+            });
+          }
+        }
         return json(200, { ok: true, results });
       }
       return json(400, { error: "unknown probe" });

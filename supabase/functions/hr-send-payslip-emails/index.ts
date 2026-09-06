@@ -439,7 +439,13 @@ Deno.serve(async (req) => {
       let not_processed_reason: string | null = null
       if (p.do_not_pay) not_processed_reason = 'Marked do-not-pay in RazorpayX'
       else if (p.reg_has_left) not_processed_reason = 'Employee has left / relieved'
-      else if (emp && emp.is_active === false) not_processed_reason = 'Employee inactive'
+      // An employee who separated mid-month is still paid for the days worked in
+      // that month, so "inactive today" alone must not withhold their payslip.
+      // Only withhold when the month itself carries no positive pay for them.
+      else if (
+        emp && emp.is_active === false &&
+        !(Number(hasReg ? p.reg_net_pay : p.net_pay) > 0)
+      ) not_processed_reason = 'Employee inactive'
       else if (registerPresent && !hasReg) not_processed_reason = 'Not in this month\u2019s Salary Register'
       else if (hasReg && !(Number(p.reg_net_pay) > 0)) not_processed_reason = 'Zero net pay in the Salary Register'
       else if (!hasReg && !(Number(p.net_pay) > 0)) not_processed_reason = 'Zero net pay in the RazorpayX run'

@@ -352,9 +352,14 @@ Deno.serve(async (req) => {
       const other_additions = verifiedAdds.filter((a) => !isBonus(a)).map((a) => ({ label: a.label, amount: a.amount }))
       const other_additions_total = other_additions.reduce((s, b) => s + b.amount, 0)
 
-      const paid_days = p.reg_working_days !== null && p.reg_working_days !== undefined
-        ? Number(p.reg_working_days)
-        : (lop_days > 0 ? mDays - lop_days : null)
+      // Paid days must reflect OUR verified effective (chargeable) LOP — the same
+      // days the pushed deduction was computed from. The register's working-days
+      // column is only a fallback when no LOP was charged for this employee.
+      const paid_days = lop_days > 0
+        ? Math.max(0, Math.round((mDays - lop_days) * 100) / 100)
+        : (p.reg_working_days !== null && p.reg_working_days !== undefined
+            ? Number(p.reg_working_days)
+            : null)
 
       // --- "Was this person's salary actually processed this month?" -------
       // A payslip email is a statement that money was credited. It must NEVER

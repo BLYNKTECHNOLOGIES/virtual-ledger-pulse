@@ -149,27 +149,17 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>` : ''
 
 
-  return (`<!DOCTYPE html>
-<html><body style="margin:0;padding:0;background:#eef1f5;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;padding:32px 12px;"><tr><td align="center">
-<table width="640" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 14px rgba(15,23,42,.08);">
-
-  <tr><td style="background:#0f172a;padding:28px 32px;">
-    <div style="font-size:11px;letter-spacing:2.4px;color:#94a3b8;text-transform:uppercase;font-weight:600;">Blynk Virtual Technologies Pvt. Ltd.</div>
-    <div style="font-size:22px;font-weight:700;color:#ffffff;margin-top:8px;letter-spacing:-.3px;">Payslip &mdash; ${esc(label)}</div>
-    <div style="font-size:13px;color:#94a3b8;margin-top:6px;">Pay period ${first} &ndash; ${last}</div>
-  </td></tr>
-
-  <tr><td style="padding:30px 32px 0;">
-    <p style="margin:0 0 14px;font-size:15px;color:#0f172a;">Dear <strong>${esc(row.name)}</strong>,</p>
-    <p style="margin:0 0 24px;font-size:14px;color:#475569;line-height:1.65;">
+  const content = `
+    <div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;color:#64748b;">Pay period ${first} &ndash; ${last}</div>
+    <p style="margin:14px 0 14px;font-size:15px;color:#0f172a;">Dear <strong>${esc(row.name)}</strong>,</p>
+    <p style="margin:0 0 22px;font-size:14px;color:#475569;line-height:1.65;">
       Your salary for <strong style="color:#0f172a;">${esc(label)}</strong> has been processed and credited to your registered
       bank account${bankBit}${creditedBit}. A detailed payslip is attached to this email.
     </p>
 
-    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:#0f172a;border-radius:10px;margin:0 0 22px;">
+    <table cellpadding="0" cellspacing="0" style="width:100%;border-collapse:separate;background:#0B1524;border-radius:10px;margin:0 0 22px;">
       <tr><td style="padding:20px 24px;">
-        <div style="font-size:11px;letter-spacing:1.6px;color:#94a3b8;text-transform:uppercase;font-weight:600;">Net pay credited</div>
+        <div style="font-size:11px;letter-spacing:1.6px;color:#8fd8f2;text-transform:uppercase;font-weight:600;">Net pay credited</div>
         <div style="font-size:30px;font-weight:700;color:#ffffff;margin-top:6px;letter-spacing:-.5px;">${inr(row.net)}</div>
       </td></tr>
     </table>
@@ -185,25 +175,19 @@ function buildHtml(row: Row, month: string, processedOn: string | null) {
       </tr>${oneTimeRow}${paidDaysRow}
     </table>
 
-
 ${lopBlock}${bonusBlock}${otherAddBlock}
     <p style="margin:0;font-size:13.5px;color:#64748b;line-height:1.65;">
       Please retain the attached payslip for your records. It contains the complete break-up of your earnings,
       deductions and statutory contributions (PF / ESIC / PT / TDS).
-    </p>
+    </p>`
 
-    ${hrSignatureHtml(`Payslip notice &middot; ${month}`)}
-  </td></tr>
-
-  <tr><td style="background:#f8fafc;padding:18px 32px;border-top:1px solid #e2e8f0;">
-    <div style="font-size:11.5px;color:#94a3b8;line-height:1.6;">
-      This email and the attached payslip are confidential and intended solely for the named employee.
-      Automated message from Blynk HRMS &mdash; please do not forward or share with third parties.
-    </div>
-  </td></tr>
-
-</table></td></tr></table></body></html>`).replace(/[ \t]+$/gm, '')
+  return wrapHrEmail(content, {
+    title: `Payslip &mdash; ${esc(label)}`,
+    preheader: `Your ${esc(label)} payslip and net pay summary`,
+    refNote: `Payslip notice &middot; ${month}`,
+  }).replace(/[ \t]+$/gm, '')
 }
+
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })

@@ -70,11 +70,10 @@ const STEP_ICONS: Record<string, any> = {
   run_on_razorpay: ExternalLink,
   import_payslips: FileText,
   shadow_compare: Calculator,
-  drift_review: Scale,
   close_month: Flag,
 };
 
-/** Presentation-only grouping of the same 10 steps into readable stages. */
+/** Presentation-only grouping of the same steps into readable stages. */
 const STEP_STAGE: Record<string, string> = {
   lock_attendance: "Attendance",
   watchdog_zero: "Attendance",
@@ -85,7 +84,6 @@ const STEP_STAGE: Record<string, string> = {
   run_on_razorpay: "Run",
   import_payslips: "Reconcile",
   shadow_compare: "Reconcile",
-  drift_review: "Reconcile",
   close_month: "Close",
 };
 
@@ -105,7 +103,6 @@ const STEP_TARGET: Record<string, StepTarget> = {
   run_on_razorpay: { href: "https://x.razorpay.com/payroll/runs", label: "Open RazorpayX Dashboard" },
   import_payslips: { tool: "payslip_emails", label: "Import & email payslips" },
   shadow_compare: { tool: "shadow", label: "Run Shadow Payroll" },
-  drift_review: { tool: "data_health", label: "Open Data Health" },
 };
 
 
@@ -331,12 +328,6 @@ function DetailLine({ step }: { step: CockpitStep }) {
         <span>Shadow run {String(d.run_id).slice(0, 8)} · {d.status || "—"}</span>
       ) : (
         <span>No shadow run yet.</span>
-      );
-    case "drift_review":
-      return (d.drift_open ?? 0) > 0 ? (
-        <span>{d.drift_open} unexplained drift {plural(d.drift_open, "alert")} need review.</span>
-      ) : (
-        <span>No unexplained drift.</span>
       );
     case "close_month":
       return <span>Closes the month and freezes acknowledgements.</span>;

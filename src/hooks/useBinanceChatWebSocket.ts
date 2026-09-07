@@ -19,7 +19,7 @@ interface QueuedMessage {
   tempId: number;
   orderNo: string;
   content: string;
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'card';
   createdAt: number;
   retries: number;
   // 'sending' = handed to WS, awaiting server echo (optimistic bubble with spinner)
@@ -34,6 +34,7 @@ interface UseBinanceChatWebSocketReturn {
   isConnecting: boolean;
   sendMessage: (orderNo: string, content: string) => void;
   sendImageMessage: (orderNo: string, imageUrl: string) => void;
+  sendAdCardMessage: (orderNo: string, cardJson: string) => void;
   retryMessage: (tempId: number) => void;
   error: string | null;
   queuedMessages: QueuedMessage[];
@@ -526,11 +527,11 @@ export function useBinanceChatWebSocket(
   // Every send therefore goes through the edge function / proxy, which works
   // for any number of operators at once.
   const doServerSend = useCallback(
-    async (tempId: number, orderNo: string, content: string, type: 'text' | 'image') => {
+    async (tempId: number, orderNo: string, content: string, type: 'text' | 'image' | 'card') => {
       try {
         const payload = type === 'image'
           ? { orderNo, imageUrl: content }
-          : { orderNo, content, contentType: 'TEXT' };
+          : { orderNo, content, contentType: type === 'card' ? 'CARD' : 'TEXT' };
         const res: any = await callBinanceAds('sendChatMessage', payload, accountIdRef.current ?? undefined);
         const body = res?.data ?? res;
         const ok = body?.success === true || body?.code === '000000';
@@ -670,6 +671,18 @@ export function useBinanceChatWebSocket(
 
 
 
+  // ---- Send a native Binance ad card ----
+  // Mirrors Binance's own share-ad frame (type 'card', subType 'advertisement'),
+  // so the counterparty receives the real tappable ad card, not text.
+  const sendAdCardMessage = useCallback((orderNo: string, cardJson: string) => {
+    const id = tempIdCounter++;
+    setQueuedMessages(prev => [...prev, {
+      tempId: id, orderNo, content: cardJson, type: 'card' as const, createdAt: Date.now(), retries: 0,
+      status: 'sending' as const,
+    }]);
+    void doServerSend(id, orderNo, cardJson, 'card');
+  }, [doServerSend]);
+
   // ---- Manual retry for a failed message ----
   const retryMessage = useCallback((tempId: number) => {
     const msg = queueRef.current.find(m => m.tempId === tempId);
@@ -680,5 +693,5 @@ export function useBinanceChatWebSocket(
   }, [doServerSend]);
 
 
-  return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, retryMessage, error, queuedMessages };
+  return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, sendAdCardMessage, retryMessage, error, queuedMessages };
 }

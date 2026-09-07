@@ -17,6 +17,45 @@ interface Props {
   exchangeAccountId?: string | null;
   /** Insert the composed text into the chat input for review before sending. */
   onInsert: (text: string) => void;
+  /** Send the ad as Binance's own native ad card (tappable in the Binance app). */
+  onSendCard?: (cardJson: string) => void;
+  /** Nickname shown on the card — our advertiser name as the counterparty sees it. */
+  advertiserNick?: string | null;
+}
+
+const FIAT_SYMBOLS: Record<string, string> = { INR: '\u20B9', USD: '$', EUR: '\u20AC', GBP: '\u00A3', AED: 'AED' };
+
+/**
+ * Build the exact payload Binance's own P2P app puts on the wire when an ad is
+ * shared in chat (chat frame type 'card', subType 'advertisement',
+ * content.origin = ADV_SHARE_ONLINEADCARD). Every value comes from the live ad
+ * returned by Binance — nothing is invented.
+ */
+export function buildAdCardPayload(
+  ad: BinanceAd,
+  advertiserNo?: string | null,
+  nick?: string | null,
+): string {
+  return JSON.stringify({
+    minSglTrAmt: String(ad.minSingleTransAmount ?? ''),
+    priceScale: 2,
+    tradeMethods: (ad.tradeMethods || []).map((m) => ({
+      sn: m.tradeMethodName || m.identifier || m.payType,
+    })),
+    asset: ad.asset,
+    nick: nick || undefined,
+    tradeType: String(ad.tradeType || '').toUpperCase(),
+    price: String(ad.price),
+    dynMaxSglTrAmt: String(ad.maxSingleTransAmount ?? ''),
+    advNo: String(ad.advNo),
+    fiat: ad.fiatUnit,
+    fiatSymbol: FIAT_SYMBOLS[ad.fiatUnit] || '',
+    tradableQuantity: String(ad.surplusAmount ?? ''),
+    fiatScale: 2,
+    assetScale: 2,
+    userNo: advertiserNo || undefined,
+    origin: 'ADV_SHARE_ONLINEADCARD',
+  });
 }
 
 /**
@@ -41,7 +80,7 @@ export function formatAdMessage(ad: BinanceAd, advertiserNo?: string | null): st
 }
 
 
-export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
+export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advertiserNick }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const { accounts, activeAccount } = useExchangeAccount();
@@ -83,7 +122,21 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
     return filtered;
   }, [data, exchangeAccountId, search]);
 
+  const nick = useMemo(
+    () => advertiserNick || accounts.find((a) => a.id === exchangeAccountId)?.account_name || null,
+    [advertiserNick, accounts, exchangeAccountId],
+  );
+
   const pick = (ad: BinanceAd) => {
+    if (onSendCard) {
+      onSendCard(buildAdCardPayload(ad, advertiserNo, nick));
+    } else {
+      onInsert(formatAdMessage(ad, advertiserNo));
+    }
+    setOpen(false);
+  };
+
+  const pickAsText = (ad: BinanceAd) => {
     onInsert(formatAdMessage(ad, advertiserNo));
     setOpen(false);
   };
@@ -152,8 +205,21 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
                     <PaymentMethodBadge key={`${ad.advNo}-${m.payId}-${m.identifier}`} identifier={m.identifier} payType={m.payType} />
                   ))}
                 </div>
-                <div className="mt-1 flex items-center gap-1 text-[9px] text-primary">
-                  <Send className="h-2.5 w-2.5" /> Insert into chat
+                <div className="mt-1 flex items-center justify-between gap-2 text-[9px] text-primary">
+                  <span className="flex items-center gap-1">
+                    <Send className="h-2.5 w-2.5" /> {onSendCard ? 'Send ad card' : 'Insert into chat'}
+                  </span>
+                  {onSendCard && (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); pickAsText(ad); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); pickAsText(ad); } }}
+                      className="text-muted-foreground hover:text-foreground underline"
+                    >
+                      send as text
+                    </span>
+                  )}
                 </div>
               </button>
             ))}

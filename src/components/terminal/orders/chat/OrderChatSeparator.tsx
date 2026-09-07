@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { ArrowUpDown } from 'lucide-react';
+import { mapToOperationalStatus, normaliseBinanceStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 
 interface Props {
   orderNumber: string;
@@ -8,9 +9,10 @@ interface Props {
   totalPrice: string | null;
   fiatUnit: string | null;
   orderDate: number;
+  orderStatus?: string | number | null;
 }
 
-export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, fiatUnit, orderDate }: Props) {
+export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, fiatUnit, orderDate, orderStatus }: Props) {
   const dateStr = orderDate ? format(new Date(orderDate), 'dd MMM yyyy, HH:mm') : '';
   const amountStr = totalPrice && fiatUnit ? `${fiatUnit} ${Number(totalPrice).toLocaleString('en-IN')}` : '';
 

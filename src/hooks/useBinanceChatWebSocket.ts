@@ -23,8 +23,8 @@ interface QueuedMessage {
   createdAt: number;
   retries: number;
   // 'sending' = handed to WS, awaiting server echo (optimistic bubble with spinner)
-  // 'queued'  = WS not connected, will retry on reconnect
-  // 'failed'  = exceeded retry budget, requires manual retry
+  // 'queued'  = retained for compatibility with messages queued by older sessions
+  // 'failed'  = server/Binance did not verify delivery; requires manual retry
   status: 'sending' | 'queued' | 'failed';
 }
 
@@ -352,8 +352,8 @@ export function useBinanceChatWebSocket(
         return true;
       } catch (err) {
         console.error('Server send failed:', err);
-        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'queued' as const } : q)));
-        toast.error('Could not deliver the message — tap retry.');
+        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'failed' as const } : q)));
+        toast.error(err instanceof Error ? err.message : 'Binance did not confirm delivery — tap retry.');
         return false;
       }
     },

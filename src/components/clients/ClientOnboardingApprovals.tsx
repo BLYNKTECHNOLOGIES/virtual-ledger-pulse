@@ -452,63 +452,101 @@ export function ClientOnboardingApprovals() {
     additionalDocs,
   ]);
 
-  // Fetch approvals - all pending, and all reviewed (history)
-  const { data: approvals, isLoading } = useQuery({
-    queryKey: ['client_onboarding_approvals'],
+  // Lazy-loading strategy: exact totals come from a lightweight count RPC so the
+  // header badges are correct even before any rows load; the pending queue loads
+  // on mount; the Approval History block only downloads its rows once it scrolls
+  // near the viewport. Both tables then render rows progressively ("Load more")
+  // so the initial page render stays cheap no matter how large the ledger gets.
+  const PENDING_PAGE_SIZE = 50;
+  const HISTORY_PAGE_SIZE = 50;
+  const [visiblePendingCount, setVisiblePendingCount] = useState(PENDING_PAGE_SIZE);
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(HISTORY_PAGE_SIZE);
+  const [historyInView, setHistoryInView] = useState(false);
+  const historyCardRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (historyInView) return;
+    const el = historyCardRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setHistoryInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some(e => e.isIntersecting)) {
+          setHistoryInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [historyInView]);
+
+  // Exact deduplicated totals (same grouping + seller-only exclusion as the
+  // client-side dedup below), without downloading any rows.
+  const { data: approvalCounts } = useQuery({
+    queryKey: ['client_onboarding_approvals', 'counts'],
+    staleTime: 30 * 1000,
     queryFn: async () => {
-      // IMPORTANT: PostgREST caps every request at 1000 rows. The pending
-      // approval ledger has well over 1000 rows, so a single .select() was
-      // silently truncating the list and under-counting distinct clients
-      // (showing e.g. 398 instead of the true total). Paginate to get ALL rows.
-      const allPending = await fetchAllPaginated<ClientOnboardingApproval>(() =>
-        supabase
-          .from('client_onboarding_approvals')
-          .select('*')
-          .eq('approval_status', 'PENDING')
-          .order('created_at', { ascending: false })
-      );
+      const { data, error } = await (supabase as any).rpc('get_buyer_onboarding_approval_counts');
+      if (error) throw error;
+      return data as { pending: number; history: number };
+    },
+  });
 
-      const history = await fetchAllPaginated<ClientOnboardingApproval>(() =>
-        supabase
-          .from('client_onboarding_approvals')
-          .select('*')
-          .neq('approval_status', 'PENDING')
-          .order('created_at', { ascending: false })
-      );
+  // Shared fetcher. IMPORTANT: PostgREST caps every request at 1000 rows, so we
+  // paginate to get ALL rows of the requested scope. Seller-only resolved
+  // clients are excluded exactly as before (ghost buyer approvals).
+  const fetchBuyerApprovals = async (scope: 'pending' | 'history'): Promise<ClientOnboardingApproval[]> => {
+    const rows = await fetchAllPaginated<ClientOnboardingApproval>(() => {
+      const base = supabase
+        .from('client_onboarding_approvals')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return scope === 'pending'
+        ? base.eq('approval_status', 'PENDING')
+        : base.neq('approval_status', 'PENDING');
+    });
 
-      const combined = [...allPending, ...history] as ClientOnboardingApproval[];
+    const resolvedIds = Array.from(
+      new Set(rows.map(a => a.resolved_client_id).filter((v): v is string => !!v))
+    );
+    if (resolvedIds.length === 0) return rows as ClientOnboardingApproval[];
 
-      // Exclude approvals that belong to the SELLER onboarding flow. This tab
-      // only surfaces BUYER approvals; a row whose resolved client is a
-      // seller-only account (is_seller=true AND is_buyer=false) must never
-      // appear here — those are handled in the Seller Approvals tab and
-      // otherwise bleed in as ghost buyer approvals (e.g. purchase-side
-      // counterparties backfilled from historical orders).
-      const resolvedIds = Array.from(
-        new Set(combined.map(a => a.resolved_client_id).filter((v): v is string => !!v))
-      );
-      if (resolvedIds.length === 0) return combined;
-
-      const sellerOnlyIds = new Set<string>();
-      // Chunked IN() to stay well under URL/statement limits.
-      for (let i = 0; i < resolvedIds.length; i += 500) {
-        const slice = resolvedIds.slice(i, i + 500);
-        const { data } = await supabase
-          .from('clients')
-          .select('id, is_buyer, is_seller')
-          .in('id', slice);
-        for (const c of data || []) {
-          if ((c as any).is_seller === true && (c as any).is_buyer === false) {
-            sellerOnlyIds.add((c as any).id);
-          }
+    const sellerOnlyIds = new Set<string>();
+    // Chunked IN() to stay well under URL/statement limits.
+    for (let i = 0; i < resolvedIds.length; i += 500) {
+      const slice = resolvedIds.slice(i, i + 500);
+      const { data } = await supabase
+        .from('clients')
+        .select('id, is_buyer, is_seller')
+        .in('id', slice);
+      for (const c of data || []) {
+        if ((c as any).is_seller === true && (c as any).is_buyer === false) {
+          sellerOnlyIds.add((c as any).id);
         }
       }
-
-      return combined.filter(a =>
-        !(a.resolved_client_id && sellerOnlyIds.has(a.resolved_client_id))
-      );
     }
 
+    return (rows as ClientOnboardingApproval[]).filter(a =>
+      !(a.resolved_client_id && sellerOnlyIds.has(a.resolved_client_id))
+    );
+  };
+
+  const { data: pendingRows, isLoading } = useQuery({
+    queryKey: ['client_onboarding_approvals', 'pending'],
+    queryFn: () => fetchBuyerApprovals('pending'),
+  });
+
+  // History rows are fetched lazily — only once the history card approaches the
+  // viewport — so opening this page no longer downloads the entire ledger.
+  const { data: historyRows, isLoading: historyLoading } = useQuery({
+    queryKey: ['client_onboarding_approvals', 'history'],
+    queryFn: () => fetchBuyerApprovals('history'),
+    enabled: historyInView,
   });
 
   // 4-state identity resolution per pending approval — uses persisted

@@ -582,6 +582,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
               }
             }}
           />
+          <AttachAdPicker
+            exchangeAccountId={exchangeAccountId}
+            onInsert={(adText) =>
+              setText((prev) => (prev.trim() ? `${prev.trim()}\n${adText}` : adText))
+            }
+          />
+
           <Input
             ref={inputRef}
             data-terminal-chat-input

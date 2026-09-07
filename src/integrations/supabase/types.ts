@@ -29067,6 +29067,7 @@ export type Database = {
           exchange_account_id: string
           fiat_unit: string
           order_number: string
+          order_status: string
           total_price: string
           trade_type: string
         }[]

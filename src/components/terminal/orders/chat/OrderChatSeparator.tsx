@@ -1,5 +1,6 @@
 import { format } from 'date-fns';
 import { ArrowUpDown } from 'lucide-react';
+import { mapToOperationalStatus, normaliseBinanceStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 
 interface Props {
   orderNumber: string;
@@ -8,9 +9,10 @@ interface Props {
   totalPrice: string | null;
   fiatUnit: string | null;
   orderDate: number;
+  orderStatus?: string | number | null;
 }
 
-export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, fiatUnit, orderDate }: Props) {
+export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, fiatUnit, orderDate, orderStatus }: Props) {
   const dateStr = orderDate ? format(new Date(orderDate), 'dd MMM yyyy, HH:mm') : '';
   const amountStr = totalPrice && fiatUnit ? `${fiatUnit} ${Number(totalPrice).toLocaleString('en-IN')}` : '';
 
@@ -34,6 +36,15 @@ export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, 
         {dateStr && (
           <span className="text-[10px] t-mono text-muted-foreground">• {dateStr}</span>
         )}
+        {orderStatus != null && orderStatus !== '' && (() => {
+          const op = mapToOperationalStatus(normaliseBinanceStatus(orderStatus), tradeType);
+          const style = getStatusStyle(op);
+          return (
+            <span className={`text-[9px] t-mono uppercase tracking-wide font-semibold border rounded-full px-1.5 py-px ${style.badgeClass}`}>
+              {style.label}
+            </span>
+          );
+        })()}
       </div>
       <div className="flex-1 h-px bg-border" />
     </div>

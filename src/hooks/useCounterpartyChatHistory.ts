@@ -9,6 +9,7 @@ export interface HistoricalOrderChat {
   totalPrice: string | null;
   fiatUnit: string | null;
   orderDate: number; // create_time epoch
+  orderStatus: string | null; // raw Binance status from order history
   messages: HistoricalChatMessage[];
 }
 
@@ -49,7 +50,7 @@ export function useCounterpartyChatHistory(
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loadedOrdersRef = useRef<Set<string>>(new Set());
-  const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null }[] | null>(null);
+  const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null; order_status?: string | null }[] | null>(null);
   const offsetRef = useRef(0);
   const scopeRef = useRef('');
 
@@ -122,6 +123,7 @@ export function useCounterpartyChatHistory(
             totalPrice: order.total_price,
             fiatUnit: order.fiat_unit,
             orderDate: order.create_time,
+            orderStatus: order.order_status ?? null,
             messages,
           });
         } catch (err) {
@@ -134,6 +136,7 @@ export function useCounterpartyChatHistory(
             totalPrice: order.total_price,
             fiatUnit: order.fiat_unit,
             orderDate: order.create_time,
+            orderStatus: order.order_status ?? null,
             messages: [],
           });
         }

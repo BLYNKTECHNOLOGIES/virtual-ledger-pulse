@@ -487,6 +487,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
                 totalPrice={section.order.totalPrice}
                 fiatUnit={section.order.fiatUnit}
                 orderDate={section.order.orderDate}
+                orderStatus={section.order.orderStatus}
               />
               {section.messages.length === 0 ? (
                 <div className="flex justify-center py-1">

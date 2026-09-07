@@ -120,7 +120,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       if (liveIds.has(archivedId)) continue;
       const msgType = String(msg.message_type || msg.chat_message_type || msg.content_type || 'unknown').toLowerCase();
       const isImage = msgType === 'image' || isImageUrl(msg.message_text);
-      const isSystemLike = msg.is_system_message || msg.is_recall || msg.is_compliance_relevant || ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType);
+      const isSharedAd = isCardPayload(msg.message_text);
+      const isSystemLike = !isSharedAd && (msg.is_system_message || msg.is_recall || msg.is_compliance_relevant || ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType));
       messages.push({
         id: `archive-${msg.id}`,
         source: 'binance',

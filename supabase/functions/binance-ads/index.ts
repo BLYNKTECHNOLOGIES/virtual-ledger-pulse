@@ -1265,28 +1265,32 @@ serve(async (req) => {
         const authHeader = req.headers.get("Authorization") || "";
         const token = authHeader.replace(/^Bearer\s+/i, "");
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const { data: authData, error: authErr } = token
-          ? await supabase.auth.getUser(token)
-          : { data: null, error: new Error("Missing auth token") } as any;
-        if (authErr || !authData?.user?.id) throw new Error("Authentication required");
+        // Scheduler-secret and service-role callers are already authenticated by the
+        // main gate; only user-token callers need the permission check below.
+        if (!callerIsScheduler && !callerIsServiceRole) {
+          const { data: authData, error: authErr } = token
+            ? await supabase.auth.getUser(token)
+            : { data: null, error: new Error("Missing auth token") } as any;
+          if (authErr || !authData?.user?.id) throw new Error("Authentication required");
 
-        const { data: canManageErp } = await supabase.rpc("user_has_permission", {
-          user_uuid: authData.user.id,
-          check_permission: "erp_entry_manage",
-        });
-        const { data: canViewErp } = await supabase.rpc("user_has_permission", {
-          user_uuid: authData.user.id,
-          check_permission: "erp_entry_view",
-        });
-        const { data: canManageTerminal } = await supabase.rpc("has_terminal_permission", {
-          _user_id: authData.user.id,
-          _permission: "terminal_manage",
-        });
-        // Sync is a read-only refresh from Binance into sync tables (service-role writes);
-        // anyone who can see the ERP Entry Manager (view or manage) or manage the terminal
-        // may trigger it. Blocking view-only users caused silent stale queues.
-        if (!canManageErp && !canViewErp && !canManageTerminal) {
-          throw new Error("Permission denied: ERP Entry view/manage or Terminal manage permission required");
+          const { data: canManageErp } = await supabase.rpc("user_has_permission", {
+            user_uuid: authData.user.id,
+            check_permission: "erp_entry_manage",
+          });
+          const { data: canViewErp } = await supabase.rpc("user_has_permission", {
+            user_uuid: authData.user.id,
+            check_permission: "erp_entry_view",
+          });
+          const { data: canManageTerminal } = await supabase.rpc("has_terminal_permission", {
+            _user_id: authData.user.id,
+            _permission: "terminal_manage",
+          });
+          // Sync is a read-only refresh from Binance into sync tables (service-role writes);
+          // anyone who can see the ERP Entry Manager (view or manage) or manage the terminal
+          // may trigger it. Blocking view-only users caused silent stale queues.
+          if (!canManageErp && !canViewErp && !canManageTerminal) {
+            throw new Error("Permission denied: ERP Entry view/manage or Terminal manage permission required");
+          }
         }
 
         const accounts = await listActiveAccounts();

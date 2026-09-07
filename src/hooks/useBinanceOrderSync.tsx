@@ -349,8 +349,42 @@ export function useSyncOrderHistory() {
 
 // ---- Auto-sync hook: triggers incremental sync if stale + every 5 minutes ----
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+// The server-side cron refreshes binance_order_history every 5 minutes. When
+// that server sync is fresh, the browser skips its own Binance pull (avoiding
+// duplicate per-tab API load) but still runs the ERP post-sync chains below,
+// which feed the purchase/sales approval queues and are client-only by design.
+const SERVER_SYNC_FRESH_MS = 4.5 * 60 * 1000;
+
+/** ERP post-sync chains without a Binance fetch — used when the server cron
+ *  has already refreshed binance_order_history. */
+export async function runPostSyncChainsOnly(queryClient: ReturnType<typeof useQueryClient>) {
+  try {
+    await captureSellerPaymentDetails();
+  } catch (err) {
+    console.error('[PostSync] Seller payment capture failed:', err);
+  }
+  try {
+    const { synced } = await syncCompletedBuyOrders();
+    if (synced > 0) toast.info(`${synced} new purchase(s) synced to ERP for approval`);
+  } catch (err) {
+    console.error('[PostSync] Purchase sync failed:', err);
+  }
+  try {
+    const { synced: sellSynced } = await syncCompletedSellOrders();
+    if (sellSynced > 0) toast.info(`${sellSynced} new sale(s) synced to ERP for approval`);
+  } catch (err) {
+    console.error('[PostSync] Sales sync failed:', err);
+  }
+  queryClient.invalidateQueries({ queryKey: ['cached-order-history'] });
+  queryClient.invalidateQueries({ queryKey: ['terminal-purchase-sync'] });
+  queryClient.invalidateQueries({ queryKey: ['terminal-sync-pending-count'] });
+  queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync'] });
+  queryClient.invalidateQueries({ queryKey: ['terminal-sales-sync-pending-count'] });
+  queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
+}
 
 export function useAutoSyncOrders() {
+  const queryClient = useQueryClient();
   const { data: metadata, isLoading: metaLoading } = useSyncMetadata();
   const syncMutation = useSyncOrderHistory();
   const hasTriggered = useRef(false);
@@ -371,13 +405,19 @@ export function useAutoSyncOrders() {
   // Recurring auto-sync every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!syncMutation.isPending) {
+      if (syncMutation.isPending) return;
+      const serverFresh = metadata?.last_sync_at &&
+        (Date.now() - new Date(metadata.last_sync_at).getTime()) < SERVER_SYNC_FRESH_MS;
+      if (serverFresh) {
+        // Server cron already pulled from Binance; just process ERP chains.
+        void runPostSyncChainsOnly(queryClient);
+      } else {
         syncMutation.mutate({ fullSync: false });
       }
     }, AUTO_SYNC_INTERVAL_MS);
 
     return () => clearInterval(interval);
-  }, [syncMutation]);
+  }, [syncMutation, metadata?.last_sync_at, queryClient]);
 
   return { isSyncing: syncMutation.isPending, syncMutation, isStale, metadata };
 }

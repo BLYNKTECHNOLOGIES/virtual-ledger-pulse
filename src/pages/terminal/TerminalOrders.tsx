@@ -1405,6 +1405,9 @@ function TerminalOrdersContent() {
             size="sm"
             className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150"
             onClick={async () => {
+              // Ask the server collector for an immediate Binance tick, then
+              // re-read the cache + history.
+              await triggerCollectorTick().catch(() => undefined);
               await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
             }}
             disabled={isRefreshing}
@@ -1414,6 +1417,22 @@ function TerminalOrdersContent() {
           </Button>
         </div>
       </div>
+
+      {/* Collector staleness banner — visible warning when the server-side
+          order collector stops reporting, so a dead collector never silently
+          blinds the terminal (the hook falls back to live Binance polling). */}
+      {collectorStale && (
+        <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            Live order feed is delayed — showing the last synced data and refreshing directly.
+            {collectorState?.last_tick_at && (
+              <span className="text-muted-foreground"> Last server update: {format(new Date(collectorState.last_tick_at), 'HH:mm:ss')}</span>
+            )}
+          </span>
+        </div>
+      )}
+
 
 
       {/* Filters */}

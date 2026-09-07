@@ -10,6 +10,7 @@ import { useCounterpartyChatHistory } from '@/hooks/useCounterpartyChatHistory';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
+import { isCardPayload } from './chat/ChatAdCard';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { AttachAdPicker } from './chat/AttachAdPicker';
 import { QuickReplyBar } from './chat/QuickReplyBar';
@@ -120,7 +121,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       if (liveIds.has(archivedId)) continue;
       const msgType = String(msg.message_type || msg.chat_message_type || msg.content_type || 'unknown').toLowerCase();
       const isImage = msgType === 'image' || isImageUrl(msg.message_text);
-      const isSystemLike = msg.is_system_message || msg.is_recall || msg.is_compliance_relevant || ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType);
+      const isSharedAd = isCardPayload(msg.message_text);
+      const isSystemLike = !isSharedAd && (msg.is_system_message || msg.is_recall || msg.is_compliance_relevant || ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType));
       messages.push({
         id: `archive-${msg.id}`,
         source: 'binance',
@@ -139,7 +141,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       const isSelf = msg.self === true;
       const content = msg.content || msg.message || '';
       const isImage = msgType === 'image' || isImageUrl(content);
-      const isSystemLike = msgType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(String(msgType).toLowerCase());
+      const isSharedAd = isCardPayload(content);
+      const isSystemLike = !isSharedAd && (msgType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(String(msgType).toLowerCase()));
       const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
       messages.push({
         id: `binance-${msg.id}`,
@@ -190,9 +193,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         const isSelf = msg.self === true;
         const isImage = msgType === 'image';
         const normalizedType = String(msgType).toLowerCase();
-        const isSystemLike = normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType);
         const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
         const content = msg.content || msg.message || '';
+        const isSystemLike = !isCardPayload(content) &&
+          (normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType));
 
         const effectiveImgUrl = isImage ? (imgUrl || content || undefined) : imgUrl;
 

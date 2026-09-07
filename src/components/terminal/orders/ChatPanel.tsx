@@ -10,6 +10,7 @@ import { useCounterpartyChatHistory } from '@/hooks/useCounterpartyChatHistory';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
+import { isCardPayload } from './chat/ChatAdCard';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { AttachAdPicker } from './chat/AttachAdPicker';
 import { QuickReplyBar } from './chat/QuickReplyBar';
@@ -140,7 +141,8 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       const isSelf = msg.self === true;
       const content = msg.content || msg.message || '';
       const isImage = msgType === 'image' || isImageUrl(content);
-      const isSystemLike = msgType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(String(msgType).toLowerCase());
+      const isSharedAd = isCardPayload(content);
+      const isSystemLike = !isSharedAd && (msgType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(String(msgType).toLowerCase()));
       const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
       messages.push({
         id: `binance-${msg.id}`,

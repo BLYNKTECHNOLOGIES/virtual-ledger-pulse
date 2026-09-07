@@ -1,43 +1,130 @@
-# Terminal Data Latency Report
-Generated 8 Sep 2026, 03:35 IST. All times IST. Measured on live production data (last 12h / 3 days).
+# Terminal Data Freshness & Latency Report (full parameter sweep)
 
-## 1. Summary table — how late each thing is
+Generated 8 Sep 2026, 03:45 IST. All times IST. Values are read from the live code paths
+(polling intervals, cron schedules, collector cadence) and, where marked **measured**, from
+production data in the last 12 hours / 3 days.
 
-| Data the terminal shows | Path | Design delay | Measured |
+Legend for "worst case": design delay of the slowest hop in the chain (server capture +
+client refresh), not counting Binance-side delay or network outages.
+
+---
+
+## 1. Headline — what an operator actually feels
+
+| Event | Chain | Typical | Worst case |
 |---|---|---|---|
-| Incoming chat message (counterparty) | Lightsail listener socket → DB → Realtime → open chat | ~1s + 5s safety poll | p50 **229s**, only 29% within 5s (see §3 — defect) |
-| Outgoing chat message | Browser → edge function → Binance, verified via history | 1–3s | verified send, no queueing |
-| Chat inbox list (unread, previews) | DB RPC + Realtime, 20s fallback poll | ≤20s | matches design |
-| New order appears in Orders tab | Server collector tick 4.5s (12s when idle) → cache → UI poll 30s | **5–35s**, worst 47s | collector heartbeat healthy, 120 active orders, 0 failures |
-| Order status change (buyer marked paid) | same collector path | **5–35s** | same |
-| Our "mark paid" action | direct Binance call, then optimistic UI | instant at Binance; our row re-confirms in 5–35s | — |
-| Counterparty released (order completed) | collector 5–35s for status; final record via 5-min history cron | status 5–35s, **full record up to 5.5 min** | cron `terminal-order-history-sync-5m` active |
-| Completed/cancelled order history list | 5-min cron + 30s UI staleness | **up to 5.5 min** | — |
-| Payer pending queue | 5s poll | 5s | — |
-| Appeals board | 10–30s poll | 10–30s | — |
-| Assets / wallet balances | 20–30s poll | 20–30s | — |
-| USDT reference rate | 60s poll | 60s | — |
-| Dashboard daily totals / analytics | derived from history tables, 30s–5 min cache | **30s to 5.5 min behind Binance** | daily aggregates only settle after the 5-min history sync |
-| Order search | client-side over loaded window → instant; inbox search is a DB query | instant / ≤20s | — |
-| Ad prices (auto-price engine) | pg_cron every 1 min | ≤60s | — |
-| Auto-pay / auto-reply engines | pg_cron every 1 min | ≤60s | — |
-| SLA checks | every 10 min | ≤10 min | — |
-| Counterparty nickname capture | every 30 min | ≤30 min | — |
-| Name enrichment | hourly | ≤1h | — |
-| MPI / operator scoring snapshot | daily 06:00 IST | 24h | — |
+| Order placed on Binance → visible in Orders tab | collector 4.5s → cache → UI 30s | 10–20s | ~47s (measured) |
+| Buyer marks paid → Payer queue reflects it | collector 4.5s → UI 5s (payer) / 30s (orders) | 5–15s | 35s |
+| We release → order leaves active list | collector + UI | ≤35s | 35s |
+| Completed order with full record | 5-min history cron | 1–5 min | 5.5 min |
+| Dashboard / daily totals | history tables + 30s–5 min cache | 1–5 min | ~6 min |
+| Incoming chat message | Lightsail socket → DB → Realtime | ~1s | **defective, see §6** |
+| Outgoing chat message | edge fn → Binance, verified by history read | 1–3s | 5s |
 
-## 2. Effective end-to-end worst cases (what an operator feels)
+---
 
-- Order placed on Binance → visible in Orders tab: **typically 10–20s, worst ~47s**.
-- Buyer marks paid → our Payer queue reflects it: **5–35s**.
-- We release → order leaves active list: **≤35s**; appears in Completed with full detail **≤5.5 min**.
-- Today's volume/profit numbers on the dashboard: **lag the last 5-minute history sync**, so up to ~6 minutes behind reality.
+## 2. Orders pipeline
 
-## 3. Defect found: chat capture is not real-time for most messages
+| Parameter | Value | Where |
+|---|---|---|
+| Collector cron | every 1 min | `terminal-order-collector-1m` |
+| Collector run budget | 52s per invocation (continuous cover) | `terminal-order-collector/index.ts` |
+| Poll tick while orders active | 4.5s | `ACTIVE_TICK_MS` |
+| Poll tick while idle / after failure | 12s | `IDLE_TICK_MS` |
+| Active orders currently tracked | 120, 0 consecutive failures (measured) | `terminal_collector_state` |
+| Accounts covered | 2 (Blynk, ASEC) | collector heartbeat |
+| Active-orders UI poll | 30s (5s when collector is stale) | `useBinanceActions.tsx` |
+| Active-orders stale window | 2s | `useBinanceActions.tsx` |
+| Collector heartbeat poll (banner) | 15s, runs in background too | `useTerminalCollector.ts` |
+| Staleness threshold for banner | 60s since last tick | `COLLECTOR_STALE_MS` |
+| Order status detail poll | 20s | `useBinanceActions.tsx` |
+| Order-detail cache | 60s | `useBinanceActions.tsx` |
+| Order history sync cron | every 5 min | `terminal-order-history-sync-5m` |
+| Order history UI cache | 25–60s, poll 30s | `TerminalOrders.tsx` |
+| Long-tail history queries | cache 2 min, poll 3 min | `TerminalOrders.tsx` |
+| Order search | client-side over loaded window | instant |
+| Countdown timers (payment window) | recomputed every 1s | `OrderSummaryPanel.tsx` |
+| SLA breach check | every 10 min | `terminal-sla-check` |
+| Stale terminal data cleanup | every 15 min | `terminal-cleanup` |
 
-Measured on 898 incoming messages in the last 12h (Blynk account; ASEC received none):
+## 3. Chat pipeline
 
-| bucket | count |
+| Parameter | Value |
+|---|---|
+| Server listener | persistent WebSocket per Binance account on Lightsail, 2 connected, 0 reconnects (measured) |
+| Persistence | `binance_order_chat_messages`, idempotent on `(order_number, dedupe_key)` |
+| Open-chat delivery | Supabase Realtime, filtered to the active order (~1s) |
+| Open-chat safety poll | 5s visible, stale 3s |
+| Browser socket role | receive-only (sending is server-owned; Binance allows one live session per account) |
+| Browser socket reconnect backoff | capped at 10s; shared per-account socket, 15-min idle keepalive |
+| Chat inbox refresh | 20s |
+| Inbox history window | full history (no 7-day cut) |
+| Legacy REST chat poll | 10s |
+| Binance read-receipt reconcile | up to 8 unread threads every 90s |
+| Counterparty prior-order history | one batched DB query, page size 5 orders |
+| Outgoing send verification | send frame, then confirm exact content in chat history |
+| Nickname capture cron | every 30 min |
+| Name enrichment cron | hourly |
+
+## 4. Money, assets and pricing
+
+| Parameter | Refresh | Stale window |
+|---|---|---|
+| Binance spot/funding balances | 30s | 10s |
+| Wallet / stock balances (ERP) | 30s | 10s |
+| Asset movement list | — | 10s |
+| Asset movement history (older) | — | 60s |
+| Deposit/withdraw history | 15 min | 10 min |
+| Pending asset movements | 20s | 8s |
+| USDT reference rate | 60s | 30s |
+| Spot index (INR) | — | 30s |
+| Coin market rates (non-USDT) | 6h | 6h |
+| Average cost (WAC) | 60s | 60s |
+| Bank accounts (active) | 30s | 10s |
+| Small-payments manager queue | 10s | 5s |
+| Payer pending queue | 5s | 2s |
+| Payer row / my assignments | 60s | 30s |
+| Credit sub-ledgers | — | 60s |
+
+## 5. Ads, automation and analytics
+
+| Parameter | Refresh |
+|---|---|
+| Ad list (auto-refresh on) | 30s (off by default toggle) |
+| Ad detail | on open, no cache |
+| Ad price ranges | 60s poll, 15s stale |
+| Ad payment methods | 10 min cache |
+| Ad capacity limits | 60s stale |
+| Ad rest timer | 30s |
+| Ad zone map | 10 min |
+| Auto-price engine | cron every 1 min |
+| Auto-pay engine | cron every 1 min |
+| Auto-reply engine | cron every 1 min |
+| Auto-pricing rules / state | 30s poll, 10s stale |
+| Automation status panel | 30s |
+| Copilot settings | 60s; training cron hourly |
+| Appeals board | 10–15s (list), 30s (enriched) |
+| Appeals auto-sync | 90s |
+| Analytics dashboard aggregates | 30s stale (live tiles), 5 min stale (heavy series) |
+| MPI operator scoring snapshot | daily 06:00 IST |
+| Terminal balance snapshot | daily 04:00 IST |
+| Daily gross profit / asset value snapshot | daily 05:30 IST |
+| Risk detection | daily 06:00 IST |
+| Pricing effectiveness snapshot | daily 06:30 IST |
+| Beneficiary capture | every 2 min |
+| ERP action queue | 30s (plus a 2-min integrity check) |
+| ERP entry feed / rejected feed | 30s / 60s |
+| Reconciliation cockpit | 60s |
+| Terminal notifications | 30s |
+| Internal (staff) chat | 30s |
+| Presence heartbeat | periodic heartbeat while the tab is open |
+| Biometric session revalidation | periodic timer while unlocked |
+
+## 6. Known defect — incoming chat is not real-time for most messages
+
+Measured on 898 incoming messages, last 12h (Blynk account; ASEC received none):
+
+| Bucket | Count |
 |---|---|
 | ≤2s | 251 |
 | 2–5s | 13 |
@@ -46,16 +133,18 @@ Measured on 898 incoming messages in the last 12h (Blynk account; ASEC received 
 | 5–60m | 307 |
 | >1h | 108 |
 
-Only ~29% arrive through the live socket path. The rest land later through history sweeps.
-Delay is not explained by the order being inactive — messages on *currently active* orders are just
-as slow (p50 337s) as messages on inactive ones (p50 209s), so the listener socket is not receiving
-the frames for a large share of conversations, and the DB only gets them when a sweep pulls chat
-history for that order.
+Only ~29% arrive through the live socket path; p50 is 229s. Active orders are just as slow
+(p50 337s) as inactive ones (p50 209s), so this is not an "order closed" effect — the listener
+is not receiving frames for a large share of threads and the DB only fills in when a history
+sweep runs. Hourly "fast" ratio swings wildly (0/113 at 20:30 IST, 118/149 at 22:30 IST),
+pointing at intermittent per-account session pre-emption rather than throughput.
 
-Hourly "fast" ratio is also unstable (e.g. 0/113 at 20:30 IST, 118/149 at 22:30 IST), which points at
-the listener's per-account session being intermittently pre-empted / not covering all threads rather
-than at throughput limits.
+Recommended (not yet done): tag each stored message with its source (socket vs sweep) and add a
+short-interval unread-driven sweep for any order Binance reports as unread, dropping the worst
+case from ~1h to ~30s.
 
-Recommended next step (not yet done): make the listener log per-message source (socket vs sweep) and
-add a short-interval unread-driven sweep for any order with a Binance-reported unread count, so the
-worst case drops from ~1h to ~30s.
+## 7. Caveats
+
+- Binance-side propagation is excluded; these numbers start at the moment Binance exposes the data.
+- Background tabs pause most polls (`pollWhenVisible`); the collector heartbeat is the exception.
+- Duplicate cron entries exist for some non-terminal jobs; they do not affect terminal freshness.

@@ -9,6 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Megaphone, Loader2, Send } from 'lucide-react';
 import { useBinanceAdsList, BINANCE_AD_STATUS, type BinanceAd } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from '@/components/ad-manager/PaymentMethodBadge';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+
 
 interface Props {
   /** Binance account owning the current order — only its ads are offered. */

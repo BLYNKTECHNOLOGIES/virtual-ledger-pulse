@@ -1973,8 +1973,8 @@ serve(async (req) => {
                 console.log(`WS open, sending to order ${orderNo}`);
                 const now = Date.now();
                 const msgPayload = JSON.stringify({
-                  type: payload.imageUrl ? "image" : "text",
-                  uuid: String(now),
+                  type: payload.imageUrl ? "image" : (isCard ? "card" : "text"),
+                  uuid: crypto.randomUUID(),
                   orderNo,
                   content: msgContent,
                   self: true,
@@ -1983,6 +1983,7 @@ serve(async (req) => {
                   sendStatus: 0,
                   topicId: orderNo,
                   topicType: "ORDER",
+                  ...(isCard ? { subType: "advertisement" } : {}),
                   ...(payload.imageUrl ? { imageUrl: msgContent, thumbnailUrl: msgContent } : {}),
                 });
                 ws.send(msgPayload);

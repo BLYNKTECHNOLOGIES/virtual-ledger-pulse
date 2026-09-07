@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
+import { ChatAdCard, parseAdCard } from './ChatAdCard';
+
 import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2, MoreVertical, Pin, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,8 +68,23 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
   const isOperator = message.senderType === 'operator';
   const isSystem = message.senderType === 'system';
 
+  const adCard = parseAdCard(message.text);
+  if (adCard) {
+    return (
+      <div className={`flex ${isOperator ? 'justify-end' : 'justify-start'}`}>
+        <div>
+          <ChatAdCard ad={adCard} />
+          <p className="text-[9px] t-mono text-muted-foreground mt-1">
+            {message.timestamp ? format(new Date(message.timestamp), 'HH:mm') : ''} · Shared ad
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (isSystem) {
     const displayText = parseSystemMessage(message.text);
+
     const normalizedType = String(message.messageType || 'system').toLowerCase();
     const Icon = message.isRecall ? RotateCcw : normalizedType === 'video' ? Video : normalizedType === 'card' ? CreditCard : normalizedType === 'translate' ? Languages : ShieldAlert;
     const typeLabel = normalizedType === 'mark' ? 'Order status marker' : normalizedType === 'error' ? 'Binance chat error' : normalizedType === 'unknown' ? 'Unsupported Binance chat message type captured' : `${normalizedType} message captured from Binance`;

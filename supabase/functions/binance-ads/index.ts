@@ -1871,14 +1871,46 @@ serve(async (req) => {
       }
 
       case "sendChatMessage": {
-        // Binance P2P chat requires WebSocket for sending messages — no REST endpoint exists.
-        // Try proxy first, then fall back to WebSocket.
-        const msgContent = payload.imageUrl || payload.content || payload.message;
+        // Binance P2P chat requires WebSocket for sending messages — no documented REST
+        // endpoint exists. The proxy route is retained as a capability probe, but a send
+        // is successful only after the exact outgoing message is visible in chat history.
+        const orderNo = String(payload.orderNo || "").trim();
+        const msgContent = String(payload.imageUrl || payload.content || payload.message || "").trim();
         const msgType = payload.imageUrl ? "IMAGE" : (payload.contentType || payload.chatMessageType || "TEXT");
-        
+
+        if (!/^\d{8,32}$/.test(orderNo)) {
+          result = { code: "INVALID_ORDER", success: false, message: "A valid Binance order number is required" };
+          break;
+        }
+        if (!msgContent || msgContent.length > 5000) {
+          result = { code: "INVALID_MESSAGE", success: false, message: "Message must contain 1 to 5000 characters" };
+          break;
+        }
+
+        const sendStartedAt = Date.now();
+        const verifyDelivery = async () => {
+          const verifyParams = new URLSearchParams({ orderNo, page: "1", rows: "50", sort: "desc" });
+          const verifyUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${verifyParams.toString()}`;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
+            const verifyResponse = await fetchWithRetry(verifyUrl, { method: "GET", headers: proxyHeaders });
+            const verifyText = await verifyResponse.text();
+            let verifyBody: any = null;
+            try { verifyBody = JSON.parse(verifyText); } catch { /* handled as not verified */ }
+            const messages = Array.isArray(verifyBody?.data) ? verifyBody.data : [];
+            const delivered = messages.some((message: any) => {
+              const createdAt = Number(message?.createTime || 0);
+              const content = String(message?.content || message?.message || "");
+              return message?.self === true && content === msgContent && createdAt >= sendStartedAt - 5000;
+            });
+            if (delivered) return true;
+          }
+          return false;
+        };
+
         // Try proxy first for text only. Image URLs sent through the REST/proxy path are
         // rendered by Binance as text links; inline images must be sent as image WS frames.
-        const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(payload.orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
+        const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
         console.log("sendChatMessage trying proxy:", sendMsgUrl);
         let response: Response | { status: number } = { status: 404 };
         let text = "Image messages use WebSocket delivery";
@@ -1888,9 +1920,23 @@ serve(async (req) => {
         }
         console.log("sendChatMessage proxy response:", response.status, text.substring(0, 500));
 
-        // If proxy 404, use WebSocket approach
-        if (response.status === 404 || text.includes("Not Found")) {
-          console.log("sendChatMessage: proxy 404, using WebSocket approach");
+        let proxyAccepted = false;
+        if (response.status !== 404 && !text.includes("Not Found")) {
+          try {
+            const proxyBody = JSON.parse(text);
+            proxyAccepted = response.status >= 200 && response.status < 300 &&
+              (proxyBody?.success === true || proxyBody?.code === "000000");
+          } catch {
+            proxyAccepted = false;
+          }
+        }
+
+        if (proxyAccepted && await verifyDelivery()) {
+          result = { code: "000000", success: true, message: "Message delivery verified" };
+          break;
+        }
+
+        console.log("sendChatMessage: proxy delivery unavailable or unverified, using WebSocket");
           
           // Step 1: Get chat credentials
           const timestamp = Date.now();
@@ -1920,7 +1966,7 @@ serve(async (req) => {
             const wssUrl = `${chatWssUrl}/${listenKey}?token=${token}&clientType=web`;
             
             // Step 2: Connect and send via WebSocket
-            console.log(`WS connecting for sendChatMessage order ${payload.orderNo}...`);
+            console.log(`WS connecting for sendChatMessage order ${orderNo}...`);
             const wsResult = await new Promise<{ success: boolean; error?: string }>((resolve) => {
               const wsTimeout = setTimeout(() => {
                 try { ws.close(); } catch {}
@@ -1929,20 +1975,20 @@ serve(async (req) => {
 
               const ws = new WebSocket(wssUrl);
               ws.onopen = () => {
-                console.log(`WS open, sending to order ${payload.orderNo}`);
+                console.log(`WS open, sending to order ${orderNo}`);
+                const now = Date.now();
                 const msgPayload = JSON.stringify({
-                  type: "chat",
-                  data: JSON.stringify({
-                    type: payload.imageUrl ? "image" : "text",
-                    orderNo: payload.orderNo,
-                    content: msgContent,
-                    contentType: msgType,
-                    msgType: payload.imageUrl ? "U_IMAGE" : "U_TEXT",
-                    imageUrl: payload.imageUrl ? msgContent : undefined,
-                    thumbnailUrl: payload.imageUrl ? msgContent : undefined,
-                    self: true,
-                    uuid: crypto.randomUUID(),
-                  }),
+                  type: payload.imageUrl ? "image" : "text",
+                  uuid: String(now),
+                  orderNo,
+                  content: msgContent,
+                  self: true,
+                  clientType: "web",
+                  createTime: now,
+                  sendStatus: 0,
+                  topicId: orderNo,
+                  topicType: "ORDER",
+                  ...(payload.imageUrl ? { imageUrl: msgContent, thumbnailUrl: msgContent } : {}),
                 });
                 ws.send(msgPayload);
                 setTimeout(() => {
@@ -1959,16 +2005,16 @@ serve(async (req) => {
             });
 
             if (wsResult.success) {
-              result = { code: "000000", success: true, message: "Sent via WebSocket" };
+              const verified = await verifyDelivery();
+              result = verified
+                ? { code: "000000", success: true, message: "Message delivery verified" }
+                : { code: "DELIVERY_NOT_VERIFIED", success: false, message: "Binance did not confirm this message. Please retry." };
             } else {
-              result = { code: "ERROR", success: false, error: wsResult.error };
+              result = { code: "SEND_FAILED", success: false, message: wsResult.error || "Binance chat connection failed" };
             }
           } else {
-            result = { code: "ERROR", success: false, error: "Failed to get chat credentials", raw: credText.substring(0, 300) };
+            result = { code: "CHAT_CREDENTIAL_FAILED", success: false, message: "Failed to get Binance chat credentials" };
           }
-        } else {
-          try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
-        }
         break;
       }
 

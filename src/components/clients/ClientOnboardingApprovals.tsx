@@ -2234,6 +2234,7 @@ export function ClientOnboardingApprovals() {
           {isLoading ? (
             <TableSkeleton rows={8} columns={8} />
           ) : (
+            <>
             <Table stickyHeader density={density} maxHeight="65vh">
               <TableHeader>
                  <TableRow>
@@ -2458,6 +2459,18 @@ export function ClientOnboardingApprovals() {
                 )}
               </TableBody>
             </Table>
+            {pendingApprovals.length > visiblePendingCount && (
+              <div className="flex justify-center mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisiblePendingCount(c => c + PENDING_PAGE_SIZE)}
+                >
+                  Load more ({pendingApprovals.length - visiblePendingCount} remaining)
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>

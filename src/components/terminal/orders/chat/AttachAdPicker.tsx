@@ -42,6 +42,12 @@ export function formatAdMessage(ad: BinanceAd, advertiserNo?: string | null): st
 export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const { accounts } = useExchangeAccount();
+
+  const advertiserNo = useMemo(
+    () => accounts.find((a) => a.id === exchangeAccountId)?.p2p_advertiser_no ?? null,
+    [accounts, exchangeAccountId],
+  );
 
   const { data, isLoading } = useBinanceAdsList(
     { advStatus: BINANCE_AD_STATUS.ONLINE, fetchAll: true },
@@ -63,9 +69,10 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   }, [data, exchangeAccountId, search]);
 
   const pick = (ad: BinanceAd) => {
-    onInsert(formatAdMessage(ad));
+    onInsert(formatAdMessage(ad, advertiserNo));
     setOpen(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

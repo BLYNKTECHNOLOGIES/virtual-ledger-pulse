@@ -419,7 +419,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       if (changedNumber(editingAd!.maxSingleTransAmount, form.maxSingleTransAmount)) adData.maxSingleTransAmount = fullAdData.maxSingleTransAmount;
       if (tradeMethodsChanged(editingAd!.tradeMethods || [], tradeMethods)) adData.tradeMethods = tradeMethods;
       if (changedNumber(editingAd!.payTimeLimit, form.payTimeLimit)) adData.payTimeLimit = fullAdData.payTimeLimit;
-      if (changedNumber(editingAd!.advStatus, binanceAdvStatus)) adData.advStatus = fullAdData.advStatus;
+      // Private is Binance online + visibility restriction, so a private
+      // transition is applied through updateAdStatus (below), never here.
+      if (!visibilityChanged && changedNumber(editingAd!.advStatus, binanceAdvStatus)) adData.advStatus = fullAdData.advStatus;
       if (changedNumber(editingAd!.buyerRegDaysLimit, form.buyerRegDaysLimit)) adData.buyerRegDaysLimit = fullAdData.buyerRegDaysLimit;
       if (changedNumber(editingAd!.buyerBtcPositionLimit, form.buyerBtcPositionLimit)) adData.buyerBtcPositionLimit = fullAdData.buyerBtcPositionLimit;
       if (changedNumber(editingAd!.takerAdditionalKycRequired, form.takerAdditionalKycRequired)) adData.takerAdditionalKycRequired = fullAdData.takerAdditionalKycRequired;

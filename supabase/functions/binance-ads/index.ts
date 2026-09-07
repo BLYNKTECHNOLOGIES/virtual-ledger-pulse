@@ -680,38 +680,92 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Helper: try multiple paths for visibility toggle
+  // Helper: read an ad's live visibility flag straight from Binance
+  async function readAdvVisible(proxyUrl: string, headers: Record<string, string>, advNo: string): Promise<number | null> {
+    try {
+      const resp = await fetch(`${proxyUrl}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(advNo)}`, {
+        method: "POST",
+        headers,
+      });
+      const text = await resp.text();
+      const parsed = JSON.parse(text);
+      const detail = parsed?.data?.data || parsed?.data || parsed;
+      const vis = detail?.advVisibleRet;
+      if (vis && typeof vis.userSetVisible !== "undefined") return Number(vis.userSetVisible);
+      return null;
+    } catch (err) {
+      console.warn("readAdvVisible failed for", advNo, (err as Error).message);
+      return null;
+    }
+  }
+
+  // Helper: try every reachable route for the visibility toggle, then confirm the
+  // real state on Binance. Success is decided by Binance's own reported state,
+  // never by an optimistic response code.
   async function setAdvVisibility(proxyUrl: string, headers: Record<string, string>, advNos: string[], visible: number): Promise<any> {
-    const body = { advNos, visible };
-    const paths = [
+    const attempts: Array<{ path: string; body: Record<string, unknown> }> = [];
+    const dedicatedPaths = [
       `/api/sapi/v1/c2c/ads/setUserAdvVisible`,
+      `/api/sapi/v1/c2c/ads/userAdvVisible`,
       `/api/sapi/v1/c2c/ads/setVisible`,
       `/api/sapi/v1/c2c/ads/updateVisible`,
+      `/api/sapi/v1/c2c/ads/visible`,
       `/api/bapi/c2c/v1/private/ads/setUserAdvVisible`,
       `/api/bapi/c2c/v1/private/ads/setVisible`,
     ];
-    for (const path of paths) {
-      const url = `${proxyUrl}${path}`;
-      console.log("setAdvVisibility trying:", url, JSON.stringify(body));
+    for (const path of dedicatedPaths) {
+      attempts.push({ path, body: { advNos, visible } });
+      attempts.push({ path, body: { advNos, userSetVisible: visible } });
+    }
+    // The documented ad-update endpoint returns advVisibleRet on read; try carrying
+    // the same field back on write for each ad individually.
+    for (const advNo of advNos) {
+      attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, userSetVisible: visible } });
+      attempts.push({ path: `/api/sapi/v1/c2c/ads/update`, body: { advNo, advVisibleRet: { userSetVisible: visible } } });
+      attempts.push({ path: `/api/sapi/v1/c2c/ads/updateStatus`, body: { advNos: [advNo], advStatus: 1, userSetVisible: visible } });
+    }
+
+    const deadPaths = new Set<string>();
+    let lastParsed: any = null;
+    for (const attempt of attempts) {
+      if (deadPaths.has(attempt.path)) continue;
+      const url = `${proxyUrl}${attempt.path}`;
+      console.log("setAdvVisibility trying:", url, JSON.stringify(attempt.body));
       try {
-        const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+        const resp = await fetch(url, { method: "POST", headers, body: JSON.stringify(attempt.body) });
         const text = await resp.text();
-        console.log("setAdvVisibility response:", resp.status, text.substring(0, 500));
+        console.log("setAdvVisibility response:", resp.status, text.substring(0, 300));
         let parsed: any;
         try { parsed = JSON.parse(text); } catch { parsed = { raw: text, status: resp.status }; }
-        if (parsed?.code === "000000") {
-          console.log("setAdvVisibility: working path found:", path);
-          return parsed;
+        lastParsed = parsed;
+        if (resp.status === 404 || text.includes('"Not Found"')) { deadPaths.add(attempt.path); continue; }
+        if (resp.status === 403) { deadPaths.add(attempt.path); continue; }
+        if (parsed?.code === "000000" || parsed?.success === true) {
+          // Confirm Binance actually flipped the flag before declaring success.
+          await new Promise((r) => setTimeout(r, 600));
+          const confirmed = await readAdvVisible(proxyUrl, headers, advNos[0]);
+          if (confirmed === null || confirmed === visible) {
+            console.log("setAdvVisibility: confirmed via", attempt.path, "userSetVisible =", confirmed);
+            return { code: "000000", data: parsed?.data ?? null, via: attempt.path, verified: confirmed === visible };
+          }
+          console.log("setAdvVisibility: endpoint reported success but flag still", confirmed, "— continuing");
         }
-        if (resp.status === 404 || text.includes('"Not Found"')) continue;
-        // Non-404 response, might be the right endpoint but with an error
-        return parsed;
       } catch (err) {
-        console.warn("setAdvVisibility error on", path, (err as Error).message);
+        console.warn("setAdvVisibility error on", attempt.path, (err as Error).message);
       }
     }
-    return { code: "VISIBILITY_NOT_SUPPORTED", message: "No working visibility endpoint found on proxy" };
+
+    // Last resort: some accounts apply the change asynchronously. Re-read once.
+    const finalState = await readAdvVisible(proxyUrl, headers, advNos[0]);
+    if (finalState === visible) {
+      console.log("setAdvVisibility: state already matches after attempts");
+      return { code: "000000", data: null, via: "verified-state", verified: true };
+    }
+    return lastParsed?.code
+      ? { ...lastParsed, code: lastParsed.code === "000000" ? "VISIBILITY_NOT_APPLIED" : lastParsed.code }
+      : { code: "VISIBILITY_NOT_SUPPORTED", message: "No working visibility endpoint found on proxy" };
   }
+
 
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL");

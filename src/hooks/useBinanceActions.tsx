@@ -352,7 +352,7 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null, accountId?
     },
     enabled: !!orderNumber,
     staleTime: 15 * 1000,
-    refetchInterval: 20 * 1000, // Poll every 20s for status changes
+    refetchInterval: pollWhenVisible(10 * 1000), // Poll every 10s for status changes
   });
 }
 

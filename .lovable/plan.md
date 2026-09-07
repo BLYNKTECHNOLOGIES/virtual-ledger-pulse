@@ -5,7 +5,11 @@
 - Ubuntu 22.04, 914 MB RAM (~450 MB free), 30 GB free disk — ample.
 - `pm2` manages everything: `binance-proxy` (server.js, port 3000, 54 MB) and `chat-relay` (relay.js, port 8080, 44 MB). No crontab, no systemd units. The listener will be a third pm2 app for consistency.
 - nginx terminates TLS on 443 in front of both; the listener will talk to them over **localhost**, so nginx stays untouched and no new ports open.
-- `/home/ubuntu/binance-proxy/.env` holds `BINANCE_API_KEY`, `BINANCE_API_SECRET`, `PROXY_TOKEN`, `BINANCE_PROXY_TOKEN` — i.e. **only Account 1's keys**. Account 2's key/secret must be added to the listener's own env, otherwise Account 2 chats won't be captured.
+- Account mapping (verified in DB):
+  - `credential_key = default` → **Blynk Binance**
+  - `credential_key = acct2` → **ASEC Binance**
+- `/home/ubuntu/binance-proxy/.env` holds `BINANCE_API_KEY`, `BINANCE_API_SECRET`, `PROXY_TOKEN`, `BINANCE_PROXY_TOKEN` — i.e. **only Blynk's keys**. ASEC's key/secret must be added to the listener's own env, otherwise ASEC chats won't be captured.
+
 
 **Key architectural point (verified in app code):** Binance chat is **one WebSocket per Binance account**, not per order — every order's messages for an account arrive on that account's single socket. 50 concurrent chats = 2 sockets. Memory cost is trivial (~40 MB total).
 
@@ -46,8 +50,9 @@ chmod 600 /home/ubuntu/chat-listener/.env
 
 Where each value comes from:
 - **Service role key** — Supabase dashboard, Project Settings → API → `service_role` secret.
-- **Account 1 key/secret, PROXY_TOKEN, BINANCE_PROXY_TOKEN** — already in the proxy `.env`; nothing to type.
-- **Account 2 key/secret** — not on this box. They are stored encrypted in the app's secrets (`BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2`) and cannot be read back, so copy them from Binance → API Management on Account 2, or generate a fresh read-enabled pair there. If Account 2 chats aren't needed yet, leave these blank and the listener simply runs for Account 1.
+- **Blynk key/secret, PROXY_TOKEN, BINANCE_PROXY_TOKEN** — already in the proxy `.env`; nothing to type.
+- **ASEC key/secret** — not on this box. They are stored encrypted in the app's secrets (`BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2`) and cannot be read back, so copy them from Binance → API Management on the **ASEC** account, or generate a fresh read-enabled pair there. If ASEC chats aren't needed yet, leave these blank and the listener simply runs for Blynk.
+
 
 
 ### A3. Install `main.js` (I write it after you confirm A1/A2) and start it under pm2

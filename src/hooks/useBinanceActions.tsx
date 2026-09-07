@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { withActiveAccount } from '@/lib/activeExchangeAccount';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+import { useTerminalCollectorState, isCollectorStale } from '@/hooks/useTerminalCollector';
 
 // ---- Generic Binance API caller ----
 // Hard client-side timeout: if the upstream Binance proxy hangs (we have seen

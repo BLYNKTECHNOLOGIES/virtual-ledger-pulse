@@ -120,24 +120,42 @@ Deno.serve(async (req: Request) => {
         const resolved = await resolveAccount(account.id);
         const headers = proxyHeadersFor(resolved);
         const url = `${resolved.proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ page: 1, rows: 100 }),
-        });
-        const text = await response.text();
-        let result: any;
-        try { result = JSON.parse(text); } catch { result = { raw: text }; }
 
-        if (!response.ok || (result?.code && result.code !== "000000")) {
-          // 429 / 5xx: back off via the idle cadence on the next tick.
+        // Binance caps this endpoint's page size (20 rows in practice), so walk
+        // a few pages to be sure recent orders are never crowded out by older
+        // completed/cancelled rows on page 1.
+        const PAGE_ROWS = 50;
+        const MAX_PAGES = 3;
+        const orders: any[] = [];
+        let pageFailed = false;
+        for (let page = 1; page <= MAX_PAGES; page++) {
+          const response = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ page, rows: PAGE_ROWS }),
+          });
+          const text = await response.text();
+          let result: any;
+          try { result = JSON.parse(text); } catch { result = { raw: text }; }
+
+          if (!response.ok || (result?.code && result.code !== "000000")) {
+            // 429 / 5xx: back off via the idle cadence on the next tick.
+            if (page === 1) pageFailed = true;
+            console.warn(`collector tick failed for ${resolved.accountName} page ${page}:`, response.status, text.substring(0, 300));
+            break;
+          }
+
+          const pageOrders = extractOrders(result);
+          orders.push(...pageOrders);
+          if (pageOrders.length === 0) break;
+        }
+        if (pageFailed) {
           anyFailure = true;
-          console.warn(`collector tick failed for ${resolved.accountName}:`, response.status, text.substring(0, 300));
           continue;
         }
 
-        const orders = extractOrders(result);
         totalOrders += orders.length;
+
         const now = new Date().toISOString();
         const seenNumbers = new Set<string>();
         const rows = [];

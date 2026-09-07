@@ -651,7 +651,7 @@ export function useBinanceChatWebSocket(
     setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
     void doServerSend(tempId, msg.orderNo, msg.content, msg.type);
 
-  }, [doWsSend, doServerSend]);
+  }, [doServerSend]);
 
 
   return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, retryMessage, error, queuedMessages };

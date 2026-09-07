@@ -8,4 +8,4 @@
 - [x] Verify: tsgo clean, cron job_run_details all succeeded (collector 1m + history 5m), cache 40 rows fresh, heartbeat ok
 - [x] STATE_LOG entry appended (IST)
 - [x] Phase 3b persistent server-side chat listener on AWS relay host
-- [ ] Install the corrected idempotent listener build on Lightsail and verify stable sockets + saved messages
+- [x] Install corrected idempotent listener build on Lightsail; checksum/syntax passed, both sockets stable, new messages saved, heartbeat `connected: 2` / `reconnects: 0`, and zero duplicate groups verified

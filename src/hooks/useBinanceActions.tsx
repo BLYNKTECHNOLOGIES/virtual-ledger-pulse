@@ -260,9 +260,10 @@ export function useBinanceActiveOrders(filters?: {
       return { data: merged, _source: 'live' };
     },
     staleTime: 2 * 1000,
-    // Realtime invalidations keep this fresh; the slow poll is only a safety net
-    // (and the live fallback cadence when the collector is stale).
-    refetchInterval: pollWhenVisible(collectorStale ? 5 * 1000 : 30 * 1000),
+    // Realtime invalidations keep this fresh; the safety poll is tightened to the
+    // 5s appearance target when healthy and 5s live fallback when the collector
+    // is stale so a dead collector never blinds the terminal for long.
+    refetchInterval: pollWhenVisible(5 * 1000),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
@@ -277,6 +278,7 @@ export function useBinanceOrderDetail(orderNumber: string | null, accountId?: st
     queryFn: () => callBinanceAds('getOrderDetail', { orderNumber }, accountId ?? undefined),
     enabled: !!orderNumber,
     staleTime: 10 * 1000,
+    refetchInterval: pollWhenVisible(10 * 1000),
     retry: 1, // Don't retry excessively if endpoint is blocked
   });
 }
@@ -350,7 +352,7 @@ export function useBinanceOrderLiveStatus(orderNumber: string | null, accountId?
     },
     enabled: !!orderNumber,
     staleTime: 15 * 1000,
-    refetchInterval: 20 * 1000, // Poll every 20s for status changes
+    refetchInterval: pollWhenVisible(10 * 1000), // Poll every 10s for status changes
   });
 }
 
@@ -671,7 +673,7 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
     queryFn: async () => {
       let query = supabase
         .from('binance_order_chat_messages' as any)
-        .select('id, order_number, dedupe_key, binance_message_id, binance_uuid, message_type, chat_message_type, content_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant')
+        .select('id, order_number, dedupe_key, binance_message_id, binance_uuid, message_type, chat_message_type, content_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant, capture_source, capture_latency_ms')
         .eq('order_number', orderNo!);
 
       if (accountId) {

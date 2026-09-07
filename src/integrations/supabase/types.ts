@@ -1956,6 +1956,8 @@ export type Database = {
           binance_created_at: string | null
           binance_message_id: string | null
           binance_uuid: string | null
+          capture_latency_ms: number | null
+          capture_source: string
           captured_at: string
           chat_message_type: string | null
           content_type: string | null
@@ -1981,6 +1983,8 @@ export type Database = {
           binance_created_at?: string | null
           binance_message_id?: string | null
           binance_uuid?: string | null
+          capture_latency_ms?: number | null
+          capture_source?: string
           captured_at?: string
           chat_message_type?: string | null
           content_type?: string | null
@@ -2006,6 +2010,8 @@ export type Database = {
           binance_created_at?: string | null
           binance_message_id?: string | null
           binance_uuid?: string | null
+          capture_latency_ms?: number | null
+          capture_source?: string
           captured_at?: string
           chat_message_type?: string | null
           content_type?: string | null

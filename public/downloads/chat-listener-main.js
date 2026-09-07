@@ -144,6 +144,7 @@ function normalize(orderNo, msg, accountId) {
     is_recall: isRecall,
     is_compliance_relevant: isCompliance,
     exchange_account_id: accountId,
+    capture_source: 'listener_ws',
     updated_at: new Date().toISOString(),
   };
 }
@@ -171,7 +172,7 @@ async function persist(row) {
     if (error) { console.error('insert error', error.message); return; }
     stats.saved++;
     stats.lastMessageAt = new Date().toISOString();
-    console.log(`saved message order=${row.order_number} type=${row.message_type}`);
+    console.log(`saved message order=${row.order_number} type=${row.message_type} source=${row.capture_source}`);
   }
 }
 
@@ -189,7 +190,10 @@ class AccountSocket {
   }
 
   async credential() {
-    if (this.cred) return this.cred;
+    // Refresh the listenKey before Binance's 60-minute expiry. Re-fetching on
+    // every reconnect plus proactively invalidating a key older than 25 min
+    // keeps the socket session healthy.
+    if (this.cred && Date.now() - this.credAt < 25 * 60 * 1000) return this.cred;
     const { key, secret } = secretsFor(this.account.credential_key);
     if (!key || !secret) throw new Error(`no API secrets for ${this.account.account_name} (${this.account.credential_key})`);
     this.cred = await fetchChatCredential(key, secret);

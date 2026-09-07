@@ -110,6 +110,32 @@ export function useSendInternalMessage() {
 
 export function useInternalUnreadCounts(orderNumbers: string[]) {
   const { userId } = useTerminalAuth();
+  const queryClient = useQueryClient();
+
+  // Realtime invalidation for unread badges; 5s safety poll keeps counts honest
+  // if a Realtime event is missed.
+  useEffect(() => {
+    if (!userId || orderNumbers.length === 0) return;
+    const topic = `internal-unread-${userId}-${crypto.randomUUID()}`;
+    const channel = supabase
+      .channel(topic)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'terminal_internal_messages',
+          filter: `order_number=in.(${orderNumbers.join(',')})`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['internal-unread-counts'] });
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, orderNumbers, queryClient]);
 
   return useQuery({
     queryKey: ['internal-unread-counts', orderNumbers.join(','), userId],
@@ -147,7 +173,7 @@ export function useInternalUnreadCounts(orderNumbers: string[]) {
       return counts;
     },
     enabled: !!userId && orderNumbers.length > 0,
-    refetchInterval: 30000,
+    refetchInterval: 5000,
   });
 }
 

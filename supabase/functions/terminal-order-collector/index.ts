@@ -2,7 +2,8 @@
 //
 // Started once per minute by pg_cron (x-scheduler-secret auth). Each run stays
 // awake up to ~52 seconds and polls Binance every ~4.5s while accounts have
-// active orders, backing off to ~12s when everything is idle or failing.
+// active orders. The idle/failure cadence is also ~4.5s so that newly arriving
+// orders appear in the cache within the 5s appearance target.
 // Results are upserted into public.terminal_active_orders_cache (raw payload
 // preserved) and a heartbeat is written to public.terminal_collector_state so
 // the UI can warn when data is stale.
@@ -16,7 +17,7 @@ import { resolveAccount, listActiveAccounts, proxyHeadersFor } from "../_shared/
 
 const RUN_BUDGET_MS = 52_000;
 const ACTIVE_TICK_MS = 4_500;
-const IDLE_TICK_MS = 12_000;
+const IDLE_TICK_MS = 4_500;
 const MAX_CONSECUTIVE_FAILURES = 5;
 
 function jsonResponse(body: unknown, status = 200) {

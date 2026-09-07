@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 import { advertiserBadges, normalizeZone, zoneClassifies } from "../_shared/adZone.ts";
+import { normalizeChatMessage, persistChatMessages } from "../_shared/binance-chat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -547,82 +548,6 @@ function extractChatMessages(result: any): any[] {
   return [];
 }
 
-function normalizeChatMessage(orderNo: string, msg: any, accountId?: string | null) {
-  const contentType = msg?.contentType == null ? null : String(msg.contentType).toLowerCase();
-  const rawType = String(msg?.type || msg?.chatMessageType || msg?.messageType || contentType || "unknown").toLowerCase();
-  const knownTypes = new Set(["text", "image", "system", "recall", "mark", "card", "video", "translate", "error"]);
-  const messageType = knownTypes.has(rawType) ? rawType : rawType || "unknown";
-  const content = msg?.content ?? msg?.message ?? msg?.text ?? null;
-  const createTime = Number(msg?.createTime || msg?.time || 0);
-  const isSystem = messageType === "system" || msg?.self === undefined && /system|notice|risk|warning|kyc|appeal|complaint/i.test(String(content || ""));
-  const isRecall = messageType === "recall" || /recall|retract|withdraw/i.test(messageType);
-  const isComplianceRelevant = isSystem || isRecall || ["card", "video", "error", "mark"].includes(messageType);
-  const binanceMessageId = msg?.id == null ? null : String(msg.id);
-  const binanceUuid = msg?.uuid == null ? null : String(msg.uuid);
-  const fallbackKey = `${orderNo}-${createTime || "no-time"}-${messageType}-${String(content || JSON.stringify(msg || {})).slice(0, 160)}`;
-
-  const row: Record<string, any> = {
-    order_number: orderNo,
-    dedupe_key: binanceMessageId || binanceUuid || fallbackKey,
-    binance_message_id: binanceMessageId,
-    binance_uuid: binanceUuid,
-    message_type: messageType,
-    chat_message_type: msg?.chatMessageType == null ? null : String(msg.chatMessageType),
-    content_type: contentType,
-    sender_is_self: typeof msg?.self === "boolean" ? msg.self : typeof msg?.isSelf === "boolean" ? msg.isSelf : null,
-    sender_nickname: msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
-    message_status: msg?.status == null ? msg?.sendStatus == null ? null : String(msg.sendStatus) : String(msg.status),
-    binance_create_time: Number.isFinite(createTime) && createTime > 0 ? createTime : null,
-    binance_created_at: Number.isFinite(createTime) && createTime > 0 ? new Date(createTime).toISOString() : null,
-    message_text: typeof content === "string" ? content : content == null ? null : JSON.stringify(content),
-    image_url: msg?.imageUrl || null,
-    thumbnail_url: msg?.thumbnailUrl || null,
-    raw_payload: msg,
-    is_system_message: isSystem,
-    is_recall: isRecall,
-    is_compliance_relevant: isComplianceRelevant,
-    updated_at: new Date().toISOString(),
-  };
-
-  if (accountId) row.exchange_account_id = accountId;
-  return row;
-}
-
-async function persistChatMessages(supabase: any, orderNo: string, messages: any[], accountId?: string | null) {
-  let inserted = 0;
-  let updated = 0;
-  let systemMessages = 0;
-  let recalls = 0;
-  let errors = 0;
-
-  for (const msg of messages) {
-    const row = normalizeChatMessage(orderNo, msg, accountId);
-    if (row.is_system_message) systemMessages++;
-    if (row.is_recall) recalls++;
-    if (row.message_type === "error") errors++;
-
-    const { data: existing, error: readErr } = await supabase
-      .from("binance_order_chat_messages")
-      .select("id")
-      .eq("order_number", orderNo)
-      .eq("dedupe_key", row.dedupe_key)
-      .eq("exchange_account_id", accountId || "00000000-0000-0000-0000-000000000001")
-      .maybeSingle();
-    if (readErr) throw readErr;
-
-    if (existing?.id) {
-      const { error } = await supabase.from("binance_order_chat_messages").update(row).eq("id", existing.id);
-      if (error) throw error;
-      updated++;
-    } else {
-      const { error } = await supabase.from("binance_order_chat_messages").insert({ ...row, captured_at: new Date().toISOString() });
-      if (error) throw error;
-      inserted++;
-    }
-  }
-
-  return { fetched: messages.length, inserted, updated, systemMessages, recalls, errors };
-}
 
 // Retry wrapper for transient network errors (connection closed, timeouts)
 async function fetchWithRetry(
@@ -1877,7 +1802,7 @@ serve(async (req) => {
         if (payload.orderNo && filteredMessages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID);
+            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID, (payload.captureSource as any) || "history_sync");
             result._archive = archive;
           } catch (persistErr) {
             console.warn("getChatMessages archive persist failed:", persistErr);
@@ -1919,7 +1844,7 @@ serve(async (req) => {
           seen.add(key);
           return true;
         });
-        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID);
+        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID, (payload.captureSource as any) || "history_sync");
         result = { code: "000000", message: "success", data: archive };
         break;
       }

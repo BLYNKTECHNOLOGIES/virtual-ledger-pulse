@@ -83,11 +83,15 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
   }
 
   if (isSystem) {
-    const displayText = parseSystemMessage(message.text);
-
     const normalizedType = String(message.messageType || 'system').toLowerCase();
+    // Never print a raw Binance card payload as text.
+    const looksLikeRawPayload =
+      normalizedType === 'card' || (message.text || '').trim().startsWith('{"');
+    const displayText = looksLikeRawPayload ? 'Shared ad' : parseSystemMessage(message.text);
+
     const Icon = message.isRecall ? RotateCcw : normalizedType === 'video' ? Video : normalizedType === 'card' ? CreditCard : normalizedType === 'translate' ? Languages : ShieldAlert;
     const typeLabel = normalizedType === 'mark' ? 'Order status marker' : normalizedType === 'error' ? 'Binance chat error' : normalizedType === 'unknown' ? 'Unsupported Binance chat message type captured' : `${normalizedType} message captured from Binance`;
+
     return (
       <div className="flex justify-center">
         <div className="bg-muted/30 rounded px-3 py-1.5 max-w-[90%] border border-border/50 flex items-start gap-1.5">

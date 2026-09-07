@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { ChatImageLightbox } from './ChatImageLightbox';
+import { ChatAdCard, parseAdCard } from './ChatAdCard';
+
 import { ImageOff, Clock, RefreshCw, AlertCircle, RotateCcw, ShieldAlert, Video, CreditCard, Languages, Loader2, MoreVertical, Pin, Ban } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {

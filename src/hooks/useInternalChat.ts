@@ -111,6 +111,7 @@ export function useSendInternalMessage() {
 export function useInternalUnreadCounts(orderNumbers: string[]) {
   const { userId } = useTerminalAuth();
   const queryClient = useQueryClient();
+  const orderNumbersKey = orderNumbers.join(',');
 
   // Realtime invalidation for unread badges; 5s safety poll keeps counts honest
   // if a Realtime event is missed.
@@ -125,7 +126,7 @@ export function useInternalUnreadCounts(orderNumbers: string[]) {
           event: 'INSERT',
           schema: 'public',
           table: 'terminal_internal_messages',
-          filter: `order_number=in.(${orderNumbers.join(',')})`,
+          filter: `order_number=in.(${orderNumbersKey})`,
         },
         () => {
           queryClient.invalidateQueries({ queryKey: ['internal-unread-counts'] });
@@ -135,10 +136,12 @@ export function useInternalUnreadCounts(orderNumbers: string[]) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, orderNumbers, queryClient]);
+    // orderNumbersKey is the stable representation of orderNumbers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, orderNumbersKey, queryClient]);
 
   return useQuery({
-    queryKey: ['internal-unread-counts', orderNumbers.join(','), userId],
+    queryKey: ['internal-unread-counts', orderNumbersKey, userId],
     queryFn: async () => {
       if (!userId || orderNumbers.length === 0) return {} as Record<string, number>;
 

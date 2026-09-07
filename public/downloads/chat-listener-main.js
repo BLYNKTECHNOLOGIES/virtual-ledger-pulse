@@ -52,7 +52,8 @@ function secretsFor(credentialKey) {
 
 // ---- Binance chat credential (signed, direct — same as the send path) ----
 async function fetchChatCredential(apiKey, apiSecret) {
-  const qs = `timestamp=${Date.now()}&recvWindow=5000`;
+  // timestamp only — this endpoint rejects recvWindow with -31002 illegal parameter
+  const qs = `timestamp=${Date.now()}`;
   const sig = crypto.createHmac('sha256', apiSecret).update(qs).digest('hex');
   const url = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${qs}&signature=${sig}`;
   const res = await fetch(url, { headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/json' } });

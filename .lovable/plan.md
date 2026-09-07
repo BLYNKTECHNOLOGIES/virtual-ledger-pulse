@@ -1,44 +1,25 @@
 # Phase 3b — Always-on chat listener on the existing relay box
 
-## What we now know about the box (from your output)
+## Confirmed state of the box
 
-- Ubuntu 22.04 LTS, 914 MB RAM (~450 MB free), 30 GB free disk — plenty for this.
-- `/home/ubuntu/binance-proxy/server.js` — Express API proxy on **port 3000** (`/api/*`, token via `x-proxy-token`, per-request `x-api-key` / `x-api-secret`).
-- `/home/ubuntu/binance-proxy/relay.js` — WebSocket chat relay on **port 8080** (`?key=<token>&target=<binance wss url>`).
-- nginx terminates TLS on 443 and fronts both.
-- Two `node` processes are running but not as systemd units — so they are started by pm2, nohup or a cron `@reboot`. One command below settles that.
+- Ubuntu 22.04, 914 MB RAM (~450 MB free), 30 GB free disk — ample.
+- `pm2` manages everything: `binance-proxy` (server.js, port 3000, 54 MB) and `chat-relay` (relay.js, port 8080, 44 MB). No crontab, no systemd units. The listener will be a third pm2 app for consistency.
+- nginx terminates TLS on 443 in front of both; the listener will talk to them over **localhost**, so nginx stays untouched and no new ports open.
+- `/home/ubuntu/binance-proxy/.env` holds `BINANCE_API_KEY`, `BINANCE_API_SECRET`, `PROXY_TOKEN`, `BINANCE_PROXY_TOKEN` — i.e. **only Account 1's keys**. Account 2's key/secret must be added to the listener's own env, otherwise Account 2 chats won't be captured.
 
-**Key architectural point (verified in app code):** Binance chat is **one WebSocket per Binance account**, not per order. Every order's messages for an account arrive on that account's single socket. So 50 concurrent chats = 2 sockets (one per account). Memory cost is negligible.
+**Key architectural point (verified in app code):** Binance chat is **one WebSocket per Binance account**, not per order — every order's messages for an account arrive on that account's single socket. 50 concurrent chats = 2 sockets. Memory cost is trivial (~40 MB total).
 
-## Part A — Setup on the existing instance
+## Part A — Setup commands
 
-### A1. Two last discovery commands
-
-```bash
-pm2 ls; crontab -l; ps -o pid,ppid,cmd -p 365454 -p 365462
-grep -o '^[A-Z_]*' /home/ubuntu/binance-proxy/.env
-```
-
-The first tells me how the existing node apps are kept alive (so the listener matches that style); the second lists only the **names** of the env keys already present (no values), so I know whether account-2 keys are already on the box.
-
-### A2. Runtime
-
-Node is already installed and in use, so the listener will be a plain Node file — no new runtime to install.
+### A1. Create the service folder and install dependencies
 
 ```bash
-node -v && npm -v
-```
-
-### A3. Create the service folder
-
-```bash
-mkdir -p /home/ubuntu/chat-listener
-cd /home/ubuntu/chat-listener
+mkdir -p /home/ubuntu/chat-listener && cd /home/ubuntu/chat-listener
 npm init -y
 npm install ws @supabase/supabase-js dotenv
 ```
 
-### A4. Secrets file (values never in code)
+### A2. Secrets file (values never in code)
 
 ```bash
 cat > /home/ubuntu/chat-listener/.env <<'EOF'
@@ -46,7 +27,8 @@ SUPABASE_URL=https://vagiqbespusdxsbqpvbo.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<paste service role key>
 PROXY_BASE=http://127.0.0.1:3000
 RELAY_BASE=ws://127.0.0.1:8080
-PROXY_TOKEN=<same value server.js uses>
+PROXY_TOKEN=<same PROXY_TOKEN value as binance-proxy/.env>
+RELAY_TOKEN=<same BINANCE_PROXY_TOKEN value as binance-proxy/.env>
 BINANCE_API_KEY=<account 1 key>
 BINANCE_API_SECRET=<account 1 secret>
 BINANCE_API_KEY_2=<account 2 key>
@@ -55,56 +37,46 @@ EOF
 chmod 600 /home/ubuntu/chat-listener/.env
 ```
 
-Localhost is used deliberately: no TLS hop, no public round-trip, and nginx stays untouched.
-
-### A5. Install `main.js` (I write this after A1) and run it under systemd
+Copy the Account 1 values straight across:
 
 ```bash
-sudo tee /etc/systemd/system/chat-listener.service >/dev/null <<'EOF'
-[Unit]
-Description=Blynk Binance chat listener
-After=network-online.target
-
-[Service]
-User=ubuntu
-WorkingDirectory=/home/ubuntu/chat-listener
-ExecStart=/usr/bin/node main.js
-Restart=always
-RestartSec=5
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-sudo systemctl daemon-reload
-sudo systemctl enable --now chat-listener
-sudo systemctl status chat-listener --no-pager
-journalctl -u chat-listener -f
+grep -E '^(BINANCE_API_KEY|BINANCE_API_SECRET)=' /home/ubuntu/binance-proxy/.env
+grep -E '^(PROXY_TOKEN|BINANCE_PROXY_TOKEN)=' /home/ubuntu/binance-proxy/.env
 ```
 
-(If A1 shows pm2 running the other two apps, we use `pm2 start main.js --name chat-listener && pm2 save` instead, to keep one process manager.)
+Account 2's key/secret come from the Binance account itself (same pair already stored as `BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2` in the app's secrets). Paste them into the file above only — never into code or chat.
 
-### A6. Optional hardening on the same box
-- `sudo fallocate -l 512M /swapfile` style extra swap only if memory gets tight later — not needed now.
-- No new inbound ports: the listener is outbound-only, connecting to 127.0.0.1:3000 and 127.0.0.1:8080.
+### A3. Install `main.js` (I write it after you confirm A1/A2) and start it under pm2
+
+```bash
+cd /home/ubuntu/chat-listener
+pm2 start main.js --name chat-listener
+pm2 save
+pm2 ls
+pm2 logs chat-listener --lines 100
+```
+
+Handy later: `pm2 restart chat-listener`, `pm2 logs chat-listener`, `pm2 describe chat-listener`.
+
+### A4. Nothing else to change
+No new inbound ports (outbound/localhost only), no nginx edits, no plan upgrade. pm2 already restarts crashed apps and `pm2 save` makes it survive reboot.
 
 ## Part B — What the listener does (`main.js`, ~200 lines)
 
-1. Reads active accounts from `terminal_exchange_accounts` via a service-role Supabase client, mapping `credential_key` → the matching `BINANCE_API_KEY*` env pair (same rule the edge functions use).
-2. Per account: `GET http://127.0.0.1:3000/api/sapi/v1/c2c/chat/retrieveChatCredential` with the proxy token and that account's key/secret, then opens **one** socket to `ws://127.0.0.1:8080/?key=<PROXY_TOKEN>&target=<chatWssUrl>/<listenKey>?token=<listenToken>&clientType=web` — the exact shape the browser uses today.
-3. Every inbound frame is normalised and upserted into `binance_order_chat_messages` on `dedupe_key` (column already exists), stamped with `exchange_account_id`. Idempotent, so the browser's archive sync writing the same message causes no duplicates.
-4. Credentials refresh every 25 minutes; sockets reconnect with exponential backoff; a rejected listenKey drops the cache and re-fetches.
-5. Heartbeat row in `terminal_collector_state` (`id='chat_listener'`) every 15 s: connected sockets, last message time, reconnect count.
-6. Sending is unchanged — it stays on the existing browser/edge-function path.
+1. Reads active accounts from `terminal_exchange_accounts` with a service-role Supabase client and maps each `credential_key` to its `BINANCE_API_KEY*` pair — the same rule the edge functions use.
+2. Per account: `GET http://127.0.0.1:3000/api/sapi/v1/c2c/chat/retrieveChatCredential` with `x-proxy-token` plus that account's `x-api-key` / `x-api-secret`, then opens **one** socket to `ws://127.0.0.1:8080/?key=<RELAY_TOKEN>&target=<chatWssUrl>/<listenKey>?token=<listenToken>&clientType=web` — exactly the URL shape the browser uses today.
+3. Each inbound frame is normalised and upserted into `binance_order_chat_messages` on `dedupe_key` (column already exists), stamped with `exchange_account_id`. Idempotent, so the browser's archive sync writing the same message never duplicates.
+4. Credentials refresh every 25 minutes; sockets reconnect with exponential backoff; a rejected listenKey clears the cache and re-fetches.
+5. Heartbeat into `terminal_collector_state` (`id='chat_listener'`) every 15 s: connected sockets, last message time, reconnect count.
+6. Sending stays exactly as it is today (browser socket / `chat/send` proxy route) — this service only listens.
 
 ## Part C — Terminal (app) side
 
-1. Add `binance_order_chat_messages` to the Supabase realtime publication and subscribe in the chat hook, so new messages paint instantly from our database.
+1. Add `binance_order_chat_messages` to the Supabase realtime publication and subscribe in the chat hook, so messages paint instantly from our own database.
 2. Chat opens from database rows first; with the listener running, history is always complete even after a reload.
 3. Browser socket becomes send-only — keep it for sending/typing, drop the REST reconciliation poll while the listener heartbeat is healthy.
 4. "Live chat: connected / stale" chip beside the existing orders banner, driven by the `chat_listener` heartbeat row.
-5. Fallback: if the heartbeat goes stale, the browser transparently resumes today's behaviour (own socket + poll), so nothing breaks if the box goes down.
+5. Fallback: if the heartbeat goes stale, browsers transparently resume today's behaviour (own socket + poll), so nothing breaks if the box goes down.
 
 ## Order of work
-A1 output from you → I write `main.js` and give you A3–A5 exactly → verify live messages landing in the database → then Part C in the app, fallback kept throughout.
+A1 + A2 on the box → I write `main.js`, you run A3 → verify live messages landing in the database → then Part C in the app, with the fallback kept throughout.

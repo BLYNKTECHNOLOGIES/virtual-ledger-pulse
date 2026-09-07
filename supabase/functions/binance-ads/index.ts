@@ -719,8 +719,27 @@ serve(async (req) => {
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     // Require an authenticated caller — this function controls live Binance trading.
+    // Internal scheduler jobs authenticate with the shared x-scheduler-secret instead
+    // of a user token; they are restricted to read-only sync actions below.
     const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const schedulerSecretHeader = req.headers.get("x-scheduler-secret") || "";
+    let callerIsScheduler = false;
+    if (schedulerSecretHeader && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const secretAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: secretRow } = await secretAdmin
+          .from("app_scheduler_secrets")
+          .select("secret_value")
+          .eq("name", "internal_cron")
+          .maybeSingle();
+        if (secretRow?.secret_value && secretRow.secret_value === schedulerSecretHeader) {
+          callerIsScheduler = true;
+        }
+      } catch (secretErr) {
+        console.warn("scheduler secret check failed:", secretErr);
+      }
+    }
+    if (!authHeader?.startsWith("Bearer ") && !callerIsScheduler) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -728,8 +747,8 @@ serve(async (req) => {
     }
     let callerUserId: string | null = null;
     const callerIsServiceRole =
-      !!SUPABASE_SERVICE_ROLE_KEY && authHeader.replace("Bearer ", "").trim() === SUPABASE_SERVICE_ROLE_KEY;
-    if (!callerIsServiceRole) {
+      !!SUPABASE_SERVICE_ROLE_KEY && !!authHeader && authHeader.replace("Bearer ", "").trim() === SUPABASE_SERVICE_ROLE_KEY;
+    if (!callerIsServiceRole && !callerIsScheduler) {
       try {
         const authClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
           global: { headers: { Authorization: authHeader } },
@@ -781,6 +800,14 @@ serve(async (req) => {
 
     const { action, ...payload } = await req.json();
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
+
+    // Scheduler-secret callers may only run internal read-only sync actions.
+    if (callerIsScheduler && !callerIsServiceRole && !["syncTerminalOrdersForErp", "listActiveOrders"].includes(action)) {
+      return new Response(JSON.stringify({ error: "Forbidden for scheduler caller" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Resolve which Binance account this request targets (defaults to primary).
     const requestedAccountId = accountIdFromPayload(payload);
@@ -1238,28 +1265,32 @@ serve(async (req) => {
         const authHeader = req.headers.get("Authorization") || "";
         const token = authHeader.replace(/^Bearer\s+/i, "");
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-        const { data: authData, error: authErr } = token
-          ? await supabase.auth.getUser(token)
-          : { data: null, error: new Error("Missing auth token") } as any;
-        if (authErr || !authData?.user?.id) throw new Error("Authentication required");
+        // Scheduler-secret and service-role callers are already authenticated by the
+        // main gate; only user-token callers need the permission check below.
+        if (!callerIsScheduler && !callerIsServiceRole) {
+          const { data: authData, error: authErr } = token
+            ? await supabase.auth.getUser(token)
+            : { data: null, error: new Error("Missing auth token") } as any;
+          if (authErr || !authData?.user?.id) throw new Error("Authentication required");
 
-        const { data: canManageErp } = await supabase.rpc("user_has_permission", {
-          user_uuid: authData.user.id,
-          check_permission: "erp_entry_manage",
-        });
-        const { data: canViewErp } = await supabase.rpc("user_has_permission", {
-          user_uuid: authData.user.id,
-          check_permission: "erp_entry_view",
-        });
-        const { data: canManageTerminal } = await supabase.rpc("has_terminal_permission", {
-          _user_id: authData.user.id,
-          _permission: "terminal_manage",
-        });
-        // Sync is a read-only refresh from Binance into sync tables (service-role writes);
-        // anyone who can see the ERP Entry Manager (view or manage) or manage the terminal
-        // may trigger it. Blocking view-only users caused silent stale queues.
-        if (!canManageErp && !canViewErp && !canManageTerminal) {
-          throw new Error("Permission denied: ERP Entry view/manage or Terminal manage permission required");
+          const { data: canManageErp } = await supabase.rpc("user_has_permission", {
+            user_uuid: authData.user.id,
+            check_permission: "erp_entry_manage",
+          });
+          const { data: canViewErp } = await supabase.rpc("user_has_permission", {
+            user_uuid: authData.user.id,
+            check_permission: "erp_entry_view",
+          });
+          const { data: canManageTerminal } = await supabase.rpc("has_terminal_permission", {
+            _user_id: authData.user.id,
+            _permission: "terminal_manage",
+          });
+          // Sync is a read-only refresh from Binance into sync tables (service-role writes);
+          // anyone who can see the ERP Entry Manager (view or manage) or manage the terminal
+          // may trigger it. Blocking view-only users caused silent stale queues.
+          if (!canManageErp && !canViewErp && !canManageTerminal) {
+            throw new Error("Permission denied: ERP Entry view/manage or Terminal manage permission required");
+          }
         }
 
         const accounts = await listActiveAccounts();

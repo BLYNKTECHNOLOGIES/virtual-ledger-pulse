@@ -24,9 +24,13 @@ This can be done immediately or right after the listener is verified working —
 
 ## Part A — Setup on the box
 
-### A1. Fix the `.env` file (the heredoc paste got mangled)
+### A1. Environment file — DONE
 
-The earlier paste failed because the terminal injected bracketed-paste characters (`cat: command not found`), and one attempt wrapped values in `<...>` and appended a stray `>` / `~`. Verify and rewrite with an editor rather than a heredoc:
+`/home/ubuntu/chat-listener/.env` now reads back with exactly the seven expected keys (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PROXY_BASE`, `RELAY_BASE`, `UPSTREAM_ENV`, `BINANCE_API_KEY_2`, `BINANCE_API_SECRET_2`) and is `chmod 600`. Nothing further needed here.
+
+<details>
+<summary>Reference: how it was fixed</summary>
+
 
 ```bash
 cat /home/ubuntu/chat-listener/.env

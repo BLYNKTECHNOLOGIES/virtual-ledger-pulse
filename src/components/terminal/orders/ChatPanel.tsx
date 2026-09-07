@@ -11,6 +11,7 @@ import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
+import { AttachAdPicker } from './chat/AttachAdPicker';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotStrip } from './chat/CopilotStrip';
 import {
@@ -581,6 +582,13 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
               }
             }}
           />
+          <AttachAdPicker
+            exchangeAccountId={exchangeAccountId}
+            onInsert={(adText) =>
+              setText((prev) => (prev.trim() ? `${prev.trim()}\n${adText}` : adText))
+            }
+          />
+
           <Input
             ref={inputRef}
             data-terminal-chat-input

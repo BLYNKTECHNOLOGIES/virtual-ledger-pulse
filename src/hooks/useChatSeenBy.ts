@@ -6,6 +6,7 @@ export interface ChatSeenInfo {
   orderNumber: string;
   name: string | null;
   at: string;
+  source?: string | null;
 }
 
 const IST_FORMATTER = new Intl.DateTimeFormat('en-IN', {
@@ -35,6 +36,7 @@ export function seenLabel(info: ChatSeenInfo | null | undefined): string | null 
   if (!info) return null;
   const time = formatSeenIST(info.at);
   if (!time) return null;
+  if (info.source === 'binance_app') return `Read on Binance app · ${time}`;
   return info.name ? `Seen by ${info.name} · ${time}` : `Seen · ${time}`;
 }
 
@@ -52,7 +54,7 @@ export function useChatSeenSnapshot(orderNumber?: string | null) {
     if (!orderNumber) return;
     supabase
       .from('terminal_binance_chat_reads')
-      .select('order_number, last_read_at, read_by_name')
+      .select('order_number, last_read_at, read_by_name, read_source')
       .eq('order_number', orderNumber)
       .maybeSingle()
       .then(({ data }) => {
@@ -61,6 +63,7 @@ export function useChatSeenSnapshot(orderNumber?: string | null) {
           orderNumber: data.order_number,
           name: data.read_by_name ?? null,
           at: data.last_read_at,
+          source: (data as any).read_source ?? null,
         });
       });
     return () => {
@@ -81,7 +84,7 @@ export function useChatSeenMap(orderNumbers: string[]) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('terminal_binance_chat_reads')
-        .select('order_number, last_read_at, read_by_name')
+        .select('order_number, last_read_at, read_by_name, read_source')
         .in('order_number', orderNumbers.slice(0, 300));
       if (error) throw error;
       const map: Record<string, ChatSeenInfo> = {};
@@ -91,6 +94,7 @@ export function useChatSeenMap(orderNumbers: string[]) {
           orderNumber: row.order_number,
           name: row.read_by_name ?? null,
           at: row.last_read_at,
+          source: (row as any).read_source ?? null,
         };
       }
       return map;

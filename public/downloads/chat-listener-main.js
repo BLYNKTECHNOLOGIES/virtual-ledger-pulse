@@ -151,7 +151,7 @@ async function persist(row) {
     if (error) console.error('update error', error.message);
   } else {
     const { error } = await sb.from('binance_order_chat_messages')
-      .upsert({ ...row, captured_at: new Date().toISOString() }, { onConflict: 'order_number,binance_message_id', ignoreDuplicates: true });
+      .upsert({ ...row, captured_at: new Date().toISOString() }, { onConflict: 'order_number,dedupe_key', ignoreDuplicates: true });
     if (error) { console.error('insert error', error.message); return; }
     stats.saved++;
     stats.lastMessageAt = new Date().toISOString();

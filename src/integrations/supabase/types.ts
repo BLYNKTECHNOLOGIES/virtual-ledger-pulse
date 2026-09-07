@@ -24016,6 +24016,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_default: boolean
+          p2p_advertiser_no: string | null
           updated_at: string
         }
         Insert: {
@@ -24029,6 +24030,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_default?: boolean
+          p2p_advertiser_no?: string | null
           updated_at?: string
         }
         Update: {
@@ -24042,6 +24044,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_default?: boolean
+          p2p_advertiser_no?: string | null
           updated_at?: string
         }
         Relationships: []

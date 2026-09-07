@@ -310,3 +310,6 @@ Append here whenever the owner commands a significant state change (data wipes, 
 - 2026-09-07 21:22 IST: Terminal sales approval dialog product lookup fixed (was reading non-existent products.product_name and hardcoding USDT); now matches products.code/name against the order's traded asset.
 - 2026-09-07 16:08 IST: Terminal chat inbox rebuilt on DB-recorded messages (get_terminal_chat_inbox + shared read state); baseline-seeded 13,627 pre-today orders as read; realtime enabled on binance_order_chat_messages.
 - 2026-09-07 21:55 IST: Counterparty nickname permanence shipped — masked names can no longer overwrite captured real names (binance_order_history trigger), nickname registry made permanent (no 5-day purge), chat sender names now feed the registry, capture job extended to cancelled/appealed/active orders; backfilled 36,190 orders from 130 unmasked.
+
+## 07 Sep 2026 18:29 IST — Shared ad link
+Added `terminal_exchange_accounts.p2p_advertiser_no` (Blynk verified: se7510c53abb33831869d5152e7bf1333). Shared-ad chat messages now append the real Binance advertiser URL (https://p2p.binance.com/en/advertiserDetail?advertiserNo=...), verified live in browser as the BlynkEx page listing current ads. Chat text now linkifies URLs. Per-ad share codes remain undocumented in the official Binance C2C API, so no ad-specific link is fabricated.

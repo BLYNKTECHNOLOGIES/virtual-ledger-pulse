@@ -9,6 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Megaphone, Loader2, Send } from 'lucide-react';
 import { useBinanceAdsList, BINANCE_AD_STATUS, type BinanceAd } from '@/hooks/useBinanceAds';
 import { PaymentMethodBadge } from '@/components/ad-manager/PaymentMethodBadge';
+import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
+
 
 interface Props {
   /** Binance account owning the current order — only its ads are offered. */
@@ -17,8 +19,12 @@ interface Props {
   onInsert: (text: string) => void;
 }
 
-/** Format one live ad as a plain-text chat message using ONLY real Binance values. */
-export function formatAdMessage(ad: BinanceAd): string {
+/**
+ * Format one live ad as a plain-text chat message using ONLY real Binance values.
+ * When the account's public advertiser number is configured, a real Binance
+ * advertiser link is appended so the counterparty can tap through to the live ad.
+ */
+export function formatAdMessage(ad: BinanceAd, advertiserNo?: string | null): string {
   const lines: string[] = [];
   lines.push(`${ad.tradeType === 'BUY' ? 'We are buying' : 'We are selling'} ${ad.asset} @ ${ad.price} ${ad.fiatUnit}`);
   lines.push(`Available: ${ad.surplusAmount} ${ad.asset}`);
@@ -28,12 +34,22 @@ export function formatAdMessage(ad: BinanceAd): string {
     .filter(Boolean);
   if (methods.length) lines.push(`Payment: ${methods.join(', ')}`);
   lines.push(`Ad No: ${ad.advNo}`);
+  if (advertiserNo) {
+    lines.push(`Open on Binance: https://p2p.binance.com/en/advertiserDetail?advertiserNo=${advertiserNo}`);
+  }
   return lines.join('\n');
 }
+
 
 export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
+  const { accounts } = useExchangeAccount();
+
+  const advertiserNo = useMemo(
+    () => accounts.find((a) => a.id === exchangeAccountId)?.p2p_advertiser_no ?? null,
+    [accounts, exchangeAccountId],
+  );
 
   const { data, isLoading } = useBinanceAdsList(
     { advStatus: BINANCE_AD_STATUS.ONLINE, fetchAll: true },
@@ -55,9 +71,10 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   }, [data, exchangeAccountId, search]);
 
   const pick = (ad: BinanceAd) => {
-    onInsert(formatAdMessage(ad));
+    onInsert(formatAdMessage(ad, advertiserNo));
     setOpen(false);
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

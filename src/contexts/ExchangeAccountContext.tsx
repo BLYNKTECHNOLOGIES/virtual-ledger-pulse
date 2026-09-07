@@ -13,6 +13,8 @@ export interface ExchangeAccount {
   is_default: boolean;
   color: string | null;
   display_order: number | null;
+  /** Public Binance P2P advertiser number (used to build real advertiser links). */
+  p2p_advertiser_no?: string | null;
 }
 
 export const ALL_ACCOUNTS = "ALL";

@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Search, User, ChevronRight } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { useExchangeAccount, ALL_ACCOUNTS } from '@/contexts/ExchangeAccountContext';
@@ -202,6 +203,83 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   );
 
 
+  // Binance-app reads: if the operator already answered/read a chat inside the
+  // Binance app, that order's detail comes back with unreadCount 0. We check the
+  // newest unread threads periodically and clear them locally, crediting the
+  // Binance app so the team knows who handled it.
+  useEffect(() => {
+    let cancelled = false;
+    const reconcile = async () => {
+      if (document.visibilityState !== 'visible') return;
+      const targets = merged
+        .filter((c) => c.chatUnreadCount > 0 && !c.orderNumber.startsWith('INQ-'))
+        .slice(0, 8);
+      if (targets.length === 0) return;
+      let cleared = 0;
+      for (const conv of targets) {
+        if (cancelled) return;
+        try {
+          const detail: any = await callBinanceAds('getOrderDetail', { orderNumber: conv.orderNumber });
+          const raw = detail?.data ?? detail;
+          const unread = Number(raw?.unreadCount ?? raw?.chatUnreadCount);
+          if (Number.isFinite(unread) && unread === 0) {
+            const orderNumbers = Array.from(new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])]));
+            orderNumbers.forEach((n) => markOrderChatRead(n));
+            await supabase.rpc('mark_terminal_binance_chats_read', {
+              p_order_numbers: orderNumbers,
+              p_source: 'binance_app',
+            });
+            cleared += 1;
+          }
+        } catch {
+          // Binance unavailable — leave the thread unread, never guess.
+        }
+      }
+      if (cleared > 0 && !cancelled) {
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+      }
+    };
+    reconcile();
+    const id = window.setInterval(reconcile, 90_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [merged, queryClient]);
+
+  const [markingAll, setMarkingAll] = useState(false);
+  const handleMarkAllRead = useCallback(async () => {
+    const orderNumbers = Array.from(
+      new Set(
+        merged
+          .filter((c) => c.chatUnreadCount > 0)
+          .flatMap((c) => [c.orderNumber, ...(c.mergedOrderNumbers || [])])
+      )
+    );
+    if (orderNumbers.length === 0) return;
+    setMarkingAll(true);
+    try {
+      orderNumbers.forEach((n) => markOrderChatRead(n));
+      const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
+        p_order_numbers: orderNumbers,
+        p_source: 'operator',
+      });
+      if (error) throw error;
+      callBinanceAds('markUserMessagesRead', {}).catch(() => undefined);
+      orderNumbers
+        .filter((n) => !n.startsWith('INQ-'))
+        .forEach((n) => callBinanceAds('markOrderMessagesRead', { orderNo: n }).catch(() => undefined));
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+      toast.success(`Marked ${orderNumbers.length} chats read`);
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not mark chats read');
+    } finally {
+      setMarkingAll(false);
+    }
+  }, [merged, queryClient]);
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
@@ -215,6 +293,18 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
           <Badge className="bg-destructive text-destructive-foreground text-[9px] t-mono h-4 px-1.5 ml-1">
             {totalUnread}
           </Badge>
+        )}
+        {totalUnread > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-7 px-2 text-[11px] gap-1.5"
+            disabled={markingAll}
+            onClick={handleMarkAllRead}
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            {markingAll ? 'Marking...' : 'Mark all read'}
+          </Button>
         )}
       </div>
 

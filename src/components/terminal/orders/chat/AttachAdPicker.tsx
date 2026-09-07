@@ -17,8 +17,12 @@ interface Props {
   onInsert: (text: string) => void;
 }
 
-/** Format one live ad as a plain-text chat message using ONLY real Binance values. */
-export function formatAdMessage(ad: BinanceAd): string {
+/**
+ * Format one live ad as a plain-text chat message using ONLY real Binance values.
+ * When the account's public advertiser number is configured, a real Binance
+ * advertiser link is appended so the counterparty can tap through to the live ad.
+ */
+export function formatAdMessage(ad: BinanceAd, advertiserNo?: string | null): string {
   const lines: string[] = [];
   lines.push(`${ad.tradeType === 'BUY' ? 'We are buying' : 'We are selling'} ${ad.asset} @ ${ad.price} ${ad.fiatUnit}`);
   lines.push(`Available: ${ad.surplusAmount} ${ad.asset}`);
@@ -28,8 +32,12 @@ export function formatAdMessage(ad: BinanceAd): string {
     .filter(Boolean);
   if (methods.length) lines.push(`Payment: ${methods.join(', ')}`);
   lines.push(`Ad No: ${ad.advNo}`);
+  if (advertiserNo) {
+    lines.push(`Open on Binance: https://p2p.binance.com/en/advertiserDetail?advertiserNo=${advertiserNo}`);
+  }
   return lines.join('\n');
 }
+
 
 export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   const [open, setOpen] = useState(false);

@@ -63,14 +63,27 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     isScheduler = !!data?.secret_value && data.secret_value === schedulerSecret;
   }
-  if (!isServiceRole && !isScheduler) return jsonResponse({ error: "Unauthorized" }, 401);
-
   // Manual single-tick mode (used by the UI "refresh" path) skips the long loop.
   let singleTick = false;
   try {
     const body = await req.json();
     singleTick = body?.mode === "single";
   } catch { /* empty body is fine */ }
+
+  // Signed-in terminal users may request ONE immediate tick (the Refresh button);
+  // only the scheduler/service role may start the long polling loop.
+  let isSignedInUser = false;
+  if (!isServiceRole && !isScheduler && authHeader) {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    const { data: userData } = await userClient.auth.getUser();
+    isSignedInUser = !!userData?.user;
+  }
+  if (!isServiceRole && !isScheduler && !(isSignedInUser && singleTick)) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const startedAt = Date.now();
   const heartbeat = async (status: string, detail: Record<string, unknown>) => {
@@ -107,24 +120,42 @@ Deno.serve(async (req: Request) => {
         const resolved = await resolveAccount(account.id);
         const headers = proxyHeadersFor(resolved);
         const url = `${resolved.proxyUrl}/api/sapi/v1/c2c/orderMatch/listOrders`;
-        const response = await fetch(url, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ page: 1, rows: 100 }),
-        });
-        const text = await response.text();
-        let result: any;
-        try { result = JSON.parse(text); } catch { result = { raw: text }; }
 
-        if (!response.ok || (result?.code && result.code !== "000000")) {
-          // 429 / 5xx: back off via the idle cadence on the next tick.
+        // Binance caps this endpoint's page size (20 rows in practice), so walk
+        // a few pages to be sure recent orders are never crowded out by older
+        // completed/cancelled rows on page 1.
+        const PAGE_ROWS = 50;
+        const MAX_PAGES = 3;
+        const orders: any[] = [];
+        let pageFailed = false;
+        for (let page = 1; page <= MAX_PAGES; page++) {
+          const response = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ page, rows: PAGE_ROWS }),
+          });
+          const text = await response.text();
+          let result: any;
+          try { result = JSON.parse(text); } catch { result = { raw: text }; }
+
+          if (!response.ok || (result?.code && result.code !== "000000")) {
+            // 429 / 5xx: back off via the idle cadence on the next tick.
+            if (page === 1) pageFailed = true;
+            console.warn(`collector tick failed for ${resolved.accountName} page ${page}:`, response.status, text.substring(0, 300));
+            break;
+          }
+
+          const pageOrders = extractOrders(result);
+          orders.push(...pageOrders);
+          if (pageOrders.length === 0) break;
+        }
+        if (pageFailed) {
           anyFailure = true;
-          console.warn(`collector tick failed for ${resolved.accountName}:`, response.status, text.substring(0, 300));
           continue;
         }
 
-        const orders = extractOrders(result);
         totalOrders += orders.length;
+
         const now = new Date().toISOString();
         const seenNumbers = new Set<string>();
         const rows = [];

@@ -6,15 +6,26 @@ import { supabase } from '@/integrations/supabase/client';
  * Collector heartbeat — tells the UI whether the server-side order collector
  * is keeping terminal_active_orders_cache fresh. The cron-started collector
  * writes a heartbeat every tick (~4.5s while trading, ~12s idle).
+ *
+ * Freshness is computed on the SERVER (terminal_collector_heartbeat RPC) so a
+ * skewed browser clock can never fake staleness; the client only adds the time
+ * elapsed since it received the answer.
  */
 
 export interface CollectorState {
   last_tick_at: string | null;
   last_status: string;
   detail: { activeOrders?: number; accounts?: number; consecutiveFailures?: number } | null;
+  /** Server-measured age of the heartbeat at fetch time (seconds). */
+  heartbeat_age_seconds: number | null;
+  /** Server-measured age of the newest cached order row (seconds). */
+  cache_age_seconds: number | null;
+  cached_orders: number | null;
+  /** Client timestamp when this answer arrived (for elapsed-time correction). */
+  fetched_at_ms: number;
 }
 
-export const COLLECTOR_STALE_MS = 45 * 1000;
+export const COLLECTOR_STALE_MS = 60 * 1000;
 
 export function useTerminalCollectorState() {
   const queryClient = useQueryClient();
@@ -38,23 +49,35 @@ export function useTerminalCollectorState() {
   return useQuery({
     queryKey: ['terminal-collector-state'],
     queryFn: async (): Promise<CollectorState | null> => {
-      const { data, error } = await supabase
-        .from('terminal_collector_state')
-        .select('last_tick_at, last_status, detail')
-        .eq('id', 'active_orders')
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('terminal_collector_heartbeat');
       if (error) throw error;
-      return (data as CollectorState | null) ?? null;
+      const row = Array.isArray(data) ? (data[0] as any) : (data as any);
+      if (!row) return null;
+      return {
+        last_tick_at: row.last_tick_at ?? null,
+        last_status: row.last_status ?? 'unknown',
+        detail: (row.detail as CollectorState['detail']) ?? null,
+        heartbeat_age_seconds: row.heartbeat_age_seconds != null ? Number(row.heartbeat_age_seconds) : null,
+        cache_age_seconds: row.cache_age_seconds != null ? Number(row.cache_age_seconds) : null,
+        cached_orders: row.cached_orders != null ? Number(row.cached_orders) : null,
+        fetched_at_ms: Date.now(),
+      };
     },
-    refetchInterval: 30 * 1000,
-    staleTime: 10 * 1000,
+    // Cheap RPC — keep it ticking even when the tab is in the background so the
+    // banner can never freeze on an old timestamp.
+    refetchInterval: 15 * 1000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 5 * 1000,
   });
 }
 
 export function isCollectorStale(state: CollectorState | null | undefined): boolean {
   if (!state?.last_tick_at) return true;
   if (state.last_status === 'error') return true;
-  return Date.now() - new Date(state.last_tick_at).getTime() > COLLECTOR_STALE_MS;
+  const serverAgeMs = (state.heartbeat_age_seconds ?? 0) * 1000;
+  const elapsedSinceFetch = Math.max(0, Date.now() - state.fetched_at_ms);
+  return serverAgeMs + elapsedSinceFetch > COLLECTOR_STALE_MS;
 }
 
 /** Ask the collector for one immediate tick (manual "refresh from Binance"). */

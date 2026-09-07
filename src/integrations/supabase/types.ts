@@ -17663,8 +17663,12 @@ export type Database = {
       hr_weekly_off_patterns: {
         Row: {
           alternate_week_offs: number[] | null
+          code: string | null
+          counts_holidays_as_working: boolean
           created_at: string | null
           description: string | null
+          excludes_compoff: boolean
+          excludes_leave_accrual: boolean
           id: string
           is_active: boolean | null
           is_alternating: boolean | null
@@ -17673,8 +17677,12 @@ export type Database = {
         }
         Insert: {
           alternate_week_offs?: number[] | null
+          code?: string | null
+          counts_holidays_as_working?: boolean
           created_at?: string | null
           description?: string | null
+          excludes_compoff?: boolean
+          excludes_leave_accrual?: boolean
           id?: string
           is_active?: boolean | null
           is_alternating?: boolean | null
@@ -17683,8 +17691,12 @@ export type Database = {
         }
         Update: {
           alternate_week_offs?: number[] | null
+          code?: string | null
+          counts_holidays_as_working?: boolean
           created_at?: string | null
           description?: string | null
+          excludes_compoff?: boolean
+          excludes_leave_accrual?: boolean
           id?: string
           is_active?: boolean | null
           is_alternating?: boolean | null
@@ -29749,6 +29761,16 @@ export type Database = {
           p_user_id?: string
         }
         Returns: string
+      }
+      hr_employee_wo_policy: {
+        Args: { p_employee_id: string }
+        Returns: {
+          holidays_working: boolean
+          no_accrual: boolean
+          no_compoff: boolean
+          off_days: number[]
+          source: string
+        }[]
       }
       hr_employment_gap_working_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }

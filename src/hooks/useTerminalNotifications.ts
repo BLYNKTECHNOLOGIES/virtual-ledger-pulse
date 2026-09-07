@@ -18,6 +18,31 @@ interface TerminalNotification {
 
 export function useTerminalNotifications() {
   const { userId } = useTerminalAuth();
+  const queryClient = useQueryClient();
+
+  // Realtime invalidation so new terminal notifications appear immediately;
+  // a 2s safety poll catches any missed events.
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`terminal-notifications-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'terminal_notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['terminal-notifications', userId] });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId, queryClient]);
 
   return useQuery({
     queryKey: ['terminal-notifications', userId],
@@ -32,7 +57,7 @@ export function useTerminalNotifications() {
       return (data || []) as unknown as TerminalNotification[];
     },
     enabled: !!userId,
-    refetchInterval: 30_000,
+    refetchInterval: 2_000,
   });
 }
 

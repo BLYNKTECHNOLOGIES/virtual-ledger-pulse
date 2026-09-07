@@ -59,16 +59,21 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   }, [accounts, activeAccount, exchangeAccountId]);
 
 
+  // No status filter: Binance returns online and private ads together (the edge
+  // function tags private ones as advStatus=2). Both are shareable.
   const { data, isLoading } = useBinanceAdsList(
-    { advStatus: BINANCE_AD_STATUS.ONLINE, fetchAll: true },
+    { fetchAll: true },
     { refetchInterval: false },
   );
 
   const ads: BinanceAd[] = useMemo(() => {
     const list: BinanceAd[] = (data?.data || []) as BinanceAd[];
+    const live = list.filter(
+      (a) => a.advStatus === BINANCE_AD_STATUS.ONLINE || a.advStatus === BINANCE_AD_STATUS.PRIVATE,
+    );
     const scoped = exchangeAccountId
-      ? list.filter((a) => !a._exchangeAccountId || a._exchangeAccountId === exchangeAccountId)
-      : list;
+      ? live.filter((a) => !a._exchangeAccountId || a._exchangeAccountId === exchangeAccountId)
+      : live;
     const q = search.trim().toLowerCase();
     const filtered = q
       ? scoped.filter((a) =>

@@ -554,34 +554,6 @@ export function useBinanceChatWebSocket(
     sessionIdRef.current = null;
   }, [activeOrderNo]);
 
-  // ---- Server-side send fallback ----
-  // The browser socket can be refused by Binance (only one chat session per
-  // account is allowed, and the always-on server listener holds it). Delivery
-  // must not depend on it: hand the message to the edge function, which sends
-  // it through the proxy/relay exactly like the terminal's other send paths.
-  const doServerSend = useCallback(
-    async (tempId: number, orderNo: string, content: string, type: 'text' | 'image') => {
-      try {
-        const payload = type === 'image'
-          ? { orderNo, imageUrl: content }
-          : { orderNo, content, contentType: 'TEXT' };
-        const res: any = await callBinanceAds('sendChatMessage', payload, accountIdRef.current ?? undefined);
-        const body = res?.data ?? res;
-        const ok = body?.success === true || body?.code === '000000';
-        if (!ok) throw new Error(body?.error || body?.message || 'Binance rejected the message');
-        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'sending' as const } : q)));
-        pollIntervalRef.current = 1500;
-        setTimeout(() => fetchChatHistory(orderNo), 1500);
-        return true;
-      } catch (err) {
-        console.error('Server send failed:', err);
-        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'queued' as const } : q)));
-        toast.error('Could not deliver the message — tap retry.');
-        return false;
-      }
-    },
-    [fetchChatHistory],
-  );
 
   // ---- Send message (always optimistic; queue tracks delivery) ----
   // The message is ALWAYS added to `queuedMessages` first so the UI can show

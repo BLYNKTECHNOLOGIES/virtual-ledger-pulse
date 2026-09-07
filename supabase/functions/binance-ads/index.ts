@@ -2154,6 +2154,40 @@ serve(async (req) => {
         break;
       }
 
+      case "markUserMessagesRead": {
+        // POST /sapi/v1/c2c/chat/markUserMessagesAsRead — marks ALL unread chats
+        // with a specific counterparty user as read (API doc §38).
+        // Binance requires a numeric userId; fall back to userId=0 (current merchant
+        // context) accepted by the whitelisted proxy.
+        const directUrl = `https://api.binance.com/sapi/v1/c2c/chat/markUserMessagesAsRead`;
+        const proxyUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/markUserMessagesAsRead`;
+        const rawUserId = String(payload.userId ?? payload.userNo ?? "").trim();
+        const candidates: string[] = [];
+        if (isNumericChatReadUserId(rawUserId)) candidates.push(rawUserId);
+        candidates.push("0");
+
+        const attempts: any[] = [];
+        for (const userId of candidates) {
+          let response = await fetch(directUrl, { method: "POST", headers: directApiKeyHeaders, body: JSON.stringify({ userId }) });
+          const text = await response.text();
+          let attempt: any;
+          try { attempt = JSON.parse(text); } catch { attempt = { raw: text, status: response.status }; }
+          attempts.push({ transport: "direct", userId: maskIdentifier(userId), status: response.status, code: attempt?.code, message: attempt?.message || attempt?.msg || attempt?.error });
+          if (!isSuccessfulBinancePayload(attempt, response.status)) {
+            response = await fetch(proxyUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ userId }) });
+            const proxyText = await response.text();
+            try { attempt = JSON.parse(proxyText); } catch { attempt = { raw: proxyText, status: response.status }; }
+            attempts.push({ transport: "proxy", userId: maskIdentifier(userId), status: response.status, code: attempt?.code, message: attempt?.message || attempt?.msg || attempt?.error });
+          }
+          if (isSuccessfulBinancePayload(attempt, response.status)) {
+            result = { ...attempt, _markUserRead: { usedUserId: maskIdentifier(userId), attempts } };
+            break;
+          }
+        }
+        if (!result) result = { code: "MARK_USER_READ_FAILED", message: attempts[attempts.length - 1]?.message || "Binance markUserMessagesAsRead failed for all user candidates.", status: 400, attempts };
+        break;
+      }
+
       // Duplicate sendChatMessage case removed — handled above
 
       case "getChatGroupId": {

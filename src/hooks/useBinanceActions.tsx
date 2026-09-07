@@ -260,9 +260,10 @@ export function useBinanceActiveOrders(filters?: {
       return { data: merged, _source: 'live' };
     },
     staleTime: 2 * 1000,
-    // Realtime invalidations keep this fresh; the slow poll is only a safety net
-    // (and the live fallback cadence when the collector is stale).
-    refetchInterval: pollWhenVisible(collectorStale ? 5 * 1000 : 30 * 1000),
+    // Realtime invalidations keep this fresh; the safety poll is tightened to the
+    // 5s appearance target when healthy and 5s live fallback when the collector
+    // is stale so a dead collector never blinds the terminal for long.
+    refetchInterval: pollWhenVisible(5 * 1000),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',

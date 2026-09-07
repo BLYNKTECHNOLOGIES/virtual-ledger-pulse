@@ -370,10 +370,18 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
     },
   });
 
-  const usdtProduct = useMemo(() =>
-    products.find((p: any) => p.product_name?.toUpperCase().includes('USDT')),
-    [products]
-  );
+  // Resolve the product from the actual traded asset on this order (falls back to USDT).
+  const usdtProduct = useMemo(() => {
+    const asset = String(od.asset || 'USDT').toUpperCase();
+    const match = (code: string) =>
+      products.find((p: any) =>
+        String(p.code || '').toUpperCase() === code ||
+        String(p.name || '').toUpperCase() === code ||
+        String(p.name || '').toUpperCase().includes(code)
+      );
+    return match(asset) || match('USDT') || null;
+  }, [products, od.asset]);
+
 
   const totalAmount = parseFloat(od.total_price) || 0;
   const quantity = parseFloat(od.amount) || 0;

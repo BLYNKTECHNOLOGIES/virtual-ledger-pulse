@@ -371,37 +371,19 @@ export function useBinanceChatWebSocket(
     }
   }, [fetchChatHistory]);
 
-  // ---- Flush queued messages when WS connects ----
+  // ---- Retry anything still undelivered when the socket (re)connects ----
+  // Delivery itself runs through the server, so this only re-pushes messages
+  // that the server refused earlier.
   const flushQueue = useCallback(() => {
     const queue = [...queueRef.current];
     if (queue.length === 0) return;
-
-    const remaining: QueuedMessage[] = [];
     for (const msg of queue) {
-      if (msg.orderNo === activeOrderRef.current) {
-        const sent = doWsSend(msg.orderNo, msg.content, msg.type);
-        if (sent) {
-          // Sent over WS — keep optimistic bubble visible as 'sending'
-          // until the server echo arrives via the chat history poll, which
-          // removes it via the dedupe logic in fetchChatHistory.
-          remaining.push({ ...msg, status: 'sending' });
-        } else {
-          remaining.push({ ...msg, retries: msg.retries + 1, status: 'queued' });
-        }
-      } else {
-        remaining.push(msg); // Keep messages for other orders
+      if (msg.orderNo === activeOrderRef.current && msg.status === 'queued') {
+        void doServerSend(msg.tempId, msg.orderNo, msg.content, msg.type);
       }
     }
-    setQueuedMessages(remaining);
+  }, [doServerSend]);
 
-    const flushed = queue.filter(q =>
-      q.orderNo === activeOrderRef.current &&
-      remaining.find(r => r.tempId === q.tempId)?.status === 'sending'
-    ).length - queue.filter(q => q.status === 'sending').length;
-    if (flushed > 0) {
-      toast.success(`${flushed} queued message(s) sent`);
-    }
-  }, [doWsSend]);
 
   // ---- Connect to WebSocket via relay ----
   const connect = useCallback(async () => {

@@ -612,13 +612,9 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
         </div>
         <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
-          {!isConnected 
-            ? '⏳ Connecting to Binance chat...' 
-            : isConnecting 
-              ? '🟡 Reconnecting...' 
-              : '🟢 Real-time chat active'
-          }
+          {isConnected ? 'Live updates on' : 'Messages send instantly; updates refresh from the server'}
         </p>
+
       </div>
 
       <AlertDialog open={!!blacklistTarget} onOpenChange={(o) => { if (!o) setBlacklistTarget(null); }}>

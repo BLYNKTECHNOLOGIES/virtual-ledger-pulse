@@ -309,8 +309,16 @@ export function useBinanceChatWebSocket(
 
     const poll = async () => {
       if (activeOrderRef.current !== activeOrderNo) return;
-      await fetchChatHistory(activeOrderNo);
-      pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
+      // While the WebSocket is healthy it delivers new messages in real time;
+      // the REST poll then only reconciles occasionally (30s) instead of
+      // hammering Binance every few seconds per open chat.
+      const wsHealthy = wsRef.current?.readyState === WebSocket.OPEN;
+      if (wsHealthy) {
+        pollIntervalRef.current = 30000;
+      } else {
+        await fetchChatHistory(activeOrderNo);
+        pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
+      }
       pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
     };
 

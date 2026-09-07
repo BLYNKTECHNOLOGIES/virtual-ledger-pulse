@@ -172,7 +172,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         id: `queued-${qm.tempId}`,
         source: 'local',
         senderType: 'operator',
-        text: qm.type === 'text' ? qm.content : null,
+        text: qm.type === 'image' ? null : qm.content,
         imageUrl: qm.type === 'image' ? qm.content : undefined,
         timestamp: qm.createdAt,
         senderName: username || 'Operator',

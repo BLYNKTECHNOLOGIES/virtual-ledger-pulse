@@ -392,8 +392,9 @@ export function useUpdateAdStatus() {
   const { toast } = useToast();
 
   return useMutation({
-     mutationFn: ({ advNos, advStatus, fromPrivate, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string; fromStatus?: number }) =>
-      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate }, exchangeAccountId),
+     mutationFn: ({ advNos, advStatus, fromPrivate, fromStatus, exchangeAccountId }: { advNos: string[]; advStatus: number; fromPrivate?: boolean; exchangeAccountId?: string; fromStatus?: number }) =>
+      callBinanceAds('updateAdStatus', { advNos, advStatus, fromPrivate, fromStatus }, exchangeAccountId),
+
     onSuccess: (_data, vars) => {
       clearAdBreakDetected();
       // Instant UI: patch advStatus on the affected rows across all caches.

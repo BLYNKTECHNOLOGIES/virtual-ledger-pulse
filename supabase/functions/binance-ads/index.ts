@@ -998,7 +998,10 @@ serve(async (req) => {
           console.log(`postAd: Setting ad ${advNo} to Private via visibility helper...`);
           const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, [String(advNo)], 1);
           console.log("postAd visibility result:", JSON.stringify(visResult).substring(0, 500));
+          const visOk = visResult?.code === "000000" || visResult?.success === true;
+          result = { ...result, privateApplied: visOk, privateWarning: visOk ? null : "Ad was created Online — Binance did not accept the Private visibility setting for this account." };
         }
+
         break;
       }
 

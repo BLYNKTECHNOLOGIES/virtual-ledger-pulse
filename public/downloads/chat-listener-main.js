@@ -27,7 +27,11 @@ if (!SUPABASE_URL || !SERVICE_KEY || !RELAY_TOKEN) {
   console.error('missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / relay token');
   process.exit(1);
 }
-const sb = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
+  auth: { persistSession: false },
+  // Node 20 has no global WebSocket; supabase-js realtime needs an explicit transport
+  realtime: { transport: WebSocket },
+});
 
 const CRED_TTL_MS = 25 * 60 * 1000;
 const HEARTBEAT_MS = 15 * 1000;

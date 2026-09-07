@@ -47,6 +47,8 @@ export default function ExchangeAccountsSettings() {
         account_identifier: d.account_identifier,
         color: d.color,
         is_active: d.is_active,
+        p2p_advertiser_no: (d.p2p_advertiser_no ?? "").trim() || null,
+
       })
       .eq("id", acc.id);
     setSavingId(null);

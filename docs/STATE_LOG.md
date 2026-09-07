@@ -323,3 +323,5 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-08 01:20 IST: Terminal chat live connection made persistent — one shared, reference-counted socket per Binance account, prewarmed on Orders page load and kept warm 15 min after the last chat closes; opening a chat no longer re-handshakes ('Connecting…').
 - 2026-09-08 01:30 IST: Terminal chat can now share ads as Binance's own native ad card (chat frame type=card, subType=advertisement, content.origin=ADV_SHARE_ONLINEADCARD) — mirrored verbatim from our own observed outgoing Binance-app payloads; text share retained as fallback. binance-ads redeployed.
 - 2026-09-08 01:45 IST: Ads Manager — 'Private' status made display-only (selectable only for ads Binance already reports private). Binance web-only visibility endpoint returns 403 to API-key auth; sapi has no visibility endpoint.
+
+- 2026-09-07: Added shared "Seen by <operator> · time IST" markers to terminal Binance chats (read_by_name recorded on mark_terminal_binance_chat_read; shown in ChatPanel header + inbox rows). Binance exposes no counterparty-visible read receipt.

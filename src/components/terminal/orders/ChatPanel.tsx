@@ -81,6 +81,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
+      // Shared team read state: records who opened this chat and when (IST shown in UI).
+      supabase.rpc('mark_terminal_binance_chat_read', { p_order_number: orderNumber }).then(({ error }) => {
+        if (error) console.warn('Failed to record team chat read:', error.message);
+      });
       callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch((err) => {
         console.warn('Failed to mark Binance chat read:', err);
       });

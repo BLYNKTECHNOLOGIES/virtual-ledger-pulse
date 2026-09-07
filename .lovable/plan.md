@@ -43,7 +43,7 @@ So with 6 operators open, Binance is hit ~6x for the same data, everyone pays fi
 
 **Pros:** dramatically faster page and chat open; Binance call volume independent of how many people are logged in; data keeps flowing when no tab is open; chat history never lost on reload; one place to handle rate limits and errors.
 
-**Cons:** one more moving part that can fail (mitigated by the staleness banner); order freshness becomes collector-interval-bound (20-30 s) unless the operator hits refresh or opens the order; Phase 3b requires work on the AWS relay host that is not in this codebase.
+**Cons:** one more moving part that can fail (mitigated by the staleness banner); order freshness is bound to the collector loop (~5 s while trading, ~10-15 s when idle) unless the operator hits refresh or opens the order; one extra always-awake process to monitor; Phase 3b requires work on the AWS relay host that is not in this codebase.
 
 ## Suggested order of work
 Phase 1 → Phase 2 → Phase 3a first (all inside this project, no external dependency), then decide on 3b once you confirm we can deploy to the relay host.

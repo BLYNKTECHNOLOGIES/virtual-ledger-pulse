@@ -23831,6 +23831,33 @@ export type Database = {
           },
         ]
       }
+      terminal_binance_chat_reads: {
+        Row: {
+          created_at: string
+          last_read_at: string
+          order_number: string
+          read_by_name: string | null
+          read_by_user_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          last_read_at?: string
+          order_number: string
+          read_by_name?: string | null
+          read_by_user_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          last_read_at?: string
+          order_number?: string
+          read_by_name?: string | null
+          read_by_user_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_biometric_sessions: {
         Row: {
           authenticated_at: string
@@ -29116,6 +29143,30 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_terminal_chat_inbox: {
+        Args: {
+          p_exchange_account_id?: string
+          p_limit?: number
+          p_search?: string
+        }
+        Returns: {
+          amount: string
+          asset: string
+          counterparty_nickname: string
+          create_time: number
+          exchange_account_id: string
+          fiat_unit: string
+          last_message_at: string
+          last_message_from_self: boolean
+          last_message_preview: string
+          order_number: string
+          order_status: string
+          total_price: string
+          trade_type: string
+          unread_count: number
+          verified_name: string
+        }[]
+      }
       get_terminal_dashboard_summary: { Args: never; Returns: Json }
       get_terminal_mpi_leaderboard: {
         Args: { p_from: string; p_limit?: number; p_to: string }
@@ -30528,6 +30579,10 @@ export type Database = {
       mark_payer_order_paid: {
         Args: { p_order_number: string; p_payer_user_id: string }
         Returns: Json
+      }
+      mark_terminal_binance_chat_read: {
+        Args: { p_order_number: string }
+        Returns: undefined
       }
       mark_terminal_user_offline: {
         Args: { p_user_id: string }

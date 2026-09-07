@@ -1,14 +1,17 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Search, User, ChevronRight, AlertCircle } from 'lucide-react';
-import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory, useBinanceChatMessages } from '@/hooks/useBinanceActions';
+import { ArrowLeft, MessageSquare, Search, User, ChevronRight } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { callBinanceAds } from '@/hooks/useBinanceActions';
+import { useExchangeAccount, ALL_ACCOUNTS } from '@/contexts/ExchangeAccountContext';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
-import { format } from 'date-fns';
-import { isOrderChatRead, markOrderChatRead, subscribeToChatReadState } from '@/lib/chat-read-state';
+import { format, isToday } from 'date-fns';
+import { markOrderChatRead } from '@/lib/chat-read-state';
 
 export interface ChatConversation {
   orderNumber: string;
@@ -23,6 +26,11 @@ export interface ChatConversation {
   createTime: number;
   /** Source: 'active' orders or 'history' orders */
   source: 'active' | 'history';
+  verifiedName?: string;
+  exchangeAccountId?: string | null;
+  lastMessageAt?: string | null;
+  lastMessagePreview?: string | null;
+  lastMessageFromSelf?: boolean;
 }
 
 interface Props {
@@ -30,105 +38,108 @@ interface Props {
   onOpenChat: (conversation: ChatConversation) => void;
 }
 
+interface InboxRow {
+  order_number: string;
+  exchange_account_id: string | null;
+  counterparty_nickname: string;
+  verified_name: string;
+  trade_type: string;
+  asset: string;
+  fiat_unit: string;
+  amount: string;
+  total_price: string;
+  order_status: string;
+  create_time: number;
+  last_message_at: string | null;
+  last_message_preview: string | null;
+  last_message_from_self: boolean;
+  unread_count: number;
+}
+
 export function ChatInbox({ onClose, onOpenChat }: Props) {
   const [tab, setTab] = useState<'all' | 'unread'>('all');
   const [search, setSearch] = useState('');
-  // Force re-render when we mark an order as read locally
-  const [, setReadVersion] = useState(0);
+  const queryClient = useQueryClient();
+  const { activeAccountId } = useExchangeAccount();
+  const accountFilter = activeAccountId === ALL_ACCOUNTS ? null : activeAccountId;
 
-  const handleOpenChat = useCallback((conv: ChatConversation) => {
-    markOrderChatRead(conv.orderNumber);
-    callBinanceAds('markOrderMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
-      console.warn('Failed to mark Binance chat read:', err);
-    });
-    setReadVersion(v => v + 1);
-    onOpenChat(conv);
-  }, [onOpenChat]);
-
-  useEffect(() => subscribeToChatReadState(() => setReadVersion(v => v + 1)), []);
-
-  const { data: activeOrdersData, isLoading: activeLoading } = useBinanceActiveOrders();
-  const { data: historyOrders = [], isLoading: historyLoading } = useBinanceOrderHistory();
-
-  const conversations = useMemo(() => {
-    const convMap = new Map<string, ChatConversation>();
-
-    // Active orders — these have chatUnreadCount
-    const activeRaw = activeOrdersData?.data || activeOrdersData;
-    const activeList = Array.isArray(activeRaw) ? activeRaw : [];
-
-    for (const o of activeList) {
-      const nick = o.tradeType === 'BUY' ? (o.sellerNickname || '') : (o.buyerNickname || '');
-      convMap.set(o.orderNumber, {
-        orderNumber: o.orderNumber,
-        counterpartyNickname: nick.trim(),
-        tradeType: o.tradeType,
-        asset: o.asset || 'USDT',
-        fiatUnit: o.fiat || 'INR',
-        amount: o.amount || '0',
-        totalPrice: o.totalPrice || '0',
-        orderStatus: String(o.orderStatus),
-        chatUnreadCount: isOrderChatRead(o.orderNumber) ? 0 : (o.chatUnreadCount || 0),
-        createTime: o.createTime || 0,
-        source: 'active',
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['terminal-chat-inbox', accountFilter, search],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_terminal_chat_inbox', {
+        p_exchange_account_id: accountFilter,
+        p_limit: 300,
+        p_search: search || null,
       });
-    }
+      if (error) throw error;
+      return (data || []) as InboxRow[];
+    },
+    refetchInterval: 20000,
+  });
 
-    // History orders (7 days) — no unread count available
-    for (const o of historyOrders) {
-      if (!convMap.has(o.orderNumber)) {
-        convMap.set(o.orderNumber, {
-          orderNumber: o.orderNumber,
-          counterpartyNickname: (o as any).counterPartNickName || '',
-          tradeType: (o as any).tradeType || '',
-          asset: (o as any).asset || 'USDT',
-          fiatUnit: (o as any).fiatUnit || 'INR',
-          amount: (o as any).amount || '0',
-          totalPrice: (o as any).totalPrice || '0',
-          orderStatus: String((o as any).orderStatus || ''),
-          chatUnreadCount: 0,
-          createTime: (o as any).createTime || 0,
-          source: 'history',
-        });
-      }
-    }
+  // Live push: any newly recorded Binance chat message refreshes the inbox.
+  useEffect(() => {
+    const channel = supabase
+      .channel(`chat-inbox-${crypto.randomUUID()}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'binance_order_chat_messages' },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
-    let list = Array.from(convMap.values());
+  const conversations: ChatConversation[] = useMemo(
+    () =>
+      rows.map((r) => ({
+        orderNumber: r.order_number,
+        counterpartyNickname: (r.counterparty_nickname || '').trim(),
+        tradeType: r.trade_type || '',
+        asset: r.asset || 'USDT',
+        fiatUnit: r.fiat_unit || 'INR',
+        amount: r.amount || '0',
+        totalPrice: r.total_price || '0',
+        orderStatus: String(r.order_status || ''),
+        chatUnreadCount: r.unread_count || 0,
+        createTime: Number(r.create_time) || 0,
+        source: 'history',
+        verifiedName: r.verified_name || '',
+        exchangeAccountId: r.exchange_account_id,
+        lastMessageAt: r.last_message_at,
+        lastMessagePreview: r.last_message_preview,
+        lastMessageFromSelf: r.last_message_from_self,
+      })),
+    [rows]
+  );
 
-    // Sort: unread first, then by createTime descending
-    list.sort((a, b) => {
-      if (a.chatUnreadCount > 0 && b.chatUnreadCount === 0) return -1;
-      if (b.chatUnreadCount > 0 && a.chatUnreadCount === 0) return 1;
-      return b.createTime - a.createTime;
-    });
+  const filtered = useMemo(
+    () => (tab === 'unread' ? conversations.filter((c) => c.chatUnreadCount > 0) : conversations),
+    [conversations, tab]
+  );
 
-    return list;
-  }, [activeOrdersData, historyOrders]);
-
-  const filtered = useMemo(() => {
-    let list = conversations;
-
-    if (tab === 'unread') {
-      list = list.filter(c => c.chatUnreadCount > 0);
-    }
-
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(c =>
-        c.counterpartyNickname.toLowerCase().includes(q) ||
-        c.orderNumber.includes(q)
-      );
-    }
-
-    return list;
-  }, [conversations, tab, search]);
-
-  const totalUnread = useMemo(() =>
-    conversations.reduce((sum, c) => sum + c.chatUnreadCount, 0),
+  const totalUnread = useMemo(
+    () => conversations.reduce((sum, c) => sum + (c.chatUnreadCount > 0 ? 1 : 0), 0),
     [conversations]
   );
 
-  const isLoading = activeLoading || historyLoading;
+  const handleOpenChat = useCallback(
+    (conv: ChatConversation) => {
+      markOrderChatRead(conv.orderNumber);
+      supabase
+        .rpc('mark_terminal_binance_chat_read', { p_order_number: conv.orderNumber })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] }));
+      callBinanceAds('markOrderMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
+        console.warn('Failed to mark Binance chat read:', err);
+      });
+      onOpenChat(conv);
+    },
+    [onOpenChat, queryClient]
+  );
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -153,12 +164,11 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by nickname/group name"
+            placeholder="Search by nickname, verified name or order number"
             className="h-8 pl-8 text-xs bg-input border-border"
           />
         </div>
       </div>
-
 
       {/* Tabs */}
       <div className="px-4 py-2 border-b border-border">
@@ -197,16 +207,6 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
           </div>
         )}
       </ScrollArea>
-
-      {/* API limitation notice */}
-      <div className="px-4 py-2 border-t border-border bg-card/30">
-        <div className="flex items-start gap-1.5">
-          <AlertCircle className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-          <p className="text-[9px] text-muted-foreground leading-relaxed">
-            Chat history is available for active and recent orders (7 days). Unread counts are only tracked for active orders.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
@@ -221,6 +221,9 @@ function ConversationRow({ conversation: c, onClick }: { conversation: ChatConve
     : (numStatusMap[Number(c.orderStatus)] || c.orderStatus);
   const opStatus = mapToOperationalStatus(rawStatus, c.tradeType);
   const statusStyle = getStatusStyle(opStatus);
+
+  const stamp = c.lastMessageAt ? new Date(c.lastMessageAt) : (c.createTime ? new Date(c.createTime) : null);
+  const stampLabel = stamp ? (isToday(stamp) ? format(stamp, 'HH:mm') : format(stamp, 'dd MMM')) : '';
 
   return (
     <button
@@ -249,13 +252,21 @@ function ConversationRow({ conversation: c, onClick }: { conversation: ChatConve
               <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
             )}
             <span className={`text-[13px] text-foreground truncate ${c.chatUnreadCount > 0 ? 'font-semibold' : 'font-medium'}`}>
-              {c.counterpartyNickname || 'Unknown'}
+              {c.verifiedName || c.counterpartyNickname || 'Unknown'}
             </span>
+            {c.verifiedName && c.counterpartyNickname && (
+              <span className="text-[10px] text-muted-foreground truncate">{c.counterpartyNickname}</span>
+            )}
           </span>
           <span className="text-[10px] text-muted-foreground t-mono tabular-nums shrink-0">
-            {c.createTime ? format(new Date(c.createTime), 'HH:mm') : ''}
+            {stampLabel}
           </span>
         </div>
+        {c.lastMessagePreview ? (
+          <div className={`text-[11px] truncate mt-0.5 ${c.chatUnreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
+            {c.lastMessageFromSelf ? 'You: ' : ''}{c.lastMessagePreview}
+          </div>
+        ) : null}
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className={`text-[9px] t-mono uppercase font-semibold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
             {c.tradeType}
@@ -268,7 +279,6 @@ function ConversationRow({ conversation: c, onClick }: { conversation: ChatConve
           {statusStyle.label}
         </Badge>
       </div>
-
 
       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
     </button>

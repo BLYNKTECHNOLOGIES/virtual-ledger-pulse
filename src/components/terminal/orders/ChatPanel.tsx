@@ -51,12 +51,19 @@ interface Props {
   templateValues?: TemplateOrderValues;
 }
 
-export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
+export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
+  // ONE THREAD PER COUNTERPARTY.
+  // Binance chat is order-scoped: a counterparty's newest messages land in
+  // their newest order. When the operator opens an older order we silently
+  // anchor the live thread to that newest order, so incoming messages and
+  // replies stay in a single conversation; the older order's chat still shows
+  // above it as history.
+  const { data: newerOrder } = useNewerCounterpartyOrder(openedOrderNumber, exchangeAccountId);
+  const orderNumber = newerOrder?.orderNumber ?? openedOrderNumber;
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
-  const { data: newerOrder } = useNewerCounterpartyOrder(orderNumber, exchangeAccountId);
   const { userId, username } = useTerminalAuth();
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -470,39 +477,12 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
 
 
-      {/* Same counterparty opened a NEWER order — their new messages land in
-          that thread, not this one. Binance chat is strictly per-order. */}
       {newerOrder && (
-        <button
-          type="button"
-          onClick={() =>
-            window.dispatchEvent(
-              new CustomEvent('terminal:open-order-chat', {
-                detail: {
-                  orderNumber: newerOrder.orderNumber,
-                  counterpartyNickname,
-                  tradeType: newerOrder.tradeType || tradeType || 'BUY',
-                  orderStatus: newerOrder.orderStatus || '',
-                  asset: newerOrder.asset || 'USDT',
-                  totalPrice: newerOrder.totalPrice || '0',
-                },
-              }),
-            )
-          }
-          className="w-full text-left px-4 py-2 bg-primary/10 border-b border-primary/30 hover:bg-primary/15 transition-colors"
-        >
-          <span className="text-[11px] font-medium text-primary">
-            Newer order with this counterparty — open its chat
+        <div className="px-4 py-1.5 bg-primary/5 border-b border-primary/20">
+          <span className="text-[10px] text-primary">
+            Merged thread — live chat and replies are on their latest order #{newerOrder.orderNumber.slice(-8)}
           </span>
-          <span className="block text-[10px] text-muted-foreground t-mono">
-            #{newerOrder.orderNumber.slice(-8)} · {newerOrder.asset || 'USDT'} ·{' '}
-            {new Date(newerOrder.createTime).toLocaleTimeString('en-IN', {
-              timeZone: 'Asia/Kolkata',
-              hour: '2-digit',
-              minute: '2-digit',
-            })} IST
-          </span>
-        </button>
+        </div>
       )}
 
       {/* Messages area */}

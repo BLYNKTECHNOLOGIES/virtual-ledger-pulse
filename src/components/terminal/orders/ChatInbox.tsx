@@ -120,14 +120,50 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     [rows]
   );
 
+  // ONE ROW PER COUNTERPARTY.
+  // Binance opens a separate chat per order, so the same person used to appear
+  // several times. We keep only their newest conversation (that is where live
+  // messages land) and roll their unread counts into it. Masked nicknames with
+  // no verified name are never merged — they cannot be proven to be the same
+  // person.
+  const merged: ChatConversation[] = useMemo(() => {
+    const out: ChatConversation[] = [];
+    const byKey = new Map<string, ChatConversation>();
+    const rank = (c: ChatConversation) =>
+      c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : c.createTime;
+
+    for (const c of conversations) {
+      const verified = (c.verifiedName || '').trim().toLowerCase();
+      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
+      const identifiable = verified || (nick && !nick.includes('*') ? nick : '');
+      if (!identifiable) {
+        out.push(c);
+        continue;
+      }
+      const key = `${c.exchangeAccountId || 'all'}|${identifiable}`;
+      const existing = byKey.get(key);
+      if (!existing) {
+        byKey.set(key, { ...c });
+        continue;
+      }
+      const newest = rank(c) > rank(existing) ? { ...c } : { ...existing };
+      newest.chatUnreadCount = (existing.chatUnreadCount || 0) + (c.chatUnreadCount || 0);
+      byKey.set(key, newest);
+    }
+
+    const all = [...out, ...byKey.values()];
+    all.sort((a, b) => rank(b) - rank(a));
+    return all;
+  }, [conversations]);
+
   const filtered = useMemo(
-    () => (tab === 'unread' ? conversations.filter((c) => c.chatUnreadCount > 0) : conversations),
-    [conversations, tab]
+    () => (tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged),
+    [merged, tab]
   );
 
   const totalUnread = useMemo(
-    () => conversations.reduce((sum, c) => sum + (c.chatUnreadCount > 0 ? 1 : 0), 0),
-    [conversations]
+    () => merged.reduce((sum, c) => sum + (c.chatUnreadCount > 0 ? 1 : 0), 0),
+    [merged]
   );
 
   const { data: seenMap = {} } = useChatSeenMap(

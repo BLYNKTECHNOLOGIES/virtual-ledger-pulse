@@ -463,6 +463,17 @@ Deno.serve(async (req) => {
 
     let clBooked = 0;
     if (!dryRun) {
+      // Refresh part-month CTC transition corrections for this payroll month
+      // BEFORE staging LOP: a mid-month CTC change (scheduled or applied) must
+      // carry its own day-weighted recovery/arrear, and LOP below is charged on
+      // the blended base. Idempotent and provisional-safe.
+      const { error: ctcErr } = await supabase.rpc(
+        "hr_stage_due_ctc_transition_adjustments",
+        { p_month: periodStr },
+      );
+      if (ctcErr) console.error("ctc transition refresh failed", ctcErr);
+
+
       // Book the automatic casual-leave consumption FIRST. The RPC reverses any
       // previous auto booking for this month, so re-running never double-spends.
       // The reversal is scoped to the employees in THIS run — a partial staging

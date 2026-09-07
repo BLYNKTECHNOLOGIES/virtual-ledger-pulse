@@ -278,6 +278,7 @@ export function useBinanceOrderDetail(orderNumber: string | null, accountId?: st
     queryFn: () => callBinanceAds('getOrderDetail', { orderNumber }, accountId ?? undefined),
     enabled: !!orderNumber,
     staleTime: 10 * 1000,
+    refetchInterval: pollWhenVisible(10 * 1000),
     retry: 1, // Don't retry excessively if endpoint is blocked
   });
 }

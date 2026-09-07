@@ -30853,6 +30853,17 @@ export type Database = {
           zone: string
         }[]
       }
+      terminal_collector_heartbeat: {
+        Args: never
+        Returns: {
+          cache_age_seconds: number
+          cached_orders: number
+          detail: Json
+          heartbeat_age_seconds: number
+          last_status: string
+          last_tick_at: string
+        }[]
+      }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
       terminal_order_final_appeal_status: {
         Args: { p_status: string }

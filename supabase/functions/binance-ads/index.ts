@@ -719,8 +719,27 @@ serve(async (req) => {
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY");
 
     // Require an authenticated caller — this function controls live Binance trading.
+    // Internal scheduler jobs authenticate with the shared x-scheduler-secret instead
+    // of a user token; they are restricted to read-only sync actions below.
     const authHeader = req.headers.get("Authorization") ?? req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
+    const schedulerSecretHeader = req.headers.get("x-scheduler-secret") || "";
+    let callerIsScheduler = false;
+    if (schedulerSecretHeader && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const secretAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const { data: secretRow } = await secretAdmin
+          .from("app_scheduler_secrets")
+          .select("secret_value")
+          .eq("name", "internal_cron")
+          .maybeSingle();
+        if (secretRow?.secret_value && secretRow.secret_value === schedulerSecretHeader) {
+          callerIsScheduler = true;
+        }
+      } catch (secretErr) {
+        console.warn("scheduler secret check failed:", secretErr);
+      }
+    }
+    if (!authHeader?.startsWith("Bearer ") && !callerIsScheduler) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -728,8 +747,8 @@ serve(async (req) => {
     }
     let callerUserId: string | null = null;
     const callerIsServiceRole =
-      !!SUPABASE_SERVICE_ROLE_KEY && authHeader.replace("Bearer ", "").trim() === SUPABASE_SERVICE_ROLE_KEY;
-    if (!callerIsServiceRole) {
+      !!SUPABASE_SERVICE_ROLE_KEY && !!authHeader && authHeader.replace("Bearer ", "").trim() === SUPABASE_SERVICE_ROLE_KEY;
+    if (!callerIsServiceRole && !callerIsScheduler) {
       try {
         const authClient = createClient(SUPABASE_URL!, SUPABASE_ANON_KEY!, {
           global: { headers: { Authorization: authHeader } },

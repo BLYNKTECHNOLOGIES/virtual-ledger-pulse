@@ -132,7 +132,7 @@ function normalize(orderNo, msg, accountId) {
     chat_message_type: msg?.chatMessageType == null ? null : String(msg.chatMessageType),
     content_type: contentType,
     sender_is_self: typeof msg?.self === 'boolean' ? msg.self : (typeof msg?.isSelf === 'boolean' ? msg.isSelf : null),
-    sender_nickname: msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
+    sender_nickname: msg?.fromNickname || msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
     message_status: msg?.status == null ? (msg?.sendStatus == null ? null : String(msg.sendStatus)) : String(msg.status),
     binance_create_time: Number.isFinite(createTime) && createTime > 0 ? createTime : null,
     binance_created_at: Number.isFinite(createTime) && createTime > 0 ? new Date(createTime).toISOString() : null,

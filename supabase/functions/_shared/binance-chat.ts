@@ -83,7 +83,8 @@ export function normalizeChatMessage(
         : typeof msg?.isSelf === "boolean"
         ? msg.isSelf
         : null,
-    sender_nickname: msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
+    sender_nickname:
+      msg?.fromNickname || msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
     message_status:
       msg?.status == null
         ? msg?.sendStatus == null

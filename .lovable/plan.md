@@ -20,7 +20,8 @@ So with 6 operators open, Binance is hit ~6x for the same data, everyone pays fi
 ## Plan
 
 ### Phase 1 — Server-side order collector (no UI change, immediate speed win)
-- New scheduled edge function `terminal-order-collector`, run every 20-30 seconds by cron, looping over every active Binance account.
+- New scheduled edge function `terminal-order-collector`, started every minute by cron. Each run stays awake up to ~55 seconds and polls Binance in a ~4-5 second loop, looping over every active Binance account — so operators see updates within about 5 seconds, not 20-30.
+- Smart pacing: when an account has zero active orders or nothing changed (Binance lets us compare), the loop backs off to 10-15 s, so the ~17k calls/day-per-account ceiling at full speed only happens while real trading is happening; central retry + 429 backoff included.
 - It fetches active orders + recent history through the same `binance-ads` proxy path and upserts into `p2p_order_records` / `binance_order_history` (existing tables, existing sync RPCs — no schema churn).
 - Move the 5-minute browser-driven history sync into this cron as well, so it keeps running even with zero tabs open (today history goes stale overnight).
 

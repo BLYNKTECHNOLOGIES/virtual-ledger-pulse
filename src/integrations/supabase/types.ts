@@ -29034,6 +29034,7 @@ export type Database = {
           calculated_balance: number
         }[]
       }
+      get_buyer_onboarding_approval_counts: { Args: never; Returns: Json }
       get_client_order_metrics: {
         Args: never
         Returns: {

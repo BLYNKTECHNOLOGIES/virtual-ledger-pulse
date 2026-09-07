@@ -452,63 +452,101 @@ export function ClientOnboardingApprovals() {
     additionalDocs,
   ]);
 
-  // Fetch approvals - all pending, and all reviewed (history)
-  const { data: approvals, isLoading } = useQuery({
-    queryKey: ['client_onboarding_approvals'],
+  // Lazy-loading strategy: exact totals come from a lightweight count RPC so the
+  // header badges are correct even before any rows load; the pending queue loads
+  // on mount; the Approval History block only downloads its rows once it scrolls
+  // near the viewport. Both tables then render rows progressively ("Load more")
+  // so the initial page render stays cheap no matter how large the ledger gets.
+  const PENDING_PAGE_SIZE = 50;
+  const HISTORY_PAGE_SIZE = 50;
+  const [visiblePendingCount, setVisiblePendingCount] = useState(PENDING_PAGE_SIZE);
+  const [visibleHistoryCount, setVisibleHistoryCount] = useState(HISTORY_PAGE_SIZE);
+  const [historyInView, setHistoryInView] = useState(false);
+  const historyCardRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (historyInView) return;
+    const el = historyCardRef.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setHistoryInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some(e => e.isIntersecting)) {
+          setHistoryInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [historyInView]);
+
+  // Exact deduplicated totals (same grouping + seller-only exclusion as the
+  // client-side dedup below), without downloading any rows.
+  const { data: approvalCounts } = useQuery({
+    queryKey: ['client_onboarding_approvals', 'counts'],
+    staleTime: 30 * 1000,
     queryFn: async () => {
-      // IMPORTANT: PostgREST caps every request at 1000 rows. The pending
-      // approval ledger has well over 1000 rows, so a single .select() was
-      // silently truncating the list and under-counting distinct clients
-      // (showing e.g. 398 instead of the true total). Paginate to get ALL rows.
-      const allPending = await fetchAllPaginated<ClientOnboardingApproval>(() =>
-        supabase
-          .from('client_onboarding_approvals')
-          .select('*')
-          .eq('approval_status', 'PENDING')
-          .order('created_at', { ascending: false })
-      );
+      const { data, error } = await (supabase as any).rpc('get_buyer_onboarding_approval_counts');
+      if (error) throw error;
+      return data as { pending: number; history: number };
+    },
+  });
 
-      const history = await fetchAllPaginated<ClientOnboardingApproval>(() =>
-        supabase
-          .from('client_onboarding_approvals')
-          .select('*')
-          .neq('approval_status', 'PENDING')
-          .order('created_at', { ascending: false })
-      );
+  // Shared fetcher. IMPORTANT: PostgREST caps every request at 1000 rows, so we
+  // paginate to get ALL rows of the requested scope. Seller-only resolved
+  // clients are excluded exactly as before (ghost buyer approvals).
+  const fetchBuyerApprovals = async (scope: 'pending' | 'history'): Promise<ClientOnboardingApproval[]> => {
+    const rows = await fetchAllPaginated<ClientOnboardingApproval>(() => {
+      const base = supabase
+        .from('client_onboarding_approvals')
+        .select('*')
+        .order('created_at', { ascending: false });
+      return scope === 'pending'
+        ? base.eq('approval_status', 'PENDING')
+        : base.neq('approval_status', 'PENDING');
+    });
 
-      const combined = [...allPending, ...history] as ClientOnboardingApproval[];
+    const resolvedIds = Array.from(
+      new Set(rows.map(a => a.resolved_client_id).filter((v): v is string => !!v))
+    );
+    if (resolvedIds.length === 0) return rows as ClientOnboardingApproval[];
 
-      // Exclude approvals that belong to the SELLER onboarding flow. This tab
-      // only surfaces BUYER approvals; a row whose resolved client is a
-      // seller-only account (is_seller=true AND is_buyer=false) must never
-      // appear here — those are handled in the Seller Approvals tab and
-      // otherwise bleed in as ghost buyer approvals (e.g. purchase-side
-      // counterparties backfilled from historical orders).
-      const resolvedIds = Array.from(
-        new Set(combined.map(a => a.resolved_client_id).filter((v): v is string => !!v))
-      );
-      if (resolvedIds.length === 0) return combined;
-
-      const sellerOnlyIds = new Set<string>();
-      // Chunked IN() to stay well under URL/statement limits.
-      for (let i = 0; i < resolvedIds.length; i += 500) {
-        const slice = resolvedIds.slice(i, i + 500);
-        const { data } = await supabase
-          .from('clients')
-          .select('id, is_buyer, is_seller')
-          .in('id', slice);
-        for (const c of data || []) {
-          if ((c as any).is_seller === true && (c as any).is_buyer === false) {
-            sellerOnlyIds.add((c as any).id);
-          }
+    const sellerOnlyIds = new Set<string>();
+    // Chunked IN() to stay well under URL/statement limits.
+    for (let i = 0; i < resolvedIds.length; i += 500) {
+      const slice = resolvedIds.slice(i, i + 500);
+      const { data } = await supabase
+        .from('clients')
+        .select('id, is_buyer, is_seller')
+        .in('id', slice);
+      for (const c of data || []) {
+        if ((c as any).is_seller === true && (c as any).is_buyer === false) {
+          sellerOnlyIds.add((c as any).id);
         }
       }
-
-      return combined.filter(a =>
-        !(a.resolved_client_id && sellerOnlyIds.has(a.resolved_client_id))
-      );
     }
 
+    return (rows as ClientOnboardingApproval[]).filter(a =>
+      !(a.resolved_client_id && sellerOnlyIds.has(a.resolved_client_id))
+    );
+  };
+
+  const { data: pendingRows, isLoading } = useQuery({
+    queryKey: ['client_onboarding_approvals', 'pending'],
+    queryFn: () => fetchBuyerApprovals('pending'),
+  });
+
+  // History rows are fetched lazily — only once the history card approaches the
+  // viewport — so opening this page no longer downloads the entire ledger.
+  const { data: historyRows, isLoading: historyLoading } = useQuery({
+    queryKey: ['client_onboarding_approvals', 'history'],
+    queryFn: () => fetchBuyerApprovals('history'),
+    enabled: historyInView,
   });
 
   // 4-state identity resolution per pending approval — uses persisted
@@ -529,19 +567,19 @@ export function ClientOnboardingApprovals() {
     matchedClient?: ClientLite;
   }
 
-  const pendingApprovalsRaw = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const pendingApprovalsRaw = pendingRows || [];
   const pendingSalesOrderIds = pendingApprovalsRaw
     .filter(a => a.sales_order_id)
     .map(a => a.sales_order_id);
 
   useEffect(() => {
-    if (dialogOpen || selectedApproval || !approvals?.length) return;
+    if (dialogOpen || selectedApproval || !pendingRows?.length) return;
     const activeDraftId = readActiveApprovalDraftId();
     if (!activeDraftId) return;
     let cancelled = false;
     void loadBuyerApprovalDraft(activeDraftId).then((draft) => {
       if (cancelled || !draft) return;
-    const approval = approvals.find(a => a.id === activeDraftId && a.approval_status === 'PENDING');
+    const approval = pendingRows.find(a => a.id === activeDraftId);
     if (approval) {
       handleApprovalClick(approval);
     } else {
@@ -552,7 +590,7 @@ export function ClientOnboardingApprovals() {
     return () => {
       cancelled = true;
     };
-  }, [approvals, dialogOpen, selectedApproval]);
+  }, [pendingRows, dialogOpen, selectedApproval]);
 
   // Resolve reviewer UUIDs → display names for the Approval History "Reviewed By" column.
   const { data: reviewerNameMap } = useQuery({
@@ -561,7 +599,7 @@ export function ClientOnboardingApprovals() {
     queryFn: async () => {
       const map: Record<string, string> = {};
       const ids = Array.from(
-        new Set((approvals || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
+        new Set((historyRows || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
       );
       if (ids.length === 0) return map;
       const { data } = await usersDirectory()
@@ -572,7 +610,7 @@ export function ClientOnboardingApprovals() {
       }
       return map;
     },
-    enabled: (approvals || []).some(a => !!a.reviewed_by),
+    enabled: (historyRows || []).some(a => !!a.reviewed_by),
   });
 
   const { data: identityMap } = useQuery({
@@ -963,7 +1001,7 @@ export function ClientOnboardingApprovals() {
     }) => {
       const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails, kycDocuments } = approvalData;
       
-      const approval = approvals?.find(a => a.id === id);
+      const approval = pendingRows?.find(a => a.id === id) ?? historyRows?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
 
       // Authoritative buyer identity from Terminal approval. If this exists, the
@@ -2028,7 +2066,7 @@ export function ClientOnboardingApprovals() {
   // never inflate the "N orders" badge — otherwise the row count disagrees with what Review shows.
   const isRealOrderApproval = (a: ClientOnboardingApproval) =>
     !!a.sales_order_id || (Number(a.order_amount) || 0) > 0;
-  const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const allPending = pendingRows || [];
   const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; all: ClientOnboardingApproval[]; allIds: string[]; totalAmount: number; orderCount: number }>();
   for (const a of allPending) {
     const key = a.client_name.trim().toLowerCase();
@@ -2070,7 +2108,7 @@ export function ClientOnboardingApprovals() {
   // just a duplicate record. Collapse the history to one row per client (name + phone),
   // keeping the record that actually holds the order value & proposed limit.
   const reviewedApprovals = (() => {
-    const all = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
+    const all = historyRows || [];
     const groups = new Map<string, typeof all[number]>();
     for (const a of all) {
       const key = `${(a.client_name || '').trim().toLowerCase()}|${(a.client_phone || '').trim()}`;
@@ -2153,7 +2191,7 @@ export function ClientOnboardingApprovals() {
       <div className="flex items-center gap-3">
         <AlertCircle className="h-6 w-6 text-warning" />
         <h2 className="text-2xl font-bold">Client Onboarding Approvals</h2>
-        <Badge variant="destructive">{pendingApprovals.length} Pending</Badge>
+        <Badge variant="destructive">{approvalCounts?.pending ?? allPendingApprovals.length} Pending</Badge>
       </div>
 
       {/* Pending Approvals */}
@@ -2161,7 +2199,7 @@ export function ClientOnboardingApprovals() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-warning" />
-            Pending Client Approvals ({pendingApprovals.length})
+            Pending Client Approvals ({approvalCounts?.pending ?? allPendingApprovals.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -2196,6 +2234,7 @@ export function ClientOnboardingApprovals() {
           {isLoading ? (
             <TableSkeleton rows={8} columns={8} />
           ) : (
+            <>
             <Table stickyHeader density={density} maxHeight="65vh">
               <TableHeader>
                  <TableRow>
@@ -2210,7 +2249,7 @@ export function ClientOnboardingApprovals() {
                  </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingApprovals.map((entry) => {
+                {pendingApprovals.slice(0, visiblePendingCount).map((entry) => {
                   const approval = entry.primary;
                   const nameKey = approval.client_name.trim().toLowerCase();
                   const idInfo = identityMap?.[approval.id];
@@ -2420,16 +2459,30 @@ export function ClientOnboardingApprovals() {
                 )}
               </TableBody>
             </Table>
+            {pendingApprovals.length > visiblePendingCount && (
+              <div className="flex justify-center mt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisiblePendingCount(c => c + PENDING_PAGE_SIZE)}
+                >
+                  Load more ({pendingApprovals.length - visiblePendingCount} remaining)
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </CardContent>
       </Card>
 
-      {/* Reviewed Approvals */}
+      {/* Reviewed Approvals — rows lazy-load when this card nears the viewport;
+          the count above is always exact via the count RPC. */}
+      <div ref={historyCardRef}>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Approval History ({reviewedApprovals.length})
-            {reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length > 0 && (
+            Approval History ({approvalCounts?.history ?? reviewedApprovals.length})
+            {historyRows && reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length} Rejected
               </Badge>
@@ -2437,6 +2490,10 @@ export function ClientOnboardingApprovals() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {!historyInView || historyLoading ? (
+            <TableSkeleton rows={6} columns={7} />
+          ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -2450,7 +2507,7 @@ export function ClientOnboardingApprovals() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reviewedApprovals.map((approval) => (
+              {reviewedApprovals.slice(0, visibleHistoryCount).map((approval) => (
                 <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
                   <TableCell>{approval.order_amount > 0 ? `₹${approval.order_amount.toLocaleString('en-IN')}` : <span className="text-xs text-muted-foreground italic">No linked order</span>}</TableCell>
@@ -2496,8 +2553,22 @@ export function ClientOnboardingApprovals() {
               )}
             </TableBody>
           </Table>
+          {reviewedApprovals.length > visibleHistoryCount && (
+            <div className="flex justify-center mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleHistoryCount(c => c + HISTORY_PAGE_SIZE)}
+              >
+                Load more ({reviewedApprovals.length - visibleHistoryCount} remaining)
+              </Button>
+            </div>
+          )}
+          </>
+          )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : closeApprovalDialog()}>

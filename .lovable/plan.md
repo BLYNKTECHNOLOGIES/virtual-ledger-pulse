@@ -63,9 +63,16 @@ grep -o '^[A-Z_0-9]*' /home/ubuntu/chat-listener/.env
 
 Expected output: the seven names above, nothing else.
 
-### A2. Install `main.js`
+</details>
 
-I write `main.js` next and hand it over as a single file to save into `/home/ubuntu/chat-listener/main.js` (via nano, to avoid paste mangling again).
+### A2. Install `main.js` — NEXT STEP
+
+`main.js` does not exist yet, which is why `pm2 start main.js` reports "Script not found". I write the file next; you then create it with `nano /home/ubuntu/chat-listener/main.js`, paste the contents, save (`Ctrl+O`, `Enter`, `Ctrl+X`), and check it parses:
+
+```bash
+node --check /home/ubuntu/chat-listener/main.js
+```
+
 
 ### A3. Start it under pm2
 

@@ -1876,6 +1876,12 @@ serve(async (req) => {
         // is successful only after the exact outgoing message is visible in chat history.
         const orderNo = String(payload.orderNo || "").trim();
         const msgContent = String(payload.imageUrl || payload.content || payload.message || "").trim();
+        // Binance's own P2P app shares an ad as a chat frame of type "card" with
+        // subType "advertisement" and the ad JSON as content (observed verbatim on
+        // our own outgoing messages in binance_order_chat_messages.raw_payload).
+        // We mirror that exact frame so the counterparty gets the native, tappable
+        // ad card instead of plain text.
+        const isCard = String(payload.contentType || payload.chatMessageType || "").toUpperCase() === "CARD";
         const msgType = payload.imageUrl ? "IMAGE" : (payload.contentType || payload.chatMessageType || "TEXT");
 
         if (!/^\d{8,32}$/.test(orderNo)) {
@@ -1908,13 +1914,14 @@ serve(async (req) => {
           return false;
         };
 
-        // Try proxy first for text only. Image URLs sent through the REST/proxy path are
-        // rendered by Binance as text links; inline images must be sent as image WS frames.
+        // Try proxy first for text only. Image URLs and ad cards sent through the
+        // REST/proxy path are rendered by Binance as plain text; they must go out as
+        // their own WebSocket frame type.
         const sendMsgUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/sendMessage?orderNo=${encodeURIComponent(orderNo)}&content=${encodeURIComponent(msgContent)}&contentType=${encodeURIComponent(msgType)}`;
         console.log("sendChatMessage trying proxy:", sendMsgUrl);
         let response: Response | { status: number } = { status: 404 };
-        let text = "Image messages use WebSocket delivery";
-        if (!payload.imageUrl) {
+        let text = "Image/card messages use WebSocket delivery";
+        if (!payload.imageUrl && !isCard) {
           response = await fetchWithRetry(sendMsgUrl, { method: "POST", headers: proxyHeaders });
           text = await response.text();
         }

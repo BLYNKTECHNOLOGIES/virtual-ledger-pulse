@@ -2475,12 +2475,14 @@ export function ClientOnboardingApprovals() {
         </CardContent>
       </Card>
 
-      {/* Reviewed Approvals */}
+      {/* Reviewed Approvals — rows lazy-load when this card nears the viewport;
+          the count above is always exact via the count RPC. */}
+      <div ref={historyCardRef}>
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Approval History ({reviewedApprovals.length})
-            {reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length > 0 && (
+            Approval History ({approvalCounts?.history ?? reviewedApprovals.length})
+            {historyRows && reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length > 0 && (
               <Badge variant="destructive" className="ml-2">
                 {reviewedApprovals.filter(a => a.approval_status === 'REJECTED').length} Rejected
               </Badge>
@@ -2488,6 +2490,10 @@ export function ClientOnboardingApprovals() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {!historyInView || historyLoading ? (
+            <TableSkeleton rows={6} columns={7} />
+          ) : (
+          <>
           <Table>
             <TableHeader>
               <TableRow>
@@ -2501,7 +2507,7 @@ export function ClientOnboardingApprovals() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reviewedApprovals.map((approval) => (
+              {reviewedApprovals.slice(0, visibleHistoryCount).map((approval) => (
                 <TableRow key={approval.id} className={approval.approval_status === 'REJECTED' ? 'bg-destructive/5' : ''}>
                   <TableCell className="font-medium">{approval.client_name}</TableCell>
                   <TableCell>{approval.order_amount > 0 ? `₹${approval.order_amount.toLocaleString('en-IN')}` : <span className="text-xs text-muted-foreground italic">No linked order</span>}</TableCell>

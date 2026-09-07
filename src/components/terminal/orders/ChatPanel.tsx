@@ -34,6 +34,7 @@ import { markOrderChatRead } from '@/lib/chat-read-state';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
+import { useNewerCounterpartyOrder } from '@/hooks/useNewerCounterpartyOrder';
 
 
 interface Props {
@@ -55,6 +56,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
+  const { data: newerOrder } = useNewerCounterpartyOrder(orderNumber, exchangeAccountId);
   const { userId, username } = useTerminalAuth();
   const [text, setText] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(() => {
@@ -467,6 +469,41 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
 
 
 
+
+      {/* Same counterparty opened a NEWER order — their new messages land in
+          that thread, not this one. Binance chat is strictly per-order. */}
+      {newerOrder && (
+        <button
+          type="button"
+          onClick={() =>
+            window.dispatchEvent(
+              new CustomEvent('terminal:open-order-chat', {
+                detail: {
+                  orderNumber: newerOrder.orderNumber,
+                  counterpartyNickname,
+                  tradeType: newerOrder.tradeType || tradeType || 'BUY',
+                  orderStatus: newerOrder.orderStatus || '',
+                  asset: newerOrder.asset || 'USDT',
+                  totalPrice: newerOrder.totalPrice || '0',
+                },
+              }),
+            )
+          }
+          className="w-full text-left px-4 py-2 bg-primary/10 border-b border-primary/30 hover:bg-primary/15 transition-colors"
+        >
+          <span className="text-[11px] font-medium text-primary">
+            Newer order with this counterparty — open its chat
+          </span>
+          <span className="block text-[10px] text-muted-foreground t-mono">
+            #{newerOrder.orderNumber.slice(-8)} · {newerOrder.asset || 'USDT'} ·{' '}
+            {new Date(newerOrder.createTime).toLocaleTimeString('en-IN', {
+              timeZone: 'Asia/Kolkata',
+              hour: '2-digit',
+              minute: '2-digit',
+            })} IST
+          </span>
+        </button>
+      )}
 
       {/* Messages area */}
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">

@@ -143,6 +143,9 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       callBinanceAds('markOrderMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
         console.warn('Failed to mark Binance chat read:', err);
       });
+      callBinanceAds('markUserMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
+        console.warn('Failed to mark counterparty user chats read:', err);
+      });
       onOpenChat(conv);
     },
     [onOpenChat, queryClient]

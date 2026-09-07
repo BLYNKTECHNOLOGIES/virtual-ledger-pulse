@@ -39,6 +39,8 @@ import { useTerminalAlerts } from '@/hooks/useTerminalAlerts';
 import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 import { focusPageSearch } from '@/lib/focus-page-search';
 import { pollWhenVisible } from '@/lib/poll-when-visible';
+import { useTerminalCollectorState, isCollectorStale, triggerCollectorTick } from '@/hooks/useTerminalCollector';
+import { prewarmChatCredentials } from '@/hooks/useBinanceChatWebSocket';
 
 
 /** Convert numeric orderStatus to string */
@@ -222,7 +224,18 @@ function TerminalOrdersContent() {
 
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
-  const { activeAccountId, isAllAccounts } = useExchangeAccount();
+  const { activeAccountId, isAllAccounts, accountsToQuery } = useExchangeAccount();
+  // Server-side order collector heartbeat — stale means the terminal has
+  // silently fallen back to per-browser Binance polling.
+  const { data: collectorState } = useTerminalCollectorState();
+  const collectorStale = isCollectorStale(collectorState);
+
+  // Prewarm chat WebSocket credentials for every visible account so opening a
+  // chat connects instantly (skip the browser→edge→relay→Binance round-trip).
+  useEffect(() => {
+    if (!canChat || !accountsToQuery?.length) return;
+    prewarmChatCredentials(accountsToQuery);
+  }, [canChat, accountsToQuery]);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;

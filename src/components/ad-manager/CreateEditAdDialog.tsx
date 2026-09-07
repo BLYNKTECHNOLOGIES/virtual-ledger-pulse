@@ -1122,15 +1122,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <RadioGroupItem value={String(BINANCE_AD_STATUS.ONLINE)} id="status-online" />
                 <Label htmlFor="status-online" className="cursor-pointer">Online</Label>
               </div>
-              {isEditing && (
+              {isEditing && editingAd?.advStatus === BINANCE_AD_STATUS.PRIVATE && (
                 <div className="flex items-center gap-2">
                   <RadioGroupItem value={String(BINANCE_AD_STATUS.PRIVATE)} id="status-private" />
                   <Label htmlFor="status-private" className="cursor-pointer">
                     Private
-                    <span className="ml-2 text-xs text-muted-foreground">Visible only via direct link</span>
+                    <span className="ml-2 text-xs text-muted-foreground">Visible only via direct link (set in the Binance app)</span>
                   </Label>
                 </div>
               )}
+
               <div className="flex items-center gap-2">
                 <RadioGroupItem value={String(BINANCE_AD_STATUS.OFFLINE)} id="status-offline" />
                 <Label htmlFor="status-offline" className="cursor-pointer">Offline</Label>

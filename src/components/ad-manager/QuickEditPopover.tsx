@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
-import { BinanceAd, useUpdateAd, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, useUpdateAd, useUpdateAdStatus, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 
 const changedNumber = (current: unknown, next: unknown) => Number(current ?? 0) !== Number(next ?? 0);
@@ -26,6 +26,7 @@ interface QuickEditPopoverProps {
 export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopoverProps) {
   const { toast } = useToast();
   const updateAd = useUpdateAd();
+  const updateAdStatus = useUpdateAdStatus();
   const [open, setOpen] = useState(false);
   const isFloating = ad.priceType === 2;
 
@@ -133,9 +134,9 @@ export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopov
           </Select>
         </div>
         <div className="flex justify-end gap-2 pt-1">
-          <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)} disabled={updateAd.isPending}>Cancel</Button>
-          <Button size="sm" className="h-8" onClick={handleSave} disabled={updateAd.isPending}>
-            {updateAd.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+          <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)} disabled={updateAd.isPending || updateAdStatus.isPending}>Cancel</Button>
+          <Button size="sm" className="h-8" onClick={handleSave} disabled={updateAd.isPending || updateAdStatus.isPending}>
+            {(updateAd.isPending || updateAdStatus.isPending) && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
             Save
           </Button>
         </div>

@@ -190,7 +190,10 @@ class AccountSocket {
   }
 
   async credential() {
-    if (this.cred) return this.cred;
+    // Refresh the listenKey before Binance's 60-minute expiry. Re-fetching on
+    // every reconnect plus proactively invalidating a key older than 25 min
+    // keeps the socket session healthy.
+    if (this.cred && Date.now() - this.credAt < 25 * 60 * 1000) return this.cred;
     const { key, secret } = secretsFor(this.account.credential_key);
     if (!key || !secret) throw new Error(`no API secrets for ${this.account.account_name} (${this.account.credential_key})`);
     this.cred = await fetchChatCredential(key, secret);

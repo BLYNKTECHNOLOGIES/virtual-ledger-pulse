@@ -412,6 +412,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     if (form.autoReplyMsg) fullAdData.autoReplyMsg = form.autoReplyMsg;
     if (form.remarks) fullAdData.remarks = form.remarks;
 
+    // Private (2) is a visibility state, not a Binance ad status. Detect the
+    // transition so it can be applied via the visibility-aware status call.
+    const wasPrivate = isEditing && editingAd!.advStatus === BINANCE_AD_STATUS.PRIVATE;
+    const wantsPrivate = form.advStatus === BINANCE_AD_STATUS.PRIVATE;
+    const visibilityChanged = isEditing && wasPrivate !== wantsPrivate;
+
     const adData = isEditing ? { advNo: editingAd!.advNo } as Record<string, any> : fullAdData;
     if (isEditing) {
       if (changedNumber(editingAd!.initAmount, form.initAmount)) adData.initAmount = fullAdData.initAmount;

@@ -1,40 +1,22 @@
-# Phase 3b — Chat listener: remaining steps
+# Phase 3b — Chat listener: finish the install
 
-## Checks on what you've already done — all correct
-- `/home/ubuntu/chat-listener` created, `npm init -y` done, `ws` + `@supabase/supabase-js` + `dotenv` installed (11 packages, 0 vulnerabilities).
-- `.env` reads back exactly the seven expected keys and is `chmod 600`.
-- `pm2` shows `binance-proxy` and `chat-relay` online; the listener joins them as a third app.
-- The last attempt failed only because nano closed before the paste landed, so the script went into bash instead of into the file. Nothing was created and nothing was damaged — the stray `command not found` noise is harmless.
+## Where it actually stands
+- `.env` (7 keys, mode 600), npm deps and pm2 registration are all correct — `pm2` now lists `chat-listener` alongside `binance-proxy` and `chat-relay`.
+- The only fault is that your terminal truncated the paste: the file stopped at line 157 mid-function, hence `SyntaxError: Unexpected end of input`. Nothing else is wrong.
+- Fix: write the file in three smaller pastes instead of one. First paste overwrites (`>`), the next two append (`>>`).
 
-## Step 1 — Create `main.js` (paste-proof method)
-
-Your terminal is injecting bracketed-paste characters, which is what mangled both earlier attempts. Turn that off first, then paste into a quoted heredoc — inside `<<'JSEOF'` bash treats every line as plain text, so parentheses and backticks can't be interpreted:
+## Step 1 — Stop the crash loop first
 
 ```bash
-bind 'set enable-bracketed-paste off'
+pm2 stop chat-listener
 ```
 
-Then paste the whole block below in one go — from `cat > ...` down to and including the final `JSEOF` line — and press Enter:
+## Step 2 — Paste part 1 of 3 (overwrites the broken file)
+
+Paste from `cat >` down to and including `JSEOF`, then Enter:
 
 ```bash
 cat > /home/ubuntu/chat-listener/main.js <<'JSEOF'
-<PASTE THE JAVASCRIPT BELOW HERE>
-JSEOF
-```
-
-Verify:
-
-```bash
-wc -l /home/ubuntu/chat-listener/main.js
-node --check /home/ubuntu/chat-listener/main.js
-```
-
-Expect roughly 250 lines and no output at all from `node --check` (silence means it parses). If you see `cat: command not found` again, the bracketed-paste toggle didn't take — in that case run `nano /home/ubuntu/chat-listener/main.js`, **wait for the blue editor to actually appear**, paste there, then `Ctrl+O`, `Enter`, `Ctrl+X`.
-
-The script is verified against the app's own credential fetch, relay URL shape and message-normalisation logic, so the rows it writes are identical in shape to what the ERP already stores.
-
-```js
-
 'use strict';
 const fs = require('fs');
 const crypto = require('crypto');
@@ -139,6 +121,21 @@ function normalize(orderNo, msg, accountId) {
 
 const stats = { saved: 0, lastMessageAt: null, reconnects: 0 };
 
+JSEOF
+```
+
+Check before continuing — it must say 104:
+
+```bash
+wc -l /home/ubuntu/chat-listener/main.js
+```
+
+If the count is lower, the paste was truncated again: re-run this same block (it overwrites, so it is safe to repeat).
+
+## Step 3 — Paste part 2 of 3 (appends)
+
+```bash
+cat >> /home/ubuntu/chat-listener/main.js <<'JSEOF'
 async function persist(row) {
   const { data: existing, error: readErr } = await sb
     .from('binance_order_chat_messages')
@@ -233,6 +230,21 @@ class AccountSocket {
   stop() { this.stopped = true; try { this.ws?.close(); } catch {} }
 }
 
+JSEOF
+```
+
+Check — must say 198:
+
+```bash
+wc -l /home/ubuntu/chat-listener/main.js
+```
+
+If it is not 198, run `head -104 /home/ubuntu/chat-listener/main.js > /tmp/keep && mv /tmp/keep /home/ubuntu/chat-listener/main.js` and redo this step.
+
+## Step 4 — Paste part 3 of 3 (appends)
+
+```bash
+cat >> /home/ubuntu/chat-listener/main.js <<'JSEOF'
 // ---- orchestration ------------------------------------------------------
 const sockets = new Map();
 
@@ -287,42 +299,48 @@ process.on('unhandledRejection', (e) => console.error('unhandledRejection', e?.m
 
 syncAccounts().then(heartbeat);
 console.log('chat-listener started');
+JSEOF
 ```
 
-## Step 2 — Start it under pm2
+Final check — 252 lines and a silent `node --check`:
 
 ```bash
-cd /home/ubuntu/chat-listener
-pm2 start main.js --name chat-listener
-pm2 save
-pm2 logs chat-listener --lines 50
+wc -l /home/ubuntu/chat-listener/main.js
+node --check /home/ubuntu/chat-listener/main.js
 ```
 
-Expected in the logs: `chat-listener started`, `accounts: 2`, then one `socket open: …` line per Binance account. Once a chat moves you should see `saved message order=… type=text`.
+Silence from `node --check` means it parses.
 
-If a line reads `no API secrets for ASEC Binance`, the `BINANCE_API_KEY_2` pair in `.env` isn't matching — everything else keeps running for Blynk meanwhile.
+## Step 5 — Start and watch
 
-## Step 3 — Verify it is actually landing data
+```bash
+pm2 restart chat-listener
+pm2 save
+pm2 logs chat-listener --lines 40
+```
 
-- New rows appear in `binance_order_chat_messages` within seconds of a live message, with the right `exchange_account_id` and no duplicates.
-- `terminal_collector_state` has a fresh `chat_listener` row with `connected: 2`.
-- `pm2 ls` restart counter for `chat-listener` stays flat.
+Expected: `chat-listener started`, `accounts: 2`, then `socket open: …` once per Binance account, and `saved message order=… type=…` as chats move.
 
-I run the database side of this verification from here once you report the logs.
+If a line says `no API secrets for ASEC Binance`, the `BINANCE_API_KEY_2` pair isn't matching — Blynk keeps running meanwhile.
 
-## Step 4 — Terminal (app) side, after Step 3 passes
+## Step 6 — I verify from this side
+Once you send me those logs I check, from the database:
+- fresh rows in `binance_order_chat_messages` with the correct account and no duplicates,
+- a live `chat_listener` heartbeat in `terminal_collector_state` showing `connected: 2`,
+- pm2 restart counter staying flat.
 
-1. Add `binance_order_chat_messages` to the Supabase realtime publication and subscribe in the chat hook, so messages paint straight from our database.
+## Step 7 — Terminal (app) side, only after Step 6 passes
+1. Add `binance_order_chat_messages` to the realtime publication and subscribe in the chat hook, so messages paint from our own database.
 2. Chat opens from database rows first; history stays complete across reloads.
-3. Browser socket becomes send-only — keep it for sending/typing, drop the REST reconciliation poll while the listener heartbeat is healthy.
-4. "Live chat: connected / stale" chip beside the existing orders banner, driven by the `chat_listener` heartbeat.
-5. Fallback: if the heartbeat goes stale, browsers silently resume today's behaviour (own socket + poll), so nothing breaks if the box goes down.
+3. Browser socket becomes send-only; drop the REST reconciliation poll while the listener heartbeat is healthy.
+4. "Live chat: connected / stale" chip next to the existing orders banner.
+5. Fallback: if the heartbeat goes stale, browsers silently resume today's behaviour, so nothing breaks if the box goes down.
 
-## What `main.js` does
-1. Loads its own `.env` plus the proxy `.env`, so Blynk's key/secret and the relay token are never duplicated.
-2. Reads active accounts from `terminal_exchange_accounts` with a service-role client and maps each `credential_key` to its key/secret pair — the same rule the edge functions use.
-3. Per account: signed `retrieveChatCredential` call to Binance, then **one** socket through the local relay — the exact URL shape the browser uses today. 50 concurrent chats = 2 sockets.
-4. Every frame is normalised and de-duplicated on `dedupe_key`, so the browser's archive sync writing the same message never doubles up.
-5. Credentials cycle every 25 minutes; sockets reconnect with exponential backoff; a rejected listenKey clears the cache and re-fetches.
-6. Heartbeat into `terminal_collector_state` (`chat_listener`) every 15 s.
+## What the service does
+1. Reads its own `.env` plus the proxy `.env`, so Blynk's key/secret and the relay token are never duplicated.
+2. Reads active accounts from `terminal_exchange_accounts` and maps each `credential_key` to its key/secret pair — same rule the edge functions use (`default` = Blynk, `acct2` = ASEC).
+3. Per account: signed `retrieveChatCredential` call, then one socket through the local relay, the exact URL shape the browser uses today. 50 concurrent chats = 2 sockets.
+4. Every frame is normalised and de-duplicated on `dedupe_key`, so the browser's archive sync can never double-write.
+5. Credentials cycle every 25 minutes; sockets reconnect with backoff; a rejected listenKey clears the cache and re-fetches.
+6. Heartbeat into `terminal_collector_state` every 15 s.
 7. Sending is untouched — this service only listens.

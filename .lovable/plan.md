@@ -50,8 +50,9 @@ chmod 600 /home/ubuntu/chat-listener/.env
 
 Where each value comes from:
 - **Service role key** — Supabase dashboard, Project Settings → API → `service_role` secret.
-- **Account 1 key/secret, PROXY_TOKEN, BINANCE_PROXY_TOKEN** — already in the proxy `.env`; nothing to type.
-- **Account 2 key/secret** — not on this box. They are stored encrypted in the app's secrets (`BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2`) and cannot be read back, so copy them from Binance → API Management on Account 2, or generate a fresh read-enabled pair there. If Account 2 chats aren't needed yet, leave these blank and the listener simply runs for Account 1.
+- **Blynk key/secret, PROXY_TOKEN, BINANCE_PROXY_TOKEN** — already in the proxy `.env`; nothing to type.
+- **ASEC key/secret** — not on this box. They are stored encrypted in the app's secrets (`BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2`) and cannot be read back, so copy them from Binance → API Management on the **ASEC** account, or generate a fresh read-enabled pair there. If ASEC chats aren't needed yet, leave these blank and the listener simply runs for Blynk.
+
 
 
 ### A3. Install `main.js` (I write it after you confirm A1/A2) and start it under pm2

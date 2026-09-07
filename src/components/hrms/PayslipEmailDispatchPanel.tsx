@@ -42,6 +42,7 @@ interface DispatchRow {
   deduction_breakdown?: { label: string; amount: number }[];
   pdf_path: string | null;
   already_sent_at: string | null;
+  send_unconfirmed?: boolean;
   not_processed?: boolean;
   not_processed_reason?: string | null;
 
@@ -168,13 +169,17 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
   });
 
 
-  const sendable = useMemo(() => rows.filter((r) => r.sendable && !r.already_sent_at), [rows]);
+  // Rows whose "sent" claim was never confirmed delivered stay retryable.
+  const sendable = useMemo(
+    () => rows.filter((r) => r.sendable && (!r.already_sent_at || r.send_unconfirmed)),
+    [rows],
+  );
   // Employees whose salary was not processed this month are not payslip recipients
   // at all — keep them out of the roster unless HR explicitly asks to see them.
   const excludedRows = useMemo(() => rows.filter((r) => r.not_processed), [rows]);
   const payrollRows = useMemo(() => rows.filter((r) => !r.not_processed), [rows]);
   const visibleRows = showExcluded ? rows : payrollRows;
-  const sentCount = rows.filter((r) => r.already_sent_at).length;
+  const sentCount = rows.filter((r) => r.already_sent_at && !r.send_unconfirmed).length;
 
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
 
@@ -202,7 +207,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
         for (let attempt = 1; attempt <= 3; attempt += 1) {
           try {
             const { data, error } = await supabase.functions.invoke("hr-send-payslip-emails", {
-              body: { mode: args.mode, period_month: month, employee_ids: ids, chunk_size: ids.length },
+              body: { mode: args.mode, period_month: month, employee_ids: ids, chunk_size: ids.length, force_resend: true },
             });
             if (error) throw error;
             if ((data as any)?.error) throw new Error((data as any).error);
@@ -284,7 +289,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
    *  ready, pre-select everyone and open the send confirmation immediately. */
   async function autoDispatchAfterStep() {
     const res = await rosterQ.refetch();
-    const fresh = (res.data?.rows ?? []).filter((r) => r.sendable && !r.already_sent_at);
+    const fresh = (res.data?.rows ?? []).filter((r) => r.sendable && (!r.already_sent_at || r.send_unconfirmed));
     if (fresh.length === 0) return;
     const next: Record<string, boolean> = {};
     fresh.forEach((r) => (next[r.employee_id] = true));
@@ -706,7 +711,7 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                   >
                     <td className="p-2 align-top">
                       <Checkbox
-                        disabled={!r.sendable || !!r.already_sent_at}
+                        disabled={!r.sendable || (!!r.already_sent_at && !r.send_unconfirmed)}
                         checked={!!selected[r.employee_id]}
                         onCheckedChange={(v) => setSelected((s) => ({ ...s, [r.employee_id]: !!v }))}
                       />
@@ -764,10 +769,12 @@ export default function PayslipEmailDispatchPanel({ month }: { month: string }) 
                       )}
                     </td>
                     <td className="p-2 align-top">
-                      {r.already_sent_at ? (
+                      {r.already_sent_at && !r.send_unconfirmed ? (
                         <span className="inline-flex items-center gap-1 text-xs text-success">
                           <CheckCircle2 className="h-3.5 w-3.5" /> sent
                         </span>
+                      ) : r.send_unconfirmed ? (
+                        <span className="text-xs text-warning">delivery unconfirmed · can resend</span>
                       ) : r.sendable ? (
                         <span className="text-xs text-muted-foreground">ready</span>
                       ) : (

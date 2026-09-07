@@ -36,6 +36,7 @@ type Row = {
 
   pdf_path: string | null
   already_sent_at: string | null
+  send_unconfirmed: boolean
   not_processed: boolean
   not_processed_reason: string | null
   blockers: string[]
@@ -227,12 +228,23 @@ Deno.serve(async (req) => {
     const registerPresent = (records ?? []).some((r: any) => r.reg_source_filename)
     const empById = new Map((employees ?? []).map((e: any) => [e.id, e]))
     const sentByEmp = new Map<string, string>()
+    const unconfirmedByEmp = new Map<string, string>()
+    const STALE_CLAIM_MS = 10 * 60 * 1000
     for (const l of sentLog ?? []) {
       const m = (l as any).metadata || {}
       if (m.period_month !== month) continue
       if (['failed', 'error'].includes(String((l as any).status || ''))) continue
-      if (m.employee_id) sentByEmp.set(m.employee_id, (l as any).created_at)
+      if (!m.employee_id) continue
+      sentByEmp.set(m.employee_id, (l as any).created_at)
+      // A claim is written before SMTP hand-off and confirmed afterwards. A row
+      // that stayed unconfirmed past the stale window means the worker died
+      // mid-send: the payslip was probably never delivered, so allow a resend.
+      const confirmed = m.delivery_confirmed === true
+      const age = Date.now() - new Date((l as any).created_at).getTime()
+      if (!confirmed && age > STALE_CLAIM_MS) unconfirmedByEmp.set(m.employee_id, (l as any).created_at)
+      else unconfirmedByEmp.delete(m.employee_id)
     }
+
 
     const mDays = daysInMonth(month)
     const processedOn = (meta as any)?.processed_on ?? null
@@ -497,6 +509,7 @@ Deno.serve(async (req) => {
         deduction_breakdown,
         pdf_path: p.pdf_storage_path ?? null,
         already_sent_at: p.hr_employee_id ? sentByEmp.get(p.hr_employee_id) ?? null : null,
+        send_unconfirmed: p.hr_employee_id ? unconfirmedByEmp.has(p.hr_employee_id) : false,
         not_processed,
         not_processed_reason,
         blockers,
@@ -551,7 +564,9 @@ Deno.serve(async (req) => {
     // partial unique index on hr_email_send_log enforces it at the database
     // level even if two dispatch runs overlap.
     let targets = rows.filter((r) => ids.includes(r.employee_id) && r.sendable && !r.not_processed)
-    if (mode === 'send') targets = targets.filter((r) => !r.already_sent_at)
+    // Resend is allowed only for claims that were never confirmed delivered.
+    const forceResend = !!body.force_resend
+    if (mode === 'send') targets = targets.filter((r) => !r.already_sent_at || (forceResend && r.send_unconfirmed))
     if (mode === 'preview') targets = targets.slice(0, 1)
     if (targets.length === 0) return json({ error: 'No sendable recipients in the selection' }, 400)
 
@@ -583,6 +598,21 @@ Deno.serve(async (req) => {
       // single source of truth for "already emailed"; a duplicate claim means
       // somebody (or another overlapping run) already sent this payslip.
       if (mode === 'send') {
+        if (forceResend && row.send_unconfirmed) {
+          // Clear the stale, never-confirmed claim so the slot can be re-taken.
+          const { data: stale } = await admin
+            .from('hr_email_send_log')
+            .select('id, metadata')
+            .eq('template_name', TEMPLATE)
+            .eq('status', 'sent')
+            .filter('metadata->>employee_id', 'eq', row.employee_id)
+            .filter('metadata->>period_month', 'eq', month)
+          for (const s of stale ?? []) {
+            if ((s as any).metadata?.delivery_confirmed !== true) {
+              await admin.from('hr_email_send_log').delete().eq('id', (s as any).id)
+            }
+          }
+        }
         const claim = await admin.from('hr_email_send_log').insert({
           message_id: crypto.randomUUID(),
           template_name: TEMPLATE,
@@ -599,6 +629,8 @@ Deno.serve(async (req) => {
             bonus_total: row.bonus_total,
             basis: row.basis,
             sent_by: userRes.user.id,
+            delivery_confirmed: false,
+            claimed_at: new Date().toISOString(),
           },
         }).select('id').single()
         if (claim.error) {
@@ -637,6 +669,13 @@ Deno.serve(async (req) => {
           }] as any,
         })
 
+        if (claimId) {
+          // Confirm delivery: an unconfirmed claim is treated as a failed send.
+          const { data: cur } = await admin.from('hr_email_send_log').select('metadata').eq('id', claimId).maybeSingle()
+          await admin.from('hr_email_send_log').update({
+            metadata: { ...(((cur as any)?.metadata) || {}), delivery_confirmed: true, confirmed_at: new Date().toISOString() },
+          }).eq('id', claimId)
+        }
         results.push({ employee_id: row.employee_id, name: row.name, ok: true })
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)

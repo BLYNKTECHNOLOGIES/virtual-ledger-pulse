@@ -24,9 +24,13 @@ This can be done immediately or right after the listener is verified working —
 
 ## Part A — Setup on the box
 
-### A1. Fix the `.env` file (the heredoc paste got mangled)
+### A1. Environment file — DONE
 
-The earlier paste failed because the terminal injected bracketed-paste characters (`cat: command not found`), and one attempt wrapped values in `<...>` and appended a stray `>` / `~`. Verify and rewrite with an editor rather than a heredoc:
+`/home/ubuntu/chat-listener/.env` now reads back with exactly the seven expected keys (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `PROXY_BASE`, `RELAY_BASE`, `UPSTREAM_ENV`, `BINANCE_API_KEY_2`, `BINANCE_API_SECRET_2`) and is `chmod 600`. Nothing further needed here.
+
+<details>
+<summary>Reference: how it was fixed</summary>
+
 
 ```bash
 cat /home/ubuntu/chat-listener/.env
@@ -59,9 +63,16 @@ grep -o '^[A-Z_0-9]*' /home/ubuntu/chat-listener/.env
 
 Expected output: the seven names above, nothing else.
 
-### A2. Install `main.js`
+</details>
 
-I write `main.js` next and hand it over as a single file to save into `/home/ubuntu/chat-listener/main.js` (via nano, to avoid paste mangling again).
+### A2. Install `main.js` — NEXT STEP
+
+`main.js` does not exist yet, which is why `pm2 start main.js` reports "Script not found". I write the file next; you then create it with `nano /home/ubuntu/chat-listener/main.js`, paste the contents, save (`Ctrl+O`, `Enter`, `Ctrl+X`), and check it parses:
+
+```bash
+node --check /home/ubuntu/chat-listener/main.js
+```
+
 
 ### A3. Start it under pm2
 

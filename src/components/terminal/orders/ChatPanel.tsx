@@ -100,6 +100,11 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     };
   }, [orderNumber, exchangeAccountId]);
 
+  // Who on the team last opened this chat (captured before our own read is written).
+  const previousSeen = useChatSeenSnapshot(orderNumber);
+  const previousSeenLabel = seenLabel(previousSeen);
+
+
   useEffect(() => {
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
   }, [soundEnabled]);

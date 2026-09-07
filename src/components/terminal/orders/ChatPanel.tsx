@@ -442,12 +442,15 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         </div>
       </div>
 
-      {/* Connection error banner */}
+      {/* Live-stream notice — sending still works through the server relay */}
       {wsError && (
-        <div className="px-3 py-1.5 bg-destructive/10 border-b border-destructive/20">
-          <p className="text-[10px] text-destructive">{wsError}</p>
+        <div className="px-3 py-1.5 bg-muted/30 border-b border-border">
+          <p className="text-[10px] text-muted-foreground">
+            Live stream unavailable — messages are sent and received through the server.
+          </p>
         </div>
       )}
+
 
       {/* Messages area */}
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">

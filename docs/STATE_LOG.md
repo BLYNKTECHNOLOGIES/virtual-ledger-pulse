@@ -313,3 +313,6 @@ Append here whenever the owner commands a significant state change (data wipes, 
 
 ## 07 Sep 2026 18:29 IST — Shared ad link
 Added `terminal_exchange_accounts.p2p_advertiser_no` (Blynk verified: se7510c53abb33831869d5152e7bf1333). Shared-ad chat messages now append the real Binance advertiser URL (https://p2p.binance.com/en/advertiserDetail?advertiserNo=...), verified live in browser as the BlynkEx page listing current ads. Chat text now linkifies URLs. Per-ad share codes remain undocumented in the official Binance C2C API, so no ad-specific link is fabricated.
+
+## 07 Sep 2026 18:37 IST — Shared ad chat card
+Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) are no longer classified as system messages in ChatPanel (live, archived and historical paths); they render via ChatAdCard as a compact bubble-aligned card showing advertiser, side, price, available quantity, limits, payment methods, ad number and a View-on-Binance advertiser link built from the payload userNo. Any unparsable card payload now shows "Shared ad" instead of raw JSON.

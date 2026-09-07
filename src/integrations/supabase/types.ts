@@ -18843,7 +18843,7 @@ export type Database = {
           captured_at: string
           cp_userno: string | null
           exchange_account_id: string | null
-          expires_at: string
+          expires_at: string | null
           nickname: string
           order_number: string
           trade_type: string | null
@@ -18853,7 +18853,7 @@ export type Database = {
           captured_at?: string
           cp_userno?: string | null
           exchange_account_id?: string | null
-          expires_at?: string
+          expires_at?: string | null
           nickname: string
           order_number: string
           trade_type?: string | null
@@ -18863,7 +18863,7 @@ export type Database = {
           captured_at?: string
           cp_userno?: string | null
           exchange_account_id?: string | null
-          expires_at?: string
+          expires_at?: string | null
           nickname?: string
           order_number?: string
           trade_type?: string | null

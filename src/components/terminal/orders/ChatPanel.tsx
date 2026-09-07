@@ -11,6 +11,7 @@ import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
 import { ChatImageUpload } from './chat/ChatImageUpload';
+import { AttachAdPicker } from './chat/AttachAdPicker';
 import { QuickReplyBar } from './chat/QuickReplyBar';
 import { CopilotStrip } from './chat/CopilotStrip';
 import {

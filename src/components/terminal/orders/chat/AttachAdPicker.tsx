@@ -121,7 +121,7 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
           )}
           {!isLoading && ads.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-10">
-              No active ads returned by Binance for this account.
+              No active or private ads returned by Binance for this account.
             </p>
           )}
           <div className="space-y-2">
@@ -138,6 +138,9 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
                     </span>
                     <span className="text-xs font-medium text-foreground">{ad.asset}</span>
                     <Badge variant="outline" className="text-[9px]">{ad.fiatUnit}</Badge>
+                    {ad.advStatus === BINANCE_AD_STATUS.PRIVATE && (
+                      <Badge variant="outline" className="text-[9px]">Private</Badge>
+                    )}
                   </div>
                   <span className="text-xs t-mono tabular-nums text-foreground">{ad.price}</span>
                 </div>

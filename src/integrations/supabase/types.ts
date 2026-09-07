@@ -23838,6 +23838,7 @@ export type Database = {
           order_number: string
           read_by_name: string | null
           read_by_user_id: string | null
+          read_source: string
           updated_at: string
         }
         Insert: {
@@ -23846,6 +23847,7 @@ export type Database = {
           order_number: string
           read_by_name?: string | null
           read_by_user_id?: string | null
+          read_source?: string
           updated_at?: string
         }
         Update: {
@@ -23854,6 +23856,7 @@ export type Database = {
           order_number?: string
           read_by_name?: string | null
           read_by_user_id?: string | null
+          read_source?: string
           updated_at?: string
         }
         Relationships: []
@@ -30584,9 +30587,15 @@ export type Database = {
         Args: { p_order_number: string; p_payer_user_id: string }
         Returns: Json
       }
-      mark_terminal_binance_chat_read: {
-        Args: { p_order_number: string }
-        Returns: undefined
+      mark_terminal_binance_chat_read:
+        | { Args: { p_order_number: string }; Returns: undefined }
+        | {
+            Args: { p_order_number: string; p_source?: string }
+            Returns: undefined
+          }
+      mark_terminal_binance_chats_read: {
+        Args: { p_order_numbers: string[]; p_source?: string }
+        Returns: number
       }
       mark_terminal_user_offline: {
         Args: { p_user_id: string }

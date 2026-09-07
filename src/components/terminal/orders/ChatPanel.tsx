@@ -51,6 +51,15 @@ interface Props {
   templateValues?: TemplateOrderValues;
 }
 
+// Binance timestamps can arrive as either epoch seconds or milliseconds.
+// Normalize before combining messages from different order threads so one
+// source cannot be sorted into the wrong position in the merged timeline.
+function normalizeChatTimestamp(value: unknown): number {
+  const timestamp = Number(value || 0);
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return 0;
+  return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
+}
+
 export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
   // ONE THREAD PER COUNTERPARTY.
   // Binance chat is order-scoped: a counterparty's newest messages land in
@@ -158,7 +167,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         senderType: isSystemLike ? 'system' : (msg.sender_is_self ? 'operator' : 'counterparty'),
         text: isImage ? null : (msg.message_text || null),
         imageUrl: isImage ? (msg.image_url || msg.thumbnail_url || msg.message_text || undefined) : (msg.image_url || msg.thumbnail_url || undefined),
-        timestamp: msg.binance_create_time || 0,
+        timestamp: normalizeChatTimestamp(msg.binance_create_time),
         senderName: msg.sender_is_self ? getSenderName(orderNumber, msg.message_text || '') : msg.sender_nickname,
         messageType: msgType,
         isRecall: msg.is_recall,
@@ -179,7 +188,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         senderType: isSystemLike ? 'system' : (isSelf ? 'operator' : 'counterparty'),
         text: isImage ? null : (content || null),
         imageUrl: isImage ? (imgUrl || content || undefined) : imgUrl,
-        timestamp: msg.createTime || 0,
+        timestamp: normalizeChatTimestamp(msg.createTime),
         senderName: isSelf ? getSenderName(orderNumber, content) : null,
         messageType: msgType,
         isRecall: String(msgType).toLowerCase() === 'recall',
@@ -203,7 +212,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         senderType: 'operator',
         text: qm.type === 'image' ? null : qm.content,
         imageUrl: qm.type === 'image' ? qm.content : undefined,
-        timestamp: qm.createdAt,
+        timestamp: normalizeChatTimestamp(qm.createdAt),
         senderName: username || 'Operator',
         _deliveryStatus: deliveryStatus,
         _tempId: qm.tempId,
@@ -235,7 +244,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           senderType: isSystemLike ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
           text: isImage ? null : (content || null),
           imageUrl: effectiveImgUrl,
-          timestamp: msg.createTime || 0,
+          timestamp: normalizeChatTimestamp(msg.createTime),
           senderName: isSelf ? getSenderName(order.orderNumber, content) : null,
           messageType: normalizedType,
           isRecall: normalizedType === 'recall',
@@ -251,6 +260,34 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     const hist = historicalSections.flatMap((s) => s.messages);
     return [...hist, ...currentOrderMessages];
   }, [historicalSections, currentOrderMessages]);
+
+  // A counterparty can continue an older Binance order chat after opening a
+  // newer order. Rendering whole orders one after another therefore breaks the
+  // real chronology. Flatten every order into one timeline and insert an order
+  // separator only when the chronological stream changes order.
+  const mergedTimeline = useMemo(() => {
+    const entries = historicalSections.flatMap(({ order, messages }) =>
+      messages.map((message) => ({ order, message, isCurrent: false })),
+    );
+    const currentOrder = {
+      orderNumber,
+      tradeType: newerOrder?.tradeType || tradeType || 'UNKNOWN',
+      asset: newerOrder?.asset ?? null,
+      totalPrice: newerOrder?.totalPrice ?? null,
+      fiatUnit: newerOrder?.fiatUnit ?? null,
+      orderDate: newerOrder?.createTime || 0,
+      orderStatus: newerOrder?.orderStatus ?? orderStatus ?? null,
+      messages: [],
+    };
+    entries.push(...currentOrderMessages.map((message) => ({ order: currentOrder, message, isCurrent: true })));
+
+    return entries.sort((a, b) => {
+      const aTime = a.message.timestamp || a.order.orderDate || 0;
+      const bTime = b.message.timestamp || b.order.orderDate || 0;
+      if (aTime !== bTime) return aTime - bTime;
+      return a.message.id.localeCompare(b.message.id);
+    });
+  }, [historicalSections, currentOrderMessages, orderNumber, newerOrder, tradeType, orderStatus]);
 
   // New message detection & sound notification
   useEffect(() => {
@@ -522,62 +559,34 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             </div>
           )}
 
-          {/* Historical order chats */}
-          {historicalSections.map((section) => (
-            <div key={section.order.orderNumber}>
-              <OrderChatSeparator
-                orderNumber={section.order.orderNumber}
-                tradeType={section.order.tradeType}
-                asset={section.order.asset}
-                totalPrice={section.order.totalPrice}
-                fiatUnit={section.order.fiatUnit}
-                orderDate={section.order.orderDate}
-                orderStatus={section.order.orderStatus}
-              />
-              {section.messages.length === 0 ? (
-                <div className="flex justify-center py-1">
-                  <span className="text-[9px] text-muted-foreground/50">No chat messages in this order</span>
-                </div>
-              ) : (
-                <div className="space-y-2.5">
-                  {section.messages.map((msg) => (
-                    <ChatBubble key={msg.id} message={msg} />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {/* Current order separator (only if history is loaded) */}
-          {historicalChats.length > 0 && (
-            <div className="flex items-center gap-2 py-3 my-2">
-              <div className="flex-1 h-px bg-primary/30" />
-              <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-full px-3 py-1">
-                <span className="text-[9px] text-primary font-semibold">
-                  Current Order #{orderNumber.slice(-8)}
-                </span>
-                {tradeType && (
-                  <span className={`text-[9px] font-semibold ${tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-                    {tradeType}
-                  </span>
-                )}
-              </div>
-              <div className="flex-1 h-px bg-primary/30" />
-            </div>
-          )}
-
-          {/* Current order messages */}
-          {currentOrderMessages.length > 0 ? (
+          {/* One true chronology across all of this counterparty's orders. */}
+          {mergedTimeline.length > 0 ? (
             <div className="space-y-2.5">
-              {currentOrderMessages.map((msg) => (
-                <ChatBubble
-                  key={msg.id}
-                  message={msg}
-                  teachEnabled={isTrainer}
-                  onPin={handlePin}
-                  onBlacklist={(m) => setBlacklistTarget(m)}
-                />
-              ))}
+              {mergedTimeline.map((entry, index) => {
+                const previousOrder = index > 0 ? mergedTimeline[index - 1].order.orderNumber : null;
+                const showSeparator = historicalChats.length > 0 && previousOrder !== entry.order.orderNumber;
+                return (
+                  <div key={`${entry.order.orderNumber}-${entry.message.id}`}>
+                    {showSeparator && (
+                      <OrderChatSeparator
+                        orderNumber={entry.order.orderNumber}
+                        tradeType={entry.order.tradeType}
+                        asset={entry.order.asset}
+                        totalPrice={entry.order.totalPrice}
+                        fiatUnit={entry.order.fiatUnit}
+                        orderDate={entry.order.orderDate}
+                        orderStatus={entry.order.orderStatus}
+                      />
+                    )}
+                    <ChatBubble
+                      message={entry.message}
+                      teachEnabled={entry.isCurrent && isTrainer}
+                      onPin={entry.isCurrent ? handlePin : undefined}
+                      onBlacklist={entry.isCurrent ? (m) => setBlacklistTarget(m) : undefined}
+                    />
+                  </div>
+                );
+              })}
               <div ref={bottomRef} />
             </div>
           ) : (archivedLoading || isConnecting) ? (

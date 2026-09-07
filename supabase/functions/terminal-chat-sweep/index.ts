@@ -147,13 +147,14 @@ serve(async (req) => {
         }
 
         // Find orders with unread chat messages from the active cache.
+        // PostgREST cannot reliably compare JSON text numerically, so we
+        // fetch the raw payload and filter in code.
         const { data: unreadRows, error: cacheErr } = await supabase
           .from("terminal_active_orders_cache")
-          .select("order_number, raw->>chatUnreadCount as unread")
+          .select("order_number, raw")
           .eq("exchange_account_id", account.id)
-          .gt("raw->>chatUnreadCount", 0)
           .order("updated_at", { ascending: false })
-          .limit(MAX_UNREAD_ORDERS_PER_TICK);
+          .limit(200);
 
         if (cacheErr) {
           console.warn("chat sweep cache query failed:", cacheErr);
@@ -162,12 +163,13 @@ serve(async (req) => {
         }
 
         const unreadOrders = (unreadRows || [])
-          .filter((r: any) => Number(r.unread) > 0)
+          .filter((r: any) => Number(r.raw?.chatUnreadCount ?? r.raw?.chatUnread ?? 0) > 0)
           .map((r: any) => String(r.order_number))
           .filter((orderNo) => {
             const last = lastSyncByOrder.get(orderNo) || 0;
             return Date.now() - last >= MIN_RESYNC_GAP_MS;
-          });
+          })
+          .slice(0, MAX_UNREAD_ORDERS_PER_TICK);
 
         for (const orderNo of unreadOrders.slice(0, MAX_UNREAD_ORDERS_PER_TICK)) {
           try {

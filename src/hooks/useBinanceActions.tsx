@@ -673,7 +673,7 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
     queryFn: async () => {
       let query = supabase
         .from('binance_order_chat_messages' as any)
-        .select('id, order_number, dedupe_key, binance_message_id, binance_uuid, message_type, chat_message_type, content_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant')
+        .select('id, order_number, dedupe_key, binance_message_id, binance_uuid, message_type, chat_message_type, content_type, sender_is_self, sender_nickname, message_status, binance_create_time, message_text, image_url, thumbnail_url, is_system_message, is_recall, is_compliance_relevant, capture_source, capture_latency_ms')
         .eq('order_number', orderNo!);
 
       if (accountId) {

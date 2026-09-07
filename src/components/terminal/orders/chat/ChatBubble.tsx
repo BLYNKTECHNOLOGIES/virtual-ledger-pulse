@@ -172,8 +172,25 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
           )}
 
           {message.text && (
-            <p className="text-xs whitespace-pre-wrap leading-relaxed break-words overflow-hidden">{message.text}</p>
+            <p className="text-xs whitespace-pre-wrap leading-relaxed break-words overflow-hidden">
+              {message.text.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                /^https?:\/\//.test(part) ? (
+                  <a
+                    key={i}
+                    href={part}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline break-all"
+                  >
+                    {part}
+                  </a>
+                ) : (
+                  part
+                ),
+              )}
+            </p>
           )}
+
 
           <div className="flex items-center gap-1.5 mt-1">
             <p className="text-[9px] t-mono text-muted-foreground">

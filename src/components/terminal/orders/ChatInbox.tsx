@@ -34,6 +34,8 @@ export interface ChatConversation {
   lastMessageFromSelf?: boolean;
   /** True when this thread was opened from the Chats inbox (back returns there). */
   fromInbox?: boolean;
+  /** All order threads rolled into this inbox row (same counterparty). */
+  mergedOrderNumbers?: string[];
 }
 
 interface Props {
@@ -137,17 +139,20 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       const nick = (c.counterpartyNickname || '').trim().toLowerCase();
       const identifiable = verified || (nick && !nick.includes('*') ? nick : '');
       if (!identifiable) {
-        out.push(c);
+        out.push({ ...c, mergedOrderNumbers: [c.orderNumber] });
         continue;
       }
       const key = `${c.exchangeAccountId || 'all'}|${identifiable}`;
       const existing = byKey.get(key);
       if (!existing) {
-        byKey.set(key, { ...c });
+        byKey.set(key, { ...c, mergedOrderNumbers: [c.orderNumber] });
         continue;
       }
       const newest = rank(c) > rank(existing) ? { ...c } : { ...existing };
       newest.chatUnreadCount = (existing.chatUnreadCount || 0) + (c.chatUnreadCount || 0);
+      newest.mergedOrderNumbers = Array.from(
+        new Set([...(existing.mergedOrderNumbers || [existing.orderNumber]), c.orderNumber])
+      );
       byKey.set(key, newest);
     }
 
@@ -172,12 +177,21 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
   const handleOpenChat = useCallback(
     (conv: ChatConversation) => {
-      markOrderChatRead(conv.orderNumber);
-      supabase
-        .rpc('mark_terminal_binance_chat_read', { p_order_number: conv.orderNumber })
-        .then(() => queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] }));
-      callBinanceAds('markOrderMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
-        console.warn('Failed to mark Binance chat read:', err);
+      // A row can roll up several order threads for the same counterparty —
+      // mark every one of them read, otherwise the badge comes straight back.
+      const orderNumbers = Array.from(
+        new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])])
+      );
+      orderNumbers.forEach((n) => markOrderChatRead(n));
+      Promise.all(
+        orderNumbers.map((n) =>
+          supabase.rpc('mark_terminal_binance_chat_read', { p_order_number: n })
+        )
+      ).then(() => queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] }));
+      orderNumbers.forEach((n) => {
+        callBinanceAds('markOrderMessagesRead', { orderNo: n }).catch((err) => {
+          console.warn('Failed to mark Binance chat read:', err);
+        });
       });
       callBinanceAds('markUserMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
         console.warn('Failed to mark counterparty user chats read:', err);
@@ -186,6 +200,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     },
     [onOpenChat, queryClient]
   );
+
 
   return (
     <div className="flex flex-col h-full bg-background">

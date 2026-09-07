@@ -31,6 +31,8 @@ export interface ChatConversation {
   lastMessageAt?: string | null;
   lastMessagePreview?: string | null;
   lastMessageFromSelf?: boolean;
+  /** True when this thread was opened from the Chats inbox (back returns there). */
+  fromInbox?: boolean;
 }
 
 interface Props {

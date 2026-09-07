@@ -325,3 +325,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-08 01:45 IST: Ads Manager — 'Private' status made display-only (selectable only for ads Binance already reports private). Binance web-only visibility endpoint returns 403 to API-key auth; sapi has no visibility endpoint.
 
 - 2026-09-07: Added shared "Seen by <operator> · time IST" markers to terminal Binance chats (read_by_name recorded on mark_terminal_binance_chat_read; shown in ChatPanel header + inbox rows). Binance exposes no counterparty-visible read receipt.
+- 2026-09-08 02:00 IST: Binance markUserMessagesAsRead (API §38) implemented — binance-ads action with orderNo→userId resolution, fired on chat open in ChatPanel + ChatInbox to clear all unread chats with a counterparty; deployed, typecheck OK.

@@ -122,6 +122,35 @@ serve(async (req) => {
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+  // Single-order mode: called by the terminal_active_orders_cache trigger
+  // when a chatUnreadCount increases. Sync just that order and return.
+  let singleOrderNo: string | null = null;
+  let singleAccountId: string | null = null;
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (body?.orderNo) singleOrderNo = String(body.orderNo);
+    if (body?.exchangeAccountId) singleAccountId = String(body.exchangeAccountId);
+  } catch {
+    // ignore body parse errors; fall back to full sweep
+  }
+
+  if (singleOrderNo && singleAccountId) {
+    try {
+      const account = await resolveAccount(singleAccountId);
+      const result = await syncOrderChat(supabase, account.id, singleOrderNo, proxyHeadersFor(account), account.proxyUrl);
+      return new Response(JSON.stringify({ ok: true, mode: "single", orderNo: singleOrderNo, ...result }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } catch (err: any) {
+      console.warn("single-order chat sweep failed", singleOrderNo, err);
+      return new Response(JSON.stringify({ error: String(err?.message || err) }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
   const startedAt = Date.now();
   const lastSyncByOrder = new Map<string, number>();
   let ticks = 0;

@@ -97,6 +97,20 @@ function invalidateChatCredential(accountId: string | null) {
   credentialCache.delete(accountId ?? '__default__');
 }
 
+/**
+ * Prewarm chat credentials for the given accounts (call when the Orders page
+ * loads). Fetches getChatCredential in the background and populates the module
+ * cache, so opening a chat connects instantly instead of waiting on the
+ * browser -> edge -> relay -> Binance round-trip. Failures are swallowed.
+ */
+export function prewarmChatCredentials(accountIds: (string | null)[]): void {
+  for (const id of accountIds) {
+    void getCachedChatCredential(id).catch((err) => {
+      console.warn('[Chat] credential prewarm failed:', err);
+    });
+  }
+}
+
 // ---- Module-level per-order message cache ----
 // Survives component unmount so reopening a chat paints the last-loaded
 // messages instantly while the WS/REST refresh happens in the background.

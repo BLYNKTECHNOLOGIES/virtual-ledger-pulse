@@ -172,7 +172,7 @@ async function persist(row) {
     if (error) { console.error('insert error', error.message); return; }
     stats.saved++;
     stats.lastMessageAt = new Date().toISOString();
-    console.log(`saved message order=${row.order_number} type=${row.message_type}`);
+    console.log(`saved message order=${row.order_number} type=${row.message_type} source=${row.capture_source}`);
   }
 }
 

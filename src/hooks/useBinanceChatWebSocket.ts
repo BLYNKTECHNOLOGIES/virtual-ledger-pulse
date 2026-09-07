@@ -331,77 +331,47 @@ export function useBinanceChatWebSocket(
     };
   }, [activeOrderNo, fetchChatHistory, fetchGroupId]);
 
-  // ---- Internal send (actual WS send) ----
-  const doWsSend = useCallback((orderNo: string, content: string, type: 'text' | 'image') => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-
-    try {
-      const now = Date.now();
-      const groupId = groupIdMapRef.current.get(orderNo);
-      const isImage = type === 'image';
-      const payload: Record<string, any> = {
-        type,
-        uuid: String(now),
-        orderNo,
-        content,
-        contentType: isImage ? 'IMAGE' : 'TEXT',
-        msgType: isImage ? 'U_IMAGE' : 'U_TEXT',
-        self: true,
-        clientType: 'web',
-        createTime: now,
-        sendStatus: 0,
-        topicId: orderNo,
-        topicType: 'ORDER',
-      };
-      if (isImage) {
-        payload.imageUrl = content;
-        payload.thumbnailUrl = content;
+  // ---- Server-side send (the only delivery path) ----
+  // Binance allows one chat session per account and the always-on server
+  // listener holds it, so the browser socket can be refused at any time.
+  // Every send therefore goes through the edge function / proxy, which works
+  // for any number of operators at once.
+  const doServerSend = useCallback(
+    async (tempId: number, orderNo: string, content: string, type: 'text' | 'image') => {
+      try {
+        const payload = type === 'image'
+          ? { orderNo, imageUrl: content }
+          : { orderNo, content, contentType: 'TEXT' };
+        const res: any = await callBinanceAds('sendChatMessage', payload, accountIdRef.current ?? undefined);
+        const body = res?.data ?? res;
+        const ok = body?.success === true || body?.code === '000000';
+        if (!ok) throw new Error(body?.error || body?.message || 'Binance rejected the message');
+        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'sending' as const } : q)));
+        pollIntervalRef.current = 1500;
+        setTimeout(() => fetchChatHistory(orderNo), 1500);
+        return true;
+      } catch (err) {
+        console.error('Server send failed:', err);
+        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'queued' as const } : q)));
+        toast.error('Could not deliver the message — tap retry.');
+        return false;
       }
-      if (groupId) payload.groupId = groupId;
+    },
+    [fetchChatHistory],
+  );
 
-      ws.send(JSON.stringify(payload));
-
-      pollIntervalRef.current = 1500;
-      setTimeout(() => fetchChatHistory(orderNo), 1500);
-      return true;
-    } catch (err) {
-      console.error('WS send error:', err);
-      return false;
-    }
-  }, [fetchChatHistory]);
-
-  // ---- Flush queued messages when WS connects ----
+  // ---- Retry anything still undelivered when the socket (re)connects ----
   const flushQueue = useCallback(() => {
     const queue = [...queueRef.current];
     if (queue.length === 0) return;
-
-    const remaining: QueuedMessage[] = [];
     for (const msg of queue) {
-      if (msg.orderNo === activeOrderRef.current) {
-        const sent = doWsSend(msg.orderNo, msg.content, msg.type);
-        if (sent) {
-          // Sent over WS — keep optimistic bubble visible as 'sending'
-          // until the server echo arrives via the chat history poll, which
-          // removes it via the dedupe logic in fetchChatHistory.
-          remaining.push({ ...msg, status: 'sending' });
-        } else {
-          remaining.push({ ...msg, retries: msg.retries + 1, status: 'queued' });
-        }
-      } else {
-        remaining.push(msg); // Keep messages for other orders
+      if (msg.orderNo === activeOrderRef.current && msg.status === 'queued') {
+        void doServerSend(msg.tempId, msg.orderNo, msg.content, msg.type);
       }
     }
-    setQueuedMessages(remaining);
+  }, [doServerSend]);
 
-    const flushed = queue.filter(q =>
-      q.orderNo === activeOrderRef.current &&
-      remaining.find(r => r.tempId === q.tempId)?.status === 'sending'
-    ).length - queue.filter(q => q.status === 'sending').length;
-    if (flushed > 0) {
-      toast.success(`${flushed} queued message(s) sent`);
-    }
-  }, [doWsSend]);
+
 
   // ---- Connect to WebSocket via relay ----
   const connect = useCallback(async () => {
@@ -584,81 +554,46 @@ export function useBinanceChatWebSocket(
     sessionIdRef.current = null;
   }, [activeOrderNo]);
 
-  // ---- Server-side send fallback ----
-  // The browser socket can be refused by Binance (only one chat session per
-  // account is allowed, and the always-on server listener holds it). Delivery
-  // must not depend on it: hand the message to the edge function, which sends
-  // it through the proxy/relay exactly like the terminal's other send paths.
-  const doServerSend = useCallback(
-    async (tempId: number, orderNo: string, content: string, type: 'text' | 'image') => {
-      try {
-        const payload = type === 'image'
-          ? { orderNo, imageUrl: content }
-          : { orderNo, content, contentType: 'TEXT' };
-        const res: any = await callBinanceAds('sendChatMessage', payload, accountIdRef.current ?? undefined);
-        const body = res?.data ?? res;
-        const ok = body?.success === true || body?.code === '000000';
-        if (!ok) throw new Error(body?.error || body?.message || 'Binance rejected the message');
-        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'sending' as const } : q)));
-        pollIntervalRef.current = 1500;
-        setTimeout(() => fetchChatHistory(orderNo), 1500);
-        return true;
-      } catch (err) {
-        console.error('Server send failed:', err);
-        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'queued' as const } : q)));
-        toast.error('Could not deliver the message — tap retry.');
-        return false;
-      }
-    },
-    [fetchChatHistory],
-  );
 
   // ---- Send message (always optimistic; queue tracks delivery) ----
   // The message is ALWAYS added to `queuedMessages` first so the UI can show
   // an immediate optimistic bubble (with a small spinner). The bubble is
   // removed automatically once Binance echoes the message back via the
   // chat history poll (see dedupe logic in fetchChatHistory).
+  // Delivery ALWAYS goes through the server (edge function -> proxy). Binance
+  // allows one chat session per account, and the always-on server listener
+  // holds it, so a browser socket can be refused at any moment and cannot be
+  // trusted for delivery when several operators work in parallel. The socket
+  // is used for live receive only.
   const sendMessage = useCallback((orderNo: string, content: string) => {
     const id = tempIdCounter++;
-    const ws = wsRef.current;
-    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
-    const sentOverWs = wsOpen && doWsSend(orderNo, content, 'text');
     setQueuedMessages(prev => [...prev, {
       tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0,
       status: 'sending' as const,
     }]);
-    if (!sentOverWs) void doServerSend(id, orderNo, content, 'text');
-  }, [doWsSend, doServerSend]);
+    void doServerSend(id, orderNo, content, 'text');
+  }, [doServerSend]);
 
   // ---- Send image (same optimistic pattern as text) ----
   const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
     const id = tempIdCounter++;
-    const ws = wsRef.current;
-    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
-    const sentOverWs = wsOpen && doWsSend(orderNo, imageUrl, 'image');
     setQueuedMessages(prev => [...prev, {
       tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0,
       status: 'sending' as const,
     }]);
-    if (!sentOverWs) void doServerSend(id, orderNo, imageUrl, 'image');
-  }, [doWsSend, doServerSend]);
+    void doServerSend(id, orderNo, imageUrl, 'image');
+  }, [doServerSend]);
+
 
 
   // ---- Manual retry for a failed message ----
   const retryMessage = useCallback((tempId: number) => {
     const msg = queueRef.current.find(m => m.tempId === tempId);
     if (!msg) return;
-
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN && doWsSend(msg.orderNo, msg.content, msg.type)) {
-      // Move bubble to 'sending' — chat-history dedupe purges it once echoed.
-      setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
-      toast.success('Message resent');
-      return;
-    }
     setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
     void doServerSend(tempId, msg.orderNo, msg.content, msg.type);
-  }, [doWsSend, doServerSend]);
+
+  }, [doServerSend]);
 
 
   return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, retryMessage, error, queuedMessages };

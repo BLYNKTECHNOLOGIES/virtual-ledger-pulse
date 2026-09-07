@@ -96,7 +96,9 @@ serve(async (req) => {
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
       .select("order_number, trade_type, counter_part_nick_name, order_detail_raw, exchange_account_id")
-      .eq("order_status", "COMPLETED")
+      // Capture for every terminal/active state — cancelled and appealed orders
+      // lose their nickname just as completed ones do.
+      .in("order_status", ["COMPLETED", "CANCELLED", "CANCELLED_BY_SYSTEM", "APPEAL", "TRADING", "BUYER_PAYED"])
       .gte("create_time", windowStart)
       .order("create_time", { ascending: false });
 

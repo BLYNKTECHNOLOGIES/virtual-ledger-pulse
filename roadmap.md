@@ -7,4 +7,5 @@
 - [x] Phase 4: staleness banner on Orders page from collector heartbeat
 - [x] Verify: tsgo clean, cron job_run_details all succeeded (collector 1m + history 5m), cache 40 rows fresh, heartbeat ok
 - [x] STATE_LOG entry appended (IST)
-- [ ] Deferred (needs AWS relay host): Phase 3b persistent server-side chat listener
+- [x] Phase 3b persistent server-side chat listener on AWS relay host
+- [ ] Install the corrected idempotent listener build on Lightsail and verify stable sockets + saved messages

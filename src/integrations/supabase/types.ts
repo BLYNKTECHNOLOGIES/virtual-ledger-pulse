@@ -23369,6 +23369,30 @@ export type Database = {
           },
         ]
       }
+      terminal_active_orders_cache: {
+        Row: {
+          exchange_account_id: string
+          order_number: string
+          order_status: string | null
+          raw: Json
+          updated_at: string
+        }
+        Insert: {
+          exchange_account_id: string
+          order_number: string
+          order_status?: string | null
+          raw: Json
+          updated_at?: string
+        }
+        Update: {
+          exchange_account_id?: string
+          order_number?: string
+          order_status?: string | null
+          raw?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_activity_log: {
         Row: {
           activity_type: string
@@ -23916,6 +23940,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      terminal_collector_state: {
+        Row: {
+          detail: Json | null
+          id: string
+          last_status: string
+          last_tick_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          detail?: Json | null
+          id: string
+          last_status?: string
+          last_tick_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          detail?: Json | null
+          id?: string
+          last_status?: string
+          last_tick_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       terminal_exchange_accounts: {
         Row: {

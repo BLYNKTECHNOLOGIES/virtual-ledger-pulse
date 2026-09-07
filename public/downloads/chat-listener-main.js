@@ -50,20 +50,50 @@ function secretsFor(credentialKey) {
   };
 }
 
-// ---- Binance chat credential (signed, direct — same as the send path) ----
-async function fetchChatCredential(apiKey, apiSecret) {
-  // timestamp only — this endpoint rejects recvWindow with -31002 illegal parameter
-  const qs = `timestamp=${Date.now()}`;
-  const sig = crypto.createHmac('sha256', apiSecret).update(qs).digest('hex');
-  const url = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${qs}&signature=${sig}`;
-  const res = await fetch(url, { headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/json' } });
-  const body = await res.json().catch(() => null);
-  if (body?.code !== '000000' || !body?.data?.chatWssUrl) {
-    throw new Error(`chat credential failed: ${res.status} ${JSON.stringify(body).slice(0, 200)}`);
-  }
+// ---- Binance chat credential ----
+// Primary: local proxy (same route the ERP edge functions use successfully).
+// The proxy signs the request itself and sends the clientType header.
+const PROXY_BASE = process.env.PROXY_BASE || 'http://127.0.0.1:3000';
+
+function parseCred(body) {
+  if (body?.code !== '000000' || !body?.data?.chatWssUrl) return null;
   const d = body.data;
   return { chatWssUrl: d.chatWssUrl, listenKey: d.listenKey, listenToken: d.listenToken || d.token };
 }
+
+async function fetchChatCredential(apiKey, apiSecret) {
+  let lastErr = '';
+  // 1) via proxy
+  try {
+    const res = await fetch(`${PROXY_BASE}/api/sapi/v1/c2c/chat/retrieveChatCredential`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-proxy-token': RELAY_TOKEN,
+        'x-api-key': apiKey,
+        'x-api-secret': apiSecret,
+        'clientType': 'web',
+      },
+    });
+    const body = await res.json().catch(() => null);
+    const cred = parseCred(body);
+    if (cred) return cred;
+    lastErr = `proxy ${res.status} ${JSON.stringify(body).slice(0, 160)}`;
+  } catch (e) {
+    lastErr = `proxy error ${e.message}`;
+  }
+  // 2) direct signed call, with clientType header (Binance requires it for chat)
+  const qs = `timestamp=${Date.now()}`;
+  const sig = crypto.createHmac('sha256', apiSecret).update(qs).digest('hex');
+  const url = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${qs}&signature=${sig}`;
+  const res2 = await fetch(url, {
+    headers: { 'X-MBX-APIKEY': apiKey, 'Content-Type': 'application/json', 'clientType': 'web' },
+  });
+  const body2 = await res2.json().catch(() => null);
+  const cred2 = parseCred(body2);
+  if (cred2) return cred2;
+  throw new Error(`chat credential failed: ${lastErr} | direct ${res2.status} ${JSON.stringify(body2).slice(0, 160)}`);
+}
+
 
 // ---- message normalisation (mirrors binance-ads/normalizeChatMessage) ----
 function normalize(orderNo, msg, accountId) {

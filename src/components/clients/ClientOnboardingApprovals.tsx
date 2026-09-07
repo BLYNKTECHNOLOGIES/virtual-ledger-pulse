@@ -599,7 +599,7 @@ export function ClientOnboardingApprovals() {
     queryFn: async () => {
       const map: Record<string, string> = {};
       const ids = Array.from(
-        new Set((approvals || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
+        new Set((historyRows || []).map(a => a.reviewed_by).filter((v): v is string => !!v))
       );
       if (ids.length === 0) return map;
       const { data } = await usersDirectory()
@@ -610,7 +610,7 @@ export function ClientOnboardingApprovals() {
       }
       return map;
     },
-    enabled: (approvals || []).some(a => !!a.reviewed_by),
+    enabled: (historyRows || []).some(a => !!a.reviewed_by),
   });
 
   const { data: identityMap } = useQuery({
@@ -1001,7 +1001,7 @@ export function ClientOnboardingApprovals() {
     }) => {
       const { id, clientData, mode, existingClientId, bankEntries: entries, incomeDetails, kycDocuments } = approvalData;
       
-      const approval = approvals?.find(a => a.id === id);
+      const approval = pendingRows?.find(a => a.id === id) ?? historyRows?.find(a => a.id === id);
       if (!approval) throw new Error('Approval record not found');
 
       // Authoritative buyer identity from Terminal approval. If this exists, the

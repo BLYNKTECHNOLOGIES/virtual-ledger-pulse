@@ -94,6 +94,20 @@ async function fetchChatCredential(apiKey, apiSecret) {
 }
 
 
+// Stable key for a chat that Binance delivers without an order number.
+// Uses Binance's own chat group id when present, otherwise the counterparty
+// user number. Never invents an order number.
+function inquiryThreadKey(m) {
+  const group = m?.chatGroupId || m?.groupId || m?.chatGroupNo || m?.groupNo;
+  if (group) return `INQ-${String(group)}`;
+  const users = [m?.fromUserNo, m?.toUserNo, m?.userNo, m?.counterPartyUserNo]
+    .filter(Boolean)
+    .map(String)
+    .sort();
+  if (users.length) return `INQ-${users.join('-')}`;
+  return null;
+}
+
 // ---- message normalisation (mirrors binance-ads/normalizeChatMessage) ----
 function normalize(orderNo, msg, accountId) {
   const contentType = msg?.contentType == null ? null : String(msg.contentType).toLowerCase();
@@ -205,8 +219,17 @@ class AccountSocket {
         const list = Array.isArray(payload) ? payload : [payload];
         for (const m of list) {
           const orderNo = m?.orderNo || m?.orderNumber || m?.order_no;
-          if (!orderNo) continue;
-          try { await persist(normalize(String(orderNo), m, this.account.id)); }
+          // Binance also delivers chats that are NOT tied to an order (an
+          // advertiser enquiry started from the ad). They used to be dropped
+          // here, so those conversations were invisible in the terminal even
+          // though the Binance app shows them. Store them under a stable
+          // synthetic thread key derived from Binance's own chat identifiers.
+          const threadKey = orderNo ? String(orderNo) : inquiryThreadKey(m);
+          if (!threadKey) {
+            console.log('skipped frame without order/thread id:', JSON.stringify(m || {}).slice(0, 220));
+            continue;
+          }
+          try { await persist(normalize(threadKey, m, this.account.id)); }
           catch (e) { console.error('persist failed', e.message); }
         }
       });

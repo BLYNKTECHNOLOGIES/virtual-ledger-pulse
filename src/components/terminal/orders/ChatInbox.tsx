@@ -278,6 +278,9 @@ function ConversationRow({
   const opStatus = mapToOperationalStatus(rawStatus, c.tradeType);
   const statusStyle = getStatusStyle(opStatus);
 
+  // Binance also delivers chats that were started from an ad with no order
+  // behind them. They have no trade figures and no order status.
+  const isEnquiry = c.orderNumber.startsWith('INQ-');
   const stamp = c.lastMessageAt ? new Date(c.lastMessageAt) : (c.createTime ? new Date(c.createTime) : null);
   const stampLabel = stamp ? (isToday(stamp) ? format(stamp, 'HH:mm') : format(stamp, 'dd MMM')) : '';
 
@@ -323,17 +326,19 @@ function ConversationRow({
             {c.lastMessageFromSelf ? 'You: ' : ''}{c.lastMessagePreview}
           </div>
         ) : null}
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className={`text-[9px] t-mono uppercase font-semibold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-            {c.tradeType}
-          </span>
-          <span className="text-xs text-muted-foreground truncate">
-            {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
-          </span>
-        </div>
+        {!isEnquiry && (
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={`text-[9px] t-mono uppercase font-semibold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+              {c.tradeType}
+            </span>
+            <span className="text-xs text-muted-foreground truncate">
+              {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
+            </span>
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-1 min-w-0">
-          <Badge variant="outline" className={`text-[8px] gap-1 ${statusStyle.badgeClass}`}>
-            {statusStyle.label}
+          <Badge variant="outline" className={`text-[8px] gap-1 ${isEnquiry ? 'text-muted-foreground border-muted-foreground/40' : statusStyle.badgeClass}`}>
+            {isEnquiry ? 'Enquiry · no order' : statusStyle.label}
           </Badge>
           {seenText && (
             <span className="text-[9px] text-muted-foreground/80 truncate" title={seenText}>

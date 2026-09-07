@@ -60,6 +60,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // above it as history.
   const { data: newerOrder } = useNewerCounterpartyOrder(openedOrderNumber, exchangeAccountId);
   const orderNumber = newerOrder?.orderNumber ?? openedOrderNumber;
+  // Chats Binance delivers without an order behind them (ad enquiries).
+  // Binance's documented send endpoint requires an order number, so replying
+  // to these from the terminal is not supported.
+  const isEnquiryThread = orderNumber.startsWith('INQ-');
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
@@ -639,21 +643,24 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               if (e.key === 'Enter' && !e.shiftKey) handleSend();
               else if (e.key === 'Escape') e.currentTarget.blur();
             }}
-            placeholder="Type a message..."
+            placeholder={isEnquiryThread ? 'Reply on the Binance app — this chat has no order' : 'Type a message...'}
+            disabled={isEnquiryThread}
             className="h-8 text-xs bg-input text-foreground border-border rounded-md placeholder:text-muted-foreground focus-visible:ring-primary"
           />
           <Button
             size="icon"
             className="h-8 w-8 shrink-0 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => handleSend()}
-            disabled={!text.trim() || isSending}
+            disabled={!text.trim() || isSending || isEnquiryThread}
           >
             <Send className="h-3.5 w-3.5" />
           </Button>
 
         </div>
         <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
-          {isConnected ? 'Live updates on' : 'Messages send instantly; updates refresh from the server'}
+          {isEnquiryThread
+            ? 'Enquiry chat with no order — Binance only accepts replies inside an order, so reply from the Binance app'
+            : isConnected ? 'Live updates on' : 'Messages send instantly; updates refresh from the server'}
         </p>
 
       </div>

@@ -2164,6 +2164,20 @@ serve(async (req) => {
         const rawUserId = String(payload.userId ?? payload.userNo ?? "").trim();
         const candidates: string[] = [];
         if (isNumericChatReadUserId(rawUserId)) candidates.push(rawUserId);
+        // When only an orderNo is available, resolve the counterparty user from
+        // the order detail (same candidates as markOrderMessagesRead).
+        if (candidates.length === 0 && payload.orderNo) {
+          const orderNo = String(payload.orderNo).trim();
+          const detailUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+          const detailResponse = await fetchWithRetry(detailUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify({ adOrderNo: orderNo, orderNo }) });
+          const detailText = await detailResponse.text();
+          let detailResult: any;
+          try { detailResult = JSON.parse(detailText); } catch { detailResult = { raw: detailText, status: detailResponse.status }; }
+          const detail = unwrapOrderDetail(detailResult);
+          for (const c of extractChatReadUserCandidates(detail, payload)) {
+            if (isNumericChatReadUserId(c) && !candidates.includes(c)) candidates.push(c);
+          }
+        }
         candidates.push("0");
 
         const attempts: any[] = [];

@@ -193,9 +193,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         const isSelf = msg.self === true;
         const isImage = msgType === 'image';
         const normalizedType = String(msgType).toLowerCase();
-        const isSystemLike = normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType);
         const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
         const content = msg.content || msg.message || '';
+        const isSystemLike = !isCardPayload(content) &&
+          (normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType));
 
         const effectiveImgUrl = isImage ? (imgUrl || content || undefined) : imgUrl;
 

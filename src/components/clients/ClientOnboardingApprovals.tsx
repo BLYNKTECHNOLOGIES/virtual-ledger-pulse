@@ -2191,7 +2191,7 @@ export function ClientOnboardingApprovals() {
       <div className="flex items-center gap-3">
         <AlertCircle className="h-6 w-6 text-warning" />
         <h2 className="text-2xl font-bold">Client Onboarding Approvals</h2>
-        <Badge variant="destructive">{pendingApprovals.length} Pending</Badge>
+        <Badge variant="destructive">{approvalCounts?.pending ?? allPendingApprovals.length} Pending</Badge>
       </div>
 
       {/* Pending Approvals */}
@@ -2199,7 +2199,7 @@ export function ClientOnboardingApprovals() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertCircle className="h-5 w-5 text-warning" />
-            Pending Client Approvals ({pendingApprovals.length})
+            Pending Client Approvals ({approvalCounts?.pending ?? allPendingApprovals.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -2248,7 +2248,7 @@ export function ClientOnboardingApprovals() {
                  </TableRow>
               </TableHeader>
               <TableBody>
-                {pendingApprovals.map((entry) => {
+                {pendingApprovals.slice(0, visiblePendingCount).map((entry) => {
                   const approval = entry.primary;
                   const nameKey = approval.client_name.trim().toLowerCase();
                   const idInfo = identityMap?.[approval.id];

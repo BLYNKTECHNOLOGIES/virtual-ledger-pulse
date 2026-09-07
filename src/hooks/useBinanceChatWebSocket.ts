@@ -507,7 +507,7 @@ export function useBinanceChatWebSocket(
         pollIntervalRef.current = 30000;
       } else {
         await fetchChatHistory(activeOrderNo);
-        pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.3, 30000);
+        pollIntervalRef.current = Math.min(pollIntervalRef.current * 1.2, 10000);
       }
       pollTimerRef.current = setTimeout(poll, pollIntervalRef.current);
     };

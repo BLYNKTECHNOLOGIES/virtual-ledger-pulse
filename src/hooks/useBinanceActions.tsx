@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { pollWhenVisible } from '@/lib/poll-when-visible';
 import { supabase } from '@/integrations/supabase/client';
@@ -636,6 +636,36 @@ export function useBinanceChatMessages(orderNo: string | null, accountId?: strin
 }
 
 export function useArchivedBinanceChatMessages(orderNo: string | null, accountId?: string | null) {
+  const queryClient = useQueryClient();
+
+  // Live push: the always-on server listener writes every incoming Binance
+  // message straight into binance_order_chat_messages. Subscribing to inserts
+  // for THIS order means a counterparty message appears within ~1s instead of
+  // waiting for the fallback poll.
+  useEffect(() => {
+    if (!orderNo) return;
+    const channel = supabase
+      .channel(`order-chat-${orderNo}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'binance_order_chat_messages',
+          filter: `order_number=eq.${orderNo}`,
+        },
+        () => {
+          queryClient.invalidateQueries({
+            queryKey: ['archived-binance-chat-messages', orderNo, accountId ?? null],
+          });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [orderNo, accountId, queryClient]);
+
   return useQuery({
     queryKey: ['archived-binance-chat-messages', orderNo, accountId ?? null],
     queryFn: async () => {
@@ -653,8 +683,9 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
       return data as unknown as ArchivedBinanceChatMessage[];
     },
     enabled: !!orderNo,
-    staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000,
+    staleTime: 3 * 1000,
+    refetchInterval: pollWhenVisible(5000),
+    refetchOnWindowFocus: true,
   });
 }
 

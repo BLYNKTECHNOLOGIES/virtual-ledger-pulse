@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, WifiOff, History } from 'lucide-react';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, Cloud, History } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useCounterpartyChatHistory } from '@/hooks/useCounterpartyChatHistory';

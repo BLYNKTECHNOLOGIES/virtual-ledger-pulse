@@ -148,7 +148,21 @@ export default function ExchangeAccountsSettings() {
                     />
                   </div>
                 </div>
+                <div className="space-y-1.5 md:col-span-3">
+                  <Label className="text-foreground">Binance P2P advertiser number</Label>
+                  <Input
+                    className="text-foreground"
+                    placeholder="e.g. se7510c53abb33831869d5152e7bf1333"
+                    value={d.p2p_advertiser_no ?? ""}
+                    disabled={!isSuperAdmin}
+                    onChange={(e) => updateDraft(acc.id, { p2p_advertiser_no: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used to build the clickable Binance link when an ad is shared in chat.
+                  </p>
+                </div>
               </div>
+
 
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div className="flex items-center gap-2">

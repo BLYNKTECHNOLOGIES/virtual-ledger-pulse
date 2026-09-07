@@ -233,9 +233,9 @@ function TerminalOrdersContent() {
   // Prewarm chat WebSocket credentials for every visible account so opening a
   // chat connects instantly (skip the browser→edge→relay→Binance round-trip).
   useEffect(() => {
-    if (!canChat || !accountsToQuery?.length) return;
+    if (!accountsToQuery?.length) return;
     prewarmChatCredentials(accountsToQuery);
-  }, [canChat, accountsToQuery]);
+  }, [accountsToQuery]);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;

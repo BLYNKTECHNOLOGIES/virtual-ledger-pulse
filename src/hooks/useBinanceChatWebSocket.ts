@@ -618,30 +618,30 @@ export function useBinanceChatWebSocket(
   // an immediate optimistic bubble (with a small spinner). The bubble is
   // removed automatically once Binance echoes the message back via the
   // chat history poll (see dedupe logic in fetchChatHistory).
+  // Delivery ALWAYS goes through the server (edge function -> proxy). Binance
+  // allows one chat session per account, and the always-on server listener
+  // holds it, so a browser socket can be refused at any moment and cannot be
+  // trusted for delivery when several operators work in parallel. The socket
+  // is used for live receive only.
   const sendMessage = useCallback((orderNo: string, content: string) => {
     const id = tempIdCounter++;
-    const ws = wsRef.current;
-    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
-    const sentOverWs = wsOpen && doWsSend(orderNo, content, 'text');
     setQueuedMessages(prev => [...prev, {
       tempId: id, orderNo, content, type: 'text', createdAt: Date.now(), retries: 0,
       status: 'sending' as const,
     }]);
-    if (!sentOverWs) void doServerSend(id, orderNo, content, 'text');
-  }, [doWsSend, doServerSend]);
+    void doServerSend(id, orderNo, content, 'text');
+  }, [doServerSend]);
 
   // ---- Send image (same optimistic pattern as text) ----
   const sendImageMessage = useCallback((orderNo: string, imageUrl: string) => {
     const id = tempIdCounter++;
-    const ws = wsRef.current;
-    const wsOpen = !!ws && ws.readyState === WebSocket.OPEN;
-    const sentOverWs = wsOpen && doWsSend(orderNo, imageUrl, 'image');
     setQueuedMessages(prev => [...prev, {
       tempId: id, orderNo, content: imageUrl, type: 'image', createdAt: Date.now(), retries: 0,
       status: 'sending' as const,
     }]);
-    if (!sentOverWs) void doServerSend(id, orderNo, imageUrl, 'image');
-  }, [doWsSend, doServerSend]);
+    void doServerSend(id, orderNo, imageUrl, 'image');
+  }, [doServerSend]);
+
 
 
   // ---- Manual retry for a failed message ----

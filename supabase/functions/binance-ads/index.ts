@@ -1844,7 +1844,7 @@ serve(async (req) => {
           seen.add(key);
           return true;
         });
-        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID);
+        const archive = await persistChatMessages(supabase, orderNo, deduped, EXCHANGE_ACCOUNT_ID, (payload.captureSource as any) || "history_sync");
         result = { code: "000000", message: "success", data: archive };
         break;
       }

@@ -25,7 +25,7 @@ export interface HistoricalChatMessage {
   fromNickName?: string;
 }
 
-const PAGE_SIZE = 3; // Load 3 past orders at a time
+const PAGE_SIZE = 5; // Load 5 past orders at a time (fetched in parallel)
 
 /**
  * Counterparty chat history.

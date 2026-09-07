@@ -219,7 +219,16 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   );
 }
 
-function ConversationRow({ conversation: c, onClick }: { conversation: ChatConversation; onClick: () => void }) {
+function ConversationRow({
+  conversation: c,
+  seen,
+  onClick,
+}: {
+  conversation: ChatConversation;
+  seen?: ChatSeenInfo;
+  onClick: () => void;
+}) {
+  const seenText = seenLabel(seen);
   const numStatusMap: Record<number, string> = {
     1: 'TRADING', 2: 'BUYER_PAYED', 3: 'BUYER_PAYED', 4: 'COMPLETED',
     5: 'APPEAL', 6: 'CANCELLED', 7: 'CANCELLED_BY_SYSTEM', 8: 'APPEAL',

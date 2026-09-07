@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.set_chat_capture_latency() FROM PUBLIC, anon, authenticated;

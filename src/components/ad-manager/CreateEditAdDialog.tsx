@@ -516,7 +516,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   // Cleanup on unmount
   useEffect(() => () => stopHold(), []);
 
-  const isSubmitting = postAd.isPending || updateAd.isPending;
+  const isSubmitting = postAd.isPending || updateAd.isPending || updateAdStatus.isPending;
   const noSellMethods = !isBuyAd && !isLoadingPayMethods && sellAdPayMethods.length === 0;
 
   return (

@@ -27,8 +27,19 @@ export default function WeeklyOffPage() {
   const [showAssign, setShowAssign] = useState(false);
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [bulkForm, setBulkForm] = useState({ pattern_id: "", employee_ids: [] as string[], search: "" });
-  const [form, setForm] = useState({ name: "", weekly_offs: [0] as number[], is_alternating: false, alternate_week_offs: [] as number[], description: "" });
+  const [form, setForm] = useState({ name: "", weekly_offs: [0] as number[], is_alternating: false, alternate_week_offs: [] as number[], description: "", counts_holidays_as_working: false, excludes_leave_accrual: false, excludes_compoff: false });
   const [assignForm, setAssignForm] = useState({ employee_id: "", pattern_id: "" });
+
+  const patternWarning = (p: any) => {
+    if (!p) return null;
+    const bits: string[] = [];
+    if (p.counts_holidays_as_working) bits.push("declared holidays count as normal working days");
+    if ((p.weekly_offs || []).length === 0) bits.push("no weekly off at all");
+    if (p.excludes_leave_accrual) bits.push("no leave is credited each month");
+    if (p.excludes_compoff) bits.push("no comp-off is earned");
+    return bits.length ? bits.join(", ") : null;
+  };
+
 
   const { data: patterns = [] } = useQuery({
     queryKey: ["hr_weekly_off_patterns"],
@@ -69,17 +80,22 @@ export default function WeeklyOffPage() {
       if (!form.name) throw new Error("Pattern name is required");
       const { error } = await (supabase as any).from("hr_weekly_off_patterns").insert({
         name: form.name,
+        code: form.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").slice(0, 40),
         weekly_offs: form.weekly_offs,
         is_alternating: form.is_alternating,
         alternate_week_offs: form.is_alternating ? form.alternate_week_offs : null,
         description: form.description || null,
+        counts_holidays_as_working: form.counts_holidays_as_working,
+        excludes_leave_accrual: form.excludes_leave_accrual,
+        excludes_compoff: form.excludes_compoff,
       });
       if (error) throw error;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["hr_weekly_off_patterns"] });
       setShowAddPattern(false);
-      setForm({ name: "", weekly_offs: [0], is_alternating: false, alternate_week_offs: [], description: "" });
+      setForm({ name: "", weekly_offs: [0], is_alternating: false, alternate_week_offs: [], description: "", counts_holidays_as_working: false, excludes_leave_accrual: false, excludes_compoff: false });
+
       toast.success("Pattern created");
     },
     onError: (e: any) => toast.error(e.message),
@@ -177,10 +193,18 @@ export default function WeeklyOffPage() {
                       </Badge>
                     </div>
                     <div className="flex flex-wrap gap-1">
-                      {(p.weekly_offs || []).map((d: number) => (
-                        <Badge key={d} variant="secondary" className="text-[10px]">{DAYS[d]}</Badge>
-                      ))}
+                      {(p.weekly_offs || []).length === 0 ? (
+                        <Badge variant="destructive" className="text-[10px]">No weekly off</Badge>
+                      ) : (
+                        (p.weekly_offs || []).map((d: number) => (
+                          <Badge key={d} variant="secondary" className="text-[10px]">{DAYS[d]}</Badge>
+                        ))
+                      )}
+                      {p.counts_holidays_as_working && <Badge variant="destructive" className="text-[10px]">Holidays are working days</Badge>}
+                      {p.excludes_leave_accrual && <Badge variant="outline" className="text-[10px]">No leave credit</Badge>}
+                      {p.excludes_compoff && <Badge variant="outline" className="text-[10px]">No comp-off</Badge>}
                     </div>
+
                     {p.is_alternating && p.alternate_week_offs?.length > 0 && (
                       <div>
                         <span className="text-xs text-muted-foreground">Alternate weeks:</span>
@@ -296,10 +320,25 @@ export default function WeeklyOffPage() {
                 </div>
               </div>
             )}
+            <div className="space-y-2 rounded-md border p-3">
+              <div className="flex items-center gap-2">
+                <Switch checked={form.counts_holidays_as_working} onCheckedChange={v => setForm({ ...form, counts_holidays_as_working: v })} />
+                <Label>Declared holidays are normal working days</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={form.excludes_leave_accrual} onCheckedChange={v => setForm({ ...form, excludes_leave_accrual: v })} />
+                <Label>No monthly leave credit</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={form.excludes_compoff} onCheckedChange={v => setForm({ ...form, excludes_compoff: v })} />
+                <Label>No comp-off earning</Label>
+              </div>
+            </div>
             <div>
               <Label>Description</Label>
               <Input className="h-9 mt-1" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Optional description" />
             </div>
+
           </div>
       </ResponsiveDialog>
 
@@ -329,7 +368,13 @@ export default function WeeklyOffPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {patternWarning(patterns.find((p: any) => p.id === assignForm.pattern_id)) && (
+                <p className="mt-2 text-xs text-destructive">
+                  Heads up: {patternWarning(patterns.find((p: any) => p.id === assignForm.pattern_id))}. Pay for missed days is deducted on this basis from the next payroll run.
+                </p>
+              )}
             </div>
+
           </div>
       </ResponsiveDialog>
 
@@ -362,7 +407,13 @@ export default function WeeklyOffPage() {
                 ))}
               </SelectContent>
             </Select>
+            {patternWarning(patterns.find((p: any) => p.id === bulkForm.pattern_id)) && (
+              <p className="mt-2 text-xs text-destructive">
+                Heads up: {patternWarning(patterns.find((p: any) => p.id === bulkForm.pattern_id))}. Pay for missed days is deducted on this basis from the next payroll run.
+              </p>
+            )}
           </div>
+
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label>Employees ({bulkForm.employee_ids.length} selected)</Label>

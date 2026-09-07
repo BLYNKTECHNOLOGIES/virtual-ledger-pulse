@@ -1,0 +1,2 @@
+ALTER TABLE public.terminal_exchange_accounts ADD COLUMN IF NOT EXISTS p2p_advertiser_no text;
+UPDATE public.terminal_exchange_accounts SET p2p_advertiser_no = 'se7510c53abb33831869d5152e7bf1333', updated_at = now() WHERE id = '00000000-0000-0000-0000-000000000001';

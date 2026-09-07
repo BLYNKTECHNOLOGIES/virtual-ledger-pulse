@@ -998,7 +998,10 @@ serve(async (req) => {
           console.log(`postAd: Setting ad ${advNo} to Private via visibility helper...`);
           const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, [String(advNo)], 1);
           console.log("postAd visibility result:", JSON.stringify(visResult).substring(0, 500));
+          const visOk = visResult?.code === "000000" || visResult?.success === true;
+          result = { ...result, privateApplied: visOk, privateWarning: visOk ? null : "Ad was created Online — Binance did not accept the Private visibility setting for this account." };
         }
+
         break;
       }
 
@@ -1159,19 +1162,43 @@ serve(async (req) => {
       case "updateAdStatus": {
         const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];
         const targetStatus = Number(payload.advStatus);
+        const priorStatus = Number(payload.fromStatus);
+        const statusUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
+        const setBinanceStatus = async (status: number) => {
+          const body = { advNos: advNosList.map(String), advStatus: status };
+          console.log("updateAdStatus request body:", JSON.stringify(body));
+          const response = await fetch(statusUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
+          const text = await response.text();
+          console.log("updateAdStatus response:", response.status, text.substring(0, 500));
+          try { return JSON.parse(text); } catch { return { raw: text, status: response.status }; }
+        };
 
         if (targetStatus === 2) {
-          // "Private" = Binance online (1) + userSetVisible=1
-          // First ensure the ad is online, then toggle visibility
-          const statusUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-          const statusBody = { advNos: advNosList.map(String), advStatus: 1 };
-          console.log("updateAdStatus (to Private): first set online:", JSON.stringify(statusBody));
-          const statusResp = await fetch(statusUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify(statusBody) });
-          const statusText = await statusResp.text();
-          console.log("updateAdStatus online response:", statusResp.status, statusText.substring(0, 500));
+          // "Private" = Binance online (1) + userSetVisible=1. Binance's documented
+          // API exposes userSetVisible as read-only, so the visibility toggle rides
+          // on an undocumented proxy path. If it does not work we must NOT leave the
+          // ad silently Online — revert and report the limitation.
+          const wasOnline = priorStatus === 1 || priorStatus === 2;
+          let onlinedHere = false;
+          if (!wasOnline) {
+            const onlineResult = await setBinanceStatus(1);
+            if (!isSuccessfulBinancePayload(onlineResult, 200)) {
+              throw new Error(onlineResult?.message || onlineResult?.msg || "Binance rejected bringing the ad online before setting it private");
+            }
+            onlinedHere = true;
+          }
 
-          // Now toggle visibility to Private
           const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, advNosList.map(String), 1);
+          const visOk = visResult?.code === "000000" || visResult?.success === true;
+          if (!visOk) {
+            if (onlinedHere && Number.isFinite(priorStatus)) {
+              console.log("Private failed — reverting ad status to", priorStatus);
+              await setBinanceStatus(priorStatus);
+            }
+            throw new Error(
+              "Binance did not accept the Private (visible only via direct link) setting for this account — ad status left unchanged. Private visibility is not exposed by the official Binance ad API; set it from the Binance app.",
+            );
+          }
           result = visResult;
         } else {
           // For status 1 (online) or 3 (offline), use normal updateStatus
@@ -1180,17 +1207,11 @@ serve(async (req) => {
             const visResult = await setAdvVisibility(BINANCE_PROXY_URL, proxyHeaders, advNosList.map(String), 0);
             console.log("Remove private visibility result:", JSON.stringify(visResult).substring(0, 500));
           }
-
-          const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-          const body = { advNos: advNosList.map(String), advStatus: targetStatus };
-          console.log("updateAdStatus request body:", JSON.stringify(body));
-          const response = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
-          const text = await response.text();
-          console.log("updateAdStatus response:", response.status, text.substring(0, 500));
-          try { result = JSON.parse(text); } catch { result = { raw: text, status: response.status }; }
+          result = await setBinanceStatus(targetStatus);
         }
         break;
       }
+
 
       case "setUserAdvVisible": {
         const advNosList = Array.isArray(payload.advNos) ? payload.advNos : [payload.advNos];

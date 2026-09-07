@@ -17,7 +17,7 @@ import { resolveAccount, listActiveAccounts, proxyHeadersFor } from "../_shared/
 
 const RUN_BUDGET_MS = 52_000;
 const ACTIVE_TICK_MS = 4_500;
-const IDLE_TICK_MS = 12_000;
+const IDLE_TICK_MS = 4_500;
 const MAX_CONSECUTIVE_FAILURES = 5;
 
 function jsonResponse(body: unknown, status = 200) {

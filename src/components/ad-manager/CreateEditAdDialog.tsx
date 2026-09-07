@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useUpdateAdStatus, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { AdZone, ZONE_LABEL, adZone, zoneClassify, parseAvailableZones } from '@/lib/adZone';
@@ -76,6 +76,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   const { toast } = useToast();
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
+  const updateAdStatus = useUpdateAdStatus();
   // Fetch ALL SELL ads to extract available payment methods from the merchant's account
   const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
   const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
@@ -411,6 +412,12 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     if (form.autoReplyMsg) fullAdData.autoReplyMsg = form.autoReplyMsg;
     if (form.remarks) fullAdData.remarks = form.remarks;
 
+    // Private (2) is a visibility state, not a Binance ad status. Detect the
+    // transition so it can be applied via the visibility-aware status call.
+    const wasPrivate = isEditing && editingAd!.advStatus === BINANCE_AD_STATUS.PRIVATE;
+    const wantsPrivate = form.advStatus === BINANCE_AD_STATUS.PRIVATE;
+    const visibilityChanged = isEditing && wasPrivate !== wantsPrivate;
+
     const adData = isEditing ? { advNo: editingAd!.advNo } as Record<string, any> : fullAdData;
     if (isEditing) {
       if (changedNumber(editingAd!.initAmount, form.initAmount)) adData.initAmount = fullAdData.initAmount;
@@ -418,7 +425,9 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       if (changedNumber(editingAd!.maxSingleTransAmount, form.maxSingleTransAmount)) adData.maxSingleTransAmount = fullAdData.maxSingleTransAmount;
       if (tradeMethodsChanged(editingAd!.tradeMethods || [], tradeMethods)) adData.tradeMethods = tradeMethods;
       if (changedNumber(editingAd!.payTimeLimit, form.payTimeLimit)) adData.payTimeLimit = fullAdData.payTimeLimit;
-      if (changedNumber(editingAd!.advStatus, binanceAdvStatus)) adData.advStatus = fullAdData.advStatus;
+      // Private is Binance online + visibility restriction, so a private
+      // transition is applied through updateAdStatus (below), never here.
+      if (!visibilityChanged && changedNumber(editingAd!.advStatus, binanceAdvStatus)) adData.advStatus = fullAdData.advStatus;
       if (changedNumber(editingAd!.buyerRegDaysLimit, form.buyerRegDaysLimit)) adData.buyerRegDaysLimit = fullAdData.buyerRegDaysLimit;
       if (changedNumber(editingAd!.buyerBtcPositionLimit, form.buyerBtcPositionLimit)) adData.buyerBtcPositionLimit = fullAdData.buyerBtcPositionLimit;
       if (changedNumber(editingAd!.takerAdditionalKycRequired, form.takerAdditionalKycRequired)) adData.takerAdditionalKycRequired = fullAdData.takerAdditionalKycRequired;
@@ -434,8 +443,25 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     const routedAccountId = isEditing ? editingAd?._exchangeAccountId : (createAccountId || undefined);
     if (routedAccountId) adData.exchange_account_id = routedAccountId;
 
+    const applyVisibility = () => {
+      updateAdStatus.mutate(
+        {
+          advNos: [editingAd!.advNo],
+          advStatus: form.advStatus,
+          fromPrivate: wasPrivate,
+          fromStatus: editingAd!.advStatus,
+          exchangeAccountId: routedAccountId || undefined,
+        },
+        { onSuccess: () => onOpenChange(false) },
+      );
+    };
+
     if (isEditing) {
-      updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
+      const hasFieldChanges = Object.keys(adData).some((k) => k !== 'advNo' && k !== 'exchange_account_id');
+      if (!hasFieldChanges && visibilityChanged) { applyVisibility(); return; }
+      updateAd.mutate(adData, {
+        onSuccess: () => { if (visibilityChanged) applyVisibility(); else onOpenChange(false); },
+      });
     } else {
       postAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
     }
@@ -490,7 +516,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   // Cleanup on unmount
   useEffect(() => () => stopHold(), []);
 
-  const isSubmitting = postAd.isPending || updateAd.isPending;
+  const isSubmitting = postAd.isPending || updateAd.isPending || updateAdStatus.isPending;
   const noSellMethods = !isBuyAd && !isLoadingPayMethods && sellAdPayMethods.length === 0;
 
   return (
@@ -1096,6 +1122,15 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <RadioGroupItem value={String(BINANCE_AD_STATUS.ONLINE)} id="status-online" />
                 <Label htmlFor="status-online" className="cursor-pointer">Online</Label>
               </div>
+              {isEditing && (
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value={String(BINANCE_AD_STATUS.PRIVATE)} id="status-private" />
+                  <Label htmlFor="status-private" className="cursor-pointer">
+                    Private
+                    <span className="ml-2 text-xs text-muted-foreground">Visible only via direct link</span>
+                  </Label>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <RadioGroupItem value={String(BINANCE_AD_STATUS.OFFLINE)} id="status-offline" />
                 <Label htmlFor="status-offline" className="cursor-pointer">Offline</Label>

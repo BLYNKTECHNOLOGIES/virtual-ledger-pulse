@@ -8,15 +8,20 @@ Since you already run the Binance proxy/relay on an active instance, **no new se
 
 ## Part A — Setup on the existing instance (copy-paste)
 
-### A0. Sanity check the box first
+### A0. Confirmed box state
+
+`free -m` / `df -h` show 914 MB RAM (~434 MB available), 30 GB free disk, and only `nginx` running as a system service — so the Binance proxy/relay itself runs behind nginx under something else (pm2, docker, a user-level service, or a screen/tmux process). The listener needs well under 100 MB, so this box is fine as-is; no upgrade needed. Adding ~256 MB swap headroom later is optional.
+
+Run these two so we know where the proxy lives and which local port it listens on:
 
 ```bash
-free -m
-df -h /
-sudo systemctl list-units --type=service --state=running | grep -Ei 'proxy|relay|node|pm2|docker'
+sudo ss -ltnp
+pm2 ls 2>/dev/null; docker ps 2>/dev/null; systemctl --user list-units --type=service --state=running 2>/dev/null
+sudo grep -r "proxy_pass" /etc/nginx/ | head
 ```
 
-Send me that output — it tells me whether the existing relay runs under systemd, PM2 or Docker, so the new service matches the same style, and confirms free memory (need ~150 MB).
+Send that output — it gives me the local proxy/relay port and tells me whether to run the listener under systemd (default below) or match your existing pm2/docker setup.
+
 
 ### A1. Install the runtime (skip if Node 20+ is already there)
 

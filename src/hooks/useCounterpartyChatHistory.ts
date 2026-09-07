@@ -96,53 +96,74 @@ export function useCounterpartyChatHistory(
         return;
       }
 
-      // Fetch chat messages for each order in the batch
+      // Fetch chat messages for the batch. Our own archive (filled by the
+      // always-on listener) is read FIRST in a single query — that is instant.
+      // Binance is only called for orders we have nothing stored for, and those
+      // calls run in parallel instead of one after another.
       const chatResults: HistoricalOrderChat[] = [];
+      const pending = batch.filter((o) => !loadedOrdersRef.current.has(o.order_number));
+      pending.forEach((o) => loadedOrdersRef.current.add(o.order_number));
 
-      for (const order of batch) {
-        if (loadedOrdersRef.current.has(order.order_number)) continue;
-        loadedOrdersRef.current.add(order.order_number);
-
-        try {
-          const result = await callBinanceAds('getChatMessages', {
-            orderNo: order.order_number,
-            page: 1,
-            rows: 50,
-            sort: 'asc',
-          }, order.exchange_account_id || exchangeAccountId || undefined);
-          const list = result?.data?.data || result?.data || result?.list || [];
-          const messages: HistoricalChatMessage[] = (Array.isArray(list) ? list : []).filter((msg: any) => {
-            const msgOrderNo = msg?.orderNo || msg?.topicId || msg?.order?.orderNo || null;
-            return !msgOrderNo || String(msgOrderNo) === String(order.order_number);
-          });
-
-          chatResults.push({
-            orderNumber: order.order_number,
-            tradeType: order.trade_type || 'UNKNOWN',
-            asset: order.asset,
-            totalPrice: order.total_price,
-            fiatUnit: order.fiat_unit,
-            orderDate: order.create_time,
-            orderStatus: order.order_status ?? null,
-            messages,
-          });
-        } catch (err) {
-          console.warn('Failed to fetch chat for order:', order.order_number, err);
-          // Still add with empty messages
-          chatResults.push({
-            orderNumber: order.order_number,
-            tradeType: order.trade_type || 'UNKNOWN',
-            asset: order.asset,
-            totalPrice: order.total_price,
-            fiatUnit: order.fiat_unit,
-            orderDate: order.create_time,
-            orderStatus: order.order_status ?? null,
-            messages: [],
+      const archived: Record<string, HistoricalChatMessage[]> = {};
+      if (pending.length) {
+        const { data: rows } = await supabase
+          .from('binance_order_chat_messages')
+          .select('order_number,binance_message_id,message_type,chat_message_type,content_type,message_text,image_url,thumbnail_url,binance_create_time,sender_is_self,sender_nickname')
+          .in('order_number', pending.map((o) => o.order_number))
+          .order('binance_create_time', { ascending: true });
+        for (const r of rows || []) {
+          const key = String((r as any).order_number);
+          (archived[key] ||= []).push({
+            id: Number((r as any).binance_message_id) || Number((r as any).binance_create_time) || 0,
+            type: String((r as any).message_type || (r as any).chat_message_type || (r as any).content_type || 'text'),
+            content: (r as any).message_text || '',
+            imageUrl: (r as any).image_url || undefined,
+            thumbnailUrl: (r as any).thumbnail_url || undefined,
+            createTime: Number((r as any).binance_create_time) || 0,
+            self: (r as any).sender_is_self === true,
+            fromNickName: (r as any).sender_nickname || undefined,
           });
         }
       }
 
+      const fetched = await Promise.all(pending.map(async (order) => {
+        const stored = archived[order.order_number];
+        let messages: HistoricalChatMessage[] = stored || [];
+
+        if (!messages.length) {
+          try {
+            const result = await callBinanceAds('getChatMessages', {
+              orderNo: order.order_number,
+              page: 1,
+              rows: 50,
+              sort: 'asc',
+            }, order.exchange_account_id || exchangeAccountId || undefined);
+            const list = result?.data?.data || result?.data || result?.list || [];
+            messages = (Array.isArray(list) ? list : []).filter((msg: any) => {
+              const msgOrderNo = msg?.orderNo || msg?.topicId || msg?.order?.orderNo || null;
+              return !msgOrderNo || String(msgOrderNo) === String(order.order_number);
+            });
+          } catch (err) {
+            console.warn('Failed to fetch chat for order:', order.order_number, err);
+            messages = [];
+          }
+        }
+
+        return {
+          orderNumber: order.order_number,
+          tradeType: order.trade_type || 'UNKNOWN',
+          asset: order.asset,
+          totalPrice: order.total_price,
+          fiatUnit: order.fiat_unit,
+          orderDate: order.create_time,
+          orderStatus: order.order_status ?? null,
+          messages,
+        } as HistoricalOrderChat;
+      }));
+      chatResults.push(...fetched);
+
       offsetRef.current += PAGE_SIZE;
+
 
       if (offsetRef.current >= allOrders.length) {
         setHasMore(false);

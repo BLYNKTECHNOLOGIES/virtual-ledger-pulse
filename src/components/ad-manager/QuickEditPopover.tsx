@@ -52,8 +52,12 @@ export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopov
     if (!isFloating && (!price || Number(price) <= 0)) { toast({ title: 'Validation Error', description: 'Price is required', variant: 'destructive' }); return; }
     if (isFloating && (!ratio || Number(ratio) === 0)) { toast({ title: 'Validation Error', description: 'Floating ratio is required', variant: 'destructive' }); return; }
 
-    // Private (2) maps back to Binance online (1); visibility handled by edge fn.
+    // Private (2) is Binance online (1) + a visibility restriction, so any
+    // private transition goes through the visibility-aware status call.
     const binanceAdvStatus = status === BINANCE_AD_STATUS.PRIVATE ? BINANCE_AD_STATUS.ONLINE : status;
+    const wasPrivate = ad.advStatus === BINANCE_AD_STATUS.PRIVATE;
+    const wantsPrivate = status === BINANCE_AD_STATUS.PRIVATE;
+    const visibilityChanged = wasPrivate !== wantsPrivate;
 
     const adData: Record<string, any> = { advNo: ad.advNo };
     if (ad._exchangeAccountId) adData.exchange_account_id = ad._exchangeAccountId;
@@ -66,13 +70,32 @@ export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopov
     if (changedNumber(ad.maxSingleTransAmount, maxAmt)) adData.maxSingleTransAmount = Number(maxAmt);
     if (!isFloating && changedNumber(ad.price, price)) { adData.price = round2(Number(price)); adData.oldPrice = round2(Number(ad.price || 0)); }
     if (isFloating && changedNumber(ad.priceFloatingRatio, ratio)) { adData.priceFloatingRatio = Number(ratio); adData.oldRatio = Number(ad.priceFloatingRatio || 0); }
-    if (changedNumber(ad.advStatus, binanceAdvStatus)) adData.advStatus = binanceAdvStatus;
+    if (!visibilityChanged && changedNumber(ad.advStatus, binanceAdvStatus)) adData.advStatus = binanceAdvStatus;
+
+    const applyVisibility = () => {
+      updateAdStatus.mutate(
+        {
+          advNos: [ad.advNo],
+          advStatus: status,
+          fromPrivate: wasPrivate,
+          fromStatus: ad.advStatus,
+          exchangeAccountId: ad._exchangeAccountId || undefined,
+        },
+        { onSuccess: () => setOpen(false) },
+      );
+    };
 
     // Nothing changed beyond context → just close.
     const hasChange = ['minSingleTransAmount', 'maxSingleTransAmount', 'price', 'priceFloatingRatio', 'advStatus'].some((k) => k in adData);
-    if (!hasChange) { setOpen(false); return; }
+    if (!hasChange) {
+      if (visibilityChanged) { applyVisibility(); return; }
+      setOpen(false);
+      return;
+    }
 
-    updateAd.mutate(adData, { onSuccess: () => setOpen(false) });
+    updateAd.mutate(adData, {
+      onSuccess: () => { if (visibilityChanged) applyVisibility(); else setOpen(false); },
+    });
   };
 
   return (

@@ -144,6 +144,7 @@ function normalize(orderNo, msg, accountId) {
     is_recall: isRecall,
     is_compliance_relevant: isCompliance,
     exchange_account_id: accountId,
+    capture_source: 'listener_ws',
     updated_at: new Date().toISOString(),
   };
 }

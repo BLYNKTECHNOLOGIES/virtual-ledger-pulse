@@ -648,16 +648,9 @@ export function useBinanceChatWebSocket(
   const retryMessage = useCallback((tempId: number) => {
     const msg = queueRef.current.find(m => m.tempId === tempId);
     if (!msg) return;
-
-    const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN && doWsSend(msg.orderNo, msg.content, msg.type)) {
-      // Move bubble to 'sending' — chat-history dedupe purges it once echoed.
-      setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
-      toast.success('Message resent');
-      return;
-    }
     setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
     void doServerSend(tempId, msg.orderNo, msg.content, msg.type);
+
   }, [doWsSend, doServerSend]);
 
 

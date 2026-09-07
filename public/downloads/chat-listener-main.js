@@ -33,7 +33,6 @@ const sb = createClient(SUPABASE_URL, SERVICE_KEY, {
   realtime: { transport: WebSocket },
 });
 
-const CRED_TTL_MS = 25 * 60 * 1000;
 const HEARTBEAT_MS = 15 * 1000;
 const ACCOUNT_REFRESH_MS = 5 * 60 * 1000;
 
@@ -151,7 +150,10 @@ async function persist(row) {
     if (error) console.error('update error', error.message);
   } else {
     const { error } = await sb.from('binance_order_chat_messages')
-      .upsert({ ...row, captured_at: new Date().toISOString() }, { onConflict: 'order_number,dedupe_key', ignoreDuplicates: true });
+      .insert({ ...row, captured_at: new Date().toISOString() });
+    // Binance can redeliver a message between the read and insert. Every
+    // supported identity has a database unique index, so a race is harmless.
+    if (error?.code === '23505') return;
     if (error) { console.error('insert error', error.message); return; }
     stats.saved++;
     stats.lastMessageAt = new Date().toISOString();
@@ -169,10 +171,11 @@ class AccountSocket {
     this.cred = null;
     this.stopped = false;
     this.connected = false;
+    this.retryTimer = null;
   }
 
   async credential() {
-    if (this.cred && Date.now() - this.credAt < CRED_TTL_MS) return this.cred;
+    if (this.cred) return this.cred;
     const { key, secret } = secretsFor(this.account.credential_key);
     if (!key || !secret) throw new Error(`no API secrets for ${this.account.account_name} (${this.account.credential_key})`);
     this.cred = await fetchChatCredential(key, secret);
@@ -208,7 +211,11 @@ class AccountSocket {
         }
       });
 
-      ws.on('close', () => { this.connected = false; this.cred = null; this.retry('close'); });
+      ws.on('close', (code, reason) => {
+        this.connected = false;
+        this.cred = null;
+        this.retry(`close code=${code} reason=${reason?.toString() || 'none'}`);
+      });
       ws.on('error', (e) => { this.connected = false; console.error(`socket error ${this.account.account_name}:`, e.message); });
 
       ws.on('ping', () => { try { ws.pong(); } catch {} });
@@ -221,14 +228,23 @@ class AccountSocket {
 
   retry(reason) {
     if (this.stopped) return;
+    if (this.retryTimer) return;
     stats.reconnects++;
     const wait = this.backoff;
     this.backoff = Math.min(this.backoff * 2, 60000);
     console.log(`reconnect ${this.account.account_name} in ${wait}ms (${reason})`);
-    setTimeout(() => this.connect(), wait);
+    this.retryTimer = setTimeout(() => {
+      this.retryTimer = null;
+      this.connect();
+    }, wait);
   }
 
-  stop() { this.stopped = true; try { this.ws?.close(); } catch {} }
+  stop() {
+    this.stopped = true;
+    if (this.retryTimer) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    try { this.ws?.close(); } catch {}
+  }
 }
 
 // ---- orchestration ------------------------------------------------------
@@ -271,11 +287,6 @@ async function heartbeat() {
   }, { onConflict: 'id' });
   if (error) console.error('heartbeat failed', error.message);
 }
-
-// refresh credentials every 25 min by cycling sockets
-setInterval(() => {
-  for (const s of sockets.values()) { s.cred = null; try { s.ws?.close(); } catch {} }
-}, CRED_TTL_MS);
 
 setInterval(syncAccounts, ACCOUNT_REFRESH_MS);
 setInterval(heartbeat, HEARTBEAT_MS);

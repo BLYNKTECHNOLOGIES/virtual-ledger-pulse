@@ -801,6 +801,14 @@ serve(async (req) => {
     const { action, ...payload } = await req.json();
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
+    // Scheduler-secret callers may only run internal read-only sync actions.
+    if (callerIsScheduler && !callerIsServiceRole && !["syncTerminalOrdersForErp", "listActiveOrders"].includes(action)) {
+      return new Response(JSON.stringify({ error: "Forbidden for scheduler caller" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Resolve which Binance account this request targets (defaults to primary).
     const requestedAccountId = accountIdFromPayload(payload);
     // Whether the client explicitly scoped the request to one account. When true,

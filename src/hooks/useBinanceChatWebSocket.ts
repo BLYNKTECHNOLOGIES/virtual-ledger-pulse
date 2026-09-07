@@ -331,49 +331,36 @@ export function useBinanceChatWebSocket(
     };
   }, [activeOrderNo, fetchChatHistory, fetchGroupId]);
 
-  // ---- Internal send (actual WS send) ----
-  const doWsSend = useCallback((orderNo: string, content: string, type: 'text' | 'image') => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-
-    try {
-      const now = Date.now();
-      const groupId = groupIdMapRef.current.get(orderNo);
-      const isImage = type === 'image';
-      const payload: Record<string, any> = {
-        type,
-        uuid: String(now),
-        orderNo,
-        content,
-        contentType: isImage ? 'IMAGE' : 'TEXT',
-        msgType: isImage ? 'U_IMAGE' : 'U_TEXT',
-        self: true,
-        clientType: 'web',
-        createTime: now,
-        sendStatus: 0,
-        topicId: orderNo,
-        topicType: 'ORDER',
-      };
-      if (isImage) {
-        payload.imageUrl = content;
-        payload.thumbnailUrl = content;
+  // ---- Server-side send (the only delivery path) ----
+  // Binance allows one chat session per account and the always-on server
+  // listener holds it, so the browser socket can be refused at any time.
+  // Every send therefore goes through the edge function / proxy, which works
+  // for any number of operators at once.
+  const doServerSend = useCallback(
+    async (tempId: number, orderNo: string, content: string, type: 'text' | 'image') => {
+      try {
+        const payload = type === 'image'
+          ? { orderNo, imageUrl: content }
+          : { orderNo, content, contentType: 'TEXT' };
+        const res: any = await callBinanceAds('sendChatMessage', payload, accountIdRef.current ?? undefined);
+        const body = res?.data ?? res;
+        const ok = body?.success === true || body?.code === '000000';
+        if (!ok) throw new Error(body?.error || body?.message || 'Binance rejected the message');
+        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'sending' as const } : q)));
+        pollIntervalRef.current = 1500;
+        setTimeout(() => fetchChatHistory(orderNo), 1500);
+        return true;
+      } catch (err) {
+        console.error('Server send failed:', err);
+        setQueuedMessages(prev => prev.map(q => (q.tempId === tempId ? { ...q, status: 'queued' as const } : q)));
+        toast.error('Could not deliver the message — tap retry.');
+        return false;
       }
-      if (groupId) payload.groupId = groupId;
-
-      ws.send(JSON.stringify(payload));
-
-      pollIntervalRef.current = 1500;
-      setTimeout(() => fetchChatHistory(orderNo), 1500);
-      return true;
-    } catch (err) {
-      console.error('WS send error:', err);
-      return false;
-    }
-  }, [fetchChatHistory]);
+    },
+    [fetchChatHistory],
+  );
 
   // ---- Retry anything still undelivered when the socket (re)connects ----
-  // Delivery itself runs through the server, so this only re-pushes messages
-  // that the server refused earlier.
   const flushQueue = useCallback(() => {
     const queue = [...queueRef.current];
     if (queue.length === 0) return;
@@ -383,6 +370,7 @@ export function useBinanceChatWebSocket(
       }
     }
   }, [doServerSend]);
+
 
 
   // ---- Connect to WebSocket via relay ----

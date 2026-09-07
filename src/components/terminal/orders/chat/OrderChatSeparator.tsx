@@ -36,6 +36,15 @@ export function OrderChatSeparator({ orderNumber, tradeType, asset, totalPrice, 
         {dateStr && (
           <span className="text-[10px] t-mono text-muted-foreground">• {dateStr}</span>
         )}
+        {orderStatus != null && orderStatus !== '' && (() => {
+          const op = mapToOperationalStatus(normaliseBinanceStatus(orderStatus), tradeType);
+          const style = getStatusStyle(op);
+          return (
+            <span className={`text-[9px] t-mono uppercase tracking-wide font-semibold border rounded-full px-1.5 py-px ${style.badgeClass}`}>
+              {style.label}
+            </span>
+          );
+        })()}
       </div>
       <div className="flex-1 h-px bg-border" />
     </div>

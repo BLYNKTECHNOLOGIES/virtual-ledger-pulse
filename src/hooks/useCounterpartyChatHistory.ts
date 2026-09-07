@@ -9,6 +9,7 @@ export interface HistoricalOrderChat {
   totalPrice: string | null;
   fiatUnit: string | null;
   orderDate: number; // create_time epoch
+  orderStatus: string | null; // raw Binance status from order history
   messages: HistoricalChatMessage[];
 }
 

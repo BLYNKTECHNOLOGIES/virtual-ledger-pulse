@@ -212,12 +212,34 @@ export function useBinanceActiveOrders(filters?: {
   orderStatusList?: Array<number | string>;
 }) {
   const { accountsToQuery } = useExchangeAccount();
+  const { data: collectorState } = useTerminalCollectorState();
+  const collectorStale = isCollectorStale(collectorState);
   return useQuery({
-    queryKey: ['binance-active-orders', accountsToQuery.join(','), filters],
+    queryKey: ['binance-active-orders', accountsToQuery.join(','), filters, collectorStale],
     queryFn: async () => {
-      // Single account → raw result (unchanged shape). Multiple → fan-out + merge,
-      // tagging each order with the account it belongs to so the UI can badge it
-      // and row-level actions route to the correct account automatically.
+      // DB-first: the server-side collector keeps terminal_active_orders_cache
+      // fresh for every account; browsers only call Binance directly when the
+      // collector heartbeat is stale (fallback) so a dead collector can never
+      // blind the terminal.
+      if (!collectorStale) {
+        const { data: rows, error } = await supabase
+          .from('terminal_active_orders_cache')
+          .select('exchange_account_id, raw, updated_at')
+          .in('exchange_account_id', accountsToQuery);
+        if (error) throw error;
+        const merged: any[] = [];
+        for (const row of rows || []) {
+          const o = row.raw as any;
+          if (!o) continue;
+          if (filters?.tradeType && o.tradeType !== filters.tradeType) continue;
+          if (filters?.asset && o.asset !== filters.asset) continue;
+          if (filters?.advNo && o.advNo !== filters.advNo) continue;
+          if (filters?.orderStatusList?.length && !filters.orderStatusList.map(String).includes(String(o.orderStatus))) continue;
+          merged.push({ ...o, _exchangeAccountId: row.exchange_account_id });
+        }
+        return { code: '000000', data: merged, _source: 'collector' };
+      }
+      // Fallback: collector is down/stale — query Binance live (previous behaviour).
       if (accountsToQuery.length === 1) {
         return callBinanceAds('listActiveOrders', { ...filters, rows: 50 }, accountsToQuery[0]);
       }
@@ -234,12 +256,12 @@ export function useBinanceActiveOrders(filters?: {
         const list = Array.isArray(d) ? d : [];
         for (const o of list) merged.push({ ...o, _exchangeAccountId: id });
       }
-      return { data: merged };
+      return { data: merged, _source: 'live' };
     },
     staleTime: 2 * 1000,
-    // Poll every 5s while the operator is looking at the page; pause in hidden
-    // tabs so background terminals stop competing for the shared Binance proxy.
-    refetchInterval: pollWhenVisible(5 * 1000),
+    // Realtime invalidations keep this fresh; the slow poll is only a safety net
+    // (and the live fallback cadence when the collector is stale).
+    refetchInterval: pollWhenVisible(collectorStale ? 5 * 1000 : 30 * 1000),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',

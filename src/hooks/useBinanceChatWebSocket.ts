@@ -650,19 +650,16 @@ export function useBinanceChatWebSocket(
     if (!msg) return;
 
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      const sent = doWsSend(msg.orderNo, msg.content, msg.type);
-      if (sent) {
-        // Move bubble to 'sending' — chat-history dedupe purges it once echoed.
-        setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
-        toast.success('Message resent');
-      } else {
-        toast.error('Still unable to send — will retry on reconnect');
-      }
-    } else {
-      toast.error('Chat still not connected — message remains queued');
+    if (ws && ws.readyState === WebSocket.OPEN && doWsSend(msg.orderNo, msg.content, msg.type)) {
+      // Move bubble to 'sending' — chat-history dedupe purges it once echoed.
+      setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
+      toast.success('Message resent');
+      return;
     }
-  }, [doWsSend]);
+    setQueuedMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: 'sending' } : m));
+    void doServerSend(tempId, msg.orderNo, msg.content, msg.type);
+  }, [doWsSend, doServerSend]);
+
 
   return { messages, isConnected, isConnecting, sendMessage, sendImageMessage, retryMessage, error, queuedMessages };
 }

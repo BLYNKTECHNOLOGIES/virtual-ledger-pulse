@@ -30231,6 +30231,10 @@ export type Database = {
             Args: { p_provisional?: boolean; p_revision_id: string }
             Returns: Json
           }
+      hr_stage_due_ctc_transition_adjustments: {
+        Args: { p_month: string }
+        Returns: Json
+      }
       hr_stage_training_ctc_adjustment: {
         Args: { p_revision_id: string }
         Returns: Json

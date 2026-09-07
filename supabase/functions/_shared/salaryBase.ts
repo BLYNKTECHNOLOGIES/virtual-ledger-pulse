@@ -74,10 +74,15 @@ async function revisionWeightedMonthly(
     .order("effective_from", { ascending: true });
   if (error || !revs?.length) return null;
 
-  const applied = (revs as any[]).filter(
-    (r) => !r.status || ["APPLIED", "applied"].includes(String(r.status)),
+  // SCHEDULED counts too: a CTC change dated inside this payroll month is in
+  // force for the days after its effective date whether or not the daily
+  // promotion cron has run yet, so LOP must be charged on the blended base
+  // (same rule as the training-completion CTC transition). CANCELLED is out.
+  const applied = (revs as any[]).filter((r) =>
+    !r.status || ["APPLIED", "applied", "SCHEDULED", "scheduled"].includes(String(r.status)),
   );
   if (!applied.length) return null;
+
 
   const monthStart = new Date(`${periodStr}T00:00:00Z`);
   const monthEnd = new Date(`${monthEndStr}T00:00:00Z`);

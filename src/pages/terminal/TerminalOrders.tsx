@@ -1306,7 +1306,16 @@ function TerminalOrdersContent() {
   if (activeChatConv) {
     return (
       <div className="h-[calc(100vh-48px)]" data-testid="terminal-chat-thread">
-        <ChatThreadView conversation={activeChatConv} onBack={() => setActiveChatConv(null)} />
+        <ChatThreadView
+          conversation={activeChatConv}
+          onBack={() => {
+            // A chat opened from the Chats inbox must return to the inbox,
+            // never to the orders list.
+            const cameFromInbox = activeChatConv.fromInbox !== false;
+            setActiveChatConv(null);
+            if (cameFromInbox) setShowChatInbox(true);
+          }}
+        />
       </div>
     );
   }
@@ -1316,11 +1325,12 @@ function TerminalOrdersContent() {
       <div className="h-[calc(100vh-48px)]" data-testid="terminal-chat-inbox">
         <ChatInbox
           onClose={() => setShowChatInbox(false)}
-          onOpenChat={(conv) => { setShowChatInbox(false); setActiveChatConv(conv); }}
+          onOpenChat={(conv) => { setShowChatInbox(false); setActiveChatConv({ ...conv, fromInbox: true }); }}
         />
       </div>
     );
   }
+
 
   if (queueMode) {
     return (

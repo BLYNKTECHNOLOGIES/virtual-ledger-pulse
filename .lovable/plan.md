@@ -6,11 +6,13 @@
 - pm2 was restarted against that invalid file and is crash-looping; its “online” flash is not a healthy process.
 
 ## 1. Stop the broken process now
-Run only this short command on Lightsail:
+**This is the only command to run before approving this plan. Do not run any placeholder or later command yet.**
 
 ```bash
 pm2 stop chat-listener && pm2 save
 ```
+
+Wait here. I must build and publish the downloadable file before Step 3 exists.
 
 Do not paste any more JavaScript into SSH.
 
@@ -21,11 +23,7 @@ Do not paste any more JavaScript into SSH.
 - The file contains no API keys, relay tokens, Supabase keys, or other credentials; those remain only in the existing mode-600 `.env` files.
 
 ## 3. Replace the corrupted file with one command
-Once the download is available, run one short command on Lightsail:
-
-```bash
-curl -fL '<DOWNLOAD_URL>' -o /home/ubuntu/chat-listener/main.js
-```
+After this plan is approved, I will build the listener file, validate it, and replace this section with the **real HTTPS URL and exact checksum**. Never type angle-bracket placeholders into the terminal.
 
 Then verify before starting anything:
 

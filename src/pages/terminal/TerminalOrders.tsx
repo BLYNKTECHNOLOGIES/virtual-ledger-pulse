@@ -1302,6 +1302,27 @@ function TerminalOrdersContent() {
   }), [selectedOrder, queueMode, showChatInbox, activeChatConv, visibleOrders, focusedOrderId, statusFilter, refetchActive, refetchHistory, refetchRecent]);
 
 
+  // A chat panel can ask us to jump to a NEWER order of the same counterparty.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (!d.orderNumber) return;
+      setShowChatInbox(false);
+      setActiveChatConv({
+        orderNumber: String(d.orderNumber),
+        counterpartyNickname: d.counterpartyNickname || 'Counterparty',
+        tradeType: d.tradeType || 'BUY',
+        orderStatus: d.orderStatus || '',
+        asset: d.asset || 'USDT',
+        amount: d.amount || '0',
+        totalPrice: d.totalPrice || '0',
+        fromInbox: activeChatConv?.fromInbox ?? false,
+      } as any);
+    };
+    window.addEventListener('terminal:open-order-chat', handler);
+    return () => window.removeEventListener('terminal:open-order-chat', handler);
+  }, [activeChatConv]);
+
   // ---- View routing ----
   if (activeChatConv) {
     return (

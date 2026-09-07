@@ -1938,22 +1938,10 @@ serve(async (req) => {
 
         console.log("sendChatMessage: proxy delivery unavailable or unverified, using WebSocket");
           
-          // Step 1: Get chat credentials
-          const timestamp = Date.now();
-          const credQs = `timestamp=${timestamp}`;
-          const encoder = new TextEncoder();
-          const credKey = await crypto.subtle.importKey(
-            "raw", encoder.encode(BINANCE_API_SECRET),
-            { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
-          );
-          const credSig = await crypto.subtle.sign("HMAC", credKey, encoder.encode(credQs));
-          const credSignature = Array.from(new Uint8Array(credSig)).map(b => b.toString(16).padStart(2, '0')).join('');
-          
-          const credUrl = `https://api.binance.com/sapi/v1/c2c/chat/retrieveChatCredential?${credQs}&signature=${credSignature}`;
-          const credRes = await fetch(credUrl, {
-            method: "GET",
-            headers: { "X-MBX-APIKEY": BINANCE_API_KEY, "Content-Type": "application/json" },
-          });
+          // Credentials must be obtained through the account-aware Lightsail proxy. A direct
+          // request from the edge runtime can use the wrong egress IP and bypass account routing.
+          const credUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
+          const credRes = await fetchWithRetry(credUrl, { method: "GET", headers: proxyHeaders });
           const credText = await credRes.text();
           console.log("getChatCredential:", credRes.status, credText.substring(0, 500));
           

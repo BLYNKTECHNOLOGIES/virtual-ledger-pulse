@@ -34,6 +34,7 @@ interface UseBinanceChatWebSocketReturn {
   isConnecting: boolean;
   sendMessage: (orderNo: string, content: string) => void;
   sendImageMessage: (orderNo: string, imageUrl: string) => void;
+  sendAdCardMessage: (orderNo: string, cardJson: string) => void;
   retryMessage: (tempId: number) => void;
   error: string | null;
   queuedMessages: QueuedMessage[];

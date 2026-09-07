@@ -130,6 +130,10 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     [conversations]
   );
 
+  const { data: seenMap = {} } = useChatSeenMap(
+    useMemo(() => filtered.map((c) => c.orderNumber), [filtered])
+  );
+
   const handleOpenChat = useCallback(
     (conv: ChatConversation) => {
       markOrderChatRead(conv.orderNumber);

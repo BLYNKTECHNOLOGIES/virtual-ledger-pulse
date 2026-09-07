@@ -1,48 +1,33 @@
-# Chat listener: it starts, but the two chat connections are failing
+# Chat listener: cause found — one extra parameter in the Binance request
 
-The service is finally alive. It loaded, read both Binance accounts, and is writing its health signal every 15 seconds. But the health record right now says:
+The service is running correctly now (it loaded, found both Binance accounts, and writes its health signal). Both chat connections fail for a single reason, and the log states it plainly:
 
 ```text
-accounts: 2   connected: 0   saved messages: 0   reconnects: 10
+connect failed Blynk Binance: chat credential failed: 400 {"code":-31002,"msg":"illegal parameter"}
+connect failed ASEC Binance:  chat credential failed: 400 {"code":-31002,"msg":"illegal parameter"}
 ```
 
-So it is repeatedly trying to open the two chat connections and being turned away. Nothing is being saved yet.
+Both accounts fail identically, so this is not a key or permission problem. Our own working chat code asks Binance for the chat pass with a timestamp only. The listener file adds one extra field ("recvWindow") that Binance refuses on this particular chat endpoint — hence "illegal parameter" for both accounts.
 
-Only three things can cause this, and the log line tells us which one:
+The stray Node/WebSocket errors above that line are old entries from before the last fix; the newest start-up shows a clean load.
 
-1. The chat pass from Binance is refused (wrong or missing key for the second account, or the account has no chat permission).
-2. The relay on the server rejects the connection (the password the listener picked up from the existing settings file is not the one the relay expects).
-3. Binance accepts the pass but drops the connection straight away.
+## What will change
 
-## Step 1 — read the failure reason
+Remove the extra field from the listener's chat-pass request so it matches, character for character, the request our live chat already uses successfully. Nothing else in the file changes.
 
-Run this one command and send me everything it prints:
+## Steps
 
-```bash
-pm2 logs chat-listener --lines 40 --nostream
-```
-
-## Step 2 — fix based on what it says
-
-- If it says "no API secrets" for one account: the second account's key/secret entry needs correcting in the listener settings file, and I will give the exact command to check which names are present (no values shown).
-- If it says "chat credential failed": Binance itself refused; I will read the code it returned and confirm against the official Binance chat documentation whether that account can use chat at all.
-- If it says "socket error" or an immediate close: the relay password name is different from the one the listener guessed. I will update the file to try all the names the existing relay accepts, republish it, and you re-download with the same two commands as before.
-
-## Step 3 — confirm it is genuinely working
-
-I verify from my side, not by appearance:
-
-- Health record shows connected: 2 and a recent tick.
-- New chat messages from a live order appear in the stored messages within a few seconds.
-- A restart of the service recovers on its own without duplicating any message.
-
-## Step 4 — switch the app over
-
-Only after the above passes: the Terminal chat reads stored messages first and live-connects as backup, so opening any chat is instant. Then I record the change in the state log in IST.
+1. Correct the listener file and check it locally, then publish it so the server can download it.
+2. You run the same two commands as before (download, then check and restart). I will give them with the new expected line count and checksum filled in.
+3. I verify from the database, not from appearances:
+   - health record shows both connections open,
+   - messages from a live order are stored within a few seconds,
+   - a restart recovers on its own and stores no duplicates.
+4. Only after that passes: switch the Terminal chat to read stored messages first with the live connection as backup, so opening a chat is instant.
+5. Record the change in the state log in IST.
 
 ## Technical notes
 
-- Health row: `terminal_collector_state` id `chat_listener`, last tick 17:58 IST, status `error`.
-- Connection shape used by the listener is identical to the browser hook (`relay/?key=…&target=<chatWssUrl>/<listenKey>?token=…&clientType=web`), and the pass is fetched with a signed call to `/sapi/v1/c2c/chat/retrieveChatCredential`, so nothing outside official Binance capability is involved.
-- Account mapping: `default` = Blynk (upstream proxy keys), `acct2` = ASEC (`BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2` in the listener settings file).
-- Relay password is currently read as `BINANCE_PROXY_TOKEN` falling back to `PROXY_TOKEN` from the proxy settings file; if the relay expects a different name, that is the likely cause and is a one-line change in the published file.
+- Failing call: `GET /sapi/v1/c2c/chat/retrieveChatCredential?timestamp=…&recvWindow=5000&signature=…` returns `-31002`. The proven call in `supabase/functions/binance-ads/index.ts` (line 1885) signs `timestamp` only; the listener will be aligned to that exact query string.
+- Everything stays within official Binance capability: same documented endpoint, same signing, same relay target URL shape as the browser hook.
+- Health row today: `terminal_collector_state` id `chat_listener`, `accounts: 2`, `connected: 0`, `savedMessages: 0` — expected to become `connected: 2` after the fix.

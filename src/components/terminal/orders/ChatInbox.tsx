@@ -12,6 +12,7 @@ import { useExchangeAccount, ALL_ACCOUNTS } from '@/contexts/ExchangeAccountCont
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { format, isToday } from 'date-fns';
 import { markOrderChatRead } from '@/lib/chat-read-state';
+import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
 
 export interface ChatConversation {
   orderNumber: string;
@@ -129,6 +130,10 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     [conversations]
   );
 
+  const { data: seenMap = {} } = useChatSeenMap(
+    useMemo(() => filtered.map((c) => c.orderNumber), [filtered])
+  );
+
   const handleOpenChat = useCallback(
     (conv: ChatConversation) => {
       markOrderChatRead(conv.orderNumber);
@@ -203,6 +208,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
               <ConversationRow
                 key={conv.orderNumber}
                 conversation={conv}
+                seen={seenMap[conv.orderNumber]}
                 onClick={() => handleOpenChat(conv)}
               />
             ))}
@@ -213,7 +219,16 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   );
 }
 
-function ConversationRow({ conversation: c, onClick }: { conversation: ChatConversation; onClick: () => void }) {
+function ConversationRow({
+  conversation: c,
+  seen,
+  onClick,
+}: {
+  conversation: ChatConversation;
+  seen?: ChatSeenInfo;
+  onClick: () => void;
+}) {
+  const seenText = seenLabel(seen);
   const numStatusMap: Record<number, string> = {
     1: 'TRADING', 2: 'BUYER_PAYED', 3: 'BUYER_PAYED', 4: 'COMPLETED',
     5: 'APPEAL', 6: 'CANCELLED', 7: 'CANCELLED_BY_SYSTEM', 8: 'APPEAL',
@@ -277,9 +292,16 @@ function ConversationRow({ conversation: c, onClick }: { conversation: ChatConve
             {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
           </span>
         </div>
-        <Badge variant="outline" className={`text-[8px] mt-1 gap-1 ${statusStyle.badgeClass}`}>
-          {statusStyle.label}
-        </Badge>
+        <div className="flex items-center gap-2 mt-1 min-w-0">
+          <Badge variant="outline" className={`text-[8px] gap-1 ${statusStyle.badgeClass}`}>
+            {statusStyle.label}
+          </Badge>
+          {seenText && (
+            <span className="text-[9px] text-muted-foreground/80 truncate" title={seenText}>
+              {seenText}
+            </span>
+          )}
+        </div>
       </div>
 
       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

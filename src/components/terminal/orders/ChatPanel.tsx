@@ -31,6 +31,8 @@ import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { markOrderChatRead } from '@/lib/chat-read-state';
+import { supabase } from '@/integrations/supabase/client';
+import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 
 
@@ -79,6 +81,10 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
     let cancelled = false;
     const timer = setTimeout(() => {
       if (cancelled) return;
+      // Shared team read state: records who opened this chat and when (IST shown in UI).
+      supabase.rpc('mark_terminal_binance_chat_read', { p_order_number: orderNumber }).then(({ error }) => {
+        if (error) console.warn('Failed to record team chat read:', error.message);
+      });
       callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch((err) => {
         console.warn('Failed to mark Binance chat read:', err);
       });
@@ -93,6 +99,11 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
       clearTimeout(timer);
     };
   }, [orderNumber, exchangeAccountId]);
+
+  // Who on the team last opened this chat (captured before our own read is written).
+  const previousSeen = useChatSeenSnapshot(orderNumber);
+  const previousSeenLabel = seenLabel(previousSeen);
+
 
   useEffect(() => {
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
@@ -401,6 +412,14 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         <MessageSquare className="h-3.5 w-3.5 text-primary" />
         <span className="text-xs font-medium text-foreground">Chat</span>
         <span className="text-[10px] text-muted-foreground">— {counterpartyNickname}</span>
+        {previousSeenLabel && (
+          <span
+            className="hidden sm:inline text-[9px] text-muted-foreground/80 truncate max-w-[220px]"
+            title={previousSeenLabel}
+          >
+            {previousSeenLabel}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1">
           {counterpartyMsgCount > 0 && (
             <Badge variant="secondary" className="text-[9px] h-4 px-1.5 tabular-nums bg-primary/10 text-primary border-none">

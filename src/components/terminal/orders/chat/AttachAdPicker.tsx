@@ -35,7 +35,7 @@ export function formatAdMessage(ad: BinanceAd, advertiserNo?: string | null): st
   if (methods.length) lines.push(`Payment: ${methods.join(', ')}`);
   lines.push(`Ad No: ${ad.advNo}`);
   if (advertiserNo) {
-    lines.push(`Open on Binance: https://p2p.binance.com/en/advertiserDetail?advertiserNo=${advertiserNo}`);
+    lines.push(`Open our ads on Binance: https://p2p.binance.com/en/advertiserDetail?advertiserNo=${advertiserNo}`);
   }
   return lines.join('\n');
 }
@@ -44,12 +44,20 @@ export function formatAdMessage(ad: BinanceAd, advertiserNo?: string | null): st
 export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
-  const { accounts } = useExchangeAccount();
+  const { accounts, activeAccount } = useExchangeAccount();
 
-  const advertiserNo = useMemo(
-    () => accounts.find((a) => a.id === exchangeAccountId)?.p2p_advertiser_no ?? null,
-    [accounts, exchangeAccountId],
-  );
+  // Prefer the order's own account; fall back to the active account, then to
+  // the only configured advertiser number, so the link is never silently lost.
+  const advertiserNo = useMemo(() => {
+    const withNo = accounts.filter((a) => a.p2p_advertiser_no);
+    return (
+      accounts.find((a) => a.id === exchangeAccountId)?.p2p_advertiser_no ||
+      activeAccount?.p2p_advertiser_no ||
+      (withNo.length === 1 ? withNo[0].p2p_advertiser_no : null) ||
+      null
+    );
+  }, [accounts, activeAccount, exchangeAccountId]);
+
 
   const { data, isLoading } = useBinanceAdsList(
     { advStatus: BINANCE_AD_STATUS.ONLINE, fetchAll: true },

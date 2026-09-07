@@ -105,11 +105,200 @@ function invalidateChatCredential(accountId: string | null) {
  */
 export function prewarmChatCredentials(accountIds: (string | null)[]): void {
   for (const id of accountIds) {
-    void getCachedChatCredential(id).catch((err) => {
-      console.warn('[Chat] credential prewarm failed:', err);
-    });
+    void getCachedChatCredential(id)
+      .then(() => {
+        // Open (and keep) the shared socket right away so the first chat click
+        // finds a live connection instead of showing "Connecting…".
+        acquireSocket(id);
+      })
+      .catch((err) => {
+        console.warn('[Chat] credential prewarm failed:', err);
+      });
   }
 }
+
+// ---- Module-level shared chat sockets (one per Binance account) ----
+// The socket must OUTLIVE the chat panel: previously each open/close created and
+// destroyed its own WebSocket, so every chat click paid a full
+// credential + relay + Binance handshake ("Connecting…"). Now the socket is
+// shared, reference-counted and kept warm after the last chat closes.
+type FrameListener = (data: any) => void;
+type StatusListener = (s: { isConnected: boolean; isConnecting: boolean; error: string | null }) => void;
+
+interface SharedSocket {
+  key: string;
+  accountId: string | null;
+  ws: WebSocket | null;
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: string | null;
+  frameListeners: Set<FrameListener>;
+  statusListeners: Set<StatusListener>;
+  refs: number;
+  reconnectAttempts: number;
+  shouldReconnect: boolean;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
+  connectTimeout: ReturnType<typeof setTimeout> | null;
+  idleTimer: ReturnType<typeof setTimeout> | null;
+  onOpenHooks: Set<() => void>;
+}
+
+const MAX_RECONNECT_ATTEMPTS = 5;
+// Keep an unused socket warm for a while so navigating between chats/orders
+// never re-handshakes.
+const IDLE_KEEPALIVE_MS = 15 * 60 * 1000;
+
+const sharedSockets = new Map<string, SharedSocket>();
+
+function socketKey(accountId: string | null) {
+  return accountId ?? '__default__';
+}
+
+function getShared(accountId: string | null): SharedSocket {
+  const key = socketKey(accountId);
+  let s = sharedSockets.get(key);
+  if (!s) {
+    s = {
+      key,
+      accountId,
+      ws: null,
+      isConnected: false,
+      isConnecting: false,
+      error: null,
+      frameListeners: new Set(),
+      statusListeners: new Set(),
+      refs: 0,
+      reconnectAttempts: 0,
+      shouldReconnect: true,
+      reconnectTimer: null,
+      connectTimeout: null,
+      idleTimer: null,
+      onOpenHooks: new Set(),
+    };
+    sharedSockets.set(key, s);
+  }
+  return s;
+}
+
+function emitStatus(s: SharedSocket) {
+  const snapshot = { isConnected: s.isConnected, isConnecting: s.isConnecting, error: s.error };
+  s.statusListeners.forEach((fn) => fn(snapshot));
+}
+
+async function openShared(s: SharedSocket) {
+  if (!s.shouldReconnect) return;
+  if (s.ws && (s.ws.readyState === WebSocket.OPEN || s.ws.readyState === WebSocket.CONNECTING)) return;
+  if (s.reconnectTimer) {
+    clearTimeout(s.reconnectTimer);
+    s.reconnectTimer = null;
+  }
+
+  s.isConnecting = true;
+  s.error = null;
+  emitStatus(s);
+
+  try {
+    const { credData, relay } = await getCachedChatCredential(s.accountId);
+    const binanceTarget = `${credData.chatWssUrl}/${credData.listenKey}?token=${credData.listenToken}&clientType=web`;
+    const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
+
+    const ws = new WebSocket(wsUrl);
+    s.ws = ws;
+
+    s.connectTimeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        s.error = 'Connection timed out. Check relay server.';
+        s.isConnecting = false;
+        emitStatus(s);
+        ws.close();
+      }
+    }, 10000);
+
+    ws.onopen = () => {
+      if (s.connectTimeout) {
+        clearTimeout(s.connectTimeout);
+        s.connectTimeout = null;
+      }
+      s.isConnected = true;
+      s.isConnecting = false;
+      s.error = null;
+      s.reconnectAttempts = 0;
+      emitStatus(s);
+      s.onOpenHooks.forEach((fn) => setTimeout(fn, 500));
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        const rawData = await wsDataToString(event.data);
+        if (!rawData || rawData.trim() === '{}' || rawData.trim() === '' || rawData === 'pong') return;
+        const data = JSON.parse(rawData);
+        if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
+        if (data.type === 'pong' || data.e === 'pong') return;
+        s.frameListeners.forEach((fn) => fn(data));
+      } catch {
+        // Unparseable — ignore
+      }
+    };
+
+    ws.onerror = () => {
+      s.error = 'WebSocket connection error';
+      s.isConnecting = false;
+      emitStatus(s);
+    };
+
+    ws.onclose = () => {
+      if (s.ws === ws) s.ws = null;
+      s.isConnected = false;
+      s.isConnecting = false;
+      emitStatus(s);
+
+      if (s.connectTimeout) {
+        clearTimeout(s.connectTimeout);
+        s.connectTimeout = null;
+      }
+      if (!s.shouldReconnect) return;
+
+      if (s.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        s.reconnectAttempts++;
+        invalidateChatCredential(s.accountId);
+        const delay = Math.min(1000 * Math.pow(2, s.reconnectAttempts), 30000);
+        s.reconnectTimer = setTimeout(() => {
+          s.reconnectTimer = null;
+          void openShared(s);
+        }, delay);
+      } else {
+        s.error = 'Max reconnection attempts reached. Please refresh.';
+        emitStatus(s);
+      }
+    };
+  } catch (err) {
+    console.error('Failed to connect chat WebSocket:', err);
+    s.error = err instanceof Error ? err.message : 'Connection failed';
+    s.isConnecting = false;
+    emitStatus(s);
+  }
+}
+
+/** Open (or keep) the shared socket for an account without subscribing. */
+function acquireSocket(accountId: string | null): SharedSocket {
+  const s = getShared(accountId);
+  s.shouldReconnect = true;
+  if (s.idleTimer) {
+    clearTimeout(s.idleTimer);
+    s.idleTimer = null;
+  }
+  if (!s.ws || s.ws.readyState > WebSocket.OPEN) {
+    s.reconnectAttempts = 0;
+    void openShared(s);
+  }
+  return s;
+}
+
+/** Prewarm the live chat socket for the given accounts (Orders page load). */
+export function prewarmChatSockets(accountIds: (string | null)[]): void {
+  for (const id of accountIds) acquireSocket(id);
+}
+
 
 // ---- Module-level per-order message cache ----
 // Survives component unmount so reopening a chat paints the last-loaded

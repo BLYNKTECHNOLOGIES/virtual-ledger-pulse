@@ -31,6 +31,8 @@ import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
 import { markOrderChatRead } from '@/lib/chat-read-state';
+import { supabase } from '@/integrations/supabase/client';
+import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 
 

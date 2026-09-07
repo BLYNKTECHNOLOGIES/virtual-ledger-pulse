@@ -443,8 +443,25 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     const routedAccountId = isEditing ? editingAd?._exchangeAccountId : (createAccountId || undefined);
     if (routedAccountId) adData.exchange_account_id = routedAccountId;
 
+    const applyVisibility = () => {
+      updateAdStatus.mutate(
+        {
+          advNos: [editingAd!.advNo],
+          advStatus: form.advStatus,
+          fromPrivate: wasPrivate,
+          fromStatus: editingAd!.advStatus,
+          exchangeAccountId: routedAccountId || undefined,
+        },
+        { onSuccess: () => onOpenChange(false) },
+      );
+    };
+
     if (isEditing) {
-      updateAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
+      const hasFieldChanges = Object.keys(adData).some((k) => k !== 'advNo' && k !== 'exchange_account_id');
+      if (!hasFieldChanges && visibilityChanged) { applyVisibility(); return; }
+      updateAd.mutate(adData, {
+        onSuccess: () => { if (visibilityChanged) applyVisibility(); else onOpenChange(false); },
+      });
     } else {
       postAd.mutate(adData, { onSuccess: () => onOpenChange(false) });
     }

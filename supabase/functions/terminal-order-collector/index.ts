@@ -63,13 +63,27 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
     isScheduler = !!data?.secret_value && data.secret_value === schedulerSecret;
   }
-  if (!isServiceRole && !isScheduler) return jsonResponse({ error: "Unauthorized" }, 401);
-
   // Manual single-tick mode (used by the UI "refresh" path) skips the long loop.
   let singleTick = false;
   try {
     const body = await req.json();
     singleTick = body?.mode === "single";
+  } catch { /* empty body is fine */ }
+
+  // Signed-in terminal users may request ONE immediate tick (the Refresh button);
+  // only the scheduler/service role may start the long polling loop.
+  let isSignedInUser = false;
+  if (!isServiceRole && !isScheduler && authHeader) {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    const { data: userData } = await userClient.auth.getUser();
+    isSignedInUser = !!userData?.user;
+  }
+  if (!isServiceRole && !isScheduler && !(isSignedInUser && singleTick)) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
   } catch { /* empty body is fine */ }
 
   const startedAt = Date.now();

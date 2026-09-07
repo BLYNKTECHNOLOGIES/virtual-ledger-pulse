@@ -567,19 +567,19 @@ export function ClientOnboardingApprovals() {
     matchedClient?: ClientLite;
   }
 
-  const pendingApprovalsRaw = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const pendingApprovalsRaw = pendingRows || [];
   const pendingSalesOrderIds = pendingApprovalsRaw
     .filter(a => a.sales_order_id)
     .map(a => a.sales_order_id);
 
   useEffect(() => {
-    if (dialogOpen || selectedApproval || !approvals?.length) return;
+    if (dialogOpen || selectedApproval || !pendingRows?.length) return;
     const activeDraftId = readActiveApprovalDraftId();
     if (!activeDraftId) return;
     let cancelled = false;
     void loadBuyerApprovalDraft(activeDraftId).then((draft) => {
       if (cancelled || !draft) return;
-    const approval = approvals.find(a => a.id === activeDraftId && a.approval_status === 'PENDING');
+    const approval = pendingRows.find(a => a.id === activeDraftId);
     if (approval) {
       handleApprovalClick(approval);
     } else {
@@ -590,7 +590,7 @@ export function ClientOnboardingApprovals() {
     return () => {
       cancelled = true;
     };
-  }, [approvals, dialogOpen, selectedApproval]);
+  }, [pendingRows, dialogOpen, selectedApproval]);
 
   // Resolve reviewer UUIDs → display names for the Approval History "Reviewed By" column.
   const { data: reviewerNameMap } = useQuery({

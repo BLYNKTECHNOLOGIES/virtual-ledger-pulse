@@ -412,6 +412,14 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         <MessageSquare className="h-3.5 w-3.5 text-primary" />
         <span className="text-xs font-medium text-foreground">Chat</span>
         <span className="text-[10px] text-muted-foreground">— {counterpartyNickname}</span>
+        {previousSeenLabel && (
+          <span
+            className="hidden sm:inline text-[9px] text-muted-foreground/80 truncate max-w-[220px]"
+            title={previousSeenLabel}
+          >
+            {previousSeenLabel}
+          </span>
+        )}
         <div className="ml-auto flex items-center gap-1">
           {counterpartyMsgCount > 0 && (
             <Badge variant="secondary" className="text-[9px] h-4 px-1.5 tabular-nums bg-primary/10 text-primary border-none">

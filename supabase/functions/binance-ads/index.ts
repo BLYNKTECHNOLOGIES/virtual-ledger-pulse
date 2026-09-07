@@ -1802,7 +1802,7 @@ serve(async (req) => {
         if (payload.orderNo && filteredMessages.length > 0 && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID);
+            const archive = await persistChatMessages(supabase, String(payload.orderNo), filteredMessages, EXCHANGE_ACCOUNT_ID, (payload.captureSource as any) || "history_sync");
             result._archive = archive;
           } catch (persistErr) {
             console.warn("getChatMessages archive persist failed:", persistErr);

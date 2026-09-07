@@ -407,22 +407,21 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
               {counterpartyMsgCount} msgs
             </Badge>
           )}
-          {/* WebSocket status indicator */}
-          <div className="flex items-center gap-0.5 ml-1 bg-muted/30 rounded px-1.5 py-0.5" title={isConnected ? 'WebSocket connected' : isConnecting ? 'Connecting...' : 'Disconnected'}>
+          {/* Delivery status — messages always flow through the server, so a
+              missing browser stream is never presented as a failure. */}
+          <div
+            className="flex items-center gap-0.5 ml-1 bg-muted/30 rounded px-1.5 py-0.5"
+            title={isConnected ? 'Live updates on' : 'Messages are sent and received through the server'}
+          >
             {isConnected ? (
               <>
                 <Wifi className="h-2.5 w-2.5 text-trade-buy" />
                 <span className="text-[8px] text-trade-buy font-medium">Live</span>
               </>
-            ) : isConnecting ? (
-              <>
-                <Loader2 className="h-2.5 w-2.5 text-warning animate-spin" />
-                <span className="text-[8px] text-warning">Connecting</span>
-              </>
             ) : (
               <>
-                <WifiOff className="h-2.5 w-2.5 text-destructive" />
-                <span className="text-[8px] text-destructive">Offline</span>
+                <Cloud className="h-2.5 w-2.5 text-muted-foreground" />
+                <span className="text-[8px] text-muted-foreground">Server sync</span>
               </>
             )}
           </div>
@@ -442,14 +441,7 @@ export function ChatPanel({ orderId, orderNumber, counterpartyId, counterpartyNi
         </div>
       </div>
 
-      {/* Live-stream notice — sending still works through the server relay */}
-      {wsError && (
-        <div className="px-3 py-1.5 bg-muted/30 border-b border-border">
-          <p className="text-[10px] text-muted-foreground">
-            Live stream unavailable — messages are sent and received through the server.
-          </p>
-        </div>
-      )}
+
 
 
       {/* Messages area */}

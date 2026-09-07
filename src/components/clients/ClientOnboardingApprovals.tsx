@@ -2553,8 +2553,22 @@ export function ClientOnboardingApprovals() {
               )}
             </TableBody>
           </Table>
+          {reviewedApprovals.length > visibleHistoryCount && (
+            <div className="flex justify-center mt-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVisibleHistoryCount(c => c + HISTORY_PAGE_SIZE)}
+              >
+                Load more ({reviewedApprovals.length - visibleHistoryCount} remaining)
+              </Button>
+            </div>
+          )}
+          </>
+          )}
         </CardContent>
       </Card>
+      </div>
 
       {/* Approval Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => open ? setDialogOpen(true) : closeApprovalDialog()}>

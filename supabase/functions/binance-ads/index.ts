@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 import { advertiserBadges, normalizeZone, zoneClassifies } from "../_shared/adZone.ts";
+import { normalizeChatMessage, persistChatMessages } from "../_shared/binance-chat.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

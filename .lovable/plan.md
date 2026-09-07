@@ -19,7 +19,17 @@ npm init -y
 npm install ws @supabase/supabase-js dotenv
 ```
 
-### A2. Secrets file (values never in code)
+### A2. Secrets — reuse what's already on the box
+
+You don't need to remember any values. The listener will **read `/home/ubuntu/binance-proxy/.env` directly** for Account 1's key/secret and both proxy tokens, so only Account 2's pair has to be supplied.
+
+To see what's already there (do this in a private window):
+
+```bash
+cat /home/ubuntu/binance-proxy/.env
+```
+
+Then create a small extra file with just the new values:
 
 ```bash
 cat > /home/ubuntu/chat-listener/.env <<'EOF'
@@ -27,24 +37,18 @@ SUPABASE_URL=https://vagiqbespusdxsbqpvbo.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<paste service role key>
 PROXY_BASE=http://127.0.0.1:3000
 RELAY_BASE=ws://127.0.0.1:8080
-PROXY_TOKEN=<same PROXY_TOKEN value as binance-proxy/.env>
-RELAY_TOKEN=<same BINANCE_PROXY_TOKEN value as binance-proxy/.env>
-BINANCE_API_KEY=<account 1 key>
-BINANCE_API_SECRET=<account 1 secret>
+UPSTREAM_ENV=/home/ubuntu/binance-proxy/.env
 BINANCE_API_KEY_2=<account 2 key>
 BINANCE_API_SECRET_2=<account 2 secret>
 EOF
 chmod 600 /home/ubuntu/chat-listener/.env
 ```
 
-Copy the Account 1 values straight across:
+Where each value comes from:
+- **Service role key** — Supabase dashboard, Project Settings → API → `service_role` secret.
+- **Account 1 key/secret, PROXY_TOKEN, BINANCE_PROXY_TOKEN** — already in the proxy `.env`; nothing to type.
+- **Account 2 key/secret** — not on this box. They are stored encrypted in the app's secrets (`BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2`) and cannot be read back, so copy them from Binance → API Management on Account 2, or generate a fresh read-enabled pair there. If Account 2 chats aren't needed yet, leave these blank and the listener simply runs for Account 1.
 
-```bash
-grep -E '^(BINANCE_API_KEY|BINANCE_API_SECRET)=' /home/ubuntu/binance-proxy/.env
-grep -E '^(PROXY_TOKEN|BINANCE_PROXY_TOKEN)=' /home/ubuntu/binance-proxy/.env
-```
-
-Account 2's key/secret come from the Binance account itself (same pair already stored as `BINANCE_API_KEY_2` / `BINANCE_API_SECRET_2` in the app's secrets). Paste them into the file above only — never into code or chat.
 
 ### A3. Install `main.js` (I write it after you confirm A1/A2) and start it under pm2
 

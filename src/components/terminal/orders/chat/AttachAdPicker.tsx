@@ -59,16 +59,21 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
   }, [accounts, activeAccount, exchangeAccountId]);
 
 
+  // No status filter: Binance returns online and private ads together (the edge
+  // function tags private ones as advStatus=2). Both are shareable.
   const { data, isLoading } = useBinanceAdsList(
-    { advStatus: BINANCE_AD_STATUS.ONLINE, fetchAll: true },
+    { fetchAll: true },
     { refetchInterval: false },
   );
 
   const ads: BinanceAd[] = useMemo(() => {
     const list: BinanceAd[] = (data?.data || []) as BinanceAd[];
+    const live = list.filter(
+      (a) => a.advStatus === BINANCE_AD_STATUS.ONLINE || a.advStatus === BINANCE_AD_STATUS.PRIVATE,
+    );
     const scoped = exchangeAccountId
-      ? list.filter((a) => !a._exchangeAccountId || a._exchangeAccountId === exchangeAccountId)
-      : list;
+      ? live.filter((a) => !a._exchangeAccountId || a._exchangeAccountId === exchangeAccountId)
+      : live;
     const q = search.trim().toLowerCase();
     const filtered = q
       ? scoped.filter((a) =>
@@ -116,7 +121,7 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
           )}
           {!isLoading && ads.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-10">
-              No active ads returned by Binance for this account.
+              No active or private ads returned by Binance for this account.
             </p>
           )}
           <div className="space-y-2">
@@ -133,6 +138,9 @@ export function AttachAdPicker({ exchangeAccountId, onInsert }: Props) {
                     </span>
                     <span className="text-xs font-medium text-foreground">{ad.asset}</span>
                     <Badge variant="outline" className="text-[9px]">{ad.fiatUnit}</Badge>
+                    {ad.advStatus === BINANCE_AD_STATUS.PRIVATE && (
+                      <Badge variant="outline" className="text-[9px]">Private</Badge>
+                    )}
                   </div>
                   <span className="text-xs t-mono tabular-nums text-foreground">{ad.price}</span>
                 </div>

@@ -84,7 +84,6 @@ Deno.serve(async (req: Request) => {
   if (!isServiceRole && !isScheduler && !(isSignedInUser && singleTick)) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
-  } catch { /* empty body is fine */ }
 
   const startedAt = Date.now();
   const heartbeat = async (status: string, detail: Record<string, unknown>) => {

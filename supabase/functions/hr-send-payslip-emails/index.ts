@@ -227,12 +227,23 @@ Deno.serve(async (req) => {
     const registerPresent = (records ?? []).some((r: any) => r.reg_source_filename)
     const empById = new Map((employees ?? []).map((e: any) => [e.id, e]))
     const sentByEmp = new Map<string, string>()
+    const unconfirmedByEmp = new Map<string, string>()
+    const STALE_CLAIM_MS = 10 * 60 * 1000
     for (const l of sentLog ?? []) {
       const m = (l as any).metadata || {}
       if (m.period_month !== month) continue
       if (['failed', 'error'].includes(String((l as any).status || ''))) continue
-      if (m.employee_id) sentByEmp.set(m.employee_id, (l as any).created_at)
+      if (!m.employee_id) continue
+      sentByEmp.set(m.employee_id, (l as any).created_at)
+      // A claim is written before SMTP hand-off and confirmed afterwards. A row
+      // that stayed unconfirmed past the stale window means the worker died
+      // mid-send: the payslip was probably never delivered, so allow a resend.
+      const confirmed = m.delivery_confirmed === true
+      const age = Date.now() - new Date((l as any).created_at).getTime()
+      if (!confirmed && age > STALE_CLAIM_MS) unconfirmedByEmp.set(m.employee_id, (l as any).created_at)
+      else unconfirmedByEmp.delete(m.employee_id)
     }
+
 
     const mDays = daysInMonth(month)
     const processedOn = (meta as any)?.processed_on ?? null

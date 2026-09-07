@@ -3,24 +3,38 @@
 ## Checks on what you've already done — all correct
 - `/home/ubuntu/chat-listener` created, `npm init -y` done, `ws` + `@supabase/supabase-js` + `dotenv` installed (11 packages, 0 vulnerabilities).
 - `.env` reads back exactly the seven expected keys and is `chmod 600`.
-- `pm2` shows `binance-proxy` and `chat-relay` online; the listener will join them as a third app.
-- The only thing missing is `main.js` itself — that is why `node --check` and `pm2 start` both say "not found". Nothing needs redoing.
+- `pm2` shows `binance-proxy` and `chat-relay` online; the listener joins them as a third app.
+- The last attempt failed only because nano closed before the paste landed, so the script went into bash instead of into the file. Nothing was created and nothing was damaged — the stray `command not found` noise is harmless.
 
-## Step 1 — Create `main.js`
+## Step 1 — Create `main.js` (paste-proof method)
+
+Your terminal is injecting bracketed-paste characters, which is what mangled both earlier attempts. Turn that off first, then paste into a quoted heredoc — inside `<<'JSEOF'` bash treats every line as plain text, so parentheses and backticks can't be interpreted:
 
 ```bash
-nano /home/ubuntu/chat-listener/main.js
+bind 'set enable-bracketed-paste off'
 ```
 
-Paste the code below, save with `Ctrl+O`, `Enter`, `Ctrl+X`, then:
+Then paste the whole block below in one go — from `cat > ...` down to and including the final `JSEOF` line — and press Enter:
 
 ```bash
+cat > /home/ubuntu/chat-listener/main.js <<'JSEOF'
+<PASTE THE JAVASCRIPT BELOW HERE>
+JSEOF
+```
+
+Verify:
+
+```bash
+wc -l /home/ubuntu/chat-listener/main.js
 node --check /home/ubuntu/chat-listener/main.js
 ```
 
-It is verified against the app's own credential fetch, relay URL shape and message-normalisation logic, so rows it writes are byte-compatible with what the ERP already stores.
+Expect roughly 250 lines and no output at all from `node --check` (silence means it parses). If you see `cat: command not found` again, the bracketed-paste toggle didn't take — in that case run `nano /home/ubuntu/chat-listener/main.js`, **wait for the blue editor to actually appear**, paste there, then `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+The script is verified against the app's own credential fetch, relay URL shape and message-normalisation logic, so the rows it writes are identical in shape to what the ERP already stores.
 
 ```js
+
 'use strict';
 const fs = require('fs');
 const crypto = require('crypto');

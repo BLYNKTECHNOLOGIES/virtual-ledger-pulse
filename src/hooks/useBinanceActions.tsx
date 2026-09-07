@@ -683,8 +683,9 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
       return data as unknown as ArchivedBinanceChatMessage[];
     },
     enabled: !!orderNo,
-    staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000,
+    staleTime: 3 * 1000,
+    refetchInterval: pollWhenVisible(5000),
+    refetchOnWindowFocus: true,
   });
 }
 

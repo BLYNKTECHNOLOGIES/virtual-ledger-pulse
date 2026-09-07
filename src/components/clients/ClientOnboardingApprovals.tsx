@@ -2066,7 +2066,7 @@ export function ClientOnboardingApprovals() {
   // never inflate the "N orders" badge — otherwise the row count disagrees with what Review shows.
   const isRealOrderApproval = (a: ClientOnboardingApproval) =>
     !!a.sales_order_id || (Number(a.order_amount) || 0) > 0;
-  const allPending = approvals?.filter(a => a.approval_status === 'PENDING') || [];
+  const allPending = pendingRows || [];
   const pendingByClient = new Map<string, { primary: ClientOnboardingApproval; all: ClientOnboardingApproval[]; allIds: string[]; totalAmount: number; orderCount: number }>();
   for (const a of allPending) {
     const key = a.client_name.trim().toLowerCase();
@@ -2108,7 +2108,7 @@ export function ClientOnboardingApprovals() {
   // just a duplicate record. Collapse the history to one row per client (name + phone),
   // keeping the record that actually holds the order value & proposed limit.
   const reviewedApprovals = (() => {
-    const all = approvals?.filter(a => a.approval_status !== 'PENDING') || [];
+    const all = historyRows || [];
     const groups = new Map<string, typeof all[number]>();
     for (const a of all) {
       const key = `${(a.client_name || '').trim().toLowerCase()}|${(a.client_phone || '').trim()}`;

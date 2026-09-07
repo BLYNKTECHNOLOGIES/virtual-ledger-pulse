@@ -8,19 +8,37 @@ Since you already run the Binance proxy/relay on an active instance, **no new se
 
 ## Part A — Setup on the existing instance (copy-paste)
 
-### A0. Confirmed box state
+### A0. Full instance inventory (run these and share output)
 
-`free -m` / `df -h` show 914 MB RAM (~434 MB available), 30 GB free disk, and only `nginx` running as a system service — so the Binance proxy/relay itself runs behind nginx under something else (pm2, docker, a user-level service, or a screen/tmux process). The listener needs well under 100 MB, so this box is fine as-is; no upgrade needed. Adding ~256 MB swap headroom later is optional.
-
-Run these two so we know where the proxy lives and which local port it listens on:
+These commands give me everything I need to choose the right runtime, paths, ports and service manager.
 
 ```bash
+# OS and resources
+uname -a
+lsb_release -a 2>/dev/null || cat /etc/os-release
+echo '--- MEMORY ---'
+free -m
+echo '--- DISK ---'
+df -h /
+echo '--- LISTENING PORTS ---'
 sudo ss -ltnp
-pm2 ls 2>/dev/null; docker ps 2>/dev/null; systemctl --user list-units --type=service --state=running 2>/dev/null
-sudo grep -r "proxy_pass" /etc/nginx/ | head
+echo '--- RUNNING SERVICES ---'
+sudo systemctl list-units --type=service --state=running --no-pager
+echo '--- USER SERVICES ---'
+systemctl --user list-units --type=service --state=running --no-pager 2>/dev/null || true
+echo '--- PM2 ---'
+pm2 ls 2>/dev/null || true
+echo '--- DOCKER ---'
+docker ps 2>/dev/null || true
+echo '--- SCREEN/TMUX ---'
+screen -ls 2>/dev/null || true
+tmux ls 2>/dev/null || true
+echo '--- NGINX CONFIG ---'
+sudo nginx -T 2>/dev/null | grep -Ei 'server_name|listen|proxy_pass|location' | head -60
 ```
 
-Send that output — it gives me the local proxy/relay port and tells me whether to run the listener under systemd (default below) or match your existing pm2/docker setup.
+Send the full output. From that I will tell you the exact install commands (no guessing about ports or process managers).
+
 
 
 ### A1. Install the runtime (skip if Node 20+ is already there)

@@ -39,6 +39,8 @@ import { useTerminalAlerts } from '@/hooks/useTerminalAlerts';
 import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 import { focusPageSearch } from '@/lib/focus-page-search';
 import { pollWhenVisible } from '@/lib/poll-when-visible';
+import { useTerminalCollectorState, isCollectorStale, triggerCollectorTick } from '@/hooks/useTerminalCollector';
+import { prewarmChatCredentials } from '@/hooks/useBinanceChatWebSocket';
 
 
 /** Convert numeric orderStatus to string */
@@ -222,7 +224,18 @@ function TerminalOrdersContent() {
 
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
-  const { activeAccountId, isAllAccounts } = useExchangeAccount();
+  const { activeAccountId, isAllAccounts, accountsToQuery } = useExchangeAccount();
+  // Server-side order collector heartbeat — stale means the terminal has
+  // silently fallen back to per-browser Binance polling.
+  const { data: collectorState } = useTerminalCollectorState();
+  const collectorStale = isCollectorStale(collectorState);
+
+  // Prewarm chat WebSocket credentials for every visible account so opening a
+  // chat connects instantly (skip the browser→edge→relay→Binance round-trip).
+  useEffect(() => {
+    if (!accountsToQuery?.length) return;
+    prewarmChatCredentials(accountsToQuery);
+  }, [accountsToQuery]);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;
@@ -1392,6 +1405,9 @@ function TerminalOrdersContent() {
             size="sm"
             className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150"
             onClick={async () => {
+              // Ask the server collector for an immediate Binance tick, then
+              // re-read the cache + history.
+              await triggerCollectorTick().catch(() => undefined);
               await Promise.all([refetchActive(), refetchHistory(), refetchRecent()]);
             }}
             disabled={isRefreshing}
@@ -1401,6 +1417,22 @@ function TerminalOrdersContent() {
           </Button>
         </div>
       </div>
+
+      {/* Collector staleness banner — visible warning when the server-side
+          order collector stops reporting, so a dead collector never silently
+          blinds the terminal (the hook falls back to live Binance polling). */}
+      {collectorStale && (
+        <div className="flex items-center gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3.5 py-2.5 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            Live order feed is delayed — showing the last synced data and refreshing directly.
+            {collectorState?.last_tick_at && (
+              <span className="text-muted-foreground"> Last server update: {format(new Date(collectorState.last_tick_at), 'HH:mm:ss')}</span>
+            )}
+          </span>
+        </div>
+      )}
+
 
 
       {/* Filters */}

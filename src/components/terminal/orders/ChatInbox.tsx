@@ -292,9 +292,16 @@ function ConversationRow({
             {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
           </span>
         </div>
-        <Badge variant="outline" className={`text-[8px] mt-1 gap-1 ${statusStyle.badgeClass}`}>
-          {statusStyle.label}
-        </Badge>
+        <div className="flex items-center gap-2 mt-1 min-w-0">
+          <Badge variant="outline" className={`text-[8px] gap-1 ${statusStyle.badgeClass}`}>
+            {statusStyle.label}
+          </Badge>
+          {seenText && (
+            <span className="text-[9px] text-muted-foreground/80 truncate" title={seenText}>
+              {seenText}
+            </span>
+          )}
+        </div>
       </div>
 
       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

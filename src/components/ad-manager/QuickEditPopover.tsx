@@ -128,10 +128,21 @@ export function QuickEditPopover({ ad, children, align = 'end' }: QuickEditPopov
             <SelectTrigger className="h-8 text-foreground"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={String(BINANCE_AD_STATUS.ONLINE)}>Active</SelectItem>
-              <SelectItem value={String(BINANCE_AD_STATUS.PRIVATE)}>Private</SelectItem>
+              <SelectItem
+                value={String(BINANCE_AD_STATUS.PRIVATE)}
+                disabled={ad.advStatus !== BINANCE_AD_STATUS.PRIVATE}
+              >
+                Private (set in Binance app)
+              </SelectItem>
               <SelectItem value={String(BINANCE_AD_STATUS.OFFLINE)}>Inactive</SelectItem>
             </SelectContent>
           </Select>
+          {ad.advStatus !== BINANCE_AD_STATUS.PRIVATE && (
+            <p className="text-[11px] text-muted-foreground">
+              Binance doesn't allow switching an ad to Private from outside its app.
+            </p>
+          )}
+
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="ghost" size="sm" className="h-8" onClick={() => setOpen(false)} disabled={updateAd.isPending || updateAdStatus.isPending}>Cancel</Button>

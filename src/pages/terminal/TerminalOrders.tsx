@@ -40,7 +40,7 @@ import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 import { focusPageSearch } from '@/lib/focus-page-search';
 import { pollWhenVisible } from '@/lib/poll-when-visible';
 import { useTerminalCollectorState, isCollectorStale, triggerCollectorTick } from '@/hooks/useTerminalCollector';
-import { prewarmChatCredentials } from '@/hooks/useBinanceChatWebSocket';
+import { prewarmChatCredentials, prewarmChatSockets } from '@/hooks/useBinanceChatWebSocket';
 
 
 /** Convert numeric orderStatus to string */
@@ -235,6 +235,7 @@ function TerminalOrdersContent() {
   useEffect(() => {
     if (!accountsToQuery?.length) return;
     prewarmChatCredentials(accountsToQuery);
+    prewarmChatSockets(accountsToQuery);
   }, [accountsToQuery]);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;

@@ -105,11 +105,200 @@ function invalidateChatCredential(accountId: string | null) {
  */
 export function prewarmChatCredentials(accountIds: (string | null)[]): void {
   for (const id of accountIds) {
-    void getCachedChatCredential(id).catch((err) => {
-      console.warn('[Chat] credential prewarm failed:', err);
-    });
+    void getCachedChatCredential(id)
+      .then(() => {
+        // Open (and keep) the shared socket right away so the first chat click
+        // finds a live connection instead of showing "Connecting…".
+        acquireSocket(id);
+      })
+      .catch((err) => {
+        console.warn('[Chat] credential prewarm failed:', err);
+      });
   }
 }
+
+// ---- Module-level shared chat sockets (one per Binance account) ----
+// The socket must OUTLIVE the chat panel: previously each open/close created and
+// destroyed its own WebSocket, so every chat click paid a full
+// credential + relay + Binance handshake ("Connecting…"). Now the socket is
+// shared, reference-counted and kept warm after the last chat closes.
+type FrameListener = (data: any) => void;
+type StatusListener = (s: { isConnected: boolean; isConnecting: boolean; error: string | null }) => void;
+
+interface SharedSocket {
+  key: string;
+  accountId: string | null;
+  ws: WebSocket | null;
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: string | null;
+  frameListeners: Set<FrameListener>;
+  statusListeners: Set<StatusListener>;
+  refs: number;
+  reconnectAttempts: number;
+  shouldReconnect: boolean;
+  reconnectTimer: ReturnType<typeof setTimeout> | null;
+  connectTimeout: ReturnType<typeof setTimeout> | null;
+  idleTimer: ReturnType<typeof setTimeout> | null;
+  onOpenHooks: Set<() => void>;
+}
+
+const MAX_RECONNECT_ATTEMPTS = 5;
+// Keep an unused socket warm for a while so navigating between chats/orders
+// never re-handshakes.
+const IDLE_KEEPALIVE_MS = 15 * 60 * 1000;
+
+const sharedSockets = new Map<string, SharedSocket>();
+
+function socketKey(accountId: string | null) {
+  return accountId ?? '__default__';
+}
+
+function getShared(accountId: string | null): SharedSocket {
+  const key = socketKey(accountId);
+  let s = sharedSockets.get(key);
+  if (!s) {
+    s = {
+      key,
+      accountId,
+      ws: null,
+      isConnected: false,
+      isConnecting: false,
+      error: null,
+      frameListeners: new Set(),
+      statusListeners: new Set(),
+      refs: 0,
+      reconnectAttempts: 0,
+      shouldReconnect: true,
+      reconnectTimer: null,
+      connectTimeout: null,
+      idleTimer: null,
+      onOpenHooks: new Set(),
+    };
+    sharedSockets.set(key, s);
+  }
+  return s;
+}
+
+function emitStatus(s: SharedSocket) {
+  const snapshot = { isConnected: s.isConnected, isConnecting: s.isConnecting, error: s.error };
+  s.statusListeners.forEach((fn) => fn(snapshot));
+}
+
+async function openShared(s: SharedSocket) {
+  if (!s.shouldReconnect) return;
+  if (s.ws && (s.ws.readyState === WebSocket.OPEN || s.ws.readyState === WebSocket.CONNECTING)) return;
+  if (s.reconnectTimer) {
+    clearTimeout(s.reconnectTimer);
+    s.reconnectTimer = null;
+  }
+
+  s.isConnecting = true;
+  s.error = null;
+  emitStatus(s);
+
+  try {
+    const { credData, relay } = await getCachedChatCredential(s.accountId);
+    const binanceTarget = `${credData.chatWssUrl}/${credData.listenKey}?token=${credData.listenToken}&clientType=web`;
+    const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
+
+    const ws = new WebSocket(wsUrl);
+    s.ws = ws;
+
+    s.connectTimeout = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        s.error = 'Connection timed out. Check relay server.';
+        s.isConnecting = false;
+        emitStatus(s);
+        ws.close();
+      }
+    }, 10000);
+
+    ws.onopen = () => {
+      if (s.connectTimeout) {
+        clearTimeout(s.connectTimeout);
+        s.connectTimeout = null;
+      }
+      s.isConnected = true;
+      s.isConnecting = false;
+      s.error = null;
+      s.reconnectAttempts = 0;
+      emitStatus(s);
+      s.onOpenHooks.forEach((fn) => setTimeout(fn, 500));
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        const rawData = await wsDataToString(event.data);
+        if (!rawData || rawData.trim() === '{}' || rawData.trim() === '' || rawData === 'pong') return;
+        const data = JSON.parse(rawData);
+        if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
+        if (data.type === 'pong' || data.e === 'pong') return;
+        s.frameListeners.forEach((fn) => fn(data));
+      } catch {
+        // Unparseable — ignore
+      }
+    };
+
+    ws.onerror = () => {
+      s.error = 'WebSocket connection error';
+      s.isConnecting = false;
+      emitStatus(s);
+    };
+
+    ws.onclose = () => {
+      if (s.ws === ws) s.ws = null;
+      s.isConnected = false;
+      s.isConnecting = false;
+      emitStatus(s);
+
+      if (s.connectTimeout) {
+        clearTimeout(s.connectTimeout);
+        s.connectTimeout = null;
+      }
+      if (!s.shouldReconnect) return;
+
+      if (s.reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+        s.reconnectAttempts++;
+        invalidateChatCredential(s.accountId);
+        const delay = Math.min(1000 * Math.pow(2, s.reconnectAttempts), 30000);
+        s.reconnectTimer = setTimeout(() => {
+          s.reconnectTimer = null;
+          void openShared(s);
+        }, delay);
+      } else {
+        s.error = 'Max reconnection attempts reached. Please refresh.';
+        emitStatus(s);
+      }
+    };
+  } catch (err) {
+    console.error('Failed to connect chat WebSocket:', err);
+    s.error = err instanceof Error ? err.message : 'Connection failed';
+    s.isConnecting = false;
+    emitStatus(s);
+  }
+}
+
+/** Open (or keep) the shared socket for an account without subscribing. */
+function acquireSocket(accountId: string | null): SharedSocket {
+  const s = getShared(accountId);
+  s.shouldReconnect = true;
+  if (s.idleTimer) {
+    clearTimeout(s.idleTimer);
+    s.idleTimer = null;
+  }
+  if (!s.ws || s.ws.readyState > WebSocket.OPEN) {
+    s.reconnectAttempts = 0;
+    void openShared(s);
+  }
+  return s;
+}
+
+/** Prewarm the live chat socket for the given accounts (Orders page load). */
+export function prewarmChatSockets(accountIds: (string | null)[]): void {
+  for (const id of accountIds) acquireSocket(id);
+}
+
 
 // ---- Module-level per-order message cache ----
 // Survives component unmount so reopening a chat paints the last-loaded
@@ -373,181 +562,76 @@ export function useBinanceChatWebSocket(
 
 
 
-  // ---- Connect to WebSocket via relay ----
-  const connect = useCallback(async () => {
-    if (!shouldReconnectRef.current) return;
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current);
-      reconnectTimerRef.current = null;
-    }
-    if (connectTimeoutRef.current) {
-      clearTimeout(connectTimeoutRef.current);
-      connectTimeoutRef.current = null;
-    }
-    if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-      return;
-    }
-
-    setIsConnecting(true);
-    setError(null);
-
-    try {
-      // Reuse a cached credential within its TTL to skip the round-trip on reconnect/open.
-      const { credData, relay } = await getCachedChatCredential(accountIdRef.current ?? null);
-
-      relayInfoRef.current = relay;
-
-      const binanceTarget = `${credData.chatWssUrl}/${credData.listenKey}?token=${credData.listenToken}&clientType=web`;
-      const wsUrl = `${relay.relayUrl}/?key=${encodeURIComponent(relay.relayToken)}&target=${encodeURIComponent(binanceTarget)}`;
-
-      const ws = new WebSocket(wsUrl);
-      wsRef.current = ws;
-
-      connectTimeoutRef.current = setTimeout(() => {
-        if (ws.readyState !== WebSocket.OPEN) {
-          setError('Connection timed out. Check relay server.');
-          setIsConnecting(false);
-          ws.close();
-        }
-      }, 10000);
-
-      ws.onopen = () => {
-        if (connectTimeoutRef.current) {
-          clearTimeout(connectTimeoutRef.current);
-          connectTimeoutRef.current = null;
-        }
-        setIsConnected(true);
-        setIsConnecting(false);
-        setError(null);
-        setError(null);
-        reconnectAttemptsRef.current = 0;
-
-        // Flush any queued messages
-        setTimeout(() => flushQueue(), 500);
-      };
-
-      ws.onmessage = async (event) => {
-        try {
-          const rawData = await wsDataToString(event.data);
-
-          if (!rawData || rawData.trim() === '{}' || rawData.trim() === '' || rawData === 'pong') return;
-
-          const data = JSON.parse(rawData);
-
-          if (typeof data === 'object' && data !== null && Object.keys(data).length === 0) return;
-          if (data.type === 'pong' || data.e === 'pong') return;
-
-          captureMetadata(data);
-
-          if (data.type === 'error') {
-            console.error('❌ Binance WS error:', data.content, '| Full frame:', JSON.stringify(data));
-            return;
-          }
-
-          const isChatMessage = data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' || data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' || (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
-          if (isChatMessage) {
-            const msgOrderNo = data.orderNo || data.topicId || data.order?.orderNo;
-            if (msgOrderNo && msgOrderNo !== activeOrderRef.current) {
-              return;
-            }
-
-            const isSelfEcho = data.self === true || data.self === 'true';
-
-            if (isSelfEcho) {
-              pollIntervalRef.current = 2000;
-              return;
-            }
-
-            pollIntervalRef.current = 500;
-            if (activeOrderRef.current) {
-              fetchChatHistory(activeOrderRef.current);
-            }
-          }
-
-          if (data.scenario !== undefined && data.localId) {
-            // confirmation frame
-          }
-
-          if (data.e === 'orderStatus' || data.type === 'orderStatusUpdate') {
-            // order status update
-          }
-        } catch {
-          // Unparseable — ignore
-        }
-      };
-
-      ws.onerror = () => {
-        setError('WebSocket connection error');
-        setIsConnecting(false);
-      };
-
-      ws.onclose = (event) => {
-        if (wsRef.current === ws) {
-          wsRef.current = null;
-        }
-        setIsConnected(false);
-        setIsConnecting(false);
-
-        if (pingIntervalRef.current) {
-          clearInterval(pingIntervalRef.current);
-          pingIntervalRef.current = null;
-        }
-        if (connectTimeoutRef.current) {
-          clearTimeout(connectTimeoutRef.current);
-          connectTimeoutRef.current = null;
-        }
-
-        if (!shouldReconnectRef.current) {
-          return;
-        }
-
-        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-          reconnectAttemptsRef.current++;
-          // A closed socket may mean the (possibly cached) listenKey was rejected/expired.
-          // Drop the cached credential so the reconnect re-fetches a fresh one.
-          invalidateChatCredential(accountIdRef.current ?? null);
-          const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-          reconnectTimerRef.current = setTimeout(() => {
-            reconnectTimerRef.current = null;
-            connect();
-          }, delay);
-        } else {
-          setError('Max reconnection attempts reached. Please refresh.');
-          setQueuedMessages(prev => prev.map(m => ({ ...m, retries: 99 })));
-        }
-      };
-
-
-      wsRef.current = ws;
-    } catch (err) {
-      console.error('Failed to connect WebSocket:', err);
-      setError(err instanceof Error ? err.message : 'Connection failed');
-      setIsConnecting(false);
-    }
-  }, [captureMetadata, flushQueue]);
-
-  // Connect on mount, cleanup on unmount
+  // ---- Subscribe to the shared, always-warm socket for this account ----
   useEffect(() => {
-    shouldReconnectRef.current = true;
-    // Delay the WS handshake (getChatCredential + relay connect) a tick so the
-    // cached/archived DB read paints first instead of queuing behind it.
-    const startTimer = setTimeout(() => {
-      if (shouldReconnectRef.current) connect();
-    }, 250);
+    const s = acquireSocket(accountIdRef.current ?? null);
+    s.refs++;
+
+    const onStatus: StatusListener = (st) => {
+      setIsConnected(st.isConnected);
+      setIsConnecting(st.isConnecting);
+      setError(st.error);
+      wsRef.current = s.ws;
+    };
+    const onFrame: FrameListener = (data) => {
+      captureMetadata(data);
+
+      if (data.type === 'error') {
+        console.error('❌ Binance WS error:', data.content, '| Full frame:', JSON.stringify(data));
+        return;
+      }
+
+      const isChatMessage =
+        data.e === 'chat' || data.msgType === 'U_TEXT' || data.msgType === 'U_IMAGE' ||
+        data.type === 'text' || data.type === 'image' || data.type === 'system' || data.type === 'card' ||
+        (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
+      if (!isChatMessage) return;
+
+      const msgOrderNo = data.orderNo || data.topicId || data.order?.orderNo;
+      if (msgOrderNo && msgOrderNo !== activeOrderRef.current) return;
+
+      const isSelfEcho = data.self === true || data.self === 'true';
+      if (isSelfEcho) {
+        pollIntervalRef.current = 2000;
+        return;
+      }
+
+      pollIntervalRef.current = 500;
+      if (activeOrderRef.current) fetchChatHistory(activeOrderRef.current);
+    };
+    const onOpen = () => flushQueue();
+
+    s.statusListeners.add(onStatus);
+    s.frameListeners.add(onFrame);
+    s.onOpenHooks.add(onOpen);
+
+    // Paint the current shared state immediately (usually already connected).
+    onStatus({ isConnected: s.isConnected, isConnecting: s.isConnecting, error: s.error });
 
     return () => {
-      clearTimeout(startTimer);
-      shouldReconnectRef.current = false;
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (connectTimeoutRef.current) clearTimeout(connectTimeoutRef.current);
-      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
-      if (wsRef.current) {
-        const ws = wsRef.current;
-        wsRef.current = null;
-        ws.close(1000, 'Component unmounted');
+      s.statusListeners.delete(onStatus);
+      s.frameListeners.delete(onFrame);
+      s.onOpenHooks.delete(onOpen);
+      s.refs = Math.max(0, s.refs - 1);
+      wsRef.current = null;
+      // Keep the socket warm so reopening a chat is instant; close only after a
+      // long idle period with nobody listening.
+      if (s.refs === 0 && !s.idleTimer) {
+        s.idleTimer = setTimeout(() => {
+          s.idleTimer = null;
+          if (s.refs > 0) return;
+          s.shouldReconnect = false;
+          if (s.reconnectTimer) clearTimeout(s.reconnectTimer);
+          if (s.connectTimeout) clearTimeout(s.connectTimeout);
+          s.ws?.close(1000, 'idle');
+          s.ws = null;
+          s.isConnected = false;
+        }, IDLE_KEEPALIVE_MS);
       }
     };
-  }, [connect]);
+  }, [accountId, captureMetadata, fetchChatHistory, flushQueue]);
+
+
 
   // Reset sessionId when order changes
   useEffect(() => {

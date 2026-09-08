@@ -49,7 +49,13 @@ export default function TerminalDashboard() {
   // Scope the DB read to the selected window so we only load the rows we
   // actually display, instead of fetching a full year of orders on every visit.
   const filterBounds = useMemo(() => getTimestampsForFilter(filter), [filter]);
-  const { data: cachedOrders = [], isLoading: dbLoading, refetch: refetchDb } = useCachedOrderHistory(filterBounds);
+  // Orders older than 45 days can no longer change, so their totals come from
+  // shared pre-computed buckets; only the recent tail is downloaded row by row.
+  const windowPlan = useOrderWindowPlan(filter, filterBounds);
+  const { aggregate: sealedSummary, isLoading: summaryLoading } = useOrderSummary(windowPlan);
+  const { data: cachedOrders = [], isLoading: rawLoading, refetch: refetchDb } = useCachedOrderHistory(windowPlan.rawRange);
+  const dbLoading = rawLoading || (windowPlan.usesSummary && summaryLoading);
+
 
   const [universalSyncing, setUniversalSyncing] = useState(false);
 

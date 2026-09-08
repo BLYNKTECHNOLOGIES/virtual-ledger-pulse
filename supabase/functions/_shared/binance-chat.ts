@@ -82,7 +82,11 @@ export function normalizeChatMessage(
         ? msg.self
         : typeof msg?.isSelf === "boolean"
         ? msg.isSelf
+        // Auto-replies are always sent by us; Binance omits `self` on some frames.
+        : messageType === "auto_reply"
+        ? true
         : null,
+
     sender_nickname:
       msg?.fromNickname || msg?.fromNickName || msg?.senderNickName || msg?.nickName || null,
     message_status:

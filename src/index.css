@@ -1372,9 +1372,11 @@ html {
   .horilla-root select,
   .horilla-root textarea { font-size: 16px !important; }
 
-  /* 7. Dialogs/sheets fit the viewport and scroll */
-  .horilla-root ~ [role="dialog"],
-  [role="dialog"][data-state="open"] {
+  /* 7. Centered dialogs fit the viewport and scroll.
+     Edge sheets (mobile sidebars, bottom sheets) are excluded — they must
+     stay flush to their edge and manage their own internal scrolling. */
+  .horilla-root ~ [role="dialog"]:not([data-sheet]),
+  [role="dialog"][data-state="open"]:not([data-sheet]) {
     max-width: calc(100vw - 1.5rem) !important;
     max-height: 88vh !important;
     overflow-y: auto !important;

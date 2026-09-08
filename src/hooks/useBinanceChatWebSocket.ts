@@ -404,6 +404,8 @@ export function useBinanceChatWebSocket(
 
   // ---- Fetch chat history via REST (all pages) ----
   const fetchChatHistory = useCallback(async (orderNo: string) => {
+    // Synthetic enquiry keys are not Binance orders; skip the REST call.
+    if (!orderNo || orderNo.startsWith('INQ-')) return [];
     try {
       const allMessages: any[] = [];
       let page = 1;

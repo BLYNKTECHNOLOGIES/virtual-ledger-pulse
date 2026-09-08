@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -235,37 +235,46 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   // Binance app, that order's detail comes back with unreadCount 0. We check the
   // newest unread threads periodically and clear them locally, crediting the
   // Binance app so the team knows who handled it.
+  const mergedRef = useRef(merged);
+  mergedRef.current = merged;
   useEffect(() => {
     let cancelled = false;
+    let running = false;
     const reconcile = async () => {
       if (document.visibilityState !== 'visible') return;
-      const targets = merged
-        .filter((c) => c.chatUnreadCount > 0 && !c.orderNumber.startsWith('INQ-'))
-        .slice(0, 8);
-      if (targets.length === 0) return;
-      let cleared = 0;
-      for (const conv of targets) {
-        if (cancelled) return;
-        try {
-          const detail: any = await callBinanceAds('getOrderDetail', { orderNumber: conv.orderNumber });
-          const raw = detail?.data ?? detail;
-          const unread = Number(raw?.unreadCount ?? raw?.chatUnreadCount);
-          if (Number.isFinite(unread) && unread === 0) {
-            const orderNumbers = Array.from(new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])]));
-            orderNumbers.forEach((n) => markOrderChatRead(n));
-            await supabase.rpc('mark_terminal_binance_chats_read', {
-              p_order_numbers: orderNumbers,
-              p_source: 'binance_app',
-            });
-            cleared += 1;
+      if (running) return;
+      running = true;
+      try {
+        const targets = mergedRef.current
+          .filter((c) => c.chatUnreadCount > 0 && !c.orderNumber.startsWith('INQ-'))
+          .slice(0, 8);
+        if (targets.length === 0) return;
+        let cleared = 0;
+        for (const conv of targets) {
+          if (cancelled) return;
+          try {
+            const detail: any = await callBinanceAds('getOrderDetail', { orderNumber: conv.orderNumber });
+            const raw = detail?.data ?? detail;
+            const unread = Number(raw?.unreadCount ?? raw?.chatUnreadCount);
+            if (Number.isFinite(unread) && unread === 0) {
+              const orderNumbers = Array.from(new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])]));
+              orderNumbers.forEach((n) => markOrderChatRead(n));
+              await supabase.rpc('mark_terminal_binance_chats_read', {
+                p_order_numbers: orderNumbers,
+                p_source: 'binance_app',
+              });
+              cleared += 1;
+            }
+          } catch {
+            // Binance unavailable — leave the thread unread, never guess.
           }
-        } catch {
-          // Binance unavailable — leave the thread unread, never guess.
         }
-      }
-      if (cleared > 0 && !cancelled) {
-        queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
-        queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+        if (cleared > 0 && !cancelled) {
+          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+          queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+        }
+      } finally {
+        running = false;
       }
     };
     reconcile();
@@ -274,7 +283,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [merged, queryClient]);
+    // Runs on a fixed 90s cadence; the newest list is read from mergedRef.
+  }, [queryClient]);
 
   const [markingAll, setMarkingAll] = useState(false);
   const handleMarkAllRead = useCallback(async () => {

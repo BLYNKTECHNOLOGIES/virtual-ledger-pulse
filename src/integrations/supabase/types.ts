@@ -30748,6 +30748,10 @@ export type Database = {
         Args: { wallet_id_param: string }
         Returns: undefined
       }
+      reconcile_binance_app_chat_reads: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
       reconcile_employee_salary_structure_to_total: {
         Args: { p_employee_id: string; p_expected_total?: number }
         Returns: Json

@@ -68,10 +68,12 @@ function isAppealStatus(s: string): boolean {
 export function computeOrderStats(
   orders: C2COrderHistoryItem[],
   window?: { startTimestamp: number; endTimestamp: number },
+  inWindow?: (ts: number) => boolean,
 ) {
   const now = Date.now();
   const periodStart = window?.startTimestamp;
   const periodEnd = window?.endTimestamp;
+
 
   let activeOrders = 0;
   let awaitingPayment = 0;

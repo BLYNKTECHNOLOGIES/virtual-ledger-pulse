@@ -18,8 +18,8 @@ export type ShiftKey = 'all' | 'shift1' | 'shift2' | 'shift3';
 
 export type TimeFilter =
   | { mode: '1d'; date: Date; shift: ShiftKey }
-  | { mode: 'range'; from: Date; to: Date }
-  | { mode: '7d' | '30d' | '1y' };
+  | { mode: 'range'; from: Date; to: Date; shift: ShiftKey }
+  | { mode: '7d' | '30d' | '1y'; shift: ShiftKey };
 
 // IST offset in ms (+5:30)
 const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
@@ -38,40 +38,71 @@ function istToUtc(date: Date, hours: number, minutes: number): number {
   return utc - IST_OFFSET_MS;
 }
 
-export function getTimestampsForFilter(filter: TimeFilter): { startTimestamp: number; endTimestamp: number } {
+const PRESET_DAYS: Record<'7d' | '30d' | '1y', number> = { '7d': 7, '30d': 30, '1y': 365 };
+
+export function getFilterShift(filter: TimeFilter): ShiftKey {
+  return (filter as any).shift || 'all';
+}
+
+/** Calendar day span (IST) covered by a filter, used when a shift is applied. */
+function getDaySpan(filter: TimeFilter): { from: Date; to: Date } {
+  if (filter.mode === '1d') return { from: filter.date, to: filter.date };
+  if (filter.mode === 'range') return { from: filter.from, to: filter.to };
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - (PRESET_DAYS[filter.mode] - 1));
+  return { from, to };
+}
+
+export type TimeWindow = { start: number; end: number };
+
+/**
+ * Per-day windows for the filter. With a shift selected, every calendar day in
+ * the range contributes only that shift's slice (the evening shift keeps its
+ * after-midnight tail). "Full Day" collapses to one continuous window.
+ */
+export function buildShiftWindows(filter: TimeFilter): TimeWindow[] {
   const now = Date.now();
-
-  if (filter.mode === 'range') {
-    const start = istToUtc(filter.from, 0, 0);
-    const end = istToUtc(filter.to, 24, 0);
-    return { startTimestamp: start, endTimestamp: Math.min(end, now) };
-  }
-
-  if (filter.mode !== '1d') {
-    switch (filter.mode) {
-      case '7d':
-        return { startTimestamp: now - 7 * 24 * 60 * 60 * 1000, endTimestamp: now };
-      case '30d':
-        return { startTimestamp: now - 30 * 24 * 60 * 60 * 1000, endTimestamp: now };
-      case '1y':
-        return { startTimestamp: now - 365 * 24 * 60 * 60 * 1000, endTimestamp: now };
-    }
-  }
-
-  const date = filter.date;
-  const shift = filter.shift;
+  const shift = getFilterShift(filter);
+  const { from, to } = getDaySpan(filter);
 
   if (shift === 'all') {
-    // Full day: 00:00 IST → min(next day 00:00 IST, now)
-    const start = istToUtc(date, 0, 0);
-    const end = istToUtc(date, 24, 0);
-    return { startTimestamp: start, endTimestamp: Math.min(end, now) };
+    if (filter.mode === '7d' || filter.mode === '30d' || filter.mode === '1y') {
+      // Preserve the existing rolling-window behaviour for full-day presets
+      return [{ start: now - PRESET_DAYS[filter.mode] * 86400000, end: now }];
+    }
+    return [{ start: istToUtc(from, 0, 0), end: Math.min(istToUtc(to, 24, 0), now) }];
   }
 
   const def = SHIFTS[shift];
-  const start = istToUtc(date, def.startH, def.startM);
-  const end = istToUtc(date, def.endH, def.endM);
-  return { startTimestamp: start, endTimestamp: Math.min(end, now) };
+  const windows: TimeWindow[] = [];
+  const cursor = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const last = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  while (cursor <= last) {
+    const start = istToUtc(cursor, def.startH, def.startM);
+    const end = istToUtc(cursor, def.endH, def.endM);
+    if (start < now) windows.push({ start, end: Math.min(end, now) });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return windows;
+}
+
+/** Predicate matching a timestamp against the filter's per-day shift windows. */
+export function makeShiftPredicate(filter: TimeFilter): (ts: number) => boolean {
+  const windows = buildShiftWindows(filter);
+  return (ts: number) => windows.some((w) => ts >= w.start && ts <= w.end);
+}
+
+export function getTimestampsForFilter(filter: TimeFilter): { startTimestamp: number; endTimestamp: number } {
+  const windows = buildShiftWindows(filter);
+  if (windows.length === 0) {
+    const now = Date.now();
+    return { startTimestamp: now, endTimestamp: now };
+  }
+  return {
+    startTimestamp: Math.min(...windows.map((w) => w.start)),
+    endTimestamp: Math.max(...windows.map((w) => w.end)),
+  };
 }
 
 // ─── Backward compatibility ───
@@ -81,7 +112,7 @@ export function getTimestampsForPeriod(period: TimePeriod) {
   if (period === '1d') {
     return getTimestampsForFilter({ mode: '1d', date: new Date(), shift: 'all' });
   }
-  return getTimestampsForFilter({ mode: period });
+  return getTimestampsForFilter({ mode: period, shift: 'all' });
 }
 
 // ─── Serialization helpers for user prefs ───
@@ -90,47 +121,50 @@ export function serializeTimeFilter(f: TimeFilter): string {
     return JSON.stringify({ mode: '1d', date: f.date.toISOString(), shift: f.shift });
   }
   if (f.mode === 'range') {
-    return JSON.stringify({ mode: 'range', from: f.from.toISOString(), to: f.to.toISOString() });
+    return JSON.stringify({ mode: 'range', from: f.from.toISOString(), to: f.to.toISOString(), shift: f.shift });
   }
-  return JSON.stringify({ mode: f.mode });
+  return JSON.stringify({ mode: f.mode, shift: f.shift });
 }
 
 export function deserializeTimeFilter(raw: string | undefined | null): TimeFilter {
   if (!raw) return { mode: '1d', date: new Date(), shift: 'all' };
   try {
     const obj = JSON.parse(raw);
+    const shift: ShiftKey = obj.shift || 'all';
     if (obj.mode === '1d') {
-      return { mode: '1d', date: new Date(obj.date), shift: obj.shift || 'all' };
+      return { mode: '1d', date: new Date(obj.date), shift };
     }
     if (obj.mode === 'range' && obj.from && obj.to) {
-      return { mode: 'range', from: new Date(obj.from), to: new Date(obj.to) };
+      return { mode: 'range', from: new Date(obj.from), to: new Date(obj.to), shift };
     }
     if (['7d', '30d', '1y'].includes(obj.mode)) {
-      return { mode: obj.mode };
+      return { mode: obj.mode, shift };
     }
   } catch {}
   // Legacy: plain period string like "30d"
-  if (['7d', '30d', '1y'].includes(raw)) return { mode: raw as any };
+  if (['7d', '30d', '1y'].includes(raw)) return { mode: raw as any, shift: 'all' };
   return { mode: '1d', date: new Date(), shift: 'all' };
 }
 
 export function getFilterLabel(filter: TimeFilter): string {
+  const shift = getFilterShift(filter);
+  const suffix = shift === 'all' ? '' : ` · ${SHIFTS[shift].fullLabel}`;
   if (filter.mode === '1d') {
     const isToday = new Date().toDateString() === filter.date.toDateString();
     const dateStr = isToday ? 'Today' : format(filter.date, 'dd MMM yyyy');
-    if (filter.shift === 'all') return dateStr;
-    return `${dateStr} · ${SHIFTS[filter.shift].fullLabel}`;
+    return `${dateStr}${suffix}`;
   }
   if (filter.mode === 'range') {
     const sameYear = filter.from.getFullYear() === filter.to.getFullYear();
     const fromStr = format(filter.from, sameYear ? 'dd MMM' : 'dd MMM yyyy');
     const toStr = format(filter.to, 'dd MMM yyyy');
-    return `${fromStr} – ${toStr}`;
+    return `${fromStr} – ${toStr}${suffix}`;
   }
-  if (filter.mode === '7d') return 'Last 7 Days';
-  if (filter.mode === '30d') return 'Last 30 Days';
-  return 'Last 1 Year';
+  if (filter.mode === '7d') return `Last 7 Days${suffix}`;
+  if (filter.mode === '30d') return `Last 30 Days${suffix}`;
+  return `Last 1 Year${suffix}`;
 }
+
 
 // ─── Component ───
 const rangePeriods = [
@@ -157,7 +191,7 @@ export function TimePeriodFilter({ value, onChange }: Props) {
   const isDayMode = value.mode === '1d';
   const isRangeMode = value.mode === 'range';
   const selectedDate = isDayMode ? value.date : new Date();
-  const activeShift = isDayMode ? value.shift : 'all';
+  const activeShift = getFilterShift(value);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(
     isRangeMode ? { from: value.from, to: value.to } : undefined,
   );
@@ -253,7 +287,7 @@ export function TimePeriodFilter({ value, onChange }: Props) {
                 if (draftRange?.from) {
                   const from = draftRange.from;
                   const to = draftRange.to ?? draftRange.from;
-                  onChange({ mode: 'range', from, to });
+                  onChange({ mode: 'range', from, to, shift: activeShift });
                   setRangeOpen(false);
                 }
               }}
@@ -265,26 +299,28 @@ export function TimePeriodFilter({ value, onChange }: Props) {
       </Popover>
 
 
-      {/* Shift chips — only in day mode */}
-      {isDayMode && (
-        <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
-          {shiftOptions.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              className={cn(
-                'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
-                activeShift === s.value
-                  ? 'bg-card text-foreground border border-border'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              onClick={() => onChange({ mode: '1d', date: selectedDate, shift: s.value })}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Shift chips — apply to single date, custom range and presets */}
+      <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
+        {shiftOptions.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            className={cn(
+              'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
+              activeShift === s.value
+                ? 'bg-card text-foreground border border-border'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+            onClick={() => {
+              if (value.mode === '1d') onChange({ mode: '1d', date: selectedDate, shift: s.value });
+              else if (value.mode === 'range') onChange({ mode: 'range', from: value.from, to: value.to, shift: s.value });
+              else onChange({ mode: value.mode, shift: s.value });
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       {/* Range presets */}
       <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
@@ -298,7 +334,8 @@ export function TimePeriodFilter({ value, onChange }: Props) {
                 ? 'bg-card text-foreground border border-border'
                 : 'text-muted-foreground hover:text-foreground'
             )}
-            onClick={() => onChange({ mode: p.value })}
+            onClick={() => onChange({ mode: p.value, shift: activeShift })}
+
           >
             {p.label}
           </button>

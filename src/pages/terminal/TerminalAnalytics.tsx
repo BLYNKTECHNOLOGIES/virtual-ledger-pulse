@@ -13,6 +13,8 @@ import {
   TimePeriodFilter,
   TimeFilter,
   getTimestampsForFilter,
+  makeShiftPredicate,
+
   getFilterLabel,
   serializeTimeFilter,
   deserializeTimeFilter,
@@ -698,6 +700,8 @@ export default function TerminalAnalytics() {
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);
   const { startTimestamp, endTimestamp } = useMemo(() => getTimestampsForFilter(filter), [filter]);
+  const inShiftWindow = useMemo(() => makeShiftPredicate(filter), [filter]);
+
   const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
   const { data: cachedOrders = [], isLoading: ordersLoading, refetch: refetchOrders } = useCachedOrderHistory({ startTimestamp, endTimestamp });
   const { data: syncMeta } = useSyncMetadata();
@@ -722,8 +726,9 @@ export default function TerminalAnalytics() {
         const orderNumber = order.orderNumber || order.order_number || '';
         return normalizeOrder({ ...order, ...(effectiveValuations.get(orderNumber) || {}) });
       })
-      .filter((o) => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [cachedOrders, effectiveValuations, startTimestamp, endTimestamp]);
+      .filter((o) => inShiftWindow(o.createTime));
+  }, [cachedOrders, effectiveValuations, inShiftWindow]);
+
 
   const completed = useMemo(() => orders.filter((o) => o.orderStatus.includes('COMPLETED')), [orders]);
 

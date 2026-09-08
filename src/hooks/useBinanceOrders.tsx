@@ -68,10 +68,12 @@ function isAppealStatus(s: string): boolean {
 export function computeOrderStats(
   orders: C2COrderHistoryItem[],
   window?: { startTimestamp: number; endTimestamp: number },
+  inWindow?: (ts: number) => boolean,
 ) {
   const now = Date.now();
   const periodStart = window?.startTimestamp;
   const periodEnd = window?.endTimestamp;
+
 
   let activeOrders = 0;
   let awaitingPayment = 0;
@@ -98,11 +100,14 @@ export function computeOrderStats(
       if (o.tradeType === 'BUY') { totalBuyVolume += price; buyCount++; }
       else { totalSellVolume += price; sellCount++; }
 
-      if (periodStart !== undefined && periodEnd !== undefined) {
+      if (inWindow) {
+        if (inWindow(o.createTime)) completedInPeriod++;
+      } else if (periodStart !== undefined && periodEnd !== undefined) {
         if (o.createTime >= periodStart && o.createTime <= periodEnd) {
           completedInPeriod++;
         }
       }
+
     } else if (status.includes('CANCEL')) {
       cancelledCount++;
     } else if (status.includes('EXPIRED') || status.includes('TIMEOUT')) {

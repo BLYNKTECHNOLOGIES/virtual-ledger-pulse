@@ -12,6 +12,8 @@ import {
   TimePeriodFilter,
   TimeFilter,
   getTimestampsForFilter,
+  makeShiftPredicate,
+
   getFilterLabel,
   serializeTimeFilter,
   deserializeTimeFilter,
@@ -124,13 +126,19 @@ export default function TerminalDashboard() {
     }));
   }, [cachedOrders]);
 
-  // Re-filter client-side as a safety net (DB read is already scoped to the window)
-  const orders = useMemo(() => {
-    const { startTimestamp, endTimestamp } = filterBounds;
-    return allOrders.filter(o => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [allOrders, filterBounds]);
+  // Re-filter client-side: with a shift selected, each day in the window keeps
+  // only that shift's slice, so the plain outer bounds are not enough.
+  const inShiftWindow = useMemo(() => makeShiftPredicate(filter), [filter]);
+  const orders = useMemo(
+    () => allOrders.filter(o => inShiftWindow(o.createTime)),
+    [allOrders, inShiftWindow]
+  );
 
-  const stats = useMemo(() => computeOrderStats(orders, filterBounds), [orders, filterBounds]);
+  const stats = useMemo(
+    () => computeOrderStats(orders, filterBounds, inShiftWindow),
+    [orders, filterBounds, inShiftWindow]
+  );
+
 
   // ── Live workflow counts ──────────────────────────────────────────────
   // Active / Awaiting Payment / Awaiting Release / Appeals reflect the CURRENT

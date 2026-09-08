@@ -15,6 +15,19 @@ const STALE_MINUTES = 45;
  * the outage visible instead.
  */
 export function BiometricDeviceOfflineBanner() {
+  const { data: pauseState } = useQuery({
+    queryKey: ["hr_attendance_automation_state"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_attendance_automation_state")
+        .select("state, paused_since, paused_reason")
+        .eq("id", true)
+        .maybeSingle();
+      return data ?? null;
+    },
+  });
+
   const { data: stale = [] } = useQuery({
     queryKey: ["hr_biometric_device_heartbeat"],
     refetchInterval: 60_000,
@@ -29,7 +42,10 @@ export function BiometricDeviceOfflineBanner() {
     },
   });
 
-  if (stale.length === 0) return null;
+  const paused = !!pauseState && pauseState.state !== "running";
+
+  if (stale.length === 0 && !paused) return null;
+
 
   const fmt = (ts: string | null) =>
     ts

@@ -15,6 +15,8 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
 import { BiometricDeviceDataDialog } from "@/components/hrms/BiometricDeviceDataDialog";
+import { AttendanceAutomationCard } from "@/components/hrms/AttendanceAutomationCard";
+
 
 const DEVICE_TYPES = ["ZKTeco / eSSL Biometric","Dahua Biometric","Hikvision Biometric","Anviz Biometric","Other"];
 const DEVICE_DIRECTIONS = ["System Direction(In/Out) Device","In Device","Out Device"];
@@ -138,7 +140,10 @@ export default function BiometricDevicesPage() {
         <Input placeholder="Search devices..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9" />
       </div>
 
+      <AttendanceAutomationCard />
+
       {alarms.length > 0 && (
+
         <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
           <div className="flex items-center gap-2 text-destructive font-medium text-sm">
             <AlertTriangle className="h-4 w-4" />

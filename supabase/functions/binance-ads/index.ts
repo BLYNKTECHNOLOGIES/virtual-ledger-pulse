@@ -1774,8 +1774,13 @@ serve(async (req) => {
 
       // ==================== CHAT ====================
       case "getChatMessages": {
+        // Synthetic enquiry threads (INQ-*) are not Binance orders — calling
+        // the endpoint with them always returns 400. Return an empty page.
+        if (String(payload.orderNo || "").startsWith("INQ-")) {
+          result = { code: "000000", data: [], enquiryThread: true };
+          break;
+        }
         // GET endpoint — same pattern as retrieveChatCredential
-        const chatParams = new URLSearchParams({
           orderNo: payload.orderNo,
           page: String(payload.page || 1),
           rows: String(payload.rows || 50),

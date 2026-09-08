@@ -245,6 +245,21 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       if (running) return;
       running = true;
       try {
+        // Bulk pass first: Binance already reports a per-order unread count in
+        // the order cache, so anything read on the Binance app clears in one
+        // database call — no per-order Binance lookups needed.
+        try {
+          const { data: bulkCleared } = await supabase.rpc('reconcile_binance_app_chat_reads', {
+            p_limit: 500,
+          });
+          if (Number(bulkCleared) > 0 && !cancelled) {
+            queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+            queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+            queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+          }
+        } catch {
+          // ignore — fall through to the per-order check below
+        }
         const targets = mergedRef.current
           .filter((c) => c.chatUnreadCount > 0 && !c.orderNumber.startsWith('INQ-'))
           .slice(0, 8);

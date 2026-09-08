@@ -5430,6 +5430,54 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_attendance_automation_state: {
+        Row: {
+          auto_pause_threshold_minutes: number
+          created_at: string
+          id: boolean
+          last_checked_at: string | null
+          paused_by: string | null
+          paused_reason: string | null
+          paused_since: string | null
+          resumed_at: string | null
+          resumed_by: string | null
+          settle_minutes: number
+          stale_pause_warn_days: number
+          state: string
+          updated_at: string
+        }
+        Insert: {
+          auto_pause_threshold_minutes?: number
+          created_at?: string
+          id?: boolean
+          last_checked_at?: string | null
+          paused_by?: string | null
+          paused_reason?: string | null
+          paused_since?: string | null
+          resumed_at?: string | null
+          resumed_by?: string | null
+          settle_minutes?: number
+          stale_pause_warn_days?: number
+          state?: string
+          updated_at?: string
+        }
+        Update: {
+          auto_pause_threshold_minutes?: number
+          created_at?: string
+          id?: boolean
+          last_checked_at?: string | null
+          paused_by?: string | null
+          paused_reason?: string | null
+          paused_since?: string | null
+          resumed_at?: string | null
+          resumed_by?: string | null
+          settle_minutes?: number
+          stale_pause_warn_days?: number
+          state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       hr_attendance_daily: {
         Row: {
           attendance_date: string
@@ -5811,6 +5859,78 @@ export type Database = {
           target_table?: string
           window_end?: string
           window_start?: string
+        }
+        Relationships: []
+      }
+      hr_attendance_outages: {
+        Row: {
+          closed_by: string | null
+          created_at: string
+          detected_at: string
+          ended_at: string | null
+          from_date: string | null
+          id: string
+          mail_release_result: Json | null
+          mail_release_status: string
+          notes: string | null
+          opened_by: string | null
+          reason: string | null
+          recovery_finished_at: string | null
+          recovery_lease_until: string | null
+          recovery_result: Json | null
+          recovery_started_at: string | null
+          recovery_status: string
+          silent_devices: Json
+          started_at: string
+          to_date: string | null
+          trigger: string
+          updated_at: string
+        }
+        Insert: {
+          closed_by?: string | null
+          created_at?: string
+          detected_at?: string
+          ended_at?: string | null
+          from_date?: string | null
+          id?: string
+          mail_release_result?: Json | null
+          mail_release_status?: string
+          notes?: string | null
+          opened_by?: string | null
+          reason?: string | null
+          recovery_finished_at?: string | null
+          recovery_lease_until?: string | null
+          recovery_result?: Json | null
+          recovery_started_at?: string | null
+          recovery_status?: string
+          silent_devices?: Json
+          started_at?: string
+          to_date?: string | null
+          trigger?: string
+          updated_at?: string
+        }
+        Update: {
+          closed_by?: string | null
+          created_at?: string
+          detected_at?: string
+          ended_at?: string | null
+          from_date?: string | null
+          id?: string
+          mail_release_result?: Json | null
+          mail_release_status?: string
+          notes?: string | null
+          opened_by?: string | null
+          reason?: string | null
+          recovery_finished_at?: string | null
+          recovery_lease_until?: string | null
+          recovery_result?: Json | null
+          recovery_started_at?: string | null
+          recovery_status?: string
+          silent_devices?: Json
+          started_at?: string
+          to_date?: string | null
+          trigger?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -29632,6 +29752,16 @@ export type Database = {
           worked_minutes: number
         }[]
       }
+      hr_attendance_is_paused: {
+        Args: never
+        Returns: {
+          outage_id: string
+          paused: boolean
+          paused_since: string
+          reason: string
+          state: string
+        }[]
+      }
       hr_attendance_month_summary: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {
@@ -29655,6 +29785,8 @@ export type Database = {
           working_days: number
         }[]
       }
+      hr_attendance_pause: { Args: { p_reason?: string }; Returns: string }
+      hr_attendance_resume: { Args: { p_note?: string }; Returns: string }
       hr_attendance_self_test_run: {
         Args: never
         Returns: {

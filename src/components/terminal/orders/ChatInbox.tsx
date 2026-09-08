@@ -424,9 +424,10 @@ function ConversationRow({
   const stampLabel = stamp ? (isToday(stamp) ? format(stamp, 'HH:mm') : format(stamp, 'dd MMM')) : '';
 
   return (
+    <div className={`group relative flex items-center ${isPinned ? 'bg-primary/5' : ''}`}>
     <button
       onClick={onClick}
-      className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-3"
+      className="flex-1 min-w-0 text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-3"
     >
       {/* Avatar */}
       <div className="relative shrink-0">

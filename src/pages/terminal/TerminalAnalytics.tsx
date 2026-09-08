@@ -698,6 +698,8 @@ export default function TerminalAnalytics() {
   const filter: TimeFilter = useMemo(() => deserializeTimeFilter(prefs.filter || undefined), [prefs.filter]);
   const setFilter = useCallback((f: TimeFilter) => setPref('filter', serializeTimeFilter(f)), [setPref]);
   const { startTimestamp, endTimestamp } = useMemo(() => getTimestampsForFilter(filter), [filter]);
+  const inShiftWindow = useMemo(() => makeShiftPredicate(filter), [filter]);
+
   const { data: adsRaw, isLoading: adsLoading } = useBinanceAdsList({ advStatus: null });
   const { data: cachedOrders = [], isLoading: ordersLoading, refetch: refetchOrders } = useCachedOrderHistory({ startTimestamp, endTimestamp });
   const { data: syncMeta } = useSyncMetadata();

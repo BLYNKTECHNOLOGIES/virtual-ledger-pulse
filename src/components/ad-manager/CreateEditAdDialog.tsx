@@ -793,14 +793,35 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <Label>Total Quantity ({form.asset})</Label>
                 {isEditing && availableBalance !== null && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Available: <span className="font-medium text-foreground">{availableBalance} {form.asset}</span></span>
+                    <span>Ad balance: <span className="font-medium text-foreground">{availableBalance} {form.asset}</span></span>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       className="h-5 px-2 text-xs font-semibold text-primary"
                       onClick={() => setForm({ ...form, initAmount: String(availableBalance) })}
                     >
                       ALL
+                    </Button>
+                  </div>
+                )}
+                {!isBuyAd && maxQuantity !== null && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Available:{' '}
+                      <span className="font-medium text-foreground">
+                        {maxQuantity.toLocaleString('en-US', { maximumFractionDigits: 8 })} {form.asset}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-2 text-xs font-semibold text-primary"
+                      disabled={maxQuantity <= 0}
+                      onClick={() => setForm({ ...form, initAmount: String(maxQuantity) })}
+                    >
+                      MAX
                     </Button>
                   </div>
                 )}

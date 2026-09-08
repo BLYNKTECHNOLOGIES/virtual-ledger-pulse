@@ -263,6 +263,22 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     return null;
   }, [editingAd, sellAdsData]);
 
+  // ─── Wallet balance for the selected asset (SELL ads only) ────
+  const walletAvailable = useMemo(() => {
+    if (isBuyAd) return null;
+    const row = (walletBalances || []).find((b: any) => b.asset === form.asset);
+    if (!row) return null;
+    const free = Number(row.total_free ?? row.total_balance ?? 0);
+    return Number.isFinite(free) ? free : null;
+  }, [walletBalances, form.asset, isBuyAd]);
+
+  // Binance requires whole-number quantities for USDC / FDUSD
+  const maxQuantity = useMemo(() => {
+    if (walletAvailable === null) return null;
+    if (form.asset === 'USDC' || form.asset === 'FDUSD') return Math.floor(walletAvailable);
+    return Math.floor(walletAvailable * 1e8) / 1e8;
+  }, [walletAvailable, form.asset]);
+
   // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
     const ads: BinanceAd[] = sellAdsData?.data || [];

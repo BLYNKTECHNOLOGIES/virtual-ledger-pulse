@@ -36,6 +36,36 @@ import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 import { useNewerCounterpartyOrder } from '@/hooks/useNewerCounterpartyOrder';
 
+/**
+ * The same Binance frame can reach us twice (live socket + history sweep) with
+ * different ids and, for auto-replies, a missing `self` flag. Collapse those
+ * into one bubble, keeping the richer/operator-attributed copy. Genuinely
+ * repeated messages (different second) are preserved.
+ */
+function dedupeMessages(messages: UnifiedMessage[]): UnifiedMessage[] {
+  const byKey = new Map<string, UnifiedMessage>();
+  const out: UnifiedMessage[] = [];
+  for (const msg of messages) {
+    if (msg.source === 'local') { out.push(msg); continue; }
+    const body = (msg.text || msg.imageUrl || '').trim();
+    if (!body) { out.push(msg); continue; }
+    const key = `${String(msg.messageType || '').toLowerCase()}|${body}|${Math.floor((msg.timestamp || 0) / 1000)}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, msg);
+      out.push(msg);
+      continue;
+    }
+    // Prefer the copy attributed to the operator (auto-replies are ours).
+    if (existing.senderType !== 'operator' && msg.senderType === 'operator') {
+      const idx = out.indexOf(existing);
+      if (idx >= 0) out[idx] = msg;
+      byKey.set(key, msg);
+    }
+  }
+  return out;
+}
+
 
 interface Props {
   orderId: string;
@@ -164,7 +194,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       messages.push({
         id: `archive-${msg.id}`,
         source: 'binance',
-        senderType: isSystemLike ? 'system' : (msg.sender_is_self ? 'operator' : 'counterparty'),
+        senderType: isSystemLike ? 'system' : ((msg.sender_is_self || msgType === 'auto_reply') ? 'operator' : 'counterparty'),
         text: isImage ? null : (msg.message_text || null),
         imageUrl: isImage ? (msg.image_url || msg.thumbnail_url || msg.message_text || undefined) : (msg.image_url || msg.thumbnail_url || undefined),
         timestamp: normalizeChatTimestamp(msg.binance_create_time),
@@ -185,7 +215,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
-        senderType: isSystemLike ? 'system' : (isSelf ? 'operator' : 'counterparty'),
+        senderType: isSystemLike ? 'system' : ((isSelf || String(msgType).toLowerCase() === 'auto_reply') ? 'operator' : 'counterparty'),
         text: isImage ? null : (content || null),
         imageUrl: isImage ? (imgUrl || content || undefined) : imgUrl,
         timestamp: normalizeChatTimestamp(msg.createTime),
@@ -220,8 +250,9 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       });
     }
 
-    return messages.sort((a, b) => a.timestamp - b.timestamp);
+    return dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp));
   }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
+
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {
@@ -241,7 +272,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         return {
           id: `hist-${order.orderNumber}-${msg.id}`,
           source: 'binance' as const,
-          senderType: isSystemLike ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
+          senderType: isSystemLike ? 'system' as const : ((isSelf || normalizedType === 'auto_reply') ? 'operator' as const : 'counterparty' as const),
           text: isImage ? null : (content || null),
           imageUrl: effectiveImgUrl,
           timestamp: normalizeChatTimestamp(msg.createTime),
@@ -251,7 +282,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           isComplianceRelevant: isSystemLike,
         };
       });
-      return { order, messages: messages.sort((a, b) => a.timestamp - b.timestamp) };
+      return { order, messages: dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp)) };
     });
   }, [historicalChats, getSenderName]);
 

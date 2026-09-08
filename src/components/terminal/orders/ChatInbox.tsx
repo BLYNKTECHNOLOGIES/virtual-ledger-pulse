@@ -135,10 +135,23 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     const rank = (c: ChatConversation) =>
       c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : c.createTime;
 
+    // A nickname-only thread (e.g. an order-less enquiry) belongs to the same
+    // person as an order thread carrying that nickname plus a KYC verified
+    // name. Build nickname -> verified name so both collapse into one row.
+    const aliasToVerified = new Map<string, string>();
     for (const c of conversations) {
       const verified = (c.verifiedName || '').trim().toLowerCase();
       const nick = (c.counterpartyNickname || '').trim().toLowerCase();
-      const identifiable = verified || (nick && !nick.includes('*') ? nick : '');
+      if (verified && nick && !nick.includes('*') && !aliasToVerified.has(nick)) {
+        aliasToVerified.set(nick, verified);
+      }
+    }
+
+    for (const c of conversations) {
+      const verified = (c.verifiedName || '').trim().toLowerCase();
+      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
+      const cleanNick = nick && !nick.includes('*') ? nick : '';
+      const identifiable = verified || (cleanNick ? aliasToVerified.get(cleanNick) || cleanNick : '');
       if (!identifiable) {
         out.push({ ...c, mergedOrderNumbers: [c.orderNumber] });
         continue;
@@ -154,6 +167,11 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       newest.mergedOrderNumbers = Array.from(
         new Set([...(existing.mergedOrderNumbers || [existing.orderNumber]), c.orderNumber])
       );
+      // Keep the strongest identity we have across the merged threads so an
+      // enquiry-only thread never displays as "Unknown".
+      newest.verifiedName = newest.verifiedName || existing.verifiedName || c.verifiedName || '';
+      newest.counterpartyNickname =
+        newest.counterpartyNickname || existing.counterpartyNickname || c.counterpartyNickname || '';
       byKey.set(key, newest);
     }
 

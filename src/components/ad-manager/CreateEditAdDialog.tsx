@@ -997,12 +997,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                         <div className="flex flex-col items-center gap-2 py-8">
                           <AlertTriangle className="h-8 w-8 text-warning" />
                           <p className="text-sm text-muted-foreground text-center">
-                            No payment methods found. Create a SELL ad on Binance first to populate available methods.
+                            Binance returned no saved payment methods for this account. Add them in the Binance app (P2P → Payment Methods), then reopen this dialog.
                           </p>
+                        </div>
+                      ) : sellAdPayMethods.filter((m: any) => matchesPayMethodSearch(m, payMethodSearch.toLowerCase())).length === 0 ? (
+                        <div className="py-8 text-center text-sm text-muted-foreground">
+                          No payment method matches “{payMethodSearch}”.
                         </div>
                       ) : (
                         sellAdPayMethods
-                          .filter((m: any) => (m.payType || m.identifier).toLowerCase().includes(payMethodSearch.toLowerCase()))
+                          .filter((m: any) => matchesPayMethodSearch(m, payMethodSearch.toLowerCase()))
                           .map((m: any) => {
                             const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
                             const accentColor = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';

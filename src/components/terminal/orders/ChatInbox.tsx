@@ -490,5 +490,17 @@ function ConversationRow({
 
       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
     </button>
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+      title={isPinned ? 'Unpin chat' : 'Pin chat'}
+      aria-label={isPinned ? 'Unpin chat' : 'Pin chat'}
+      className={`shrink-0 mr-2 h-7 w-7 rounded-md flex items-center justify-center transition-opacity hover:bg-white/10 ${
+        isPinned ? 'text-primary opacity-100' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100'
+      }`}
+    >
+      {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+    </button>
+    </div>
   );
 }

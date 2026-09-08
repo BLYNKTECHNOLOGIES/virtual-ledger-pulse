@@ -14,6 +14,7 @@ import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper'
 import { format, isToday } from 'date-fns';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
+import { useChatPins } from '@/hooks/useChatPins';
 
 export interface ChatConversation {
   orderNumber: string;

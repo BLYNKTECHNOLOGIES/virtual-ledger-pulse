@@ -31021,6 +31021,7 @@ export type Database = {
         Args: { p_month?: number; p_year?: number }
         Returns: undefined
       }
+      refresh_terminal_order_rollups_job: { Args: never; Returns: undefined }
       register_user_request: {
         Args: {
           p_email: string

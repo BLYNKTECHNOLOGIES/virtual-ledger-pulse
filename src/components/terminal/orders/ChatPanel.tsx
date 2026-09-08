@@ -36,6 +36,36 @@ import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 import { useNewerCounterpartyOrder } from '@/hooks/useNewerCounterpartyOrder';
 
+/**
+ * The same Binance frame can reach us twice (live socket + history sweep) with
+ * different ids and, for auto-replies, a missing `self` flag. Collapse those
+ * into one bubble, keeping the richer/operator-attributed copy. Genuinely
+ * repeated messages (different second) are preserved.
+ */
+function dedupeMessages(messages: UnifiedMessage[]): UnifiedMessage[] {
+  const byKey = new Map<string, UnifiedMessage>();
+  const out: UnifiedMessage[] = [];
+  for (const msg of messages) {
+    if (msg.source === 'local') { out.push(msg); continue; }
+    const body = (msg.text || msg.imageUrl || '').trim();
+    if (!body) { out.push(msg); continue; }
+    const key = `${String(msg.messageType || '').toLowerCase()}|${body}|${Math.floor((msg.timestamp || 0) / 1000)}`;
+    const existing = byKey.get(key);
+    if (!existing) {
+      byKey.set(key, msg);
+      out.push(msg);
+      continue;
+    }
+    // Prefer the copy attributed to the operator (auto-replies are ours).
+    if (existing.senderType !== 'operator' && msg.senderType === 'operator') {
+      const idx = out.indexOf(existing);
+      if (idx >= 0) out[idx] = msg;
+      byKey.set(key, msg);
+    }
+  }
+  return out;
+}
+
 
 interface Props {
   orderId: string;

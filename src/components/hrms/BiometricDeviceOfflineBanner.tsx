@@ -58,7 +58,11 @@ export function BiometricDeviceOfflineBanner() {
         <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
         <div className="space-y-1">
           <p className="font-semibold text-destructive">
-            {stale.length === 1 ? "A biometric reader is not pushing data" : `${stale.length} biometric readers are not pushing data`}
+            {stale.length === 0
+              ? "Attendance marking and emails are paused"
+              : stale.length === 1
+                ? "A biometric reader is not pushing data"
+                : `${stale.length} biometric readers are not pushing data`}
           </p>
           <ul className="text-muted-foreground space-y-0.5">
             {stale.map((d: any) => (
@@ -68,11 +72,19 @@ export function BiometricDeviceOfflineBanner() {
               </li>
             ))}
           </ul>
+          {paused && (
+            <p className="text-muted-foreground">
+              Nobody is being marked absent and no attendance emails are going out
+              {pauseState?.paused_since ? ` (paused ${fmt(pauseState.paused_since)} IST)` : ""}.
+              These days will be rebuilt from the real punches and the held emails sent once the readers are back.
+            </p>
+          )}
           <p className="text-muted-foreground">
             Punches made on an offline reader are buffered on the device and arrive when it reconnects. Until then,
             days may show as <em>Not Punched</em> even though the employee was present — do not treat this as absence.{" "}
             <Link to="/hrms/attendance/biometric-devices" className="underline text-foreground">Check devices</Link>
           </p>
+
         </div>
       </div>
     </div>

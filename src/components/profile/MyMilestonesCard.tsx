@@ -32,22 +32,14 @@ export default function MyMilestonesCard({ employeeId }: Props) {
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['ess_milestones_org', employeeId],
     queryFn: async (): Promise<Milestone[]> => {
-      const { data: emps, error: eErr } = await supabase
-        .from('hr_employees')
-        .select('id, first_name, last_name, badge_id, dob, is_active')
-        .eq('is_active', true)
-        .neq('id', employeeId);
+      const { data: rows, error: eErr } = await supabase.rpc('hr_team_milestones');
       if (eErr) throw eErr;
-      if (!emps || emps.length === 0) return [];
-
-      const ids = emps.map((e: any) => e.id);
-      const { data: wi } = await supabase
-        .from('hr_employee_work_info')
-        .select('employee_id, joining_date')
-        .in('employee_id', ids);
+      const emps = (rows || []).filter((r: any) => r.id !== employeeId);
+      if (emps.length === 0) return [];
 
       const jdMap = new Map<string, string | null>();
-      (wi || []).forEach((r: any) => jdMap.set(r.employee_id, r.joining_date || null));
+      emps.forEach((r: any) => jdMap.set(r.id, r.joining_date || null));
+
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);

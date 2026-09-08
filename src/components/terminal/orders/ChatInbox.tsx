@@ -37,6 +37,9 @@ export interface ChatConversation {
   fromInbox?: boolean;
   /** All order threads rolled into this inbox row (same counterparty). */
   mergedOrderNumbers?: string[];
+  /** Stable identity key used for pinning. */
+  pinKey?: string;
+
 }
 
 interface Props {

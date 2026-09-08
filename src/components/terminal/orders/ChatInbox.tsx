@@ -156,17 +156,18 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       const cleanNick = nick && !nick.includes('*') ? nick : '';
       const identifiable = verified || (cleanNick ? aliasToVerified.get(cleanNick) || cleanNick : '');
       if (!identifiable) {
-        out.push({ ...c, mergedOrderNumbers: [c.orderNumber] });
+        out.push({ ...c, mergedOrderNumbers: [c.orderNumber], pinKey: c.orderNumber });
         continue;
       }
       const key = `${c.exchangeAccountId || 'all'}|${identifiable}`;
       const existing = byKey.get(key);
       if (!existing) {
-        byKey.set(key, { ...c, mergedOrderNumbers: [c.orderNumber] });
+        byKey.set(key, { ...c, mergedOrderNumbers: [c.orderNumber], pinKey: key });
         continue;
       }
       const newest = rank(c) > rank(existing) ? { ...c } : { ...existing };
       newest.chatUnreadCount = (existing.chatUnreadCount || 0) + (c.chatUnreadCount || 0);
+      newest.pinKey = key;
       newest.mergedOrderNumbers = Array.from(
         new Set([...(existing.mergedOrderNumbers || [existing.orderNumber]), c.orderNumber])
       );
@@ -183,10 +184,15 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     return all;
   }, [conversations]);
 
-  const filtered = useMemo(
-    () => (tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged),
-    [merged, tab]
-  );
+  const { pinned, togglePin } = useChatPins();
+
+  const filtered = useMemo(() => {
+    const base = tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged;
+    // Pinned conversations always float to the top, order otherwise untouched.
+    const isPinned = (c: ChatConversation) => pinned.has(c.pinKey || c.orderNumber);
+    return [...base].sort((a, b) => Number(isPinned(b)) - Number(isPinned(a)));
+  }, [merged, tab, pinned]);
+
 
   const totalUnread = useMemo(
     () => merged.reduce((sum, c) => sum + (c.chatUnreadCount > 0 ? 1 : 0), 0),

@@ -78,8 +78,10 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
   const updateAdStatus = useUpdateAdStatus();
-  // Fetch ALL SELL ads to extract available payment methods from the merchant's account
-  const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
+  // Payment methods: saved methods on the Binance account + methods already used on SELL ads
+  const { data: savedPayMethods, isLoading: isLoadingSavedPayMethods } = useBinancePaymentMethods();
+  const { data: sellAdsData, isLoading: isLoadingSellAds } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
+  const isLoadingPayMethods = isLoadingSavedPayMethods || isLoadingSellAds;
   const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
   const { data: walletBalances } = useBinanceBalances();
   const isEditing = !!editingAd;

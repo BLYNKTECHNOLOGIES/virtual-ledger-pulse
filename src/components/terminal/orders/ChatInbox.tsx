@@ -167,6 +167,11 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       newest.mergedOrderNumbers = Array.from(
         new Set([...(existing.mergedOrderNumbers || [existing.orderNumber]), c.orderNumber])
       );
+      // Keep the strongest identity we have across the merged threads so an
+      // enquiry-only thread never displays as "Unknown".
+      newest.verifiedName = newest.verifiedName || existing.verifiedName || c.verifiedName || '';
+      newest.counterpartyNickname =
+        newest.counterpartyNickname || existing.counterpartyNickname || c.counterpartyNickname || '';
       byKey.set(key, newest);
     }
 

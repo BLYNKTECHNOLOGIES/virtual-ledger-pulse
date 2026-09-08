@@ -84,7 +84,43 @@ export function useCounterpartyChatHistory(
           p_exchange_account_id: exchangeAccountId || null,
         });
         if (error) throw error;
-        allPastOrdersRef.current = data || [];
+        const past = [...(data || [])];
+
+        // Order-less enquiry threads (INQ-*) belong to the same person but have
+        // no order row, so the RPC cannot return them. Pull them in by the
+        // nickname Binance stamped on those messages (never a masked nickname).
+        const nick = (counterpartyNickname || '').trim();
+        if (nick && !nick.includes('*')) {
+          let iq = supabase
+            .from('binance_order_chat_messages')
+            .select('order_number, binance_create_time')
+            .eq('sender_nickname', nick)
+            .like('order_number', 'INQ-%')
+            .order('binance_create_time', { ascending: true })
+            .limit(500);
+          if (exchangeAccountId) iq = iq.eq('exchange_account_id', exchangeAccountId);
+          const { data: inqRows } = await iq;
+          const firstSeen = new Map<string, number>();
+          for (const r of inqRows || []) {
+            const on = String((r as any).order_number);
+            if (on === currentOrderNumber) continue;
+            if (!firstSeen.has(on)) firstSeen.set(on, Number((r as any).binance_create_time) || 0);
+          }
+          for (const [on, t] of firstSeen) {
+            past.push({
+              order_number: on,
+              trade_type: 'ENQUIRY',
+              asset: null,
+              total_price: null,
+              fiat_unit: null,
+              create_time: t,
+              exchange_account_id: exchangeAccountId || null,
+              order_status: 'ENQUIRY',
+            } as any);
+          }
+          past.sort((a: any, b: any) => Number(b.create_time || 0) - Number(a.create_time || 0));
+        }
+        allPastOrdersRef.current = past;
       }
 
       const allOrders = allPastOrdersRef.current;
@@ -130,7 +166,7 @@ export function useCounterpartyChatHistory(
         const stored = archived[order.order_number];
         let messages: HistoricalChatMessage[] = stored || [];
 
-        if (!messages.length) {
+        if (!messages.length && !order.order_number.startsWith('INQ-')) {
           try {
             const result = await callBinanceAds('getChatMessages', {
               orderNo: order.order_number,

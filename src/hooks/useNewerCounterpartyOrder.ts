@@ -32,6 +32,45 @@ export function useNewerCounterpartyOrder(
     queryFn: async (): Promise<NewerCounterpartyOrder | null> => {
       if (!orderNumber) return null;
 
+      // Order-less enquiry threads (INQ-*) have no order behind them, so the
+      // counterparty RPC cannot resolve them. Anchor them to that same
+      // counterparty's newest real order (matched on the nickname Binance put
+      // on the enquiry messages) so the operator sees one conversation and can
+      // reply. If they have no order at all, the thread stays read-only.
+      if (orderNumber.startsWith('INQ-')) {
+        const { data: nickRows } = await supabase
+          .from('binance_order_chat_messages')
+          .select('sender_nickname')
+          .eq('order_number', orderNumber)
+          .not('sender_is_self', 'is', true)
+          .not('sender_nickname', 'is', null)
+          .order('binance_created_at', { ascending: false })
+          .limit(1);
+        const nickname = (nickRows?.[0] as any)?.sender_nickname as string | undefined;
+        if (!nickname || nickname.includes('*')) return null;
+
+        let q = supabase
+          .from('binance_order_history')
+          .select('order_number, trade_type, asset, total_price, fiat_unit, create_time, order_status, exchange_account_id')
+          .eq('counter_part_nick_name', nickname)
+          .order('create_time', { ascending: false })
+          .limit(1);
+        if (exchangeAccountId) q = q.eq('exchange_account_id', exchangeAccountId);
+        const { data: latest } = await q;
+        const row: any = latest?.[0];
+        if (!row) return null;
+        return {
+          orderNumber: String(row.order_number),
+          tradeType: row.trade_type ?? null,
+          asset: row.asset ?? null,
+          totalPrice: row.total_price ?? null,
+          fiatUnit: row.fiat_unit ?? null,
+          createTime: Number(row.create_time || 0),
+          orderStatus: row.order_status ?? null,
+          exchangeAccountId: row.exchange_account_id ?? null,
+        };
+      }
+
       const [{ data: current }, { data: history, error }] = await Promise.all([
         supabase
           .from('binance_order_history')

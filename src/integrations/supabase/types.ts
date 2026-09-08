@@ -23989,6 +23989,27 @@ export type Database = {
           },
         ]
       }
+      terminal_chat_pins: {
+        Row: {
+          created_at: string
+          id: string
+          order_number: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_number: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_number?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       terminal_collector_state: {
         Row: {
           detail: Json | null

@@ -81,6 +81,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   // Fetch ALL SELL ads to extract available payment methods from the merchant's account
   const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
   const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
+  const { data: walletBalances } = useBinanceBalances();
   const isEditing = !!editingAd;
 
   // Market zone (Binance `classify`). Zone is fixed after creation.

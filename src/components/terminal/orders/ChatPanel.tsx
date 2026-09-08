@@ -38,9 +38,12 @@ import { useNewerCounterpartyOrder } from '@/hooks/useNewerCounterpartyOrder';
 
 /**
  * The same Binance frame can reach us twice (live socket + history sweep) with
- * different ids and, for auto-replies, a missing `self` flag. Collapse those
- * into one bubble, keeping the richer/operator-attributed copy. Genuinely
- * repeated messages (different second) are preserved.
+ * different ids and, for auto-replies, a missing `self` flag. Timestamps from
+ * the two paths can differ by a few seconds (e.g. 411ms apart straddling a
+ * second boundary), so dedupe on a 5-second bucket rather than the exact
+ * second. Collapse those into one bubble, keeping the richer/operator-
+ * attributed copy. Genuinely repeated messages (different 5s bucket) are
+ * preserved.
  */
 function dedupeMessages(messages: UnifiedMessage[]): UnifiedMessage[] {
   const byKey = new Map<string, UnifiedMessage>();
@@ -49,7 +52,7 @@ function dedupeMessages(messages: UnifiedMessage[]): UnifiedMessage[] {
     if (msg.source === 'local') { out.push(msg); continue; }
     const body = (msg.text || msg.imageUrl || '').trim();
     if (!body) { out.push(msg); continue; }
-    const key = `${String(msg.messageType || '').toLowerCase()}|${body}|${Math.floor((msg.timestamp || 0) / 1000)}`;
+    const key = `${String(msg.messageType || '').toLowerCase()}|${body}|${Math.floor((msg.timestamp || 0) / 5000)}`;
     const existing = byKey.get(key);
     if (!existing) {
       byKey.set(key, msg);

@@ -12,6 +12,8 @@ import {
   TimePeriodFilter,
   TimeFilter,
   getTimestampsForFilter,
+  makeShiftPredicate,
+
   getFilterLabel,
   serializeTimeFilter,
   deserializeTimeFilter,

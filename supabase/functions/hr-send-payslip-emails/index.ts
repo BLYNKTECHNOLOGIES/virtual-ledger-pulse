@@ -239,7 +239,11 @@ Deno.serve(async (req) => {
       // A claim is written before SMTP hand-off and confirmed afterwards. A row
       // that stayed unconfirmed past the stale window means the worker died
       // mid-send: the payslip was probably never delivered, so allow a resend.
-      const confirmed = m.delivery_confirmed === true
+      // Legacy rows written before the claim/confirm protocol have no
+      // delivery_confirmed key at all — those were real successful sends and
+      // must never be reclassified as unconfirmed (that would allow duplicates).
+      const hasClaimProtocol = Object.prototype.hasOwnProperty.call(m, 'delivery_confirmed')
+      const confirmed = !hasClaimProtocol || m.delivery_confirmed === true
       const age = Date.now() - new Date((l as any).created_at).getTime()
       if (!confirmed && age > STALE_CLAIM_MS) unconfirmedByEmp.set(m.employee_id, (l as any).created_at)
       else unconfirmedByEmp.delete(m.employee_id)

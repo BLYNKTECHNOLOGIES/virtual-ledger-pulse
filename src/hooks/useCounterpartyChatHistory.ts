@@ -166,7 +166,7 @@ export function useCounterpartyChatHistory(
         const stored = archived[order.order_number];
         let messages: HistoricalChatMessage[] = stored || [];
 
-        if (!messages.length) {
+        if (!messages.length && !order.order_number.startsWith('INQ-')) {
           try {
             const result = await callBinanceAds('getChatMessages', {
               orderNo: order.order_number,

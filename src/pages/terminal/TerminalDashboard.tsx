@@ -19,6 +19,8 @@ import {
   deserializeTimeFilter,
 } from '@/components/terminal/dashboard/TimePeriodFilter';
 import { computeOrderStats, C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
+import { useOrderSummary, useOrderWindowPlan } from '@/hooks/useOrderSummary';
+import { mergeStatsWithSummary } from '@/lib/orderSummary';
 import { useBinanceActiveOrders } from '@/hooks/useBinanceActions';
 import { useCachedOrderHistory, useAutoSyncOrders, useSyncOrderHistory, useSyncMetadata } from '@/hooks/useBinanceOrderSync';
 import { syncCompletedBuyOrders } from '@/hooks/useTerminalPurchaseSync';
@@ -141,9 +143,13 @@ export default function TerminalDashboard() {
   );
 
   const stats = useMemo(
-    () => computeOrderStats(orders, filterBounds, inShiftWindow),
-    [orders, filterBounds, inShiftWindow]
+    () => {
+      const tail = computeOrderStats(orders, windowPlan.rawRange, inShiftWindow);
+      return windowPlan.usesSummary ? mergeStatsWithSummary(tail, sealedSummary) : tail;
+    },
+    [orders, windowPlan, inShiftWindow, sealedSummary]
   );
+  const totalOrderCount = orders.length + (windowPlan.usesSummary ? sealedSummary.totalOrders : 0);
 
 
   // ── Live workflow counts ──────────────────────────────────────────────
@@ -193,7 +199,7 @@ export default function TerminalDashboard() {
           <TimePeriodFilter value={filter} onChange={setFilter} />
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Database className="h-3 w-3" />
-            <span>{orders.length.toLocaleString('en-IN')} orders</span>
+            <span>{totalOrderCount.toLocaleString('en-IN')} orders</span>
             <span className="text-muted-foreground/50">·</span>
             <span>{lastSyncLabel}</span>
           </div>
@@ -239,8 +245,8 @@ export default function TerminalDashboard() {
       {/* Charts row */}
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Activity</p>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <TradeVolumeChart orders={orders} isLoading={dbLoading} period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode} />
-        <OrderStatusBreakdown orders={orders} isLoading={dbLoading} />
+        <TradeVolumeChart precomputedSeries={windowPlan.usesSummary ? sealedSummary.series : undefined} orders={orders} isLoading={dbLoading} period={filter.mode === '1d' || filter.mode === 'range' ? '1d' : filter.mode} />
+        <OrderStatusBreakdown orders={orders} isLoading={dbLoading} precomputedCounts={windowPlan.usesSummary ? sealedSummary.statusCounts : undefined} />
       </div>
 
       {/* Widgets row */}

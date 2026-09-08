@@ -222,7 +222,11 @@ class AccountSocket {
         const payload = msg?.data ?? msg;
         const list = Array.isArray(payload) ? payload : [payload];
         for (const m of list) {
-          const orderNo = m?.orderNo || m?.orderNumber || m?.order_no;
+          // Binance puts the order number in orderNo, or in topicId when
+          // topicType is ORDER. Frames from the counterparty often carry only
+          // groupId; the database trigger maps those onto the real order.
+          const topicId = (m?.topicType === 'ORDER' && /^\d{6,}$/.test(String(m?.topicId || ''))) ? String(m.topicId) : null;
+          const orderNo = m?.orderNo || m?.orderNumber || m?.order_no || topicId;
           // Binance also delivers chats that are NOT tied to an order (an
           // advertiser enquiry started from the ad). They used to be dropped
           // here, so those conversations were invisible in the terminal even

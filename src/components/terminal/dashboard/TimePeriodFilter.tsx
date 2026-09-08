@@ -287,7 +287,7 @@ export function TimePeriodFilter({ value, onChange }: Props) {
                 if (draftRange?.from) {
                   const from = draftRange.from;
                   const to = draftRange.to ?? draftRange.from;
-                  onChange({ mode: 'range', from, to });
+                  onChange({ mode: 'range', from, to, shift: activeShift });
                   setRangeOpen(false);
                 }
               }}
@@ -299,26 +299,28 @@ export function TimePeriodFilter({ value, onChange }: Props) {
       </Popover>
 
 
-      {/* Shift chips — only in day mode */}
-      {isDayMode && (
-        <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
-          {shiftOptions.map((s) => (
-            <button
-              key={s.value}
-              type="button"
-              className={cn(
-                'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
-                activeShift === s.value
-                  ? 'bg-card text-foreground border border-border'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              onClick={() => onChange({ mode: '1d', date: selectedDate, shift: s.value })}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {/* Shift chips — apply to single date, custom range and presets */}
+      <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
+        {shiftOptions.map((s) => (
+          <button
+            key={s.value}
+            type="button"
+            className={cn(
+              'h-6 px-2.5 text-[11px] rounded transition-colors duration-150',
+              activeShift === s.value
+                ? 'bg-card text-foreground border border-border'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+            onClick={() => {
+              if (value.mode === '1d') onChange({ mode: '1d', date: selectedDate, shift: s.value });
+              else if (value.mode === 'range') onChange({ mode: 'range', from: value.from, to: value.to, shift: s.value });
+              else onChange({ mode: value.mode, shift: s.value });
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
 
       {/* Range presets */}
       <div className="flex items-center gap-0.5 bg-secondary p-0.5 rounded-md border border-border h-7">
@@ -332,7 +334,8 @@ export function TimePeriodFilter({ value, onChange }: Props) {
                 ? 'bg-card text-foreground border border-border'
                 : 'text-muted-foreground hover:text-foreground'
             )}
-            onClick={() => onChange({ mode: p.value })}
+            onClick={() => onChange({ mode: p.value, shift: activeShift })}
+
           >
             {p.label}
           </button>

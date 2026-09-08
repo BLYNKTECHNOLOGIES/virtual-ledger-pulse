@@ -381,6 +381,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
                 key={conv.orderNumber}
                 conversation={conv}
                 seen={seenMap[conv.orderNumber]}
+                isPinned={pinned.has(conv.pinKey || conv.orderNumber)}
+                onTogglePin={() => togglePin(conv.pinKey || conv.orderNumber)}
                 onClick={() => handleOpenChat(conv)}
               />
             ))}
@@ -394,10 +396,14 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 function ConversationRow({
   conversation: c,
   seen,
+  isPinned,
+  onTogglePin,
   onClick,
 }: {
   conversation: ChatConversation;
   seen?: ChatSeenInfo;
+  isPinned?: boolean;
+  onTogglePin: () => void;
   onClick: () => void;
 }) {
   const seenText = seenLabel(seen);

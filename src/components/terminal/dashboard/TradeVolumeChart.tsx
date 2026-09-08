@@ -8,16 +8,26 @@ interface Props {
   orders: C2COrderHistoryItem[];
   isLoading: boolean;
   period: TimePeriod;
+  /** Pre-computed daily totals for the sealed (older than 45 days) part of the window. */
+  precomputedSeries?: { date: string; dateKey: number; buy: number; sell: number }[];
 }
 
-export function TradeVolumeChart({ orders, isLoading, period }: Props) {
+export function TradeVolumeChart({ orders, isLoading, period, precomputedSeries }: Props) {
   const { chartData, totalBuy, totalSell } = useMemo(() => {
-    if (!orders.length) return { chartData: [], totalBuy: 0, totalSell: 0 };
+    const pre = precomputedSeries || [];
+    if (!orders.length && !pre.length) return { chartData: [], totalBuy: 0, totalSell: 0 };
 
     const completed = orders.filter(o => (o.orderStatus || '').toUpperCase().includes('COMPLETED'));
     const byDate = new Map<string, { buy: number; sell: number; dateKey: number }>();
 
     let totalBuy = 0, totalSell = 0;
+
+    for (const p of pre) {
+      const entry = byDate.get(p.date) || { buy: 0, sell: 0, dateKey: p.dateKey };
+      entry.buy += p.buy; entry.sell += p.sell;
+      totalBuy += p.buy; totalSell += p.sell;
+      byDate.set(p.date, entry);
+    }
 
     for (const o of completed) {
       const d = new Date(o.createTime);
@@ -35,7 +45,8 @@ export function TradeVolumeChart({ orders, isLoading, period }: Props) {
       .map(([date, v]) => ({ date, buy: Math.round(v.buy), sell: Math.round(v.sell) }));
 
     return { chartData: sorted, totalBuy: Math.round(totalBuy), totalSell: Math.round(totalSell) };
-  }, [orders]);
+  }, [orders, precomputedSeries]);
+
 
   return (
     <div className="t-panel flex flex-col">

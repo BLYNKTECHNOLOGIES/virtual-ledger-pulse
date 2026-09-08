@@ -62,8 +62,9 @@ export default function MyMilestonesCard({ employeeId }: Props) {
 
       const out: Milestone[] = [];
       (emps || []).forEach((e: any) => {
-        if (e.dob) {
-          const [, m, d] = String(e.dob).split('-').map(Number);
+        if (e.dob_month && e.dob_day) {
+          const m = Number(e.dob_month);
+          const d = Number(e.dob_day);
           if (m && d) {
             const { next, diff } = nextOccurrence(m, d);
             if (diff <= HORIZON_DAYS) {
@@ -72,7 +73,8 @@ export default function MyMilestonesCard({ employeeId }: Props) {
                 first_name: e.first_name,
                 last_name: e.last_name,
                 badge_id: e.badge_id,
-                date: e.dob,
+                date: `${m}-${d}`,
+
                 kind: 'birthday',
                 dayLabel: formatDay(next, diff),
                 daysUntil: diff,

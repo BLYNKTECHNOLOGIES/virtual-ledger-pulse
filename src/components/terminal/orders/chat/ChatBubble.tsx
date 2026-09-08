@@ -26,33 +26,61 @@ export interface UnifiedMessage {
   _onRetry?: (tempId: number) => void;
 }
 
-// Parse system message JSON content into readable text
+// Render a Binance system/card payload the way the Binance app phrases it.
+// NEVER label these "Shared ad" — only a real ADV_SHARE ad card is an ad.
 function parseSystemMessage(text: string | null): string {
   if (!text) return '';
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{')) return trimmed;
+  let parsed: Record<string, unknown>;
   try {
-    const parsed = JSON.parse(text);
-    const type = parsed.type || '';
-    switch (type) {
-      case 'seller_payed': return '💰 Buyer has marked payment as completed';
-      case 'seller_completed': return '✅ Seller has released the crypto';
-      case 'buyer_confirmed': return '✅ Buyer confirmed receipt';
-      case 'maker_verified_additional_kyc_maker_sell': return '🔒 Additional KYC verification completed';
-      case 'maker_verified_additional_kyc_maker_buy': return '🔒 Additional KYC verification completed';
-      case 'order_created': return '📋 Order created';
-      case 'order_cancelled': return '❌ Order cancelled';
-      case 'order_appeal': return '⚠️ Appeal raised';
-      default: {
-        const parts: string[] = [];
-        if (parsed.nickName) parts.push(parsed.nickName);
-        if (parsed.realName) parts.push(`(${parsed.realName})`);
-        if (type) parts.push(`— ${type.replace(/_/g, ' ')}`);
-        return parts.length > 0 ? parts.join(' ') : text;
-      }
-    }
+    parsed = JSON.parse(trimmed);
   } catch {
-    return text;
+    return trimmed;
+  }
+  const type = String(parsed.type || '');
+  const nick = parsed.nickName ? String(parsed.nickName) : '';
+  const real = parsed.realName ? String(parsed.realName) : '';
+  const who = nick && real ? `${nick} (real name: ${real})` : nick || real;
+  const symbol = parsed.symbol ? String(parsed.symbol) : 'crypto';
+  const orderNo = parsed.orderNo ? String(parsed.orderNo) : '';
+  const shortOrder = orderNo ? `xx${orderNo.slice(-4)}` : '';
+
+  // Identity-verification card (addKycVrfInfo) — Binance shows "Upload identity card".
+  if (Array.isArray((parsed as { addKycVrfInfo?: unknown[] }).addKycVrfInfo)) {
+    return `Upload identity card${orderNo ? ` · Order ID ${orderNo}` : ''}`;
+  }
+
+  switch (type) {
+    case 'order_created':
+      return `Order ${shortOrder || ''} created.`.trim();
+    case 'order_created_with_additional_kyc_maker_sell':
+    case 'order_created_with_additional_kyc_maker_buy':
+      return `Order ${shortOrder} created. Please share the verification requirements and guide the counterparty to complete the verification.`.replace('Order  ', 'Order ');
+    case 'order_created_with_additional_kyc_disclaimer':
+      return 'Disclaimer: Binance is neither involved in nor responsible for your P2P transactions or the collection of your personal data for verification purposes.';
+    case 'maker_verified_additional_kyc_maker_sell':
+    case 'maker_verified_additional_kyc_maker_buy':
+      return 'Order verified. Payment details have now been shared with the counterparty for the payment to be made.';
+    case 'seller_payed':
+      return `${who || 'Buyer'} has marked the order as paid. Please verify the payment in your account before releasing the crypto.`;
+    case 'seller_completed':
+      return `You have released the ${symbol}, the order ${shortOrder ? `(${shortOrder}) ` : ''}is now complete.`;
+    case 'buyer_confirmed':
+      return 'Buyer confirmed receipt of the crypto.';
+    case 'order_cancelled':
+      return `Order ${shortOrder} was cancelled.`.replace('Order  ', 'Order ');
+    case 'order_appeal':
+      return 'An appeal has been raised on this order.';
+    default: {
+      const parts: string[] = [];
+      if (who) parts.push(who);
+      if (type) parts.push(type.replace(/_/g, ' '));
+      return parts.length > 0 ? parts.join(' — ') : 'Binance system notice';
+    }
   }
 }
+
 
 interface ChatBubbleProps {
   message: UnifiedMessage;

@@ -722,8 +722,9 @@ export default function TerminalAnalytics() {
         const orderNumber = order.orderNumber || order.order_number || '';
         return normalizeOrder({ ...order, ...(effectiveValuations.get(orderNumber) || {}) });
       })
-      .filter((o) => o.createTime >= startTimestamp && o.createTime <= endTimestamp);
-  }, [cachedOrders, effectiveValuations, startTimestamp, endTimestamp]);
+      .filter((o) => inShiftWindow(o.createTime));
+  }, [cachedOrders, effectiveValuations, inShiftWindow]);
+
 
   const completed = useMemo(() => orders.filter((o) => o.orderStatus.includes('COMPLETED')), [orders]);
 

@@ -640,6 +640,11 @@ function TerminalOrdersContent() {
   const totalUnread = useMemo(() =>
     Array.from(unreadMap.values()).reduce((s, v) => s + v, 0), [unreadMap]);
 
+  // Chat button badge: use the inbox's own unread thread count so enquiries and
+  // older/closed-order chats are reflected, not only the loaded live orders.
+  const inboxUnread = useChatInboxUnread();
+  const chatBadgeCount = Math.max(inboxUnread, unreadMap.size);
+
   // Internal chat unread counts
 
   // Background sync to local DB (fire-and-forget) — change-detected + batched.

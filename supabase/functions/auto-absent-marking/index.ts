@@ -9,6 +9,7 @@
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { fetchAllRows } from "../_shared/paginate.ts";
+import { pausedResponse } from "../_shared/attendance-gate.ts";
 import { dayOfWeek, rollingClosedDates } from "./dates.ts";
 
 Deno.serve(async (req) => {
@@ -20,6 +21,11 @@ Deno.serve(async (req) => {
 
   try {
     const supabase = caller.admin;
+
+    // Biometric outage / manual hold: judge nothing while punches cannot arrive.
+    const held = await pausedResponse(supabase, corsHeaders, "auto-absent");
+    if (held) return held;
+
 
     // Reconcile a rolling window on every invocation. A failed cron/deploy can
     // therefore delay classification, but can no longer create a permanent

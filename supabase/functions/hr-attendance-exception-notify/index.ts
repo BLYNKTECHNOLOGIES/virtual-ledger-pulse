@@ -8,6 +8,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { requireCaller } from "../_shared/require-caller.ts";
+import { pausedResponse } from "../_shared/attendance-gate.ts";
+
 import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
@@ -190,8 +192,16 @@ Deno.serve(async (req) => {
   const action = body.action || "run";
 
   try {
+    // Biometric outage / manual hold: hold the sweep. Manual preview + resend
+    // stay available so HR can still act deliberately.
+    if (action === "run" && body.ignorePause !== true) {
+      const held = await pausedResponse(admin, corsHeaders, "attendance-notify");
+      if (held) return held;
+    }
+
     const mailbox = await getMailbox(admin);
     if (!mailbox) return json({ error: "No active HR mailbox configured" }, 400);
+
 
     // ---------------- PREVIEW ----------------
     if (action === "preview") {

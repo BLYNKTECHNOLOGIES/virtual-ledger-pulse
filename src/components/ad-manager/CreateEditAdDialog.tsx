@@ -283,12 +283,19 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
 
   // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
-    const ads: BinanceAd[] = sellAdsData?.data || [];
     const methodMap = new Map<string, any>();
+    // 1) Saved payment methods on the Binance account (authoritative list)
+    for (const m of savedPayMethods || []) {
+      const key = String(m.payId || m.identifier || m.payType);
+      if (key) methodMap.set(key, { ...m });
+    }
+    // 2) Methods already attached to existing SELL ads (covers anything the
+    //    saved-methods endpoint does not return for this account)
+    const ads: BinanceAd[] = sellAdsData?.data || [];
     for (const ad of ads) {
       if (Array.isArray(ad.tradeMethods)) {
         for (const m of ad.tradeMethods) {
-          const key = m.identifier || m.payType;
+          const key = String(m.payId || m.identifier || m.payType);
           if (key && !methodMap.has(key)) {
             methodMap.set(key, {
               payId: m.payId || 0,
@@ -301,7 +308,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       }
     }
     return Array.from(methodMap.values());
-  }, [sellAdsData]);
+  }, [sellAdsData, savedPayMethods]);
 
   const buyAdPayMethods = useMemo(() => {
     return ALLOWED_BUY_PAYMENT_METHODS.map(m => ({
@@ -311,6 +318,14 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       config: m,
     }));
   }, []);
+
+  const matchesPayMethodSearch = (m: any, search: string) => {
+    if (!search) return true;
+    const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
+    return [config?.label, m.tradeMethodName, m.payType, m.identifier, m.name, m.accountNo]
+      .filter(Boolean)
+      .some((v: string) => String(v).toLowerCase().includes(search));
+  };
 
   const filteredPickerMethods = useMemo(() => {
     const search = payMethodSearch.toLowerCase();
@@ -324,13 +339,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
         .filter(m => !form.selectedPayMethods.some(s => s.identifier === m.identifier || s.payType === m.payType));
     } else {
       return sellAdPayMethods
-        .filter((m: any) => {
-          const label = m.payType || m.identifier;
-          return label.toLowerCase().includes(search);
-        })
+        .filter((m: any) => matchesPayMethodSearch(m, search))
         .filter((m: any) => !form.selectedPayMethods.some(s => s.payId === m.payId));
     }
   }, [isBuyAd, buyAdPayMethods, sellAdPayMethods, payMethodSearch, form.selectedPayMethods]);
+
 
   const togglePayMethod = (method: { payId?: number; payType: string; identifier: string; tradeMethodName?: string }) => {
     const exists = form.selectedPayMethods.find(

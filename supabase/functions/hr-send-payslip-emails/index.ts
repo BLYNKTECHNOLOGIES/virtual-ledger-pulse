@@ -612,7 +612,9 @@ Deno.serve(async (req) => {
             .filter('metadata->>employee_id', 'eq', row.employee_id)
             .filter('metadata->>period_month', 'eq', month)
           for (const s of stale ?? []) {
-            if ((s as any).metadata?.delivery_confirmed !== true) {
+            const sm = ((s as any).metadata || {}) as Record<string, unknown>
+            const legacy = !Object.prototype.hasOwnProperty.call(sm, 'delivery_confirmed')
+            if (!legacy && sm.delivery_confirmed !== true) {
               await admin.from('hr_email_send_log').delete().eq('id', (s as any).id)
             }
           }

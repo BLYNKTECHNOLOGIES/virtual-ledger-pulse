@@ -9,7 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
-import { BinanceAd, usePostAd, useUpdateAd, useUpdateAdStatus, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
+import { BinanceAd, usePostAd, useUpdateAd, useUpdateAdStatus, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, useBinancePaymentMethods, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
 import { useBinanceBalances } from '@/hooks/useBinanceAssets';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
@@ -78,8 +78,10 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   const postAd = usePostAd();
   const updateAd = useUpdateAd();
   const updateAdStatus = useUpdateAdStatus();
-  // Fetch ALL SELL ads to extract available payment methods from the merchant's account
-  const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
+  // Payment methods: saved methods on the Binance account + methods already used on SELL ads
+  const { data: savedPayMethods, isLoading: isLoadingSavedPayMethods } = useBinancePaymentMethods();
+  const { data: sellAdsData, isLoading: isLoadingSellAds } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
+  const isLoadingPayMethods = isLoadingSavedPayMethods || isLoadingSellAds;
   const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
   const { data: walletBalances } = useBinanceBalances();
   const isEditing = !!editingAd;
@@ -283,12 +285,19 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
 
   // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
-    const ads: BinanceAd[] = sellAdsData?.data || [];
     const methodMap = new Map<string, any>();
+    // 1) Saved payment methods on the Binance account (authoritative list)
+    for (const m of savedPayMethods || []) {
+      const key = String(m.payId || m.identifier || m.payType);
+      if (key) methodMap.set(key, { ...m });
+    }
+    // 2) Methods already attached to existing SELL ads (covers anything the
+    //    saved-methods endpoint does not return for this account)
+    const ads: BinanceAd[] = sellAdsData?.data || [];
     for (const ad of ads) {
       if (Array.isArray(ad.tradeMethods)) {
         for (const m of ad.tradeMethods) {
-          const key = m.identifier || m.payType;
+          const key = String(m.payId || m.identifier || m.payType);
           if (key && !methodMap.has(key)) {
             methodMap.set(key, {
               payId: m.payId || 0,
@@ -301,7 +310,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       }
     }
     return Array.from(methodMap.values());
-  }, [sellAdsData]);
+  }, [sellAdsData, savedPayMethods]);
 
   const buyAdPayMethods = useMemo(() => {
     return ALLOWED_BUY_PAYMENT_METHODS.map(m => ({
@@ -311,6 +320,14 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
       config: m,
     }));
   }, []);
+
+  const matchesPayMethodSearch = (m: any, search: string) => {
+    if (!search) return true;
+    const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
+    return [config?.label, m.tradeMethodName, m.payType, m.identifier, m.name, m.accountNo]
+      .filter(Boolean)
+      .some((v: string) => String(v).toLowerCase().includes(search));
+  };
 
   const filteredPickerMethods = useMemo(() => {
     const search = payMethodSearch.toLowerCase();
@@ -324,13 +341,11 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
         .filter(m => !form.selectedPayMethods.some(s => s.identifier === m.identifier || s.payType === m.payType));
     } else {
       return sellAdPayMethods
-        .filter((m: any) => {
-          const label = m.payType || m.identifier;
-          return label.toLowerCase().includes(search);
-        })
+        .filter((m: any) => matchesPayMethodSearch(m, search))
         .filter((m: any) => !form.selectedPayMethods.some(s => s.payId === m.payId));
     }
   }, [isBuyAd, buyAdPayMethods, sellAdPayMethods, payMethodSearch, form.selectedPayMethods]);
+
 
   const togglePayMethod = (method: { payId?: number; payType: string; identifier: string; tradeMethodName?: string }) => {
     const exists = form.selectedPayMethods.find(
@@ -982,12 +997,16 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                         <div className="flex flex-col items-center gap-2 py-8">
                           <AlertTriangle className="h-8 w-8 text-warning" />
                           <p className="text-sm text-muted-foreground text-center">
-                            No payment methods found. Create a SELL ad on Binance first to populate available methods.
+                            Binance returned no saved payment methods for this account. Add them in the Binance app (P2P → Payment Methods), then reopen this dialog.
                           </p>
+                        </div>
+                      ) : sellAdPayMethods.filter((m: any) => matchesPayMethodSearch(m, payMethodSearch.toLowerCase())).length === 0 ? (
+                        <div className="py-8 text-center text-sm text-muted-foreground">
+                          No payment method matches “{payMethodSearch}”.
                         </div>
                       ) : (
                         sellAdPayMethods
-                          .filter((m: any) => (m.payType || m.identifier).toLowerCase().includes(payMethodSearch.toLowerCase()))
+                          .filter((m: any) => matchesPayMethodSearch(m, payMethodSearch.toLowerCase()))
                           .map((m: any) => {
                             const config = resolvePaymentMethod(m.identifier) || resolvePaymentMethod(m.payType);
                             const accentColor = config ? `hsl(${config.colorAccent})` : 'hsl(var(--muted-foreground))';

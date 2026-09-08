@@ -311,13 +311,48 @@ export function useAvailableAdsCategory(accountId?: string | null, enabled = tru
 }
 
 
+export interface BinancePayMethod {
+  payId: number;
+  payType: string;
+  identifier: string;
+  tradeMethodName?: string;
+  name?: string;
+  accountNo?: string;
+}
+
+/**
+ * Saved P2P payment methods for the active Binance account.
+ * Source: GET /sapi/v1/c2c/paymentMethod/getPayMethodByUserId (via proxy).
+ * Binance is the source of truth — nothing is synthesised locally.
+ */
 export function useBinancePaymentMethods() {
+  const { activeAccountId } = useExchangeAccount();
+
   return useQuery({
-    queryKey: ['binance-payment-methods'],
-    queryFn: () => callBinanceAds('getPaymentMethods'),
+    queryKey: ['binance-payment-methods', activeAccountId],
+    queryFn: async (): Promise<BinancePayMethod[]> => {
+      const res: any = await callBinanceAds('getPaymentMethods', {}, activeAccountId);
+      const raw =
+        (Array.isArray(res?.data) && res.data) ||
+        (Array.isArray(res?.data?.data) && res.data.data) ||
+        (Array.isArray(res) && res) ||
+        [];
+      return raw
+        .map((m: any) => ({
+          payId: Number(m.payId ?? m.id ?? 0) || 0,
+          payType: String(m.payType ?? m.identifier ?? m.tradeMethodName ?? ''),
+          identifier: String(m.identifier ?? m.payType ?? m.tradeMethodName ?? ''),
+          tradeMethodName: m.tradeMethodName ?? m.payMethodName ?? undefined,
+          name: m.payAccount ?? m.name ?? m.accountName ?? undefined,
+          accountNo: m.accountNo ?? m.payAccount ?? m.payBank ?? undefined,
+        }))
+        .filter((m: BinancePayMethod) => m.payType || m.identifier);
+    },
+    retry: false,
     staleTime: 5 * 60 * 1000,
   });
 }
+
 
 export function usePostAd() {
   const queryClient = useQueryClient();

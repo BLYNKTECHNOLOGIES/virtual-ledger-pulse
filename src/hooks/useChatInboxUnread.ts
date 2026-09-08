@@ -16,6 +16,9 @@ export function useChatInboxUnread() {
   const { data: count = 0 } = useQuery({
     queryKey: ['terminal-chat-inbox-unread', accountFilter],
     queryFn: async () => {
+      // Clear threads Binance itself reports as read (operator answered in the
+      // Binance app) before counting, so the badge matches the app.
+      await supabase.rpc('reconcile_binance_app_chat_reads', { p_limit: 500 }).catch(() => null);
       const { data, error } = await supabase.rpc('get_terminal_chat_inbox', {
         p_exchange_account_id: accountFilter,
         p_limit: 300,

@@ -191,7 +191,7 @@ export function TimePeriodFilter({ value, onChange }: Props) {
   const isDayMode = value.mode === '1d';
   const isRangeMode = value.mode === 'range';
   const selectedDate = isDayMode ? value.date : new Date();
-  const activeShift = isDayMode ? value.shift : 'all';
+  const activeShift = getFilterShift(value);
   const [draftRange, setDraftRange] = useState<DateRange | undefined>(
     isRangeMode ? { from: value.from, to: value.to } : undefined,
   );

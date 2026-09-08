@@ -13,7 +13,13 @@ const STALE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 const STATUS_OVERLAP_MS = 24 * 60 * 60 * 1000; // 24 hours — re-fetch recent orders for status updates (was 3h, widened to catch out-of-order Binance updates)
 const GAP_FILL_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days — deep gap-fill scan
 const GAP_FILL_INTERVAL_MS = 24 * 60 * 60 * 1000; // run gap-fill at most once per 24h
-const DATA_RETENTION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year
+const DATA_RETENTION_MS = 365 * 24 * 60 * 60 * 1000; // 1 year (storage retention)
+// Orders older than this are final on Binance (completed/cancelled never flip
+// back), so routine syncs only pull this trailing window. Older history stays in
+// Supabase and is served from pre-computed buckets.
+const LIVE_SYNC_WINDOW_MS = 45 * 24 * 60 * 60 * 1000;
+const ROLLUP_REBUILD_KEY = 'binance_order_rollup_last_rebuild_at';
+const ROLLUP_REBUILD_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const GAP_FILL_KEY = 'binance_order_gap_fill_last_at';
 
 type CachedOrderHistoryRange = {
@@ -206,9 +212,13 @@ async function getActiveAccountIds(): Promise<string[]> {
 export async function syncOrderHistoryFromBinance({
   fullSync = false,
   forceGapFill = false,
-}: { fullSync?: boolean; forceGapFill?: boolean } = {}) {
+  deepBackfill = false,
+}: { fullSync?: boolean; forceGapFill?: boolean; deepBackfill?: boolean } = {}) {
       const startTime = Date.now();
       const cutoff = Date.now() - DATA_RETENTION_MS;
+      // Routine syncs stop at the live window; a deep backfill is the explicit
+      // escape hatch for re-pulling the full retained year.
+      const liveStart = deepBackfill ? cutoff : Math.max(cutoff, Date.now() - LIVE_SYNC_WINDOW_MS);
       const accountIds = await getActiveAccountIds();
 
       let grandTotal = 0;
@@ -223,7 +233,7 @@ export async function syncOrderHistoryFromBinance({
 
         if (needsFullSync) {
           anyFull = true;
-          const allOrders = await fetchOrdersFromBinance(cutoff, Date.now(), 365, accountId);
+          const allOrders = await fetchOrdersFromBinance(liveStart, Date.now(), deepBackfill ? 365 : 45, accountId);
           await upsertOrdersToDB(allOrders, accountId);
           grandTotal += allOrders.length;
           continue;
@@ -231,7 +241,7 @@ export async function syncOrderHistoryFromBinance({
 
         // INCREMENTAL: fetch from (newest - overlap) to now
         // The overlap ensures we catch status changes on recent orders
-        const incrementalStart = Math.max(cutoff, newestTs - STATUS_OVERLAP_MS);
+        const incrementalStart = Math.max(liveStart, newestTs - STATUS_OVERLAP_MS);
         const newOrders = await fetchOrdersFromBinance(incrementalStart, Date.now(), 5, accountId);
         if (newOrders.length > 0) {
           await upsertOrdersToDB(newOrders, accountId);
@@ -246,7 +256,7 @@ export async function syncOrderHistoryFromBinance({
           const lastGapFillStr = typeof localStorage !== 'undefined' ? localStorage.getItem(gapKey) : null;
           const lastGapFill = lastGapFillStr ? Number(lastGapFillStr) : 0;
           if (forceGapFill || Date.now() - lastGapFill > GAP_FILL_INTERVAL_MS) {
-            const gapStart = Math.max(cutoff, Date.now() - GAP_FILL_WINDOW_MS);
+            const gapStart = Math.max(liveStart, Date.now() - GAP_FILL_WINDOW_MS);
             const gapOrders = await fetchOrdersFromBinance(gapStart, Date.now(), 60, accountId);
             if (gapOrders.length > 0) {
               await upsertOrdersToDB(gapOrders, accountId);
@@ -266,6 +276,24 @@ export async function syncOrderHistoryFromBinance({
         .delete()
         .lt('create_time', cutoff);
       if (cleanupError) console.warn('[Sync] Cleanup failed:', cleanupError);
+
+      // Refresh the pre-computed buckets for the window that just moved into
+      // "sealed" territory, so dashboards read correct shared totals.
+      try {
+        const lastStr = typeof localStorage !== 'undefined' ? localStorage.getItem(ROLLUP_REBUILD_KEY) : null;
+        const last = lastStr ? Number(lastStr) : 0;
+        if (deepBackfill || Date.now() - last > ROLLUP_REBUILD_INTERVAL_MS) {
+          const from = deepBackfill ? cutoff : Date.now() - (LIVE_SYNC_WINDOW_MS + 2 * 24 * 60 * 60 * 1000);
+          const { error: rollupError } = await (supabase as any).rpc('rebuild_terminal_order_rollups', {
+            p_from_ms: from,
+            p_to_ms: Date.now(),
+          });
+          if (rollupError) console.warn('[Sync] Rollup rebuild failed (non-fatal):', rollupError);
+          else if (typeof localStorage !== 'undefined') localStorage.setItem(ROLLUP_REBUILD_KEY, String(Date.now()));
+        }
+      } catch (err) {
+        console.warn('[Sync] Rollup rebuild threw (non-fatal):', err);
+      }
 
       const duration = Date.now() - startTime;
       await updateSyncMetadata(grandTotal, duration);

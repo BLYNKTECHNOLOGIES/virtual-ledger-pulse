@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.get_terminal_order_summary(bigint, bigint, uuid[], jsonb, bigint) TO supabase_read_only_user;

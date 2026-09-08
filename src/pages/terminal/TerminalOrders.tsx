@@ -1404,9 +1404,9 @@ function TerminalOrdersContent() {
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Chat
-              {totalUnread > 0 && (
+              {chatBadgeCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
-                  <span className="text-[9px] font-bold text-destructive-foreground">{totalUnread}</span>
+                  <span className="text-[9px] font-bold text-destructive-foreground">{chatBadgeCount}</span>
                 </span>
               )}
             </Button>

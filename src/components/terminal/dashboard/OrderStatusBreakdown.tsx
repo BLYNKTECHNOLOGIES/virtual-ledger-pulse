@@ -6,6 +6,8 @@ import { C2COrderHistoryItem } from '@/hooks/useBinanceOrders';
 interface Props {
   orders: C2COrderHistoryItem[];
   isLoading: boolean;
+  /** Pre-computed status counts for the sealed (older than 45 days) part of the window. */
+  precomputedCounts?: Record<string, number>;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -19,20 +21,23 @@ const STATUS_COLORS: Record<string, string> = {
   Expired: 'hsl(var(--chart-4))',
 };
 
-export function OrderStatusBreakdown({ orders, isLoading }: Props) {
+export function OrderStatusBreakdown({ orders, isLoading, precomputedCounts }: Props) {
   const data = useMemo(() => {
-    if (!orders.length) return [];
-
     const statusMap = new Map<string, number>();
+    for (const [status, count] of Object.entries(precomputedCounts || {})) {
+      if (count > 0) statusMap.set(status, (statusMap.get(status) || 0) + count);
+    }
     for (const o of orders) {
       const status = normalizeStatus(o.orderStatus || 'UNKNOWN');
       statusMap.set(status, (statusMap.get(status) || 0) + 1);
     }
+    if (statusMap.size === 0) return [];
 
     return Array.from(statusMap.entries())
       .map(([status, count]) => ({ status, count, color: STATUS_COLORS[status] || 'hsl(var(--chart-3))' }))
       .sort((a, b) => b.count - a.count);
-  }, [orders]);
+  }, [orders, precomputedCounts]);
+
 
   const total = data.reduce((s, d) => s + d.count, 0);
 

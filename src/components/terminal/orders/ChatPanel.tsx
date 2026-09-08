@@ -220,8 +220,9 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       });
     }
 
-    return messages.sort((a, b) => a.timestamp - b.timestamp);
+    return dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp));
   }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
+
 
   // Build historical messages from past orders
   const historicalSections = useMemo(() => {
@@ -251,7 +252,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
           isComplianceRelevant: isSystemLike,
         };
       });
-      return { order, messages: messages.sort((a, b) => a.timestamp - b.timestamp) };
+      return { order, messages: dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp)) };
     });
   }, [historicalChats, getSenderName]);
 

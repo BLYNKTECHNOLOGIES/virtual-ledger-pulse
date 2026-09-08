@@ -336,3 +336,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-08 05:40 IST: Enquiry (INQ-*) chats now anchor to the same counterparty's newest real order (nickname match, unmasked only) so the composer works, and enquiry threads are pulled into counterparty chat history so the conversation is no longer split.
 - 2026-09-08 05:50 IST: Fixed split Binance chats — order-less frames (groupId only) now auto-attach to the real order via DB trigger; existing split rows backfilled.
 - 2026-09-08 06:00 IST: Terminal chat rendering corrected — Binance system/KYC-card notices no longer mislabelled "Shared ad" (only true ADV_SHARE ad cards are), duplicate auto-reply bubbles deduped, auto-replies attributed to operator (UI + listener + edge normalizer + DB backfill).
+- 2026-09-08 14:25 IST: Terminal chat inbox now auto-clears threads Binance reports as already read on the app (reconcile_binance_app_chat_reads); 37 stale unread threads cleared.

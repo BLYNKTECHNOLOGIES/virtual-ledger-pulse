@@ -30435,6 +30435,18 @@ export type Database = {
         }[]
       }
       hr_system_pulse: { Args: never; Returns: Json }
+      hr_team_milestones: {
+        Args: never
+        Returns: {
+          badge_id: string
+          dob_day: number
+          dob_month: number
+          first_name: string
+          id: string
+          joining_date: string
+          last_name: string
+        }[]
+      }
       hr_test_accrual_dryrun: { Args: never; Returns: string }
       hr_training_ctc_adjustment: {
         Args: { p_revision_id: string }

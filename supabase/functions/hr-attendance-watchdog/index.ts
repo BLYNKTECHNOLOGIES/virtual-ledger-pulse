@@ -4,6 +4,7 @@
 // for HR to resolve.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { pausedResponse } from "../_shared/attendance-gate.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,13 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // A reader outage leaves every open session looking "stale" — do not raise
+    // watchdog holds while attendance automation is paused.
+    const held = await pausedResponse(supabase, corsHeaders, "watchdog");
+    if (held) return held;
+
     const { data, error } = await supabase.rpc("hr_watchdog_open_sessions");
+
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;

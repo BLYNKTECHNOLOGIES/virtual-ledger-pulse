@@ -194,7 +194,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       messages.push({
         id: `archive-${msg.id}`,
         source: 'binance',
-        senderType: isSystemLike ? 'system' : (msg.sender_is_self ? 'operator' : 'counterparty'),
+        senderType: isSystemLike ? 'system' : ((msg.sender_is_self || msgType === 'auto_reply') ? 'operator' : 'counterparty'),
         text: isImage ? null : (msg.message_text || null),
         imageUrl: isImage ? (msg.image_url || msg.thumbnail_url || msg.message_text || undefined) : (msg.image_url || msg.thumbnail_url || undefined),
         timestamp: normalizeChatTimestamp(msg.binance_create_time),
@@ -215,7 +215,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       messages.push({
         id: `binance-${msg.id}`,
         source: 'binance',
-        senderType: isSystemLike ? 'system' : (isSelf ? 'operator' : 'counterparty'),
+        senderType: isSystemLike ? 'system' : ((isSelf || String(msgType).toLowerCase() === 'auto_reply') ? 'operator' : 'counterparty'),
         text: isImage ? null : (content || null),
         imageUrl: isImage ? (imgUrl || content || undefined) : imgUrl,
         timestamp: normalizeChatTimestamp(msg.createTime),
@@ -272,7 +272,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         return {
           id: `hist-${order.orderNumber}-${msg.id}`,
           source: 'binance' as const,
-          senderType: isSystemLike ? 'system' as const : (isSelf ? 'operator' as const : 'counterparty' as const),
+          senderType: isSystemLike ? 'system' as const : ((isSelf || normalizedType === 'auto_reply') ? 'operator' as const : 'counterparty' as const),
           text: isImage ? null : (content || null),
           imageUrl: effectiveImgUrl,
           timestamp: normalizeChatTimestamp(msg.createTime),

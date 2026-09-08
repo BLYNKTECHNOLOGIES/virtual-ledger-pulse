@@ -24473,6 +24473,51 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_order_rollups: {
+        Row: {
+          appeal_count: number
+          asset: string
+          asset_qty: number
+          bucket_start: string
+          commission: number
+          exchange_account_id: string
+          fiat_volume: number
+          order_count: number
+          price_qty_sum: number
+          status_group: string
+          trade_type: string
+          updated_at: string
+        }
+        Insert: {
+          appeal_count?: number
+          asset: string
+          asset_qty?: number
+          bucket_start: string
+          commission?: number
+          exchange_account_id: string
+          fiat_volume?: number
+          order_count?: number
+          price_qty_sum?: number
+          status_group: string
+          trade_type: string
+          updated_at?: string
+        }
+        Update: {
+          appeal_count?: number
+          asset?: string
+          asset_qty?: number
+          bucket_start?: string
+          commission?: number
+          exchange_account_id?: string
+          fiat_volume?: number
+          order_count?: number
+          price_qty_sum?: number
+          status_group?: string
+          trade_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_order_size_ranges: {
         Row: {
           created_at: string
@@ -29229,6 +29274,27 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_terminal_order_summary: {
+        Args: {
+          p_accounts: string[]
+          p_end_ms: number
+          p_sealed_cutoff_ms?: number
+          p_start_ms: number
+          p_windows?: Json
+        }
+        Returns: {
+          appeal_count: number
+          asset: string
+          asset_qty: number
+          commission: number
+          day_ist: string
+          fiat_volume: number
+          order_count: number
+          source: string
+          status_group: string
+          trade_type: string
+        }[]
+      }
       get_terminal_permissions: {
         Args: { p_user_id: string }
         Returns: string[]
@@ -30752,6 +30818,10 @@ export type Database = {
         Returns: Json
       }
       rebuild_tds_allocations: { Args: { p_po_id: string }; Returns: undefined }
+      rebuild_terminal_order_rollups: {
+        Args: { p_from_ms: number; p_to_ms: number }
+        Returns: number
+      }
       recalculate_purchase_order_effective_usdt: {
         Args: { p_order_id: string; p_reason?: string }
         Returns: Json
@@ -31014,6 +31084,10 @@ export type Database = {
       terminal_order_is_final_status: {
         Args: { p_status: string }
         Returns: boolean
+      }
+      terminal_order_status_group: {
+        Args: { p_status: string }
+        Returns: string
       }
       terminal_revoke_all_access: { Args: { _uid: string }; Returns: Json }
       transfer_customer_support_ticket: {

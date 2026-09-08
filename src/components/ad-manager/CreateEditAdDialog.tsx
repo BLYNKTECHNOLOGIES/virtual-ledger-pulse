@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { X, Plus, Minus, Search, AlertTriangle, RefreshCw } from 'lucide-react';
 import { BinanceAd, usePostAd, useUpdateAd, useUpdateAdStatus, useBinanceAdsList, useBinanceReferencePrice, useBinanceAdDetail, useBinanceDigitalCurrencies, useAvailableAdsCategory, BINANCE_AD_STATUS } from '@/hooks/useBinanceAds';
 import { useToast } from '@/hooks/use-toast';
+import { useBinanceBalances } from '@/hooks/useBinanceAssets';
 import { ALLOWED_BUY_PAYMENT_METHODS, resolvePaymentMethod, type PaymentMethodConfig } from '@/data/paymentMethods';
 import { AdZone, ZONE_LABEL, adZone, zoneClassify, parseAvailableZones } from '@/lib/adZone';
 import { cn } from '@/lib/utils';
@@ -80,6 +81,7 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
   // Fetch ALL SELL ads to extract available payment methods from the merchant's account
   const { data: sellAdsData, isLoading: isLoadingPayMethods } = useBinanceAdsList({ page: 1, rows: 50, tradeType: 'SELL' });
   const { data: digitalCurrenciesData } = useBinanceDigitalCurrencies();
+  const { data: walletBalances } = useBinanceBalances();
   const isEditing = !!editingAd;
 
   // Market zone (Binance `classify`). Zone is fixed after creation.
@@ -262,6 +264,22 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
     }
     return null;
   }, [editingAd, sellAdsData]);
+
+  // ─── Wallet balance for the selected asset (SELL ads only) ────
+  const walletAvailable = useMemo(() => {
+    if (isBuyAd) return null;
+    const row = (walletBalances || []).find((b: any) => b.asset === form.asset);
+    if (!row) return null;
+    const free = Number(row.total_free ?? row.total_balance ?? 0);
+    return Number.isFinite(free) ? free : null;
+  }, [walletBalances, form.asset, isBuyAd]);
+
+  // Binance requires whole-number quantities for USDC / FDUSD
+  const maxQuantity = useMemo(() => {
+    if (walletAvailable === null) return null;
+    if (form.asset === 'USDC' || form.asset === 'FDUSD') return Math.floor(walletAvailable);
+    return Math.floor(walletAvailable * 1e8) / 1e8;
+  }, [walletAvailable, form.asset]);
 
   // ─── Payment Methods Logic ────────────────────────────────────
   const sellAdPayMethods = useMemo(() => {
@@ -775,14 +793,35 @@ export function CreateEditAdDialog({ open, onOpenChange, editingAd, createAccoun
                 <Label>Total Quantity ({form.asset})</Label>
                 {isEditing && availableBalance !== null && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>Available: <span className="font-medium text-foreground">{availableBalance} {form.asset}</span></span>
+                    <span>Ad balance: <span className="font-medium text-foreground">{availableBalance} {form.asset}</span></span>
                     <Button
+                      type="button"
                       variant="ghost"
                       size="sm"
                       className="h-5 px-2 text-xs font-semibold text-primary"
                       onClick={() => setForm({ ...form, initAmount: String(availableBalance) })}
                     >
                       ALL
+                    </Button>
+                  </div>
+                )}
+                {!isBuyAd && maxQuantity !== null && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Available:{' '}
+                      <span className="font-medium text-foreground">
+                        {maxQuantity.toLocaleString('en-US', { maximumFractionDigits: 8 })} {form.asset}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-2 text-xs font-semibold text-primary"
+                      disabled={maxQuantity <= 0}
+                      onClick={() => setForm({ ...form, initAmount: String(maxQuantity) })}
+                    >
+                      MAX
                     </Button>
                   </div>
                 )}

@@ -17,6 +17,7 @@ import { CounterpartyBadge } from '@/components/terminal/orders/CounterpartyBadg
 import { AccountBadge } from '@/components/exchange/AccountBadge';
 import { OrderDetailWorkspace } from '@/components/terminal/orders/OrderDetailWorkspace';
 import { ChatInbox, ChatConversation } from '@/components/terminal/orders/ChatInbox';
+import { useChatInboxUnread } from '@/hooks/useChatInboxUnread';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
 import { QueueMode } from '@/components/terminal/orders/QueueMode';
 import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignmentDialog';
@@ -639,6 +640,11 @@ function TerminalOrdersContent() {
 
   const totalUnread = useMemo(() =>
     Array.from(unreadMap.values()).reduce((s, v) => s + v, 0), [unreadMap]);
+
+  // Chat button badge: use the inbox's own unread thread count so enquiries and
+  // older/closed-order chats are reflected, not only the loaded live orders.
+  const inboxUnread = useChatInboxUnread();
+  const chatBadgeCount = Math.max(inboxUnread, unreadMap.size);
 
   // Internal chat unread counts
 
@@ -1404,9 +1410,9 @@ function TerminalOrdersContent() {
             >
               <MessageSquare className="h-3.5 w-3.5" />
               Chat
-              {totalUnread > 0 && (
+              {chatBadgeCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
-                  <span className="text-[9px] font-bold text-destructive-foreground">{totalUnread}</span>
+                  <span className="text-[9px] font-bold text-destructive-foreground">{chatBadgeCount}</span>
                 </span>
               )}
             </Button>

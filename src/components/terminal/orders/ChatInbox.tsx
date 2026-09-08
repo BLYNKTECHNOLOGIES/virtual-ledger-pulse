@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck, Pin, PinOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
@@ -14,6 +14,7 @@ import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper'
 import { format, isToday } from 'date-fns';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
+import { useChatPins } from '@/hooks/useChatPins';
 
 export interface ChatConversation {
   orderNumber: string;
@@ -37,6 +38,9 @@ export interface ChatConversation {
   fromInbox?: boolean;
   /** All order threads rolled into this inbox row (same counterparty). */
   mergedOrderNumbers?: string[];
+  /** Stable identity key used for pinning. */
+  pinKey?: string;
+
 }
 
 interface Props {
@@ -153,17 +157,18 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       const cleanNick = nick && !nick.includes('*') ? nick : '';
       const identifiable = verified || (cleanNick ? aliasToVerified.get(cleanNick) || cleanNick : '');
       if (!identifiable) {
-        out.push({ ...c, mergedOrderNumbers: [c.orderNumber] });
+        out.push({ ...c, mergedOrderNumbers: [c.orderNumber], pinKey: c.orderNumber });
         continue;
       }
       const key = `${c.exchangeAccountId || 'all'}|${identifiable}`;
       const existing = byKey.get(key);
       if (!existing) {
-        byKey.set(key, { ...c, mergedOrderNumbers: [c.orderNumber] });
+        byKey.set(key, { ...c, mergedOrderNumbers: [c.orderNumber], pinKey: key });
         continue;
       }
       const newest = rank(c) > rank(existing) ? { ...c } : { ...existing };
       newest.chatUnreadCount = (existing.chatUnreadCount || 0) + (c.chatUnreadCount || 0);
+      newest.pinKey = key;
       newest.mergedOrderNumbers = Array.from(
         new Set([...(existing.mergedOrderNumbers || [existing.orderNumber]), c.orderNumber])
       );
@@ -180,10 +185,15 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     return all;
   }, [conversations]);
 
-  const filtered = useMemo(
-    () => (tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged),
-    [merged, tab]
-  );
+  const { pinned, togglePin } = useChatPins();
+
+  const filtered = useMemo(() => {
+    const base = tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged;
+    // Pinned conversations always float to the top, order otherwise untouched.
+    const isPinned = (c: ChatConversation) => pinned.has(c.pinKey || c.orderNumber);
+    return [...base].sort((a, b) => Number(isPinned(b)) - Number(isPinned(a)));
+  }, [merged, tab, pinned]);
+
 
   const totalUnread = useMemo(
     () => merged.reduce((sum, c) => sum + (c.chatUnreadCount > 0 ? 1 : 0), 0),
@@ -371,6 +381,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
                 key={conv.orderNumber}
                 conversation={conv}
                 seen={seenMap[conv.orderNumber]}
+                isPinned={pinned.has(conv.pinKey || conv.orderNumber)}
+                onTogglePin={() => togglePin(conv.pinKey || conv.orderNumber)}
                 onClick={() => handleOpenChat(conv)}
               />
             ))}
@@ -384,10 +396,14 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 function ConversationRow({
   conversation: c,
   seen,
+  isPinned,
+  onTogglePin,
   onClick,
 }: {
   conversation: ChatConversation;
   seen?: ChatSeenInfo;
+  isPinned?: boolean;
+  onTogglePin: () => void;
   onClick: () => void;
 }) {
   const seenText = seenLabel(seen);
@@ -408,9 +424,10 @@ function ConversationRow({
   const stampLabel = stamp ? (isToday(stamp) ? format(stamp, 'HH:mm') : format(stamp, 'dd MMM')) : '';
 
   return (
+    <div className={`group relative flex items-center ${isPinned ? 'bg-primary/5' : ''}`}>
     <button
       onClick={onClick}
-      className="w-full text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-3"
+      className="flex-1 min-w-0 text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-3"
     >
       {/* Avatar */}
       <div className="relative shrink-0">
@@ -473,5 +490,17 @@ function ConversationRow({
 
       <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
     </button>
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+      title={isPinned ? 'Unpin chat' : 'Pin chat'}
+      aria-label={isPinned ? 'Unpin chat' : 'Pin chat'}
+      className={`shrink-0 mr-2 h-7 w-7 rounded-md flex items-center justify-center transition-opacity hover:bg-white/10 ${
+        isPinned ? 'text-primary opacity-100' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100'
+      }`}
+    >
+      {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+    </button>
+    </div>
   );
 }

@@ -112,13 +112,11 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
 
   if (isSystem) {
     const normalizedType = String(message.messageType || 'system').toLowerCase();
-    // Never print a raw Binance card payload as text.
-    const looksLikeRawPayload =
-      normalizedType === 'card' || (message.text || '').trim().startsWith('{"');
-    const displayText = looksLikeRawPayload ? 'Shared ad' : parseSystemMessage(message.text);
+    const displayText = parseSystemMessage(message.text);
+    const isKycCard = displayText.startsWith('Upload identity card');
 
-    const Icon = message.isRecall ? RotateCcw : normalizedType === 'video' ? Video : normalizedType === 'card' ? CreditCard : normalizedType === 'translate' ? Languages : ShieldAlert;
-    const typeLabel = normalizedType === 'mark' ? 'Order status marker' : normalizedType === 'error' ? 'Binance chat error' : normalizedType === 'unknown' ? 'Unsupported Binance chat message type captured' : `${normalizedType} message captured from Binance`;
+    const Icon = message.isRecall ? RotateCcw : normalizedType === 'video' ? Video : isKycCard || normalizedType === 'card' ? CreditCard : normalizedType === 'translate' ? Languages : ShieldAlert;
+    const typeLabel = normalizedType === 'mark' ? 'Order status marker' : normalizedType === 'error' ? 'Binance chat error' : 'Binance system notice';
 
     return (
       <div className="flex justify-center">
@@ -131,6 +129,7 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
       </div>
     );
   }
+
 
   return (
     <>

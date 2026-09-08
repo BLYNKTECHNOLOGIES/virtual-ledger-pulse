@@ -620,6 +620,9 @@ export interface ArchivedBinanceChatMessage {
 }
 
 export function useBinanceChatMessages(orderNo: string | null, accountId?: string | null) {
+  // Enquiry threads (INQ-*) are our own synthetic keys — Binance has no such
+  // order, so asking for them only produces 400s. Stored messages are used.
+  const isEnquiry = !!orderNo && orderNo.startsWith('INQ-');
   return useQuery({
     queryKey: ['binance-chat-messages', orderNo, accountId ?? null],
     queryFn: async () => {
@@ -631,7 +634,7 @@ export function useBinanceChatMessages(orderNo: string | null, accountId?: strin
       }, accountId ?? undefined);
       return result;
     },
-    enabled: !!orderNo,
+    enabled: !!orderNo && !isEnquiry,
     staleTime: 5 * 1000,
     refetchInterval: 10 * 1000, // Poll chat every 10s
   });

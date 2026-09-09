@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck, Pin, PinOff, Coins } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck, Pin, PinOff, Coins, Clock, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
@@ -16,7 +16,7 @@ import { markOrderChatRead } from '@/lib/chat-read-state';
 import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
 import { useChatPins } from '@/hooks/useChatPins';
 import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
-import { formatBandsLabel } from '@/lib/small-trade';
+import { formatBandsLabel, isSmallTradeOrder } from '@/lib/small-trade';
 import { selectSmallTradeTargets } from '@/lib/small-trade-targets';
 
 
@@ -190,13 +190,58 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   }, [conversations]);
 
   const { pinned, togglePin } = useChatPins();
+  const { data: bands } = useSmallTradeBands();
+
+  // ---- Sorting ---------------------------------------------------------
+  // 'recent'  = newest message first (Binance-like, the default)
+  // 'big'     = big-order clients first, then newest message inside each group.
+  // A client counts as "big" when ANY of their orders in the inbox — running
+  // or long completed — falls outside the configured small-order bands.
+  const [sortMode, setSortMode] = useState<'recent' | 'big'>(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('terminal.chatInbox.sort') : null;
+    return saved === 'big' ? 'big' : 'recent';
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('terminal.chatInbox.sort', sortMode);
+    } catch {
+      /* storage unavailable — sorting still works for this session */
+    }
+  }, [sortMode]);
+
+  const bigOrderNumbers = useMemo(() => {
+    const set = new Set<string>();
+    if (!bands) return set;
+    for (const c of conversations) {
+      if (c.orderNumber.startsWith('INQ-')) continue;
+      const price = parseFloat(String(c.totalPrice ?? ''));
+      const side = String(c.tradeType || '').trim().toUpperCase();
+      if (!Number.isFinite(price) || price <= 0 || (side !== 'BUY' && side !== 'SELL')) continue;
+      if (!isSmallTradeOrder(c, bands)) set.add(c.orderNumber);
+    }
+    return set;
+  }, [conversations, bands]);
+
+  const isBigClient = useCallback(
+    (c: ChatConversation) =>
+      [c.orderNumber, ...(c.mergedOrderNumbers || [])].some((n) => bigOrderNumbers.has(n)),
+    [bigOrderNumbers]
+  );
 
   const filtered = useMemo(() => {
     const base = tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged;
     // Pinned conversations always float to the top, order otherwise untouched.
     const isPinned = (c: ChatConversation) => pinned.has(c.pinKey || c.orderNumber);
-    return [...base].sort((a, b) => Number(isPinned(b)) - Number(isPinned(a)));
-  }, [merged, tab, pinned]);
+    return [...base].sort((a, b) => {
+      const pin = Number(isPinned(b)) - Number(isPinned(a));
+      if (pin !== 0) return pin;
+      if (sortMode === 'big') {
+        const big = Number(isBigClient(b)) - Number(isBigClient(a));
+        if (big !== 0) return big;
+      }
+      return 0; // `merged` is already newest-message-first
+    });
+  }, [merged, tab, pinned, sortMode, isBigClient]);
 
 
   const totalUnread = useMemo(
@@ -342,7 +387,6 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   // Clears the low-value chatter (orders inside the configured small sales /
   // small buys bands) so big-value clients never get buried. A counterparty
   // who has ANY non-small order in the inbox is skipped entirely.
-  const { data: bands } = useSmallTradeBands();
 
   const smallTradeTargets = useMemo(
     () => selectSmallTradeTargets(conversations, bands),
@@ -444,8 +488,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="px-4 py-2 border-b border-border">
+      {/* Tabs + sorting */}
+      <div className="px-4 py-2 border-b border-border flex items-center gap-2 flex-wrap">
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList className="h-8 bg-secondary">
             <TabsTrigger value="all" className="text-[11px] h-6 px-4">All</TabsTrigger>
@@ -454,6 +498,28 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        <div className="ml-auto flex items-center rounded-md bg-secondary p-0.5">
+          <Button
+            variant={sortMode === 'recent' ? 'secondary' : 'ghost'}
+            size="sm"
+            className={`h-6 px-2 text-[11px] gap-1 ${sortMode === 'recent' ? 'bg-background shadow-sm' : ''}`}
+            title="Newest message first"
+            onClick={() => setSortMode('recent')}
+          >
+            <Clock className="h-3 w-3" />
+            Recent
+          </Button>
+          <Button
+            variant={sortMode === 'big' ? 'secondary' : 'ghost'}
+            size="sm"
+            className={`h-6 px-2 text-[11px] gap-1 ${sortMode === 'big' ? 'bg-background shadow-sm' : ''}`}
+            title={`Clients with any order above the small-order range come first — ${formatBandsLabel(bands)}`}
+            onClick={() => setSortMode('big')}
+          >
+            <TrendingUp className="h-3 w-3" />
+            Big orders first
+          </Button>
+        </div>
       </div>
 
       {/* Conversation list */}

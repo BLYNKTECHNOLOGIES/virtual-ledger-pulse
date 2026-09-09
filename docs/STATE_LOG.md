@@ -345,3 +345,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-09 15:05 IST: Chat inbox rows redesigned to "Data grid terminal" layout (identity | preview | trade figures | time | chevron columns, unread accent rail + glow dot, status as colored label, mobile compact fallback). User picked direction v3.
 - 2026-09-09 15:40 IST: Added counterparty details side panel to terminal chat thread view (get_counterparty_profile RPC + past-orders list + linked client).
 - 2026-09-09: Chat inbox status now prefers the fresher of live order cache vs order-history sync (fixed cancelled orders showing as Pending Payment); inbox refresh 20s -> 10s.
+- 2026-09-09: Fixed counterparty details panel showing 'no record' — get_counterparty_profile returned double for median_value against a numeric signature (runtime type error); added explicit casts + nickname fallback match.

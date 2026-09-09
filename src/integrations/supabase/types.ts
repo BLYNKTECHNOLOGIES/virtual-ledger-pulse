@@ -29299,6 +29299,10 @@ export type Database = {
           trade_type: string
         }[]
       }
+      get_counterparty_panel: {
+        Args: { p_exchange_account_id?: string; p_order_number: string }
+        Returns: Json
+      }
       get_counterparty_profile: {
         Args: { p_exchange_account_id?: string; p_order_number: string }
         Returns: {

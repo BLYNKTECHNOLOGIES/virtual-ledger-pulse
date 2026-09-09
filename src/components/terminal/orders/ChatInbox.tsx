@@ -494,6 +494,11 @@ function ConversationRow({
               <span className={`text-[11px] font-medium uppercase tracking-widest mt-0.5 truncate ${isEnquiry ? 'text-muted-foreground' : statusTextClass}`}>
                 {isEnquiry ? 'Enquiry · no order' : statusStyle.label}
               </span>
+              {c.lastMessagePreview && (
+                <span className={`md:hidden text-[11px] truncate mt-0.5 ${hasUnread ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {c.lastMessageFromSelf ? 'You: ' : ''}{c.lastMessagePreview}
+                </span>
+              )}
             </div>
           </div>
 

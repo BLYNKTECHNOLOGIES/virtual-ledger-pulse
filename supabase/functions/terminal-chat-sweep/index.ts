@@ -15,6 +15,7 @@ const ORDERS_PER_ACCOUNT_PER_TICK = 1;
 const MAX_PAGES = 2;
 const ROWS = 50;
 const MIN_RESYNC_GAP_MS = 15_000;
+const RECENT_ORDER_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function explicitOrderNumberFromObject(value: any): string | null {
   if (!value || typeof value !== "object") return null;
@@ -67,7 +68,7 @@ async function syncOrderChat(
   const allMessages: any[] = [];
   let page = 1;
   while (page <= MAX_PAGES) {
-    const chatParams = new URLSearchParams({ orderNo, page: String(page), rows: String(ROWS), sort: "asc" });
+    const chatParams = new URLSearchParams({ orderNo, page: String(page), rows: String(ROWS), sort: "desc" });
     const chatUrl = `${proxyUrl}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${chatParams.toString()}`;
     const response = await fetchWithRetry(chatUrl, { method: "GET", headers: proxyHeaders });
     const text = await response.text();
@@ -160,6 +161,7 @@ serve(async (req) => {
 
   const startedAt = Date.now();
   const lastSyncByOrder = new Map<string, number>();
+  const cursorByAccount = new Map<string, number>();
   let ticks = 0;
   let totalSynced = 0;
   let totalErrors = 0;
@@ -200,7 +202,12 @@ serve(async (req) => {
           continue;
         }
 
+        const recentCutoff = Date.now() - RECENT_ORDER_WINDOW_MS;
         const eligibleOrders = (recentRows || [])
+          .filter((row: any) => {
+            const createTime = Number(row.raw?.createTime || row.raw?.create_time || 0);
+            return Number.isFinite(createTime) && createTime >= recentCutoff;
+          })
           .map((r: any) => String(r.order_number || ''))
           .filter((orderNo) => /^\d{8,32}$/.test(orderNo))
           .filter((orderNo) => {
@@ -209,13 +216,16 @@ serve(async (req) => {
           });
 
         const startIndex = eligibleOrders.length > 0
-          ? Math.floor(Date.now() / TICK_MS) % eligibleOrders.length
+          ? (cursorByAccount.get(account.id) || 0) % eligibleOrders.length
           : 0;
         const selectedOrders = eligibleOrders.length > 0
           ? Array.from({ length: Math.min(ORDERS_PER_ACCOUNT_PER_TICK, eligibleOrders.length) }, (_, offset) =>
               eligibleOrders[(startIndex + offset) % eligibleOrders.length]
             )
           : [];
+        if (eligibleOrders.length > 0) {
+          cursorByAccount.set(account.id, (startIndex + selectedOrders.length) % eligibleOrders.length);
+        }
 
         for (const orderNo of selectedOrders) {
           try {

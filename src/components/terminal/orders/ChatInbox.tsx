@@ -401,7 +401,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="border-t border-border/50">
             {filtered.map((conv) => (
               <ConversationRow
                 key={conv.orderNumber}

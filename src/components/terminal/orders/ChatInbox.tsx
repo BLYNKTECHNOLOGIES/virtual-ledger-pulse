@@ -262,7 +262,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         }
         const targets = mergedRef.current
           .filter((c) => c.chatUnreadCount > 0 && !c.orderNumber.startsWith('INQ-'))
-          .slice(0, 8);
+          .slice(0, 25);
+
         if (targets.length === 0) return;
         let cleared = 0;
         for (const conv of targets) {
@@ -293,7 +294,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       }
     };
     reconcile();
-    const id = window.setInterval(reconcile, 90_000);
+    const id = window.setInterval(reconcile, 45_000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

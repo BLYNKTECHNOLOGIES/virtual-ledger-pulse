@@ -803,8 +803,11 @@ serve(async (req) => {
       }
 
       // Send each message with verification
+      let sentInThisRun = 0;
       for (const pm of pendingMessages) {
-
+        // Space out consecutive chat sessions on the same account.
+        if (sentInThisRun > 0) await new Promise((r) => setTimeout(r, 3000));
+        sentInThisRun++;
         pm.sendTimestamp = Date.now();
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,

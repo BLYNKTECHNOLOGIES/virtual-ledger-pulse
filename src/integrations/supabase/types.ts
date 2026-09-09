@@ -3424,6 +3424,7 @@ export type Database = {
         Row: {
           cp_userno: string | null
           create_time: number | null
+          exchange_account_id: string | null
           masked_nick: string | null
           nickname: string | null
           order_number: string | null
@@ -3434,6 +3435,7 @@ export type Database = {
         Insert: {
           cp_userno?: string | null
           create_time?: number | null
+          exchange_account_id?: string | null
           masked_nick?: string | null
           nickname?: string | null
           order_number?: string | null
@@ -3444,12 +3446,37 @@ export type Database = {
         Update: {
           cp_userno?: string | null
           create_time?: number | null
+          exchange_account_id?: string | null
           masked_nick?: string | null
           nickname?: string | null
           order_number?: string | null
           order_status?: string | null
           total_price?: number | null
           verified_name?: string | null
+        }
+        Relationships: []
+      }
+      cp_self_merchant_nos: {
+        Row: {
+          merchant_no: string
+        }
+        Insert: {
+          merchant_no: string
+        }
+        Update: {
+          merchant_no?: string
+        }
+        Relationships: []
+      }
+      cp_self_nicknames: {
+        Row: {
+          nick: string
+        }
+        Insert: {
+          nick: string
+        }
+        Update: {
+          nick?: string
         }
         Relationships: []
       }
@@ -28562,6 +28589,7 @@ export type Database = {
         Args: { p_is_march: boolean; p_monthly_gross: number; p_state: string }
         Returns: number
       }
+      cp_identity_row: { Args: { p_order_number: string }; Returns: undefined }
       create_bank_transfer:
         | {
             Args: {
@@ -30974,6 +31002,7 @@ export type Database = {
         }
         Returns: Json
       }
+      rebuild_cp_order_identity: { Args: never; Returns: number }
       rebuild_tds_allocations: { Args: { p_po_id: string }; Returns: undefined }
       rebuild_terminal_order_rollups: {
         Args: { p_from_ms: number; p_to_ms: number }

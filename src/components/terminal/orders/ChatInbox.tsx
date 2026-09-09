@@ -16,7 +16,8 @@ import { markOrderChatRead } from '@/lib/chat-read-state';
 import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
 import { useChatPins } from '@/hooks/useChatPins';
 import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
-import { isSmallTradeOrder, formatBandsLabel } from '@/lib/small-trade';
+import { formatBandsLabel } from '@/lib/small-trade';
+import { selectSmallTradeTargets } from '@/lib/small-trade-targets';
 
 
 export interface ChatConversation {
@@ -343,45 +344,10 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   // who has ANY non-small order in the inbox is skipped entirely.
   const { data: bands } = useSmallTradeBands();
 
-  const smallTradeTargets = useMemo(() => {
-    if (!bands) return [] as { orderNumber: string; accountId?: string | null }[];
-
-    const aliasToVerified = new Map<string, string>();
-    for (const c of conversations) {
-      const verified = (c.verifiedName || '').trim().toLowerCase();
-      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
-      if (verified && nick && !nick.includes('*') && !aliasToVerified.has(nick)) {
-        aliasToVerified.set(nick, verified);
-      }
-    }
-    const identityKey = (c: ChatConversation) => {
-      const verified = (c.verifiedName || '').trim().toLowerCase();
-      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
-      const cleanNick = nick && !nick.includes('*') ? nick : '';
-      const identifiable = verified || (cleanNick ? aliasToVerified.get(cleanNick) || cleanNick : '');
-      return identifiable ? `${c.exchangeAccountId || 'all'}|${identifiable}` : `order|${c.orderNumber}`;
-    };
-
-    // Any counterparty holding a thread we cannot prove is small is protected,
-    // read or unread — repeat big clients must never be auto-cleared.
-    const protectedKeys = new Set<string>();
-    for (const c of conversations) {
-      if (!isSmallTradeOrder(c, bands)) protectedKeys.add(identityKey(c));
-    }
-
-    const seen = new Set<string>();
-    const targets: { orderNumber: string; accountId?: string | null }[] = [];
-    for (const c of conversations) {
-      if ((c.chatUnreadCount || 0) <= 0) continue;
-      if (c.orderNumber.startsWith('INQ-')) continue;
-      if (!isSmallTradeOrder(c, bands)) continue;
-      if (protectedKeys.has(identityKey(c))) continue;
-      if (seen.has(c.orderNumber)) continue;
-      seen.add(c.orderNumber);
-      targets.push({ orderNumber: c.orderNumber, accountId: c.exchangeAccountId });
-    }
-    return targets;
-  }, [conversations, bands]);
+  const smallTradeTargets = useMemo(
+    () => selectSmallTradeTargets(conversations, bands),
+    [conversations, bands]
+  );
 
   const [markingSmall, setMarkingSmall] = useState(false);
   const handleMarkSmallTradesRead = useCallback(async () => {

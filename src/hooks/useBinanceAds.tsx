@@ -399,6 +399,16 @@ export function useUpdateAd() {
         const next: any = { ...ad, updateTime: Date.now() };
         if (adData.price !== undefined) next.price = Number(adData.price);
         if (adData.priceFloatingRatio !== undefined) next.priceFloatingRatio = adData.priceFloatingRatio;
+        // Reflect every edited field, otherwise the row snaps back to the old
+        // order limits / quantity until the next refetch.
+        if (adData.minSingleTransAmount !== undefined) next.minSingleTransAmount = Number(adData.minSingleTransAmount);
+        if (adData.maxSingleTransAmount !== undefined) next.maxSingleTransAmount = Number(adData.maxSingleTransAmount);
+        if (adData.initAmount !== undefined) next.initAmount = Number(adData.initAmount);
+        if (adData.payTimeLimit !== undefined) next.payTimeLimit = Number(adData.payTimeLimit);
+        if (adData.advStatus !== undefined) next.advStatus = Number(adData.advStatus);
+        if (adData.remarks !== undefined) next.remarks = adData.remarks;
+        if (adData.autoReplyMsg !== undefined) next.autoReplyMsg = adData.autoReplyMsg;
+        if (adData.tradeMethods !== undefined) next.tradeMethods = adData.tradeMethods;
         return next;
       });
       // Edge case: row not in any cache → reconcile that query only.

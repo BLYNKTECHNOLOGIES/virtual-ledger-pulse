@@ -348,3 +348,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-09: Fixed counterparty details panel showing 'no record' — get_counterparty_profile returned double for median_value against a numeric signature (runtime type error); added explicit casts + nickname fallback match.
 - 2026-09-09 17:00 IST: Added "Order Released (by us)" auto-reply trigger — engine detects completed SELL orders (<3h) and is fired instantly on operator release; rule trigger/trade-type check constraints widened.
 - 2026-09-09 17:05 IST: Auto-reply engine now sweeps freshly completed (<3h) SELL orders so releases done in the Binance app also fire the Order Released auto-reply.
+- 2026-09-09 18:00 IST: Ad update fix — non-price ad edits (order limits, pay methods, quantity) now rebuild the full Binance ad body from getDetailByNo before /c2c/ads/update, plus post-update min/max verification; ad cache patches all edited fields.

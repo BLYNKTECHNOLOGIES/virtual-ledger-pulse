@@ -335,6 +335,77 @@ function sanitizeAdUpdatePayload(input: Record<string, any> = {}) {
   return { accepted, skipped, isPriceOnly };
 }
 
+/** Reads the current ad from Binance (source of truth for every unchanged field). */
+async function fetchAdDetail(proxyUrl: string, headers: HeadersInit, advNo: string) {
+  const resp = await fetch(
+    `${proxyUrl}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(String(advNo))}`,
+    { method: "POST", headers },
+  );
+  const txt = await resp.text();
+  let parsed: any;
+  try { parsed = JSON.parse(txt); } catch { parsed = null; }
+  if (!parsed || !isSuccessfulBinancePayload(parsed, resp.status)) return null;
+  return parsed?.data?.data || parsed?.data || null;
+}
+
+/**
+ * Binance's /c2c/ads/update applies a partial body only for price fields. When
+ * order limits (or other ad settings) change, a partial body is accepted with
+ * code 000000 but the limits silently revert to the stored values. So for any
+ * non-price edit we rebuild the FULL ad body from Binance's own current detail
+ * and overlay only the requested changes.
+ */
+function buildFullAdUpdateBody(detail: any, partial: Record<string, any>) {
+  const tradeMethods = Array.isArray(detail?.tradeMethods)
+    ? detail.tradeMethods.map((m: any) => {
+        const base: Record<string, any> = {
+          identifier: m.identifier,
+          payType: m.payType || m.identifier,
+          tradeMethodName: m.tradeMethodName || m.identifier,
+        };
+        if (m.payId != null) base.payId = m.payId;
+        return base;
+      })
+    : undefined;
+
+  const full: Record<string, any> = {
+    advNo: String(detail?.advNo ?? partial.advNo),
+    asset: detail?.asset,
+    fiatUnit: detail?.fiatUnit,
+    tradeType: detail?.tradeType,
+    priceType: detail?.priceType == null ? undefined : Number(detail.priceType),
+    price: detail?.price == null ? undefined : Number(detail.price),
+    priceFloatingRatio: detail?.priceFloatingRatio == null ? undefined : Number(detail.priceFloatingRatio),
+    initAmount: detail?.initAmount == null ? undefined : Number(detail.initAmount),
+    minSingleTransAmount: detail?.minSingleTransAmount == null ? undefined : Number(detail.minSingleTransAmount),
+    maxSingleTransAmount: detail?.maxSingleTransAmount == null ? undefined : Number(detail.maxSingleTransAmount),
+    tradeMethods,
+    payTimeLimit: detail?.payTimeLimit == null ? undefined : Number(detail.payTimeLimit),
+    buyerKycLimit: detail?.buyerKycLimit == null ? undefined : Number(detail.buyerKycLimit),
+    buyerRegDaysLimit: detail?.buyerRegDaysLimit == null ? undefined : Number(detail.buyerRegDaysLimit),
+    buyerBtcPositionLimit: detail?.buyerBtcPositionLimit == null ? undefined : Number(detail.buyerBtcPositionLimit),
+    takerAdditionalKycRequired:
+      detail?.takerAdditionalKycRequired == null ? undefined : Number(detail.takerAdditionalKycRequired),
+    autoReplyMsg: detail?.autoReplyMsg ?? undefined,
+    remarks: detail?.remarks ?? undefined,
+    advStatus: detail?.advStatus == null ? undefined : Number(detail.advStatus),
+    classify: detail?.classify ?? undefined,
+  };
+
+  // Floating ads must not carry a fixed price and vice versa.
+  if (Number(full.priceType) === 2) delete full.price;
+  else delete full.priceFloatingRatio;
+
+  for (const [key, value] of Object.entries(partial)) {
+    if (value === undefined) continue;
+    full[key] = value;
+  }
+  for (const key of Object.keys(full)) {
+    if (full[key] === undefined) delete full[key];
+  }
+  return full;
+}
+
 async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail", accountId?: string) {
   const businessStatus = Number(data?.businessStatus);
   if (!Number.isFinite(businessStatus)) return;
@@ -989,7 +1060,23 @@ serve(async (req) => {
         const requestedAdData = { ...(payload.adData || {}) };
         const desiredRemainingRaw = requestedAdData.desiredRemainingAmount;
         delete requestedAdData.desiredRemainingAmount;
-        const { accepted: adUpdateBody, skipped: skippedFields } = sanitizeAdUpdatePayload(requestedAdData);
+        const { accepted: partialBody, skipped: skippedFields, isPriceOnly } = sanitizeAdUpdatePayload(requestedAdData);
+
+        // Non-price edits (order limits, pay methods, quantity, remarks) need the
+        // FULL ad body — Binance accepts a partial one but silently keeps the old
+        // values, which is why min/max order limits used to snap back.
+        let adUpdateBody: Record<string, any> = partialBody;
+        let mergedFromDetail = false;
+        if (!isPriceOnly) {
+          const currentDetail = await fetchAdDetail(BINANCE_PROXY_URL, proxyHeaders, String(partialBody.advNo));
+          if (currentDetail) {
+            adUpdateBody = buildFullAdUpdateBody(currentDetail, partialBody);
+            mergedFromDetail = true;
+          } else {
+            console.log("updateAd: could not read current ad detail, sending partial body", partialBody.advNo);
+          }
+        }
+
 
         // Re-sending an unchanged initAmount returns success but Binance treats it
         // as a no-op, leaving a partially consumed surplusAmount untouched. For
@@ -1087,6 +1174,45 @@ serve(async (req) => {
                 ...(result?.data && typeof result.data === "object" ? result.data : {}),
                 verifiedInitAmount: Number(verifiedDetail.initAmount),
                 verifiedSurplusAmount: verifiedRemaining,
+              },
+            };
+          }
+        }
+        // Order limits must be verified against Binance: a 000000 response alone
+        // does not prove the new min/max were stored.
+        const requestedMin = partialBody.minSingleTransAmount;
+        const requestedMax = partialBody.maxSingleTransAmount;
+        if (
+          (requestedMin !== undefined || requestedMax !== undefined) &&
+          isSuccessfulBinancePayload(result, response.status)
+        ) {
+          let limitDetail: any = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+            limitDetail = await fetchAdDetail(BINANCE_PROXY_URL, proxyHeaders, String(adUpdateBody.advNo));
+            const minOk = requestedMin === undefined || Number(limitDetail?.minSingleTransAmount) === Number(requestedMin);
+            const maxOk = requestedMax === undefined || Number(limitDetail?.maxSingleTransAmount) === Number(requestedMax);
+            if (limitDetail && minOk && maxOk) break;
+          }
+          const storedMin = Number(limitDetail?.minSingleTransAmount);
+          const storedMax = Number(limitDetail?.maxSingleTransAmount);
+          const minOk = requestedMin === undefined || storedMin === Number(requestedMin);
+          const maxOk = requestedMax === undefined || storedMax === Number(requestedMax);
+          console.log("updateAd limit verification:", JSON.stringify({
+            advNo: adUpdateBody.advNo, requestedMin, requestedMax, storedMin, storedMax, mergedFromDetail,
+          }));
+          if (!limitDetail || !minOk || !maxOk) {
+            result = {
+              code: "ORDER_LIMIT_VERIFICATION_FAILED",
+              message: `Binance accepted the update but the order limits are still ${Number.isFinite(storedMin) ? storedMin : "?"} – ${Number.isFinite(storedMax) ? storedMax : "?"}${requestedMin !== undefined || requestedMax !== undefined ? ` (requested ${requestedMin ?? storedMin} – ${requestedMax ?? storedMax})` : ""}.`,
+            };
+          } else {
+            result = {
+              ...result,
+              data: {
+                ...(result?.data && typeof result.data === "object" ? result.data : {}),
+                verifiedMinSingleTransAmount: storedMin,
+                verifiedMaxSingleTransAmount: storedMax,
               },
             };
           }

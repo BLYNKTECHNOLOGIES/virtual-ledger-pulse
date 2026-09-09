@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck, Pin, PinOff } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Search, User, ChevronRight, CheckCheck, Pin, PinOff, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
@@ -15,6 +15,9 @@ import { format, isToday } from 'date-fns';
 import { markOrderChatRead } from '@/lib/chat-read-state';
 import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
 import { useChatPins } from '@/hooks/useChatPins';
+import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
+import { isSmallTradeOrder, formatBandsLabel } from '@/lib/small-trade';
+
 
 export interface ChatConversation {
   orderNumber: string;
@@ -334,6 +337,90 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     }
   }, [merged, queryClient]);
 
+  // ---- Small-trade only bulk clear -------------------------------------
+  // Clears the low-value chatter (orders inside the configured small sales /
+  // small buys bands) so big-value clients never get buried. A counterparty
+  // who has ANY non-small order in the inbox is skipped entirely.
+  const { data: bands } = useSmallTradeBands();
+
+  const smallTradeTargets = useMemo(() => {
+    if (!bands) return [] as { orderNumber: string; accountId?: string | null }[];
+
+    const aliasToVerified = new Map<string, string>();
+    for (const c of conversations) {
+      const verified = (c.verifiedName || '').trim().toLowerCase();
+      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
+      if (verified && nick && !nick.includes('*') && !aliasToVerified.has(nick)) {
+        aliasToVerified.set(nick, verified);
+      }
+    }
+    const identityKey = (c: ChatConversation) => {
+      const verified = (c.verifiedName || '').trim().toLowerCase();
+      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
+      const cleanNick = nick && !nick.includes('*') ? nick : '';
+      const identifiable = verified || (cleanNick ? aliasToVerified.get(cleanNick) || cleanNick : '');
+      return identifiable ? `${c.exchangeAccountId || 'all'}|${identifiable}` : `order|${c.orderNumber}`;
+    };
+
+    // Any counterparty holding a thread we cannot prove is small is protected,
+    // read or unread — repeat big clients must never be auto-cleared.
+    const protectedKeys = new Set<string>();
+    for (const c of conversations) {
+      if (!isSmallTradeOrder(c, bands)) protectedKeys.add(identityKey(c));
+    }
+
+    const seen = new Set<string>();
+    const targets: { orderNumber: string; accountId?: string | null }[] = [];
+    for (const c of conversations) {
+      if ((c.chatUnreadCount || 0) <= 0) continue;
+      if (c.orderNumber.startsWith('INQ-')) continue;
+      if (!isSmallTradeOrder(c, bands)) continue;
+      if (protectedKeys.has(identityKey(c))) continue;
+      if (seen.has(c.orderNumber)) continue;
+      seen.add(c.orderNumber);
+      targets.push({ orderNumber: c.orderNumber, accountId: c.exchangeAccountId });
+    }
+    return targets;
+  }, [conversations, bands]);
+
+  const [markingSmall, setMarkingSmall] = useState(false);
+  const handleMarkSmallTradesRead = useCallback(async () => {
+    if (smallTradeTargets.length === 0) return;
+    setMarkingSmall(true);
+    try {
+      const orderNumbers = smallTradeTargets.map((t) => t.orderNumber);
+      const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
+        p_order_numbers: orderNumbers,
+        p_source: 'operator_small_trades',
+      });
+      if (error) throw error;
+      orderNumbers.forEach((n) => markOrderChatRead(n));
+
+      // Tell Binance per order, always on that order's own exchange account.
+      const results = await Promise.allSettled(
+        smallTradeTargets.map((t) =>
+          callBinanceAds('markOrderMessagesRead', { orderNo: t.orderNumber, userId: 0 }, t.accountId || undefined)
+        )
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+      toast.success(
+        failed
+          ? `Cleared ${orderNumbers.length} small trade chats · ${failed} not confirmed on Binance`
+          : `Cleared ${orderNumbers.length} small trade chats`
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not mark small trade chats read');
+    } finally {
+      setMarkingSmall(false);
+    }
+  }, [smallTradeTargets, queryClient]);
+
+
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
@@ -349,17 +436,33 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
           </Badge>
         )}
         {totalUnread > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-7 px-2 text-[11px] gap-1.5"
-            disabled={markingAll}
-            onClick={handleMarkAllRead}
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            {markingAll ? 'Marking...' : 'Mark all read'}
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            {smallTradeTargets.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px] gap-1.5"
+                disabled={markingSmall || markingAll}
+                title={`Marks only low-value trade chats read — ${formatBandsLabel(bands)}. Clients with any bigger order are left untouched.`}
+                onClick={handleMarkSmallTradesRead}
+              >
+                <Coins className="h-3.5 w-3.5" />
+                {markingSmall ? 'Clearing...' : `Mark small chats read (${smallTradeTargets.length})`}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px] gap-1.5"
+              disabled={markingAll || markingSmall}
+              onClick={handleMarkAllRead}
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              {markingAll ? 'Marking...' : 'Mark all read'}
+            </Button>
+          </div>
         )}
+
       </div>
 
       {/* Search */}

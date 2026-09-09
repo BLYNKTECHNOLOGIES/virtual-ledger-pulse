@@ -190,6 +190,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   }, [conversations]);
 
   const { pinned, togglePin } = useChatPins();
+  const { data: bands } = useSmallTradeBands();
 
   // ---- Sorting ---------------------------------------------------------
   // 'recent'  = newest message first (Binance-like, the default)
@@ -210,16 +211,16 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
   const bigOrderNumbers = useMemo(() => {
     const set = new Set<string>();
-    if (!bandsForSort) return set;
+    if (!bands) return set;
     for (const c of conversations) {
       if (c.orderNumber.startsWith('INQ-')) continue;
       const price = parseFloat(String(c.totalPrice ?? ''));
       const side = String(c.tradeType || '').trim().toUpperCase();
       if (!Number.isFinite(price) || price <= 0 || (side !== 'BUY' && side !== 'SELL')) continue;
-      if (!isSmallTradeOrder(c, bandsForSort)) set.add(c.orderNumber);
+      if (!isSmallTradeOrder(c, bands)) set.add(c.orderNumber);
     }
     return set;
-  }, [conversations, bandsForSort]);
+  }, [conversations, bands]);
 
   const isBigClient = useCallback(
     (c: ChatConversation) =>
@@ -386,7 +387,6 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   // Clears the low-value chatter (orders inside the configured small sales /
   // small buys bands) so big-value clients never get buried. A counterparty
   // who has ANY non-small order in the inbox is skipped entirely.
-  const { data: bands } = useSmallTradeBands();
 
   const smallTradeTargets = useMemo(
     () => selectSmallTradeTargets(conversations, bands),

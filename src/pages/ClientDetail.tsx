@@ -13,6 +13,7 @@ import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
 import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
 import { ClientExchangeBadge } from "@/components/clients/ClientExchangeBadge";
+import { BackButton } from "@/components/shared/BackButton";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();

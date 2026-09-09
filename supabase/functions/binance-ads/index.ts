@@ -335,6 +335,77 @@ function sanitizeAdUpdatePayload(input: Record<string, any> = {}) {
   return { accepted, skipped, isPriceOnly };
 }
 
+/** Reads the current ad from Binance (source of truth for every unchanged field). */
+async function fetchAdDetail(proxyUrl: string, headers: HeadersInit, advNo: string) {
+  const resp = await fetch(
+    `${proxyUrl}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${encodeURIComponent(String(advNo))}`,
+    { method: "POST", headers },
+  );
+  const txt = await resp.text();
+  let parsed: any;
+  try { parsed = JSON.parse(txt); } catch { parsed = null; }
+  if (!parsed || !isSuccessfulBinancePayload(parsed, resp.status)) return null;
+  return parsed?.data?.data || parsed?.data || null;
+}
+
+/**
+ * Binance's /c2c/ads/update applies a partial body only for price fields. When
+ * order limits (or other ad settings) change, a partial body is accepted with
+ * code 000000 but the limits silently revert to the stored values. So for any
+ * non-price edit we rebuild the FULL ad body from Binance's own current detail
+ * and overlay only the requested changes.
+ */
+function buildFullAdUpdateBody(detail: any, partial: Record<string, any>) {
+  const tradeMethods = Array.isArray(detail?.tradeMethods)
+    ? detail.tradeMethods.map((m: any) => {
+        const base: Record<string, any> = {
+          identifier: m.identifier,
+          payType: m.payType || m.identifier,
+          tradeMethodName: m.tradeMethodName || m.identifier,
+        };
+        if (m.payId != null) base.payId = m.payId;
+        return base;
+      })
+    : undefined;
+
+  const full: Record<string, any> = {
+    advNo: String(detail?.advNo ?? partial.advNo),
+    asset: detail?.asset,
+    fiatUnit: detail?.fiatUnit,
+    tradeType: detail?.tradeType,
+    priceType: detail?.priceType == null ? undefined : Number(detail.priceType),
+    price: detail?.price == null ? undefined : Number(detail.price),
+    priceFloatingRatio: detail?.priceFloatingRatio == null ? undefined : Number(detail.priceFloatingRatio),
+    initAmount: detail?.initAmount == null ? undefined : Number(detail.initAmount),
+    minSingleTransAmount: detail?.minSingleTransAmount == null ? undefined : Number(detail.minSingleTransAmount),
+    maxSingleTransAmount: detail?.maxSingleTransAmount == null ? undefined : Number(detail.maxSingleTransAmount),
+    tradeMethods,
+    payTimeLimit: detail?.payTimeLimit == null ? undefined : Number(detail.payTimeLimit),
+    buyerKycLimit: detail?.buyerKycLimit == null ? undefined : Number(detail.buyerKycLimit),
+    buyerRegDaysLimit: detail?.buyerRegDaysLimit == null ? undefined : Number(detail.buyerRegDaysLimit),
+    buyerBtcPositionLimit: detail?.buyerBtcPositionLimit == null ? undefined : Number(detail.buyerBtcPositionLimit),
+    takerAdditionalKycRequired:
+      detail?.takerAdditionalKycRequired == null ? undefined : Number(detail.takerAdditionalKycRequired),
+    autoReplyMsg: detail?.autoReplyMsg ?? undefined,
+    remarks: detail?.remarks ?? undefined,
+    advStatus: detail?.advStatus == null ? undefined : Number(detail.advStatus),
+    classify: detail?.classify ?? undefined,
+  };
+
+  // Floating ads must not carry a fixed price and vice versa.
+  if (Number(full.priceType) === 2) delete full.price;
+  else delete full.priceFloatingRatio;
+
+  for (const [key, value] of Object.entries(partial)) {
+    if (value === undefined) continue;
+    full[key] = value;
+  }
+  for (const key of Object.keys(full)) {
+    if (full[key] === undefined) delete full[key];
+  }
+  return full;
+}
+
 async function persistMerchantStateSnapshot(supabase: any, data: any, source = "baseDetail", accountId?: string) {
   const businessStatus = Number(data?.businessStatus);
   if (!Number.isFinite(businessStatus)) return;

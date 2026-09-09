@@ -41,7 +41,6 @@ import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 import { focusPageSearch } from '@/lib/focus-page-search';
 import { pollWhenVisible } from '@/lib/poll-when-visible';
 import { useTerminalCollectorState, isCollectorStale, triggerCollectorTick } from '@/hooks/useTerminalCollector';
-import { prewarmChatCredentials, prewarmChatSockets } from '@/hooks/useBinanceChatWebSocket';
 
 
 /** Convert numeric orderStatus to string */
@@ -231,13 +230,6 @@ function TerminalOrdersContent() {
   const { data: collectorState } = useTerminalCollectorState();
   const collectorStale = isCollectorStale(collectorState);
 
-  // Prewarm chat WebSocket credentials for every visible account so opening a
-  // chat connects instantly (skip the browser→edge→relay→Binance round-trip).
-  useEffect(() => {
-    if (!accountsToQuery?.length) return;
-    prewarmChatCredentials(accountsToQuery);
-    prewarmChatSockets(accountsToQuery);
-  }, [accountsToQuery]);
   const canChat = hasPermission('terminal_orders_chat') || isTerminalAdmin;
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;

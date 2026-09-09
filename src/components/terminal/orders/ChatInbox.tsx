@@ -91,20 +91,31 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     refetchInterval: 10000,
   });
 
-  // Live push: any newly recorded Binance chat message refreshes the inbox.
+  // Live push plus immediate mobile/background recovery.
   useEffect(() => {
+    const refresh = () => {
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+    };
     const channel = supabase
       .channel(`chat-inbox-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'binance_order_chat_messages' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
-        }
+        { event: '*', schema: 'public', table: 'binance_order_chat_messages' },
+        refresh,
       )
       .subscribe();
+    const resume = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('pageshow', refresh);
+    window.addEventListener('online', refresh);
     return () => {
       supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('pageshow', refresh);
+      window.removeEventListener('online', refresh);
     };
   }, [queryClient]);
 

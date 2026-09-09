@@ -11,7 +11,7 @@ const corsHeaders = {
 
 const RUN_BUDGET_MS = 55_000;
 const TICK_MS = 5_000;
-const MAX_UNREAD_ORDERS_PER_TICK = 20;
+const ORDERS_PER_ACCOUNT_PER_TICK = 1;
 const MAX_PAGES = 2;
 const ROWS = 50;
 const MIN_RESYNC_GAP_MS = 15_000;
@@ -99,11 +99,16 @@ async function syncOrderChat(
 
 async function updateHeartbeat(supabase: ReturnType<typeof createClient>, payload: any) {
   try {
-    await supabase
+    const { error } = await supabase
       .from("terminal_collector_state")
-      .upsert({ id: "chat_sweep", ...payload, updated_at: new Date().toISOString() })
-      .select()
-      .maybeSingle();
+      .upsert({
+        id: "chat_sweep",
+        last_tick_at: new Date().toISOString(),
+        last_status: String(payload.status || "unknown"),
+        detail: payload,
+        updated_at: new Date().toISOString(),
+      });
+    if (error) throw error;
   } catch (err) {
     console.warn("chat sweep heartbeat failed:", err);
   }
@@ -177,15 +182,17 @@ serve(async (req) => {
           continue;
         }
 
-        // Find orders with unread chat messages from the active cache.
-        // PostgREST cannot reliably compare JSON text numerically, so we
-        // fetch the raw payload and filter in code.
-        const { data: unreadRows, error: cacheErr } = await supabase
+        // Binance's chatUnreadCount is unreliable and commonly returns zero
+        // while human messages are waiting. Rotate through every recent active
+        // order instead, one order per account per five-second tick. This keeps
+        // the persistent listener as the primary path while guaranteeing a
+        // bounded recovery path without trusting the broken unread flag.
+        const { data: recentRows, error: cacheErr } = await supabase
           .from("terminal_active_orders_cache")
           .select("order_number, raw")
           .eq("exchange_account_id", account.id)
           .order("updated_at", { ascending: false })
-          .limit(200);
+          .limit(120);
 
         if (cacheErr) {
           console.warn("chat sweep cache query failed:", cacheErr);
@@ -193,16 +200,24 @@ serve(async (req) => {
           continue;
         }
 
-        const unreadOrders = (unreadRows || [])
-          .filter((r: any) => Number(r.raw?.chatUnreadCount ?? r.raw?.chatUnread ?? 0) > 0)
-          .map((r: any) => String(r.order_number))
+        const eligibleOrders = (recentRows || [])
+          .map((r: any) => String(r.order_number || ''))
+          .filter((orderNo) => /^\d{8,32}$/.test(orderNo))
           .filter((orderNo) => {
             const last = lastSyncByOrder.get(orderNo) || 0;
             return Date.now() - last >= MIN_RESYNC_GAP_MS;
-          })
-          .slice(0, MAX_UNREAD_ORDERS_PER_TICK);
+          });
 
-        for (const orderNo of unreadOrders.slice(0, MAX_UNREAD_ORDERS_PER_TICK)) {
+        const startIndex = eligibleOrders.length > 0
+          ? Math.floor(Date.now() / TICK_MS) % eligibleOrders.length
+          : 0;
+        const selectedOrders = eligibleOrders.length > 0
+          ? Array.from({ length: Math.min(ORDERS_PER_ACCOUNT_PER_TICK, eligibleOrders.length) }, (_, offset) =>
+              eligibleOrders[(startIndex + offset) % eligibleOrders.length]
+            )
+          : [];
+
+        for (const orderNo of selectedOrders) {
           try {
             const result = await syncOrderChat(supabase, account.id, orderNo, proxyHeadersFor(account), account.proxyUrl);
             lastSyncByOrder.set(orderNo, Date.now());

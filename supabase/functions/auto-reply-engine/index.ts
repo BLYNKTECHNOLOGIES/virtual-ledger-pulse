@@ -45,6 +45,7 @@ interface BinanceOrder {
 
 const ACTIONABLE_ORDER_STATUS_LIST = [1, 2];
 
+
 function extractOrders(data: any): BinanceOrder[] {
   if (Array.isArray(data?.data?.data)) return data.data.data;
   if (Array.isArray(data?.data)) return data.data;
@@ -97,12 +98,19 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   if (isCompleted) {
     // "Order released" — only for orders we sold (we released the crypto),
     // and only while fresh so a history sweep never re-blasts old orders.
+    // NOTE: payment_marked is deliberately NOT replayed here. Verified against
+    // live sends: Binance silently drops chat messages posted to an order that
+    // is already released, so a catch-up reply never reaches the counterparty.
+    // Fast pay+release trades are covered by the seller_payed chat trigger,
+    // which fires while the order is still open.
     const completedAgeMinutes = (Date.now() - order.createTime) / 60000;
     if (order.tradeType === "SELL" && completedAgeMinutes < 180) {
       events.push("order_released");
     }
     return events;
+
   }
+
 
   if (status === "5" || status.includes("CANCEL") || status.includes("EXPIRED")) {
     return events;
@@ -261,7 +269,8 @@ async function sendChatMessage(
   }
 
   // Try WebSocket send up to 2 times
-  for (let wsAttempt = 1; wsAttempt <= 2; wsAttempt++) {
+  const WS_MAX_ATTEMPTS = 3;
+  for (let wsAttempt = 1; wsAttempt <= WS_MAX_ATTEMPTS; wsAttempt++) {
     try {
       const wssUrl = `${cred.chatWssUrl}/${cred.listenKey}?token=${cred.token}&clientType=web`;
       if (wsAttempt === 1) console.log(`WS connecting for order ${orderNo}...`);
@@ -311,28 +320,30 @@ async function sendChatMessage(
 
       if (wsSendResult.success) {
         // Verify delivery by checking chat messages
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2500));
         const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
-        
+
         if (verified) {
           console.log(`✅ Message delivery VERIFIED for order ${orderNo}`);
           return { success: true, verified: true, credential: cred };
-        } else if (wsAttempt === 1) {
+        } else if (wsAttempt < WS_MAX_ATTEMPTS) {
           console.warn(`⚠️ Message sent but NOT verified for order ${orderNo}, retrying WS...`);
-          continue; // Retry once
+          // Binance keeps one live chat session per account; give the previous
+          // session time to drop before opening another one.
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
         } else {
-          // Second attempt also unverified — log as sent but unverified
-          console.warn(`⚠️ Message sent but NOT verified after 2 attempts for order ${orderNo}`);
+          console.warn(`⚠️ Message sent but NOT verified after ${WS_MAX_ATTEMPTS} attempts for order ${orderNo}`);
           return { success: true, verified: false, credential: cred };
         }
-      } else if (wsAttempt < 2) {
+      } else if (wsAttempt < WS_MAX_ATTEMPTS) {
         console.warn(`WS send failed for ${orderNo}, retrying...`);
         await new Promise(r => setTimeout(r, 1000));
       } else {
         return { success: false, verified: false, error: wsSendResult.error, credential: cred };
       }
     } catch (err) {
-      if (wsAttempt < 2) {
+      if (wsAttempt < WS_MAX_ATTEMPTS) {
         await new Promise(r => setTimeout(r, 1000));
       } else {
         return { success: false, verified: false, error: `WebSocket exception: ${String(err)}`, credential: cred };
@@ -566,9 +577,12 @@ serve(async (req) => {
 
       // ===== RECENTLY COMPLETED (RELEASED) ORDERS =====
       // Releases done directly in the Binance app never pass through the terminal,
-      // so sweep freshly completed orders too when an order_released rule exists.
+      // and fast sales are paid + released between two polls, so they never show
+      // up with status 2. Sweep freshly completed orders whenever a release rule
+      // OR a sell-side payment_marked rule exists.
       const hasReleaseRule = (rules as AutoReplyRule[]).some((r) => r.trigger_event === "order_released");
       if (hasReleaseRule) {
+
         try {
           const seen = new Set(allActiveOrders.map((o) => o.orderNumber));
           const completedRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
@@ -734,12 +748,53 @@ serve(async (req) => {
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
+            // A previous attempt may have been reported unverified even though
+            // Binance did deliver it. Never send the same text twice.
+            const { data: alreadyThere } = await supabase
+              .from("binance_order_chat_messages")
+              .select("id")
+              .eq("order_number", order.orderNumber)
+              .eq("message_text", message)
+              .limit(1);
+            if (alreadyThere && alreadyThere.length > 0) {
+              console.log(`⏭️ Reply text already present on ${order.orderNumber}, skipping`);
+              continue;
+            }
+
             pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now() });
+
           }
         }
       }
 
       console.log(`${pendingMessages.length} pending auto-reply messages to send`);
+
+      // Binance allows a single live chat session per account. Two concurrent
+      // invocations (e.g. two buyers marking paid in the same second) would
+      // fight over that session and one message would silently vanish, so
+      // serialise the send phase across invocations with a short DB lock.
+      let sendLockHeld = false;
+      if (pendingMessages.length > 0) {
+        for (let attempt = 0; attempt < 12 && !sendLockHeld; attempt++) {
+          const { data: got } = await supabase.rpc("acquire_chat_send_lock", {
+            p_key: "auto_reply_primary",
+            p_ttl_seconds: 40,
+          });
+          sendLockHeld = got === true;
+          if (!sendLockHeld) await new Promise((r) => setTimeout(r, 2500));
+        }
+        if (!sendLockHeld) {
+          console.log("Could not acquire chat send lock; releasing claims for retry");
+          for (const pm of pendingMessages) {
+            await supabase.from("p2p_auto_reply_processed")
+              .delete()
+              .eq("order_number", pm.orderNumber)
+              .eq("trigger_event", pm.event)
+              .eq("rule_id", pm.rule.id);
+          }
+          pendingMessages.length = 0;
+        }
+      }
 
       // Pre-fetch WebSocket credentials once with retry
       let chatCredential: { chatWssUrl: string; listenKey: string; token: string } | null = null;
@@ -748,7 +803,11 @@ serve(async (req) => {
       }
 
       // Send each message with verification
+      let sentInThisRun = 0;
       for (const pm of pendingMessages) {
+        // Space out consecutive chat sessions on the same account.
+        if (sentInThisRun > 0) await new Promise((r) => setTimeout(r, 3000));
+        sentInThisRun++;
         pm.sendTimestamp = Date.now();
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
@@ -775,7 +834,14 @@ serve(async (req) => {
             console.log(`✅ Auto-reply sent & VERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
             verified++;
           } else {
-            console.log(`⚠️ Auto-reply sent but UNVERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
+            // Unverified means Binance never echoed the message back. Release
+            // the claim so the next cycle can retry while the order is open.
+            await supabase.from("p2p_auto_reply_processed")
+              .delete()
+              .eq("order_number", pm.orderNumber)
+              .eq("trigger_event", pm.event)
+              .eq("rule_id", pm.rule.id);
+            console.log(`⚠️ Auto-reply sent but UNVERIFIED (will retry): [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
             unverified++;
           }
           processed++;
@@ -799,7 +865,12 @@ serve(async (req) => {
           errors++;
         }
       }
+
+      if (sendLockHeld) {
+        await supabase.rpc("release_chat_send_lock", { p_key: "auto_reply_primary" });
+      }
     }
+
 
     const result = {
       message: "Execution complete",

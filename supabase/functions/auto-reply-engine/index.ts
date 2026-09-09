@@ -814,7 +814,14 @@ serve(async (req) => {
             console.log(`✅ Auto-reply sent & VERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
             verified++;
           } else {
-            console.log(`⚠️ Auto-reply sent but UNVERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
+            // Unverified means Binance never echoed the message back. Release
+            // the claim so the next cycle can retry while the order is open.
+            await supabase.from("p2p_auto_reply_processed")
+              .delete()
+              .eq("order_number", pm.orderNumber)
+              .eq("trigger_event", pm.event)
+              .eq("rule_id", pm.rule.id);
+            console.log(`⚠️ Auto-reply sent but UNVERIFIED (will retry): [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
             unverified++;
           }
           processed++;
@@ -838,7 +845,12 @@ serve(async (req) => {
           errors++;
         }
       }
+
+      if (sendLockHeld) {
+        await supabase.rpc("release_chat_send_lock", { p_key: "auto_reply_primary" });
+      }
     }
+
 
     const result = {
       message: "Execution complete",

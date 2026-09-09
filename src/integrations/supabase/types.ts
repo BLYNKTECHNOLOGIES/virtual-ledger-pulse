@@ -29271,6 +29271,31 @@ export type Database = {
           trade_type: string
         }[]
       }
+      get_counterparty_profile: {
+        Args: { p_exchange_account_id?: string; p_order_number: string }
+        Returns: {
+          avg_pay_minutes: number
+          avg_release_minutes: number
+          avg_value: number
+          buy_orders: number
+          cancelled_orders: number
+          complaint_orders: number
+          completed_orders: number
+          counterparty_nickname: string
+          counterparty_no: string
+          first_trade_time: number
+          last_trade_time: number
+          median_value: number
+          pay_sample: number
+          release_sample: number
+          sell_orders: number
+          top_pay_method: string
+          total_asset_amount: number
+          total_orders: number
+          total_value: number
+          verified_name: string
+        }[]
+      }
       get_default_risk_level: { Args: never; Returns: string }
       get_latest_binance_ad_state: {
         Args: { p_adv_no: string }

@@ -433,16 +433,16 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       </div>
 
       {/* Tabs + sorting */}
-      <div className="px-4 py-2 border-b border-border flex items-center gap-2 flex-wrap">
+      <div className="px-3 sm:px-4 py-2 border-b border-border flex items-center gap-2 flex-wrap">
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList className="h-8 bg-secondary">
-            <TabsTrigger value="all" className="text-[11px] h-6 px-4">All</TabsTrigger>
-            <TabsTrigger value="unread" className="text-[11px] h-6 px-4">
+            <TabsTrigger value="all" className="text-[11px] h-6 px-3 sm:px-4">All</TabsTrigger>
+            <TabsTrigger value="unread" className="text-[11px] h-6 px-3 sm:px-4">
               Unread ({totalUnread})
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <div className="ml-auto flex items-center rounded-md bg-secondary p-0.5">
+        <div className="ml-auto flex items-center rounded-md bg-secondary p-0.5 shrink-0">
           <Button
             variant={sortMode === 'recent' ? 'secondary' : 'ghost'}
             size="sm"
@@ -450,7 +450,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             title="Newest message first"
             onClick={() => setSortMode('recent')}
           >
-            <Clock className="h-3 w-3" />
+            <Clock className="h-3 w-3 shrink-0" />
             Recent
           </Button>
           <Button
@@ -460,10 +460,12 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             title={`Clients with any order above the small-order range come first — ${formatBandsLabel(bands)}`}
             onClick={() => setSortMode('big')}
           >
-            <TrendingUp className="h-3 w-3" />
-            Big orders first
+            <TrendingUp className="h-3 w-3 shrink-0" />
+            <span className="hidden sm:inline">Big orders first</span>
+            <span className="sm:hidden">Big first</span>
           </Button>
         </div>
+
       </div>
 
       {/* Conversation list */}

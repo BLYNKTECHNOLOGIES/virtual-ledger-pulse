@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Hash, User, CreditCard } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { ArrowLeft, User } from 'lucide-react';
 import { ChatPanel } from './ChatPanel';
 import { ChatConversation } from './ChatInbox';
+import { CounterpartyDetailsPanel } from './CounterpartyDetailsPanel';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
 
 /** Standalone chat thread view with order context sidebar */
 export function ChatThreadView({ conversation: c, onBack }: Props) {
+  const [showDetails, setShowDetails] = useState(false);
   const numStatusMap: Record<number, string> = {
     1: 'TRADING', 2: 'BUYER_PAYED', 3: 'BUYER_PAYED', 4: 'COMPLETED',
     5: 'APPEAL', 6: 'CANCELLED', 7: 'CANCELLED_BY_SYSTEM', 8: 'APPEAL',
@@ -22,6 +25,16 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
     : (numStatusMap[Number(c.orderStatus)] || c.orderStatus);
   const opStatus = mapToOperationalStatus(rawStatus, c.tradeType);
   const statusStyle = getStatusStyle(opStatus);
+
+  const details = (
+    <CounterpartyDetailsPanel
+      orderNumber={c.orderNumber}
+      counterpartyNickname={c.counterpartyNickname}
+      counterpartyVerifiedName={c.verifiedName}
+      tradeType={c.tradeType}
+      exchangeAccountId={c.exchangeAccountId}
+    />
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -51,20 +64,42 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
             </span>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 text-[10px] gap-1 lg:hidden"
+          onClick={() => setShowDetails(true)}
+        >
+          <User className="h-3 w-3" />
+          Details
+        </Button>
       </div>
 
-
-      {/* Chat panel — reuse existing */}
-      <div className="flex-1 min-h-0">
-        <ChatPanel
-          orderId={c.orderNumber}
-          orderNumber={c.orderNumber}
-          counterpartyId={null}
-          counterpartyNickname={c.counterpartyNickname}
-          tradeType={c.tradeType}
-          orderStatus={rawStatus}
-        />
+      {/* Chat + counterparty details */}
+      <div className="flex-1 min-h-0 flex">
+        <div className="flex-1 min-w-0 min-h-0">
+          <ChatPanel
+            orderId={c.orderNumber}
+            orderNumber={c.orderNumber}
+            counterpartyId={null}
+            counterpartyNickname={c.counterpartyNickname}
+            tradeType={c.tradeType}
+            orderStatus={rawStatus}
+          />
+        </div>
+        <aside className="hidden lg:flex w-[320px] shrink-0 border-l border-border bg-card flex-col min-h-0">
+          {details}
+        </aside>
       </div>
+
+      <Sheet open={showDetails} onOpenChange={setShowDetails}>
+        <SheetContent side="right" className="w-[90vw] sm:w-[380px] p-0 bg-card">
+          <SheetHeader className="px-3 py-2 border-b border-border">
+            <SheetTitle className="text-xs">Counterparty details</SheetTitle>
+          </SheetHeader>
+          <div className="h-[calc(100%-40px)]">{details}</div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

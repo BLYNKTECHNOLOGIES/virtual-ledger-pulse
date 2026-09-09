@@ -99,10 +99,14 @@ export function useCounterpartyChatHistory(
         // side of each order as the counterparty. This fixes the leak where
         // takerUserNo was OUR own id on BUY orders (and any ad we took), which
         // previously pulled in thousands of unrelated orders/KYC docs.
-        const { data, error } = await supabase.rpc('get_counterparty_order_history', {
-          p_order_number: currentOrderNumber,
-          p_exchange_account_id: exchangeAccountId || null,
-        });
+        const { data, error } = await withTimeout(
+          supabase.rpc('get_counterparty_order_history', {
+            p_order_number: currentOrderNumber,
+            p_exchange_account_id: exchangeAccountId || null,
+          }),
+          20_000,
+          'past order lookup',
+        );
         if (error) throw error;
         const past = [...(data || [])];
 

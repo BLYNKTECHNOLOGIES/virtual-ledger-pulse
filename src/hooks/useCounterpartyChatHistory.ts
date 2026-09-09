@@ -166,11 +166,15 @@ export function useCounterpartyChatHistory(
 
       const archived: Record<string, HistoricalChatMessage[]> = {};
       if (pending.length) {
-        const { data: rows } = await supabase
-          .from('binance_order_chat_messages')
-          .select('order_number,binance_message_id,message_type,chat_message_type,content_type,message_text,image_url,thumbnail_url,binance_create_time,sender_is_self,sender_nickname')
-          .in('order_number', pending.map((o) => o.order_number))
-          .order('binance_create_time', { ascending: true });
+        const { data: rows } = await withTimeout(
+          supabase
+            .from('binance_order_chat_messages')
+            .select('order_number,binance_message_id,message_type,chat_message_type,content_type,message_text,image_url,thumbnail_url,binance_create_time,sender_is_self,sender_nickname')
+            .in('order_number', pending.map((o) => o.order_number))
+            .order('binance_create_time', { ascending: true }),
+          20_000,
+          'stored chat lookup',
+        );
         for (const r of rows || []) {
           const key = String((r as any).order_number);
           (archived[key] ||= []).push({

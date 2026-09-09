@@ -535,7 +535,40 @@ serve(async (req) => {
           if (pageOrders.length < 50) break;
         }
       }
-      console.log(`Processing ${allActiveOrders.length} active orders for auto-reply`);
+
+      // ===== RECENTLY COMPLETED (RELEASED) ORDERS =====
+      // Releases done directly in the Binance app never pass through the terminal,
+      // so sweep freshly completed orders too when an order_released rule exists.
+      const hasReleaseRule = (rules as AutoReplyRule[]).some((r) => r.trigger_event === "order_released");
+      if (hasReleaseRule) {
+        try {
+          const seen = new Set(allActiveOrders.map((o) => o.orderNumber));
+          const completedRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+            method: "POST",
+            headers: proxyHeaders,
+            body: JSON.stringify({ page: 1, rows: 50, orderStatusList: [4] }),
+          });
+          const completedData = await completedRes.json();
+          if (completedRes.ok && (!completedData?.code || completedData.code === "000000")) {
+            const completedOrders: BinanceOrder[] = extractOrders(completedData);
+            let added = 0;
+            for (const o of completedOrders) {
+              if (!o?.orderNumber || seen.has(o.orderNumber)) continue;
+              const ageMinutes = (Date.now() - Number(o.createTime || 0)) / 60000;
+              if (!Number.isFinite(ageMinutes) || ageMinutes > 180) continue;
+              allActiveOrders.push(o);
+              added++;
+            }
+            listOrdersDiagnostics.pages.push({ page: 1, count: added, filtered: true, completedSweep: true });
+          } else {
+            listOrdersDiagnostics.completedSweepError = completedData?.code || completedRes.status;
+          }
+        } catch (e) {
+          console.warn("Completed-order sweep failed:", e);
+        }
+      }
+      console.log(`Processing ${allActiveOrders.length} orders for auto-reply`);
+
     }
 
     {

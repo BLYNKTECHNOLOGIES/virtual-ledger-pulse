@@ -190,18 +190,22 @@ export function useCounterpartyChatHistory(
         }
       }
 
-      const fetched = await Promise.all(pending.map(async (order) => {
+      const settled = await Promise.allSettled(pending.map(async (order) => {
         const stored = archived[order.order_number];
         let messages: HistoricalChatMessage[] = stored || [];
 
         if (!messages.length && !order.order_number.startsWith('INQ-')) {
           try {
-            const result = await callBinanceAds('getChatMessages', {
-              orderNo: order.order_number,
-              page: 1,
-              rows: 50,
-              sort: 'asc',
-            }, order.exchange_account_id || exchangeAccountId || undefined);
+            const result = await withTimeout(
+              callBinanceAds('getChatMessages', {
+                orderNo: order.order_number,
+                page: 1,
+                rows: 50,
+                sort: 'asc',
+              }, order.exchange_account_id || exchangeAccountId || undefined),
+              15_000,
+              `chat fetch ${order.order_number}`,
+            );
             const list = result?.data?.data || result?.data || result?.list || [];
             messages = (Array.isArray(list) ? list : []).filter((msg: any) => {
               const msgOrderNo = msg?.orderNo || msg?.topicId || msg?.order?.orderNo || null;
@@ -209,6 +213,8 @@ export function useCounterpartyChatHistory(
             });
           } catch (err) {
             console.warn('Failed to fetch chat for order:', order.order_number, err);
+            // Allow a later retry for this order instead of caching an empty thread.
+            loadedOrdersRef.current.delete(order.order_number);
             messages = [];
           }
         }
@@ -224,7 +230,9 @@ export function useCounterpartyChatHistory(
           messages,
         } as HistoricalOrderChat;
       }));
-      chatResults.push(...fetched);
+      for (const r of settled) {
+        if (r.status === 'fulfilled') chatResults.push(r.value);
+      }
 
       offsetRef.current += PAGE_SIZE;
 

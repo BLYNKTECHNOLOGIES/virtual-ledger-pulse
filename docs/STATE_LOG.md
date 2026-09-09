@@ -344,3 +344,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-09 09:00 IST: Terminal chat inbox — amounts now fall back to live order cache when order sync lags; Binance-app read reconciliation window widened 30m→6h and per-order re-check raised to 25 threads every 45s.
 - 2026-09-09 15:05 IST: Chat inbox rows redesigned to "Data grid terminal" layout (identity | preview | trade figures | time | chevron columns, unread accent rail + glow dot, status as colored label, mobile compact fallback). User picked direction v3.
 - 2026-09-09 15:40 IST: Added counterparty details side panel to terminal chat thread view (get_counterparty_profile RPC + past-orders list + linked client).
+- 2026-09-09: Chat inbox status now prefers the fresher of live order cache vs order-history sync (fixed cancelled orders showing as Pending Payment); inbox refresh 20s -> 10s.

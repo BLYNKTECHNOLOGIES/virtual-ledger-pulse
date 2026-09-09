@@ -30,6 +30,7 @@ export function SmallSalesConfig() {
 
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
+  const [intervalSeconds, setIntervalSeconds] = useState<string>('');
 
   // Preview impact: count today's orders that would classify as small vs big
   const { data: preview } = useQuery({
@@ -156,13 +157,13 @@ export function SmallSalesConfig() {
         </CardContent>
       </Card>
 
-      {/* Auto-mark small sell chats as read */}
+      {/* Auto-mark small trade chats as read */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Settings className="h-5 w-5 text-primary" />
-              <CardTitle className="text-base">Auto-mark Small Sell Chats as Read</CardTitle>
+              <CardTitle className="text-base">Auto-mark Small Trade Chats as Read</CardTitle>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground">{(config as any)?.auto_mark_chat_read ? 'Enabled' : 'Disabled'}</span>
@@ -173,10 +174,55 @@ export function SmallSalesConfig() {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            When enabled, the terminal continuously marks the Binance chat of active SELL orders within the small-sales range as read,
-            so big-buyer conversations stay visibly unread and easy to spot. Buy-side and big-order chats are never touched.
+            When enabled, the terminal clears unread chats of orders inside the small ranges at the interval below,
+            so big-value client messages stay visibly unread. Enquiry chats, unknown amounts, and any counterparty
+            who also has a big order are never touched.
+          </p>
+
+          <div className="grid grid-cols-2 gap-4 items-end">
+            <div>
+              <Label>Run every (seconds)</Label>
+              <Input
+                type="number"
+                min={10}
+                max={3600}
+                placeholder="60"
+                value={intervalSeconds}
+                onChange={(e) => setIntervalSeconds(e.target.value)}
+              />
+            </div>
+            <Button
+              size="sm"
+              disabled={updateConfig.isPending}
+              onClick={() => {
+                const secs = Math.round(Number(intervalSeconds || (config as any)?.auto_mark_interval_seconds || 60));
+                if (!Number.isFinite(secs) || secs < 10 || secs > 3600) {
+                  toast({ title: 'Invalid interval', description: 'Use 10 to 3600 seconds', variant: 'destructive' });
+                  return;
+                }
+                updateConfig.mutate({ auto_mark_interval_seconds: secs });
+              }}
+            >
+              <Save className="h-4 w-4 mr-1" />
+              Save Interval
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <div>
+              <p className="text-sm font-medium">Include small BUY chats</p>
+              <p className="text-xs text-muted-foreground">Off = only small SELL order chats are cleared.</p>
+            </div>
+            <Switch
+              checked={(config as any)?.auto_mark_include_buys ?? true}
+              onCheckedChange={(v) => updateConfig.mutate({ auto_mark_include_buys: v })}
+            />
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Current interval: every {Number((config as any)?.auto_mark_interval_seconds || 60)} seconds.
           </p>
         </CardContent>
       </Card>

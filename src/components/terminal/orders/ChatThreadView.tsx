@@ -79,6 +79,7 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
       <div className="flex-1 min-h-0 flex">
         <div className="flex-1 min-w-0 min-h-0">
           <ChatPanel
+            key={`${c.exchangeAccountId ?? 'default'}:${c.orderNumber}`}
             orderId={c.orderNumber}
             orderNumber={c.orderNumber}
             counterpartyId={null}

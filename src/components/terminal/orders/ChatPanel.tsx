@@ -134,11 +134,6 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       callBinanceAds('markOrderMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch((err) => {
         console.warn('Failed to mark Binance chat read:', err);
       });
-      // Also mark ALL chats with this counterparty user as read (Binance API §38)
-      // so stale unread badges on their other orders clear too.
-      callBinanceAds('markUserMessagesRead', { orderNo: orderNumber }, exchangeAccountId ?? undefined).catch((err) => {
-        console.warn('Failed to mark counterparty user chats read:', err);
-      });
       callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' }, exchangeAccountId ?? undefined)
         .catch((err) => {
           if (!cancelled) console.warn('Binance chat archive sync failed:', err);

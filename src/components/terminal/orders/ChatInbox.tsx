@@ -265,30 +265,25 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   );
 
   const handleOpenChat = useCallback(
-    (conv: ChatConversation) => {
+    async (conv: ChatConversation) => {
       // A row can roll up several order threads for the same counterparty —
       // mark every one of them read, otherwise the badge comes straight back.
       const orderNumbers = Array.from(
         new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])])
       );
       orderNumbers.forEach((n) => markOrderChatRead(n));
-      Promise.all(
-        orderNumbers.map((n) =>
-          supabase.rpc('mark_terminal_binance_chat_read', {
-            p_order_number: n,
-            p_source: 'operator',
-          })
-        )
-      ).then((results) => {
-        const failed = results.filter(({ error }) => error);
-        if (failed.length > 0) {
-          console.warn(`Failed to mark ${failed.length} merged chat thread(s) read`);
-          toast.error('Could not clear every unread message. Please try again.');
-        }
+      const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
+        p_order_numbers: orderNumbers,
+        p_source: 'operator',
+      });
+      if (error) {
+        console.warn('Failed to mark merged chat threads read:', error.message);
+        toast.error('Could not clear every unread message. Please try again.');
+      } else {
         queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
         queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
         queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
-      });
+      }
       orderNumbers.forEach((n) => {
         callBinanceAds('markOrderMessagesRead', { orderNo: n }).catch((err) => {
           console.warn('Failed to mark Binance chat read:', err);

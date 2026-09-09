@@ -745,7 +745,21 @@ serve(async (req) => {
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
 
+            // A previous attempt may have been reported unverified even though
+            // Binance did deliver it. Never send the same text twice.
+            const { data: alreadyThere } = await supabase
+              .from("binance_order_chat_messages")
+              .select("id")
+              .eq("order_number", order.orderNumber)
+              .eq("message_text", message)
+              .limit(1);
+            if (alreadyThere && alreadyThere.length > 0) {
+              console.log(`⏭️ Reply text already present on ${order.orderNumber}, skipping`);
+              continue;
+            }
+
             pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now() });
+
           }
         }
       }

@@ -30910,12 +30910,10 @@ export type Database = {
         Args: { p_order_number: string; p_payer_user_id: string }
         Returns: Json
       }
-      mark_terminal_binance_chat_read:
-        | { Args: { p_order_number: string }; Returns: undefined }
-        | {
-            Args: { p_order_number: string; p_source?: string }
-            Returns: undefined
-          }
+      mark_terminal_binance_chat_read: {
+        Args: { p_order_number: string; p_source?: string }
+        Returns: undefined
+      }
       mark_terminal_binance_chats_read: {
         Args: { p_order_numbers: string[]; p_source?: string }
         Returns: number

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -96,6 +97,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // another order or merge prior-order messages into this panel: that can show
   // unrelated KYC/payment evidence and can send a reply to the wrong order.
   const orderNumber = openedOrderNumber;
+  const queryClient = useQueryClient();
   // Chats Binance delivers without an order behind them (ad enquiries).
   // Binance's documented send endpoint requires an order number, so replying
   // to these from the terminal is not supported.
@@ -141,6 +143,11 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         console.warn('Failed to mark Binance chat read:', err);
       });
       callBinanceAds('syncOrderChatMessages', { orderNo: orderNumber, rows: 50, maxPages: 5, sort: 'asc' }, exchangeAccountId ?? undefined)
+        .then(() => Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', orderNumber, exchangeAccountId ?? null] }),
+          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] }),
+          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] }),
+        ]))
         .catch((err) => {
           if (!cancelled) console.warn('Binance chat archive sync failed:', err);
         });
@@ -150,7 +157,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [orderNumber, exchangeAccountId]);
+  }, [orderNumber, exchangeAccountId, queryClient]);
 
   // Who on the team last opened this chat (captured before our own read is written).
   const previousSeen = useChatSeenSnapshot(orderNumber);

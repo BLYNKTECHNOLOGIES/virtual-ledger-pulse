@@ -82,19 +82,22 @@ export function NotificationDropdown() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="relative">
+        <Button variant="outline" size="sm" className="relative transition-transform active:scale-95">
           {isMuted ? (
             <BellOff className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <Bell className={cn("h-4 w-4", unreadCount > 0 && "animate-pulse")} />
+            <Bell className={cn("h-4 w-4", unreadCount > 0 && "animate-bell-ring")} />
           )}
           {unreadCount > 0 && (
-            <Badge 
-              variant="destructive" 
-              className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0 animate-bounce"
-            >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </Badge>
+            <>
+              <span className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-destructive/40 animate-ping" />
+              <Badge
+                variant="destructive"
+                className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center text-xs p-0 animate-scale-in tabular-nums"
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Badge>
+            </>
           )}
           {/* Muted indicator */}
           {isMuted && (
@@ -104,6 +107,7 @@ export function NotificationDropdown() {
           )}
         </Button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent
         align="end"
         sideOffset={8}

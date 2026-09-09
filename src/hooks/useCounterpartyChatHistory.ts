@@ -28,6 +28,21 @@ export interface HistoricalChatMessage {
 const PAGE_SIZE = 5; // Load 5 past orders at a time (fetched in parallel)
 
 /**
+ * Every network hop here gets a hard deadline. A single Binance/edge-function
+ * call that never settles used to leave the "Loading older chats..." spinner
+ * running forever, because the whole batch was awaited with Promise.all.
+ */
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    Promise.resolve(promise).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+/**
  * Counterparty chat history.
  *
  * IMPORTANT (data-integrity): We do NOT group history by `verified_name` or the
@@ -53,6 +68,7 @@ export function useCounterpartyChatHistory(
   const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null; order_status?: string | null }[] | null>(null);
   const offsetRef = useRef(0);
   const scopeRef = useRef('');
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     const scope = [currentOrderNumber, counterpartyVerifiedName || '', counterpartyNickname || '', exchangeAccountId || ''].join('|');
@@ -61,13 +77,17 @@ export function useCounterpartyChatHistory(
     allPastOrdersRef.current = null;
     offsetRef.current = 0;
     loadedOrdersRef.current = new Set();
+    loadingRef.current = false;
     setHasMore(true);
+    setIsLoading(false);
     setHistoricalChats([]);
   }, [currentOrderNumber, counterpartyVerifiedName, counterpartyNickname, exchangeAccountId]);
 
   const fetchPastOrders = useCallback(async () => {
-    if (!hasMore || isLoading) return;
+    if (!hasMore || loadingRef.current) return;
+    loadingRef.current = true;
     setIsLoading(true);
+
 
     try {
       // Fetch the full list of past orders once and cache
@@ -79,10 +99,14 @@ export function useCounterpartyChatHistory(
         // side of each order as the counterparty. This fixes the leak where
         // takerUserNo was OUR own id on BUY orders (and any ad we took), which
         // previously pulled in thousands of unrelated orders/KYC docs.
-        const { data, error } = await supabase.rpc('get_counterparty_order_history', {
-          p_order_number: currentOrderNumber,
-          p_exchange_account_id: exchangeAccountId || null,
-        });
+        const { data, error } = await withTimeout(
+          supabase.rpc('get_counterparty_order_history', {
+            p_order_number: currentOrderNumber,
+            p_exchange_account_id: exchangeAccountId || null,
+          }),
+          20_000,
+          'past order lookup',
+        );
         if (error) throw error;
         const past = [...(data || [])];
 
@@ -99,7 +123,7 @@ export function useCounterpartyChatHistory(
             .order('binance_create_time', { ascending: true })
             .limit(500);
           if (exchangeAccountId) iq = iq.eq('exchange_account_id', exchangeAccountId);
-          const { data: inqRows } = await iq;
+          const { data: inqRows } = await withTimeout(iq, 15_000, 'enquiry thread lookup');
           const firstSeen = new Map<string, number>();
           for (const r of inqRows || []) {
             const on = String((r as any).order_number);
@@ -142,11 +166,15 @@ export function useCounterpartyChatHistory(
 
       const archived: Record<string, HistoricalChatMessage[]> = {};
       if (pending.length) {
-        const { data: rows } = await supabase
-          .from('binance_order_chat_messages')
-          .select('order_number,binance_message_id,message_type,chat_message_type,content_type,message_text,image_url,thumbnail_url,binance_create_time,sender_is_self,sender_nickname')
-          .in('order_number', pending.map((o) => o.order_number))
-          .order('binance_create_time', { ascending: true });
+        const { data: rows } = await withTimeout(
+          supabase
+            .from('binance_order_chat_messages')
+            .select('order_number,binance_message_id,message_type,chat_message_type,content_type,message_text,image_url,thumbnail_url,binance_create_time,sender_is_self,sender_nickname')
+            .in('order_number', pending.map((o) => o.order_number))
+            .order('binance_create_time', { ascending: true }),
+          20_000,
+          'stored chat lookup',
+        );
         for (const r of rows || []) {
           const key = String((r as any).order_number);
           (archived[key] ||= []).push({
@@ -162,18 +190,22 @@ export function useCounterpartyChatHistory(
         }
       }
 
-      const fetched = await Promise.all(pending.map(async (order) => {
+      const settled = await Promise.allSettled(pending.map(async (order) => {
         const stored = archived[order.order_number];
         let messages: HistoricalChatMessage[] = stored || [];
 
         if (!messages.length && !order.order_number.startsWith('INQ-')) {
           try {
-            const result = await callBinanceAds('getChatMessages', {
-              orderNo: order.order_number,
-              page: 1,
-              rows: 50,
-              sort: 'asc',
-            }, order.exchange_account_id || exchangeAccountId || undefined);
+            const result = await withTimeout(
+              callBinanceAds('getChatMessages', {
+                orderNo: order.order_number,
+                page: 1,
+                rows: 50,
+                sort: 'asc',
+              }, order.exchange_account_id || exchangeAccountId || undefined),
+              15_000,
+              `chat fetch ${order.order_number}`,
+            );
             const list = result?.data?.data || result?.data || result?.list || [];
             messages = (Array.isArray(list) ? list : []).filter((msg: any) => {
               const msgOrderNo = msg?.orderNo || msg?.topicId || msg?.order?.orderNo || null;
@@ -181,6 +213,8 @@ export function useCounterpartyChatHistory(
             });
           } catch (err) {
             console.warn('Failed to fetch chat for order:', order.order_number, err);
+            // Allow a later retry for this order instead of caching an empty thread.
+            loadedOrdersRef.current.delete(order.order_number);
             messages = [];
           }
         }
@@ -196,7 +230,9 @@ export function useCounterpartyChatHistory(
           messages,
         } as HistoricalOrderChat;
       }));
-      chatResults.push(...fetched);
+      for (const r of settled) {
+        if (r.status === 'fulfilled') chatResults.push(r.value);
+      }
 
       offsetRef.current += PAGE_SIZE;
 
@@ -213,9 +249,10 @@ export function useCounterpartyChatHistory(
     } catch (err) {
       console.error('Failed to load counterparty chat history:', err);
     } finally {
+      loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, counterpartyVerifiedName, currentOrderNumber, exchangeAccountId, hasMore, isLoading]);
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, hasMore]);
 
   return { historicalChats, isLoading, hasMore, loadMore: fetchPastOrders };
 }

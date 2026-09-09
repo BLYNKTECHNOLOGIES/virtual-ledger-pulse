@@ -61,11 +61,19 @@ interface PendingMessage {
 }
 
 function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {
-  if (verifiedName) return verifiedName;
-  if (order.buyerRealName) return order.buyerRealName;
-  if (order.sellerRealName) return order.sellerRealName;
-  if (order.counterPartNickName && order.counterPartNickName !== "" && order.counterPartNickName !== "undefined") return order.counterPartNickName;
-  return "Trader";
+  const clean = (v: unknown): string | null => {
+    if (typeof v !== "string") return null;
+    const s = v.trim();
+    if (!s || s.includes("*") || s.toLowerCase() === "undefined" || s.toLowerCase() === "unknown") return null;
+    return s;
+  };
+  return (
+    clean(verifiedName) ||
+    clean(order.buyerRealName) ||
+    clean(order.sellerRealName) ||
+    clean(order.counterPartNickName) ||
+    "Trader"
+  );
 }
 
 function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string {

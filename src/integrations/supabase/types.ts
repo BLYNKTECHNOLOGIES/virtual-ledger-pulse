@@ -22669,6 +22669,8 @@ export type Database = {
       small_sales_config: {
         Row: {
           auto_mark_chat_read: boolean
+          auto_mark_include_buys: boolean
+          auto_mark_interval_seconds: number
           currency: string
           id: string
           is_enabled: boolean
@@ -22679,6 +22681,8 @@ export type Database = {
         }
         Insert: {
           auto_mark_chat_read?: boolean
+          auto_mark_include_buys?: boolean
+          auto_mark_interval_seconds?: number
           currency?: string
           id?: string
           is_enabled?: boolean
@@ -22689,6 +22693,8 @@ export type Database = {
         }
         Update: {
           auto_mark_chat_read?: boolean
+          auto_mark_include_buys?: boolean
+          auto_mark_interval_seconds?: number
           currency?: string
           id?: string
           is_enabled?: boolean

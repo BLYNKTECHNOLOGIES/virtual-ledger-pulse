@@ -85,8 +85,18 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   const events: string[] = [];
   const status = String(order.orderStatus ?? "").toUpperCase();
 
-  if (status.includes("COMPLETED") || status === "4" || status === "5" ||
-      status.includes("CANCEL") || status.includes("EXPIRED")) {
+  const isCompleted = status === "4" || status.includes("COMPLETED");
+  if (isCompleted) {
+    // "Order released" — only for orders we sold (we released the crypto),
+    // and only while fresh so a history sweep never re-blasts old orders.
+    const completedAgeMinutes = (Date.now() - order.createTime) / 60000;
+    if (order.tradeType === "SELL" && completedAgeMinutes < 180) {
+      events.push("order_released");
+    }
+    return events;
+  }
+
+  if (status === "5" || status.includes("CANCEL") || status.includes("EXPIRED")) {
     return events;
   }
 
@@ -471,7 +481,11 @@ serve(async (req) => {
             unitPrice: String(d.unitPrice ?? ""),
             // Force PAID-equivalent status so payment_marked rules match even if
             // Binance has already advanced the order to Releasing/Completed.
-            orderStatus: forcedEvent === "payment_marked" ? "PAID" : (d.orderStatus ?? ""),
+            orderStatus: forcedEvent === "payment_marked"
+              ? "PAID"
+              : forcedEvent === "order_released"
+              ? "COMPLETED"
+              : (d.orderStatus ?? ""),
             createTime: Number(d.createTime) || Date.now(),
             counterPartNickName: d.counterPartNickName,
             buyerRealName: d.buyerRealName,

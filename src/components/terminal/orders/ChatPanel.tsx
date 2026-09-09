@@ -3,10 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, Cloud, History } from 'lucide-react';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, Cloud } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
-import { useCounterpartyChatHistory } from '@/hooks/useCounterpartyChatHistory';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
@@ -26,7 +25,6 @@ import {
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useQuickReplies } from '@/hooks/useP2PTerminal';
 import { subscribeQuickReplyHotkey } from '@/hooks/useTerminalHotkeys';
-import { OrderChatSeparator } from './chat/OrderChatSeparator';
 import { playMessageSound } from '@/lib/chatSound';
 import { toast } from 'sonner';
 import { callBinanceAds } from '@/hooks/useBinanceActions';
@@ -34,7 +32,6 @@ import { markOrderChatRead } from '@/lib/chat-read-state';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
-import { useNewerCounterpartyOrder } from '@/hooks/useNewerCounterpartyOrder';
 
 /**
  * The same Binance frame can reach us twice (live socket + history sweep) with
@@ -94,21 +91,16 @@ function normalizeChatTimestamp(value: unknown): number {
 }
 
 export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
-  // ONE THREAD PER COUNTERPARTY.
-  // Binance chat is order-scoped: a counterparty's newest messages land in
-  // their newest order. When the operator opens an older order we silently
-  // anchor the live thread to that newest order, so incoming messages and
-  // replies stay in a single conversation; the older order's chat still shows
-  // above it as history.
-  const { data: newerOrder } = useNewerCounterpartyOrder(openedOrderNumber, exchangeAccountId);
-  const orderNumber = newerOrder?.orderNumber ?? openedOrderNumber;
+  // Binance chat is strictly order-scoped. Never re-anchor an opened order to
+  // another order or merge prior-order messages into this panel: that can show
+  // unrelated KYC/payment evidence and can send a reply to the wrong order.
+  const orderNumber = openedOrderNumber;
   // Chats Binance delivers without an order behind them (ad enquiries).
   // Binance's documented send endpoint requires an order number, so replying
   // to these from the terminal is not supported.
   const isEnquiryThread = orderNumber.startsWith('INQ-');
   const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
-  const { historicalChats, isLoading: historyLoading, hasMore, loadMore } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
   const { userId, username } = useTerminalAuth();
   const [text, setText] = useState('');
@@ -177,11 +169,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
            /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
   }, []);
 
-  // Prefetch sender records for current order + historical orders
+  // Prefetch sender records for the current order only.
   useEffect(() => {
-    const orderNos = [orderNumber, ...historicalChats.map(h => h.orderNumber)];
-    prefetchSenders(orderNos);
-  }, [orderNumber, historicalChats, prefetchSenders]);
+    prefetchSenders([orderNumber]);
+  }, [orderNumber, prefetchSenders]);
 
   // Build unified messages from WebSocket data (current order)
   const currentOrderMessages: UnifiedMessage[] = useMemo(() => {
@@ -257,72 +248,6 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
 
 
-  // Build historical messages from past orders
-  const historicalSections = useMemo(() => {
-    return historicalChats.map((order) => {
-      const messages: UnifiedMessage[] = order.messages.map((msg) => {
-        const msgType = msg.type || 'text';
-        const isSelf = msg.self === true;
-        const isImage = msgType === 'image';
-        const normalizedType = String(msgType).toLowerCase();
-        const imgUrl = msg.imageUrl || msg.thumbnailUrl || undefined;
-        const content = msg.content || msg.message || '';
-        const isSystemLike = !isCardPayload(content) &&
-          (normalizedType === 'system' || ['recall', 'mark', 'card', 'video', 'translate', 'error'].includes(normalizedType));
-
-        const effectiveImgUrl = isImage ? (imgUrl || content || undefined) : imgUrl;
-
-        return {
-          id: `hist-${order.orderNumber}-${msg.id}`,
-          source: 'binance' as const,
-          senderType: isSystemLike ? 'system' as const : ((isSelf || normalizedType === 'auto_reply') ? 'operator' as const : 'counterparty' as const),
-          text: isImage ? null : (content || null),
-          imageUrl: effectiveImgUrl,
-          timestamp: normalizeChatTimestamp(msg.createTime),
-          senderName: isSelf ? getSenderName(order.orderNumber, content) : null,
-          messageType: normalizedType,
-          isRecall: normalizedType === 'recall',
-          isComplianceRelevant: isSystemLike,
-        };
-      });
-      return { order, messages: dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp)) };
-    });
-  }, [historicalChats, getSenderName]);
-
-  // All messages for counting
-  const allMessages = useMemo(() => {
-    const hist = historicalSections.flatMap((s) => s.messages);
-    return [...hist, ...currentOrderMessages];
-  }, [historicalSections, currentOrderMessages]);
-
-  // A counterparty can continue an older Binance order chat after opening a
-  // newer order. Rendering whole orders one after another therefore breaks the
-  // real chronology. Flatten every order into one timeline and insert an order
-  // separator only when the chronological stream changes order.
-  const mergedTimeline = useMemo(() => {
-    const entries = historicalSections.flatMap(({ order, messages }) =>
-      messages.map((message) => ({ order, message, isCurrent: false })),
-    );
-    const currentOrder = {
-      orderNumber,
-      tradeType: newerOrder?.tradeType || tradeType || 'UNKNOWN',
-      asset: newerOrder?.asset ?? null,
-      totalPrice: newerOrder?.totalPrice ?? null,
-      fiatUnit: newerOrder?.fiatUnit ?? null,
-      orderDate: newerOrder?.createTime || 0,
-      orderStatus: newerOrder?.orderStatus ?? orderStatus ?? null,
-      messages: [],
-    };
-    entries.push(...currentOrderMessages.map((message) => ({ order: currentOrder, message, isCurrent: true })));
-
-    return entries.sort((a, b) => {
-      const aTime = a.message.timestamp || a.order.orderDate || 0;
-      const bTime = b.message.timestamp || b.order.orderDate || 0;
-      if (aTime !== bTime) return aTime - bTime;
-      return a.message.id.localeCompare(b.message.id);
-    });
-  }, [historicalSections, currentOrderMessages, orderNumber, newerOrder, tradeType, orderStatus]);
-
   // New message detection & sound notification
   useEffect(() => {
     const currentIds = new Set(wsMessages.map((m) => m.id));
@@ -361,20 +286,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   }, [currentOrderMessages]);
 
-  // Maintain scroll position when historical chats are prepended
-  useEffect(() => {
-    const container = scrollContainerRef.current;
-    if (container && historicalChats.length > 0) {
-      const newHeight = container.scrollHeight;
-      const heightDiff = newHeight - prevScrollHeightRef.current;
-      if (heightDiff > 0 && prevScrollHeightRef.current > 0) {
-        container.scrollTop += heightDiff;
-      }
-      prevScrollHeightRef.current = newHeight;
-    }
-  }, [historicalChats]);
-
-  // Scroll-to-top detection for loading history
+  // Track whether the operator is near the bottom for auto-scroll.
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -383,12 +295,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     shouldAutoScrollRef.current = distFromBottom < 80;
 
-    // Load more history when scrolled near top
-    if (container.scrollTop < 60 && hasMore && !historyLoading) {
-      prevScrollHeightRef.current = container.scrollHeight;
-      loadMore();
-    }
-  }, [hasMore, historyLoading, loadMore]);
+  }, []);
 
   const [isSending, setIsSending] = useState(false);
 
@@ -552,75 +459,19 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
 
 
-      {newerOrder && (
-        <div className="px-4 py-1.5 bg-primary/5 border-b border-primary/20">
-          <span className="text-[10px] text-primary">
-            Merged thread — live chat and replies are on their latest order #{newerOrder.orderNumber.slice(-8)}
-          </span>
-        </div>
-      )}
-
       {/* Messages area */}
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
-          {/* Load more indicator */}
-          {historyLoading && (
-            <div className="flex items-center justify-center py-3">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground mr-1.5" />
-              <span className="text-[10px] text-muted-foreground">Loading older chats...</span>
-            </div>
-          )}
-
-          {hasMore && !historyLoading && historicalChats.length === 0 && currentOrderMessages.length > 0 && (
-            <div className="flex justify-center py-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
-                onClick={() => {
-                  prevScrollHeightRef.current = scrollContainerRef.current?.scrollHeight || 0;
-                  loadMore();
-                }}
-              >
-                <History className="h-3 w-3" />
-                Load past order chats
-              </Button>
-            </div>
-          )}
-
-          {!hasMore && historicalChats.length === 0 && currentOrderMessages.length > 0 && (
-            <div className="flex justify-center py-2">
-              <span className="text-[9px] text-muted-foreground/50">No previous orders with this counterparty</span>
-            </div>
-          )}
-
-          {/* One true chronology across all of this counterparty's orders. */}
-          {mergedTimeline.length > 0 ? (
+          {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
-              {mergedTimeline.map((entry, index) => {
-                const previousOrder = index > 0 ? mergedTimeline[index - 1].order.orderNumber : null;
-                const showSeparator = historicalChats.length > 0 && previousOrder !== entry.order.orderNumber;
-                return (
-                  <div key={`${entry.order.orderNumber}-${entry.message.id}`}>
-                    {showSeparator && (
-                      <OrderChatSeparator
-                        orderNumber={entry.order.orderNumber}
-                        tradeType={entry.order.tradeType}
-                        asset={entry.order.asset}
-                        totalPrice={entry.order.totalPrice}
-                        fiatUnit={entry.order.fiatUnit}
-                        orderDate={entry.order.orderDate}
-                        orderStatus={entry.order.orderStatus}
-                      />
-                    )}
-                    <ChatBubble
-                      message={entry.message}
-                      teachEnabled={entry.isCurrent && isTrainer}
-                      onPin={entry.isCurrent ? handlePin : undefined}
-                      onBlacklist={entry.isCurrent ? (m) => setBlacklistTarget(m) : undefined}
-                    />
-                  </div>
-                );
-              })}
+              {currentOrderMessages.map((message) => (
+                <ChatBubble
+                  key={message.id}
+                  message={message}
+                  teachEnabled={isTrainer}
+                  onPin={handlePin}
+                  onBlacklist={(item) => setBlacklistTarget(item)}
+                />
+              ))}
               <div ref={bottomRef} />
             </div>
           ) : (archivedLoading || isConnecting) ? (
@@ -628,7 +479,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
               <p className="text-xs text-muted-foreground">Loading messages...</p>
             </div>
-          ) : historicalChats.length === 0 ? (
+          ) : (
             <div className="flex flex-col items-center justify-center h-full gap-2">
               <MessageSquare className="h-8 w-8 text-muted-foreground/20" />
               <p className="text-xs text-muted-foreground">No messages yet</p>
@@ -636,7 +487,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                 Messages will appear here in real-time via WebSocket
               </p>
             </div>
-          ) : null}
+          )}
       </div>
 
 

@@ -122,6 +122,10 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
     return filtered;
   }, [data, exchangeAccountId, search]);
 
+  // Split into the two sides the operator thinks in: our BUY ads and our SELL ads.
+  const buyAds = useMemo(() => ads.filter((a) => String(a.tradeType).toUpperCase() === 'BUY'), [ads]);
+  const sellAds = useMemo(() => ads.filter((a) => String(a.tradeType).toUpperCase() === 'SELL'), [ads]);
+
   const nick = useMemo(
     () => advertiserNick || accounts.find((a) => a.id === exchangeAccountId)?.account_name || null,
     [advertiserNick, accounts, exchangeAccountId],

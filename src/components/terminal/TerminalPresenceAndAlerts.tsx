@@ -1,6 +1,6 @@
 import { useTerminalPresence } from '@/hooks/useTerminalPresence';
 import { useInactiveAssigneeAlerts } from '@/hooks/useInactiveAssigneeAlerts';
-import { useAutoMarkSmallSalesRead } from '@/hooks/useAutoMarkSmallSalesRead';
+import { useAutoMarkSmallTradesRead } from '@/hooks/useAutoMarkSmallTradesRead';
 
 /**
  * Invisible component that runs presence heartbeat and inactive assignee alert checks.
@@ -9,6 +9,6 @@ import { useAutoMarkSmallSalesRead } from '@/hooks/useAutoMarkSmallSalesRead';
 export function TerminalPresenceAndAlerts() {
   useTerminalPresence();
   useInactiveAssigneeAlerts();
-  useAutoMarkSmallSalesRead();
+  useAutoMarkSmallTradesRead();
   return null;
 }

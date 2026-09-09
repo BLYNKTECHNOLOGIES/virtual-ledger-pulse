@@ -1172,6 +1172,12 @@ function TerminalOrdersContent() {
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
     e.stopPropagation();
     markOrderChatRead(order.binance_order_number);
+    supabase.rpc('mark_terminal_binance_chat_read', {
+      p_order_number: order.binance_order_number,
+      p_source: 'operator',
+    }).then(({ error }) => {
+      if (error) console.warn('Failed to record team chat read:', error.message);
+    });
     callBinanceAds('markOrderMessagesRead', { orderNo: order.binance_order_number }).catch((err) => {
       console.warn('Failed to mark Binance chat read:', err);
     });
@@ -1192,6 +1198,12 @@ function TerminalOrdersContent() {
       if (nextIdx < 0 || nextIdx >= visibleOrders.length) return current;
       const next = visibleOrders[nextIdx];
       markOrderChatRead(next.binance_order_number);
+      supabase.rpc('mark_terminal_binance_chat_read', {
+        p_order_number: next.binance_order_number,
+        p_source: 'operator',
+      }).then(({ error }) => {
+        if (error) console.warn('Failed to record team chat read:', error.message);
+      });
       callBinanceAds('markOrderMessagesRead', { orderNo: next.binance_order_number }).catch(() => {});
       return next;
     });

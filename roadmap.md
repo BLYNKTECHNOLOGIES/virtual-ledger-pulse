@@ -11,4 +11,5 @@
 - [x] Install corrected idempotent listener build on Lightsail; checksum/syntax passed, both sockets stable, new messages saved, heartbeat `connected: 2` / `reconnects: 0`, and zero duplicate groups verified
 - [x] Terminal freshness/chat latency: server-only Binance socket ownership, rotating one-minute reconciliation, Realtime/update and mobile-resume refresh
 - [x] Terminal inbox identity race: live-order-first frame resolution, side-aware cache metadata, targeted reused-group repair, and duplicate verification
+- [x] Terminal unread consistency: outgoing replies advance shared reads, inbox counts only newer counterparty messages, and every chat-opening path persists read state
 - [x] Add lazy loading to approval and approval history blocks (keep counts correct) — ClientOnboardingApprovals; counts via get_buyer_onboarding_approval_counts RPC, history rows lazy via IntersectionObserver, both tables render 50 rows + Load more

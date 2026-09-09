@@ -430,6 +430,12 @@ export default function TerminalAppeals() {
 
   const openChatForCase = (caseItem: TerminalAppealCase) => {
     markOrderChatRead(caseItem.order_number);
+    supabase.rpc('mark_terminal_binance_chat_read', {
+      p_order_number: caseItem.order_number,
+      p_source: 'operator',
+    }).then(({ error }) => {
+      if (error) console.warn('Failed to record team chat read:', error.message);
+    });
     callBinanceAds('markOrderMessagesRead', { orderNo: caseItem.order_number }).catch((err) => {
       console.warn('Failed to mark Binance chat read:', err);
     });

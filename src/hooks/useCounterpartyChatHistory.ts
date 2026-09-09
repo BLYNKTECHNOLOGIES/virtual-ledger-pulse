@@ -28,6 +28,21 @@ export interface HistoricalChatMessage {
 const PAGE_SIZE = 5; // Load 5 past orders at a time (fetched in parallel)
 
 /**
+ * Every network hop here gets a hard deadline. A single Binance/edge-function
+ * call that never settles used to leave the "Loading older chats..." spinner
+ * running forever, because the whole batch was awaited with Promise.all.
+ */
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    Promise.resolve(promise).then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+/**
  * Counterparty chat history.
  *
  * IMPORTANT (data-integrity): We do NOT group history by `verified_name` or the

@@ -159,6 +159,23 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
   const unreadCount = notifications.filter((n: any) => !n.is_read).length;
 
+  /** Group into Today / Yesterday / Earlier so the list scans quickly. */
+  const groupedNotifications = useMemo(() => {
+    const buckets: { label: string; items: any[] }[] = [
+      { label: "Today", items: [] },
+      { label: "Yesterday", items: [] },
+      { label: "Earlier", items: [] },
+    ];
+    notifications.forEach((n: any) => {
+      const d = new Date(n.created_at);
+      if (isToday(d)) buckets[0].items.push(n);
+      else if (isYesterday(d)) buckets[1].items.push(n);
+      else buckets[2].items.push(n);
+    });
+    return buckets.filter((b) => b.items.length > 0);
+  }, [notifications]);
+
+
   const markReadMutation = useMutation({
     mutationFn: async (id: string) => {
       await (supabase as any).from("hr_notifications").update({ is_read: true }).eq("id", id);

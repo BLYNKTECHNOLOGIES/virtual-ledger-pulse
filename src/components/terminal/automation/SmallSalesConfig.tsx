@@ -85,6 +85,8 @@ export function SmallSalesConfig() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['small_sales_config'] });
       queryClient.invalidateQueries({ queryKey: ['small_sales_preview'] });
+      queryClient.invalidateQueries({ queryKey: ['small-trade-auto-read-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['small-trade-bands'] });
       toast({ title: 'Config updated' });
       if ('is_enabled' in variables) {
         logAdAction({ actionType: AdActionTypes.SMALL_SALES_TOGGLED, adDetails: { is_enabled: variables.is_enabled } });

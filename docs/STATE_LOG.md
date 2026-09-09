@@ -346,3 +346,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-09 15:40 IST: Added counterparty details side panel to terminal chat thread view (get_counterparty_profile RPC + past-orders list + linked client).
 - 2026-09-09: Chat inbox status now prefers the fresher of live order cache vs order-history sync (fixed cancelled orders showing as Pending Payment); inbox refresh 20s -> 10s.
 - 2026-09-09: Fixed counterparty details panel showing 'no record' — get_counterparty_profile returned double for median_value against a numeric signature (runtime type error); added explicit casts + nickname fallback match.
+- 2026-09-09 17:00 IST: Added "Order Released (by us)" auto-reply trigger — engine detects completed SELL orders (<3h) and is fired instantly on operator release; rule trigger/trade-type check constraints widened.

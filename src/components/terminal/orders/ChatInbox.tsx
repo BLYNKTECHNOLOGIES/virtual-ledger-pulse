@@ -334,6 +334,90 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     }
   }, [merged, queryClient]);
 
+  // ---- Small-trade only bulk clear -------------------------------------
+  // Clears the low-value chatter (orders inside the configured small sales /
+  // small buys bands) so big-value clients never get buried. A counterparty
+  // who has ANY non-small order in the inbox is skipped entirely.
+  const { data: bands } = useSmallTradeBands();
+
+  const smallTradeTargets = useMemo(() => {
+    if (!bands) return [] as { orderNumber: string; accountId?: string | null }[];
+
+    const aliasToVerified = new Map<string, string>();
+    for (const c of conversations) {
+      const verified = (c.verifiedName || '').trim().toLowerCase();
+      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
+      if (verified && nick && !nick.includes('*') && !aliasToVerified.has(nick)) {
+        aliasToVerified.set(nick, verified);
+      }
+    }
+    const identityKey = (c: ChatConversation) => {
+      const verified = (c.verifiedName || '').trim().toLowerCase();
+      const nick = (c.counterpartyNickname || '').trim().toLowerCase();
+      const cleanNick = nick && !nick.includes('*') ? nick : '';
+      const identifiable = verified || (cleanNick ? aliasToVerified.get(cleanNick) || cleanNick : '');
+      return identifiable ? `${c.exchangeAccountId || 'all'}|${identifiable}` : `order|${c.orderNumber}`;
+    };
+
+    // Any counterparty holding a thread we cannot prove is small is protected,
+    // read or unread — repeat big clients must never be auto-cleared.
+    const protectedKeys = new Set<string>();
+    for (const c of conversations) {
+      if (!isSmallTradeOrder(c, bands)) protectedKeys.add(identityKey(c));
+    }
+
+    const seen = new Set<string>();
+    const targets: { orderNumber: string; accountId?: string | null }[] = [];
+    for (const c of conversations) {
+      if ((c.chatUnreadCount || 0) <= 0) continue;
+      if (c.orderNumber.startsWith('INQ-')) continue;
+      if (!isSmallTradeOrder(c, bands)) continue;
+      if (protectedKeys.has(identityKey(c))) continue;
+      if (seen.has(c.orderNumber)) continue;
+      seen.add(c.orderNumber);
+      targets.push({ orderNumber: c.orderNumber, accountId: c.exchangeAccountId });
+    }
+    return targets;
+  }, [conversations, bands]);
+
+  const [markingSmall, setMarkingSmall] = useState(false);
+  const handleMarkSmallTradesRead = useCallback(async () => {
+    if (smallTradeTargets.length === 0) return;
+    setMarkingSmall(true);
+    try {
+      const orderNumbers = smallTradeTargets.map((t) => t.orderNumber);
+      const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
+        p_order_numbers: orderNumbers,
+        p_source: 'operator_small_trades',
+      });
+      if (error) throw error;
+      orderNumbers.forEach((n) => markOrderChatRead(n));
+
+      // Tell Binance per order, always on that order's own exchange account.
+      const results = await Promise.allSettled(
+        smallTradeTargets.map((t) =>
+          callBinanceAds('markOrderMessagesRead', { orderNo: t.orderNumber, userId: 0 }, t.accountId || undefined)
+        )
+      );
+      const failed = results.filter((r) => r.status === 'rejected').length;
+
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+      toast.success(
+        failed
+          ? `Cleared ${orderNumbers.length} small trade chats · ${failed} not confirmed on Binance`
+          : `Cleared ${orderNumbers.length} small trade chats`
+      );
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not mark small trade chats read');
+    } finally {
+      setMarkingSmall(false);
+    }
+  }, [smallTradeTargets, queryClient]);
+
+
+
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}

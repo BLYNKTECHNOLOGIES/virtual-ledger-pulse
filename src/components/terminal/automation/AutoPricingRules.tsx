@@ -341,16 +341,30 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                         </div>
 
                         <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground flex-wrap">
-                          <span>P1: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
-                          {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} priority merchant(s)</span>}
+                          {rule.competitor_mode === 'top_badged' ? (
+                            <span>
+                              Target: <span className="font-medium text-foreground">
+                                Top {(rule.competitor_badges || []).join('/') || 'badged'} merchant
+                              </span>
+                              <span className="ml-1">({rule.competitor_zone === 'block' ? 'Block' : 'P2P'} zone)</span>
+                            </span>
+                          ) : (
+                            <>
+                              <span>P1: <span className="font-medium text-foreground">{rule.target_merchant}</span></span>
+                              {rule.fallback_merchants?.length > 0 && <span>+{rule.fallback_merchants.length} priority merchant(s)</span>}
+                            </>
+                          )}
                           <span>{rule.ad_numbers?.length || 0} ad(s)</span>
                           {rule.active_hours_start && (
                             <span>⏰ {rule.active_hours_start?.slice(0,5)}–{rule.active_hours_end?.slice(0,5)}</span>
                           )}
                         </div>
                         <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
-                          {rule.last_competitor_price && (
-                            <span>Competitor: ₹{Number(rule.last_competitor_price).toLocaleString('en-IN')}</span>
+                          {(rule.last_matched_merchant || rule.last_competitor_price) && (
+                            <span>
+                              Countering: <span className="font-medium text-foreground">{rule.last_matched_merchant || '—'}</span>
+                              {rule.last_competitor_price ? ` @ ₹${Number(rule.last_competitor_price).toLocaleString('en-IN')}` : ''}
+                            </span>
                           )}
                           {rule.last_applied_price && rule.price_type === 'FIXED' && (
                             <span>Applied: ₹{Number(rule.last_applied_price).toLocaleString('en-IN')}</span>

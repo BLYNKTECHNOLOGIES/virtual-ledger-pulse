@@ -752,6 +752,33 @@ serve(async (req) => {
 
       console.log(`${pendingMessages.length} pending auto-reply messages to send`);
 
+      // Binance allows a single live chat session per account. Two concurrent
+      // invocations (e.g. two buyers marking paid in the same second) would
+      // fight over that session and one message would silently vanish, so
+      // serialise the send phase across invocations with a short DB lock.
+      let sendLockHeld = false;
+      if (pendingMessages.length > 0) {
+        for (let attempt = 0; attempt < 12 && !sendLockHeld; attempt++) {
+          const { data: got } = await supabase.rpc("acquire_chat_send_lock", {
+            p_key: "auto_reply_primary",
+            p_ttl_seconds: 40,
+          });
+          sendLockHeld = got === true;
+          if (!sendLockHeld) await new Promise((r) => setTimeout(r, 2500));
+        }
+        if (!sendLockHeld) {
+          console.log("Could not acquire chat send lock; releasing claims for retry");
+          for (const pm of pendingMessages) {
+            await supabase.from("p2p_auto_reply_processed")
+              .delete()
+              .eq("order_number", pm.orderNumber)
+              .eq("trigger_event", pm.event)
+              .eq("rule_id", pm.rule.id);
+          }
+          pendingMessages.length = 0;
+        }
+      }
+
       // Pre-fetch WebSocket credentials once with retry
       let chatCredential: { chatWssUrl: string; listenKey: string; token: string } | null = null;
       if (pendingMessages.length > 0) {
@@ -760,6 +787,7 @@ serve(async (req) => {
 
       // Send each message with verification
       for (const pm of pendingMessages) {
+
         pm.sendTimestamp = Date.now();
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,

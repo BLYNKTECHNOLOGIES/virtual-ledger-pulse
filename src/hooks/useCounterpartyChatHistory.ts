@@ -123,7 +123,7 @@ export function useCounterpartyChatHistory(
             .order('binance_create_time', { ascending: true })
             .limit(500);
           if (exchangeAccountId) iq = iq.eq('exchange_account_id', exchangeAccountId);
-          const { data: inqRows } = await iq;
+          const { data: inqRows } = await withTimeout(iq, 15_000, 'enquiry thread lookup');
           const firstSeen = new Map<string, number>();
           for (const r of inqRows || []) {
             const on = String((r as any).order_number);

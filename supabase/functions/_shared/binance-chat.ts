@@ -38,6 +38,10 @@ export function normalizeChatMessage(
   accountId?: string | null,
   captureSource: CaptureSource = "unknown",
 ): NormalizedChatMessage {
+  const explicitTopicId = msg?.topicId == null ? null : String(msg.topicId);
+  const effectiveOrderNo = explicitTopicId && /^\d{10,}$/.test(explicitTopicId)
+    ? explicitTopicId
+    : orderNo;
   const contentType = msg?.contentType == null ? null : String(msg.contentType).toLowerCase();
   const rawType = String(
     msg?.type || msg?.chatMessageType || msg?.messageType || contentType || "unknown",
@@ -65,12 +69,12 @@ export function normalizeChatMessage(
     isSystem || isRecall || ["card", "video", "error", "mark"].includes(messageType);
   const binanceMessageId = msg?.id == null ? null : String(msg.id);
   const binanceUuid = msg?.uuid == null ? null : String(msg.uuid);
-  const fallbackKey = `${orderNo}-${createTime || "no-time"}-${messageType}-${String(
+  const fallbackKey = `${effectiveOrderNo}-${createTime || "no-time"}-${messageType}-${String(
     content || JSON.stringify(msg || {}),
   ).slice(0, 160)}`;
 
   const row: NormalizedChatMessage = {
-    order_number: orderNo,
+    order_number: effectiveOrderNo,
     dedupe_key: binanceMessageId || binanceUuid || fallbackKey,
     binance_message_id: binanceMessageId,
     binance_uuid: binanceUuid,
@@ -135,7 +139,7 @@ export async function persistChatMessages(
     const { data: existing, error: readErr } = await supabase
       .from("binance_order_chat_messages")
       .select("id")
-      .eq("order_number", orderNo)
+      .eq("order_number", row.order_number)
       .eq("dedupe_key", row.dedupe_key)
       .eq("exchange_account_id", accountId || "00000000-0000-0000-0000-000000000001")
       .maybeSingle();

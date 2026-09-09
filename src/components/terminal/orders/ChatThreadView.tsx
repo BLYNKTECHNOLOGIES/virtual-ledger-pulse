@@ -85,6 +85,7 @@ export function ChatThreadView({ conversation: c, onBack }: Props) {
             counterpartyNickname={c.counterpartyNickname}
             tradeType={c.tradeType}
             orderStatus={rawStatus}
+            exchangeAccountId={c.exchangeAccountId}
           />
         </div>
         <aside className="hidden lg:flex w-[320px] shrink-0 border-l border-border bg-card flex-col min-h-0">

@@ -488,8 +488,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="px-4 py-2 border-b border-border">
+      {/* Tabs + sorting */}
+      <div className="px-4 py-2 border-b border-border flex items-center gap-2 flex-wrap">
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
           <TabsList className="h-8 bg-secondary">
             <TabsTrigger value="all" className="text-[11px] h-6 px-4">All</TabsTrigger>
@@ -498,6 +498,28 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+        <div className="ml-auto flex items-center rounded-md bg-secondary p-0.5">
+          <Button
+            variant={sortMode === 'recent' ? 'secondary' : 'ghost'}
+            size="sm"
+            className={`h-6 px-2 text-[11px] gap-1 ${sortMode === 'recent' ? 'bg-background shadow-sm' : ''}`}
+            title="Newest message first"
+            onClick={() => setSortMode('recent')}
+          >
+            <Clock className="h-3 w-3" />
+            Recent
+          </Button>
+          <Button
+            variant={sortMode === 'big' ? 'secondary' : 'ghost'}
+            size="sm"
+            className={`h-6 px-2 text-[11px] gap-1 ${sortMode === 'big' ? 'bg-background shadow-sm' : ''}`}
+            title={`Clients with any order above the small-order range come first — ${formatBandsLabel(bands)}`}
+            onClick={() => setSortMode('big')}
+          >
+            <TrendingUp className="h-3 w-3" />
+            Big orders first
+          </Button>
+        </div>
       </div>
 
       {/* Conversation list */}

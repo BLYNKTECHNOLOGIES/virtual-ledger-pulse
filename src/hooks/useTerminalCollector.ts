@@ -25,6 +25,12 @@ export interface CollectorState {
   fetched_at_ms: number;
 }
 
+export interface ChatListenerState {
+  last_tick_at: string | null;
+  last_status: string;
+  detail: { accounts?: number; connected?: number; lastMessageAt?: string; reconnects?: number } | null;
+}
+
 export const COLLECTOR_STALE_MS = 60 * 1000;
 
 export function useTerminalCollectorState() {
@@ -78,6 +84,33 @@ export function isCollectorStale(state: CollectorState | null | undefined): bool
   const serverAgeMs = (state.heartbeat_age_seconds ?? 0) * 1000;
   const elapsedSinceFetch = Math.max(0, Date.now() - state.fetched_at_ms);
   return serverAgeMs + elapsedSinceFetch > COLLECTOR_STALE_MS;
+}
+
+export function useTerminalChatListenerState() {
+  return useQuery({
+    queryKey: ['terminal-chat-listener-state'],
+    queryFn: async (): Promise<ChatListenerState | null> => {
+      const { data, error } = await supabase
+        .from('terminal_collector_state')
+        .select('last_tick_at, last_status, detail')
+        .eq('id', 'chat_listener')
+        .maybeSingle();
+      if (error) throw error;
+      return data as ChatListenerState | null;
+    },
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 5_000,
+  });
+}
+
+export function isChatListenerHealthy(state: ChatListenerState | null | undefined): boolean {
+  if (!state?.last_tick_at || state.last_status !== 'ok') return false;
+  const heartbeatAge = Date.now() - new Date(state.last_tick_at).getTime();
+  const expectedAccounts = Number(state.detail?.accounts || 0);
+  const connectedAccounts = Number(state.detail?.connected || 0);
+  return heartbeatAge < COLLECTOR_STALE_MS && expectedAccounts > 0 && connectedAccounts >= expectedAccounts;
 }
 
 /** Ask the collector for one immediate tick (manual "refresh from Binance"). */

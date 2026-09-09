@@ -649,6 +649,11 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
   // waiting for the fallback poll.
   useEffect(() => {
     if (!orderNo) return;
+    const refresh = () => {
+      queryClient.invalidateQueries({
+        queryKey: ['archived-binance-chat-messages', orderNo, accountId ?? null],
+      });
+    };
     const channel = supabase
       .channel(`order-chat-${orderNo}-${Math.random().toString(36).slice(2)}`)
       .on(
@@ -659,15 +664,23 @@ export function useArchivedBinanceChatMessages(orderNo: string | null, accountId
           table: 'binance_order_chat_messages',
           filter: `order_number=eq.${orderNo}`,
         },
-        () => {
-          queryClient.invalidateQueries({
-            queryKey: ['archived-binance-chat-messages', orderNo, accountId ?? null],
-          });
-        },
+        refresh,
       )
       .subscribe();
+
+    const resume = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    const pageShow = () => refresh();
+    const online = () => refresh();
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('pageshow', pageShow);
+    window.addEventListener('online', online);
     return () => {
       void supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('pageshow', pageShow);
+      window.removeEventListener('online', online);
     };
   }, [orderNo, accountId, queryClient]);
 

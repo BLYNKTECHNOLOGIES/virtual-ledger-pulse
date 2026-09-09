@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, Volume2, VolumeX, Wifi, Cloud } from 'lucide-react';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
@@ -32,6 +32,7 @@ import { markOrderChatRead } from '@/lib/chat-read-state';
 import { supabase } from '@/integrations/supabase/client';
 import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
+import { isChatListenerHealthy, useTerminalChatListenerState } from '@/hooks/useTerminalCollector';
 
 /**
  * The same Binance frame can reach us twice (live socket + history sweep) with
@@ -99,8 +100,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // Binance's documented send endpoint requires an order number, so replying
   // to these from the terminal is not supported.
   const isEnquiryThread = orderNumber.startsWith('INQ-');
-  const { messages: wsMessages, isConnected, isConnecting, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, error: wsError, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
+  const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
+  const { data: chatListenerState } = useTerminalChatListenerState();
+  const chatListenerHealthy = isChatListenerHealthy(chatListenerState);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
   const { userId, username } = useTerminalAuth();
   const [text, setText] = useState('');
@@ -420,19 +423,12 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               missing browser stream is never presented as a failure. */}
           <div
             className="flex items-center gap-0.5 ml-1 bg-muted/30 rounded px-1.5 py-0.5"
-            title={isConnected ? 'Live updates on' : 'Messages are sent and received through the server'}
+            title={chatListenerHealthy ? 'Both Binance accounts are synchronized by the server' : 'Server listener is reconnecting; stored messages continue to refresh'}
           >
-            {isConnected ? (
-              <>
-                <Wifi className="h-2.5 w-2.5 text-trade-buy" />
-                <span className="text-[8px] text-trade-buy font-medium">Live</span>
-              </>
-            ) : (
-              <>
-                <Cloud className="h-2.5 w-2.5 text-muted-foreground" />
-                <span className="text-[8px] text-muted-foreground">Server sync</span>
-              </>
-            )}
+            <Cloud className={`h-2.5 w-2.5 ${chatListenerHealthy ? 'text-trade-buy' : 'text-warning'}`} />
+            <span className={`text-[8px] font-medium ${chatListenerHealthy ? 'text-trade-buy' : 'text-warning'}`}>
+              {chatListenerHealthy ? 'Server live' : 'Sync delayed'}
+            </span>
           </div>
           <Button
             variant="ghost"
@@ -468,7 +464,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               ))}
               <div ref={bottomRef} />
             </div>
-          ) : (archivedLoading || isConnecting) ? (
+          ) : archivedLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground mr-2" />
               <p className="text-xs text-muted-foreground">Loading messages...</p>
@@ -548,7 +544,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         <p className="text-[8px] text-muted-foreground/50 mt-1 px-1">
           {isEnquiryThread
             ? 'Enquiry chat with no order — Binance only accepts replies inside an order, so reply from the Binance app'
-            : isConnected ? 'Live updates on' : 'Messages send instantly; updates refresh from the server'}
+            : 'Messages send instantly and refresh from the server'}
         </p>
 
       </div>

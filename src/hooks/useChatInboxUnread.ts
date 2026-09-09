@@ -33,18 +33,29 @@ export function useChatInboxUnread() {
   });
 
   useEffect(() => {
+    const refresh = () => {
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+    };
     const channel = supabase
       .channel(`chat-inbox-unread-${crypto.randomUUID()}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'binance_order_chat_messages' },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
-        }
+        { event: '*', schema: 'public', table: 'binance_order_chat_messages' },
+        refresh,
       )
       .subscribe();
+    const resume = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('pageshow', refresh);
+    window.addEventListener('online', refresh);
     return () => {
       supabase.removeChannel(channel);
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('pageshow', refresh);
+      window.removeEventListener('online', refresh);
     };
   }, [queryClient]);
 

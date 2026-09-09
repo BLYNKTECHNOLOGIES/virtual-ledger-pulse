@@ -191,12 +191,56 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
   const { pinned, togglePin } = useChatPins();
 
+  // ---- Sorting ---------------------------------------------------------
+  // 'recent'  = newest message first (Binance-like, the default)
+  // 'big'     = big-order clients first, then newest message inside each group.
+  // A client counts as "big" when ANY of their orders in the inbox — running
+  // or long completed — falls outside the configured small-order bands.
+  const [sortMode, setSortMode] = useState<'recent' | 'big'>(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('terminal.chatInbox.sort') : null;
+    return saved === 'big' ? 'big' : 'recent';
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('terminal.chatInbox.sort', sortMode);
+    } catch {
+      /* storage unavailable — sorting still works for this session */
+    }
+  }, [sortMode]);
+
+  const bigOrderNumbers = useMemo(() => {
+    const set = new Set<string>();
+    if (!bandsForSort) return set;
+    for (const c of conversations) {
+      if (c.orderNumber.startsWith('INQ-')) continue;
+      const price = parseFloat(String(c.totalPrice ?? ''));
+      const side = String(c.tradeType || '').trim().toUpperCase();
+      if (!Number.isFinite(price) || price <= 0 || (side !== 'BUY' && side !== 'SELL')) continue;
+      if (!isSmallTradeOrder(c, bandsForSort)) set.add(c.orderNumber);
+    }
+    return set;
+  }, [conversations, bandsForSort]);
+
+  const isBigClient = useCallback(
+    (c: ChatConversation) =>
+      [c.orderNumber, ...(c.mergedOrderNumbers || [])].some((n) => bigOrderNumbers.has(n)),
+    [bigOrderNumbers]
+  );
+
   const filtered = useMemo(() => {
     const base = tab === 'unread' ? merged.filter((c) => c.chatUnreadCount > 0) : merged;
     // Pinned conversations always float to the top, order otherwise untouched.
     const isPinned = (c: ChatConversation) => pinned.has(c.pinKey || c.orderNumber);
-    return [...base].sort((a, b) => Number(isPinned(b)) - Number(isPinned(a)));
-  }, [merged, tab, pinned]);
+    return [...base].sort((a, b) => {
+      const pin = Number(isPinned(b)) - Number(isPinned(a));
+      if (pin !== 0) return pin;
+      if (sortMode === 'big') {
+        const big = Number(isBigClient(b)) - Number(isBigClient(a));
+        if (big !== 0) return big;
+      }
+      return 0; // `merged` is already newest-message-first
+    });
+  }, [merged, tab, pinned, sortMode, isBigClient]);
 
 
   const totalUnread = useMemo(

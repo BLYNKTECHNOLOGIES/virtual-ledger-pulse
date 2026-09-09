@@ -28,7 +28,9 @@ function explicitOrderNumberFromPayload(payload: any): string | null {
 
 function explicitOrderNumberFromObject(value: any): string | null {
   if (!value || typeof value !== "object") return null;
-  const direct = value.orderNumber ?? value.orderNo ?? value.adOrderNo ?? value.order_number ?? value.topicId ?? value.order?.orderNo ?? null;
+  // Binance chat frames may retain an older orderNo while topicId identifies
+  // the actual order-scoped conversation. Treat topicId as authoritative.
+  const direct = value.topicId ?? value.orderNumber ?? value.orderNo ?? value.adOrderNo ?? value.order_number ?? value.order?.orderNo ?? null;
   return direct === null || direct === undefined || direct === "" ? null : String(direct);
 }
 

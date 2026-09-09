@@ -371,7 +371,7 @@ export function useBinanceChatWebSocket(
       sessionIdRef.current = data.sessionId;
     }
     const gid = data.groupId || data.chatGroupId || data.threadId;
-    const orderKey = data.orderNo || data.topicId;
+    const orderKey = data.topicId || data.orderNo;
     if (gid && orderKey) {
       groupIdMapRef.current.set(orderKey, gid);
     }
@@ -443,7 +443,7 @@ export function useBinanceChatWebSocket(
       // any message that explicitly carries a mismatching order number so a
       // foreign order's chat (and PAN/bank docs) can never render here.
       const belongsToOrder = allMessages.filter((msg) => {
-        const msgOrderNo = msg.orderNo || msg.topicId || msg.order?.orderNo || null;
+        const msgOrderNo = msg.topicId || msg.orderNo || msg.order?.orderNo || null;
         return !msgOrderNo || String(msgOrderNo) === String(orderNo);
       });
 
@@ -590,7 +590,7 @@ export function useBinanceChatWebSocket(
         (data.content && (data.orderNo || data.order?.orderNo) && (data.id || data.msgId));
       if (!isChatMessage) return;
 
-      const msgOrderNo = data.orderNo || data.topicId || data.order?.orderNo;
+       const msgOrderNo = data.topicId || data.orderNo || data.order?.orderNo;
       if (msgOrderNo && msgOrderNo !== activeOrderRef.current) return;
 
       const isSelfEcho = data.self === true || data.self === 'true';

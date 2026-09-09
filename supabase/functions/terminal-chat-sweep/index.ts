@@ -18,8 +18,10 @@ const MIN_RESYNC_GAP_MS = 15_000;
 
 function explicitOrderNumberFromObject(value: any): string | null {
   if (!value || typeof value !== "object") return null;
+  // For chat frames topicId is the authoritative order-scoped thread. Some
+  // frames retain a stale orderNo from an earlier order with the same person.
   const direct =
-    value.orderNumber ?? value.orderNo ?? value.adOrderNo ?? value.order_number ?? value.topicId ?? value.order?.orderNo ?? null;
+    value.topicId ?? value.orderNumber ?? value.orderNo ?? value.adOrderNo ?? value.order_number ?? value.order?.orderNo ?? null;
   return direct === null || direct === undefined || direct === "" ? null : String(direct);
 }
 

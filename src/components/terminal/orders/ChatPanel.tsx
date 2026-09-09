@@ -115,7 +115,6 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());
   const isInitialLoadRef = useRef(true);
   const shouldAutoScrollRef = useRef(true);
-  const prevScrollHeightRef = useRef(0);
 
   // Mark this order's chat as read locally so ChatInbox clears the unread badge.
   // The local mark is instant; the Binance write and archive sync are deferred

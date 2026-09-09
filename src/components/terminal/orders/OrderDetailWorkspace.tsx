@@ -205,6 +205,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
 
   const chatContent = (
     <ChatPanel
+      key={`${orderAccountId ?? 'default'}:${order.binance_order_number}`}
       orderId={order.id}
       orderNumber={order.binance_order_number}
       counterpartyId={order.counterparty_id}

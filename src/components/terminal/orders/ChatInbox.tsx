@@ -401,7 +401,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="border-t border-border/50">
             {filtered.map((conv) => (
               <ConversationRow
                 key={conv.orderNumber}
@@ -449,84 +449,137 @@ function ConversationRow({
   const stamp = c.lastMessageAt ? new Date(c.lastMessageAt) : (c.createTime ? new Date(c.createTime) : null);
   const stampLabel = stamp ? (isToday(stamp) ? format(stamp, 'HH:mm') : format(stamp, 'dd MMM')) : '';
 
+  const hasUnread = c.chatUnreadCount > 0;
+  // Extract the text colour from the badge classes so the status can render
+  // as a clean coloured label (data-grid style) instead of a chip.
+  const statusTextClass =
+    statusStyle.badgeClass.split(' ').find((cls) => cls.startsWith('text-')) || 'text-muted-foreground';
+
   return (
-    <div className={`group relative flex items-center ${isPinned ? 'bg-primary/5' : ''}`}>
-    <button
-      onClick={onClick}
-      className="flex-1 min-w-0 text-left px-3 py-2.5 hover:bg-white/5 transition-colors flex items-center gap-3"
-    >
-      {/* Avatar */}
-      <div className="relative shrink-0">
-        <div className="h-10 w-10 rounded-full bg-secondary flex items-center justify-center">
-          <User className="h-5 w-5 text-muted-foreground" />
-        </div>
-        {c.chatUnreadCount > 0 && (
-          <div className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] rounded-full bg-destructive flex items-center justify-center px-1">
-            <span className="text-[9px] font-bold text-destructive-foreground">
-              {c.chatUnreadCount}
-            </span>
+    <div className={`group relative border-b border-border/50 ${isPinned ? 'bg-primary/5' : ''}`}>
+      {/* Unread accent rail */}
+      {hasUnread && (
+        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary group-hover:w-1 transition-all shadow-[0_0_10px_hsl(var(--primary)/0.5)] z-10" />
+      )}
+      <div className="flex items-center">
+        <button
+          onClick={onClick}
+          className="flex-1 min-w-0 text-left px-4 py-3.5 hover:bg-muted/30 transition-colors grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(260px,320px)_minmax(0,1fr)_200px_110px_20px] items-center gap-x-4"
+        >
+          {/* Col 1: identity */}
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="relative shrink-0">
+              <div className="h-10 w-10 rounded-lg bg-secondary border border-border flex items-center justify-center group-hover:border-primary/30 transition-colors">
+                <User className="h-5 w-5 text-muted-foreground" />
+              </div>
+              {hasUnread && (
+                <div className="absolute -top-1 -right-1 h-4 min-w-[16px] rounded-full bg-primary border-2 border-background flex items-center justify-center px-1">
+                  <span className="text-[9px] font-black text-primary-foreground leading-none">
+                    {c.chatUnreadCount}
+                  </span>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className={`text-[13px] text-foreground uppercase tracking-tight truncate ${hasUnread ? 'font-bold' : 'font-semibold'}`}>
+                  {c.verifiedName || c.counterpartyNickname || 'Unknown'}
+                </span>
+                {c.counterpartyNickname && (
+                  <span className="text-[10px] text-muted-foreground/70 t-mono truncate shrink">
+                    {c.counterpartyNickname}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[11px] font-medium uppercase tracking-widest mt-0.5 truncate ${isEnquiry ? 'text-muted-foreground' : statusTextClass}`}>
+                {isEnquiry ? 'Enquiry · no order' : statusStyle.label}
+              </span>
+              {c.lastMessagePreview && (
+                <span className={`md:hidden text-[11px] truncate mt-0.5 ${hasUnread ? 'text-foreground' : 'text-muted-foreground'}`}>
+                  {c.lastMessageFromSelf ? 'You: ' : ''}{c.lastMessagePreview}
+                </span>
+              )}
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex items-center gap-1.5 min-w-0">
-            {c.chatUnreadCount > 0 && (
-              <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+          {/* Col 2: message preview (desktop) */}
+          <div className="hidden md:block min-w-0 pr-6">
+            {c.lastMessagePreview ? (
+              <div className={`text-xs truncate ${hasUnread ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
+                {c.lastMessageFromSelf && <span className="text-muted-foreground font-medium">You: </span>}
+                {c.lastMessagePreview}
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground/50 italic">No messages yet</div>
             )}
-            <span className={`text-[13px] text-foreground truncate ${c.chatUnreadCount > 0 ? 'font-semibold' : 'font-medium'}`}>
-              {c.verifiedName || c.counterpartyNickname || 'Unknown'}
-            </span>
-            {c.verifiedName && c.counterpartyNickname && (
-              <span className="text-[10px] text-muted-foreground truncate">{c.counterpartyNickname}</span>
+            {seenText && (
+              <span className="block mt-1 text-[10px] text-muted-foreground/70 truncate" title={seenText}>
+                {seenText}
+              </span>
             )}
-          </span>
-          <span className="text-[10px] text-muted-foreground t-mono tabular-nums shrink-0">
-            {stampLabel}
-          </span>
-        </div>
-        {c.lastMessagePreview ? (
-          <div className={`text-[11px] truncate mt-0.5 ${c.chatUnreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'}`}>
-            {c.lastMessageFromSelf ? 'You: ' : ''}{c.lastMessagePreview}
           </div>
-        ) : null}
-        {!isEnquiry && (
-          <div className="flex items-center gap-1.5 mt-0.5">
-            <span className={`text-[9px] t-mono uppercase font-semibold ${c.tradeType === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
-              {c.tradeType}
-            </span>
-            <span className="text-xs text-muted-foreground truncate">
-              {Number(c.amount).toFixed(2)} {c.asset} · ₹{Number(c.totalPrice).toLocaleString('en-IN')}
-            </span>
-          </div>
-        )}
-        <div className="flex items-center gap-2 mt-1 min-w-0">
-          <Badge variant="outline" className={`text-[8px] gap-1 ${isEnquiry ? 'text-muted-foreground border-muted-foreground/40' : statusStyle.badgeClass}`}>
-            {isEnquiry ? 'Enquiry · no order' : statusStyle.label}
-          </Badge>
-          {seenText && (
-            <span className="text-[9px] text-muted-foreground/80 truncate" title={seenText}>
-              {seenText}
-            </span>
-          )}
-        </div>
-      </div>
 
-      <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-    </button>
-    <button
-      type="button"
-      onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
-      title={isPinned ? 'Unpin chat' : 'Pin chat'}
-      aria-label={isPinned ? 'Unpin chat' : 'Pin chat'}
-      className={`shrink-0 mr-2 h-7 w-7 rounded-md flex items-center justify-center transition-opacity hover:bg-white/10 ${
-        isPinned ? 'text-primary opacity-100' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100'
-      }`}
-    >
-      {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-    </button>
+          {/* Col 3: financial data (desktop) */}
+          <div className="hidden md:flex flex-col items-end gap-1">
+            {!isEnquiry ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    c.tradeType === 'BUY' ? 'text-primary bg-primary/10' : 'text-trade-sell bg-trade-sell/10'
+                  }`}>
+                    {c.tradeType}
+                  </span>
+                  <span className="text-xs font-semibold text-foreground t-mono tabular-nums">
+                    {Number(c.amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
+                    <span className="text-[10px] opacity-60">{c.asset}</span>
+                  </span>
+                </div>
+                <div className="text-[11px] text-muted-foreground font-medium t-mono tabular-nums">
+                  ₹{Number(c.totalPrice).toLocaleString('en-IN')}
+                </div>
+              </>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/60 uppercase tracking-wider">No order</span>
+            )}
+          </div>
+
+          {/* Col 4: time + unread dot (desktop) */}
+          <div className="hidden md:flex flex-col items-end">
+            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">{stampLabel}</span>
+            {hasUnread && (
+              <div className="mt-2 h-2 w-2 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.8)]" />
+            )}
+          </div>
+
+          {/* Col 5: chevron (desktop) */}
+          <div className="hidden md:flex justify-end text-muted-foreground/40 group-hover:text-primary transition-colors">
+            <ChevronRight className="h-4 w-4" />
+          </div>
+
+          {/* Mobile meta (right side) */}
+          <div className="md:hidden flex flex-col items-end gap-1 shrink-0">
+            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">{stampLabel}</span>
+            {!isEnquiry && (
+              <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
+                {c.tradeType === 'BUY' ? 'B' : 'S'} {Number(c.amount).toFixed(2)} {c.asset}
+              </span>
+            )}
+          </div>
+        </button>
+
+        {/* Pin toggle */}
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+          title={isPinned ? 'Unpin chat' : 'Pin chat'}
+          aria-label={isPinned ? 'Unpin chat' : 'Pin chat'}
+          className={`shrink-0 mr-3 h-7 w-7 rounded-md flex items-center justify-center transition-all hover:bg-muted ${
+            isPinned ? 'text-primary opacity-100' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100'
+          }`}
+        >
+          {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+        </button>
+      </div>
     </div>
   );
 }

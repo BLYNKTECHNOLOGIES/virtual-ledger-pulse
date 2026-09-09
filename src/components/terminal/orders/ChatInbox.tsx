@@ -433,17 +433,33 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
           </Badge>
         )}
         {totalUnread > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto h-7 px-2 text-[11px] gap-1.5"
-            disabled={markingAll}
-            onClick={handleMarkAllRead}
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            {markingAll ? 'Marking...' : 'Mark all read'}
-          </Button>
+          <div className="ml-auto flex items-center gap-1">
+            {smallTradeTargets.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-[11px] gap-1.5"
+                disabled={markingSmall || markingAll}
+                title={`Marks only low-value trade chats read — ${formatBandsLabel(bands)}. Clients with any bigger order are left untouched.`}
+                onClick={handleMarkSmallTradesRead}
+              >
+                <Coins className="h-3.5 w-3.5" />
+                {markingSmall ? 'Clearing...' : `Mark small chats read (${smallTradeTargets.length})`}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-[11px] gap-1.5"
+              disabled={markingAll || markingSmall}
+              onClick={handleMarkAllRead}
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              {markingAll ? 'Marking...' : 'Mark all read'}
+            </Button>
+          </div>
         )}
+
       </div>
 
       {/* Search */}

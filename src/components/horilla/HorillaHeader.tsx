@@ -232,51 +232,90 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <button className="p-2 rounded-lg hover:bg-muted text-muted-foreground relative transition-colors">
-              <Bell className="h-5 w-5" />
+            <button
+              aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground relative transition-all active:scale-95"
+            >
+              <Bell className={`h-5 w-5 transition-transform ${unreadCount > 0 ? "animate-bell-ring text-foreground" : ""}`} />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-destructive text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
+                <>
+                  <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-destructive/40 animate-ping" />
+                  <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 bg-destructive text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-scale-in tabular-nums">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                </>
               )}
             </button>
           </PopoverTrigger>
-          <PopoverContent className="w-[calc(100vw-1rem)] max-w-80 p-0" align="end">
-            <div className="flex items-center justify-between px-3 py-2 border-b">
-              <span className="text-sm font-semibold">Notifications</span>
+          <PopoverContent className="w-[calc(100vw-1rem)] max-w-80 p-0 overflow-hidden" align="end">
+            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b bg-muted/40">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-sm font-semibold">Notifications</span>
+                {unreadCount > 0 && (
+                  <span className="rounded-full bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-semibold leading-none tabular-nums">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
               {unreadCount > 0 && (
-                <Button variant="ghost" size="sm" className="text-xs h-6" onClick={() => markAllReadMutation.mutate()}>
-                  <Check className="h-3 w-3 mr-1" /> Mark all read
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-6 shrink-0"
+                  disabled={markAllReadMutation.isPending}
+                  onClick={() => markAllReadMutation.mutate()}
+                >
+                  <Check className={`h-3 w-3 mr-1 ${markAllReadMutation.isPending ? "animate-spin" : ""}`} /> Mark all read
                 </Button>
               )}
             </div>
             <ScrollArea className="h-[min(350px,60vh)]">
               {notifications.length === 0 ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">No notifications</div>
-              ) : notifications.map((n: any) => (
-                <div
-                  key={n.id}
-                  className={`px-3 py-2.5 border-b last:border-0 cursor-pointer hover:bg-muted/50 transition ${!n.is_read ? "bg-info/10" : ""}`}
-                  onClick={() => {
-                    if (!n.is_read) markReadMutation.mutate(n.id);
-                    const target = resolveHrmsLink(n);
-                    if (target) { navigate(target); setOpen(false); }
-                  }}
-
-                >
-                  <div className="flex items-start gap-2">
-                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-info mt-1.5 shrink-0" />}
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-sm ${!n.is_read ? "font-medium" : "text-muted-foreground"}`}>{n.title}</p>
-                      {n.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>}
-                      <p className="text-[10px] text-muted-foreground mt-1">{format(new Date(n.created_at), "dd MMM, h:mm a")}</p>
-                    </div>
+                <div className="p-8 text-center animate-fade-in">
+                  <Bell className="h-8 w-8 mx-auto mb-2 text-muted-foreground opacity-30" />
+                  <p className="text-sm text-muted-foreground">You're all caught up</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">New updates will show up here</p>
+                </div>
+              ) : groupedNotifications.map((group) => (
+                <div key={group.label}>
+                  <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur-sm px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground border-b">
+                    {group.label}
                   </div>
+                  {group.items.map((n: any, i: number) => {
+                    const tone = notificationTone(n);
+                    return (
+                      <div
+                        key={n.id}
+                        style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
+                        className={`group animate-fade-in px-3 py-2.5 border-b last:border-0 cursor-pointer transition-all hover:bg-muted/60 hover:pl-4 ${!n.is_read ? "bg-primary/5 border-l-2 border-l-primary" : ""}`}
+                        onClick={() => {
+                          if (!n.is_read) markReadMutation.mutate(n.id);
+                          const target = resolveHrmsLink(n);
+                          if (target) { navigate(target); setOpen(false); }
+                        }}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${tone.chip} transition-transform group-hover:scale-110`}>
+                            <tone.Icon className={`h-3.5 w-3.5 ${tone.text}`} />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className={`text-sm break-words ${!n.is_read ? "font-semibold text-foreground" : "text-muted-foreground"}`}>{n.title}</p>
+                            {n.message && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2 break-words">{n.message}</p>}
+                            <p className="text-[10px] text-muted-foreground/80 mt-1">
+                              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })} · {format(new Date(n.created_at), "dd MMM, h:mm a")}
+                            </p>
+                          </div>
+                          {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0 animate-pulse" />}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </ScrollArea>
           </PopoverContent>
         </Popover>
+
 
         <button
           onClick={() => navigate("/dashboard")}

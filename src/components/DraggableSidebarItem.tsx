@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Link, useLocation } from 'react-router-dom';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { GripVertical } from 'lucide-react';
+import { isNavActive } from '@/lib/navActive';
 
 interface SidebarItem {
   id: string;
@@ -22,7 +23,7 @@ interface DraggableSidebarItemProps {
 
 export function DraggableSidebarItem({ item, isCollapsed, isDragMode }: DraggableSidebarItemProps) {
   const location = useLocation();
-  const isActive = location.pathname === item.url;
+  const isActive = isNavActive(location.pathname, item.url);
 
   const {
     attributes,

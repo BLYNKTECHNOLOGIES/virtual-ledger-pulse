@@ -72,7 +72,7 @@ export function MobileBottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card border-t-2 border-border shadow-lg print:hidden">
       <div className="flex items-center justify-around h-16 px-2">
         {visibleMainNavItems.map((item) => {
-          const isActive = location.pathname === item.url;
+          const isActive = isNavActive(location.pathname, item.url);
           return (
             <Link
               key={item.url}
@@ -106,7 +106,7 @@ export function MobileBottomNav() {
             <ScrollArea className="h-full pb-8">
               <div className="grid grid-cols-3 gap-3 py-4">
                 {visibleMoreNavItems.map((item) => {
-                  const isActive = location.pathname === item.url;
+                  const isActive = isNavActive(location.pathname, item.url);
                   return (
                     <Link
                       key={item.url}

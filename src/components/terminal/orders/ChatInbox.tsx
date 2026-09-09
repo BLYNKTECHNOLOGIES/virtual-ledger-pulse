@@ -16,7 +16,7 @@ import { markOrderChatRead } from '@/lib/chat-read-state';
 import { useChatSeenMap, seenLabel, type ChatSeenInfo } from '@/hooks/useChatSeenBy';
 import { useChatPins } from '@/hooks/useChatPins';
 import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
-import { formatBandsLabel } from '@/lib/small-trade';
+import { formatBandsLabel, isSmallTradeOrder } from '@/lib/small-trade';
 import { selectSmallTradeTargets } from '@/lib/small-trade-targets';
 
 

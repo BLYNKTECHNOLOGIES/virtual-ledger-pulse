@@ -1178,6 +1178,45 @@ serve(async (req) => {
             };
           }
         }
+        // Order limits must be verified against Binance: a 000000 response alone
+        // does not prove the new min/max were stored.
+        const requestedMin = partialBody.minSingleTransAmount;
+        const requestedMax = partialBody.maxSingleTransAmount;
+        if (
+          (requestedMin !== undefined || requestedMax !== undefined) &&
+          isSuccessfulBinancePayload(result, response.status)
+        ) {
+          let limitDetail: any = null;
+          for (let attempt = 0; attempt < 3; attempt++) {
+            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+            limitDetail = await fetchAdDetail(BINANCE_PROXY_URL, proxyHeaders, String(adUpdateBody.advNo));
+            const minOk = requestedMin === undefined || Number(limitDetail?.minSingleTransAmount) === Number(requestedMin);
+            const maxOk = requestedMax === undefined || Number(limitDetail?.maxSingleTransAmount) === Number(requestedMax);
+            if (limitDetail && minOk && maxOk) break;
+          }
+          const storedMin = Number(limitDetail?.minSingleTransAmount);
+          const storedMax = Number(limitDetail?.maxSingleTransAmount);
+          const minOk = requestedMin === undefined || storedMin === Number(requestedMin);
+          const maxOk = requestedMax === undefined || storedMax === Number(requestedMax);
+          console.log("updateAd limit verification:", JSON.stringify({
+            advNo: adUpdateBody.advNo, requestedMin, requestedMax, storedMin, storedMax, mergedFromDetail,
+          }));
+          if (!limitDetail || !minOk || !maxOk) {
+            result = {
+              code: "ORDER_LIMIT_VERIFICATION_FAILED",
+              message: `Binance accepted the update but the order limits are still ${Number.isFinite(storedMin) ? storedMin : "?"} – ${Number.isFinite(storedMax) ? storedMax : "?"}${requestedMin !== undefined || requestedMax !== undefined ? ` (requested ${requestedMin ?? storedMin} – ${requestedMax ?? storedMax})` : ""}.`,
+            };
+          } else {
+            result = {
+              ...result,
+              data: {
+                ...(result?.data && typeof result.data === "object" ? result.data : {}),
+                verifiedMinSingleTransAmount: storedMin,
+                verifiedMaxSingleTransAmount: storedMax,
+              },
+            };
+          }
+        }
         if (skippedFields.length) result = { ...result, skippedFields };
         break;
       }

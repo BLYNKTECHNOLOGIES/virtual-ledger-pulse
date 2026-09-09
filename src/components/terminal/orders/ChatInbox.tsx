@@ -88,6 +88,10 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       if (error) throw error;
       return (data || []) as InboxRow[];
     },
+    // A chat thread can backfill newer Binance history while the inbox is
+    // unmounted. Never reuse the global 30-second cache when returning here.
+    staleTime: 0,
+    refetchOnMount: 'always',
     refetchInterval: 10000,
   });
 

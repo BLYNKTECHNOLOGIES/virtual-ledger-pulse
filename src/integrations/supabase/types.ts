@@ -30902,6 +30902,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      match_chat_order_by_nickname: {
+        Args: { p_account: string; p_at: string; p_nickname: string }
+        Returns: string
+      }
       match_copilot_exemplars: {
         Args: {
           match_count?: number

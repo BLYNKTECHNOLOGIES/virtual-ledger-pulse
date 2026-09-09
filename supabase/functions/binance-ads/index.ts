@@ -1060,7 +1060,23 @@ serve(async (req) => {
         const requestedAdData = { ...(payload.adData || {}) };
         const desiredRemainingRaw = requestedAdData.desiredRemainingAmount;
         delete requestedAdData.desiredRemainingAmount;
-        const { accepted: adUpdateBody, skipped: skippedFields } = sanitizeAdUpdatePayload(requestedAdData);
+        const { accepted: partialBody, skipped: skippedFields, isPriceOnly } = sanitizeAdUpdatePayload(requestedAdData);
+
+        // Non-price edits (order limits, pay methods, quantity, remarks) need the
+        // FULL ad body — Binance accepts a partial one but silently keeps the old
+        // values, which is why min/max order limits used to snap back.
+        let adUpdateBody: Record<string, any> = partialBody;
+        let mergedFromDetail = false;
+        if (!isPriceOnly) {
+          const currentDetail = await fetchAdDetail(BINANCE_PROXY_URL, proxyHeaders, String(partialBody.advNo));
+          if (currentDetail) {
+            adUpdateBody = buildFullAdUpdateBody(currentDetail, partialBody);
+            mergedFromDetail = true;
+          } else {
+            console.log("updateAd: could not read current ad detail, sending partial body", partialBody.advNo);
+          }
+        }
+
 
         // Re-sending an unchanged initAmount returns success but Binance treats it
         // as a no-op, leaving a partially consumed surplusAmount untouched. For

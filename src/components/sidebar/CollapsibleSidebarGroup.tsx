@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Link, useLocation } from 'react-router-dom';
+import { isNavActive } from '@/lib/navActive';
 import { SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight, GripVertical, Lock, LockOpen } from 'lucide-react';
@@ -47,7 +48,7 @@ export function CollapsibleSidebarGroup({
   const [showPinDialog, setShowPinDialog] = useState(false);
 
   const isUnlocked = !group.pinProtected || isGroupUnlocked(group.id);
-  const hasActiveChild = group.children.some(child => location.pathname === child.url);
+  const hasActiveChild = group.children.some(child => isNavActive(location.pathname, child.url));
 
   const {
     attributes,
@@ -143,7 +144,7 @@ export function CollapsibleSidebarGroup({
             {group.children.map((item) => {
               const ItemIcon = item.icon;
               const isExternal = item.url.startsWith('http');
-              const isActive = !isExternal && location.pathname === item.url;
+              const isActive = !isExternal && isNavActive(location.pathname, item.url);
 
               const inner = (
                 <>

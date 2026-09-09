@@ -13,6 +13,7 @@ import { OrderHistoryModule } from "@/components/clients/OrderHistoryModule";
 import { ClientDualStatistics } from "@/components/clients/ClientDualStatistics";
 import { ClientBeneficiaryDetails } from "@/components/clients/ClientBeneficiaryDetails";
 import { ClientExchangeBadge } from "@/components/clients/ClientExchangeBadge";
+import { BackButton } from "@/components/shared/BackButton";
 
 export default function ClientDetail() {
   const { id: clientId } = useParams();
@@ -83,6 +84,7 @@ export default function ClientDetail() {
 
   return (
     <div className="space-y-6 p-6 page-mount">
+      <BackButton fallbackTo="/clients" label="Back to Clients" />
       <PageHeader
         title={
           <span className="flex flex-wrap items-center gap-3">

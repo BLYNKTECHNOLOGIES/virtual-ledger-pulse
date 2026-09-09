@@ -2,13 +2,30 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Bell, Moon, Sun, Menu, User, Check, X } from "lucide-react";
+import { Search, Bell, Moon, Sun, Menu, User, Check, X, CalendarDays, AlertTriangle, CheckCircle2, Megaphone, Wallet, Clock, Info } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { format, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { useDebounce } from "@/hooks/useDebounce";
 import { requestDeepLinkFromNotification } from "@/lib/hrms/requestRegistry";
+
+/** Icon + colour tone per HR notification kind (presentation only). */
+function notificationTone(n: any) {
+  const raw = `${n?.notification_type || n?.type || ""} ${n?.title || ""}`.toLowerCase();
+  if (raw.includes("drift") || raw.includes("alert") || raw.includes("stale") || raw.includes("reject"))
+    return { Icon: AlertTriangle, chip: "bg-destructive/10", text: "text-destructive" };
+  if (raw.includes("approve") || raw.includes("completed") || raw.includes("success"))
+    return { Icon: CheckCircle2, chip: "bg-success/10", text: "text-success" };
+  if (raw.includes("leave")) return { Icon: CalendarDays, chip: "bg-primary/10", text: "text-primary" };
+  if (raw.includes("payroll") || raw.includes("salary") || raw.includes("payslip"))
+    return { Icon: Wallet, chip: "bg-primary/10", text: "text-primary" };
+  if (raw.includes("announce")) return { Icon: Megaphone, chip: "bg-warning/10", text: "text-warning" };
+  if (raw.includes("attendance") || raw.includes("punch"))
+    return { Icon: Clock, chip: "bg-warning/10", text: "text-warning" };
+  return { Icon: Info, chip: "bg-muted", text: "text-muted-foreground" };
+}
+
 
 
 interface HorillaHeaderProps {

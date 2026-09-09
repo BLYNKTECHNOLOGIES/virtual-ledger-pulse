@@ -269,7 +269,8 @@ async function sendChatMessage(
   }
 
   // Try WebSocket send up to 2 times
-  for (let wsAttempt = 1; wsAttempt <= 2; wsAttempt++) {
+  const WS_MAX_ATTEMPTS = 3;
+  for (let wsAttempt = 1; wsAttempt <= WS_MAX_ATTEMPTS; wsAttempt++) {
     try {
       const wssUrl = `${cred.chatWssUrl}/${cred.listenKey}?token=${cred.token}&clientType=web`;
       if (wsAttempt === 1) console.log(`WS connecting for order ${orderNo}...`);
@@ -319,28 +320,30 @@ async function sendChatMessage(
 
       if (wsSendResult.success) {
         // Verify delivery by checking chat messages
-        await new Promise(r => setTimeout(r, 1500));
+        await new Promise(r => setTimeout(r, 2500));
         const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
-        
+
         if (verified) {
           console.log(`✅ Message delivery VERIFIED for order ${orderNo}`);
           return { success: true, verified: true, credential: cred };
-        } else if (wsAttempt === 1) {
+        } else if (wsAttempt < WS_MAX_ATTEMPTS) {
           console.warn(`⚠️ Message sent but NOT verified for order ${orderNo}, retrying WS...`);
-          continue; // Retry once
+          // Binance keeps one live chat session per account; give the previous
+          // session time to drop before opening another one.
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
         } else {
-          // Second attempt also unverified — log as sent but unverified
-          console.warn(`⚠️ Message sent but NOT verified after 2 attempts for order ${orderNo}`);
+          console.warn(`⚠️ Message sent but NOT verified after ${WS_MAX_ATTEMPTS} attempts for order ${orderNo}`);
           return { success: true, verified: false, credential: cred };
         }
-      } else if (wsAttempt < 2) {
+      } else if (wsAttempt < WS_MAX_ATTEMPTS) {
         console.warn(`WS send failed for ${orderNo}, retrying...`);
         await new Promise(r => setTimeout(r, 1000));
       } else {
         return { success: false, verified: false, error: wsSendResult.error, credential: cred };
       }
     } catch (err) {
-      if (wsAttempt < 2) {
+      if (wsAttempt < WS_MAX_ATTEMPTS) {
         await new Promise(r => setTimeout(r, 1000));
       } else {
         return { success: false, verified: false, error: `WebSocket exception: ${String(err)}`, credential: cred };

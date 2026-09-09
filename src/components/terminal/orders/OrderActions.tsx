@@ -24,7 +24,7 @@ import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, 
 import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease, useSendReleaseVerifyCode } from '@/hooks/useBinanceActions';
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
-import { prepareAutoScreenshot, deliverPreparedAutoScreenshot } from '@/lib/triggerAutoScreenshot';
+import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
 import { toast } from 'sonner';
 
 interface Props {
@@ -258,6 +258,8 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
     
     releaseCoin.mutate(params as any, {
       onSuccess: () => {
+        // Fire "Order Released" auto-reply rules immediately after our release.
+        triggerAutoReplyForOrder(orderNumber, 'order_released');
         setOpen(false);
         updateCode('');
         releaseFiredRef.current = false;

@@ -294,7 +294,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       }
     };
     reconcile();
-    const id = window.setInterval(reconcile, 90_000);
+    const id = window.setInterval(reconcile, 45_000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

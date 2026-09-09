@@ -249,9 +249,10 @@ export function useCounterpartyChatHistory(
     } catch (err) {
       console.error('Failed to load counterparty chat history:', err);
     } finally {
+      loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, counterpartyVerifiedName, currentOrderNumber, exchangeAccountId, hasMore, isLoading]);
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, hasMore]);
 
   return { historicalChats, isLoading, hasMore, loadMore: fetchPastOrders };
 }

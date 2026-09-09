@@ -68,6 +68,7 @@ export function useCounterpartyChatHistory(
   const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null; order_status?: string | null }[] | null>(null);
   const offsetRef = useRef(0);
   const scopeRef = useRef('');
+  const loadingRef = useRef(false);
 
   useEffect(() => {
     const scope = [currentOrderNumber, counterpartyVerifiedName || '', counterpartyNickname || '', exchangeAccountId || ''].join('|');
@@ -76,13 +77,17 @@ export function useCounterpartyChatHistory(
     allPastOrdersRef.current = null;
     offsetRef.current = 0;
     loadedOrdersRef.current = new Set();
+    loadingRef.current = false;
     setHasMore(true);
+    setIsLoading(false);
     setHistoricalChats([]);
   }, [currentOrderNumber, counterpartyVerifiedName, counterpartyNickname, exchangeAccountId]);
 
   const fetchPastOrders = useCallback(async () => {
-    if (!hasMore || isLoading) return;
+    if (!hasMore || loadingRef.current) return;
+    loadingRef.current = true;
     setIsLoading(true);
+
 
     try {
       // Fetch the full list of past orders once and cache

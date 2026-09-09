@@ -268,6 +268,9 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                                   : log.reason === 'no_listings' ? '⚠ No P2P listings available for this asset'
                                                   : log.reason === 'deviation_exceeded' ? '⚠ Competitor price deviates too far from market reference'
                                                   : log.reason === 'no_ads' ? '⚠ No ad numbers configured or all excluded'
+                                                  // safety_limit_blocked carries the exact limit and the ratio it blocked —
+                                                  // showing only the code made it look like the deviation caused the skip.
+                                                  : log.error ? `⚠ ${log.error}`
                                                   : `⚠ ${log.reason || 'Unknown skip reason'}`)
                                                 : `✕ ${log.error || 'Unknown error'}`
                                               }

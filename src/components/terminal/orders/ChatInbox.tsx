@@ -84,7 +84,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       if (error) throw error;
       return (data || []) as InboxRow[];
     },
-    refetchInterval: 20000,
+    refetchInterval: 10000,
   });
 
   // Live push: any newly recorded Binance chat message refreshes the inbox.

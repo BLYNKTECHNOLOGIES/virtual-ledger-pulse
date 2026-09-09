@@ -45,6 +45,7 @@ interface BinanceOrder {
 
 const ACTIONABLE_ORDER_STATUS_LIST = [1, 2];
 
+
 function extractOrders(data: any): BinanceOrder[] {
   if (Array.isArray(data?.data?.data)) return data.data.data;
   if (Array.isArray(data?.data)) return data.data;
@@ -97,12 +98,19 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
   if (isCompleted) {
     // "Order released" — only for orders we sold (we released the crypto),
     // and only while fresh so a history sweep never re-blasts old orders.
+    // NOTE: payment_marked is deliberately NOT replayed here. Verified against
+    // live sends: Binance silently drops chat messages posted to an order that
+    // is already released, so a catch-up reply never reaches the counterparty.
+    // Fast pay+release trades are covered by the seller_payed chat trigger,
+    // which fires while the order is still open.
     const completedAgeMinutes = (Date.now() - order.createTime) / 60000;
     if (order.tradeType === "SELL" && completedAgeMinutes < 180) {
       events.push("order_released");
     }
     return events;
+
   }
+
 
   if (status === "5" || status.includes("CANCEL") || status.includes("EXPIRED")) {
     return events;
@@ -566,9 +574,12 @@ serve(async (req) => {
 
       // ===== RECENTLY COMPLETED (RELEASED) ORDERS =====
       // Releases done directly in the Binance app never pass through the terminal,
-      // so sweep freshly completed orders too when an order_released rule exists.
+      // and fast sales are paid + released between two polls, so they never show
+      // up with status 2. Sweep freshly completed orders whenever a release rule
+      // OR a sell-side payment_marked rule exists.
       const hasReleaseRule = (rules as AutoReplyRule[]).some((r) => r.trigger_event === "order_released");
       if (hasReleaseRule) {
+
         try {
           const seen = new Set(allActiveOrders.map((o) => o.orderNumber));
           const completedRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {

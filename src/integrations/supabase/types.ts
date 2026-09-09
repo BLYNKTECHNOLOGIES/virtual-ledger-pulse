@@ -24163,6 +24163,24 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_chat_send_locks: {
+        Row: {
+          lock_key: string
+          locked_until: string
+          updated_at: string
+        }
+        Insert: {
+          lock_key: string
+          locked_until: string
+          updated_at?: string
+        }
+        Update: {
+          lock_key?: string
+          locked_until?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_collector_state: {
         Row: {
           detail: Json | null
@@ -28303,6 +28321,10 @@ export type Database = {
         Args: { p_employee_id: string; p_new_total: number }
         Returns: undefined
       }
+      acquire_chat_send_lock: {
+        Args: { p_key: string; p_ttl_seconds?: number }
+        Returns: boolean
+      }
       add_terminal_appeal_note: {
         Args: { p_case_id: string; p_note: string }
         Returns: undefined
@@ -31117,6 +31139,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      release_chat_send_lock: { Args: { p_key: string }; Returns: undefined }
       release_payer_order_lock: {
         Args: { p_order_number: string; p_payer_user_id: string }
         Returns: Json

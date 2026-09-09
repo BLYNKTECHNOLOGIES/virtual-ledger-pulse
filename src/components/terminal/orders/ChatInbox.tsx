@@ -371,11 +371,11 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-card">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose}>
+      <div className="flex items-center gap-2 px-3 sm:px-4 py-3 border-b border-border bg-card">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <MessageSquare className="h-4 w-4 text-primary" />
+        <MessageSquare className="h-4 w-4 text-primary shrink-0" />
         <span className="text-[11px] uppercase tracking-wide font-medium text-muted-foreground">Inbox</span>
         {totalUnread > 0 && (
           <Badge className="bg-destructive text-destructive-foreground text-[9px] t-mono h-4 px-1.5 ml-1">
@@ -383,7 +383,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
           </Badge>
         )}
         {totalUnread > 0 && (
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex items-center gap-1 shrink-0">
             {smallTradeTargets.length > 0 && (
               <Button
                 variant="ghost"
@@ -393,8 +393,13 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
                 title={`Marks only low-value trade chats read — ${formatBandsLabel(bands)}. Clients with any bigger order are left untouched.`}
                 onClick={handleMarkSmallTradesRead}
               >
-                <Coins className="h-3.5 w-3.5" />
-                {markingSmall ? 'Clearing...' : `Mark small chats read (${smallTradeTargets.length})`}
+                <Coins className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">
+                  {markingSmall ? 'Clearing...' : `Mark small chats read (${smallTradeTargets.length})`}
+                </span>
+                <span className="sm:hidden">
+                  {markingSmall ? '...' : `Small (${smallTradeTargets.length})`}
+                </span>
               </Button>
             )}
             <Button
@@ -404,13 +409,15 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
               disabled={markingAll || markingSmall}
               onClick={handleMarkAllRead}
             >
-              <CheckCheck className="h-3.5 w-3.5" />
-              {markingAll ? 'Marking...' : 'Mark all read'}
+              <CheckCheck className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden sm:inline">{markingAll ? 'Marking...' : 'Mark all read'}</span>
+              <span className="sm:hidden">{markingAll ? '...' : 'All'}</span>
             </Button>
           </div>
         )}
 
       </div>
+
 
       {/* Search */}
       <div className="px-4 py-2 border-b border-border bg-card/50">

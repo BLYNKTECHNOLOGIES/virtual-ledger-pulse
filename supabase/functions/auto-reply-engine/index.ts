@@ -335,8 +335,22 @@ async function sendChatMessage(
   return { success: false, verified: false, error: "All WebSocket attempts failed", credential: cred };
 }
 
+/** Clean, unmasked human name or null. */
+function cleanName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const v = value.trim();
+  if (!v || v.includes("*") || v.toLowerCase() === "unknown" || v.toLowerCase() === "undefined") return null;
+  return v;
+}
+
 /**
  * Fetch verified (unmasked) counterparty name from Binance order detail API.
+ *
+ * The proxy wraps the Binance envelope, so the detail can sit at
+ * `data.data.data`, `data.data` or the root — same unwrapping the
+ * resolve-order-userno function uses. The endpoint also expects `adOrderNo`
+ * alongside `orderNo`; sending only `orderNo` returns an empty payload, which
+ * is why templates were falling back to the generic "Trader".
  */
 async function fetchVerifiedName(
   proxyUrl: string,
@@ -348,14 +362,20 @@ async function fetchVerifiedName(
     const res = await fetch(`${proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`, {
       method: "POST",
       headers: proxyHeaders,
-      body: JSON.stringify({ orderNo }),
+      body: JSON.stringify({ adOrderNo: orderNo, orderNo }),
     });
-    const data = await res.json();
-    const detail = data?.data;
-    if (!detail) return null;
-    const name = tradeType === "BUY" ? detail.sellerRealName : detail.buyerRealName;
-    if (name && !name.includes("*")) return name;
-    return detail.counterPartNickName || null;
+    const text = await res.text();
+    let data: any = null;
+    try { data = JSON.parse(text); } catch { return null; }
+    const detail = data?.data?.data || data?.data || data;
+    if (!detail || typeof detail !== "object") return null;
+    const isSell = String(tradeType).toUpperCase() === "SELL";
+    return (
+      cleanName(isSell ? detail.buyerRealName : detail.sellerRealName) ||
+      cleanName(isSell ? detail.buyerName : detail.sellerName) ||
+      cleanName(isSell ? (detail.buyerNickname ?? detail.buyerNickName) : (detail.sellerNickname ?? detail.sellerNickName)) ||
+      cleanName(detail.counterPartNickName)
+    );
   } catch {
     return null;
   }

@@ -280,76 +280,13 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   );
 
 
-  // Binance-app reads: if the operator already answered/read a chat inside the
-  // Binance app, that order's detail comes back with unreadCount 0. We check the
-  // newest unread threads periodically and clear them locally, crediting the
-  // Binance app so the team knows who handled it.
-  const mergedRef = useRef(merged);
-  mergedRef.current = merged;
-  useEffect(() => {
-    let cancelled = false;
-    let running = false;
-    const reconcile = async () => {
-      if (document.visibilityState !== 'visible') return;
-      if (running) return;
-      running = true;
-      try {
-        // Bulk pass first: Binance already reports a per-order unread count in
-        // the order cache, so anything read on the Binance app clears in one
-        // database call — no per-order Binance lookups needed.
-        try {
-          const { data: bulkCleared } = await supabase.rpc('reconcile_binance_app_chat_reads', {
-            p_limit: 500,
-          });
-          if (Number(bulkCleared) > 0 && !cancelled) {
-            queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
-            queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
-            queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
-          }
-        } catch {
-          // ignore — fall through to the per-order check below
-        }
-        const targets = mergedRef.current
-          .filter((c) => c.chatUnreadCount > 0 && !c.orderNumber.startsWith('INQ-'))
-          .slice(0, 25);
+  // Binance-app reads are intentionally NOT auto-detected any more.
+  // Binance reports chatUnreadCount = 0 for nearly every order on our API
+  // session (the server listener consumes the stream), so using it cleared
+  // genuinely unread chats and the terminal showed 0 while the Binance app
+  // still showed several unread. Unread now clears only when a chat is opened
+  // here, marked read here, or covered by the small-trade automation.
 
-        if (targets.length === 0) return;
-        let cleared = 0;
-        for (const conv of targets) {
-          if (cancelled) return;
-          try {
-            const detail: any = await callBinanceAds('getOrderDetail', { orderNumber: conv.orderNumber });
-            const raw = detail?.data ?? detail;
-            const unread = Number(raw?.unreadCount ?? raw?.chatUnreadCount);
-            if (Number.isFinite(unread) && unread === 0) {
-              const orderNumbers = Array.from(new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])]));
-              orderNumbers.forEach((n) => markOrderChatRead(n));
-              await supabase.rpc('mark_terminal_binance_chats_read', {
-                p_order_numbers: orderNumbers,
-                p_source: 'binance_app',
-              });
-              cleared += 1;
-            }
-          } catch {
-            // Binance unavailable — leave the thread unread, never guess.
-          }
-        }
-        if (cleared > 0 && !cancelled) {
-          queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
-          queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
-        }
-      } finally {
-        running = false;
-      }
-    };
-    reconcile();
-    const id = window.setInterval(reconcile, 45_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(id);
-    };
-    // Runs on a fixed 90s cadence; the newest list is read from mergedRef.
-  }, [queryClient]);
 
   const [markingAll, setMarkingAll] = useState(false);
   const handleMarkAllRead = useCallback(async () => {

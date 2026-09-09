@@ -638,14 +638,38 @@ serve(async (req) => {
         }
       }
 
-      // For orders without a clean name, fetch from Binance detail API
-      for (const order of allActiveOrders) {
-        if (!verifiedNameMap.has(order.orderNumber)) {
-          const detailName = await fetchVerifiedName(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber, order.tradeType);
-          if (detailName && !detailName.includes("*")) {
-            verifiedNameMap.set(order.orderNumber, detailName);
+      // Second source: identity cache captured at sync time.
+      if (orderNumbers.length > 0) {
+        const missing = orderNumbers.filter((n) => !verifiedNameMap.has(n));
+        if (missing.length > 0) {
+          const { data: idRows } = await supabase
+            .from("cp_order_identity")
+            .select("order_number, verified_name, nickname")
+            .in("order_number", missing);
+          for (const row of idRows || []) {
+            const name = cleanName(row.verified_name) || cleanName(row.nickname);
+            if (name) verifiedNameMap.set(row.order_number, name);
           }
         }
+      }
+
+      // For orders still without a clean name, fetch from Binance detail API,
+      // then fall back to the multi-account resolver (the order may live on a
+      // non-primary exchange account whose credentials this function lacks).
+      for (const order of allActiveOrders) {
+        if (verifiedNameMap.has(order.orderNumber)) continue;
+        const detailName = await fetchVerifiedName(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber, order.tradeType);
+        if (detailName) {
+          verifiedNameMap.set(order.orderNumber, detailName);
+          continue;
+        }
+        try {
+          const { data: resolved } = await supabase.functions.invoke("resolve-order-userno", {
+            body: { order_number: order.orderNumber, trade_type: order.tradeType },
+          });
+          const name = cleanName(resolved?.verified_name) || cleanName(resolved?.nickname);
+          if (name) verifiedNameMap.set(order.orderNumber, name);
+        } catch { /* best effort */ }
       }
 
       // Collect all pending messages

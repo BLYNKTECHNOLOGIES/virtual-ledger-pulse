@@ -122,6 +122,10 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
     return filtered;
   }, [data, exchangeAccountId, search]);
 
+  // Split into the two sides the operator thinks in: our BUY ads and our SELL ads.
+  const buyAds = useMemo(() => ads.filter((a) => String(a.tradeType).toUpperCase() === 'BUY'), [ads]);
+  const sellAds = useMemo(() => ads.filter((a) => String(a.tradeType).toUpperCase() === 'SELL'), [ads]);
+
   const nick = useMemo(
     () => advertiserNick || accounts.find((a) => a.id === exchangeAccountId)?.account_name || null,
     [advertiserNick, accounts, exchangeAccountId],
@@ -177,8 +181,25 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
               No active or private ads returned by Binance for this account.
             </p>
           )}
-          <div className="space-y-2">
-            {ads.map((ad) => (
+          <div className="space-y-4">
+            {([
+              { key: 'BUY', label: 'Buy ads', list: buyAds, tone: 'text-trade-buy' },
+              { key: 'SELL', label: 'Sell ads', list: sellAds, tone: 'text-trade-sell' },
+            ] as const).map((section) => (
+              <div key={section.key}>
+                <div className="sticky top-0 z-10 -mx-0.5 mb-1.5 flex items-center justify-between bg-background/95 px-0.5 py-1 backdrop-blur">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${section.tone}`}>
+                    {section.label}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground tabular-nums">{section.list.length}</span>
+                </div>
+                {section.list.length === 0 ? (
+                  <p className="px-0.5 py-2 text-[10px] text-muted-foreground">
+                    No {section.key === 'BUY' ? 'buy' : 'sell'} ads live for this account.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {section.list.map((ad) => (
               <button
                 key={ad.advNo}
                 onClick={() => pick(ad)}
@@ -222,6 +243,10 @@ export function AttachAdPicker({ exchangeAccountId, onInsert, onSendCard, advert
                   )}
                 </div>
               </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </ScrollArea>

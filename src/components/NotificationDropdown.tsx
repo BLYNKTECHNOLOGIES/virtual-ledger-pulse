@@ -182,17 +182,20 @@ export function NotificationDropdown() {
           {tab === "requests" ? (
             workflow.length > 0 ? (
               <div className="divide-y">
-                {workflow.map((n) => (
+                {workflow.map((n, i) => (
                   <div
                     key={n.id}
                     onClick={() => openWorkflow(n)}
+                    style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
                     className={cn(
-                      "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                      "group animate-fade-in p-3 cursor-pointer transition-all hover:bg-muted/60 hover:pl-4",
                       !n.is_read && "bg-primary/5 border-l-2 border-l-primary",
                     )}
                   >
                     <div className="flex gap-3">
-                      <Inbox className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 transition-transform group-hover:scale-110">
+                        <Inbox className="h-3.5 w-3.5 text-primary" />
+                      </span>
                       <div className="flex-1 min-w-0">
                         <p className={cn("text-sm break-words", !n.is_read && "font-semibold")}>{n.title}</p>
                         {n.message && (
@@ -202,32 +205,40 @@ export function NotificationDropdown() {
                           {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                         </p>
                       </div>
-                      {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />}
+                      {!n.is_read && <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0 animate-pulse" />}
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="p-8 text-center text-muted-foreground">
+              <div className="p-8 text-center text-muted-foreground animate-fade-in">
                 <Inbox className="h-8 w-8 mx-auto mb-2 opacity-30" />
                 <p className="text-sm">No pending requests</p>
+                <p className="text-[11px] opacity-70 mt-0.5">Approvals will appear here</p>
               </div>
             )
           ) : notifications.length > 0 ? (
             <div className="divide-y">
-              {notifications.map((notification) => (
+              {notifications.map((notification, i) => (
                 <div
                   key={notification.id}
+                  style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}
                   className={cn(
-                    "p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+                    "group animate-fade-in p-3 cursor-pointer transition-all hover:bg-muted/60 hover:pl-4",
                     !notification.read && "bg-primary/5 border-l-2 border-l-primary"
                   )}
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-3">
-                    <div className="mt-0.5 shrink-0">
+                    <span className={cn(
+                      "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-transform group-hover:scale-110",
+                      notification.type === 'error' && "bg-destructive/10",
+                      notification.type === 'warning' && "bg-warning/10",
+                      notification.type === 'success' && "bg-success/10",
+                      (!notification.type || notification.type === 'info') && "bg-primary/10",
+                    )}>
                       {getNotificationIcon(notification.type)}
-                    </div>
+                    </span>
                     <div className="flex-1 min-w-0">
                       <p className={cn("text-sm break-words", !notification.read && "font-semibold")}>
                         {notification.title}
@@ -240,18 +251,20 @@ export function NotificationDropdown() {
                       </p>
                     </div>
                     {!notification.read && (
-                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <div className="w-2 h-2 rounded-full bg-primary mt-1.5 shrink-0 animate-pulse" />
                     )}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="p-8 text-center text-muted-foreground">
+            <div className="p-8 text-center text-muted-foreground animate-fade-in">
               <Bell className="h-8 w-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">No notifications</p>
+              <p className="text-sm">You're all caught up</p>
+              <p className="text-[11px] opacity-70 mt-0.5">System alerts will show up here</p>
             </div>
           )}
+
         </ScrollArea>
 
         <DropdownMenuSeparator className="my-0" />

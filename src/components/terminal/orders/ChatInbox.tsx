@@ -274,9 +274,21 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       orderNumbers.forEach((n) => markOrderChatRead(n));
       Promise.all(
         orderNumbers.map((n) =>
-          supabase.rpc('mark_terminal_binance_chat_read', { p_order_number: n })
+          supabase.rpc('mark_terminal_binance_chat_read', {
+            p_order_number: n,
+            p_source: 'operator',
+          })
         )
-      ).then(() => queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] }));
+      ).then((results) => {
+        const failed = results.filter(({ error }) => error);
+        if (failed.length > 0) {
+          console.warn(`Failed to mark ${failed.length} merged chat thread(s) read`);
+          toast.error('Could not clear every unread message. Please try again.');
+        }
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox-unread'] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-seen-map'] });
+      });
       orderNumbers.forEach((n) => {
         callBinanceAds('markOrderMessagesRead', { orderNo: n }).catch((err) => {
           console.warn('Failed to mark Binance chat read:', err);

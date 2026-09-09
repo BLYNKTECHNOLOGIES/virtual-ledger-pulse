@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.mark_terminal_binance_chat_read(text);

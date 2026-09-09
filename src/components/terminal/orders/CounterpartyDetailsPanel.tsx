@@ -2,8 +2,8 @@ import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { User, ShieldCheck, Clock, CreditCard, TrendingUp, AlertTriangle } from 'lucide-react';
-import { useCounterpartyProfile, useCounterpartyPastOrders } from '@/hooks/useCounterpartyProfile';
+import { User, ShieldCheck, Clock, CreditCard, TrendingUp, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useCounterpartyPanel } from '@/hooks/useCounterpartyProfile';
 import { useCounterpartyLinkedClient } from '@/hooks/useCounterpartyLinkedClient';
 import { mapToOperationalStatus, getStatusStyle } from '@/lib/orderStatusMapper';
 import { useNavigate } from 'react-router-dom';
@@ -50,8 +50,9 @@ export function CounterpartyDetailsPanel({
   const [showAll, setShowAll] = useState(false);
   const isSynthetic = orderNumber.startsWith('INQ-');
 
-  const { data: profile, isLoading } = useCounterpartyProfile(orderNumber, exchangeAccountId);
-  const { data: pastOrders = [], isLoading: ordersLoading } = useCounterpartyPastOrders(orderNumber, exchangeAccountId);
+  const { data, isLoading, isError, isFetching, refetch } = useCounterpartyPanel(orderNumber, exchangeAccountId);
+  const profile = data?.profile ?? null;
+  const pastOrders = data?.pastOrders ?? [];
   const { data: linkedClient } = useCounterpartyLinkedClient(
     counterpartyNickname,
     counterpartyVerifiedName || profile?.verified_name,
@@ -120,6 +121,14 @@ export function CounterpartyDetailsPanel({
           <div className="grid grid-cols-2 gap-1.5">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
           </div>
+        ) : isError ? (
+          <div className="rounded-md border border-warning/30 bg-warning/5 p-2">
+            <div className="text-[11px] text-foreground">Trade record is temporarily unavailable.</div>
+            <div className="mt-1 text-[9px] text-muted-foreground">The stored orders were not reported as empty.</div>
+            <Button variant="ghost" size="sm" className="mt-1 h-7 px-1.5 text-[10px]" disabled={isFetching} onClick={() => refetch()}>
+              <RefreshCw className={`mr-1 h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} /> Retry
+            </Button>
+          </div>
         ) : profile && profile.total_orders > 0 ? (
           <div className="grid grid-cols-2 gap-1.5">
             <Stat label="Orders" value={profile.total_orders} />
@@ -174,8 +183,10 @@ export function CounterpartyDetailsPanel({
         <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
           Past orders {pastOrders.length > 0 && `(${pastOrders.length})`}
         </div>
-        {ordersLoading ? (
+        {isLoading ? (
           <div className="space-y-1">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
+        ) : isError ? (
+          <div className="text-[11px] text-muted-foreground">Past orders could not be loaded. Use Retry above.</div>
         ) : pastOrders.length === 0 ? (
           <div className="text-[11px] text-muted-foreground">No earlier orders with this counterparty.</div>
         ) : (

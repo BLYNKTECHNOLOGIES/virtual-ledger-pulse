@@ -35,60 +35,55 @@ export interface CounterpartyPastOrder {
   order_status: string | null;
 }
 
-/** Aggregate trade record for the counterparty on the other side of this order. */
-export function useCounterpartyProfile(orderNumber?: string | null, exchangeAccountId?: string | null) {
-  return useQuery<CounterpartyProfileStats | null>({
-    queryKey: ['counterparty_profile', orderNumber, exchangeAccountId ?? null],
-    enabled: !!orderNumber && !orderNumber.startsWith('INQ-'),
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('get_counterparty_profile', {
-        p_order_number: orderNumber,
-        p_exchange_account_id: exchangeAccountId ?? null,
-      });
-      if (error) throw error;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!row) return null;
-      const num = (v: any) => (v === null || v === undefined ? 0 : Number(v));
-      return {
-        ...row,
-        total_orders: num(row.total_orders),
-        completed_orders: num(row.completed_orders),
-        cancelled_orders: num(row.cancelled_orders),
-        complaint_orders: num(row.complaint_orders),
-        buy_orders: num(row.buy_orders),
-        sell_orders: num(row.sell_orders),
-        total_value: num(row.total_value),
-        avg_value: num(row.avg_value),
-        median_value: num(row.median_value),
-        total_asset_amount: num(row.total_asset_amount),
-        first_trade_time: row.first_trade_time ? Number(row.first_trade_time) : null,
-        last_trade_time: row.last_trade_time ? Number(row.last_trade_time) : null,
-        avg_pay_minutes: row.avg_pay_minutes === null ? null : Number(row.avg_pay_minutes),
-        pay_sample: num(row.pay_sample),
-        avg_release_minutes: row.avg_release_minutes === null ? null : Number(row.avg_release_minutes),
-        release_sample: num(row.release_sample),
-      } as CounterpartyProfileStats;
-    },
-  });
+export interface CounterpartyPanelData {
+  profile: CounterpartyProfileStats | null;
+  pastOrders: CounterpartyPastOrder[];
 }
 
-/** Past orders with the same counterparty (excludes the current order). */
-export function useCounterpartyPastOrders(orderNumber?: string | null, exchangeAccountId?: string | null) {
-  return useQuery<CounterpartyPastOrder[]>({
-    queryKey: ['counterparty_past_orders', orderNumber, exchangeAccountId ?? null],
+const toNumber = (value: unknown) => (value === null || value === undefined ? 0 : Number(value));
+
+/** One indexed request for the counterparty summary and its past orders. */
+export function useCounterpartyPanel(orderNumber?: string | null, exchangeAccountId?: string | null) {
+  return useQuery<CounterpartyPanelData>({
+    queryKey: ['counterparty_panel', orderNumber, exchangeAccountId ?? null],
     enabled: !!orderNumber && !orderNumber.startsWith('INQ-'),
-    staleTime: 60_000,
+    staleTime: 5 * 60_000,
+    retry: 1,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('get_counterparty_order_history', {
+      const { data, error } = await supabase.rpc('get_counterparty_panel', {
         p_order_number: orderNumber,
         p_exchange_account_id: exchangeAccountId ?? null,
       });
       if (error) throw error;
-      const rows = (data || []) as CounterpartyPastOrder[];
-      return rows
+      const result = (data || {}) as Record<string, any>;
+      const rawProfile = result.profile as Record<string, any> | null | undefined;
+      const rawOrders = Array.isArray(result.past_orders) ? result.past_orders : [];
+
+      const profile = rawProfile && toNumber(rawProfile.total_orders) > 0 ? {
+        ...rawProfile,
+        total_orders: toNumber(rawProfile.total_orders),
+        completed_orders: toNumber(rawProfile.completed_orders),
+        cancelled_orders: toNumber(rawProfile.cancelled_orders),
+        complaint_orders: toNumber(rawProfile.complaint_orders),
+        buy_orders: toNumber(rawProfile.buy_orders),
+        sell_orders: toNumber(rawProfile.sell_orders),
+        total_value: toNumber(rawProfile.total_value),
+        avg_value: toNumber(rawProfile.avg_value),
+        median_value: toNumber(rawProfile.median_value),
+        total_asset_amount: toNumber(rawProfile.total_asset_amount),
+        first_trade_time: rawProfile.first_trade_time ? Number(rawProfile.first_trade_time) : null,
+        last_trade_time: rawProfile.last_trade_time ? Number(rawProfile.last_trade_time) : null,
+        avg_pay_minutes: rawProfile.avg_pay_minutes === null ? null : Number(rawProfile.avg_pay_minutes),
+        pay_sample: toNumber(rawProfile.pay_sample),
+        avg_release_minutes: rawProfile.avg_release_minutes === null ? null : Number(rawProfile.avg_release_minutes),
+        release_sample: toNumber(rawProfile.release_sample),
+      } as CounterpartyProfileStats : null;
+
+      const pastOrders = (rawOrders as CounterpartyPastOrder[])
         .slice()
         .sort((a, b) => Number(b.create_time || 0) - Number(a.create_time || 0));
+
+      return { profile, pastOrders };
     },
   });
 }

@@ -67,7 +67,14 @@ export function SmallSalesConfig() {
   });
 
   const updateConfig = useMutation({
-    mutationFn: async (updates: { is_enabled?: boolean; min_amount?: number; max_amount?: number; auto_mark_chat_read?: boolean }) => {
+    mutationFn: async (updates: {
+      is_enabled?: boolean;
+      min_amount?: number;
+      max_amount?: number;
+      auto_mark_chat_read?: boolean;
+      auto_mark_interval_seconds?: number;
+      auto_mark_include_buys?: boolean;
+    }) => {
       if (!config?.id) return;
       const { error } = await supabase
         .from('small_sales_config')

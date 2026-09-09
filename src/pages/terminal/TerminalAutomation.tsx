@@ -74,6 +74,7 @@ import { CopilotSettings } from '@/components/terminal/automation/CopilotSetting
 const TRIGGER_COLORS: Record<string, string> = {
   order_received: 'bg-primary/20 text-primary',
   payment_marked: 'bg-success/20 text-success',
+  order_released: 'bg-success/20 text-success',
   payment_pending: 'bg-warning/20 text-warning',
   order_cancelled: 'bg-destructive/20 text-destructive',
   order_appealed: 'bg-destructive/20 text-destructive',

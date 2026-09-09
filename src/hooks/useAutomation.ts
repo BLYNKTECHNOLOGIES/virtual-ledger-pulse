@@ -45,6 +45,7 @@ export interface MerchantSchedule {
 const TRIGGER_LABELS: Record<string, string> = {
   order_received: 'Order Received',
   payment_marked: 'Payment Marked',
+  order_released: 'Order Released (by us)',
   payment_pending: 'Payment Pending (5min+)',
   order_cancelled: 'Order Cancelled',
   order_appealed: 'Appeal Raised',

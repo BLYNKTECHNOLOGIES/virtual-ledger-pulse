@@ -103,11 +103,26 @@ export function QueueMode({ orders, onClose }: Props) {
 
   if (!current) {
     return (
-      <div className="p-4 md:p-6">
-        <EmptyState icon={ListChecks} title="Queue clear" description="No actionable orders right now. New orders appear here automatically." />
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-3 md:px-4 py-1.5 border-b border-border bg-card shrink-0">
+          <div className="flex items-center gap-2">
+            <ListChecks className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[11px] t-mono uppercase tracking-wide text-muted-foreground">Queue · 0 of 0</span>
+          </div>
+          <button
+            onClick={onClose}
+            className="h-6 px-2 text-[11px] rounded border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            Exit queue
+          </button>
+        </div>
+        <div className="p-4 md:p-6">
+          <EmptyState icon={ListChecks} title="Queue clear" description="No actionable orders right now. Exit the queue to browse all orders." />
+        </div>
       </div>
     );
   }
+
 
   return (
     <div className="flex flex-col h-full">

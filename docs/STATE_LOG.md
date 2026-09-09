@@ -359,3 +359,5 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-09 23:47 IST: Auto-reply now fires instantly on the Binance "seller_payed" chat event (DB trigger -> auto-reply-engine) instead of only via the 1-minute poll; removed the unreliable completed-order payment_marked replay; added per-account chat send lock, 3-attempt verified send with spacing, and duplicate-text guard.
 - 2026-09-09 23:58 IST: Fixed terminal chat inbox unread count — threads once read on the Binance app were permanently forced to 0 unread; now counted from last-read time. 12 threads / 37 messages restored.
 - 2026-09-10 00:02 IST: Disabled Binance-cache-based auto-clearing of terminal chat unread (chatUnreadCount is 0 on our API session even when the app shows unread); unread now clears only on real reads. 12 threads unread restored.
+
+- 2026-09-10 01:05 IST: Terminal/Binance inbox race fixed — orderless frames now resolve against live orders before history, inbox identity/status falls back to side-aware live-cache metadata, User-310bc active-order rows repaired, and exact duplicate cleanup preserved independent order chats.

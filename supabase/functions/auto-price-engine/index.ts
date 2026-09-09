@@ -603,6 +603,15 @@ async function processAsset(
     return { asset, status: "skipped", reason: "no_merchant" };
   }
 
+  // Record WHO we are actually countering, on every successful match. Without this the
+  // rule row keeps whatever merchant was stored by the last deviation skip (possibly days
+  // old), so the Terminal shows a stale competitor and the merchant-disappeared alert
+  // compares against the wrong name.
+  await supabase.from("ad_pricing_rules").update({
+    last_matched_merchant: matchedMerchant,
+    last_competitor_price: competitorPrice,
+    last_checked_at: now.toISOString(),
+  }).eq("id", rule.id);
 
   // 5. MARKET VALIDATION
   let marketReferencePrice: number | null = null;

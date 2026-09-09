@@ -165,23 +165,30 @@ export function useLatestAssetLogs(ruleIds: string[]) {
     queryKey: ['auto-pricing-asset-logs', ruleIds],
     enabled: ruleIds.length > 0,
     queryFn: async () => {
-      // Fetch recent logs for all active rules (last cycle only, ~1 per asset)
+      // Fetch recent logs for all active rules. The window must be wide enough to cover
+      // every rule x asset combination of the last cycles — a small cap made whole assets
+      // read "No recent data" on multi-asset rules.
       const { data, error } = await supabase
         .from('ad_pricing_logs')
         .select('rule_id, asset, status, skipped_reason, error_message, competitor_merchant, competitor_price, applied_price, applied_ratio, market_reference_price, deviation_from_market_pct, was_capped, was_rate_limited, created_at')
         .in('rule_id', ruleIds)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(2000);
       if (error) throw error;
 
       // Group by rule_id, keeping only the latest log per asset per rule
       const byRule: Record<string, AssetAlertInfo[]> = {};
       const seen = new Set<string>();
       for (const log of data || []) {
+        // Ladder pre-space rows are housekeeping writes on OUR sibling ads — they carry no
+        // competitor at all, so letting one become the asset's latest entry hides the
+        // merchant the rule actually countered.
+        if (log.skipped_reason === 'ladder_prespace') continue;
         const key = `${log.rule_id}:${log.asset}`;
         if (seen.has(key)) continue;
         seen.add(key);
         if (!byRule[log.rule_id]) byRule[log.rule_id] = [];
+
         byRule[log.rule_id].push({
           asset: log.asset || '',
           status: log.status,

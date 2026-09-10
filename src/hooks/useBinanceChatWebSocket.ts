@@ -54,9 +54,12 @@ export function prewarmChatSockets(_accountIds: (string | null)[]): void {}
 export function useBinanceChatWebSocket(
   _activeOrderNo: string | null,
   accountId?: string | null,
+  onDelivered?: (orderNo: string) => void,
 ): UseBinanceChatWebSocketReturn {
   const accountIdRef = useRef<string | null>(accountId ?? null);
   accountIdRef.current = accountId ?? null;
+  const onDeliveredRef = useRef(onDelivered);
+  onDeliveredRef.current = onDelivered;
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const queueRef = useRef<QueuedMessage[]>([]);

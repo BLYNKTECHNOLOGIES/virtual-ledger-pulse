@@ -1709,6 +1709,9 @@ function TerminalOrdersContent() {
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-foreground font-medium truncate max-w-[140px]">
                               {order.counterparty_nickname}
+                              {verifiedNameMap[order.binance_order_number] && (
+                                <span className="text-muted-foreground font-normal"> ({verifiedNameMap[order.binance_order_number]})</span>
+                              )}
                             </span>
                           </div>
                         </TableCell>

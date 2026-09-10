@@ -1428,7 +1428,9 @@ serve(async (req) => {
         const overlapStart = Math.max(0, endTimestamp - Number(payload.overlapMs || 24 * 60 * 60 * 1000));
         const gapStart = Math.max(0, endTimestamp - Number(payload.gapFillMs || 7 * 24 * 60 * 60 * 1000));
         const batches: Array<{ startTimestamp: number; maxPages: number; label: string }> = [
-          { startTimestamp: overlapStart, maxPages: Number(payload.maxRecentPages || 8), label: "recent" },
+          // High-volume days exceed 400 orders/24h; 8 pages silently truncated the
+          // newest window, leaving chat threads with no order metadata.
+          { startTimestamp: overlapStart, maxPages: Number(payload.maxRecentPages || 24), label: "recent" },
           ...(forceGapFill ? [{ startTimestamp: gapStart, maxPages: Number(payload.maxGapPages || 30), label: "gap" }] : []),
         ];
 
@@ -1612,11 +1614,24 @@ serve(async (req) => {
         if (payload.orderNumber && detail && !detail.error && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
             const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-            const { data: existing } = await supabase
+            let { data: existing } = await supabase
               .from("binance_order_history")
               .select("trade_type")
               .eq("order_number", String(payload.orderNumber))
               .maybeSingle();
+            // Orders missed by listUserOrderHistory paging have no history row at
+            // all; seed one from this authoritative order detail so downstream
+            // consumers (chat inbox, ERP) see real amounts instead of zeros.
+            if (!existing) {
+              const seed = orderToHistoryRow({ ...detail, orderNumber: String(payload.orderNumber) }, detailAccountId);
+              if (seed.create_time > 0) {
+                const { error: seedErr } = await supabase
+                  .from("binance_order_history")
+                  .upsert(seed, { onConflict: "order_number", ignoreDuplicates: true });
+                if (seedErr) console.warn("order history seed failed:", seedErr.message);
+                else existing = { trade_type: seed.trade_type } as any;
+              }
+            }
             if (existing) {
               const cancelReason = extractCancelReason(detail);
               const verifiedName = existing.trade_type === "BUY"

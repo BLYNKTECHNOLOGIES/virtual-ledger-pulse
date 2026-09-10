@@ -87,7 +87,10 @@ export function QuickReceiveDialog({
   const firedRef = useRef(false);
 
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
-  const canRequestCode = authMethod === 'EMAIL' || authMethod === 'SMS';
+  // Binance's C2C merchant API has no endpoint that dispatches an Email/SMS code,
+  // so codes must be requested inside the Binance app/website.
+  const canRequestCode = false;
+  const needsExternalCode = authMethod === 'EMAIL' || authMethod === 'SMS';
 
   useEffect(() => {
     if (sendCooldown <= 0) return;
@@ -266,6 +269,11 @@ export function QuickReceiveDialog({
                 </Button>
               )}
             </div>
+            {needsExternalCode && (
+              <p className="text-[11px] text-muted-foreground">
+                Binance does not allow requesting this code from here. Trigger the {selectedAuth.label} in the Binance app or website, then paste it above.
+              </p>
+            )}
           </div>
         </div>
 

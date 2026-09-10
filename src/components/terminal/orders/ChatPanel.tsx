@@ -245,9 +245,19 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     //         'sent'    = Binance confirmed it; shown as a normal bubble until
     //                     the stored copy lands, so it never blinks out
     const MAX_QUEUE_RETRIES = 3;
+    // Whatever already arrived from Binance (live echo or stored copy) wins: the
+    // local bubble is dropped in the same render, so a sent message never appears
+    // twice while the queue entry is being retired.
+    const deliveredSelfBodies = new Set(
+      messages
+        .filter((m) => m.senderType === 'operator')
+        .map((m) => String(m.imageUrl || m.text || '').trim())
+        .filter(Boolean)
+    );
     for (const qm of queuedMessages) {
       if (qm.orderNo !== orderNumber) continue;
       const isFailed = qm.status === 'failed' || qm.retries >= MAX_QUEUE_RETRIES;
+      if (!isFailed && deliveredSelfBodies.has(qm.content.trim())) continue;
       const deliveryStatus: 'sending' | 'queued' | 'failed' | undefined = isFailed
         ? 'failed'
         : qm.status === 'sent'

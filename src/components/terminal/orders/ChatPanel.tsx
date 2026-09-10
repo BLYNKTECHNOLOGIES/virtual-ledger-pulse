@@ -242,12 +242,17 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     // status: 'sending' = handed to WS, awaiting echo (spinner)
     //         'queued'  = WS down, will retry on reconnect (clock icon)
     //         'failed'  = retry budget exceeded, manual retry button
+    //         'sent'    = Binance confirmed it; shown as a normal bubble until
+    //                     the stored copy lands, so it never blinks out
     const MAX_QUEUE_RETRIES = 3;
     for (const qm of queuedMessages) {
       if (qm.orderNo !== orderNumber) continue;
       const isFailed = qm.status === 'failed' || qm.retries >= MAX_QUEUE_RETRIES;
-      const deliveryStatus: 'sending' | 'queued' | 'failed' =
-        isFailed ? 'failed' : (qm.status === 'sending' ? 'sending' : 'queued');
+      const deliveryStatus: 'sending' | 'queued' | 'failed' | undefined = isFailed
+        ? 'failed'
+        : qm.status === 'sent'
+          ? undefined
+          : (qm.status === 'sending' ? 'sending' : 'queued');
       messages.push({
         id: `queued-${qm.tempId}`,
         source: 'local',

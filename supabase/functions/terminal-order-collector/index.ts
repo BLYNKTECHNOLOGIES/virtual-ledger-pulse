@@ -42,6 +42,56 @@ function orderNumberOf(order: any): string {
   return String(order?.orderNumber ?? order?.orderNo ?? order?.adOrderNo ?? "");
 }
 
+// Binance numeric orderStatus -> label (same map as binance-ads).
+const BINANCE_ORDER_STATUS_MAP: Record<number, string> = {
+  1: "TRADING",
+  2: "BUYER_PAYED",
+  3: "BUYER_PAYED",
+  4: "COMPLETED",
+  5: "APPEAL",
+  6: "CANCELLED",
+  7: "CANCELLED_BY_SYSTEM",
+  8: "APPEAL",
+};
+
+function normalizeStatus(raw: unknown): string {
+  if (raw === null || raw === undefined || raw === "") return "TRADING";
+  const value = String(raw).trim();
+  if (/^\d+$/.test(value)) return BINANCE_ORDER_STATUS_MAP[Number(value)] || "TRADING";
+  return value.toUpperCase();
+}
+
+/**
+ * Map a listOrders row to a durable binance_order_history row.
+ * The active cache is a rolling window that is pruned the moment Binance stops
+ * reporting an order, and listUserOrderHistory paging can miss high-volume
+ * days — so every order the collector sees is persisted here as well.
+ */
+function orderToHistoryRow(order: any, accountId: string) {
+  const amount = String(order.amount ?? order.quantity ?? order.takerAmount ?? "0");
+  const totalPrice = String(order.totalPrice ?? order.fiatAmount ?? "0");
+  const computedUnit = Number(amount) > 0 && Number(totalPrice) > 0 ? String(Number(totalPrice) / Number(amount)) : "0";
+  return {
+    order_number: orderNumberOf(order),
+    adv_no: String(order.advNo ?? order.adsNo ?? ""),
+    trade_type: String(order.tradeType ?? "").toUpperCase(),
+    asset: String(order.asset ?? "USDT").toUpperCase(),
+    fiat_unit: String(order.fiat ?? order.fiatUnit ?? "INR"),
+    order_status: normalizeStatus(order.orderStatus ?? order.status),
+    amount,
+    total_price: totalPrice,
+    unit_price: String(order.unitPrice ?? order.price ?? computedUnit),
+    commission: String(order.commission ?? "0"),
+    counter_part_nick_name:
+      order.counterPartNickName ?? order.buyerNickname ?? order.sellerNickname ?? "",
+    create_time: Number(order.createTime ?? order.orderCreateTime ?? 0),
+    pay_method_name: order.payMethodName ?? order.payType ?? null,
+    raw_data: order,
+    synced_at: new Date().toISOString(),
+    exchange_account_id: accountId,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -180,6 +230,35 @@ Deno.serve(async (req: Request) => {
           if (error) throw error;
         }
 
+        // Durable metadata: persist every observed order into binance_order_history
+        // (insert-only, so richer synced rows are never clobbered) and keep the
+        // live status fresh. Without this, orders pruned from the rolling cache
+        // and missed by the 24h history paging show up with no amount/price.
+        const historyRows = orders
+          .map((o) => orderToHistoryRow(o, resolved.id))
+          .filter((r) => r.order_number && r.create_time > 0);
+        if (historyRows.length > 0) {
+          const { error: histErr } = await admin
+            .from("binance_order_history")
+            .upsert(historyRows, { onConflict: "order_number", ignoreDuplicates: true });
+          if (histErr) console.warn("history persist failed:", histErr.message);
+
+          const byStatus = new Map<string, string[]>();
+          for (const r of historyRows) {
+            const list = byStatus.get(r.order_status) || [];
+            list.push(r.order_number);
+            byStatus.set(r.order_status, list);
+          }
+          for (const [status, numbers] of byStatus) {
+            const { error: updErr } = await admin
+              .from("binance_order_history")
+              .update({ order_status: status, synced_at: now })
+              .in("order_number", numbers)
+              .neq("order_status", status);
+            if (updErr) console.warn("history status refresh failed:", updErr.message);
+          }
+        }
+
         // Remove cached orders for this account that Binance no longer reports
         // as active (completed/cancelled since last tick).
         const { data: existing } = await admin
@@ -202,6 +281,53 @@ Deno.serve(async (req: Request) => {
       }
     }
     return { totalOrders, failed: anyFailure };
+  };
+
+  // Self-healing backfill: chat threads whose order was never captured by the
+  // rolling cache nor by listUserOrderHistory paging are repaired a few at a
+  // time using the official per-order detail endpoint.
+  const BACKFILL_PER_RUN = 10;
+  const backfillMissingHistory = async () => {
+    let repaired = 0;
+    for (const account of accounts) {
+      try {
+        const { data: candidates } = await admin
+          .rpc("terminal_chat_orders_missing_history", {
+            p_exchange_account_id: account.id,
+            p_limit: BACKFILL_PER_RUN,
+          });
+        if (!candidates || candidates.length === 0) continue;
+
+        const resolved = await resolveAccount(account.id);
+        const headers = proxyHeadersFor(resolved);
+        const url = `${resolved.proxyUrl}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`;
+        for (const row of candidates as any[]) {
+          const orderNumber = String(row.order_number);
+          const response = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ adOrderNo: orderNumber, orderNo: orderNumber }),
+          });
+          const text = await response.text();
+          let parsed: any;
+          try { parsed = JSON.parse(text); } catch { continue; }
+          if (!response.ok || (parsed?.code && parsed.code !== "000000")) continue;
+          const detail = parsed?.data?.data || parsed?.data || parsed;
+          const returned = String(detail?.orderNumber ?? detail?.orderNo ?? "");
+          if (!detail || (returned && returned !== orderNumber)) continue;
+          const seed = orderToHistoryRow({ ...detail, orderNumber }, resolved.id);
+          if (!seed.create_time) continue;
+          const { error } = await admin
+            .from("binance_order_history")
+            .upsert(seed, { onConflict: "order_number", ignoreDuplicates: true });
+          if (!error) repaired += 1;
+          await sleep(250);
+        }
+      } catch (err) {
+        console.warn("history backfill failed for account", account.id, err);
+      }
+    }
+    return repaired;
   };
 
   try {
@@ -233,8 +359,13 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Collector run failed" }, 500);
   }
 
+  let backfilled = 0;
+  if (!singleTick) {
+    backfilled = await backfillMissingHistory();
+  }
+
   return jsonResponse({
     code: "000000",
-    data: { ticks: tickCount, activeOrders: lastTotalOrders, durationMs: Date.now() - startedAt },
+    data: { ticks: tickCount, activeOrders: lastTotalOrders, backfilled, durationMs: Date.now() - startedAt },
   });
 });

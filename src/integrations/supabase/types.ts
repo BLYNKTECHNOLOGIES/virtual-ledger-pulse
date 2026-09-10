@@ -31319,6 +31319,12 @@ export type Database = {
           zone: string
         }[]
       }
+      terminal_chat_orders_missing_history: {
+        Args: { p_exchange_account_id: string; p_limit?: number }
+        Returns: {
+          order_number: string
+        }[]
+      }
       terminal_collector_heartbeat: {
         Args: never
         Returns: {

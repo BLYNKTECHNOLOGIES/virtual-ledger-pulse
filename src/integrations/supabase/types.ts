@@ -24181,6 +24181,42 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_chat_thread_summary: {
+        Row: {
+          counterparty_nickname: string | null
+          exchange_account_id: string | null
+          last_message_at: string | null
+          last_message_from_self: boolean | null
+          last_message_text: string | null
+          last_message_type: string | null
+          last_self_message_at: string | null
+          order_number: string
+          updated_at: string
+        }
+        Insert: {
+          counterparty_nickname?: string | null
+          exchange_account_id?: string | null
+          last_message_at?: string | null
+          last_message_from_self?: boolean | null
+          last_message_text?: string | null
+          last_message_type?: string | null
+          last_self_message_at?: string | null
+          order_number: string
+          updated_at?: string
+        }
+        Update: {
+          counterparty_nickname?: string | null
+          exchange_account_id?: string | null
+          last_message_at?: string | null
+          last_message_from_self?: boolean | null
+          last_message_text?: string | null
+          last_message_type?: string | null
+          last_self_message_at?: string | null
+          order_number?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_collector_state: {
         Row: {
           detail: Json | null
@@ -31107,6 +31143,10 @@ export type Database = {
       }
       refresh_hour_accounts: {
         Args: { p_month?: number; p_year?: number }
+        Returns: undefined
+      }
+      refresh_terminal_chat_thread_summary: {
+        Args: { p_order: string }
         Returns: undefined
       }
       refresh_terminal_order_rollups_job: { Args: never; Returns: undefined }

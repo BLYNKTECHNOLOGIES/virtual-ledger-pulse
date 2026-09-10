@@ -245,9 +245,19 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     //         'sent'    = Binance confirmed it; shown as a normal bubble until
     //                     the stored copy lands, so it never blinks out
     const MAX_QUEUE_RETRIES = 3;
+    // Whatever already arrived from Binance (live echo or stored copy) wins: the
+    // local bubble is dropped in the same render, so a sent message never appears
+    // twice while the queue entry is being retired.
+    const deliveredSelfBodies = new Set(
+      messages
+        .filter((m) => m.senderType === 'operator')
+        .map((m) => String(m.imageUrl || m.text || '').trim())
+        .filter(Boolean)
+    );
     for (const qm of queuedMessages) {
       if (qm.orderNo !== orderNumber) continue;
       const isFailed = qm.status === 'failed' || qm.retries >= MAX_QUEUE_RETRIES;
+      if (!isFailed && deliveredSelfBodies.has(qm.content.trim())) continue;
       const deliveryStatus: 'sending' | 'queued' | 'failed' | undefined = isFailed
         ? 'failed'
         : qm.status === 'sent'
@@ -275,12 +285,14 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   useEffect(() => {
     const delivered = queuedMessages.filter((qm) => qm.orderNo === orderNumber && qm.status === 'sent');
     if (delivered.length === 0) return;
-    const storedSelfBodies = new Set(
-      archivedMessages
+    const storedSelfBodies = new Set([
+      ...archivedMessages
         .filter((msg: any) => msg.sender_is_self || String(msg.message_type || '').toLowerCase() === 'auto_reply')
-        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim())
-        .filter(Boolean)
-    );
+        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim()),
+      ...wsMessages
+        .filter((msg: any) => msg.self === true)
+        .map((msg: any) => String(msg.imageUrl || msg.content || msg.message || '').trim()),
+    ].filter(Boolean));
     let stillWaiting = false;
     for (const qm of delivered) {
       const body = qm.content.trim();
@@ -295,7 +307,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', orderNumber, exchangeAccountId ?? null] });
     }, 4000);
     return () => clearTimeout(timer);
-  }, [archivedMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
+  }, [archivedMessages, wsMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
 
 
 

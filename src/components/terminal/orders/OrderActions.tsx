@@ -212,7 +212,11 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
   const codeRef = useRef('');
 
   const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
-  const canRequestCode = authMethod === 'EMAIL' || authMethod === 'SMS';
+  // Binance's C2C merchant API exposes no endpoint that dispatches an Email/SMS
+  // code (documented endpoints cover only release/pre-check). Codes must be
+  // requested inside the Binance app/website, so no "Send" button is offered.
+  const canRequestCode = false;
+  const needsExternalCode = authMethod === 'EMAIL' || authMethod === 'SMS';
 
   useEffect(() => {
     if (sendCooldown <= 0) return;

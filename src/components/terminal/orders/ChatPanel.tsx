@@ -102,7 +102,18 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // Binance's documented send endpoint requires an order number, so replying
   // to these from the terminal is not supported.
   const isEnquiryThread = orderNumber.startsWith('INQ-');
-  const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
+  // After Binance confirms a send, pull the stored copy straight away so the
+  // bubble is replaced by a durable message instead of disappearing.
+  const handleDelivered = useCallback((deliveredOrderNo: string) => {
+    callBinanceAds('syncOrderChatMessages', { orderNo: deliveredOrderNo, rows: 50, maxPages: 1, sort: 'desc' }, exchangeAccountId ?? undefined)
+      .catch((err) => console.warn('Post-send chat sync failed:', err))
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', deliveredOrderNo, exchangeAccountId ?? null] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+      });
+  }, [exchangeAccountId, queryClient]);
+
+  const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, clearQueuedMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId, handleDelivered);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { data: chatListenerState } = useTerminalChatListenerState();
   const chatListenerHealthy = isChatListenerHealthy(chatListenerState);

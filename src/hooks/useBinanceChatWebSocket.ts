@@ -81,8 +81,13 @@ export function useBinanceChatWebSocket(
         if (!delivered) throw new Error(body?.error || body?.message || 'Binance rejected the message');
 
         // The server action returns success only after finding the exact echo in
-        // Binance history. Realtime then supplies the durable message row.
-        setQueuedMessages((current) => current.filter((item) => item.tempId !== tempId));
+        // Binance history. Keep the bubble on screen (as delivered) until the
+        // durable stored copy is rendered, otherwise the reply visibly vanishes
+        // and operators re-send it.
+        setQueuedMessages((current) => current.map((item) =>
+          item.tempId === tempId ? { ...item, status: 'sent' as const } : item
+        ));
+        onDeliveredRef.current?.(orderNo);
         return true;
       } catch (cause) {
         const message = cause instanceof Error ? cause.message : 'Binance did not confirm delivery';

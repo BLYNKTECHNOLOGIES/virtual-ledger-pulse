@@ -365,27 +365,41 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
           if (isGateway) hasGateway = true;
 
           // Insert split record
-          await supabase.from('sales_order_payment_splits').insert({
+          const { error: splitErr } = await supabase.from('sales_order_payment_splits').insert({
             sales_order_id: order.id,
             bank_account_id: bankAccountId,
             amount: parseFloat(split.amount),
             payment_method_id: split.payment_method_id,
             is_gateway: isGateway,
           });
+          if (splitErr) throw splitErr;
 
           // Create financial entry
           if (isGateway) {
-            await supabase.from('pending_settlements').insert({
+            const splitAmount = parseFloat(split.amount);
+            const orderDate = (data.order_date || new Date().toISOString()).split('T')[0];
+            const settlementDays = (pm as any)?.settlement_days ?? null;
+            const expectedDate = settlementDays != null
+              ? new Date(new Date(orderDate).getTime() + settlementDays * 86400000).toISOString().split('T')[0]
+              : new Date(new Date(orderDate).getTime() + 86400000).toISOString().split('T')[0];
+
+            const { error: settlementErr } = await supabase.from('pending_settlements').insert({
               sales_order_id: order.id,
               payment_method_id: split.payment_method_id,
-              amount: parseFloat(split.amount),
+              bank_account_id: bankAccountId,
+              total_amount: splitAmount,
+              settlement_amount: splitAmount,
+              settlement_cycle: (pm as any)?.settlement_cycle || 'T+1 Day',
+              settlement_days: settlementDays,
+              expected_settlement_date: expectedDate,
               status: 'PENDING',
               order_number: data.order_number,
               client_name: data.client_name,
-              order_date: data.order_date,
+              order_date: orderDate,
             });
+            if (settlementErr) throw settlementErr;
           } else if (bankAccountId) {
-            await supabase.from('bank_transactions').insert({
+            const { error: bankTxErr } = await supabase.from('bank_transactions').insert({
               bank_account_id: bankAccountId,
               transaction_type: 'INCOME',
               amount: parseFloat(split.amount),
@@ -395,6 +409,7 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
               category: 'SALES',
               related_account_name: data.client_name,
             });
+            if (bankTxErr) throw bankTxErr;
           }
         }
 

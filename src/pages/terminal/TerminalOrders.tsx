@@ -1168,6 +1168,35 @@ function TerminalOrdersContent() {
   const internalChatOrderNumbers = useMemo(() => visibleOrders.map(o => o.binance_order_number), [visibleOrders]);
   const { data: internalUnreadMap = {} } = useInternalUnreadCounts(internalChatOrderNumbers);
 
+  // Verified counterparty names (KYC) for the visible orders, keyed by order number.
+  const verifiedNameOrderKey = useMemo(() => internalChatOrderNumbers.join(','), [internalChatOrderNumbers]);
+  const { data: verifiedNameMap = {} } = useQuery({
+    queryKey: ['cp-verified-names', verifiedNameOrderKey, isAllAccounts ? 'all' : accountsToQuery.join(',')],
+    enabled: internalChatOrderNumbers.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      // Chunk to stay within PostgREST `in` limits
+      for (let i = 0; i < internalChatOrderNumbers.length; i += 100) {
+        const chunk = internalChatOrderNumbers.slice(i, i + 100);
+        let q = supabase
+          .from('cp_order_identity')
+          .select('order_number, verified_name, nickname')
+          .in('order_number', chunk);
+        if (!isAllAccounts && accountsToQuery.length > 0) {
+          q = q.in('exchange_account_id', accountsToQuery);
+        }
+        const { data, error } = await q;
+        if (error) { console.warn('Verified-name lookup failed:', error.message); continue; }
+        for (const row of data || []) {
+          const name = (row.verified_name || '').trim();
+          if (name) map[row.order_number] = name;
+        }
+      }
+      return map;
+    },
+  });
+
   // Helper: open chat for an order row directly — opens the full workspace
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1680,6 +1709,9 @@ function TerminalOrdersContent() {
                           <div className="flex flex-col gap-0.5">
                             <span className="text-xs text-foreground font-medium truncate max-w-[140px]">
                               {order.counterparty_nickname}
+                              {verifiedNameMap[order.binance_order_number] && (
+                                <span className="text-muted-foreground font-normal"> ({verifiedNameMap[order.binance_order_number]})</span>
+                              )}
                             </span>
                           </div>
                         </TableCell>

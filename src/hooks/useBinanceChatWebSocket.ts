@@ -139,6 +139,7 @@ export function useBinanceChatWebSocket(
     sendImageMessage: (orderNo, imageUrl) => enqueue(orderNo, imageUrl, 'image'),
     sendAdCardMessage: (orderNo, cardJson) => enqueue(orderNo, cardJson, 'card'),
     retryMessage,
+    clearQueuedMessage,
     error,
     queuedMessages,
   };

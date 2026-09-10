@@ -127,6 +127,10 @@ export function useBinanceChatWebSocket(
     void doServerSend(tempId, pending.orderNo, pending.content, pending.type);
   }, [doServerSend]);
 
+  const clearQueuedMessage = useCallback((tempId: number) => {
+    setQueuedMessages((current) => current.filter((item) => item.tempId !== tempId));
+  }, []);
+
   return {
     messages: [],
     isConnected: false,

@@ -16,7 +16,7 @@ interface QueuedMessage {
   type: 'text' | 'image' | 'card';
   createdAt: number;
   retries: number;
-  status: 'sending' | 'queued' | 'failed';
+  status: 'sending' | 'queued' | 'failed' | 'sent';
 }
 
 interface UseBinanceChatWebSocketReturn {
@@ -27,6 +27,8 @@ interface UseBinanceChatWebSocketReturn {
   sendImageMessage: (orderNo: string, imageUrl: string) => void;
   sendAdCardMessage: (orderNo: string, cardJson: string) => void;
   retryMessage: (tempId: number) => void;
+  /** Drop a delivered bubble once its durable stored copy is on screen. */
+  clearQueuedMessage: (tempId: number) => void;
   error: string | null;
   queuedMessages: QueuedMessage[];
 }

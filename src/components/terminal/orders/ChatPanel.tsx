@@ -285,12 +285,14 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   useEffect(() => {
     const delivered = queuedMessages.filter((qm) => qm.orderNo === orderNumber && qm.status === 'sent');
     if (delivered.length === 0) return;
-    const storedSelfBodies = new Set(
-      archivedMessages
+    const storedSelfBodies = new Set([
+      ...archivedMessages
         .filter((msg: any) => msg.sender_is_self || String(msg.message_type || '').toLowerCase() === 'auto_reply')
-        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim())
-        .filter(Boolean)
-    );
+        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim()),
+      ...wsMessages
+        .filter((msg: any) => msg.self === true)
+        .map((msg: any) => String(msg.imageUrl || msg.content || msg.message || '').trim()),
+    ].filter(Boolean));
     let stillWaiting = false;
     for (const qm of delivered) {
       const body = qm.content.trim();

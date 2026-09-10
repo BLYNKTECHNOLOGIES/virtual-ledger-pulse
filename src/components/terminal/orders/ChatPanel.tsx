@@ -270,6 +270,26 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     return dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp));
   }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
 
+  // Retire a delivered bubble only once its stored copy is on screen (or after a
+  // grace period), so a confirmed reply is never missing from the transcript.
+  useEffect(() => {
+    const delivered = queuedMessages.filter((qm) => qm.orderNo === orderNumber && qm.status === 'sent');
+    if (delivered.length === 0) return;
+    const storedSelfBodies = new Set(
+      archivedMessages
+        .filter((msg: any) => msg.sender_is_self || String(msg.message_type || '').toLowerCase() === 'auto_reply')
+        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim())
+        .filter(Boolean)
+    );
+    for (const qm of delivered) {
+      const body = qm.content.trim();
+      if (storedSelfBodies.has(body) || Date.now() - qm.createdAt > 120_000) {
+        clearQueuedMessage(qm.tempId);
+      }
+    }
+  }, [archivedMessages, queuedMessages, orderNumber, clearQueuedMessage]);
+
+
 
   // New message detection & sound notification
   useEffect(() => {

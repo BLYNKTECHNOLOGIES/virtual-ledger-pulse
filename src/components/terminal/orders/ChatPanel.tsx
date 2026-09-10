@@ -281,13 +281,21 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         .map((msg: any) => String(msg.image_url || msg.message_text || '').trim())
         .filter(Boolean)
     );
+    let stillWaiting = false;
     for (const qm of delivered) {
       const body = qm.content.trim();
       if (storedSelfBodies.has(body) || Date.now() - qm.createdAt > 120_000) {
         clearQueuedMessage(qm.tempId);
+      } else {
+        stillWaiting = true;
       }
     }
-  }, [archivedMessages, queuedMessages, orderNumber, clearQueuedMessage]);
+    if (!stillWaiting) return;
+    const timer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', orderNumber, exchangeAccountId ?? null] });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [archivedMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
 
 
 

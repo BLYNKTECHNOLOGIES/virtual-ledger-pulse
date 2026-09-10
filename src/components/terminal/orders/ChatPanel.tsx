@@ -307,7 +307,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', orderNumber, exchangeAccountId ?? null] });
     }, 4000);
     return () => clearTimeout(timer);
-  }, [archivedMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
+  }, [archivedMessages, wsMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
 
 
 

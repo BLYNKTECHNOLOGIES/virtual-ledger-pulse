@@ -2022,7 +2022,25 @@ serve(async (req) => {
               const content = String(message?.content || message?.message || "");
               return message?.self === true && content === msgContent && createdAt >= sendStartedAt - 5000;
             });
-            if (delivered) return true;
+            if (delivered) {
+              // Store the verified echo immediately so the operator's own reply
+              // has a durable row before the optimistic bubble is retired.
+              if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+                try {
+                  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+                  await persistChatMessages(
+                    supabase,
+                    orderNo,
+                    messages.filter((msg: any) => payloadMatchesOrder(msg, orderNo)),
+                    EXCHANGE_ACCOUNT_ID,
+                    "send_echo" as any,
+                  );
+                } catch (persistErr) {
+                  console.warn("sendChatMessage echo persist failed:", persistErr);
+                }
+              }
+              return true;
+            }
           }
           return false;
         };

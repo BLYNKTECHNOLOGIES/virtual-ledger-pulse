@@ -16,7 +16,7 @@ interface QueuedMessage {
   type: 'text' | 'image' | 'card';
   createdAt: number;
   retries: number;
-  status: 'sending' | 'queued' | 'failed';
+  status: 'sending' | 'queued' | 'failed' | 'sent';
 }
 
 interface UseBinanceChatWebSocketReturn {
@@ -27,6 +27,8 @@ interface UseBinanceChatWebSocketReturn {
   sendImageMessage: (orderNo: string, imageUrl: string) => void;
   sendAdCardMessage: (orderNo: string, cardJson: string) => void;
   retryMessage: (tempId: number) => void;
+  /** Drop a delivered bubble once its durable stored copy is on screen. */
+  clearQueuedMessage: (tempId: number) => void;
   error: string | null;
   queuedMessages: QueuedMessage[];
 }
@@ -52,9 +54,12 @@ export function prewarmChatSockets(_accountIds: (string | null)[]): void {}
 export function useBinanceChatWebSocket(
   _activeOrderNo: string | null,
   accountId?: string | null,
+  onDelivered?: (orderNo: string) => void,
 ): UseBinanceChatWebSocketReturn {
   const accountIdRef = useRef<string | null>(accountId ?? null);
   accountIdRef.current = accountId ?? null;
+  const onDeliveredRef = useRef(onDelivered);
+  onDeliveredRef.current = onDelivered;
   const [queuedMessages, setQueuedMessages] = useState<QueuedMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
   const queueRef = useRef<QueuedMessage[]>([]);
@@ -76,8 +81,13 @@ export function useBinanceChatWebSocket(
         if (!delivered) throw new Error(body?.error || body?.message || 'Binance rejected the message');
 
         // The server action returns success only after finding the exact echo in
-        // Binance history. Realtime then supplies the durable message row.
-        setQueuedMessages((current) => current.filter((item) => item.tempId !== tempId));
+        // Binance history. Keep the bubble on screen (as delivered) until the
+        // durable stored copy is rendered, otherwise the reply visibly vanishes
+        // and operators re-send it.
+        setQueuedMessages((current) => current.map((item) =>
+          item.tempId === tempId ? { ...item, status: 'sent' as const } : item
+        ));
+        onDeliveredRef.current?.(orderNo);
         return true;
       } catch (cause) {
         const message = cause instanceof Error ? cause.message : 'Binance did not confirm delivery';
@@ -117,6 +127,10 @@ export function useBinanceChatWebSocket(
     void doServerSend(tempId, pending.orderNo, pending.content, pending.type);
   }, [doServerSend]);
 
+  const clearQueuedMessage = useCallback((tempId: number) => {
+    setQueuedMessages((current) => current.filter((item) => item.tempId !== tempId));
+  }, []);
+
   return {
     messages: [],
     isConnected: false,
@@ -125,6 +139,7 @@ export function useBinanceChatWebSocket(
     sendImageMessage: (orderNo, imageUrl) => enqueue(orderNo, imageUrl, 'image'),
     sendAdCardMessage: (orderNo, cardJson) => enqueue(orderNo, cardJson, 'card'),
     retryMessage,
+    clearQueuedMessage,
     error,
     queuedMessages,
   };

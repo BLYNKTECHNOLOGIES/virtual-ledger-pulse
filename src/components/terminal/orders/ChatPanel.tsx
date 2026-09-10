@@ -102,7 +102,18 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   // Binance's documented send endpoint requires an order number, so replying
   // to these from the terminal is not supported.
   const isEnquiryThread = orderNumber.startsWith('INQ-');
-  const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId);
+  // After Binance confirms a send, pull the stored copy straight away so the
+  // bubble is replaced by a durable message instead of disappearing.
+  const handleDelivered = useCallback((deliveredOrderNo: string) => {
+    callBinanceAds('syncOrderChatMessages', { orderNo: deliveredOrderNo, rows: 50, maxPages: 1, sort: 'desc' }, exchangeAccountId ?? undefined)
+      .catch((err) => console.warn('Post-send chat sync failed:', err))
+      .finally(() => {
+        queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', deliveredOrderNo, exchangeAccountId ?? null] });
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-inbox'] });
+      });
+  }, [exchangeAccountId, queryClient]);
+
+  const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, clearQueuedMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId, handleDelivered);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
   const { data: chatListenerState } = useTerminalChatListenerState();
   const chatListenerHealthy = isChatListenerHealthy(chatListenerState);
@@ -231,12 +242,17 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     // status: 'sending' = handed to WS, awaiting echo (spinner)
     //         'queued'  = WS down, will retry on reconnect (clock icon)
     //         'failed'  = retry budget exceeded, manual retry button
+    //         'sent'    = Binance confirmed it; shown as a normal bubble until
+    //                     the stored copy lands, so it never blinks out
     const MAX_QUEUE_RETRIES = 3;
     for (const qm of queuedMessages) {
       if (qm.orderNo !== orderNumber) continue;
       const isFailed = qm.status === 'failed' || qm.retries >= MAX_QUEUE_RETRIES;
-      const deliveryStatus: 'sending' | 'queued' | 'failed' =
-        isFailed ? 'failed' : (qm.status === 'sending' ? 'sending' : 'queued');
+      const deliveryStatus: 'sending' | 'queued' | 'failed' | undefined = isFailed
+        ? 'failed'
+        : qm.status === 'sent'
+          ? undefined
+          : (qm.status === 'sending' ? 'sending' : 'queued');
       messages.push({
         id: `queued-${qm.tempId}`,
         source: 'local',
@@ -253,6 +269,34 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
     return dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp));
   }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
+
+  // Retire a delivered bubble only once its stored copy is on screen (or after a
+  // grace period), so a confirmed reply is never missing from the transcript.
+  useEffect(() => {
+    const delivered = queuedMessages.filter((qm) => qm.orderNo === orderNumber && qm.status === 'sent');
+    if (delivered.length === 0) return;
+    const storedSelfBodies = new Set(
+      archivedMessages
+        .filter((msg: any) => msg.sender_is_self || String(msg.message_type || '').toLowerCase() === 'auto_reply')
+        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim())
+        .filter(Boolean)
+    );
+    let stillWaiting = false;
+    for (const qm of delivered) {
+      const body = qm.content.trim();
+      if (storedSelfBodies.has(body) || Date.now() - qm.createdAt > 120_000) {
+        clearQueuedMessage(qm.tempId);
+      } else {
+        stillWaiting = true;
+      }
+    }
+    if (!stillWaiting) return;
+    const timer = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', orderNumber, exchangeAccountId ?? null] });
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [archivedMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
+
 
 
   // New message detection & sound notification

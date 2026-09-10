@@ -11,11 +11,11 @@ const corsHeaders = {
 
 const RUN_BUDGET_MS = 55_000;
 const TICK_MS = 5_000;
-const ORDERS_PER_ACCOUNT_PER_TICK = 1;
+const ORDERS_PER_ACCOUNT_PER_TICK = 3;
 const MAX_PAGES = 2;
 const ROWS = 50;
 const MIN_RESYNC_GAP_MS = 15_000;
-const RECENT_ORDER_WINDOW_MS = 48 * 60 * 60 * 1000;
+const RECENT_ORDER_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
 function explicitOrderNumberFromObject(value: any): string | null {
   if (!value || typeof value !== "object") return null;
@@ -194,7 +194,7 @@ serve(async (req) => {
           .select("order_number, raw")
           .eq("exchange_account_id", account.id)
           .order("updated_at", { ascending: false })
-          .limit(120);
+          .limit(250);
 
         if (cacheErr) {
           console.warn("chat sweep cache query failed:", cacheErr);
@@ -205,8 +205,12 @@ serve(async (req) => {
         const recentCutoff = Date.now() - RECENT_ORDER_WINDOW_MS;
         const eligibleOrders = (recentRows || [])
           .filter((row: any) => {
+            // Counterparties routinely keep chatting on completed/older orders,
+            // so only drop rows we can prove are outside the window. Rows with
+            // no usable createTime stay eligible.
             const createTime = Number(row.raw?.createTime || row.raw?.create_time || 0);
-            return Number.isFinite(createTime) && createTime >= recentCutoff;
+            if (!Number.isFinite(createTime) || createTime <= 0) return true;
+            return createTime >= recentCutoff;
           })
           .map((r: any) => String(r.order_number || ''))
           .filter((orderNo) => /^\d{8,32}$/.test(orderNo))

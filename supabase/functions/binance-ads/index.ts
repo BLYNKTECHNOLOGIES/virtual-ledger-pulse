@@ -2033,7 +2033,7 @@ serve(async (req) => {
                     orderNo,
                     messages.filter((msg: any) => payloadMatchesOrder(msg, orderNo)),
                     EXCHANGE_ACCOUNT_ID,
-                    "send_echo" as any,
+                    "history_sync",
                   );
                 } catch (persistErr) {
                   console.warn("sendChatMessage echo persist failed:", persistErr);

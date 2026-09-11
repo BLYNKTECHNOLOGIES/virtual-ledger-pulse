@@ -247,17 +247,35 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     const MAX_QUEUE_RETRIES = 3;
     // Whatever already arrived from Binance (live echo or stored copy) wins: the
     // local bubble is dropped in the same render, so a sent message never appears
-    // twice while the queue entry is being retired.
-    const deliveredSelfBodies = new Set(
-      messages
-        .filter((m) => m.senderType === 'operator')
-        .map((m) => String(m.imageUrl || m.text || '').trim())
-        .filter(Boolean)
-    );
-    for (const qm of queuedMessages) {
+    // twice while the queue entry is being retired. Matching is one-to-one and
+    // timestamp-scoped, so re-sending the same canned text is never hidden by an
+    // older identical message.
+    const ECHO_SKEW_MS = 20_000;
+    const deliveredSelfByBody = new Map<string, number[]>();
+    for (const m of messages) {
+      if (m.senderType !== 'operator') continue;
+      const body = String(m.imageUrl || m.text || '').trim();
+      if (!body) continue;
+      const list = deliveredSelfByBody.get(body) ?? [];
+      list.push(m.timestamp);
+      deliveredSelfByBody.set(body, list);
+    }
+    for (const list of deliveredSelfByBody.values()) list.sort((a, b) => a - b);
+
+    const sortedQueue = [...queuedMessages].sort((a, b) => a.createdAt - b.createdAt);
+    for (const qm of sortedQueue) {
       if (qm.orderNo !== orderNumber) continue;
       const isFailed = qm.status === 'failed' || qm.retries >= MAX_QUEUE_RETRIES;
-      if (!isFailed && deliveredSelfBodies.has(qm.content.trim())) continue;
+      if (!isFailed) {
+        const body = qm.content.trim();
+        const list = deliveredSelfByBody.get(body);
+        const idx = list?.findIndex((ts) => ts >= qm.createdAt - ECHO_SKEW_MS) ?? -1;
+        if (list && idx >= 0) {
+          list.splice(idx, 1);
+          continue;
+        }
+      }
+
       const deliveryStatus: 'sending' | 'queued' | 'failed' | undefined = isFailed
         ? 'failed'
         : qm.status === 'sent'

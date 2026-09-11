@@ -139,6 +139,62 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
     mutationFn: async () => {
       if (!record) throw new Error('Missing batch record');
 
+      // ── Live status re-check ──────────────────────────────────────
+      // An order can be COMPLETED when the batch is pulled and CANCELLED by
+      // Binance afterwards. Never book a non-completed order into ERP: prune it
+      // from the batch, recompute the totals, and make the operator re-open.
+      const batchOrderNumbers: string[] = Array.isArray(record.order_numbers) ? record.order_numbers : [];
+      if (batchOrderNumbers.length > 0) {
+        const liveRows: any[] = [];
+        for (let i = 0; i < batchOrderNumbers.length; i += 500) {
+          const { data, error } = await supabase
+            .from('binance_order_history')
+            .select('order_number, order_status, amount, total_price, commission')
+            .in('order_number', batchOrderNumbers.slice(i, i + 500));
+          if (error) throw error;
+          liveRows.push(...(data || []));
+        }
+        const statusByOrder = new Map<string, any>(liveRows.map((r) => [r.order_number, r]));
+        const stale = batchOrderNumbers.filter((num) => {
+          const row = statusByOrder.get(num);
+          return row && String(row.order_status).toUpperCase() !== 'COMPLETED';
+        });
+
+        if (stale.length > 0) {
+          const keep = batchOrderNumbers.filter((num) => !stale.includes(num));
+          const kept = keep.map((num) => statusByOrder.get(num)).filter(Boolean);
+          const totalQty = kept.reduce((s, o) => s + parseFloat(o.amount || '0'), 0);
+          const totalAmt = kept.reduce((s, o) => s + parseFloat(o.total_price || '0'), 0);
+          const totalFee = kept.reduce((s, o) => s + parseFloat(o.commission || '0'), 0);
+
+          await supabase
+            .from('small_sales_order_map')
+            .delete()
+            .eq('small_sales_sync_id', record.id)
+            .in('binance_order_number', stale);
+
+          await supabase
+            .from('small_sales_sync')
+            .update({
+              order_numbers: keep,
+              order_count: keep.length,
+              total_quantity: totalQty,
+              total_amount: totalAmt,
+              total_fee: totalFee,
+              avg_price: totalQty > 0 ? totalAmt / totalQty : 0,
+            })
+            .eq('id', record.id);
+
+          queryClient.invalidateQueries({ queryKey: ['small_sales_sync'] });
+          queryClient.invalidateQueries({ queryKey: ['erp-entry-feed'] });
+          throw new Error(
+            `${stale.length} order(s) were cancelled on Binance after this batch was pulled and have been removed. ` +
+            `New total: ₹${totalAmt.toLocaleString('en-IN', { maximumFractionDigits: 2 })}. Please re-open this batch and approve again.`,
+          );
+        }
+      }
+
+
       // ── Validation ────────────────────────────────────────────────
       if (isMultiplePayments) {
         if (!splitAllocation.isValid) {

@@ -72,7 +72,9 @@ export async function syncSmallSales(options: SmallSalesSyncOptions): Promise<Sm
       .from('binance_order_history')
       .select('*')
       .eq('trade_type', 'SELL')
-      .in('order_status', ['COMPLETED', 'APPEAL'])
+      // Only settled/COMPLETED orders may enter ERP. Appealed orders can still end
+      // CANCELLED on Binance; they are picked up on a later sync once completed.
+      .eq('order_status', 'COMPLETED')
       .gte('create_time', cutoffMs)
       .order('create_time', { ascending: false })
       .range(from, from + PAGE_SIZE - 1);

@@ -298,23 +298,44 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     return dedupeMessages(messages.sort((a, b) => a.timestamp - b.timestamp));
   }, [wsMessages, archivedMessages, isImageUrl, orderNumber, getSenderName, queuedMessages, username, retryMessage]);
 
-  // Retire a delivered bubble only once its stored copy is on screen (or after a
-  // grace period), so a confirmed reply is never missing from the transcript.
+  // Retire a delivered bubble only once ITS OWN stored copy is on screen (or after
+  // a grace period). Matching is timestamp-scoped and one-to-one, so re-sending the
+  // same canned text ("Done", "Please pay") is never retired against an older
+  // identical message — which used to make the new reply vanish from the transcript.
   useEffect(() => {
-    const delivered = queuedMessages.filter((qm) => qm.orderNo === orderNumber && qm.status === 'sent');
+    const delivered = queuedMessages
+      .filter((qm) => qm.orderNo === orderNumber && qm.status === 'sent')
+      .sort((a, b) => a.createdAt - b.createdAt);
     if (delivered.length === 0) return;
-    const storedSelfBodies = new Set([
-      ...archivedMessages
-        .filter((msg: any) => msg.sender_is_self || String(msg.message_type || '').toLowerCase() === 'auto_reply')
-        .map((msg: any) => String(msg.image_url || msg.message_text || '').trim()),
-      ...wsMessages
-        .filter((msg: any) => msg.self === true)
-        .map((msg: any) => String(msg.imageUrl || msg.content || msg.message || '').trim()),
-    ].filter(Boolean));
+
+    const ECHO_SKEW_MS = 20_000;
+    const storedSelfByBody = new Map<string, number[]>();
+    const addStored = (body: string, ts: number) => {
+      const trimmed = body.trim();
+      if (!trimmed) return;
+      const list = storedSelfByBody.get(trimmed) ?? [];
+      list.push(ts);
+      storedSelfByBody.set(trimmed, list);
+    };
+    for (const msg of archivedMessages as any[]) {
+      if (!msg.sender_is_self && String(msg.message_type || '').toLowerCase() !== 'auto_reply') continue;
+      addStored(String(msg.image_url || msg.message_text || ''), normalizeChatTimestamp(msg.binance_create_time));
+    }
+    for (const msg of wsMessages as any[]) {
+      if (msg.self !== true) continue;
+      addStored(String(msg.imageUrl || msg.content || msg.message || ''), normalizeChatTimestamp(msg.createTime));
+    }
+    for (const list of storedSelfByBody.values()) list.sort((a, b) => a - b);
+
     let stillWaiting = false;
     for (const qm of delivered) {
       const body = qm.content.trim();
-      if (storedSelfBodies.has(body) || Date.now() - qm.createdAt > 120_000) {
+      const list = storedSelfByBody.get(body);
+      const idx = list?.findIndex((ts) => ts >= qm.createdAt - ECHO_SKEW_MS) ?? -1;
+      if (list && idx >= 0) {
+        list.splice(idx, 1);
+        clearQueuedMessage(qm.tempId);
+      } else if (Date.now() - qm.createdAt > 120_000) {
         clearQueuedMessage(qm.tempId);
       } else {
         stillWaiting = true;
@@ -326,6 +347,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }, 4000);
     return () => clearTimeout(timer);
   }, [archivedMessages, wsMessages, queuedMessages, orderNumber, exchangeAccountId, clearQueuedMessage, queryClient]);
+
 
 
 

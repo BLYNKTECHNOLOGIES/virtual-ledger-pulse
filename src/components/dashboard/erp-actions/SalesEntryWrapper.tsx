@@ -379,6 +379,9 @@ export function SalesEntryWrapper({ item, open, onOpenChange, onSuccess }: Sales
           .from('sales_orders')
           .update({ settlement_status: hasAnyGateway ? 'PENDING' : 'DIRECT' })
           .eq('id', result.id);
+
+        // Guarantee one pending settlement per gateway split
+        await supabase.rpc('sync_split_payment_settlements', { p_order_id: result.id });
       }
 
       // Handle settlement status based on payment method

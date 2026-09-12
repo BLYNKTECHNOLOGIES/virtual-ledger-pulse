@@ -479,6 +479,15 @@ export function EditSalesOrderDialog({ open, onOpenChange, order }: EditSalesOrd
         .single();
       
       if (error) throw error;
+
+      // Guarantee one pending settlement per gateway split (self-heals races/trigger cleanups)
+      if (isMultiplePayments && isCompleted) {
+        const { error: syncErr } = await supabase.rpc('sync_split_payment_settlements', {
+          p_order_id: order.id,
+        });
+        if (syncErr) throw syncErr;
+      }
+
       return result;
     },
     onSuccess: (data) => {

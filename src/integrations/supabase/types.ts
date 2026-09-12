@@ -31311,6 +31311,10 @@ export type Database = {
         Returns: Json
       }
       sync_p2p_orders_batch: { Args: { p_orders: Json }; Returns: number }
+      sync_split_payment_settlements: {
+        Args: { p_order_id: string }
+        Returns: Json
+      }
       sync_usdt_stock: { Args: never; Returns: undefined }
       terminal_ad_zone_map: {
         Args: never

@@ -1979,9 +1979,9 @@ function TerminalOrdersContent() {
 
 
                         {/* Counterparty */}
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-xs text-foreground font-medium truncate max-w-[140px]">
+                            <span className="text-sm text-foreground font-medium truncate max-w-[160px]">
                               {order.counterparty_nickname}
                               {verifiedNameMap[order.binance_order_number] && (
                                 <span className="text-muted-foreground font-normal"> ({verifiedNameMap[order.binance_order_number]})</span>
@@ -1991,7 +1991,7 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Assignment */}
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {(() => {
                             const vis = getOrderVisibility(order.binance_order_number);
                             const assignment = getOrderAssignment(order.binance_order_number);
@@ -2016,9 +2016,9 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Status */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className={`text-[10px] w-fit gap-1 ${style.badgeClass}`}>
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1.5">
+                            <Badge variant="outline" className={`text-[11px] w-fit gap-1 px-2 py-0.5 ${style.badgeClass}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
                               {style.label}
                             </Badge>
@@ -2034,7 +2034,7 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Chat */}
-                        <TableCell className="py-3 text-right">
+                        <TableCell className="py-4 text-right">
                           <div className="inline-flex flex-wrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
                             {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (

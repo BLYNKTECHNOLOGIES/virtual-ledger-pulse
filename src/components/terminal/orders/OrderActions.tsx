@@ -20,8 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Smartphone, Mail } from 'lucide-react';
-import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease, useSendReleaseVerifyCode } from '@/hooks/useBinanceActions';
+import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Lock } from 'lucide-react';
+import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
+import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
+import { isSmallTradeOrder } from '@/lib/small-trade';
+
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';

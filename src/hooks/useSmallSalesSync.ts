@@ -89,6 +89,39 @@ export async function syncSmallSales(options: SmallSalesSyncOptions): Promise<Sm
     from += PAGE_SIZE;
   }
 
+  // Catch late-completing orders (e.g. appeals resolved after the 7-day
+  // create_time lookback): any COMPLETED SELL order whose row was re-synced
+  // recently, regardless of original create_time. synced_at advances whenever
+  // the order sync touches the row, including status transitions.
+  const RECENT_RESYNC_DAYS = 3;
+  const resyncCutoffIso = new Date(Date.now() - RECENT_RESYNC_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const seenOrderNumbers = new Set(allOrders.map(o => o.order_number));
+  from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('binance_order_history')
+      .select('*')
+      .eq('trade_type', 'SELL')
+      .eq('order_status', 'COMPLETED')
+      .gte('synced_at', resyncCutoffIso)
+      .order('synced_at', { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) {
+      console.error('[SmallSalesSync] Resync fetch error:', error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+    for (const o of data) {
+      if (!seenOrderNumbers.has(o.order_number)) {
+        seenOrderNumbers.add(o.order_number);
+        allOrders.push(o);
+      }
+    }
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
   if (allOrders.length === 0) {
     return { synced: 0, duplicates: 0, batchId: null };
   }

@@ -502,28 +502,30 @@
   .terminal.t-light,
   html.terminal-light,
   html.terminal-light .terminal {
-    /* ── Base ── */
-    --background: 218 33% 97%;       /* #F7F9FC cool paper */
-    --foreground: 222 32% 14%;       /* ink */
-    --heading: 222 36% 12%;          /* headings on paper canvas */
+    /* ── Base ──
+       Softer paper and ink to reduce glare during long trading sessions.
+       Contrast remains WCAG-AA compliant but is no longer near-pure-white vs near-black. */
+    --background: 220 18% 93%;       /* #ECEFF4 cool paper, dimmer than #F7F9FC */
+    --foreground: 222 18% 26%;       /* #363F4D softer ink */
+    --heading: 222 22% 22%;            /* #2B333F headings less harsh than ink-black */
 
     /* ── Panels ── */
-    --card: 0 0% 100%;
-    --card-foreground: 222 32% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 32% 14%;
+    --card: 0 0% 99%;                  /* near-white, slightly less glare than pure #FFF */
+    --card-foreground: 222 18% 26%;
+    --popover: 0 0% 100%;              /* keep popovers crisp */
+    --popover-foreground: 222 18% 26%;
 
     /* ── Accent (Blynk indigo) ── */
     --primary: 231 78% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 218 30% 94%;
-    --secondary-foreground: 222 28% 22%;
-    --muted: 218 30% 95%;
-    --muted-foreground: 220 12% 42%;
-    --accent: 231 60% 96%;
+    --secondary: 220 16% 91%;          /* matches the softened canvas */
+    --secondary-foreground: 222 18% 26%;
+    --muted: 220 16% 91%;              /* calmer secondary surface */
+    --muted-foreground: 220 10% 46%;   /* labels slightly lighter */
+    --accent: 231 40% 94%;             /* less saturated hover tint */
     --accent-foreground: 231 60% 32%;
 
-    /* ── Status / semantic (AA on white) ── */
+    /* ── Status / semantic (AA on the new paper) ── */
     --destructive: 0 72% 46%;
     --destructive-foreground: 0 0% 100%;
     --success: 152 62% 32%;
@@ -531,14 +533,14 @@
     --info: 213 82% 45%;
 
     /* ── Borders ── */
-    --border: 218 24% 88%;
+    --border: 220 16% 82%;             /* visible but calmer edges */
     --input: 0 0% 100%;
     --ring: 231 78% 55%;
 
     /* ── Extra surfaces ── */
-    --surface-subtle: 220 40% 98%;
-    --surface-canvas: 218 33% 97%;
-    --surface-elevated: 0 0% 100%;
+    --surface-subtle: 220 16% 94%;    /* aligns with the new canvas */
+    --surface-canvas: 220 18% 93%;      /* matches background */
+    --surface-elevated: 0 0% 99%;       /* card elevation */
 
     /* ── Trading semantics (darkened for light bg) ── */
     --trade-buy: 152 64% 31%;
@@ -553,23 +555,23 @@
     --chart-5: 0 70% 52%;
 
     /* ── Sidebar (a step deeper than canvas) ── */
-    --sidebar-background: 220 30% 94%;
-    --sidebar-foreground: 220 14% 38%;
+    --sidebar-background: 220 16% 91%;
+    --sidebar-foreground: 220 10% 40%;
     --sidebar-primary: 231 78% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent: 0 0% 99%;
     --sidebar-accent-foreground: 231 60% 32%;
-    --sidebar-border: 218 24% 87%;
+    --sidebar-border: 220 16% 84%;
     --sidebar-ring: 231 78% 55%;
 
-    /* ── Elevation (low, cool-tinted) ── */
-    --shadow-xs: 0 1px 1px 0 hsl(222 40% 30% / 0.05);
-    --shadow-sm: 0 1px 2px 0 hsl(222 40% 30% / 0.07), 0 1px 1px -1px hsl(222 40% 30% / 0.05);
-    --shadow-md: 0 6px 16px -6px hsl(222 40% 30% / 0.12), 0 2px 5px -3px hsl(222 40% 30% / 0.08);
-    --shadow-lg: 0 18px 40px -14px hsl(222 40% 30% / 0.18), 0 6px 14px -8px hsl(222 40% 30% / 0.10);
+    /* ── Elevation (softer on the dimmer paper) ── */
+    --shadow-xs: 0 1px 1px 0 hsl(222 30% 30% / 0.04);
+    --shadow-sm: 0 1px 2px 0 hsl(222 30% 30% / 0.05), 0 1px 1px -1px hsl(222 30% 30% / 0.04);
+    --shadow-md: 0 6px 16px -6px hsl(222 30% 30% / 0.08), 0 2px 5px -3px hsl(222 30% 30% / 0.05);
+    --shadow-lg: 0 18px 40px -14px hsl(222 30% 30% / 0.12), 0 6px 14px -8px hsl(222 30% 30% / 0.07);
 
     /* ── Signature emphasis (tinted wash, no neon) ── */
-    --glow-primary: 0 0 0 1px hsl(var(--primary) / 0.28), 0 4px 14px -6px hsl(var(--primary) / 0.28);
+    --glow-primary: 0 0 0 1px hsl(var(--primary) / 0.22), 0 4px 14px -6px hsl(var(--primary) / 0.22);
   }
 
 }

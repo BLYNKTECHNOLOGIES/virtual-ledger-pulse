@@ -95,7 +95,7 @@ serve(async (req) => {
 
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
-      .select("order_number, trade_type, counter_part_nick_name, order_detail_raw, exchange_account_id")
+      .select("order_number, trade_type, counter_part_nick_name, verified_name, order_detail_raw, exchange_account_id")
       // Capture for every terminal/active state — cancelled and appealed orders
       // lose their nickname just as completed ones do.
       .in("order_status", ["COMPLETED", "CANCELLED", "CANCELLED_BY_SYSTEM", "APPEAL", "TRADING", "BUYER_PAYED"])
@@ -109,13 +109,23 @@ serve(async (req) => {
       });
     }
 
-    // Only act on orders whose promoted nickname is masked/missing.
-    const pending = (orders || []).filter((o: any) => isMaskedOrMissing(o.counter_part_nick_name));
+    // Act on orders whose promoted nickname is masked/missing, and also on orders
+    // that still carry no verified KYC name while their Binance detail has never
+    // been fetched — release, auto-reply and onboarding all depend on that name.
+    // Rows whose detail is already stored are skipped, so this stays self-limiting.
+    const needsDetail = (o: any) =>
+      !o.order_detail_raw ||
+      typeof o.order_detail_raw !== "object" ||
+      (o.order_detail_raw as any)._enrich_no_detail;
+    const pending = (orders || []).filter(
+      (o: any) => isMaskedOrMissing(o.counter_part_nick_name) || (!o.verified_name && needsDetail(o)),
+    );
     if (pending.length === 0) {
       return new Response(JSON.stringify({ captured: 0, scanned: (orders || []).length, message: "All recent orders already have a nickname" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
 
     const headersCache = new Map<string, Record<string, string> | null>();
     async function headersForAccount(accountId: string | null): Promise<Record<string, string> | null> {
@@ -182,16 +192,22 @@ serve(async (req) => {
         const detail = result?.data?.data || result?.data || result;
 
         const cp = extractCounterparty(detail, order.trade_type);
+        // Always persist a usable detail payload so later runs skip this order
+        // and every surface can read the verified name offline.
+        if (detail && typeof detail === "object" && Object.keys(detail).length > 0) {
+          await supabase.from("binance_order_history")
+            .update({ order_detail_raw: detail, ...(cp.verified ? { verified_name: cp.verified } : {}) })
+            .eq("order_number", order.order_number);
+        }
         if (cp.nick) {
-          // Also persist the freshly fetched detail so future runs can self-heal offline.
-          if (detail && typeof detail === "object") {
-            await supabase.from("binance_order_history").update({ order_detail_raw: detail }).eq("order_number", order.order_number);
-          }
           await persist(order.order_number, order.trade_type, order.exchange_account_id ?? null, cp.nick, cp.verified, cp.userNo);
+          captured++;
+        } else if (cp.verified) {
           captured++;
         } else {
           failed++;
         }
+
 
         await new Promise((r) => setTimeout(r, 200));
       } catch (err) {

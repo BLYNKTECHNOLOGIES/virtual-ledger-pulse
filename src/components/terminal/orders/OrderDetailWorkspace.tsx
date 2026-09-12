@@ -186,7 +186,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
         aria-label="Previous order (above in list)"
         title="Previous order"
         onClick={() => onStepOrder(-1)}
-        className="absolute left-1 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-md text-muted-foreground flex items-center justify-center opacity-40 hover:opacity-100 hover:text-foreground hover:bg-white/5 transition-opacity duration-150"
+        className="absolute left-1 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-md text-muted-foreground flex items-center justify-center opacity-40 hover:opacity-100 hover:text-foreground hover:bg-foreground/5 transition-opacity duration-150"
       >
         <ChevronLeft className="h-4 w-4" />
       </button>
@@ -195,7 +195,7 @@ export function OrderDetailWorkspace({ order, onClose, preserveOrderStatus = fal
         aria-label="Next order (below in list)"
         title="Next order"
         onClick={() => onStepOrder(1)}
-        className="absolute right-1 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-md text-muted-foreground flex items-center justify-center opacity-40 hover:opacity-100 hover:text-foreground hover:bg-white/5 transition-opacity duration-150"
+        className="absolute right-1 top-1/2 -translate-y-1/2 z-20 h-7 w-7 rounded-md text-muted-foreground flex items-center justify-center opacity-40 hover:opacity-100 hover:text-foreground hover:bg-foreground/5 transition-opacity duration-150"
       >
         <ChevronRight className="h-4 w-4" />
       </button>

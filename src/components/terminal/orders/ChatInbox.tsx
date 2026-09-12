@@ -335,8 +335,9 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       });
       onOpenChat(conv);
     },
-    [onOpenChat, queryClient]
+    [onOpenChat, queryClient, markLocallyRead]
   );
+
 
 
   // Binance-app reads are intentionally NOT auto-detected any more.

@@ -464,9 +464,10 @@ export function ReleaseCoinAction({
             onClick={() => doRelease()}
             disabled={
               releaseCoin.isPending ||
-              !verifiedCounterpartyName ||
+              isVerifiedNameLoading ||
               (!isFundPwd && (!code.trim() || (authMethod === 'GOOGLE' && code.length < 6)))
             }
+
             className="gap-1.5"
           >
             {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}

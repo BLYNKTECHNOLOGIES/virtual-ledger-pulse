@@ -108,7 +108,9 @@ export async function resolveAccount(accountId?: string | null): Promise<Resolve
     id: row.id,
     accountName: row.account_name,
     credentialKey: row.credential_key ?? "default",
+    secretSuffix: suffix,
     proxyUrl,
+
     proxyToken,
     apiKey,
     apiSecret,

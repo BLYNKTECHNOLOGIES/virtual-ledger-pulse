@@ -21,6 +21,7 @@ import { useChatInboxUnread } from '@/hooks/useChatInboxUnread';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
 import { QueueMode } from '@/components/terminal/orders/QueueMode';
 import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignmentDialog';
+import { ReleaseCoinAction } from '@/components/terminal/orders/OrderActions';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';
@@ -234,6 +235,7 @@ function TerminalOrdersContent() {
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;
   const canSyncApprove = hasPermission('terminal_orders_sync_approve') || isTerminalAdmin;
+  const canOrderActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
@@ -1761,7 +1763,18 @@ function TerminalOrdersContent() {
 
                         {/* Chat */}
                         <TableCell className="py-3 text-right">
-                          <div className="inline-flex items-center gap-1">
+                          <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
+                            {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
+                              <ReleaseCoinAction
+                                compact
+                                orderNumber={order.binance_order_number}
+                                exchangeAccountId={(order as any).exchange_account_id}
+                                totalPrice={order.total_price}
+                                fiatUnit={order.fiat_unit}
+                                counterpartyName={verifiedNameMap[order.binance_order_number] || order.counterparty_nickname}
+                              />
+                            )}
                             <button
                               onClick={(e) => openChatForOrder(order, e)}
                               className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"

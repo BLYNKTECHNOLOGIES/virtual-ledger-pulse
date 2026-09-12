@@ -1762,7 +1762,18 @@ function TerminalOrdersContent() {
 
                         {/* Chat */}
                         <TableCell className="py-3 text-right">
-                          <div className="inline-flex items-center gap-1">
+                          <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
+                            {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
+                              <ReleaseCoinAction
+                                compact
+                                orderNumber={order.binance_order_number}
+                                exchangeAccountId={(order as any).exchange_account_id}
+                                totalPrice={order.total_price}
+                                fiatUnit={order.fiat_unit}
+                                counterpartyName={verifiedNameMap[order.binance_order_number] || order.counterparty_nickname}
+                              />
+                            )}
                             <button
                               onClick={(e) => openChatForOrder(order, e)}
                               className="relative inline-flex items-center gap-1 text-[10px] text-muted-foreground border border-border rounded px-2 py-0.5 hover:bg-secondary transition-colors"

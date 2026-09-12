@@ -380,7 +380,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     } finally {
       setMarkingAll(false);
     }
-  }, [merged, queryClient]);
+  }, [merged, queryClient, markLocallyRead]);
 
   // ---- Small-trade only bulk clear -------------------------------------
   // Clears the low-value chatter (orders inside the configured small sales /

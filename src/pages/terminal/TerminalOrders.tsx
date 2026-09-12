@@ -1915,10 +1915,10 @@ function TerminalOrdersContent() {
 
 
                         {/* Order number */}
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
+                              <span className="text-sm text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
                                 {order.binance_order_number}
                               </span>
                               <button
@@ -1959,19 +1959,19 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Price */}
-                        <TableCell className="py-3 text-right">
-                          <span className="text-xs text-muted-foreground t-mono tabular-nums">
+                        <TableCell className="py-4">
+                          <span className="text-sm text-foreground t-mono tabular-nums">
                             {Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}
                           </span>
                         </TableCell>
 
                         {/* Fiat / Crypto Amount */}
-                        <TableCell className="py-3 text-right">
-                          <div className="flex flex-col gap-0.5 items-end">
-                            <span className="text-xs text-foreground t-mono tabular-nums font-medium">
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="text-sm text-foreground t-mono tabular-nums font-medium">
                               {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
                             </span>
-                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
+                            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
                               {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
                             </span>
                           </div>

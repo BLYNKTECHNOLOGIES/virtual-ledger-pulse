@@ -1757,7 +1757,7 @@ function TerminalOrdersContent() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-2 border-t border-border bg-secondary/20 px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border bg-secondary/20 px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
                         {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
                           <ReleaseCoinAction
                             compact
@@ -1768,20 +1768,18 @@ function TerminalOrdersContent() {
                             counterpartyName={verifiedName || order.counterparty_nickname}
                           />
                         )}
-                        {canChat && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="relative h-8 gap-1.5 px-2.5 text-[10px]"
-                            onClick={(event) => openChatForOrder(order, event)}
-                          >
-                            <MessageSquare className="h-3.5 w-3.5" /> Chat
-                            {unread > 0 && (
-                              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">{unread}</span>
-                            )}
-                          </Button>
-                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="relative h-8 gap-1.5 px-2.5 text-[10px]"
+                          onClick={(event) => openChatForOrder(order, event)}
+                        >
+                          <MessageSquare className="h-3.5 w-3.5" /> Chat
+                          {unread > 0 && (
+                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">{unread}</span>
+                          )}
+                        </Button>
                         <Button
                           type="button"
                           variant="outline"

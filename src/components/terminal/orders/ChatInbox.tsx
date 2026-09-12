@@ -89,6 +89,22 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   const { activeAccountId } = useExchangeAccount();
   const accountFilter = activeAccountId === ALL_ACCOUNTS ? null : activeAccountId;
 
+  // Marking a chat read writes to the database and to Binance, and the inbox is
+  // then re-read from a summary table — so a row could linger in Unread for a
+  // few refresh cycles. Remember locally what we just marked (with the instant
+  // it was marked) and treat it as read straight away. A genuinely newer
+  // incoming message still overrides it, so nothing is ever hidden.
+  const [locallyRead, setLocallyRead] = useState<Record<string, number>>({});
+  const markLocallyRead = useCallback((orderNumbers: string[]) => {
+    const now = Date.now();
+    setLocallyRead((prev) => {
+      const next = { ...prev };
+      for (const n of orderNumbers) next[n] = now;
+      return next;
+    });
+  }, []);
+
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['terminal-chat-inbox', accountFilter, search],
     queryFn: async () => {

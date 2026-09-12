@@ -194,7 +194,8 @@ serve(async (req) => {
 
     // Optional overrides via request body (for manual full backfills).
     let windowDays = 30;
-    let batchLimit = 30;
+    let batchLimit = 60;
+
     try {
       if (req.method === "POST") {
         const body = await req.clone().json().catch(() => ({}));

@@ -350,7 +350,7 @@ export function ReleaseCoinAction({
           </Button>
         )}
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-md bg-popover border-border t-scale-in" onClick={(e) => e.stopPropagation()}>
+      <AlertDialogContent className="w-[calc(100vw-2rem)] max-w-md rounded-lg p-4 sm:p-6 bg-popover border-border t-scale-in" onClick={(e) => e.stopPropagation()}>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />

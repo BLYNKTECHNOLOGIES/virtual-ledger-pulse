@@ -42,6 +42,7 @@ import { subscribeTerminalContextKey } from '@/hooks/useTerminalHotkeys';
 import { focusPageSearch } from '@/lib/focus-page-search';
 import { pollWhenVisible } from '@/lib/poll-when-visible';
 import { useTerminalCollectorState, isCollectorStale, triggerCollectorTick } from '@/hooks/useTerminalCollector';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 /** Convert numeric orderStatus to string */
@@ -225,6 +226,7 @@ function TerminalOrdersContent() {
 
 
   const { hasPermission, isTerminalAdmin, userId } = useTerminalAuth();
+  const isMobile = useIsMobile();
   const { activeAccountId, isAllAccounts, accountsToQuery } = useExchangeAccount();
   // Server-side order collector heartbeat — stale means the terminal has
   // silently fallen back to per-browser Binance polling.
@@ -1615,8 +1617,8 @@ function TerminalOrdersContent() {
           ) : (
 
             <>
-            {mobileView === 'cards' && (
-              <div className="space-y-3 p-3 md:hidden">
+            {isMobile && mobileView === 'cards' && (
+              <div className="space-y-3 p-3">
                 {visibleOrders.map((order) => {
                   const opStatus = mapToOperationalStatus((order as any)._resolvedStatus || order.order_status, order.trade_type);
                   const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
@@ -1809,7 +1811,7 @@ function TerminalOrdersContent() {
               </div>
             )}
 
-            <div className={`${mobileView === 'cards' ? 'hidden md:block' : 'block'} overflow-x-auto`}>
+            {(!isMobile || mobileView === 'list') && <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
@@ -2036,7 +2038,7 @@ function TerminalOrdersContent() {
                   Loading more orders...
                 </div>
               )}
-            </div>
+            </div>}
             </>
           )}
         </div>

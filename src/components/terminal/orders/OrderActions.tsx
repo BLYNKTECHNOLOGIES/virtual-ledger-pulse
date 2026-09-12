@@ -220,18 +220,25 @@ const FUND_PWD_OPTION: AuthOption = {
   fieldName: '',
 };
 
-function ReleaseCoinAction({
+export function ReleaseCoinAction({
   orderNumber,
   exchangeAccountId,
   totalPrice,
+  counterpartyName,
+  fiatUnit = 'INR',
+  compact = false,
 }: {
   orderNumber: string;
   exchangeAccountId?: string;
   totalPrice?: number | string;
+  /** Verified (KYC) name of the counterparty — shown on the release confirmation line. */
+  counterpartyName?: string;
+  fiatUnit?: string;
+  /** Render a small inline trigger suitable for an order-list row. */
+  compact?: boolean;
 }) {
   const releaseCoin = useReleaseCoin();
   const { data: smallTradeBands } = useSmallTradeBands();
-  const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
   const codeRef = useRef('');
@@ -241,8 +248,18 @@ function ReleaseCoinAction({
   const fundPwdAllowed = isSmallTradeOrder({ tradeType: 'SELL', totalPrice }, smallTradeBands);
   const authOptions = fundPwdAllowed ? [...AUTH_OPTIONS, FUND_PWD_OPTION] : AUTH_OPTIONS;
 
+  // Small-sales orders open straight on Fund Password; everything else on Authenticator.
+  const [authMethod, setAuthMethod] = useState<AuthMethod>(fundPwdAllowed ? 'FUND_PWD' : 'GOOGLE');
+  useEffect(() => {
+    if (open) setAuthMethod(fundPwdAllowed ? 'FUND_PWD' : 'GOOGLE');
+  }, [open, fundPwdAllowed]);
+
   const selectedAuth = authOptions.find(a => a.value === authMethod) ?? AUTH_OPTIONS[0];
   const isFundPwd = selectedAuth.value === 'FUND_PWD';
+
+  const amountLabel = totalPrice !== undefined && totalPrice !== null && totalPrice !== ''
+    ? `${Number(totalPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${fiatUnit}`
+    : null;
 
   const releaseFiredRef = useRef(false);
 
@@ -251,6 +268,7 @@ function ReleaseCoinAction({
     setCode(val);
     codeRef.current = val;
   };
+
 
   const doRelease = (overrideCode?: string) => {
     if (releaseFiredRef.current || releaseCoin.isPending) return;

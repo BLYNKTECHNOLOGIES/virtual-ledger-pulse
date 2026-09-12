@@ -89,6 +89,22 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
   const { activeAccountId } = useExchangeAccount();
   const accountFilter = activeAccountId === ALL_ACCOUNTS ? null : activeAccountId;
 
+  // Marking a chat read writes to the database and to Binance, and the inbox is
+  // then re-read from a summary table — so a row could linger in Unread for a
+  // few refresh cycles. Remember locally what we just marked (with the instant
+  // it was marked) and treat it as read straight away. A genuinely newer
+  // incoming message still overrides it, so nothing is ever hidden.
+  const [locallyRead, setLocallyRead] = useState<Record<string, number>>({});
+  const markLocallyRead = useCallback((orderNumbers: string[]) => {
+    const now = Date.now();
+    setLocallyRead((prev) => {
+      const next = { ...prev };
+      for (const n of orderNumbers) next[n] = now;
+      return next;
+    });
+  }, []);
+
+
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['terminal-chat-inbox', accountFilter, search],
     queryFn: async () => {
@@ -137,26 +153,33 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
 
   const conversations: ChatConversation[] = useMemo(
     () =>
-      rows.map((r) => ({
-        orderNumber: r.order_number,
-        counterpartyNickname: (r.counterparty_nickname || '').trim(),
-        tradeType: r.trade_type || '',
-        asset: r.asset || 'USDT',
-        fiatUnit: r.fiat_unit || 'INR',
-        amount: r.amount || '0',
-        totalPrice: r.total_price || '0',
-        orderStatus: String(r.order_status || ''),
-        chatUnreadCount: r.unread_count || 0,
-        createTime: Number(r.create_time) || 0,
-        source: 'history',
-        verifiedName: r.verified_name || '',
-        exchangeAccountId: r.exchange_account_id,
-        lastMessageAt: r.last_message_at,
-        lastMessagePreview: r.last_message_preview,
-        lastMessageFromSelf: r.last_message_from_self,
-      })),
-    [rows]
+      rows.map((r) => {
+        const markedAt = locallyRead[r.order_number];
+        const lastMs = r.last_message_at ? new Date(r.last_message_at).getTime() : 0;
+        // Suppress the badge only while no message newer than our mark arrived.
+        const suppressed = !!markedAt && lastMs <= markedAt;
+        return {
+          orderNumber: r.order_number,
+          counterpartyNickname: (r.counterparty_nickname || '').trim(),
+          tradeType: r.trade_type || '',
+          asset: r.asset || 'USDT',
+          fiatUnit: r.fiat_unit || 'INR',
+          amount: r.amount || '0',
+          totalPrice: r.total_price || '0',
+          orderStatus: String(r.order_status || ''),
+          chatUnreadCount: suppressed ? 0 : r.unread_count || 0,
+          createTime: Number(r.create_time) || 0,
+          source: 'history' as const,
+          verifiedName: r.verified_name || '',
+          exchangeAccountId: r.exchange_account_id,
+          lastMessageAt: r.last_message_at,
+          lastMessagePreview: r.last_message_preview,
+          lastMessageFromSelf: r.last_message_from_self,
+        };
+      }),
+    [rows, locallyRead]
   );
+
 
   // ONE ROW PER COUNTERPARTY.
   // Binance opens a separate chat per order, so the same person used to appear
@@ -288,6 +311,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
         new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])])
       );
       orderNumbers.forEach((n) => markOrderChatRead(n));
+      markLocallyRead(orderNumbers);
+
       const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
         p_order_numbers: orderNumbers,
         p_source: 'operator',
@@ -310,8 +335,9 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       });
       onOpenChat(conv);
     },
-    [onOpenChat, queryClient]
+    [onOpenChat, queryClient, markLocallyRead]
   );
+
 
 
   // Binance-app reads are intentionally NOT auto-detected any more.
@@ -335,6 +361,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     setMarkingAll(true);
     try {
       orderNumbers.forEach((n) => markOrderChatRead(n));
+      markLocallyRead(orderNumbers);
+
       const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
         p_order_numbers: orderNumbers,
         p_source: 'operator',
@@ -352,7 +380,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     } finally {
       setMarkingAll(false);
     }
-  }, [merged, queryClient]);
+  }, [merged, queryClient, markLocallyRead]);
 
   // ---- Small-trade only bulk clear -------------------------------------
   // Clears the low-value chatter (orders inside the configured small sales /
@@ -370,12 +398,14 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     setMarkingSmall(true);
     try {
       const orderNumbers = smallTradeTargets.map((t) => t.orderNumber);
+      markLocallyRead(orderNumbers);
       const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
         p_order_numbers: orderNumbers,
         p_source: 'operator_small_trades',
       });
       if (error) throw error;
       orderNumbers.forEach((n) => markOrderChatRead(n));
+
 
       // Tell Binance per order, always on that order's own exchange account.
       const results = await Promise.allSettled(
@@ -398,7 +428,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     } finally {
       setMarkingSmall(false);
     }
-  }, [smallTradeTargets, queryClient]);
+  }, [smallTradeTargets, queryClient, markLocallyRead]);
 
 
 

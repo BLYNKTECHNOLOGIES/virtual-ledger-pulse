@@ -58,7 +58,7 @@ function PastOrderCard({ order, onClick }: { order: P2POrderRecord; onClick: () 
   return (
     <button
       onClick={onClick}
-      className="w-full text-left px-3 py-2 hover:bg-white/5 transition-colors duration-150 group"
+      className="w-full text-left px-3 py-2 hover:bg-foreground/5 transition-colors duration-150 group"
     >
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">

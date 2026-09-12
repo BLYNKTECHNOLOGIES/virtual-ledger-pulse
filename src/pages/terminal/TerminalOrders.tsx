@@ -1861,14 +1861,14 @@ function TerminalOrdersContent() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Type/Date</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Order number</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Price</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Fiat / Crypto Amount</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Assigned</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Chat</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Type/Date</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Order number</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Price</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Fiat / Crypto Amount</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Counterparty</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Assigned</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Status</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3 text-right">Chat</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1896,16 +1896,16 @@ function TerminalOrdersContent() {
                         onClick={() => setSelectedOrder(order)}>
 
                         {/* Type/Date */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs">
-                              <span className={`t-mono uppercase text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm">
+                              <span className={`t-mono uppercase text-[11px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
                                 {order.trade_type === 'BUY' ? 'Buy' : 'Sell'}
                               </span>
                               {' '}
                               <span className="text-foreground font-medium">{order.asset}</span>
                             </span>
-                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
+                            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
                               {order.binance_create_time
                                 ? format(new Date(order.binance_create_time), 'yyyy-MM-dd HH:mm')
                                 : '—'}

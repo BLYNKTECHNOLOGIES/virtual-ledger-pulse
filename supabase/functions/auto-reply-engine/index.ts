@@ -35,6 +35,8 @@ interface BinanceOrder {
   counterPartNickName: string;
   buyerRealName?: string;
   sellerRealName?: string;
+  buyerName?: string;
+  sellerName?: string;
   payMethodName?: string;
   notifyPayEndTime?: number;
   confirmPayEndTime?: number;
@@ -61,24 +63,22 @@ interface PendingMessage {
   sendTimestamp: number;
 }
 
-function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string {
+function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string | null {
   const clean = (v: unknown): string | null => {
     if (typeof v !== "string") return null;
     const s = v.trim();
     if (!s || s.includes("*") || s.toLowerCase() === "undefined" || s.toLowerCase() === "unknown") return null;
     return s;
   };
-  return (
-    clean(verifiedName) ||
-    clean(order.buyerRealName) ||
-    clean(order.sellerRealName) ||
-    clean(order.counterPartNickName) ||
-    "Trader"
-  );
+  const isSell = String(order.tradeType).toUpperCase() === "SELL";
+  return clean(verifiedName) || clean(isSell ? order.buyerRealName : order.sellerRealName) || clean(isSell ? order.buyerName : order.sellerName);
 }
 
-function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string {
+function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string | null {
   const name = getCounterpartyName(order, verifiedName);
+  // Never personalize with a Binance nickname. If the template needs a name,
+  // defer it until Binance supplies the verified KYC name.
+  if (template.includes("{{counterparty}}") && !name) return null;
   return template
     .replace(/\{\{orderNumber\}\}/g, order.orderNumber)
     .replace(/\{\{amount\}\}/g, order.amount)
@@ -86,7 +86,7 @@ function renderTemplate(template: string, order: BinanceOrder, verifiedName?: st
     .replace(/\{\{unitPrice\}\}/g, order.unitPrice)
     .replace(/\{\{asset\}\}/g, order.asset || "USDT")
     .replace(/\{\{fiat\}\}/g, order.fiatUnit || "INR")
-    .replace(/\{\{counterparty\}\}/g, name)
+    .replace(/\{\{counterparty\}\}/g, name || "")
     .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A");
 }
 
@@ -391,9 +391,7 @@ async function fetchVerifiedName(
     const isSell = String(tradeType).toUpperCase() === "SELL";
     return (
       cleanName(isSell ? detail.buyerRealName : detail.sellerRealName) ||
-      cleanName(isSell ? detail.buyerName : detail.sellerName) ||
-      cleanName(isSell ? (detail.buyerNickname ?? detail.buyerNickName) : (detail.sellerNickname ?? detail.sellerNickName)) ||
-      cleanName(detail.counterPartNickName)
+      cleanName(isSell ? detail.buyerName : detail.sellerName)
     );
   } catch {
     return null;
@@ -507,7 +505,7 @@ serve(async (req) => {
           body: JSON.stringify({ adOrderNo: forcedOrderNumber }),
         });
         const detailJson = await detailRes.json();
-        const d = detailJson?.data;
+        const d = detailJson?.data?.data || detailJson?.data || detailJson;
         if (d) {
           allActiveOrders.push({
             orderNumber: d.orderNumber || forcedOrderNumber,
@@ -529,6 +527,8 @@ serve(async (req) => {
             counterPartNickName: d.counterPartNickName,
             buyerRealName: d.buyerRealName,
             sellerRealName: d.sellerRealName,
+            buyerName: d.buyerName,
+            sellerName: d.sellerName,
             payMethodName: d.payMethodName,
             notifyPayEndTime: Number(d.notifyPayEndTime) || undefined,
             confirmPayEndTime: Number(d.confirmPayEndTime) || undefined,
@@ -642,12 +642,12 @@ serve(async (req) => {
       if (orderNumbers.length > 0) {
         const { data: nameRows } = await supabase
           .from("binance_order_history")
-          .select("order_number, verified_name, counter_part_nick_name")
+          .select("order_number, verified_name")
           .in("order_number", orderNumbers);
         if (nameRows) {
           for (const row of nameRows) {
-            const name = row.verified_name || row.counter_part_nick_name;
-            if (name && !name.includes("*")) verifiedNameMap.set(row.order_number, name);
+            const name = cleanName(row.verified_name);
+            if (name) verifiedNameMap.set(row.order_number, name);
           }
         }
       }
@@ -658,10 +658,10 @@ serve(async (req) => {
         if (missing.length > 0) {
           const { data: idRows } = await supabase
             .from("cp_order_identity")
-            .select("order_number, verified_name, nickname")
+            .select("order_number, verified_name")
             .in("order_number", missing);
           for (const row of idRows || []) {
-            const name = cleanName(row.verified_name) || cleanName(row.nickname);
+            const name = cleanName(row.verified_name);
             if (name) verifiedNameMap.set(row.order_number, name);
           }
         }
@@ -681,7 +681,7 @@ serve(async (req) => {
           const { data: resolved } = await supabase.functions.invoke("resolve-order-userno", {
             body: { order_number: order.orderNumber, trade_type: order.tradeType },
           });
-          const name = cleanName(resolved?.verified_name) || cleanName(resolved?.nickname);
+          const name = cleanName(resolved?.verified_name);
           if (name) verifiedNameMap.set(order.orderNumber, name);
         } catch { /* best effort */ }
       }
@@ -747,6 +747,15 @@ serve(async (req) => {
 
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
+            if (!message) {
+              await supabase.from("p2p_auto_reply_processed")
+                .delete()
+                .eq("order_number", order.orderNumber)
+                .eq("trigger_event", event)
+                .eq("rule_id", rule.id);
+              console.warn(`Verified counterparty name unavailable for ${order.orderNumber}; personalized auto-reply deferred`);
+              continue;
+            }
 
             // A previous attempt may have been reported unverified even though
             // Binance did deliver it. Never send the same text twice.

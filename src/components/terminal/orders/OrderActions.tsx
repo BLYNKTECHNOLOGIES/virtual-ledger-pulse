@@ -391,8 +391,14 @@ export function ReleaseCoinAction({
               {verifiedCounterpartyName || (isVerifiedNameLoading ? 'Loading verified name…' : 'Verified name unavailable')}
             </span>
           </p>
+          {!verifiedCounterpartyName && !isVerifiedNameLoading && (
+            <p className="text-[10px] text-amber-500 mt-0.5">
+              Binance did not return a verified name for this order. Confirm the payment in your bank statement before releasing.
+            </p>
+          )}
           <p className="text-[10px] text-muted-foreground mt-0.5 t-mono">Order {orderNumber}</p>
         </div>
+
 
         <div className="space-y-4 py-2">
 

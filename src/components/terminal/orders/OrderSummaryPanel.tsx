@@ -185,7 +185,7 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             asset={order.asset}
             fiatUnit={liveDetail?.fiatUnit || 'INR'}
             advNo={(liveDetail?.advNo as string | undefined) || undefined}
-            counterpartyName={counterpartyVerifiedName || order.counterparty_nickname}
+            counterpartyName={counterpartyVerifiedName}
           />
         )}
       </div>

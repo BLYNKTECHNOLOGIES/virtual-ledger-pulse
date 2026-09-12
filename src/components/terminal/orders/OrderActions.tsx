@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Lock } from 'lucide-react';
-import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
+import { callBinanceAds, useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
 import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
 import { isSmallTradeOrder } from '@/lib/small-trade';
 
@@ -252,6 +253,23 @@ export function ReleaseCoinAction({
   const [open, setOpen] = useState(false);
   const codeRef = useRef('');
 
+  // A nickname is never acceptable on a payment-confirmation statement. When
+  // the list cache has no verified KYC name, resolve it from Binance order
+  // detail only after the dialog opens to avoid one request per visible row.
+  const { data: liveVerifiedName, isLoading: isVerifiedNameLoading } = useQuery({
+    queryKey: ['release-verified-counterparty-name', orderNumber, exchangeAccountId ?? null],
+    enabled: open && !counterpartyName,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+    queryFn: async () => {
+      const response = await callBinanceAds('getOrderDetail', { orderNumber }, exchangeAccountId);
+      const detail = response?.data?.data ?? response?.data ?? response;
+      const value = detail?.buyerRealName ?? detail?.buyerName ?? null;
+      return typeof value === 'string' && value.trim() ? value.trim() : null;
+    },
+  });
+  const verifiedCounterpartyName = counterpartyName?.trim() || liveVerifiedName || null;
+
   // Fund-password release exists only for orders inside the small-sales band.
   // Outside the band the option is simply absent — no hint, no disabled entry.
   const fundPwdAllowed = isSmallTradeOrder({ tradeType: 'SELL', totalPrice }, smallTradeBands);
@@ -368,7 +386,10 @@ export function ReleaseCoinAction({
           <p className="text-xs text-foreground">
             I have received a payment
             {amountLabel ? <> of <span className="font-semibold t-mono tabular-nums">{amountLabel}</span></> : null}
-            {counterpartyName ? <> from <span className="font-semibold">{counterpartyName}</span></> : null}
+            {' from '}
+            <span className="font-semibold">
+              {verifiedCounterpartyName || (isVerifiedNameLoading ? 'Loading verified name…' : 'Verified name unavailable')}
+            </span>
           </p>
           <p className="text-[10px] text-muted-foreground mt-0.5 t-mono">Order {orderNumber}</p>
         </div>
@@ -437,6 +458,7 @@ export function ReleaseCoinAction({
             onClick={() => doRelease()}
             disabled={
               releaseCoin.isPending ||
+              !verifiedCounterpartyName ||
               (!isFundPwd && (!code.trim() || (authMethod === 'GOOGLE' && code.length < 6)))
             }
             className="gap-1.5"

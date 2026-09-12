@@ -3,6 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 import { advertiserBadges, normalizeZone, zoneClassifies } from "../_shared/adZone.ts";
 import { normalizeChatMessage, persistChatMessages } from "../_shared/binance-chat.ts";
+import {
+  FUND_PWD_NOT_AVAILABLE,
+  encryptFundPassword,
+  fetchC2CRsaPublicKey,
+  fundPasswordForSuffix,
+  isFundPwdEligible,
+} from "../_shared/binance-fund-pwd.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

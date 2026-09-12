@@ -398,12 +398,14 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     setMarkingSmall(true);
     try {
       const orderNumbers = smallTradeTargets.map((t) => t.orderNumber);
+      markLocallyRead(orderNumbers);
       const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
         p_order_numbers: orderNumbers,
         p_source: 'operator_small_trades',
       });
       if (error) throw error;
       orderNumbers.forEach((n) => markOrderChatRead(n));
+
 
       // Tell Binance per order, always on that order's own exchange account.
       const results = await Promise.allSettled(

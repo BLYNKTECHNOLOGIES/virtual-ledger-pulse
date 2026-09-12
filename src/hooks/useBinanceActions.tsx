@@ -60,22 +60,26 @@ export function useMarkOrderAsPaid() {
   });
 }
 
-/** Release crypto (requires 2FA code - supports Google, FIDO2/Passkey, Email, Mobile, Yubikey) */
+/**
+ * Release crypto. Supported auth types: GOOGLE (Authenticator), FIDO2/YubiKey,
+ * and FUND_PWD (server-side fund password, small-sales orders only — the
+ * password itself never leaves the edge function).
+ * Email/SMS release is retired and rejected server-side.
+ */
 export function useReleaseCoin() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (params: {
       orderNumber: string;
-      authType?: string;
+      authType?: 'GOOGLE' | 'FIDO2' | 'YUBIKEY' | 'FUND_PWD';
       code?: string;
       confirmPaidType?: string;
-      emailVerifyCode?: string;
       googleVerifyCode?: string;
-      mobileVerifyCode?: string;
       yubikeyVerifyCode?: string;
       payId?: number;
       exchangeAccountId?: string;
     }) => {
+
       const { exchangeAccountId, ...rest } = params;
       return callBinanceAds('releaseCoin', rest, exchangeAccountId);
     },

@@ -214,10 +214,21 @@ export function useBinanceActiveOrders(filters?: {
           .select('exchange_account_id, raw, updated_at')
           .in('exchange_account_id', accountsToQuery);
         if (error) throw error;
+        // Defence in depth: Binance keeps listing finalized orders for up to a
+        // minute, so a cached row can carry a final status (4/6/7). Never treat
+        // those as active — appeals (5) remain active.
+        const isFinalStatusValue = (raw: unknown): boolean => {
+          if (raw === null || raw === undefined) return false;
+          const s = String(raw).toUpperCase();
+          if (s === '4' || s === '6' || s === '7') return true;
+          return s.includes('COMPLETED') || s.includes('RELEASED') || s.includes('CANCEL') ||
+            s.includes('EXPIRED') || s.includes('TIMEOUT');
+        };
         const merged: any[] = [];
         for (const row of rows || []) {
           const o = row.raw as any;
           if (!o) continue;
+          if (isFinalStatusValue(o.orderStatus ?? o.status ?? (row as any).order_status)) continue;
           if (filters?.tradeType && o.tradeType !== filters.tradeType) continue;
           if (filters?.asset && o.asset !== filters.asset) continue;
           if (filters?.advNo && o.advNo !== filters.advNo) continue;

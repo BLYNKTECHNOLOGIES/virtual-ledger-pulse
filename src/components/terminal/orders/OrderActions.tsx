@@ -94,8 +94,9 @@ export function OrderActions({
       )}
 
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
-        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
+        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} totalPrice={totalPrice} />
       )}
+
 
       {/* Quick Receive — only on eligible BUY orders awaiting seller release */}
       {quickReceiveEligible && (

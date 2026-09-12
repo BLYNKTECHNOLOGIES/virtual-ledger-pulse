@@ -725,13 +725,13 @@ html.terminal-light input:not([type="checkbox"]):not([type="radio"]),
 html.terminal-light textarea,
 html.terminal-light select {
   background-color: hsl(0 0% 100%);
-  border-color: hsl(218 24% 84%);
-  color: hsl(222 32% 14%);
+  border-color: hsl(220 16% 82%);
+  color: hsl(222 18% 26%);
 }
 html.terminal-light input::placeholder,
 html.terminal-light textarea::placeholder,
 html.terminal-light [data-placeholder] {
-  color: hsl(220 12% 46%);
+  color: hsl(220 10% 46%);
   opacity: 1;
 }
 

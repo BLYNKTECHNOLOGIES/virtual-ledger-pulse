@@ -21,6 +21,7 @@ import { useChatInboxUnread } from '@/hooks/useChatInboxUnread';
 import { ChatThreadView } from '@/components/terminal/orders/ChatThreadView';
 import { QueueMode } from '@/components/terminal/orders/QueueMode';
 import { OrderAssignmentDialog } from '@/components/terminal/orders/OrderAssignmentDialog';
+import { ReleaseCoinAction } from '@/components/terminal/orders/OrderActions';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { format } from 'date-fns';

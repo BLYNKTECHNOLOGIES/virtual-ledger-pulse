@@ -412,6 +412,9 @@ export function SmallSalesApprovalDialog({ open, onOpenChange, record }: Props) 
               .update({ settlement_status: 'PENDING' })
               .eq('id', salesOrder.id);
           }
+
+          // Guarantee one pending settlement per gateway split
+          await supabase.rpc('sync_split_payment_settlements', { p_order_id: salesOrder.id });
         } else {
           // Single-method path (existing behaviour preserved)
           const { error: splitErr } = await supabase.from('sales_order_payment_splits').insert({

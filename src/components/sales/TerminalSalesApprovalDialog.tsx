@@ -724,6 +724,9 @@ export function TerminalSalesApprovalDialog({ open, onOpenChange, syncRecord, on
             .update({ settlement_status: 'PENDING' })
             .eq('id', salesOrder.id);
         }
+
+        // Guarantee one pending settlement per gateway split
+        await supabase.rpc('sync_split_payment_settlements', { p_order_id: salesOrder.id });
       }
 
       } // end if (!existingSO)

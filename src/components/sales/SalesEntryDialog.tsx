@@ -333,6 +333,9 @@ export function SalesEntryDialog({ open, onOpenChange }: SalesEntryDialogProps) 
           .from('sales_orders')
           .update({ settlement_status: hasAnyGateway ? 'PENDING' : 'DIRECT' })
           .eq('id', result.id);
+
+        // Guarantee one pending settlement per gateway split
+        await supabase.rpc('sync_split_payment_settlements', { p_order_id: result.id });
       }
 
       // Set settlement status and handle bank crediting based on payment method type (non-split)

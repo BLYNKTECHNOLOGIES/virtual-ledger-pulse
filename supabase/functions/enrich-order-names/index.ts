@@ -212,10 +212,18 @@ serve(async (req) => {
     const { data: orders, error: fetchErr } = await supabase
       .from("binance_order_history")
       .select("order_number, trade_type, verified_name, counter_part_nick_name, counterparty_risk_snapshot, order_detail_raw, exchange_account_id")
-      // Cancelled orders also carry a verified counterparty identity that the
-      // inbox, client onboarding and release surfaces need, so enrich every
-      // finalized status — not COMPLETED alone.
-      .in("order_status", ["COMPLETED", "CANCELLED", "CANCELLED_BY_SYSTEM"])
+      // Live orders need the verified name the most (release/auto-reply happen
+      // while the order is still TRADING/BUYER_PAYED), so enrich active states
+      // as well as every finalized state.
+      .in("order_status", [
+        "TRADING",
+        "BUYER_PAYED",
+        "APPEAL",
+        "COMPLETED",
+        "CANCELLED",
+        "CANCELLED_BY_SYSTEM",
+      ])
+
 
       .gte("create_time", windowStart)
       .or("verified_name.is.null,counterparty_risk_snapshot.is.null,order_detail_raw.is.null")

@@ -71,7 +71,19 @@ interface InboxRow {
 }
 
 export function ChatInbox({ onClose, onOpenChat }: Props) {
-  const [tab, setTab] = useState<'all' | 'unread'>('all');
+  // Persisted like the sort mode so opening a chat and coming back returns to
+  // the same All/Unread section instead of resetting to All.
+  const [tab, setTab] = useState<'all' | 'unread'>(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('terminal.chatInbox.tab') : null;
+    return saved === 'unread' ? 'unread' : 'all';
+  });
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('terminal.chatInbox.tab', tab);
+    } catch {
+      /* storage unavailable — filter still works for this session */
+    }
+  }, [tab]);
   const [search, setSearch] = useState('');
   const queryClient = useQueryClient();
   const { activeAccountId } = useExchangeAccount();

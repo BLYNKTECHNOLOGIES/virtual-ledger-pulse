@@ -14,9 +14,11 @@ export const FUND_PWD_NOT_AVAILABLE = {
   message: "Fund password release is not available for this order.",
 } as const;
 
-/** Secret name for an account's fund password, keyed like the API secrets. */
+/** Secret name for an account's fund password, keyed like the API secrets.
+ *  Trimmed: a stray newline/space pasted into the secret store would otherwise
+ *  be encrypted verbatim and rejected by Binance as "fund password not correct". */
 export function fundPasswordForSuffix(suffix: string): string {
-  return Deno.env.get(`BINANCE_FUND_PASSWORD${suffix}`) ?? "";
+  return (Deno.env.get(`BINANCE_FUND_PASSWORD${suffix}`) ?? "").trim();
 }
 
 function pemToDer(pem: string): Uint8Array {

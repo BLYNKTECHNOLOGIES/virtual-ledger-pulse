@@ -1767,7 +1767,7 @@ function TerminalOrdersContent() {
                             exchangeAccountId={(order as any).exchange_account_id}
                             totalPrice={order.total_price}
                             fiatUnit={order.fiat_unit}
-                            counterpartyName={verifiedName || order.counterparty_nickname}
+                            counterpartyName={verifiedName}
                           />
                         )}
                         <Button
@@ -1998,7 +1998,7 @@ function TerminalOrdersContent() {
                                 exchangeAccountId={(order as any).exchange_account_id}
                                 totalPrice={order.total_price}
                                 fiatUnit={order.fiat_unit}
-                                counterpartyName={verifiedNameMap[order.binance_order_number] || order.counterparty_nickname}
+                                counterpartyName={verifiedNameMap[order.binance_order_number]}
                               />
                             )}
                             <button

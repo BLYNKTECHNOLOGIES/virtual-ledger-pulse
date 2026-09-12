@@ -321,16 +321,27 @@ export function ReleaseCoinAction({
   return (
     <AlertDialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCode(''); releaseFiredRef.current = false; } }}>
       <AlertDialogTrigger asChild>
-        <Button
-          size="sm"
-          className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
-          disabled={releaseCoin.isPending}
-        >
-          {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
-          Release Crypto
-        </Button>
+        {compact ? (
+          <button
+            onClick={(e) => e.stopPropagation()}
+            disabled={releaseCoin.isPending}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold rounded px-2 py-0.5 border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+          >
+            {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
+            Release
+          </button>
+        ) : (
+          <Button
+            size="sm"
+            className="w-full h-9 text-xs font-medium gap-1.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.98] transition-transform duration-150"
+            disabled={releaseCoin.isPending}
+          >
+            {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
+            Release Crypto
+          </Button>
+        )}
       </AlertDialogTrigger>
-      <AlertDialogContent className="max-w-md bg-popover border-border t-scale-in">
+      <AlertDialogContent className="max-w-md bg-popover border-border t-scale-in" onClick={(e) => e.stopPropagation()}>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
@@ -343,7 +354,18 @@ export function ReleaseCoinAction({
           </AlertDialogDescription>
         </AlertDialogHeader>
 
+        {/* Payment confirmation line — verified counterparty name + order amount */}
+        <div className="rounded-md border border-border bg-secondary/40 px-3 py-2">
+          <p className="text-xs text-foreground">
+            I have received a payment
+            {amountLabel ? <> of <span className="font-semibold t-mono tabular-nums">{amountLabel}</span></> : null}
+            {counterpartyName ? <> from <span className="font-semibold">{counterpartyName}</span></> : null}
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5 t-mono">Order {orderNumber}</p>
+        </div>
+
         <div className="space-y-4 py-2">
+
           {/* Auth method selector */}
           <div className="space-y-2">
             <Label className="text-xs text-muted-foreground">Authentication Method</Label>

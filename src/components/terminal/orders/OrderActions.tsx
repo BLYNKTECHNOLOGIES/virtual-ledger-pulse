@@ -20,8 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Smartphone, Mail } from 'lucide-react';
-import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease, useSendReleaseVerifyCode } from '@/hooks/useBinanceActions';
+import { CheckCircle, Unlock, XCircle, Shield, Loader2, UserCheck, Fingerprint, Key, Lock } from 'lucide-react';
+import { useMarkOrderAsPaid, useReleaseCoin, useCancelOrder, useConfirmOrderVerified, useCheckIfCanRelease } from '@/hooks/useBinanceActions';
+import { useSmallTradeBands } from '@/hooks/useSmallTradeBands';
+import { isSmallTradeOrder } from '@/lib/small-trade';
+
 import { mapToOperationalStatus } from '@/lib/orderStatusMapper';
 import { QuickReceiveDialog, isQuickReceiveEligible } from './QuickReceiveDialog';
 import { prepareAutoScreenshot, deliverPreparedAutoScreenshot, triggerAutoReplyForOrder } from '@/lib/triggerAutoScreenshot';
@@ -91,8 +94,9 @@ export function OrderActions({
       )}
 
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
-        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} />
+        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} totalPrice={totalPrice} />
       )}
+
 
       {/* Quick Receive — only on eligible BUY orders awaiting seller release */}
       {quickReceiveEligible && (
@@ -193,36 +197,52 @@ function MarkAsPaidAction({ orderNumber, exchangeAccountId }: { orderNumber: str
   );
 }
 
-type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'EMAIL' | 'SMS';
+type AuthMethod = 'GOOGLE' | 'YUBIKEY' | 'FUND_PWD';
 
-const AUTH_OPTIONS: { value: AuthMethod; label: string; icon: React.ReactNode; placeholder: string; fieldName: string }[] = [
+interface AuthOption {
+  value: AuthMethod;
+  label: string;
+  icon: React.ReactNode;
+  placeholder: string;
+  fieldName: string;
+}
+
+const AUTH_OPTIONS: AuthOption[] = [
   { value: 'GOOGLE', label: 'Google 2FA', icon: <Key className="h-3.5 w-3.5" />, placeholder: 'Enter 6-digit code', fieldName: 'googleVerifyCode' },
   { value: 'YUBIKEY', label: 'YubiKey', icon: <Fingerprint className="h-3.5 w-3.5" />, placeholder: 'Tap your YubiKey…', fieldName: 'yubikeyVerifyCode' },
-  { value: 'EMAIL', label: 'Email OTP', icon: <Mail className="h-3.5 w-3.5" />, placeholder: 'Enter email verification code', fieldName: 'emailVerifyCode' },
-  { value: 'SMS', label: 'SMS OTP', icon: <Smartphone className="h-3.5 w-3.5" />, placeholder: 'Enter SMS verification code', fieldName: 'mobileVerifyCode' },
 ];
 
-function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
+const FUND_PWD_OPTION: AuthOption = {
+  value: 'FUND_PWD',
+  label: 'Fund Password',
+  icon: <Lock className="h-3.5 w-3.5" />,
+  placeholder: '',
+  fieldName: '',
+};
+
+function ReleaseCoinAction({
+  orderNumber,
+  exchangeAccountId,
+  totalPrice,
+}: {
+  orderNumber: string;
+  exchangeAccountId?: string;
+  totalPrice?: number | string;
+}) {
   const releaseCoin = useReleaseCoin();
-  const sendVerifyCode = useSendReleaseVerifyCode();
+  const { data: smallTradeBands } = useSmallTradeBands();
   const [authMethod, setAuthMethod] = useState<AuthMethod>('GOOGLE');
   const [code, setCode] = useState('');
   const [open, setOpen] = useState(false);
-  const [sendCooldown, setSendCooldown] = useState(0);
   const codeRef = useRef('');
 
-  const selectedAuth = AUTH_OPTIONS.find(a => a.value === authMethod)!;
-  // Binance's C2C merchant API exposes no endpoint that dispatches an Email/SMS
-  // code (documented endpoints cover only release/pre-check). Codes must be
-  // requested inside the Binance app/website, so no "Send" button is offered.
-  const canRequestCode = false;
-  const needsExternalCode = authMethod === 'EMAIL' || authMethod === 'SMS';
+  // Fund-password release exists only for orders inside the small-sales band.
+  // Outside the band the option is simply absent — no hint, no disabled entry.
+  const fundPwdAllowed = isSmallTradeOrder({ tradeType: 'SELL', totalPrice }, smallTradeBands);
+  const authOptions = fundPwdAllowed ? [...AUTH_OPTIONS, FUND_PWD_OPTION] : AUTH_OPTIONS;
 
-  useEffect(() => {
-    if (sendCooldown <= 0) return;
-    const timer = window.setTimeout(() => setSendCooldown((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearTimeout(timer);
-  }, [sendCooldown]);
+  const selectedAuth = authOptions.find(a => a.value === authMethod) ?? AUTH_OPTIONS[0];
+  const isFundPwd = selectedAuth.value === 'FUND_PWD';
 
   const releaseFiredRef = useRef(false);
 
@@ -232,34 +252,32 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
     codeRef.current = val;
   };
 
-  const handleSendCode = () => {
-    if (!canRequestCode || sendVerifyCode.isPending || sendCooldown > 0) return;
-    sendVerifyCode.mutate({ orderNumber, authType: authMethod as 'EMAIL' | 'SMS', exchangeAccountId }, {
-      onSuccess: () => {
-        toast.success(`${selectedAuth.label} sent by Binance`);
-        setSendCooldown(60);
-      },
-      onError: (err: Error) => toast.error(`Could not send ${selectedAuth.label}: ${err.message}`),
-    });
-  };
-
   const doRelease = (overrideCode?: string) => {
-    const finalCode = overrideCode || codeRef.current;
-    if (!finalCode.trim() || releaseFiredRef.current || releaseCoin.isPending) return;
-    releaseFiredRef.current = true;
-    // API doc #29 expects authType + method-specific verification fields.
-    // For YubiKey release on this endpoint, sending generic `code` causes
-    // "Unsupported authentication type"; send only yubikeyVerifyCode.
+    if (releaseFiredRef.current || releaseCoin.isPending) return;
+
     const params: Record<string, any> = { orderNumber, exchangeAccountId };
-    if (authMethod === 'YUBIKEY') {
-      params.authType = 'FIDO2';
-      params.yubikeyVerifyCode = finalCode;
+
+    if (isFundPwd) {
+      // No code is collected or sent: the fund password is applied server-side.
+      params.authType = 'FUND_PWD';
     } else {
-      params.authType = authMethod;
-      if (authMethod !== 'EMAIL') params.code = finalCode;
-      params[selectedAuth.fieldName] = finalCode;
+      const finalCode = overrideCode || codeRef.current;
+      if (!finalCode.trim()) return;
+      // API doc #29 expects authType + method-specific verification fields.
+      // For YubiKey release on this endpoint, sending generic `code` causes
+      // "Unsupported authentication type"; send only yubikeyVerifyCode.
+      if (authMethod === 'YUBIKEY') {
+        params.authType = 'FIDO2';
+        params.yubikeyVerifyCode = finalCode;
+      } else {
+        params.authType = authMethod;
+        params.code = finalCode;
+        params[selectedAuth.fieldName] = finalCode;
+      }
     }
-    
+
+    releaseFiredRef.current = true;
+
     releaseCoin.mutate(params as any, {
       onSuccess: () => {
         // Fire "Order Released" auto-reply rules immediately after our release.
@@ -301,7 +319,9 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
             Release Crypto
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Choose your authentication method and enter the verification code to release crypto to the buyer.
+            {isFundPwd
+              ? 'Confirm to release crypto to the buyer. No code needed for this method.'
+              : 'Choose your authentication method and enter the verification code to release crypto to the buyer.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -314,7 +334,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {AUTH_OPTIONS.map(opt => (
+                {authOptions.map(opt => (
                   <SelectItem key={opt.value} value={opt.value} className="text-xs">
                     <div className="flex items-center gap-2">
                       {opt.icon}
@@ -326,55 +346,50 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
             </Select>
           </div>
 
-          {/* Verification code input */}
-          <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
-              {selectedAuth.icon}
-              {selectedAuth.label} Code
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="yubikey-release-input"
-                type="text"
-                placeholder={selectedAuth.placeholder}
-                value={code}
-                onChange={(e) => {
-                  handleCodeChange(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const val = (e.target as HTMLInputElement).value;
-                    if (val.trim()) {
-                      setTimeout(() => doRelease(val), 50);
+          {/* Verification code input — not used by the fund-password method */}
+          {!isFundPwd && (
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
+                {selectedAuth.icon}
+                {selectedAuth.label} Code
+              </Label>
+              <div className="flex gap-2">
+                <Input
+                  id="yubikey-release-input"
+                  type="text"
+                  placeholder={selectedAuth.placeholder}
+                  value={code}
+                  onChange={(e) => {
+                    handleCodeChange(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const val = (e.target as HTMLInputElement).value;
+                      if (val.trim()) {
+                        setTimeout(() => doRelease(val), 50);
+                      }
                     }
-                  }
-                }}
-                maxLength={authMethod === 'GOOGLE' ? 6 : authMethod === 'YUBIKEY' ? 200 : 64}
-                className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : authMethod === 'YUBIKEY' ? 'font-mono text-xs tracking-wide' : ''}`}
-                autoFocus
-                ref={(el) => { if (el) setTimeout(() => el.focus(), 100); }}
-              />
-              {canRequestCode && (
-                <Button type="button" variant="outline" size="sm" className="h-10 shrink-0 text-xs" onClick={handleSendCode} disabled={sendVerifyCode.isPending || sendCooldown > 0}>
-                  {sendVerifyCode.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : sendCooldown > 0 ? `${sendCooldown}s` : 'Send'}
-                </Button>
-              )}
+                  }}
+                  maxLength={authMethod === 'GOOGLE' ? 6 : 200}
+                  className={`text-sm ${authMethod === 'GOOGLE' ? 'text-center tracking-widest font-mono text-lg' : 'font-mono text-xs tracking-wide'}`}
+                  autoFocus
+                  ref={(el) => { if (el) setTimeout(() => el.focus(), 100); }}
+                />
+              </div>
             </div>
-            {needsExternalCode && (
-              <p className="text-[11px] text-muted-foreground">
-                Binance does not allow requesting this code from here. Trigger the {selectedAuth.label} in the Binance app or website, then paste it above.
-              </p>
-            )}
-          </div>
+          )}
         </div>
 
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <Button
             onClick={() => doRelease()}
-            disabled={!code.trim() || (authMethod === 'GOOGLE' && code.length < 6) || releaseCoin.isPending}
+            disabled={
+              releaseCoin.isPending ||
+              (!isFundPwd && (!code.trim() || (authMethod === 'GOOGLE' && code.length < 6)))
+            }
             className="gap-1.5"
           >
             {releaseCoin.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Unlock className="h-3 w-3" />}
@@ -385,6 +400,7 @@ function ReleaseCoinAction({ orderNumber, exchangeAccountId }: { orderNumber: st
     </AlertDialog>
   );
 }
+
 
 function CancelOrderAction({ orderNumber, exchangeAccountId }: { orderNumber: string; exchangeAccountId?: string }) {
   const cancelOrder = useCancelOrder();

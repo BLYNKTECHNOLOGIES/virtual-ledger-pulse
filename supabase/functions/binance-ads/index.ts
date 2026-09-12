@@ -3,6 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveAccount, accountIdFromPayload, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 import { advertiserBadges, normalizeZone, zoneClassifies } from "../_shared/adZone.ts";
 import { normalizeChatMessage, persistChatMessages } from "../_shared/binance-chat.ts";
+import {
+  FUND_PWD_NOT_AVAILABLE,
+  encryptFundPassword,
+  fetchC2CRsaPublicKey,
+  fundPasswordForSuffix,
+  isFundPwdEligible,
+} from "../_shared/binance-fund-pwd.ts";
+
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1730,7 +1738,25 @@ serve(async (req) => {
         // IMPORTANT: OTP codes (especially YubiKey/FIDO2) are one-time; never retry with alternate payloads.
         const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/releaseCoin`;
 
-        const normalizedAuthType = payload.authType === "YUBIKEY" ? "FIDO2" : payload.authType;
+        const requestedAuthType = String(payload.authType ?? "").toUpperCase();
+        const normalizedAuthType = requestedAuthType === "YUBIKEY" ? "FIDO2" : requestedAuthType || undefined;
+
+        // Email / SMS release is retired org-wide: the only interactive methods
+        // are Google Authenticator and YubiKey. Reject the legacy paths outright,
+        // regardless of what a client sends.
+        if (
+          requestedAuthType === "EMAIL" ||
+          requestedAuthType === "SMS" ||
+          payload.emailVerifyCode ||
+          payload.mobileVerifyCode
+        ) {
+          result = {
+            code: "UNSUPPORTED_AUTH_TYPE",
+            message: "Email and SMS release methods are disabled. Use the Authenticator code.",
+          };
+          break;
+        }
+
         const isYubiFlow = normalizedAuthType === "FIDO2" || !!payload.yubikeyVerifyCode;
 
         const body: Record<string, any> = {
@@ -1738,16 +1764,119 @@ serve(async (req) => {
         };
         if (normalizedAuthType) body.authType = normalizedAuthType;
 
+        // ---------- Fund-password release (small-sales band only) ----------
+        if (normalizedAuthType === "FUND_PWD") {
+          const orderNumber = String(payload.orderNumber ?? "").trim();
+          if (!orderNumber) {
+            result = FUND_PWD_NOT_AVAILABLE;
+            break;
+          }
+
+          // Authoritative side/amount: re-read the order from Binance. Anything
+          // the browser sent about amount or side is ignored on purpose.
+          let gateSide: unknown = null;
+          let gateTotal: unknown = null;
+          try {
+            const detailResponse = await fetchWithRetry(
+              `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/getUserOrderDetail`,
+              {
+                method: "POST",
+                headers: proxyHeaders,
+                body: JSON.stringify({ adOrderNo: orderNumber, orderNo: orderNumber }),
+              },
+            );
+            const detailText = await detailResponse.text();
+            let detailParsed: any = null;
+            try { detailParsed = JSON.parse(detailText); } catch { detailParsed = null; }
+            const detail = unwrapOrderDetail(detailParsed);
+            const returnedOrderNo = explicitOrderNumberFromObject(detail);
+            if (!detail || (returnedOrderNo && returnedOrderNo !== orderNumber)) {
+              console.warn("FUND_PWD gate denied: order detail unavailable or mismatched", orderNumber);
+              result = FUND_PWD_NOT_AVAILABLE;
+              break;
+            }
+            gateSide = (detail as any).tradeType;
+            gateTotal = (detail as any).totalPrice ?? (detail as any).amount;
+          } catch (detailErr) {
+            console.warn("FUND_PWD gate denied: order detail lookup failed", orderNumber, detailErr);
+            result = FUND_PWD_NOT_AVAILABLE;
+            break;
+          }
+
+          // Band comes straight from the small-sales automation config in the DB.
+          let band: { min: number; max: number } | null = null;
+          try {
+            const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+            const { data: cfg } = await supabase
+              .from("small_sales_config")
+              .select("min_amount, max_amount")
+              .limit(1)
+              .maybeSingle();
+            if (cfg) band = { min: Number(cfg.min_amount), max: Number(cfg.max_amount) };
+          } catch (cfgErr) {
+            console.warn("FUND_PWD gate denied: small-sales config unreadable", cfgErr);
+          }
+
+          if (!isFundPwdEligible(gateSide, gateTotal, band)) {
+            console.warn("FUND_PWD gate denied:", orderNumber, "side:", gateSide, "inBand:", false);
+            result = FUND_PWD_NOT_AVAILABLE;
+            break;
+          }
+
+          const fundPassword = fundPasswordForSuffix(acct.secretSuffix);
+          if (!fundPassword) {
+            console.error("FUND_PWD denied: no fund password secret for account", acct.accountName);
+            result = FUND_PWD_NOT_AVAILABLE;
+            break;
+          }
+
+          const publicKeyPem = await fetchC2CRsaPublicKey(BINANCE_PROXY_URL, proxyHeaders);
+          if (!publicKeyPem) {
+            result = FUND_PWD_NOT_AVAILABLE;
+            break;
+          }
+
+          let encrypted: string;
+          try {
+            encrypted = await encryptFundPassword(publicKeyPem, fundPassword);
+          } catch (encErr) {
+            console.error("FUND_PWD encryption failed", encErr);
+            result = FUND_PWD_NOT_AVAILABLE;
+            break;
+          }
+
+          body.authType = "FUND_PWD";
+          body.code = encrypted;
+          // `quick` releases before the buyer has paid — never allowed here.
+          body.confirmPaidType = "normal";
+          if (payload.payId !== undefined) body.payId = payload.payId;
+
+          const fundStartedAt = Date.now();
+          const fundResponse = await fetchWithRetry(url, {
+            method: "POST",
+            headers: proxyHeaders,
+            body: JSON.stringify(body),
+          }, 0, 500, 12000);
+          const fundText = await fundResponse.text();
+          console.log(
+            "releaseCoin(FUND_PWD) response:",
+            fundResponse.status,
+            `in ${Date.now() - fundStartedAt}ms`,
+            fundText.substring(0, 1000),
+          );
+          try { result = JSON.parse(fundText); } catch { result = { raw: fundText, status: fundResponse.status }; }
+          break;
+        }
+
         // Critical: Binance releaseCoin rejects YubiKey flow when generic `code` is sent.
         // Keep `code` only for non-FIDO2 auth methods.
         if (!isYubiFlow && payload.code) body.code = payload.code;
 
         if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
-        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
-        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
         if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
         if (payload.payId !== undefined) body.payId = payload.payId;
         if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
+
 
         console.log("releaseCoin body:", JSON.stringify(body));
 
@@ -1776,13 +1905,25 @@ serve(async (req) => {
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
+        const preCheckAuthType = String(payload.authType ?? "").toUpperCase();
+        if (
+          preCheckAuthType === "EMAIL" ||
+          preCheckAuthType === "SMS" ||
+          payload.emailVerifyCode ||
+          payload.mobileVerifyCode
+        ) {
+          result = {
+            code: "UNSUPPORTED_AUTH_TYPE",
+            message: "Email and SMS release methods are disabled. Use the Authenticator code.",
+          };
+          break;
+        }
         if (payload.authType) body.authType = payload.authType;
         if (payload.code) body.code = payload.code;
         if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
-        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
         if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
-        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
         if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
+
         if (payload.payId) body.payId = payload.payId;
         console.log("checkIfCanRelease body:", JSON.stringify(body));
         const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
@@ -1793,19 +1934,27 @@ serve(async (req) => {
       }
 
       case "sendVerifyCode": {
-        // OUT OF BINANCE API SCOPE.
-        // The official C2C merchant API exposes no endpoint that dispatches an
-        // Email/SMS verification code (only checkIfCanReleaseCoin / releaseCoin,
-        // which consume a code the user already holds). Calling any such path on
-        // the proxy returns HTTP 404. Email/SMS codes must be triggered from the
-        // Binance app or website.
+        // RETIRED. Email/SMS release methods are disabled system-wide, and the
+        // official C2C merchant API has no endpoint that dispatches such codes.
         result = {
           code: "UNSUPPORTED_ACTION",
-          message:
-            "Binance's C2C API cannot send Email/SMS verification codes. Request the code in the Binance app or website and enter it here.",
+          message: "Email and SMS release methods are disabled. Use the Authenticator code.",
         };
         break;
       }
+
+      case "fundPwdReadiness": {
+        // Ops probe: reports only booleans — never the password, key or band.
+        const secretConfigured = !!fundPasswordForSuffix(acct.secretSuffix);
+        const rsaKey = await fetchC2CRsaPublicKey(BINANCE_PROXY_URL, proxyHeaders);
+        result = {
+          account: acct.accountName,
+          secretConfigured,
+          rsaKeyAvailable: !!rsaKey,
+        };
+        break;
+      }
+
 
       case "cancelOrder": {
         await requireOrderActionPermission("cancelOrder");

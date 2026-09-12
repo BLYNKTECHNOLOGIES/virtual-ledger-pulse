@@ -15,11 +15,14 @@ export interface ResolvedAccount {
   id: string;
   accountName: string;
   credentialKey: string;
+  /** Env-var suffix for this account's secrets ("" for default, "_2" for acct2, …). */
+  secretSuffix: string;
   proxyUrl: string;
   proxyToken: string;
   apiKey: string;
   apiSecret: string;
 }
+
 
 export interface ExchangeAccountRow {
   id: string;
@@ -105,7 +108,9 @@ export async function resolveAccount(accountId?: string | null): Promise<Resolve
     id: row.id,
     accountName: row.account_name,
     credentialKey: row.credential_key ?? "default",
+    secretSuffix: suffix,
     proxyUrl,
+
     proxyToken,
     apiKey,
     apiSecret,

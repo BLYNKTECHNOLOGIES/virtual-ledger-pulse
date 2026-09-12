@@ -97,7 +97,13 @@ export function OrderActions({
       )}
 
       {opStatus === 'Pending Release' && tradeType === 'SELL' && (
-        <ReleaseCoinAction orderNumber={orderNumber} exchangeAccountId={exchangeAccountId} totalPrice={totalPrice} />
+        <ReleaseCoinAction
+          orderNumber={orderNumber}
+          exchangeAccountId={exchangeAccountId}
+          totalPrice={totalPrice}
+          counterpartyName={counterpartyName}
+          fiatUnit={fiatUnit}
+        />
       )}
 
 

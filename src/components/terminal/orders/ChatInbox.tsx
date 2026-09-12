@@ -361,6 +361,8 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     setMarkingAll(true);
     try {
       orderNumbers.forEach((n) => markOrderChatRead(n));
+      markLocallyRead(orderNumbers);
+
       const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
         p_order_numbers: orderNumbers,
         p_source: 'operator',

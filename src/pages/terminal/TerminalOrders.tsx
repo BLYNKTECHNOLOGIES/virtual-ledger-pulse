@@ -8,7 +8,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle, ListChecks } from 'lucide-react';
+import { ShoppingCart, RefreshCw, Search, MessageSquare, Copy, ShieldAlert, UserPlus, User, Users, ArrowLeftRight, MessagesSquare, AlertTriangle, ListChecks, LayoutList, LayoutGrid, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { callBinanceAds, useBinanceActiveOrders, useBinanceOrderHistory } from '@/hooks/useBinanceActions';
 import { useSyncOrders, useSyncOrdersBatch, P2POrderRecord } from '@/hooks/useP2PTerminal';
@@ -239,14 +239,16 @@ function TerminalOrdersContent() {
   const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
-  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'active' as string, assignmentFilter: 'all' as string };
+  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'active' as string, assignmentFilter: 'all' as string, mobileView: 'list' as string };
   const [orderPrefs, setOrderPref] = useTerminalUserPrefs(userId, 'orders', ORDER_PREF_DEFAULTS);
   const tradeFilter = orderPrefs.tradeFilter;
   const statusFilter = orderPrefs.statusFilter;
   const assignmentFilter = orderPrefs.assignmentFilter;
+  const mobileView = orderPrefs.mobileView === 'cards' ? 'cards' : 'list';
   const setTradeFilter = (v: string) => setOrderPref('tradeFilter', v);
   const setStatusFilter = (v: string) => setOrderPref('statusFilter', v);
   const setAssignmentFilter = (v: string) => setOrderPref('assignmentFilter', v);
+  const setMobileView = (v: 'list' | 'cards') => setOrderPref('mobileView', v);
 
   const canManageOrders = hasPermission('terminal_orders_manage') || isTerminalAdmin;
   const {
@@ -1545,6 +1547,33 @@ function TerminalOrdersContent() {
           align="end"
           className="h-8 text-xs bg-secondary border-border"
         />
+
+        <div className="flex w-full items-center justify-end md:hidden" aria-label="Mobile order view">
+          <div className="inline-flex h-9 items-center rounded-lg border border-border bg-secondary p-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={mobileView === 'list'}
+              onClick={() => setMobileView('list')}
+              className={`h-8 gap-1.5 rounded-md px-3 text-xs ${mobileView === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+              List
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-pressed={mobileView === 'cards'}
+              onClick={() => setMobileView('cards')}
+              className={`h-8 gap-1.5 rounded-md px-3 text-xs ${mobileView === 'cards' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </Button>
+          </div>
+        </div>
       </div>
 
 
@@ -1585,7 +1614,204 @@ function TerminalOrdersContent() {
             </div>
           ) : (
 
-            <div className="overflow-x-auto">
+            <>
+            {mobileView === 'cards' && (
+              <div className="space-y-3 p-3 md:hidden">
+                {visibleOrders.map((order) => {
+                  const opStatus = mapToOperationalStatus((order as any)._resolvedStatus || order.order_status, order.trade_type);
+                  const isActive = !['Completed', 'Cancelled', 'Expired'].includes(opStatus);
+                  const needsKycVerification = order.trade_type === 'SELL' && order.additional_kyc_verify === 1 && opStatus === 'Pending Payment';
+                  const style = needsKycVerification
+                    ? { label: 'Verification Pending', badgeClass: 'border-primary/30 text-primary bg-primary/5', dotColor: 'bg-primary' }
+                    : getStatusStyle(opStatus);
+                  const unread = unreadMap.get(order.binance_order_number) || 0;
+                  const hasAltUpiRequest = pendingAltUpiOrderNumbers.has(order.binance_order_number);
+                  const releaseAlert = isActive ? releaseMonitorByOrder.get(order.binance_order_number) : undefined;
+                  const verifiedName = verifiedNameMap[order.binance_order_number];
+                  const visibility = getOrderVisibility(order.binance_order_number);
+                  const assignment = getOrderAssignment(order.binance_order_number);
+
+                  return (
+                    <article
+                      key={order.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedOrder(order)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setSelectedOrder(order);
+                        }
+                      }}
+                      className={`overflow-hidden rounded-lg border border-border bg-card text-left transition-colors active:bg-secondary/60 ${order.trade_type === 'BUY' ? 'shadow-[inset_3px_0_0_hsl(var(--trade-buy))]' : 'shadow-[inset_3px_0_0_hsl(var(--trade-sell))]'} ${hasAltUpiRequest ? 'bg-warning/5' : ''} ${focusedOrderId === String(order.id) ? 'ring-2 ring-primary' : ''}`}
+                    >
+                      <div className="flex items-start justify-between gap-3 border-b border-border px-3 py-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className={`t-mono text-xs font-semibold uppercase ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                              {order.trade_type} {order.asset}
+                            </span>
+                            <AccountBadge accountId={(order as any).exchange_account_id} className="w-fit" />
+                          </div>
+                          <p className="mt-1 text-[10px] text-muted-foreground t-mono tabular-nums">
+                            {order.binance_create_time ? format(new Date(order.binance_create_time), 'dd MMM yyyy · HH:mm') : '—'}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={`shrink-0 text-[10px] gap-1 ${style.badgeClass}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
+                          {style.label}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-3 px-3 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-foreground">
+                              {order.counterparty_nickname || 'Counterparty'}
+                            </p>
+                            {verifiedName && <p className="truncate text-[11px] text-muted-foreground">{verifiedName}</p>}
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className="text-sm font-semibold text-foreground t-mono tabular-nums">
+                              {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground t-mono tabular-nums">
+                              {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md bg-secondary/50 px-2.5 py-2">
+                          <div className="min-w-0">
+                            <p className="text-[9px] uppercase text-muted-foreground">Order number</p>
+                            <p className="truncate text-[11px] text-foreground t-mono">{order.binance_order_number}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground"
+                            title="Copy order number"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              navigator.clipboard.writeText(order.binance_order_number);
+                              toast.success('Order number copied');
+                            }}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-[11px]">
+                          <div>
+                            <p className="text-[9px] uppercase text-muted-foreground">Price</p>
+                            <p className="text-foreground t-mono tabular-nums">{Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] uppercase text-muted-foreground">Assigned</p>
+                            {visibility === 'assigned_to_me' ? (
+                              <Badge variant="outline" className="mt-0.5 text-[10px] bg-primary/10 text-primary border-primary/30">You</Badge>
+                            ) : visibility === 'assigned_to_team' && assignment ? (
+                              <Badge variant="outline" className="mt-0.5 text-[10px] bg-info/10 text-info border-info/30">Team</Badge>
+                            ) : canManageOrders ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="mt-0.5 h-6 gap-1 px-1.5 text-[10px] text-muted-foreground"
+                                onClick={(event) => { event.stopPropagation(); setAssignDialogOrder(order); }}
+                              >
+                                <UserPlus className="h-3 w-3" /> Assign
+                              </Button>
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </div>
+                        </div>
+
+                        {(needsKycVerification || hasAltUpiRequest || releaseAlert) && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {needsKycVerification && (
+                              <Badge variant="outline" className="text-[9px] border-warning/30 text-warning bg-warning/5 gap-1">
+                                <ShieldAlert className="h-2.5 w-2.5" /> Requires Verification
+                              </Badge>
+                            )}
+                            {hasAltUpiRequest && (
+                              <Badge variant="outline" className="text-[9px] border-warning/30 text-warning bg-warning/10 gap-1">
+                                <ArrowLeftRight className="h-2.5 w-2.5" /> Alternate UPI Requested
+                              </Badge>
+                            )}
+                            {releaseAlert && (
+                              <Badge variant="outline" className={`text-[9px] gap-1 ${releaseAlert.status === 'complaint_window_expired' ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-warning/30 text-warning bg-warning/5'}`}>
+                                <AlertTriangle className="h-2.5 w-2.5" />
+                                {releaseAlert.status === 'complaint_window_closing' ? 'Complaint Window Closing' : releaseAlert.status === 'complaint_window_expired' ? 'Complaint Window Expired' : 'Seller Release Overdue'}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+
+                        {isActive && order.binance_create_time && (
+                          <OrderRowTimer
+                            createTime={typeof order.binance_create_time === 'number' ? order.binance_create_time : new Date(order.binance_create_time).getTime()}
+                            notifyPayEndTime={(order as any)._notifyPayEndTime}
+                            notifyPayedExpireMinute={(order as any)._notifyPayedExpireMinute}
+                          />
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 border-t border-border bg-secondary/20 px-3 py-2.5" onClick={(event) => event.stopPropagation()}>
+                        {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
+                          <ReleaseCoinAction
+                            compact
+                            orderNumber={order.binance_order_number}
+                            exchangeAccountId={(order as any).exchange_account_id}
+                            totalPrice={order.total_price}
+                            fiatUnit={order.fiat_unit}
+                            counterpartyName={verifiedName || order.counterparty_nickname}
+                          />
+                        )}
+                        {canChat && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="relative h-8 gap-1.5 px-2.5 text-[10px]"
+                            onClick={(event) => openChatForOrder(order, event)}
+                          >
+                            <MessageSquare className="h-3.5 w-3.5" /> Chat
+                            {unread > 0 && (
+                              <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">{unread}</span>
+                            )}
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="relative h-8 gap-1.5 px-2.5 text-[10px]"
+                          title="Internal Chat"
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          <Users className="h-3.5 w-3.5" /> Team
+                          {(internalUnreadMap[order.binance_order_number] || 0) > 0 && (
+                            <span className="absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[8px] font-bold text-destructive-foreground">{internalUnreadMap[order.binance_order_number]}</span>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="ml-auto h-8 gap-1 px-2 text-[10px] text-muted-foreground"
+                          onClick={() => setSelectedOrder(order)}
+                        >
+                          Open <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className={`${mobileView === 'cards' ? 'hidden md:block' : 'block'} overflow-x-auto`}>
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
@@ -1813,6 +2039,7 @@ function TerminalOrdersContent() {
                 </div>
               )}
             </div>
+            </>
           )}
         </div>
       </div>

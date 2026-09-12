@@ -234,6 +234,7 @@ function TerminalOrdersContent() {
   const canEscalate = hasPermission('terminal_orders_escalate') || isTerminalAdmin;
   const canExport = hasPermission('terminal_orders_export') || isTerminalAdmin;
   const canSyncApprove = hasPermission('terminal_orders_sync_approve') || isTerminalAdmin;
+  const canOrderActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences

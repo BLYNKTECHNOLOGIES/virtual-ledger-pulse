@@ -210,9 +210,27 @@ Deno.serve(async (req: Request) => {
         const now = new Date().toISOString();
         const seenNumbers = new Set<string>();
         const rows = [];
+        // Binance keeps returning finalized orders in listOrders for up to a
+        // minute after completion/cancellation. Those must never live in the
+        // ACTIVE cache or the terminal shows dead orders as pending.
+        // 4=COMPLETED, 6=CANCELLED, 7=CANCELLED_BY_SYSTEM. 5=APPEAL stays active.
+        const isFinalOrder = (order: any): boolean => {
+          const raw = order?.orderStatus ?? order?.status;
+          if (raw === null || raw === undefined) return false;
+          const s = String(raw).toUpperCase();
+          if (s === "4" || s === "6" || s === "7") return true;
+          return (
+            s.includes("COMPLETED") ||
+            s.includes("RELEASED") ||
+            s.includes("CANCEL") ||
+            s.includes("EXPIRED") ||
+            s.includes("TIMEOUT")
+          );
+        };
         for (const order of orders) {
           const orderNumber = orderNumberOf(order);
           if (!orderNumber) continue;
+          if (isFinalOrder(order)) continue; // pruned below via stale sweep
           seenNumbers.add(orderNumber);
           rows.push({
             exchange_account_id: resolved.id,

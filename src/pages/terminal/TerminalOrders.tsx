@@ -1861,14 +1861,14 @@ function TerminalOrdersContent() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Type/Date</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Order number</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Price</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Fiat / Crypto Amount</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Counterparty</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Assigned</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium">Status</TableHead>
-                    <TableHead className="text-[10px] text-muted-foreground font-medium text-right">Chat</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Type/Date</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Order number</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Price</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Fiat / Crypto Amount</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Counterparty</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Assigned</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3">Status</TableHead>
+                    <TableHead className="text-[11px] text-muted-foreground font-medium py-3 text-right">Chat</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1896,16 +1896,16 @@ function TerminalOrdersContent() {
                         onClick={() => setSelectedOrder(order)}>
 
                         {/* Type/Date */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <span className="text-xs">
-                              <span className={`t-mono uppercase text-[10px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm">
+                              <span className={`t-mono uppercase text-[11px] font-semibold ${order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
                                 {order.trade_type === 'BUY' ? 'Buy' : 'Sell'}
                               </span>
                               {' '}
                               <span className="text-foreground font-medium">{order.asset}</span>
                             </span>
-                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
+                            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
                               {order.binance_create_time
                                 ? format(new Date(order.binance_create_time), 'yyyy-MM-dd HH:mm')
                                 : '—'}
@@ -1915,10 +1915,10 @@ function TerminalOrdersContent() {
 
 
                         {/* Order number */}
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-1.5">
-                              <span className="text-xs text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
+                              <span className="text-sm text-foreground font-mono underline decoration-muted-foreground/30 underline-offset-2">
                                 {order.binance_order_number}
                               </span>
                               <button
@@ -1959,19 +1959,19 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Price */}
-                        <TableCell className="py-3 text-right">
-                          <span className="text-xs text-muted-foreground t-mono tabular-nums">
+                        <TableCell className="py-4">
+                          <span className="text-sm text-foreground t-mono tabular-nums">
                             {Number(order.unit_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })} {order.fiat_unit}
                           </span>
                         </TableCell>
 
                         {/* Fiat / Crypto Amount */}
-                        <TableCell className="py-3 text-right">
-                          <div className="flex flex-col gap-0.5 items-end">
-                            <span className="text-xs text-foreground t-mono tabular-nums font-medium">
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="text-sm text-foreground t-mono tabular-nums font-medium">
                               {Number(order.total_price).toLocaleString('en-IN', { minimumFractionDigits: 2 })} {order.fiat_unit}
                             </span>
-                            <span className="text-[10px] text-muted-foreground t-mono tabular-nums">
+                            <span className="text-[11px] text-muted-foreground t-mono tabular-nums">
                               {Number(order.amount).toFixed(order.amount < 1 ? 4 : 2)} {order.asset}
                             </span>
                           </div>
@@ -1979,9 +1979,9 @@ function TerminalOrdersContent() {
 
 
                         {/* Counterparty */}
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           <div className="flex flex-col gap-0.5">
-                            <span className="text-xs text-foreground font-medium truncate max-w-[140px]">
+                            <span className="text-sm text-foreground font-medium truncate max-w-[160px]">
                               {order.counterparty_nickname}
                               {verifiedNameMap[order.binance_order_number] && (
                                 <span className="text-muted-foreground font-normal"> ({verifiedNameMap[order.binance_order_number]})</span>
@@ -1991,7 +1991,7 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Assignment */}
-                        <TableCell className="py-3">
+                        <TableCell className="py-4">
                           {(() => {
                             const vis = getOrderVisibility(order.binance_order_number);
                             const assignment = getOrderAssignment(order.binance_order_number);
@@ -2016,9 +2016,9 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Status */}
-                        <TableCell className="py-3">
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className={`text-[10px] w-fit gap-1 ${style.badgeClass}`}>
+                        <TableCell className="py-4">
+                          <div className="flex flex-col gap-1.5">
+                            <Badge variant="outline" className={`text-[11px] w-fit gap-1 px-2 py-0.5 ${style.badgeClass}`}>
                               <span className={`h-1.5 w-1.5 rounded-full ${(style as any).dotColor || 'bg-current'}`} />
                               {style.label}
                             </Badge>
@@ -2034,7 +2034,7 @@ function TerminalOrdersContent() {
                         </TableCell>
 
                         {/* Chat */}
-                        <TableCell className="py-3 text-right">
+                        <TableCell className="py-4 text-right">
                           <div className="inline-flex flex-wrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
                             {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (

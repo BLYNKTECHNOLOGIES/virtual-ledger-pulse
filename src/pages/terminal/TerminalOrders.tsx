@@ -1176,7 +1176,7 @@ function TerminalOrdersContent() {
 
   // Verified counterparty names (KYC) for the visible orders, keyed by order number.
   const verifiedNameOrderKey = useMemo(() => internalChatOrderNumbers.join(','), [internalChatOrderNumbers]);
-  const { data: verifiedNameMap = {} } = useQuery({
+  const { data: storedVerifiedNames = {} } = useQuery({
     queryKey: ['cp-verified-names', verifiedNameOrderKey, isAllAccounts ? 'all' : accountsToQuery.join(',')],
     enabled: internalChatOrderNumbers.length > 0,
     staleTime: 60_000,
@@ -1202,6 +1202,52 @@ function TerminalOrdersContent() {
       return map;
     },
   });
+
+  // Freshly created orders are enriched by a background job, so their verified
+  // KYC name can be missing from the database for several minutes. Resolve those
+  // few rows straight from Binance order detail so the list never falls back to
+  // showing only a nickname.
+  const missingVerifiedOrders = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { orderNumber: string; accountId?: string }[] = [];
+    for (const order of visibleOrders) {
+      const num = order.binance_order_number;
+      if (!num || seen.has(num) || storedVerifiedNames[num]) continue;
+      seen.add(num);
+      out.push({ orderNumber: num, accountId: (order as any).exchange_account_id || undefined });
+      if (out.length >= 8) break;
+    }
+    return out;
+  }, [visibleOrders, storedVerifiedNames]);
+
+  const { data: liveVerifiedNames = {} } = useQuery({
+    queryKey: ['cp-verified-names-live', missingVerifiedOrders.map(o => o.orderNumber).join(',')],
+    enabled: missingVerifiedOrders.length > 0,
+    staleTime: 5 * 60 * 1000,
+    retry: 0,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      const results = await Promise.allSettled(
+        missingVerifiedOrders.map(async ({ orderNumber, accountId }) => {
+          const response = await callBinanceAds('getOrderDetail', { orderNumber }, accountId);
+          const detail = (response as any)?.data?.data ?? (response as any)?.data ?? response;
+          const value = detail?.buyerRealName ?? detail?.buyerName ?? detail?.sellerRealName ?? detail?.sellerName ?? null;
+          const name = typeof value === 'string' ? value.trim() : '';
+          return { orderNumber, name };
+        }),
+      );
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.name) map[r.value.orderNumber] = r.value.name;
+      }
+      return map;
+    },
+  });
+
+  const verifiedNameMap = useMemo(
+    () => ({ ...liveVerifiedNames, ...storedVerifiedNames }),
+    [liveVerifiedNames, storedVerifiedNames],
+  );
+
 
   // Helper: open chat for an order row directly — opens the full workspace
   const openChatForOrder = (order: P2POrderRecord, e: React.MouseEvent) => {

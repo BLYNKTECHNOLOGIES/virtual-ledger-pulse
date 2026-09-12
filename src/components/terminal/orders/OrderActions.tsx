@@ -59,6 +59,7 @@ export function OrderActions({
   fiatUnit,
   advNo,
   exchangeAccountId,
+  counterpartyName,
 }: Props) {
   const opStatus = mapToOperationalStatus(orderStatus, tradeType);
 

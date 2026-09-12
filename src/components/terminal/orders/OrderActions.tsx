@@ -44,6 +44,8 @@ interface Props {
   advNo?: string;
   /** Account this order belongs to (combined "All accounts" mode). */
   exchangeAccountId?: string;
+  /** Verified (KYC) counterparty name, shown on the release confirmation line. */
+  counterpartyName?: string;
 }
 
 export function OrderActions({

@@ -1763,7 +1763,7 @@ function TerminalOrdersContent() {
 
                         {/* Chat */}
                         <TableCell className="py-3 text-right">
-                          <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex flex-wrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                             {/* Inline release — opens Fund Password for small sales, Authenticator otherwise */}
                             {canOrderActions && opStatus === 'Pending Release' && order.trade_type === 'SELL' && (
                               <ReleaseCoinAction

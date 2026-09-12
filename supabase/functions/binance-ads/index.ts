@@ -1934,19 +1934,27 @@ serve(async (req) => {
       }
 
       case "sendVerifyCode": {
-        // OUT OF BINANCE API SCOPE.
-        // The official C2C merchant API exposes no endpoint that dispatches an
-        // Email/SMS verification code (only checkIfCanReleaseCoin / releaseCoin,
-        // which consume a code the user already holds). Calling any such path on
-        // the proxy returns HTTP 404. Email/SMS codes must be triggered from the
-        // Binance app or website.
+        // RETIRED. Email/SMS release methods are disabled system-wide, and the
+        // official C2C merchant API has no endpoint that dispatches such codes.
         result = {
           code: "UNSUPPORTED_ACTION",
-          message:
-            "Binance's C2C API cannot send Email/SMS verification codes. Request the code in the Binance app or website and enter it here.",
+          message: "Email and SMS release methods are disabled. Use the Authenticator code.",
         };
         break;
       }
+
+      case "fundPwdReadiness": {
+        // Ops probe: reports only booleans — never the password, key or band.
+        const secretConfigured = !!fundPasswordForSuffix(acct.secretSuffix);
+        const rsaKey = await fetchC2CRsaPublicKey(BINANCE_PROXY_URL, proxyHeaders);
+        result = {
+          account: acct.accountName,
+          secretConfigured,
+          rsaKeyAvailable: !!rsaKey,
+        };
+        break;
+      }
+
 
       case "cancelOrder": {
         await requireOrderActionPermission("cancelOrder");

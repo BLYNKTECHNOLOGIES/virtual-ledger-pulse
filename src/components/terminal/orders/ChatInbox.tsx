@@ -428,7 +428,7 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
     } finally {
       setMarkingSmall(false);
     }
-  }, [smallTradeTargets, queryClient]);
+  }, [smallTradeTargets, queryClient, markLocallyRead]);
 
 
 

@@ -837,42 +837,58 @@ html.terminal-light [data-placeholder] {
 
 /* ── Light-theme re-expression of the scoped terminal chrome ── */
 .terminal.t-light ::-webkit-scrollbar-track {
-  background: hsl(218 30% 95%);
+  background: hsl(220 16% 91%);
 }
 .terminal.t-light ::-webkit-scrollbar-thumb {
-  background: hsl(218 20% 80%);
+  background: hsl(220 12% 76%);
 }
 .terminal.t-light ::-webkit-scrollbar-thumb:hover {
-  background: hsl(218 18% 68%);
+  background: hsl(220 12% 64%);
 }
 .terminal.t-light thead tr {
-  background: hsl(218 30% 96%);
+  background: hsl(220 16% 94%);
 }
 .terminal.t-light tbody tr:hover {
-  background: hsl(231 60% 96% / 0.9);
+  background: hsl(220 16% 88% / 0.55);
 }
 .terminal.t-light tbody tr[data-state="selected"] {
-  background: hsl(var(--primary) / 0.09);
+  background: hsl(var(--primary) / 0.08);
 }
 .terminal.t-light tbody td {
-  border-bottom: 1px solid hsl(218 24% 91%);
+  border-bottom: 1px solid hsl(220 16% 85%);
 }
 .terminal.t-light .t-grid-bg {
   background-image:
-    linear-gradient(to right, hsl(222 30% 30% / 0.035) 1px, transparent 1px),
-    linear-gradient(to bottom, hsl(222 30% 30% / 0.035) 1px, transparent 1px);
+    linear-gradient(to right, hsl(222 30% 30% / 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(222 30% 30% / 0.022) 1px, transparent 1px);
 }
 .terminal.t-light .t-shimmer {
   background: linear-gradient(
     90deg,
-    hsl(218 28% 93%) 25%,
-    hsl(218 28% 97%) 37%,
-    hsl(218 28% 93%) 63%
+    hsl(220 14% 90%) 25%,
+    hsl(220 14% 95%) 37%,
+    hsl(220 14% 90%) 63%
   );
   background-size: 400% 100%;
 }
 .terminal.t-light .t-panel {
   box-shadow: var(--shadow-xs);
+}
+
+/* Restore intended muted-foreground opacity in light theme.
+   The dark-theme override above boosts opacity for graphite-on-black legibility;
+   on paper we want the softer, lower opacities back. */
+.terminal.t-light .text-muted-foreground\/40 {
+  color: hsl(var(--muted-foreground) / 0.40);
+}
+.terminal.t-light .text-muted-foreground\/50 {
+  color: hsl(var(--muted-foreground) / 0.50);
+}
+.terminal.t-light .text-muted-foreground\/60 {
+  color: hsl(var(--muted-foreground) / 0.60);
+}
+.terminal.t-light .text-muted-foreground\/30 {
+  color: hsl(var(--muted-foreground) / 0.30);
 }
 
 

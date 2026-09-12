@@ -1905,13 +1905,25 @@ serve(async (req) => {
         const body: Record<string, any> = {
           orderNumber: payload.orderNumber,
         };
+        const preCheckAuthType = String(payload.authType ?? "").toUpperCase();
+        if (
+          preCheckAuthType === "EMAIL" ||
+          preCheckAuthType === "SMS" ||
+          payload.emailVerifyCode ||
+          payload.mobileVerifyCode
+        ) {
+          result = {
+            code: "UNSUPPORTED_AUTH_TYPE",
+            message: "Email and SMS release methods are disabled. Use the Authenticator code.",
+          };
+          break;
+        }
         if (payload.authType) body.authType = payload.authType;
         if (payload.code) body.code = payload.code;
         if (payload.confirmPaidType) body.confirmPaidType = payload.confirmPaidType;
-        if (payload.emailVerifyCode) body.emailVerifyCode = payload.emailVerifyCode;
         if (payload.googleVerifyCode) body.googleVerifyCode = payload.googleVerifyCode;
-        if (payload.mobileVerifyCode) body.mobileVerifyCode = payload.mobileVerifyCode;
         if (payload.yubikeyVerifyCode) body.yubikeyVerifyCode = payload.yubikeyVerifyCode;
+
         if (payload.payId) body.payId = payload.payId;
         console.log("checkIfCanRelease body:", JSON.stringify(body));
         const response = await fetchWithRetry(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });

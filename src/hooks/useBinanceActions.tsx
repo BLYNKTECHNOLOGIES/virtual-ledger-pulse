@@ -291,8 +291,11 @@ export function useBinanceActiveOrders(filters?: {
     staleTime: 0,
     // Realtime invalidations (including cache DELETEs once an order finalizes)
     // keep this fresh; the safety poll is the floor, not the primary signal.
-    refetchInterval: pollWhenVisible(2 * 1000),
-    refetchIntervalInBackground: false,
+    // Keeps a slower cadence while the tab is hidden so new-order/appeal alert
+    // sounds still fire when the operator is in another tab or app.
+    refetchInterval: pollEvenWhenHidden(2 * 1000, 15 * 1000),
+    refetchIntervalInBackground: true,
+
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
   });

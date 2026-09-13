@@ -358,7 +358,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     while (true) {
-      const { totalOrders, failed } = await runTick();
+      const { totalOrders, failed } = await runTick(tickCount % DEEP_SCAN_EVERY === 0);
       tickCount += 1;
       lastTotalOrders = totalOrders;
       consecutiveFailures = failed ? consecutiveFailures + 1 : 0;

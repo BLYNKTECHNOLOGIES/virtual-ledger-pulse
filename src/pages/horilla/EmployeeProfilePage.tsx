@@ -1689,8 +1689,18 @@ export default function EmployeeProfilePage() {
         {/* ── PAYROLL TAB ── */}
         {activeTab === "Payroll" && (
           <div className="space-y-4">
+            {/* Salary revision for this employee only — same dialog as the
+                Salary Revision page, with the employee fixed. */}
+            <div className="flex justify-end">
+              <Button size="sm" onClick={() => setShowReviseSalary(true)}>
+                Salary Revision
+              </Button>
+            </div>
+
             {/* Salary Summary Card */}
             <SalarySummaryCard totalSalary={emp?.total_salary} />
+
+
 
 
             {/* RazorpayX Payslip History — source of truth for payroll history */}

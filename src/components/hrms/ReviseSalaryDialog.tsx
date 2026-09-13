@@ -367,7 +367,9 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       // Keep the employee profile in sync with the Salary Revision page
       qc.invalidateQueries({ queryKey: ["hr_employee_detail"] });
       qc.invalidateQueries({ queryKey: ["hr_employee_work_info"] });
-      qc.invalidateQueries({ queryKey: ["hr_employee_salary_structure"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_salary_structures"] });
+      qc.invalidateQueries({ queryKey: ["hr_employees_total_salary"] });
+
       qc.invalidateQueries({ queryKey: ["rzp_payslips_emp"] });
 
 

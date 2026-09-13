@@ -96,7 +96,7 @@ export function useReleaseCoin() {
         queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
         queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
         queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
-        queryClient.invalidateQueries({ queryKey: ['binance-recent-history'] });
+        queryClient.invalidateQueries({ queryKey: ['binance-order-history-recent'] });
       };
       refresh();
       [1200, 3000, 6000].forEach((ms) => setTimeout(refresh, ms));

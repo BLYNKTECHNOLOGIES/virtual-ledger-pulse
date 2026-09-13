@@ -463,6 +463,40 @@ serve(async (req) => {
     let verified = 0;
     let unverified = 0;
     let errors = 0;
+    let staleClaimsReleased = 0;
+
+    // ===== RELEASE ORPHANED CLAIMS =====
+    // A slot is claimed BEFORE sending. If an invocation ends before the send
+    // loop reaches it (wall-clock timeout on a burst, lost chat lock, crash),
+    // the claim survives with no log row and blocks that reply forever — the
+    // real cause of "some orders never got the feedback reply". Anything older
+    // than 3 minutes with no send log is provably orphaned: free it so the next
+    // cycle retries while the order is still inside the sweep window.
+    {
+      const staleCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      const { data: staleClaims } = await supabase
+        .from("p2p_auto_reply_processed")
+        .select("id, order_number, trigger_event, rule_id")
+        .lt("processed_at", staleCutoff)
+        .gte("processed_at", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
+        .limit(200);
+
+      for (const claim of staleClaims || []) {
+        const { data: logRow } = await supabase
+          .from("p2p_auto_reply_log")
+          .select("id")
+          .eq("order_number", claim.order_number)
+          .eq("trigger_event", claim.trigger_event)
+          .eq("rule_id", claim.rule_id)
+          .limit(1);
+        if (logRow && logRow.length > 0) continue;
+        await supabase.from("p2p_auto_reply_processed").delete().eq("id", claim.id);
+        staleClaimsReleased++;
+        console.log(`♻️ Released orphaned claim ${claim.order_number}:${claim.trigger_event}`);
+      }
+      if (staleClaimsReleased > 0) console.log(`Released ${staleClaimsReleased} orphaned auto-reply claims`);
+    }
+
     
 
     // ===== RETRY PREVIOUSLY UNVERIFIED MESSAGES =====
@@ -766,9 +800,20 @@ serve(async (req) => {
               .eq("message_text", message)
               .limit(1);
             if (alreadyThere && alreadyThere.length > 0) {
+              // Log the skip so the claim is never mistaken for an orphan and
+              // re-released (which would re-send the same text next cycle).
+              await supabase.from("p2p_auto_reply_log").insert({
+                rule_id: rule.id,
+                order_number: order.orderNumber,
+                trigger_event: event,
+                message_sent: message,
+                status: "skipped",
+                error_message: "Identical reply already present in chat",
+              });
               console.log(`⏭️ Reply text already present on ${order.orderNumber}, skipping`);
               continue;
             }
+
 
             pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now() });
 
@@ -811,13 +856,29 @@ serve(async (req) => {
         chatCredential = await getChatCredentialWithRetry(BINANCE_PROXY_URL, proxyHeaders);
       }
 
-      // Send each message with verification
+      // Send each message with verification. A burst can queue more messages
+      // than one invocation can deliver; stop before the runtime kills us and
+      // hand the leftovers back so the next cycle sends them.
+      const sendDeadline = Date.now() + 110_000;
       let sentInThisRun = 0;
+      let deferred = 0;
       for (const pm of pendingMessages) {
+        if (Date.now() > sendDeadline) {
+          await supabase.from("p2p_auto_reply_processed")
+            .delete()
+            .eq("order_number", pm.orderNumber)
+            .eq("trigger_event", pm.event)
+            .eq("rule_id", pm.rule.id);
+          deferred++;
+          console.log(`⏳ Deferring ${pm.orderNumber}:${pm.event} to next cycle (time budget)`);
+
+          continue;
+        }
         // Space out consecutive chat sessions on the same account.
         if (sentInThisRun > 0) await new Promise((r) => setTimeout(r, 3000));
         sentInThisRun++;
         pm.sendTimestamp = Date.now();
+
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
           proxyHeaders,
@@ -886,12 +947,13 @@ serve(async (req) => {
       processed,
       verified,
       unverified,
-      
+      staleClaimsReleased,
       errors,
       ordersChecked: allActiveOrders.length,
       rulesActive: rules?.length || 0,
       listOrdersDiagnostics,
     };
+
     console.log("Auto-reply engine result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), {

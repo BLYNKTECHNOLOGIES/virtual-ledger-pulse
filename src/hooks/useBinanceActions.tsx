@@ -105,16 +105,10 @@ export function useReleaseCoin() {
       };
       queryClient.setQueriesData({ queryKey: ['binance-active-orders'] }, stripReleased);
 
-      // Remove the shared server-side active cache row immediately so every
-      // other operator's screen also drops it via Realtime DELETE, instead of
-      // waiting for the collector's next sweep.
-      if (releasedNumber) {
-        supabase
-          .from('terminal_active_orders_cache')
-          .delete()
-          .eq('order_number', releasedNumber)
-          .then(() => {}, () => {});
-      }
+      // The shared server cache row (terminal_active_orders_cache) is
+      // service-role owned — the collector prunes it on its next ~2s sweep and
+      // Realtime pushes the DELETE to every other operator.
+
 
       logAdAction({ actionType: AdActionTypes.ORDER_RELEASED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { authType: variables.authType } });
       const refresh = () => {

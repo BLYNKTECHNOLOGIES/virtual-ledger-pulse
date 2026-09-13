@@ -2685,6 +2685,39 @@ serve(async (req) => {
         );
     }
 
+    // A successful release is authoritative. Persist that terminal state and
+    // evict the rolling active-cache row before replying to the browser. This
+    // prevents stale listOrders payloads from leaving the released order visible
+    // to this operator or any other subscribed operator for another collector tick.
+    if (
+      action === "releaseCoin" &&
+      result?.code === "000000" &&
+      String(payload?.orderNumber ?? "").trim()
+    ) {
+      const releasedOrderNumber = String(payload.orderNumber).trim();
+      try {
+        const releaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const releasedAt = new Date().toISOString();
+        const { error: historyError } = await releaseAdmin
+          .from("binance_order_history")
+          .update({ order_status: "COMPLETED", synced_at: releasedAt })
+          .eq("exchange_account_id", acct.id)
+          .eq("order_number", releasedOrderNumber);
+        if (historyError) console.warn("release completion history persist failed:", historyError.message);
+
+        const { error: cacheError } = await releaseAdmin
+          .from("terminal_active_orders_cache")
+          .delete()
+          .eq("exchange_account_id", acct.id)
+          .eq("order_number", releasedOrderNumber);
+        if (cacheError) console.warn("release active-cache eviction failed:", cacheError.message);
+      } catch (persistErr) {
+        // The Binance release already succeeded. Never turn a successful,
+        // irreversible release into a client error because local cleanup failed.
+        console.warn("release completion persistence failed:", persistErr);
+      }
+    }
+
     // Detect proxy/CDN errors (HTML responses, non-200 status in raw result)
     const isProxyError = result?.raw && (typeof result.raw === 'string' && (result.raw.includes('<!DOCTYPE') || result.raw.includes('<HTML')));
     const isStatusError = result?.status && result.status >= 400;

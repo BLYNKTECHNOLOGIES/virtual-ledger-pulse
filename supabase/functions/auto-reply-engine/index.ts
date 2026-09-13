@@ -870,6 +870,8 @@ serve(async (req) => {
             .eq("trigger_event", pm.event)
             .eq("rule_id", pm.rule.id);
           deferred++;
+          console.log(`⏳ Deferring ${pm.orderNumber}:${pm.event} to next cycle (time budget)`);
+
           continue;
         }
         // Space out consecutive chat sessions on the same account.

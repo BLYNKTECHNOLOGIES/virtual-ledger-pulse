@@ -800,9 +800,20 @@ serve(async (req) => {
               .eq("message_text", message)
               .limit(1);
             if (alreadyThere && alreadyThere.length > 0) {
+              // Log the skip so the claim is never mistaken for an orphan and
+              // re-released (which would re-send the same text next cycle).
+              await supabase.from("p2p_auto_reply_log").insert({
+                rule_id: rule.id,
+                order_number: order.orderNumber,
+                trigger_event: event,
+                message_sent: message,
+                status: "skipped",
+                error_message: "Identical reply already present in chat",
+              });
               console.log(`⏭️ Reply text already present on ${order.orderNumber}, skipping`);
               continue;
             }
+
 
             pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now() });
 

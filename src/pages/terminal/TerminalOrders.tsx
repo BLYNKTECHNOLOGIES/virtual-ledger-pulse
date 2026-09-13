@@ -170,6 +170,8 @@ function TerminalOrdersContent() {
   const [queueMode, setQueueMode] = useState(() => !!readOrdersSession().queueMode);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(() => readOrdersSession().activeChatConv || null);
   const [chatReadVersion, setChatReadVersion] = useState(0);
+  // Bumps when a just-released order gets an optimistic COMPLETED status.
+  const optimisticStatusVersion = useOptimisticOrderStatusVersion();
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);

@@ -291,6 +291,15 @@ export default function RequestsPage() {
                 value={selected.periodFrom === selected.periodTo ? selected.periodFrom || "—" : `${selected.periodFrom} → ${selected.periodTo}`}
               />
             )}
+            {selected.type === "regularization" && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Requested by employee</p>
+                <div className="flex flex-wrap gap-x-6 gap-y-1">
+                  <span className="text-sm">Check-in: <span className="font-medium tabular-nums">{fmtRequested(selected.raw?.requested_check_in)}</span></span>
+                  <span className="text-sm">Check-out: <span className="font-medium tabular-nums">{fmtRequested(selected.raw?.requested_check_out)}</span></span>
+                </div>
+              </div>
+            )}
             <Row label="Reason" value={selected.detail || "—"} />
             {selected.type === "regularization" && selected.raw?.employee_id && selected.raw?.attendance_date && (
               <CurrentAttendanceSnapshot
@@ -324,6 +333,11 @@ export default function RequestsPage() {
       </ResponsiveDialog>
     </div>
   );
+}
+
+function fmtRequested(ts: string | null | undefined): string {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
 }
 
 function Row({ label, value }: { label: string; value: string }) {

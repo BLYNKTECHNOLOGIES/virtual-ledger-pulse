@@ -463,6 +463,40 @@ serve(async (req) => {
     let verified = 0;
     let unverified = 0;
     let errors = 0;
+    let staleClaimsReleased = 0;
+
+    // ===== RELEASE ORPHANED CLAIMS =====
+    // A slot is claimed BEFORE sending. If an invocation ends before the send
+    // loop reaches it (wall-clock timeout on a burst, lost chat lock, crash),
+    // the claim survives with no log row and blocks that reply forever — the
+    // real cause of "some orders never got the feedback reply". Anything older
+    // than 3 minutes with no send log is provably orphaned: free it so the next
+    // cycle retries while the order is still inside the sweep window.
+    {
+      const staleCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      const { data: staleClaims } = await supabase
+        .from("p2p_auto_reply_processed")
+        .select("id, order_number, trigger_event, rule_id")
+        .lt("processed_at", staleCutoff)
+        .gte("processed_at", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
+        .limit(200);
+
+      for (const claim of staleClaims || []) {
+        const { data: logRow } = await supabase
+          .from("p2p_auto_reply_log")
+          .select("id")
+          .eq("order_number", claim.order_number)
+          .eq("trigger_event", claim.trigger_event)
+          .eq("rule_id", claim.rule_id)
+          .limit(1);
+        if (logRow && logRow.length > 0) continue;
+        await supabase.from("p2p_auto_reply_processed").delete().eq("id", claim.id);
+        staleClaimsReleased++;
+        console.log(`♻️ Released orphaned claim ${claim.order_number}:${claim.trigger_event}`);
+      }
+      if (staleClaimsReleased > 0) console.log(`Released ${staleClaimsReleased} orphaned auto-reply claims`);
+    }
+
     
 
     // ===== RETRY PREVIOUSLY UNVERIFIED MESSAGES =====

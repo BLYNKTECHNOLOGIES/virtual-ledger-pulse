@@ -77,7 +77,14 @@ export default function RequestsPage() {
     const hit = requests.find((r) => r.id === deepLinkId);
     // Open the request in the detail dialog, but never widen the list filter —
     // the inbox must stay in Pending mode by default.
-    if (hit) setSelected(hit);
+    if (hit) {
+      setSelected(hit);
+      // Consume the deep link: strip ?id= so a later refetch (e.g. after
+      // approving another request) cannot re-open this dialog.
+      const next = new URLSearchParams(params);
+      next.delete("id");
+      setParams(next, { replace: true });
+    }
   }, [deepLinkId, requests]);
 
   // Default mode is always "Pending" (awaiting HR / manager / payroll) unless

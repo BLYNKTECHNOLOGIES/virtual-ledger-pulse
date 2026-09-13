@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import {
   getAlertPrefs, isAlertEnabled, playTone, fireBrowserNotification,
-  setUnreadIndicator, clearUnreadIndicator,
+  setUnreadIndicator, clearUnreadIndicator, initAlertAudioLifecycle,
 } from '@/lib/terminal-alerts';
+
 
 export interface TerminalAlertInputs {
   /** IDs of currently actionable (active, non-terminal) orders. */
@@ -25,6 +26,11 @@ export function useTerminalAlerts({ actionableOrderIds, appealOrderIds, unreadMe
   const prevOrders = useRef<Set<string> | null>(null);
   const prevAppeals = useRef<Set<string> | null>(null);
   const prevUnread = useRef<number | null>(null);
+
+  // Keep the audio output primed so alert tones are audible even when the
+  // operator has switched to another tab or another application.
+  useEffect(() => initAlertAudioLifecycle(), []);
+
 
   // New actionable orders
   useEffect(() => {

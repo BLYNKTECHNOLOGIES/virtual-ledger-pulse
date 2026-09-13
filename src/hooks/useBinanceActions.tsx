@@ -128,7 +128,6 @@ export function useReleaseCoin() {
       [1200, 3000, 6000].forEach((ms) => setTimeout(refresh, ms));
     },
 
-    },
     onError: (err: Error, variables) => {
       const isYubiKeyFlow =
         variables?.authType === 'YUBIKEY' ||

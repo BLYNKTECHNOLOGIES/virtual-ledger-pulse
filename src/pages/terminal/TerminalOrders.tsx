@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { DateRangePicker, getDateRangeFromPreset, type DateRangePreset } from '@/components/ui/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { getOptimisticOrderStatus, clearOptimisticOrderStatus, useOptimisticOrderStatusVersion } from '@/lib/optimisticOrderStatus';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';

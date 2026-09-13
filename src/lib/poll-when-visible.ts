@@ -13,10 +13,11 @@
  */
 export function pollWhenVisible(ms: number) {
   return () => {
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") return ms;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
     return ms;
   };
 }
+
 
 /**
  * Alert-critical polling — keeps a slower cadence while the tab is hidden so

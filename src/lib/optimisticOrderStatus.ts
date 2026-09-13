@@ -31,8 +31,11 @@ export function setOptimisticOrderStatus(orderNumber: string | number, status: s
 
 export function clearOptimisticOrderStatus(orderNumber: string | number) {
   const key = String(orderNumber ?? '').trim();
-  if (overrides.delete(key)) emit();
+  // Callers clear from inside render (status-merge memo); defer the notify so we
+  // never trigger a store update during React's render phase.
+  if (overrides.delete(key)) queueMicrotask(emit);
 }
+
 
 export function getOptimisticOrderStatus(orderNumber: string | number): string | undefined {
   const key = String(orderNumber ?? '').trim();

@@ -31064,6 +31064,7 @@ export type Database = {
         Args: { p_row_id: string }
         Returns: Json
       }
+      prune_terminal_telemetry: { Args: { p_batch?: number }; Returns: Json }
       re_escalate_terminal_order: {
         Args: {
           p_current_handler_id: string

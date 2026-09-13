@@ -30,6 +30,9 @@ export function useChatInboxUnread() {
         .length;
     },
     refetchInterval: 20000,
+    // Message alert sound must still fire while the tab is in the background.
+    refetchIntervalInBackground: true,
+
   });
 
   useEffect(() => {

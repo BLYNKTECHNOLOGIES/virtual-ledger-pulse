@@ -27,6 +27,11 @@ export function useTerminalAlerts({ actionableOrderIds, appealOrderIds, unreadMe
   const prevAppeals = useRef<Set<string> | null>(null);
   const prevUnread = useRef<number | null>(null);
 
+  // Keep the audio output primed so alert tones are audible even when the
+  // operator has switched to another tab or another application.
+  useEffect(() => initAlertAudioLifecycle(), []);
+
+
   // New actionable orders
   useEffect(() => {
     const current = new Set(actionableOrderIds);

@@ -84,6 +84,8 @@ export default {
 				'success': 'hsl(var(--success))',
 				'warning': 'hsl(var(--warning))',
 				'info': 'hsl(var(--info))',
+				'leave': 'hsl(var(--leave))',
+				'holiday': 'hsl(var(--holiday))',
 				'trade-buy': 'hsl(var(--trade-buy, var(--success)))',
 				'trade-sell': 'hsl(var(--trade-sell, var(--destructive)))',
 				'trade-pending': 'hsl(var(--trade-pending, var(--warning)))',

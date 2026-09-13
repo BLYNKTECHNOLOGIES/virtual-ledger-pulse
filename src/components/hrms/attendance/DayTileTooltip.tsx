@@ -16,11 +16,11 @@ export const DAY_STATUS_LABEL: Record<AttendanceDayStatus, string> = {
 /** Tailwind tile styles per engine status — semantic tokens only. */
 export const DAY_STATUS_TILE: Record<AttendanceDayStatus, string> = {
   present: "bg-success/15 text-success ring-1 ring-inset ring-success/30",
-  half_day: "bg-info/15 text-info ring-1 ring-inset ring-info/30",
+  half_day: "bg-warning/15 text-warning ring-1 ring-inset ring-warning/30",
   absent: "bg-destructive/15 text-destructive ring-1 ring-inset ring-destructive/30",
-  on_leave: "bg-primary/15 text-primary ring-1 ring-inset ring-primary/30",
+  on_leave: "bg-leave/15 text-leave ring-1 ring-inset ring-leave/30",
   week_off: "bg-muted/60 text-muted-foreground/70",
-  holiday: "bg-primary/10 text-primary ring-1 ring-inset ring-primary/20",
+  holiday: "bg-holiday/15 text-holiday ring-1 ring-inset ring-holiday/30",
   incomplete: "bg-warning/20 text-warning ring-1 ring-inset ring-warning/40",
   in_progress: "bg-warning/10 text-warning ring-1 ring-inset ring-warning/25",
   no_punch: "bg-muted/25 text-muted-foreground",
@@ -29,11 +29,11 @@ export const DAY_STATUS_TILE: Record<AttendanceDayStatus, string> = {
 
 export const DAY_STATUS_DOT: Record<AttendanceDayStatus, string> = {
   present: "bg-success",
-  half_day: "bg-info",
+  half_day: "bg-warning",
   absent: "bg-destructive",
-  on_leave: "bg-primary",
+  on_leave: "bg-leave",
   week_off: "bg-muted-foreground/40",
-  holiday: "bg-primary/60",
+  holiday: "bg-holiday",
   incomplete: "bg-warning",
   in_progress: "bg-warning/70",
   no_punch: "bg-muted-foreground/30",

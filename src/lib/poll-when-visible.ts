@@ -13,7 +13,20 @@
  */
 export function pollWhenVisible(ms: number) {
   return () => {
-    if (typeof document !== "undefined" && document.visibilityState === "hidden") return false;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return ms;
     return ms;
   };
 }
+
+/**
+ * Alert-critical polling — keeps a slower cadence while the tab is hidden so
+ * new orders / appeals / messages are still detected (and the notification
+ * sound still fires) when the operator is in another tab or another app.
+ */
+export function pollEvenWhenHidden(visibleMs: number, hiddenMs: number) {
+  return () => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return hiddenMs;
+    return visibleMs;
+  };
+}
+

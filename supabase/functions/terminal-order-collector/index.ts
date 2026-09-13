@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
         // a few pages to be sure recent orders are never crowded out by older
         // completed/cancelled rows on page 1.
         const PAGE_ROWS = 50;
-        const MAX_PAGES = 3;
+        const MAX_PAGES = deepScan ? 3 : 1;
         const orders: any[] = [];
         let pageFailed = false;
         for (let page = 1; page <= MAX_PAGES; page++) {

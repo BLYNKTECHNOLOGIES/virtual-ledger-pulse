@@ -945,6 +945,18 @@ function TerminalOrdersContent() {
       const recentStatus = orderNumber ? recentStatusMap.get(orderNumber) : undefined;
       const historyStatus = orderNumber ? historyStatusMap.get(orderNumber) : undefined;
       const staleDetailStatus = orderNumber ? staleDetailStatusMap[orderNumber] : undefined;
+      // Locally recorded status from an authoritative action we just performed
+      // (e.g. a successful release) — used only until the live feed catches up.
+      const optimisticStatus = orderNumber ? getOptimisticOrderStatus(orderNumber) : undefined;
+      if (optimisticStatus) {
+        const liveRank = Math.max(
+          getRank(liveStatus),
+          recentStatus ? getRank(recentStatus) : 0,
+          historyStatus ? getRank(historyStatus) : 0,
+          staleDetailStatus ? getRank(staleDetailStatus) : 0,
+        );
+        if (liveRank >= getRank(optimisticStatus)) clearOptimisticOrderStatus(orderNumber);
+      }
 
       // Prefer the most advanced status from any source
       const candidates = [
@@ -952,6 +964,7 @@ function TerminalOrdersContent() {
         ...(recentStatus ? [{ status: recentStatus, rank: getRank(recentStatus) }] : []),
         ...(historyStatus ? [{ status: historyStatus, rank: getRank(historyStatus) }] : []),
         ...(staleDetailStatus ? [{ status: staleDetailStatus, rank: getRank(staleDetailStatus) }] : []),
+        ...(optimisticStatus ? [{ status: optimisticStatus, rank: getRank(optimisticStatus) }] : []),
       ];
       // Pick the candidate with the highest rank (most progressed in lifecycle)
       const best = candidates.reduce((a, b) => b.rank > a.rank ? b : a, candidates[0]);

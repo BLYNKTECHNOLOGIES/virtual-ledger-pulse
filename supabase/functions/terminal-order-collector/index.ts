@@ -16,8 +16,11 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { resolveAccount, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 
 const RUN_BUDGET_MS = 52_000;
-const ACTIVE_TICK_MS = 4_500;
+// Fast cadence while orders are live: page 1 only (cheap) every tick, with a
+// deep multi-page sweep every 4th tick so paging cost stays flat.
+const ACTIVE_TICK_MS = 2_000;
 const IDLE_TICK_MS = 4_500;
+const DEEP_SCAN_EVERY = 4;
 const MAX_CONSECUTIVE_FAILURES = 5;
 
 function jsonResponse(body: unknown, status = 200) {
@@ -162,7 +165,7 @@ Deno.serve(async (req: Request) => {
   let tickCount = 0;
   let lastTotalOrders = 0;
 
-  const runTick = async (): Promise<{ totalOrders: number; failed: boolean }> => {
+  const runTick = async (deepScan = true): Promise<{ totalOrders: number; failed: boolean }> => {
     let totalOrders = 0;
     let anyFailure = false;
 
@@ -176,7 +179,7 @@ Deno.serve(async (req: Request) => {
         // a few pages to be sure recent orders are never crowded out by older
         // completed/cancelled rows on page 1.
         const PAGE_ROWS = 50;
-        const MAX_PAGES = 3;
+        const MAX_PAGES = deepScan ? 3 : 1;
         const orders: any[] = [];
         let pageFailed = false;
         for (let page = 1; page <= MAX_PAGES; page++) {
@@ -279,10 +282,15 @@ Deno.serve(async (req: Request) => {
 
         // Remove cached orders for this account that Binance no longer reports
         // as active (completed/cancelled since last tick).
-        const { data: existing } = await admin
-          .from("terminal_active_orders_cache")
-          .select("order_number")
-          .eq("exchange_account_id", resolved.id);
+        // On a shallow (page-1-only) tick we can only prune safely when page 1
+        // was not full — otherwise an active order could simply be on page 2.
+        const prunable = deepScan || orders.length < PAGE_ROWS;
+        const { data: existing } = prunable
+          ? await admin
+              .from("terminal_active_orders_cache")
+              .select("order_number")
+              .eq("exchange_account_id", resolved.id)
+          : { data: [] as any[] };
         const stale = (existing || [])
           .map((r: any) => r.order_number as string)
           .filter((n: string) => !seenNumbers.has(n));
@@ -350,7 +358,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     while (true) {
-      const { totalOrders, failed } = await runTick();
+      const { totalOrders, failed } = await runTick(tickCount % DEEP_SCAN_EVERY === 0);
       tickCount += 1;
       lastTotalOrders = totalOrders;
       consecutiveFailures = failed ? consecutiveFailures + 1 : 0;

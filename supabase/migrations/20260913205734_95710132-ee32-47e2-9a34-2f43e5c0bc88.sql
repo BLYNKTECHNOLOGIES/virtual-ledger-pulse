@@ -1,0 +1,1 @@
+ALTER TABLE public.terminal_active_orders_cache REPLICA IDENTITY FULL;

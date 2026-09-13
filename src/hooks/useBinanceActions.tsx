@@ -112,6 +112,7 @@ export function useReleaseCoin() {
 
       logAdAction({ actionType: AdActionTypes.ORDER_RELEASED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { authType: variables.authType } });
       const refresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['binance-order-history-fast'] });
         queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
         queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
         queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });

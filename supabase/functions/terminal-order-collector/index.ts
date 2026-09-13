@@ -212,7 +212,7 @@ Deno.serve(async (req: Request) => {
 
         const now = new Date().toISOString();
         const seenNumbers = new Set<string>();
-        const rows = [];
+        let rows = [];
         // Binance keeps returning finalized orders in listOrders for up to a
         // minute after completion/cancellation. Those must never live in the
         // ACTIVE cache or the terminal shows dead orders as pending.
@@ -244,6 +244,25 @@ Deno.serve(async (req: Request) => {
           });
         }
 
+        // listOrders may echo an active status briefly after release. Once our
+        // authoritative release path (or history sync) has recorded a terminal
+        // state, never resurrect that order in the active cache from a stale row.
+        if (rows.length > 0) {
+          const candidateNumbers = rows.map((row) => row.order_number);
+          const { data: terminalHistory, error: terminalHistoryError } = await admin
+            .from("binance_order_history")
+            .select("order_number")
+            .eq("exchange_account_id", resolved.id)
+            .in("order_number", candidateNumbers)
+            .in("order_status", ["COMPLETED", "CANCELLED", "CANCELLED_BY_SYSTEM", "RELEASED", "EXPIRED"]);
+          if (terminalHistoryError) throw terminalHistoryError;
+          const terminalNumbers = new Set((terminalHistory || []).map((row: any) => String(row.order_number)));
+          if (terminalNumbers.size > 0) {
+            rows = rows.filter((row) => !terminalNumbers.has(row.order_number));
+            for (const orderNumber of terminalNumbers) seenNumbers.delete(orderNumber);
+          }
+        }
+
         if (rows.length > 0) {
           const { error } = await admin
             .from("terminal_active_orders_cache")
@@ -271,11 +290,19 @@ Deno.serve(async (req: Request) => {
             byStatus.set(r.order_status, list);
           }
           for (const [status, numbers] of byStatus) {
-            const { error: updErr } = await admin
+            let statusUpdate = admin
               .from("binance_order_history")
               .update({ order_status: status, synced_at: now })
               .in("order_number", numbers)
               .neq("order_status", status);
+            if (!["COMPLETED", "CANCELLED", "CANCELLED_BY_SYSTEM", "RELEASED", "EXPIRED"].includes(status)) {
+              statusUpdate = statusUpdate.not(
+                "order_status",
+                "in",
+                '("COMPLETED","CANCELLED","CANCELLED_BY_SYSTEM","RELEASED","EXPIRED")',
+              );
+            }
+            const { error: updErr } = await statusUpdate;
             if (updErr) console.warn("history status refresh failed:", updErr.message);
           }
         }

@@ -90,7 +90,26 @@ export function useReleaseCoin() {
       // seconds after a successful release. The release response is
       // authoritative, so flip the row to COMPLETED immediately and then
       // re-poll in a short burst until the live feed catches up.
-      setOptimisticOrderStatus(variables.orderNumber, 'COMPLETED');
+      const releasedNumber = String(variables.orderNumber ?? '').trim();
+      setOptimisticOrderStatus(releasedNumber, 'COMPLETED');
+
+      // Belt-and-braces: physically drop the released order from every cached
+      // active-orders payload so the row cannot survive one more render even if
+      // the status-merge pipeline is bypassed anywhere.
+      const stripReleased = (payload: any): any => {
+        if (!payload) return payload;
+        const matches = (o: any) => String(o?.orderNumber ?? '').trim() === releasedNumber;
+        if (Array.isArray(payload)) return payload.filter((o) => !matches(o));
+        if (Array.isArray(payload?.data)) return { ...payload, data: payload.data.filter((o: any) => !matches(o)) };
+        return payload;
+      };
+      queryClient.setQueriesData({ queryKey: ['binance-active-orders'] }, stripReleased);
+
+      // The shared server cache row (terminal_active_orders_cache) is
+      // service-role owned — the collector prunes it on its next ~2s sweep and
+      // Realtime pushes the DELETE to every other operator.
+
+
       logAdAction({ actionType: AdActionTypes.ORDER_RELEASED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { authType: variables.authType } });
       const refresh = () => {
         queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
@@ -102,6 +121,7 @@ export function useReleaseCoin() {
       refresh();
       [1200, 3000, 6000].forEach((ms) => setTimeout(refresh, ms));
     },
+
     onError: (err: Error, variables) => {
       const isYubiKeyFlow =
         variables?.authType === 'YUBIKEY' ||

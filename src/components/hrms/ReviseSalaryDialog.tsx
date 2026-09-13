@@ -59,8 +59,13 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
   const qc = useQueryClient();
   const { user } = useAuth();
 
+  // Opened from one employee's profile: employee is fixed, statutory toggle and
+  // bulk CSV are out of scope.
+  const lockedToEmployee = !!presetEmployeeId;
+
   const [mode, setMode] = useState<Mode>("recurring");
   const [entryMode, setEntryMode] = useState<"single" | "bulk">("single");
+
 
   const [employeeId, setEmployeeId] = useState<string>("");
   const [revisionType, setRevisionType] = useState<string>("increment");
@@ -359,6 +364,12 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
       qc.invalidateQueries({ queryKey: ["hr_employees_for_revision"] });
       qc.invalidateQueries({ queryKey: ["data_health_unknown_enrollment"] });
       qc.invalidateQueries({ queryKey: ["hr_salary_push_latest"] });
+      // Keep the employee profile in sync with the Salary Revision page
+      qc.invalidateQueries({ queryKey: ["hr_employee_detail"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_work_info"] });
+      qc.invalidateQueries({ queryKey: ["hr_employee_salary_structure"] });
+      qc.invalidateQueries({ queryKey: ["rzp_payslips_emp"] });
+
 
       if (res?.kind === "recurring") {
         toast.success(
@@ -449,18 +460,21 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
         <DialogHeader>
           <DialogTitle>Compensation Change</DialogTitle>
           <DialogDescription>
-            Record a CTC change, stage an addition or deduction on a payroll month, log a one-time payout paid outside payroll, or toggle statutory enrollment (PF / ESI / PT).
+            Record a CTC change, stage an addition or deduction on a payroll month, log a one-time payout paid outside payroll
+            {lockedToEmployee ? "." : ", or toggle statutory enrollment (PF / ESI / PT)."}
           </DialogDescription>
         </DialogHeader>
 
-        {/* Mode toggle */}
+
+        {/* Mode toggle. Opened from a single employee's profile, the statutory
+            toggle is out of scope and the employee must stay fixed. */}
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted rounded-lg">
           {([
             { key: "recurring", label: "CTC change" },
             { key: "addition", label: "Addition" },
             { key: "deduction", label: "Deduction" },
             { key: "one_time", label: "One-time payout" },
-            { key: "statutory", label: "Statutory toggle" },
+            ...(lockedToEmployee ? [] : [{ key: "statutory" as Mode, label: "Statutory toggle" }]),
           ] as { key: Mode; label: string }[]).map((m) => (
             <button
               key={m.key}
@@ -476,7 +490,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
           ))}
         </div>
 
-        {/* Single vs bulk */}
+        {/* Single vs bulk — bulk cannot apply when the employee is fixed */}
+        {!lockedToEmployee && (
         <div className="grid grid-cols-2 gap-1.5 p-1 bg-muted rounded-lg">
           {([
             { key: "single", label: "Single entry" },
@@ -495,6 +510,8 @@ export function ReviseSalaryDialog({ open, onOpenChange, presetEmployeeId }: Pro
             </button>
           ))}
         </div>
+        )}
+
 
         {entryMode === "bulk" ? (
           <BulkCompensationPanel

@@ -16,8 +16,11 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { resolveAccount, listActiveAccounts, proxyHeadersFor } from "../_shared/binance-account.ts";
 
 const RUN_BUDGET_MS = 52_000;
-const ACTIVE_TICK_MS = 4_500;
+// Fast cadence while orders are live: page 1 only (cheap) every tick, with a
+// deep multi-page sweep every 4th tick so paging cost stays flat.
+const ACTIVE_TICK_MS = 2_000;
 const IDLE_TICK_MS = 4_500;
+const DEEP_SCAN_EVERY = 4;
 const MAX_CONSECUTIVE_FAILURES = 5;
 
 function jsonResponse(body: unknown, status = 200) {

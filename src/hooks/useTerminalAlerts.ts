@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import {
   getAlertPrefs, isAlertEnabled, playTone, fireBrowserNotification,
-  setUnreadIndicator, clearUnreadIndicator,
+  setUnreadIndicator, clearUnreadIndicator, initAlertAudioLifecycle,
 } from '@/lib/terminal-alerts';
+
 
 export interface TerminalAlertInputs {
   /** IDs of currently actionable (active, non-terminal) orders. */

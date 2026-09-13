@@ -165,7 +165,7 @@ Deno.serve(async (req: Request) => {
   let tickCount = 0;
   let lastTotalOrders = 0;
 
-  const runTick = async (): Promise<{ totalOrders: number; failed: boolean }> => {
+  const runTick = async (deepScan = true): Promise<{ totalOrders: number; failed: boolean }> => {
     let totalOrders = 0;
     let anyFailure = false;
 

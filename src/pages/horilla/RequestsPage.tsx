@@ -335,6 +335,11 @@ export default function RequestsPage() {
   );
 }
 
+function fmtRequested(ts: string | null | undefined): string {
+  if (!ts) return "—";
+  return new Date(ts).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+}
+
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid grid-cols-3 gap-2">

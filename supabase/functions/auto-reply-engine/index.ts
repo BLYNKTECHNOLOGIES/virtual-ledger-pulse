@@ -856,13 +856,27 @@ serve(async (req) => {
         chatCredential = await getChatCredentialWithRetry(BINANCE_PROXY_URL, proxyHeaders);
       }
 
-      // Send each message with verification
+      // Send each message with verification. A burst can queue more messages
+      // than one invocation can deliver; stop before the runtime kills us and
+      // hand the leftovers back so the next cycle sends them.
+      const sendDeadline = Date.now() + 110_000;
       let sentInThisRun = 0;
+      let deferred = 0;
       for (const pm of pendingMessages) {
+        if (Date.now() > sendDeadline) {
+          await supabase.from("p2p_auto_reply_processed")
+            .delete()
+            .eq("order_number", pm.orderNumber)
+            .eq("trigger_event", pm.event)
+            .eq("rule_id", pm.rule.id);
+          deferred++;
+          continue;
+        }
         // Space out consecutive chat sessions on the same account.
         if (sentInThisRun > 0) await new Promise((r) => setTimeout(r, 3000));
         sentInThisRun++;
         pm.sendTimestamp = Date.now();
+
         const result = await sendChatMessage(
           BINANCE_PROXY_URL,
           proxyHeaders,

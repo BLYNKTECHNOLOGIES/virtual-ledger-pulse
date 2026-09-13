@@ -2077,14 +2077,16 @@ function TerminalOrdersContent() {
                   })}
                 </TableBody>
               </Table>
-              {/* Infinite scroll sentinel */}
-              <div ref={loadMoreRef} className="h-4" />
-              {visibleCount < displayOrders.length && (
-                <div className="text-center py-3 text-xs text-muted-foreground">
-                  Loading more orders...
-                </div>
-              )}
             </div>}
+
+            {/* Infinite scroll sentinel (both list and mobile card views) */}
+            <div ref={loadMoreRef} className="h-4" />
+            {visibleCount < displayOrders.length && (
+              <div className="text-center py-3 text-xs text-muted-foreground">
+                Loading more orders...
+              </div>
+            )}
+
             </>
           )}
         </div>

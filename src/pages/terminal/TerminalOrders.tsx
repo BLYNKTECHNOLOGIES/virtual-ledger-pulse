@@ -28,6 +28,7 @@ import { format } from 'date-fns';
 import { DateRangePicker, getDateRangeFromPreset, type DateRangePreset } from '@/components/ui/date-range-picker';
 import type { DateRange } from 'react-day-picker';
 import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
+import { getOptimisticOrderStatus, clearOptimisticOrderStatus, useOptimisticOrderStatusVersion } from '@/lib/optimisticOrderStatus';
 import { useAlternateUpiRequests } from '@/hooks/usePayerModule';
 import { supabase } from '@/integrations/supabase/client';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
@@ -169,6 +170,8 @@ function TerminalOrdersContent() {
   const [queueMode, setQueueMode] = useState(() => !!readOrdersSession().queueMode);
   const [activeChatConv, setActiveChatConv] = useState<ChatConversation | null>(() => readOrdersSession().activeChatConv || null);
   const [chatReadVersion, setChatReadVersion] = useState(0);
+  // Bumps when a just-released order gets an optimistic COMPLETED status.
+  const optimisticStatusVersion = useOptimisticOrderStatusVersion();
   const [visibleCount, setVisibleCount] = useState(50);
   const [assignDialogOrder, setAssignDialogOrder] = useState<P2POrderRecord | null>(null);
   const [focusedOrderId, setFocusedOrderId] = useState<string | null>(null);
@@ -944,6 +947,18 @@ function TerminalOrdersContent() {
       const recentStatus = orderNumber ? recentStatusMap.get(orderNumber) : undefined;
       const historyStatus = orderNumber ? historyStatusMap.get(orderNumber) : undefined;
       const staleDetailStatus = orderNumber ? staleDetailStatusMap[orderNumber] : undefined;
+      // Locally recorded status from an authoritative action we just performed
+      // (e.g. a successful release) — used only until the live feed catches up.
+      const optimisticStatus = orderNumber ? getOptimisticOrderStatus(orderNumber) : undefined;
+      if (optimisticStatus) {
+        const liveRank = Math.max(
+          getRank(liveStatus),
+          recentStatus ? getRank(recentStatus) : 0,
+          historyStatus ? getRank(historyStatus) : 0,
+          staleDetailStatus ? getRank(staleDetailStatus) : 0,
+        );
+        if (liveRank >= getRank(optimisticStatus)) clearOptimisticOrderStatus(orderNumber);
+      }
 
       // Prefer the most advanced status from any source
       const candidates = [
@@ -951,6 +966,7 @@ function TerminalOrdersContent() {
         ...(recentStatus ? [{ status: recentStatus, rank: getRank(recentStatus) }] : []),
         ...(historyStatus ? [{ status: historyStatus, rank: getRank(historyStatus) }] : []),
         ...(staleDetailStatus ? [{ status: staleDetailStatus, rank: getRank(staleDetailStatus) }] : []),
+        ...(optimisticStatus ? [{ status: optimisticStatus, rank: getRank(optimisticStatus) }] : []),
       ];
       // Pick the candidate with the highest rank (most progressed in lifecycle)
       const best = candidates.reduce((a, b) => b.rank > a.rank ? b : a, candidates[0]);
@@ -1071,7 +1087,7 @@ function TerminalOrdersContent() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, optimisticStatusVersion, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
   useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);

@@ -7,6 +7,7 @@ import { logAdAction, AdActionTypes } from '@/hooks/useAdActionLog';
 import { withActiveAccount } from '@/lib/activeExchangeAccount';
 import { useExchangeAccount } from '@/contexts/ExchangeAccountContext';
 import { useTerminalCollectorState, isCollectorStale } from '@/hooks/useTerminalCollector';
+import { setOptimisticOrderStatus } from '@/lib/optimisticOrderStatus';
 
 // ---- Generic Binance API caller ----
 // Hard client-side timeout: if the upstream Binance proxy hangs (we have seen
@@ -85,11 +86,21 @@ export function useReleaseCoin() {
     },
     onSuccess: (_data, variables) => {
       toast.success('Crypto released successfully');
+      // Binance's order-list endpoint can keep echoing BUYER_PAYED for a few
+      // seconds after a successful release. The release response is
+      // authoritative, so flip the row to COMPLETED immediately and then
+      // re-poll in a short burst until the live feed catches up.
+      setOptimisticOrderStatus(variables.orderNumber, 'COMPLETED');
       logAdAction({ actionType: AdActionTypes.ORDER_RELEASED, advNo: variables.orderNumber, adDetails: { orderNumber: variables.orderNumber }, metadata: { authType: variables.authType } });
-      queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
-      queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
-      queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
+      const refresh = () => {
+        queryClient.invalidateQueries({ queryKey: ['binance-order-history-bulk'] });
+        queryClient.invalidateQueries({ queryKey: ['p2p-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['binance-active-orders'] });
+        queryClient.invalidateQueries({ queryKey: ['binance-order-detail'] });
+        queryClient.invalidateQueries({ queryKey: ['binance-order-history-recent'] });
+      };
+      refresh();
+      [1200, 3000, 6000].forEach((ms) => setTimeout(refresh, ms));
     },
     onError: (err: Error, variables) => {
       const isYubiKeyFlow =

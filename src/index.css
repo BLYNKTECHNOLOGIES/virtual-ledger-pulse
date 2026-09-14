@@ -2265,11 +2265,12 @@ html {
 .ds-nav-row[data-contains-active="true"] .ds-nav-icon { color: hsl(var(--primary)); }
 .ds-nav-row[data-contains-active="true"] { color: hsl(var(--sidebar-accent-foreground)); font-weight: 500; }
 
-/* Collapsed (icon) mode */
+/* Collapsed (icon) mode — height matches the expanded row (28px icon + 12px
+   padding) so icons never shift vertically when the sidebar toggles. */
 .ds-nav-row[data-collapsed="true"] {
   justify-content: center;
   width: 36px;
-  height: 36px;
+  height: 40px;
   padding: 0;
   gap: 0;
 }

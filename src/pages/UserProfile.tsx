@@ -819,7 +819,8 @@ export default function UserProfile() {
   const applyLeaveMutation = useMutation({
     mutationFn: async (req: typeof leaveRequest) => {
       if (!hrEmployee?.id) throw new Error('No HRMS employee profile linked');
-      if (!req.leave_type_id || !req.from_date || !req.to_date) throw new Error('Please fill all required fields');
+      // Half-day requests intentionally have no end date — the single date covers it.
+      if (!req.leave_type_id || !req.from_date || (!req.is_half_day && !req.to_date)) throw new Error('Please fill all required fields');
 
       const start = new Date(req.from_date);
       const end = req.is_half_day ? start : new Date(req.to_date);

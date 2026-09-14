@@ -309,25 +309,35 @@ Deno.serve(async (req: Request) => {
 
         // Remove cached orders for this account that Binance no longer reports
         // as active (completed/cancelled since last tick).
-        // On a shallow (page-1-only) tick we can only prune safely when page 1
-        // was not full — otherwise an active order could simply be on page 2.
-        const prunable = deepScan || orders.length < PAGE_ROWS;
-        const { data: existing } = prunable
-          ? await admin
-              .from("terminal_active_orders_cache")
-              .select("order_number")
-              .eq("exchange_account_id", resolved.id)
-          : { data: [] as any[] };
-        const stale = (existing || [])
-          .map((r: any) => r.order_number as string)
-          .filter((n: string) => !seenNumbers.has(n));
-        if (stale.length > 0) {
+        // A shallow tick only sees page 1, and Binance caps the page size well
+        // below PAGE_ROWS, so "page not full" is never a reliable signal that we
+        // saw every active order. Therefore:
+        //  - shallow tick: only evict orders page 1 explicitly reported as final,
+        //  - deep tick (all pages): full stale sweep.
+        if (finalNumbers.size > 0) {
           await admin
             .from("terminal_active_orders_cache")
             .delete()
             .eq("exchange_account_id", resolved.id)
-            .in("order_number", stale);
+            .in("order_number", Array.from(finalNumbers));
         }
+        if (deepScan) {
+          const { data: existing } = await admin
+            .from("terminal_active_orders_cache")
+            .select("order_number")
+            .eq("exchange_account_id", resolved.id);
+          const stale = (existing || [])
+            .map((r: any) => r.order_number as string)
+            .filter((n: string) => !seenNumbers.has(n));
+          if (stale.length > 0) {
+            await admin
+              .from("terminal_active_orders_cache")
+              .delete()
+              .eq("exchange_account_id", resolved.id)
+              .in("order_number", stale);
+          }
+        }
+
       } catch (err) {
         anyFailure = true;
         console.warn(`collector tick error for account ${account.id}:`, err);

@@ -57,6 +57,7 @@ type TemplateItem = {
 };
 
 export function ResignationTab() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [subTab, setSubTab] = useState("pending");
   const [showInitiateDialog, setShowInitiateDialog] = useState(false);
   const [showChecklistDialog, setShowChecklistDialog] = useState(false);

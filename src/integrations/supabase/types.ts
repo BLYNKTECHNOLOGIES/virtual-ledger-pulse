@@ -28594,6 +28594,7 @@ export type Database = {
       }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       cleanup_terminal_stale_data: { Args: never; Returns: undefined }
+      compact_ad_state_snapshots: { Args: never; Returns: undefined }
       compare_snapshots: {
         Args: { p_snapshot_id_new: string; p_snapshot_id_old: string }
         Returns: {

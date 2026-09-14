@@ -230,11 +230,13 @@ Deno.serve(async (req: Request) => {
             s.includes("TIMEOUT")
           );
         };
+        const finalNumbers = new Set<string>();
         for (const order of orders) {
           const orderNumber = orderNumberOf(order);
           if (!orderNumber) continue;
-          if (isFinalOrder(order)) continue; // pruned below via stale sweep
+          if (isFinalOrder(order)) { finalNumbers.add(orderNumber); continue; }
           seenNumbers.add(orderNumber);
+
           rows.push({
             exchange_account_id: resolved.id,
             order_number: orderNumber,

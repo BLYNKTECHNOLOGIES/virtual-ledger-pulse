@@ -78,6 +78,18 @@ export function ResignationTab() {
   const [confirmAction, setConfirmAction] = useState<{ type: string; id: string; label: string } | null>(null);
   const queryClient = useQueryClient();
 
+  // Deep link from an employee profile: /hrms/employee/separation?initiate=<employeeId>
+  useEffect(() => {
+    const initiateFor = searchParams.get("initiate");
+    if (!initiateFor) return;
+    setFormData((prev) => ({ ...prev, employee_id: initiateFor }));
+    setShowInitiateDialog(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("initiate");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
+
+
   // Fetch employees with resignation data
   const { data: resigningEmployees, isLoading } = useQuery({
     queryKey: ["resignation-employees"],

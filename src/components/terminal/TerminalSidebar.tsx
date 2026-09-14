@@ -141,7 +141,10 @@ export function TerminalSidebar() {
           {/* Always rendered so collapsed and expanded layouts keep identical
               vertical rhythm — shadcn hides this label visually in icon mode
               without removing its space, preventing icon shift on toggle. */}
-          <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground px-3 mb-1">
+          {/* group-data-[collapsible=icon]:!mt-0 keeps the label's 32px of
+              vertical space in icon mode (invisible, but present), so collapsed
+              and expanded icons share the exact same Y positions. */}
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground px-3 mb-1 group-data-[collapsible=icon]:!mt-0">
             Operations
           </SidebarGroupLabel>
           <SidebarGroupContent>

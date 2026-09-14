@@ -1018,19 +1018,20 @@ export default function EmployeeProfilePage() {
                     <InfoRow label="Badge ID" value={emp.badge_id != null ? String(emp.badge_id) : null} editKey="badge_id" />
                     <div className="py-2">
                       <p className="text-xs text-muted-foreground">Status</p>
-                      {editing ? (
-                        <button
-                          type="button"
-                          onClick={() => setEditForm({ ...editForm, is_active: !(editForm.is_active ?? emp.is_active) })}
-                          className={`mt-1 text-xs font-medium px-3 py-1 rounded-full transition-colors ${
-                            (editForm.is_active ?? emp.is_active) ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                          }`}
-                        >
-                          {(editForm.is_active ?? emp.is_active) ? "Active" : "Inactive"}
-                        </button>
-                      ) : (
-                        <p className="text-sm font-medium text-foreground">{emp.is_active ? "Active" : "Inactive"}</p>
-                      )}
+                       <div className="mt-1 flex items-center gap-2 flex-wrap">
+                         <span className={`text-xs font-medium px-3 py-1 rounded-full ${emp.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
+                           {emp.is_active ? "Active" : "Inactive"}
+                         </span>
+                         {emp.is_active && !emp.resignation_status && (
+                           <button
+                             type="button"
+                             onClick={() => navigate(`/hrms/employee/separation?initiate=${emp.id}`)}
+                             className="text-xs font-medium text-[#00bcd4] hover:underline"
+                           >
+                             Start Separation
+                           </button>
+                         )}
+                       </div>
                     </div>
                     <InfoRow label="First Name" value={emp.first_name} editKey="first_name" />
                     <InfoRow label="Last Name" value={emp.last_name} editKey="last_name" />

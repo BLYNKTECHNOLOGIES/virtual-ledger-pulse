@@ -16,4 +16,4 @@
 - [x] Terminal stale chat-list preview: opened-thread history sync now invalidates inbox/message caches, and returning to the inbox always fetches current stored chronology
 - [x] Add lazy loading to approval and approval history blocks (keep counts correct) — ClientOnboardingApprovals; counts via get_buyer_onboarding_approval_counts RPC, history rows lazy via IntersectionObserver, both tables render 50 rows + Load more
 
-# New: Terminal sidebar — icon positions must be identical collapsed vs expanded (avoid misclicks). Small UI fix, after DB memory plan phases.
+# [x] Terminal sidebar: collapsed/expanded icon Y-positions identical (label space preserved, 40px rows both modes, unified header padding + gap)

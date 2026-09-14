@@ -117,7 +117,7 @@ export function TerminalSidebar() {
   return (
     <Sidebar className="border-r border-sidebar-border" collapsible="icon">
       <SidebarHeader
-        className={`border-b border-sidebar-border ${isCollapsed ? 'px-0 py-3' : 'px-4 py-3.5'}`}
+        className={`border-b border-sidebar-border py-3.5 ${isCollapsed ? 'px-0' : 'px-4'}`}
       >
         <Link
           to="/terminal"
@@ -138,13 +138,17 @@ export function TerminalSidebar() {
 
       <SidebarContent className={`ds-nav-scroll overflow-x-hidden py-2.5 ${isCollapsed ? 'px-0' : 'px-2'}`}>
         <SidebarGroup className={isCollapsed ? 'px-0' : undefined}>
-          {!isCollapsed && (
-            <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground px-3 mb-1">
-              Operations
-            </SidebarGroupLabel>
-          )}
+          {/* Always rendered so collapsed and expanded layouts keep identical
+              vertical rhythm — shadcn hides this label visually in icon mode
+              without removing its space, preventing icon shift on toggle. */}
+          {/* group-data-[collapsible=icon]:!mt-0 keeps the label's 32px of
+              vertical space in icon mode (invisible, but present), so collapsed
+              and expanded icons share the exact same Y positions. */}
+          <SidebarGroupLabel className="text-[10px] uppercase tracking-[0.14em] text-sidebar-foreground px-3 mb-1 group-data-[collapsible=icon]:!mt-0">
+            Operations
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className={isCollapsed ? 'gap-1.5 items-center' : 'gap-0.5'}>
+            <SidebarMenu className={`gap-0.5 ${isCollapsed ? 'items-center' : ''}`}>
               {visibleItems.map((item) => {
                 const active = isActive(item.url);
                 const count = countFor(item);
@@ -154,7 +158,7 @@ export function TerminalSidebar() {
                       asChild
                       isActive={active}
                       tooltip={isCollapsed ? item.title : undefined}
-                      className="h-auto p-0 hover:bg-transparent group-data-[collapsible=icon]:!size-9 group-data-[collapsible=icon]:!p-0"
+                      className="h-auto p-0 hover:bg-transparent group-data-[collapsible=icon]:!w-9 group-data-[collapsible=icon]:!h-10 group-data-[collapsible=icon]:!p-0"
                     >
                       <Link
                         to={item.url}

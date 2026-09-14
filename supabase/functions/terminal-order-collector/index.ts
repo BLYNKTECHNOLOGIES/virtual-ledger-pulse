@@ -261,8 +261,12 @@ Deno.serve(async (req: Request) => {
           const terminalNumbers = new Set((terminalHistory || []).map((row: any) => String(row.order_number)));
           if (terminalNumbers.size > 0) {
             rows = rows.filter((row) => !terminalNumbers.has(row.order_number));
-            for (const orderNumber of terminalNumbers) seenNumbers.delete(orderNumber);
+            for (const orderNumber of terminalNumbers) {
+              seenNumbers.delete(orderNumber);
+              finalNumbers.add(orderNumber);
+            }
           }
+
         }
 
         if (rows.length > 0) {

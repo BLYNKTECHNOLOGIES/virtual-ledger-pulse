@@ -23642,17 +23642,20 @@ export type Database = {
           hollow_reasons: string[]
           id: string
           is_online: boolean
+          is_private: boolean
           ist_date: string
           market_ref_price: number | null
           max_single_trans_amount: number | null
           min_single_trans_amount: number | null
           minute: string
           pay_method_count: number | null
+          pay_methods: string[] | null
           price: number | null
           price_gap_pct: number | null
           shift_key: string | null
           side: string
           surplus_amount: number | null
+          zone: string | null
         }
         Insert: {
           ad_class: string
@@ -23665,17 +23668,20 @@ export type Database = {
           hollow_reasons?: string[]
           id?: string
           is_online?: boolean
+          is_private?: boolean
           ist_date: string
           market_ref_price?: number | null
           max_single_trans_amount?: number | null
           min_single_trans_amount?: number | null
           minute: string
           pay_method_count?: number | null
+          pay_methods?: string[] | null
           price?: number | null
           price_gap_pct?: number | null
           shift_key?: string | null
           side: string
           surplus_amount?: number | null
+          zone?: string | null
         }
         Update: {
           ad_class?: string
@@ -23688,17 +23694,20 @@ export type Database = {
           hollow_reasons?: string[]
           id?: string
           is_online?: boolean
+          is_private?: boolean
           ist_date?: string
           market_ref_price?: number | null
           max_single_trans_amount?: number | null
           min_single_trans_amount?: number | null
           minute?: string
           pay_method_count?: number | null
+          pay_methods?: string[] | null
           price?: number | null
           price_gap_pct?: number | null
           shift_key?: string | null
           side?: string
           surplus_amount?: number | null
+          zone?: string | null
         }
         Relationships: []
       }
@@ -23738,6 +23747,8 @@ export type Database = {
       terminal_ad_uptime_shift_summary: {
         Row: {
           ad_class: string
+          category_score: number
+          concurrency_cap: number
           created_at: string
           down_minutes: number
           downtime_episodes: Json
@@ -23749,8 +23760,13 @@ export type Database = {
           id: string
           ist_date: string
           measured_minutes: number
+          minutes_one: number
+          minutes_three_plus: number
+          minutes_two: number
           offline_minutes: number
           partial_coverage_minutes: number
+          peak_concurrent: number
+          private_minutes: number
           shift_key: string
           shift_minutes: number
           unmeasured_minutes: number
@@ -23759,6 +23775,8 @@ export type Database = {
         }
         Insert: {
           ad_class: string
+          category_score?: number
+          concurrency_cap?: number
           created_at?: string
           down_minutes?: number
           downtime_episodes?: Json
@@ -23770,8 +23788,13 @@ export type Database = {
           id?: string
           ist_date: string
           measured_minutes?: number
+          minutes_one?: number
+          minutes_three_plus?: number
+          minutes_two?: number
           offline_minutes?: number
           partial_coverage_minutes?: number
+          peak_concurrent?: number
+          private_minutes?: number
           shift_key: string
           shift_minutes?: number
           unmeasured_minutes?: number
@@ -23780,6 +23803,8 @@ export type Database = {
         }
         Update: {
           ad_class?: string
+          category_score?: number
+          concurrency_cap?: number
           created_at?: string
           down_minutes?: number
           downtime_episodes?: Json
@@ -23791,8 +23816,13 @@ export type Database = {
           id?: string
           ist_date?: string
           measured_minutes?: number
+          minutes_one?: number
+          minutes_three_plus?: number
+          minutes_two?: number
           offline_minutes?: number
           partial_coverage_minutes?: number
+          peak_concurrent?: number
+          private_minutes?: number
           shift_key?: string
           shift_minutes?: number
           unmeasured_minutes?: number
@@ -29509,6 +29539,16 @@ export type Database = {
         }[]
       }
       get_ad_pricing_health: { Args: never; Returns: Json }
+      get_ad_uptime_shift_score: {
+        Args: { p_account?: string; p_from: string; p_to: string }
+        Returns: {
+          blended_score: number
+          categories: Json
+          ist_date: string
+          shift_key: string
+          weight_covered: number
+        }[]
+      }
       get_ad_uptime_timeline: {
         Args: {
           p_account?: string
@@ -29517,11 +29557,11 @@ export type Database = {
           p_date: string
         }
         Returns: {
+          active_ads: number
           ads_expected: number
           bucket_start: string
-          effective_ads: number
-          hollow_ads: number
           offline_ads: number
+          private_ads: number
           samples: number
           shift_key: string
         }[]

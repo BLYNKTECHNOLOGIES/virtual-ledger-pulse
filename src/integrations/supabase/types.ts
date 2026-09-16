@@ -31542,6 +31542,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: Json
       }
+      sync_terminal_shift_windows: { Args: never; Returns: undefined }
       sync_usdt_stock: { Args: never; Returns: undefined }
       terminal_ad_zone_map: {
         Args: never

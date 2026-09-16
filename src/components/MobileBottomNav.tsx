@@ -63,6 +63,8 @@ export function MobileBottomNav() {
   const [isOpen, setIsOpen] = useState(false);
   const { hasAnyPermission, isLoading } = usePermissions();
   const { isAdmin } = useAuth();
+  const { hasAccess: canReconcile } = useErpReconciliationAccess();
+
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
   const canAccess = (permissions: string[]) =>

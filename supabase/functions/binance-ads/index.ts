@@ -2156,8 +2156,10 @@ serve(async (req) => {
           const verifyParams = new URLSearchParams({ orderNo, page: "1", rows: "50", sort: "desc" });
           const verifyUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${verifyParams.toString()}`;
           for (let attempt = 0; attempt < 3; attempt++) {
-            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1200));
-            const verifyResponse = await fetchWithRetry(verifyUrl, { method: "GET", headers: proxyHeaders });
+            if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 700));
+            // Single attempt with a short timeout — retries here previously let
+            // the whole send flow blow past the browser's timeout window.
+            const verifyResponse = await fetchWithRetry(verifyUrl, { method: "GET", headers: proxyHeaders }, 0, 0, 8000);
             const verifyText = await verifyResponse.text();
             let verifyBody: any = null;
             try { verifyBody = JSON.parse(verifyText); } catch { /* handled as not verified */ }
@@ -2198,7 +2200,7 @@ serve(async (req) => {
         let response: Response | { status: number } = { status: 404 };
         let text = "Image/card messages use WebSocket delivery";
         if (!payload.imageUrl && !isCard) {
-          response = await fetchWithRetry(sendMsgUrl, { method: "POST", headers: proxyHeaders });
+          response = await fetchWithRetry(sendMsgUrl, { method: "POST", headers: proxyHeaders }, 0, 0, 8000);
           text = await response.text();
         }
         console.log("sendChatMessage proxy response:", response.status, text.substring(0, 500));
@@ -2224,7 +2226,7 @@ serve(async (req) => {
           // Credentials must be obtained through the account-aware Lightsail proxy. A direct
           // request from the edge runtime can use the wrong egress IP and bypass account routing.
           const credUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatCredential`;
-          const credRes = await fetchWithRetry(credUrl, { method: "GET", headers: proxyHeaders });
+          const credRes = await fetchWithRetry(credUrl, { method: "GET", headers: proxyHeaders }, 0, 0, 8000);
           const credText = await credRes.text();
           console.log("getChatCredential:", credRes.status, credText.substring(0, 500));
           
@@ -2241,8 +2243,8 @@ serve(async (req) => {
             const wsResult = await new Promise<{ success: boolean; error?: string }>((resolve) => {
               const wsTimeout = setTimeout(() => {
                 try { ws.close(); } catch {}
-                resolve({ success: false, error: "WebSocket timeout (8s)" });
-              }, 8000);
+                resolve({ success: false, error: "WebSocket timeout (6s)" });
+              }, 6000);
 
               const ws = new WebSocket(wssUrl);
               ws.onopen = () => {

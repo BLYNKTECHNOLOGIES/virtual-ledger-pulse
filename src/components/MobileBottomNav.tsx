@@ -1,4 +1,4 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset, Sparkles } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset, Sparkles, Mail, Keyboard, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { isNavActive } from "@/lib/navActive";
 import { useMemo, useState } from "react";
@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+
 
 interface MobileNavItem {
   title: string;
@@ -44,13 +46,27 @@ const moreNavItems: MobileNavItem[] = [
   { title: "AI Help", url: "/help-assistant", icon: Sparkles, permissions: ["help_assistant_view", "help_assistant_manage"] },
   { title: "ERP Entry", url: "/erp-entry", icon: Inbox, permissions: ["erp_entry_view", "erp_entry_manage"] },
   { title: "Utility", url: "/utility", icon: Wrench, permissions: ["utility_view"] },
+  // Kept in sync with the desktop sidebar so nothing is desktop-only on mobile.
+  { title: "Report Formats", url: "/settings/report-formats", icon: Mail, permissions: ["report_formats_manage"] },
+  { title: "Shortcuts", url: "/shortcuts", icon: Keyboard, permissions: [], alwaysVisible: true },
 ];
+
+/** Reconciliation is gated by a system function, not a plain permission string. */
+const reconciliationNavItem: MobileNavItem = {
+  title: "Reconciliation",
+  url: "/reconciliation",
+  icon: ShieldCheck,
+  permissions: [],
+};
+
 
 export function MobileBottomNav() {
   const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const { hasAnyPermission, isLoading } = usePermissions();
   const { isAdmin } = useAuth();
+  const { hasAccess: canReconcile } = useErpReconciliationAccess();
+
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
   const canAccess = (permissions: string[]) =>
@@ -62,9 +78,14 @@ export function MobileBottomNav() {
   );
 
   const visibleMoreNavItems = useMemo(
-    () => moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
-    [hasAnyPermission, isAdmin]
+    () => {
+      const items = moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions));
+      if (canReconcile) items.push(reconciliationNavItem);
+      return items;
+    },
+    [hasAnyPermission, isAdmin, canReconcile]
   );
+
 
   if (isLoading && !isAdmin) return null;
 

@@ -312,6 +312,23 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
             </Select>
           </div>
 
+          <div className="space-y-1">
+            <Label>Also mark this day as <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Select value={dayMark} onValueChange={(v) => setDayMark(v as typeof dayMark)}>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Leave the day as the system calculated it</SelectItem>
+                <SelectItem value="present">Present (full day)</SelectItem>
+                <SelectItem value="half_day">Half day</SelectItem>
+                <SelectItem value="absent">Absent</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Use this when the approved times alone would read wrong — e.g. an off-site half shift that should still
+              count as a half day. The marking is audited with your reason.
+            </p>
+          </div>
+
           {evidence && !evidence.evidence_ok && (
             <div className="space-y-1">
               <Label>Override reason * <span className="text-warning">(audited)</span></Label>

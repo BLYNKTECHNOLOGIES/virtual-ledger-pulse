@@ -251,7 +251,13 @@ function TerminalOrdersContent() {
   const assignmentFilter = orderPrefs.assignmentFilter;
   const mobileView = orderPrefs.mobileView === 'cards' ? 'cards' : 'list';
   const setTradeFilter = (v: string) => setOrderPref('tradeFilter', v);
-  const setStatusFilter = (v: string) => setOrderPref('statusFilter', v);
+  const setStatusFilter = (v: string) => {
+    setOrderPref('statusFilter', v);
+    // Sub-filter defaults back to "All" whenever the status tab changes
+    setOrderPref('activeSubFilter', 'all');
+  };
+  const activeSubFilter = orderPrefs.activeSubFilter || 'all';
+  const setActiveSubFilter = (v: string) => setOrderPref('activeSubFilter', v);
   const setAssignmentFilter = (v: string) => setOrderPref('assignmentFilter', v);
   const setMobileView = (v: 'list' | 'cards') => setOrderPref('mobileView', v);
 

@@ -44,7 +44,19 @@ const moreNavItems: MobileNavItem[] = [
   { title: "AI Help", url: "/help-assistant", icon: Sparkles, permissions: ["help_assistant_view", "help_assistant_manage"] },
   { title: "ERP Entry", url: "/erp-entry", icon: Inbox, permissions: ["erp_entry_view", "erp_entry_manage"] },
   { title: "Utility", url: "/utility", icon: Wrench, permissions: ["utility_view"] },
+  // Kept in sync with the desktop sidebar so nothing is desktop-only on mobile.
+  { title: "Report Formats", url: "/settings/report-formats", icon: Mail, permissions: ["report_formats_manage"] },
+  { title: "Shortcuts", url: "/shortcuts", icon: Keyboard, permissions: [], alwaysVisible: true },
 ];
+
+/** Reconciliation is gated by a system function, not a plain permission string. */
+const reconciliationNavItem: MobileNavItem = {
+  title: "Reconciliation",
+  url: "/reconciliation",
+  icon: ShieldCheck,
+  permissions: [],
+};
+
 
 export function MobileBottomNav() {
   const location = useLocation();

@@ -244,14 +244,21 @@ function TerminalOrdersContent() {
   const queryClient = useQueryClient();
 
   // Persisted per-user filter preferences
-  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'active' as string, assignmentFilter: 'all' as string, mobileView: 'list' as string };
+  const ORDER_PREF_DEFAULTS = { tradeFilter: 'all' as string, statusFilter: 'active' as string, activeSubFilter: 'all' as string, assignmentFilter: 'all' as string, mobileView: 'list' as string };
   const [orderPrefs, setOrderPref] = useTerminalUserPrefs(userId, 'orders', ORDER_PREF_DEFAULTS);
   const tradeFilter = orderPrefs.tradeFilter;
   const statusFilter = orderPrefs.statusFilter;
   const assignmentFilter = orderPrefs.assignmentFilter;
   const mobileView = orderPrefs.mobileView === 'cards' ? 'cards' : 'list';
   const setTradeFilter = (v: string) => setOrderPref('tradeFilter', v);
-  const setStatusFilter = (v: string) => setOrderPref('statusFilter', v);
+  const setStatusFilter = (v: string) => {
+    setOrderPref('statusFilter', v);
+    // Sub-filter defaults back to "All" whenever the status tab changes
+    setOrderPref('activeSubFilter', 'all');
+  };
+  const activeSubFilter = orderPrefs.activeSubFilter || 'all';
+  const setActiveSubFilter = (v: string) => setOrderPref('activeSubFilter', v);
+  const activeSubCountsRef = useRef({ all: 0, unpaid: 0, paid: 0, appeal: 0 });
   const setAssignmentFilter = (v: string) => setOrderPref('assignmentFilter', v);
   const setMobileView = (v: 'list' | 'cards') => setOrderPref('mobileView', v);
 
@@ -989,6 +996,29 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Tally Active sub-filter counts (before applying the sub-filter)
+    if (statusFilter === 'active') {
+      const counts = { all: enriched.length, unpaid: 0, paid: 0, appeal: 0 };
+      for (const o of enriched) {
+        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
+        if (op === 'Pending Payment') counts.unpaid++;
+        else if (op === 'Releasing' || op === 'Pending Release') counts.paid++;
+        else if (op === 'Under Appeal') counts.appeal++;
+      }
+      activeSubCountsRef.current = counts;
+    }
+
+    // Active sub-filter: Unpaid (Pending Payment), Paid (buyer paid, awaiting release), Appeal
+    if (statusFilter === 'active' && activeSubFilter !== 'all') {
+      enriched = enriched.filter(o => {
+        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
+        if (activeSubFilter === 'unpaid') return op === 'Pending Payment';
+        if (activeSubFilter === 'paid') return op === 'Releasing' || op === 'Pending Release';
+        if (activeSubFilter === 'appeal') return op === 'Under Appeal';
+        return true;
+      });
+    }
+
     if (search) {
       const q = search.toLowerCase();
       enriched = enriched.filter(o => {
@@ -1087,10 +1117,10 @@ function TerminalOrdersContent() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, optimisticStatusVersion, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, activeSubFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, optimisticStatusVersion, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);
+  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, activeSubFilter, search, dateRange]);
 
   // Infinite scroll: load more when scrolling near bottom
   const loadMoreRef = useRef<HTMLDivElement>(null);
@@ -1577,6 +1607,25 @@ function TerminalOrdersContent() {
             <TabsTrigger value="cancelled" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Cancelled</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {statusFilter === 'active' && (
+          <Tabs value={activeSubFilter} onValueChange={setActiveSubFilter}>
+            <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+              <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                All <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.all}</span>
+              </TabsTrigger>
+              <TabsTrigger value="unpaid" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                Unpaid <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.unpaid}</span>
+              </TabsTrigger>
+              <TabsTrigger value="paid" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                Paid <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.paid}</span>
+              </TabsTrigger>
+              <TabsTrigger value="appeal" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                Appeal <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.appeal}</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
         <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter}>
           <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">

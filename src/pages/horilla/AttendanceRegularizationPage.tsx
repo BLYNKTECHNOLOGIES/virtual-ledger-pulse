@@ -47,6 +47,7 @@ export default function AttendanceRegularizationPage() {
   const [reviewing, setReviewing] = useState<any>(null);
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
   const [reasonCode, setReasonCode] = useState<string>('');
+  const [dayMark, setDayMark] = useState<'none' | 'present' | 'half_day' | 'absent'>('none');
   // F4 · propose-and-validate
   const [evidence, setEvidence] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
@@ -250,6 +251,17 @@ export default function AttendanceRegularizationPage() {
         })
         .eq('id', reviewing.id);
       if (error) throw error;
+
+      // Optional day marking applied together with the approval.
+      if (decision === 'approved' && dayMark !== 'none') {
+        const { error: markErr } = await (supabase as any).rpc('hr_set_manual_day_status', {
+          p_employee_id: reviewing.employee_id,
+          p_date: reviewing.attendance_date,
+          p_status: dayMark,
+          p_reason: `Regularization approval: ${auditNote}`,
+        });
+        if (markErr) throw new Error(`Approved, but the day could not be marked: ${markErr.message}`);
+      }
 
       await (supabase as any).from('hr_attendance_intervention_log').insert({
         request_id: reviewing.id,

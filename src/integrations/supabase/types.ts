@@ -23711,6 +23711,81 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_ad_uptime_monthly_summary: {
+        Row: {
+          ad_class: string
+          category_score: number
+          concurrency_cap: number
+          created_at: string
+          days_counted: number
+          down_minutes: number
+          effective_minutes: number
+          exchange_account_id: string
+          id: string
+          measured_minutes: number
+          minutes_one: number
+          minutes_three_plus: number
+          minutes_two: number
+          month_start: string
+          offline_minutes: number
+          peak_concurrent: number
+          private_minutes: number
+          shift_key: string
+          shift_minutes: number
+          unmeasured_minutes: number
+          updated_at: string
+          uptime_pct: number
+        }
+        Insert: {
+          ad_class: string
+          category_score?: number
+          concurrency_cap?: number
+          created_at?: string
+          days_counted?: number
+          down_minutes?: number
+          effective_minutes?: number
+          exchange_account_id: string
+          id?: string
+          measured_minutes?: number
+          minutes_one?: number
+          minutes_three_plus?: number
+          minutes_two?: number
+          month_start: string
+          offline_minutes?: number
+          peak_concurrent?: number
+          private_minutes?: number
+          shift_key: string
+          shift_minutes?: number
+          unmeasured_minutes?: number
+          updated_at?: string
+          uptime_pct?: number
+        }
+        Update: {
+          ad_class?: string
+          category_score?: number
+          concurrency_cap?: number
+          created_at?: string
+          days_counted?: number
+          down_minutes?: number
+          effective_minutes?: number
+          exchange_account_id?: string
+          id?: string
+          measured_minutes?: number
+          minutes_one?: number
+          minutes_three_plus?: number
+          minutes_two?: number
+          month_start?: string
+          offline_minutes?: number
+          peak_concurrent?: number
+          private_minutes?: number
+          shift_key?: string
+          shift_minutes?: number
+          unmeasured_minutes?: number
+          updated_at?: string
+          uptime_pct?: number
+        }
+        Relationships: []
+      }
       terminal_ad_uptime_runs: {
         Row: {
           ads_seen: number
@@ -29539,6 +29614,16 @@ export type Database = {
         }[]
       }
       get_ad_pricing_health: { Args: never; Returns: Json }
+      get_ad_uptime_monthly_score: {
+        Args: { p_account?: string; p_month: string }
+        Returns: {
+          blended_score: number
+          categories: Json
+          month_start: string
+          shift_key: string
+          weight_covered: number
+        }[]
+      }
       get_ad_uptime_shift_score: {
         Args: { p_account?: string; p_from: string; p_to: string }
         Returns: {
@@ -31329,6 +31414,10 @@ export type Database = {
         Args: { p_row_id: string }
         Returns: Json
       }
+      prune_terminal_ad_uptime_raw: {
+        Args: { p_retain_days?: number }
+        Returns: Json
+      }
       prune_terminal_telemetry: { Args: { p_batch?: number }; Returns: Json }
       re_escalate_terminal_order: {
         Args: {
@@ -31501,6 +31590,10 @@ export type Database = {
         Returns: undefined
       }
       rollup_terminal_ad_uptime: { Args: { p_date: string }; Returns: number }
+      rollup_terminal_ad_uptime_monthly: {
+        Args: { p_month: string }
+        Returns: number
+      }
       run_leave_accrual: { Args: { p_accrual_date?: string }; Returns: number }
       save_terminal_role: {
         Args: {

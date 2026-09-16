@@ -476,22 +476,22 @@ export default function TerminalAppeals() {
 
   return (
     <TerminalPermissionGate permissions={['terminal_appeals_view']}>
-      <div className="p-4 md:p-6 space-y-5">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-3">
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 md:space-y-5 overflow-x-hidden">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="p-2 bg-primary/10 rounded-lg"><FileWarning className="h-5 w-5 text-primary" /></div>
-            <div><h1 className="text-lg font-semibold text-foreground">Appeals</h1><p className="text-xs text-muted-foreground">Binance appeal orders and internal appeal requests</p></div>
+            <div className="min-w-0"><h1 className="text-lg font-semibold text-foreground">Appeals</h1><p className="text-xs text-muted-foreground leading-relaxed">Binance appeal orders and internal appeal requests</p></div>
           </div>
-          <div className="flex items-center gap-2">
-            {isSuperAdmin && <div className="flex items-center gap-2 rounded border border-border px-3 py-1.5"><span className="text-xs text-muted-foreground">Module</span><Switch checked={isEnabled} onCheckedChange={(v) => toggleAppeal.mutate(v)} disabled={toggleAppeal.isPending || configLoading} /></div>}
-            <Button variant="ghost" size="sm" className="h-7 text-[10px] text-muted-foreground" onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Active Appeals' : `Appeal History${historyCaseCount ? ` (${historyCaseCount})` : ''}`}</Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
-            {hasPermission('terminal_appeals_manage') && isEnabled && <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5 active:scale-[0.98] transition-transform duration-150" onClick={syncAppealOrders} disabled={isSyncing}><RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />Sync Binance Appeals</Button>}
+          <div className="grid grid-cols-2 md:flex md:items-center gap-2 w-full md:w-auto">
+            {isSuperAdmin && <div className="flex h-9 items-center justify-between gap-2 rounded border border-border px-3 md:order-none"><span className="text-xs text-muted-foreground">Module</span><Switch checked={isEnabled} onCheckedChange={(v) => toggleAppeal.mutate(v)} disabled={toggleAppeal.isPending || configLoading} /></div>}
+            <Button variant="outline" size="sm" className="h-9 min-w-0 px-2 text-[11px] text-muted-foreground" onClick={() => setShowHistory((v) => !v)}>{showHistory ? 'Active Appeals' : `History${historyCaseCount ? ` (${historyCaseCount})` : ''}`}</Button>
+            <Button variant="outline" size="sm" className="h-9 text-[11px] gap-1.5 active:scale-[0.98] transition-transform duration-150" onClick={() => refetch()} disabled={isFetching}><RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />Refresh</Button>
+            {hasPermission('terminal_appeals_manage') && isEnabled && <Button variant="outline" size="sm" className="h-9 col-span-2 md:col-span-1 text-[11px] gap-1.5 active:scale-[0.98] transition-transform duration-150" onClick={syncAppealOrders} disabled={isSyncing}><RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} /><span className="md:hidden">Sync Appeals</span><span className="hidden md:inline">Sync Binance Appeals</span></Button>}
           </div>
         </div>
 
         {!isEnabled ? <DisabledState /> : <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 md:gap-3">
             <MetricCard label="Under Appeal" value={summary.active} icon={FileWarning} />
             <MetricCard label="Requests" value={summary.requests} icon={MessageSquare} />
             <MetricCard label="Timer Missing" value={summary.missingTimer} icon={AlertTriangle} tone="warning" />
@@ -499,15 +499,18 @@ export default function TerminalAppeals() {
             <MetricCard label="Checked Today" value={summary.checkedToday} icon={CheckCircle2} tone="success" />
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, counterparty, Ad ID..." className="h-8 text-xs bg-secondary border-border max-w-sm" />
-            <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-8 w-[190px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
-            <Select value={orderType} onValueChange={(v) => setOrderType(v as AppealOrderType)}><SelectTrigger className="h-8 w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(orderTypeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
+          <div className="grid grid-cols-2 md:flex md:items-center gap-2">
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order, counterparty, Ad ID..." className="col-span-2 h-10 md:h-8 text-xs bg-secondary border-border md:max-w-sm" />
+            <Select value={status} onValueChange={setStatus}><SelectTrigger className="h-10 md:h-8 w-full md:w-[190px] text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All Status</SelectItem>{Object.entries(statusLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
+            <Select value={orderType} onValueChange={(v) => setOrderType(v as AppealOrderType)}><SelectTrigger className="h-10 md:h-8 w-full md:w-[170px] text-xs"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(orderTypeLabels).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}</SelectContent></Select>
           </div>
 
           <Card className="bg-card border-border"><CardContent className="p-0">
             {isLoading ? <div className="p-6 space-y-3">{[1,2,3,4,5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}</div> : visibleCases.length === 0 ? <div className="py-16 text-center text-sm text-muted-foreground">{showHistory ? 'No appeal history found' : historyCaseCount ? 'No active appeal cases found. Finalized synced cases are in Appeal History.' : 'No appeal cases found'}</div> : (
-              <div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCases.map((c) => <AppealRow key={c.id} c={c} statusMap={authoritativeStatusMap} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
+              <>
+                <div className="md:hidden divide-y divide-border">{visibleCases.map((c) => <AppealMobileCard key={c.id} c={c} statusMap={authoritativeStatusMap} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</div>
+                <div className="hidden md:block overflow-x-auto"><Table><TableHeader><TableRow><TableHead className="text-[10px]">Appeal Timer</TableHead><TableHead className="text-[10px]">Response Timer</TableHead><TableHead className="text-[10px]">Order</TableHead><TableHead className="text-[10px]">Amount</TableHead><TableHead className="text-[10px]">Counterparty</TableHead><TableHead className="text-[10px]">Source</TableHead><TableHead className="text-[10px]">Last Note</TableHead><TableHead className="text-right text-[10px]">Action</TableHead></TableRow></TableHeader><TableBody>{visibleCases.map((c) => <AppealRow key={c.id} c={c} statusMap={authoritativeStatusMap} canChat={canChat} onOpen={() => setSelectedCase(c)} onChat={() => openChatForCase(c)} />)}</TableBody></Table></div>
+              </>
             )}
           </CardContent></Card>
           <AppealDetailDialog caseItem={selectedCase} open={!!selectedCase} onOpenChange={(open) => !open && setSelectedCase(null)} />
@@ -523,7 +526,40 @@ function DisabledState() {
 
 function MetricCard({ label, value, icon: Icon, tone }: { label: string; value: number; icon: any; tone?: 'urgent' | 'warning' | 'success' }) {
   const toneClass = tone === 'urgent' ? 'text-destructive bg-destructive/10' : tone === 'warning' ? 'text-warning bg-warning/10' : tone === 'success' ? 'text-success bg-success/10' : 'text-primary bg-primary/10';
-  return <Card><CardContent className="p-3 flex items-center justify-between"><div><p className="text-[10px] text-muted-foreground">{label}</p><p className="text-xl font-semibold t-mono">{value}</p></div><div className={`p-2 rounded ${toneClass}`}><Icon className="h-4 w-4" /></div></CardContent></Card>;
+  return <Card><CardContent className="p-3 min-h-[72px] flex items-center justify-between gap-2"><div className="min-w-0"><p className="text-[11px] leading-tight text-muted-foreground">{label}</p><p className="text-xl font-semibold t-mono">{value}</p></div><div className={`p-2 rounded shrink-0 ${toneClass}`}><Icon className="h-4 w-4" /></div></CardContent></Card>;
+}
+
+function AppealMobileCard({ c, statusMap, canChat, onOpen, onChat }: { c: TerminalAppealCase; statusMap: Map<string, AuthoritativeOrderStatus>; canChat: boolean; onOpen: () => void; onChat: () => void }) {
+  const isActive = isActiveAppealCase(c);
+  const needsTimer = c.status === 'under_appeal' && c.response_timer_minutes === null && !c.response_timer_set_at;
+  const responseExpired = !!c.response_due_at && new Date(c.response_due_at).getTime() <= Date.now();
+  const canCheckIn = isActive && isAppealCheckInPending(c);
+  const orderStyle = getStatusStyle(mapToOperationalStatus(getResolvedCaseStatus(c, statusMap), c.trade_type || 'SELL'));
+  const responseLabel = !isActive ? 'Stopped' : needsTimer ? 'Select timer' : c.response_due_at ? responseExpired ? 'Overdue' : formatDuration(Math.max(0, Math.floor((new Date(c.response_due_at).getTime() - Date.now()) / 60000))) : 'No timer';
+
+  return <article className="p-3 space-y-3" onClick={onOpen}>
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium t-mono text-foreground break-all">{c.order_number}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground truncate">{c.counterparty_nickname || 'Counterparty unavailable'} · {c.adv_no || 'No Ad ID'}</p>
+      </div>
+      <div className="text-right shrink-0"><p className="text-sm font-semibold t-mono text-foreground">₹{Number(c.total_price || 0).toLocaleString('en-IN')}</p><p className="text-[10px] text-muted-foreground">{c.asset || 'USDT'}</p></div>
+    </div>
+    <div className="flex flex-wrap gap-1.5">
+      <Badge variant="outline" className={`text-[9px] ${orderStyle.badgeClass}`}>{orderStyle.label}</Badge>
+      <Badge variant="secondary" className="text-[9px]">{statusLabels[c.status]}</Badge>
+      <Badge variant="outline" className={`text-[9px] ${responseExpired || needsTimer ? 'border-destructive/30 text-destructive bg-destructive/5' : 'border-warning/30 text-warning bg-warning/5'}`}>{responseLabel}</Badge>
+    </div>
+    <div className="grid grid-cols-2 gap-2 rounded bg-secondary/40 p-2.5">
+      <div><p className="text-[9px] uppercase text-muted-foreground">Appeal age</p><p className="mt-0.5 text-xs t-mono text-foreground">{isActive ? formatDuration(getElapsedMinutes(c.appeal_started_at)) : 'Closed'}</p></div>
+      <div><p className="text-[9px] uppercase text-muted-foreground">Source</p><p className="mt-0.5 text-xs text-foreground">{c.source === 'small_payment_request' ? 'Internal request' : c.source === 'binance_status' ? 'Binance appeal' : 'Manual request'}</p></div>
+    </div>
+    {(c.notes || c.request_reason) && <p className="text-[11px] text-muted-foreground line-clamp-2">{c.notes || c.request_reason}</p>}
+    <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+      <Button size="sm" className="h-9 flex-1 text-xs" onClick={onOpen}>{canCheckIn ? 'Check In' : 'Manage'}</Button>
+      {canChat && <Button size="sm" variant="outline" className="h-9 flex-1 gap-1.5 text-xs" onClick={onChat}><MessageSquare className="h-3.5 w-3.5" />Chat</Button>}
+    </div>
+  </article>;
 }
 
 function AppealRow({ c, statusMap, canChat, onOpen, onChat }: { c: TerminalAppealCase; statusMap: Map<string, AuthoritativeOrderStatus>; canChat: boolean; onOpen: () => void; onChat: () => void }) {
@@ -573,7 +609,7 @@ function AppealDetailDialog({ caseItem, open, onOpenChange }: { caseItem: Termin
   const saveNote = async () => { if (!note.trim()) return; await addNote.mutateAsync({ caseId: caseItem.id, note: note.trim() }); setNote(''); };
   const doCheckIn = async () => { if (!timerValue || timerValue === 'none') return toast.error('Assign the next recheck timer before check-in'); await setTimer.mutateAsync({ caseId: caseItem.id, minutes: Number(timerValue) }); await checkIn.mutateAsync({ caseId: caseItem.id, note: checkInNote.trim() || `Next recheck timer set for ${responseTimerOptions.find((o) => o.value === timerValue)?.label || `${timerValue} minutes`}` }); setCheckInNote(''); onOpenChange(false); };
 
-  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="t-scale-in max-w-5xl max-h-[86vh] overflow-y-auto"><DialogHeader><DialogTitle className="text-base">Appeal Case · {caseItem.order_number}</DialogTitle></DialogHeader><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  return <Dialog open={open} onOpenChange={onOpenChange}><DialogContent className="t-scale-in w-[calc(100vw-1rem)] sm:w-full max-w-5xl max-h-[92dvh] sm:max-h-[86vh] overflow-y-auto p-4 sm:p-6"><DialogHeader><DialogTitle className="text-sm sm:text-base pr-6 break-all">Appeal Case · {caseItem.order_number}</DialogTitle></DialogHeader><div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
     <div className="space-y-3"><Card><CardContent className="p-4 space-y-3"><div className="flex items-center gap-2 flex-wrap"><Badge variant="secondary">{statusLabels[caseItem.status]}</Badge><Badge variant="outline" className="t-mono">Appeal age {formatDuration(getElapsedMinutes(caseItem.appeal_started_at))}</Badge>{needsTimer && <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5">Select recheck timer</Badge>}</div><div className="grid grid-cols-2 gap-2 text-xs"><Info label="Amount" value={`${Number(caseItem.total_price || 0).toLocaleString('en-IN')} ${caseItem.fiat_unit || 'INR'}`} /><Info label="Asset" value={caseItem.asset || 'USDT'} /><Info label="Counterparty" value={caseItem.counterparty_nickname || '—'} /><Info label="Binance Status" value={caseItem.binance_status || '—'} /><Info label="Requested By" value={getAppealUserName(caseItem.requester)} /><Info label="Detected/Started" value={format(new Date(caseItem.appeal_started_at), 'dd MMM HH:mm')} /></div>{caseItem.request_reason && <p className="text-xs text-muted-foreground border-t border-border pt-2">{caseItem.request_reason}</p>}</CardContent></Card>
       <Card><CardContent className="p-4 space-y-3"><p className="text-xs font-medium">Assign next recheck timer</p><div className="flex gap-2"><Select value={timerValue} onValueChange={setTimerValue} disabled={!canManage}><SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select timer" /></SelectTrigger><SelectContent>{responseTimerOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent></Select><Button size="sm" className="h-8 text-xs" onClick={saveTimer} disabled={!canManage || setTimer.isPending}>Save</Button></div>{caseItem.response_due_at ? <p className="text-[10px] text-muted-foreground">Due {format(new Date(caseItem.response_due_at), 'dd MMM HH:mm')} · set by {getAppealUserName(caseItem.timerSetBy)}</p> : caseItem.response_timer_set_at ? <p className="text-[10px] text-muted-foreground">No timer selected by {getAppealUserName(caseItem.timerSetBy)} at {format(new Date(caseItem.response_timer_set_at), 'dd MMM HH:mm')}</p> : <p className="text-[10px] text-destructive">Recheck timer not selected yet</p>}</CardContent></Card>
       {shouldShowCheckIn && <Card><CardContent className="p-4 space-y-2"><p className="text-xs font-medium">Check In</p><Textarea value={checkInNote} onChange={(e) => setCheckInNote(e.target.value)} placeholder="Check-in note..." className="text-xs" disabled={!canManage} /><Button size="sm" className="h-8 text-xs" onClick={doCheckIn} disabled={!canManage || checkIn.isPending || setTimer.isPending}>Check In</Button></CardContent></Card>}</div>

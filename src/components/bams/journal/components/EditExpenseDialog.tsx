@@ -385,10 +385,9 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
           <div className="md:col-span-2">
             <Label htmlFor="editBillAttachment">
               Bill / Receipt Attachment
-              {formData.transactionType === 'EXPENSE' && (
-                <span className="text-destructive ml-1">* (required for expenses)</span>
-              )}
+              <span className="text-muted-foreground ml-1">(optional)</span>
             </Label>
+
 
             {existingBillUrl && !removeBill && !billFile && (
               <div className="mt-1 flex items-center gap-2 p-2 border rounded-md bg-muted/30">

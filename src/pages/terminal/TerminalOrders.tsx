@@ -258,6 +258,7 @@ function TerminalOrdersContent() {
   };
   const activeSubFilter = orderPrefs.activeSubFilter || 'all';
   const setActiveSubFilter = (v: string) => setOrderPref('activeSubFilter', v);
+  const activeSubCountsRef = useRef({ all: 0, unpaid: 0, paid: 0, appeal: 0 });
   const setAssignmentFilter = (v: string) => setOrderPref('assignmentFilter', v);
   const setMobileView = (v: 'list' | 'cards') => setOrderPref('mobileView', v);
 
@@ -1606,6 +1607,25 @@ function TerminalOrdersContent() {
             <TabsTrigger value="cancelled" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm">Cancelled</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {statusFilter === 'active' && (
+          <Tabs value={activeSubFilter} onValueChange={setActiveSubFilter}>
+            <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">
+              <TabsTrigger value="all" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                All <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.all}</span>
+              </TabsTrigger>
+              <TabsTrigger value="unpaid" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                Unpaid <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.unpaid}</span>
+              </TabsTrigger>
+              <TabsTrigger value="paid" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                Paid <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.paid}</span>
+              </TabsTrigger>
+              <TabsTrigger value="appeal" className="h-8 px-3 text-xs rounded-md transition-colors duration-150 text-muted-foreground hover:text-foreground data-[state=active]:bg-card data-[state=active]:text-foreground data-[state=active]:border data-[state=active]:border-border data-[state=active]:shadow-sm gap-1.5">
+                Appeal <span className="t-mono text-[10px] min-w-[18px] px-1 rounded bg-muted text-muted-foreground text-center">{activeSubCountsRef.current.appeal}</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
 
         <Tabs value={assignmentFilter} onValueChange={setAssignmentFilter}>
           <TabsList className="h-9 bg-secondary rounded-lg p-0.5 border border-border">

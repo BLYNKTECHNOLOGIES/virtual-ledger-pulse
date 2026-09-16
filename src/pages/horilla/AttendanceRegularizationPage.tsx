@@ -47,6 +47,7 @@ export default function AttendanceRegularizationPage() {
   const [reviewing, setReviewing] = useState<any>(null);
   const [decision, setDecision] = useState<'approved' | 'rejected'>('approved');
   const [reasonCode, setReasonCode] = useState<string>('');
+  const [dayMark, setDayMark] = useState<'none' | 'present' | 'half_day' | 'absent'>('none');
   // F4 · propose-and-validate
   const [evidence, setEvidence] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
@@ -251,6 +252,17 @@ export default function AttendanceRegularizationPage() {
         .eq('id', reviewing.id);
       if (error) throw error;
 
+      // Optional day marking applied together with the approval.
+      if (decision === 'approved' && dayMark !== 'none') {
+        const { error: markErr } = await (supabase as any).rpc('hr_set_manual_day_status', {
+          p_employee_id: reviewing.employee_id,
+          p_date: reviewing.attendance_date,
+          p_status: dayMark,
+          p_reason: `Regularization approval: ${auditNote}`,
+        });
+        if (markErr) throw new Error(`Approved, but the day could not be marked: ${markErr.message}`);
+      }
+
       await (supabase as any).from('hr_attendance_intervention_log').insert({
         request_id: reviewing.id,
         employee_id: reviewing.employee_id,
@@ -269,6 +281,7 @@ export default function AttendanceRegularizationPage() {
           override_reason: isOverride ? overrideReason : null,
           matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
           matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
+          day_marked_as: decision === 'approved' && dayMark !== 'none' ? dayMark : null,
         },
       });
 
@@ -292,7 +305,7 @@ export default function AttendanceRegularizationPage() {
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason('');
+      setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason(''); setDayMark('none');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
       invalidateAttendanceCaches(qc);
@@ -596,6 +609,23 @@ export default function AttendanceRegularizationPage() {
 
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div>
+                    <Label>Also mark this day as <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                    <Select value={dayMark} onValueChange={(v) => setDayMark(v as typeof dayMark)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Leave the day as the system calculated it</SelectItem>
+                        <SelectItem value="present">Present (full day)</SelectItem>
+                        <SelectItem value="half_day">Half day</SelectItem>
+                        <SelectItem value="absent">Absent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Use this when the approved times alone would read wrong — e.g. an off-site half shift that should
+                      still count as a half day. The marking is audited with your reason.
+                    </p>
                   </div>
 
                   {evidence && !evidence.evidence_ok && (

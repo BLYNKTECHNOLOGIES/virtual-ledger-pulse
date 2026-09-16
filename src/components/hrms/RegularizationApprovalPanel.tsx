@@ -35,6 +35,9 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
+  // Optional day marking applied together with the approval (e.g. genuine
+  // off-site half shift where the punches alone would read as a short day).
+  const [dayMark, setDayMark] = useState<"none" | "present" | "half_day" | "absent">("none");
 
   const actionable = request?.status === "pending"
     || request?.status === "manager_review"
@@ -160,6 +163,17 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
         .eq("id", request.id);
       if (error) throw error;
 
+      // Optional: stamp the day as present / half day / absent alongside approval.
+      if (decision === "approved" && dayMark !== "none") {
+        const { error: markErr } = await (supabase as any).rpc("hr_set_manual_day_status", {
+          p_employee_id: request.employee_id,
+          p_date: request.attendance_date,
+          p_status: dayMark,
+          p_reason: `Regularization approval: ${auditNote}`,
+        });
+        if (markErr) throw new Error(`Approved, but the day could not be marked: ${markErr.message}`);
+      }
+
       await (supabase as any).from("hr_attendance_intervention_log").insert({
         request_id: request.id,
         employee_id: request.employee_id,
@@ -178,6 +192,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
           override_reason: isOverride ? note.trim() : null,
           matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
           matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
+          day_marked_as: decision === "approved" && dayMark !== "none" ? dayMark : null,
         },
       });
 
@@ -203,7 +218,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
     onSuccess: (decision) => {
       toast.success(`Regularization ${decision}`);
       invalidate();
-      setMode("idle"); setReasonCode(""); setNote(""); setEvidence(null);
+      setMode("idle"); setReasonCode(""); setNote(""); setEvidence(null); setDayMark("none");
       onDone?.();
     },
     onError: (e: any) =>
@@ -295,6 +310,23 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div className="space-y-1">
+            <Label>Also mark this day as <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Select value={dayMark} onValueChange={(v) => setDayMark(v as typeof dayMark)}>
+              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Leave the day as the system calculated it</SelectItem>
+                <SelectItem value="present">Present (full day)</SelectItem>
+                <SelectItem value="half_day">Half day</SelectItem>
+                <SelectItem value="absent">Absent</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Use this when the approved times alone would read wrong — e.g. an off-site half shift that should still
+              count as a half day. The marking is audited with your reason.
+            </p>
           </div>
 
           {evidence && !evidence.evidence_ok && (

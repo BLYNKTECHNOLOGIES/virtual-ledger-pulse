@@ -23630,6 +23630,177 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_ad_uptime_minutes: {
+        Row: {
+          ad_class: string
+          adv_no: string
+          adv_status: number | null
+          asset: string | null
+          created_at: string
+          exchange_account_id: string
+          grade: string
+          hollow_reasons: string[]
+          id: string
+          is_online: boolean
+          ist_date: string
+          market_ref_price: number | null
+          max_single_trans_amount: number | null
+          min_single_trans_amount: number | null
+          minute: string
+          pay_method_count: number | null
+          price: number | null
+          price_gap_pct: number | null
+          shift_key: string | null
+          side: string
+          surplus_amount: number | null
+        }
+        Insert: {
+          ad_class: string
+          adv_no: string
+          adv_status?: number | null
+          asset?: string | null
+          created_at?: string
+          exchange_account_id: string
+          grade: string
+          hollow_reasons?: string[]
+          id?: string
+          is_online?: boolean
+          ist_date: string
+          market_ref_price?: number | null
+          max_single_trans_amount?: number | null
+          min_single_trans_amount?: number | null
+          minute: string
+          pay_method_count?: number | null
+          price?: number | null
+          price_gap_pct?: number | null
+          shift_key?: string | null
+          side: string
+          surplus_amount?: number | null
+        }
+        Update: {
+          ad_class?: string
+          adv_no?: string
+          adv_status?: number | null
+          asset?: string | null
+          created_at?: string
+          exchange_account_id?: string
+          grade?: string
+          hollow_reasons?: string[]
+          id?: string
+          is_online?: boolean
+          ist_date?: string
+          market_ref_price?: number | null
+          max_single_trans_amount?: number | null
+          min_single_trans_amount?: number | null
+          minute?: string
+          pay_method_count?: number | null
+          price?: number | null
+          price_gap_pct?: number | null
+          shift_key?: string | null
+          side?: string
+          surplus_amount?: number | null
+        }
+        Relationships: []
+      }
+      terminal_ad_uptime_runs: {
+        Row: {
+          ads_seen: number
+          created_at: string
+          duration_ms: number | null
+          error_text: string | null
+          exchange_account_id: string
+          id: string
+          minute: string
+          status: string
+        }
+        Insert: {
+          ads_seen?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_text?: string | null
+          exchange_account_id: string
+          id?: string
+          minute: string
+          status?: string
+        }
+        Update: {
+          ads_seen?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_text?: string | null
+          exchange_account_id?: string
+          id?: string
+          minute?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      terminal_ad_uptime_shift_summary: {
+        Row: {
+          ad_class: string
+          created_at: string
+          down_minutes: number
+          downtime_episodes: Json
+          effective_minutes: number
+          exchange_account_id: string
+          expected_ads: number
+          full_coverage_minutes: number
+          hollow_minutes: number
+          id: string
+          ist_date: string
+          measured_minutes: number
+          offline_minutes: number
+          partial_coverage_minutes: number
+          shift_key: string
+          shift_minutes: number
+          unmeasured_minutes: number
+          updated_at: string
+          uptime_pct: number
+        }
+        Insert: {
+          ad_class: string
+          created_at?: string
+          down_minutes?: number
+          downtime_episodes?: Json
+          effective_minutes?: number
+          exchange_account_id: string
+          expected_ads?: number
+          full_coverage_minutes?: number
+          hollow_minutes?: number
+          id?: string
+          ist_date: string
+          measured_minutes?: number
+          offline_minutes?: number
+          partial_coverage_minutes?: number
+          shift_key: string
+          shift_minutes?: number
+          unmeasured_minutes?: number
+          updated_at?: string
+          uptime_pct?: number
+        }
+        Update: {
+          ad_class?: string
+          created_at?: string
+          down_minutes?: number
+          downtime_episodes?: Json
+          effective_minutes?: number
+          exchange_account_id?: string
+          expected_ads?: number
+          full_coverage_minutes?: number
+          hollow_minutes?: number
+          id?: string
+          ist_date?: string
+          measured_minutes?: number
+          offline_minutes?: number
+          partial_coverage_minutes?: number
+          shift_key?: string
+          shift_minutes?: number
+          unmeasured_minutes?: number
+          updated_at?: string
+          uptime_pct?: number
+        }
+        Relationships: []
+      }
       terminal_alternate_upi_requests: {
         Row: {
           created_at: string
@@ -25114,6 +25285,42 @@ export type Database = {
           outgoing_notes?: string | null
           outgoing_user_id?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      terminal_shift_windows: {
+        Row: {
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          shift_key: string
+          shift_name: string
+          sort_order: number
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_time: string
+          id?: string
+          is_active?: boolean
+          shift_key: string
+          shift_name: string
+          sort_order?: number
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          shift_key?: string
+          shift_name?: string
+          sort_order?: number
+          start_time?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -31236,6 +31443,7 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      rollup_terminal_ad_uptime: { Args: { p_date: string }; Returns: number }
       run_leave_accrual: { Args: { p_accrual_date?: string }; Returns: number }
       save_terminal_role: {
         Args: {
@@ -31364,6 +31572,7 @@ export type Database = {
         Returns: string
       }
       terminal_revoke_all_access: { Args: { _uid: string }; Returns: Json }
+      terminal_shift_key_for: { Args: { p_ts: string }; Returns: string }
       transfer_customer_support_ticket: {
         Args: {
           p_ticket_id: string

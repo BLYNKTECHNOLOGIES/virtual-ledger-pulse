@@ -419,9 +419,8 @@ export function AdUptimePanel() {
                 <RefreshCw className={`h-3 w-3 mr-1 ${(mode === 'month' ? monthFetching : isFetching) ? 'animate-spin' : ''}`} /> Refresh
               </Button>
             </div>
-
-            </div>
           </div>
+
         </CardHeader>
 
         <CardContent className="px-3 pb-3 space-y-4">

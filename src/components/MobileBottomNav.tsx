@@ -74,9 +74,14 @@ export function MobileBottomNav() {
   );
 
   const visibleMoreNavItems = useMemo(
-    () => moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions)),
-    [hasAnyPermission, isAdmin]
+    () => {
+      const items = moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions));
+      if (canReconcile) items.push(reconciliationNavItem);
+      return items;
+    },
+    [hasAnyPermission, isAdmin, canReconcile]
   );
+
 
   if (isLoading && !isAdmin) return null;
 

@@ -1,4 +1,4 @@
-import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset, Sparkles } from "lucide-react";
+import { Home, Package, TrendingUp, ShoppingCart, Users, Menu, Terminal, Inbox, Wrench, User, Headset, Sparkles, Mail, Keyboard, ShieldCheck } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { isNavActive } from "@/lib/navActive";
 import { useMemo, useState } from "react";

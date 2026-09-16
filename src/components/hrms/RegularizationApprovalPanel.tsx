@@ -192,6 +192,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
           override_reason: isOverride ? note.trim() : null,
           matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
           matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
+          day_marked_as: decision === "approved" && dayMark !== "none" ? dayMark : null,
         },
       });
 
@@ -217,7 +218,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
     onSuccess: (decision) => {
       toast.success(`Regularization ${decision}`);
       invalidate();
-      setMode("idle"); setReasonCode(""); setNote(""); setEvidence(null);
+      setMode("idle"); setReasonCode(""); setNote(""); setEvidence(null); setDayMark("none");
       onDone?.();
     },
     onError: (e: any) =>

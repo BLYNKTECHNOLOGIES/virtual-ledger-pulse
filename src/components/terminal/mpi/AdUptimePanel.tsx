@@ -674,7 +674,7 @@ export function AdUptimePanel() {
                   ))}
                 </TableBody>
               </Table>
-              </Table>
+
             </div>
           </div>
           )}

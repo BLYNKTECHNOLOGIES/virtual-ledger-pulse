@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
+import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
+
 
 interface MobileNavItem {
   title: string;

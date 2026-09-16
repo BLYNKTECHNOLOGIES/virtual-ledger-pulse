@@ -23,6 +23,19 @@ function istToday(): string {
   return new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
 }
 
+function istThisMonth(): string {
+  return istToday().slice(0, 7);
+}
+
+function monthLabel(month: string): string {
+  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString('en-IN', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+}
+
+
 function istTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-IN', {
     timeZone: 'Asia/Kolkata',
@@ -77,10 +90,13 @@ interface SummaryRow {
 }
 
 export function AdUptimePanel() {
+  const [mode, setMode] = useState<'day' | 'month'>('day');
   const [date, setDate] = useState(istToday());
+  const [month, setMonth] = useState(istThisMonth());
   const [accountId, setAccountId] = useState<string>('all');
   const [shift, setShift] = useState<string>('all');
   const [timelineClass, setTimelineClass] = useState<string>('big_sell');
+
 
   const { data: accounts = [] } = useQuery({
     queryKey: ['terminal-exchange-accounts-uptime'],
@@ -122,8 +138,34 @@ export function AdUptimePanel() {
       if (error) throw error;
       return (data ?? []) as unknown as SummaryRow[];
     },
+    enabled: mode === 'day',
     refetchInterval: 60_000,
   });
+
+  /**
+   * Monthly view reads the pre-aggregated monthly table — never the raw minute
+   * rows — so opening a month costs one small query.
+   */
+  const { data: monthly = [], isFetching: monthFetching, refetch: refetchMonth } = useQuery({
+    queryKey: ['ad-uptime-monthly', month, accountId],
+    queryFn: async () => {
+      let q = supabase
+        .from('terminal_ad_uptime_monthly_summary' as any)
+        .select('*')
+        .eq('month_start', `${month}-01`);
+      if (accountId !== 'all') q = q.eq('exchange_account_id', accountId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({
+        ...r,
+        ist_date: r.month_start,
+        downtime_episodes: [],
+      })) as unknown as (SummaryRow & { days_counted: number })[];
+    },
+    enabled: mode === 'month',
+    staleTime: 300_000,
+  });
+
 
   const { data: timeline = [] } = useQuery({
     queryKey: ['ad-uptime-timeline', date, accountId, timelineClass],
@@ -145,8 +187,10 @@ export function AdUptimePanel() {
         samples: number;
       }>;
     },
+    enabled: mode === 'day',
     refetchInterval: 60_000,
   });
+
 
   const { data: heartbeat } = useQuery({
     queryKey: ['ad-uptime-heartbeat'],
@@ -164,7 +208,7 @@ export function AdUptimePanel() {
   });
 
   /** Blended shift score (Lightning 15 / Small sale 15 / Big sell 30 / Big buy 40). */
-  const { data: blended = [] } = useQuery({
+  const { data: blendedDay = [] } = useQuery({
     queryKey: ['ad-uptime-blended', date, accountId],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_ad_uptime_shift_score' as any, {
@@ -181,8 +225,32 @@ export function AdUptimePanel() {
         categories: Record<string, { score: number; weight: number; peak_concurrent: number; private_minutes: number }>;
       }>;
     },
+    enabled: mode === 'day',
     refetchInterval: 60_000,
   });
+
+  /** Monthly blended score — reads the pre-aggregated monthly rows only. */
+  const { data: blendedMonth = [] } = useQuery({
+    queryKey: ['ad-uptime-blended-month', month, accountId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_ad_uptime_monthly_score' as any, {
+        p_month: `${month}-01`,
+        p_account: accountId === 'all' ? null : accountId,
+      });
+      if (error) throw error;
+      return (data ?? []).map((r: any) => ({ ...r, ist_date: r.month_start })) as unknown as Array<{
+        ist_date: string;
+        shift_key: string;
+        blended_score: number;
+        weight_covered: number;
+        categories: Record<string, { score: number; weight: number; peak_concurrent: number; private_minutes: number }>;
+      }>;
+    },
+    enabled: mode === 'month',
+    staleTime: 300_000,
+  });
+
+  const blended = mode === 'month' ? blendedMonth : blendedDay;
 
   const { data: trend = [] } = useQuery({
     queryKey: ['ad-uptime-trend', accountId],
@@ -200,10 +268,13 @@ export function AdUptimePanel() {
     staleTime: 300_000,
   });
 
+  const baseRows = mode === 'month' ? monthly : summary;
+
   const filtered = useMemo(
-    () => summary.filter((row) => shift === 'all' || row.shift_key === shift),
-    [summary, shift],
+    () => baseRows.filter((row) => shift === 'all' || row.shift_key === shift),
+    [baseRows, shift],
   );
+
 
   const byClass = useMemo(() => {
     const map: Record<string, {
@@ -274,6 +345,9 @@ export function AdUptimePanel() {
             <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
               <Activity className="h-3.5 w-3.5 text-primary" />
               Ad Active Time — by shift
+              {mode === 'month' && (
+                <span className="text-[10px] font-normal text-muted-foreground">· {monthLabel(month)}</span>
+              )}
             </CardTitle>
             <div className="flex flex-wrap items-center gap-1.5">
               <Badge
@@ -287,13 +361,37 @@ export function AdUptimePanel() {
                     ? `Live · ${heartbeat?.ads_seen ?? 0} ads`
                     : `Last check ${heartbeatAgeMin}m ago`}
               </Badge>
-              <input
-                type="date"
-                value={date}
-                max={istToday()}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-8 rounded-md border border-border bg-background px-2 text-[10px] sm:text-xs text-foreground"
-              />
+              <div className="flex rounded-md border border-border overflow-hidden">
+                {(['day', 'month'] as const).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    className={`h-8 px-2.5 text-[10px] sm:text-xs capitalize ${
+                      mode === m ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+              {mode === 'day' ? (
+                <input
+                  type="date"
+                  value={date}
+                  max={istToday()}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="h-8 rounded-md border border-border bg-background px-2 text-[10px] sm:text-xs text-foreground"
+                />
+              ) : (
+                <input
+                  type="month"
+                  value={month}
+                  max={istThisMonth()}
+                  onChange={(e) => setMonth(e.target.value)}
+                  className="h-8 rounded-md border border-border bg-background px-2 text-[10px] sm:text-xs text-foreground"
+                />
+              )}
               <Select value={shift} onValueChange={setShift}>
                 <SelectTrigger className="h-8 w-24 text-[10px] sm:text-xs"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -312,9 +410,16 @@ export function AdUptimePanel() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="h-8 px-2 text-[10px] sm:text-xs" onClick={() => refetch()}>
-                <RefreshCw className={`h-3 w-3 mr-1 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-2 text-[10px] sm:text-xs"
+                onClick={() => (mode === 'month' ? refetchMonth() : refetch())}
+              >
+                <RefreshCw className={`h-3 w-3 mr-1 ${(mode === 'month' ? monthFetching : isFetching) ? 'animate-spin' : ''}`} /> Refresh
               </Button>
+            </div>
+
             </div>
           </div>
         </CardHeader>
@@ -331,7 +436,7 @@ export function AdUptimePanel() {
               </span>
             </div>
             {blendedShown.length === 0 ? (
-              <p className="text-[10px] text-muted-foreground">No score yet for this day.</p>
+              <p className="text-[10px] text-muted-foreground">No score yet for this {mode}.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {blendedShown.map((b) => (
@@ -418,7 +523,7 @@ export function AdUptimePanel() {
                 {filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center text-[10px] text-muted-foreground py-6">
-                      No tracking data for this day yet.
+                      No tracking data for this {mode} yet.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -450,8 +555,10 @@ export function AdUptimePanel() {
             </Table>
           </div>
 
-          {/* Timeline strip */}
+          {/* Timeline strip (day view only — needs recent minute rows) */}
+          {mode === 'day' && (
           <div className="space-y-2">
+
             <div className="flex flex-wrap items-center justify-between gap-2">
               <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" /> Day timeline (10-minute blocks, IST)
@@ -511,9 +618,14 @@ export function AdUptimePanel() {
               <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-muted inline-block" /> offline / no data</span>
             </div>
           </div>
+          )}
 
-          {/* Downtime episodes */}
+
+
+          {/* Downtime episodes (minute detail is kept only for recent days) */}
+          {mode === 'day' && (
           <div className="space-y-2">
+
             <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-1.5">
               <AlertTriangle className="h-3.5 w-3.5 text-warning" /> Not-active episodes
             </span>
@@ -562,7 +674,17 @@ export function AdUptimePanel() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+          </div>
+          )}
+
+          {mode === 'month' && (
+            <p className="text-[10px] text-muted-foreground">
+              Monthly figures are read from stored monthly totals, so they open instantly. Minute-level
+              timeline and not-active episodes stay available for the last few days only.
+            </p>
+          )}
+
+
           </div>
 
           {/* Shift comparison */}

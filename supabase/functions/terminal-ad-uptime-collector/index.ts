@@ -243,6 +243,12 @@ serve(async (req) => {
     const istToday = new Date(minute.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
     if (minute.getUTCMinutes() % 5 === 0) {
       await supabase.rpc("rollup_terminal_ad_uptime", { p_date: istToday });
+      // Keep the stored monthly totals current-day-fresh every half hour (reads
+      // only the small shift-summary rows, never the raw minutes).
+      if (minute.getUTCMinutes() % 30 === 0) {
+        await supabase.rpc("rollup_terminal_ad_uptime_monthly", { p_month: `${istToday.slice(0, 7)}-01` });
+      }
+
     }
 
     return new Response(JSON.stringify({ success: true, minute: minuteIso, results }), {

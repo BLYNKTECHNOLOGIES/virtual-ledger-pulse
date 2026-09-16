@@ -1,5 +1,11 @@
-// Nightly shift rollup for ad uptime: finalises yesterday's IST shift summaries
-// and prunes minute-level rows older than 90 days.
+// Nightly rollup for ad uptime.
+//
+// Compute-saving design: raw per-minute rows exist only long enough to be
+// summarised. This job finalises yesterday's (and today's) IST shift summaries,
+// rebuilds the pre-aggregated monthly summaries from those shift rows (never
+// from raw minutes), then deletes raw minute rows / collector heartbeats older
+// than the retention window. Day and month views therefore read small
+// pre-calculated tables instead of scanning millions of minute rows.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,6 +13,9 @@ const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+/** Raw minutes kept only for the recent timeline / re-rollup safety net. */
+const RAW_RETAIN_DAYS = 4;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -19,9 +28,11 @@ serve(async (req) => {
 
   try {
     let requestedDate: string | null = null;
+    let skipPrune = false;
     try {
       const body = await req.json();
       if (body?.date && /^\d{4}-\d{2}-\d{2}$/.test(String(body.date))) requestedDate = String(body.date);
+      if (body?.skip_prune === true) skipPrune = true;
     } catch { /* no body */ }
 
     const nowIst = new Date(Date.now() + 5.5 * 3600_000);
@@ -36,16 +47,28 @@ serve(async (req) => {
       rolled.push({ date, rows: data });
     }
 
-    // Retention: minute rows older than 90 days are not needed once summarised.
-    const cutoff = new Date(Date.now() - 90 * 24 * 3600_000).toISOString();
-    const { error: pruneErr } = await supabase
-      .from("terminal_ad_uptime_minutes")
-      .delete()
-      .lt("minute", cutoff);
-    if (pruneErr) console.error("[ad-uptime-rollup] prune failed:", pruneErr.message);
-    await supabase.from("terminal_ad_uptime_runs").delete().lt("minute", cutoff);
+    // Monthly pre-aggregation from the shift summaries (cheap — a few hundred rows).
+    const months = Array.from(new Set(dates.map((d) => `${d.slice(0, 7)}-01`)));
+    const monthly: Record<string, unknown>[] = [];
+    for (const month of months) {
+      const { data, error } = await supabase.rpc("rollup_terminal_ad_uptime_monthly", { p_month: month });
+      if (error) throw error;
+      monthly.push({ month, rows: data });
+    }
 
-    return new Response(JSON.stringify({ success: true, rolled }), {
+    // Drop raw minutes once summarised — this is what keeps storage and query cost flat.
+    let pruned: unknown = { skipped: true };
+    if (!skipPrune) {
+      const { data, error } = await supabase.rpc("prune_terminal_ad_uptime_raw", { p_retain_days: RAW_RETAIN_DAYS });
+      if (error) {
+        console.error("[ad-uptime-rollup] prune failed:", error.message);
+        pruned = { error: error.message };
+      } else {
+        pruned = data;
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, rolled, monthly, pruned }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

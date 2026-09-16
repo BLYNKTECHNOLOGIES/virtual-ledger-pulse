@@ -24,7 +24,7 @@ Bands come from the existing small sales configuration — no second definition.
 
 ## Scoring per shift
 
-- Sales side 60%, split equally: Lightning small sale 20%, Small sale 20%, Big sell 20%.
+- Sales side 60%: Lightning small sale 15%, Small sale 15%, Big sell 30%.
 - Buy side 40%: Big buy.
 - Each category's own score = active minutes / shift minutes, plus a multi-ad bonus: having more than one ad live at the same time in a category scores higher than one. The bonus is capped, so beyond the best simultaneous count we have seen for that category in the trailing 7 days it adds nothing (no manual targets to maintain).
 - Blended shift score = weighted sum of the four category scores. Shown per shift, never per person.

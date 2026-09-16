@@ -384,10 +384,9 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
            <div className="lg:col-span-2">
              <Label htmlFor="billAttachment">
                Bill / Receipt Attachment
-               {formData.transactionType === 'EXPENSE' && (
-                 <span className="text-destructive ml-1">* (required for expenses)</span>
-               )}
+               <span className="text-muted-foreground ml-1">(optional)</span>
              </Label>
+
              <div className="mt-1">
                {billFile ? (
                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/50">

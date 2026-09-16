@@ -281,6 +281,7 @@ export default function AttendanceRegularizationPage() {
           override_reason: isOverride ? overrideReason : null,
           matched_in_punch_id: evidence?.matched_in_punch_id ?? null,
           matched_out_punch_id: evidence?.matched_out_punch_id ?? null,
+          day_marked_as: decision === 'approved' && dayMark !== 'none' ? dayMark : null,
         },
       });
 
@@ -304,7 +305,7 @@ export default function AttendanceRegularizationPage() {
     },
     onSuccess: () => {
       toast.success(`Intervention ${decision}`);
-      setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason('');
+      setReviewing(null); setReasonCode(''); setEvidence(null); setOverrideReason(''); setDayMark('none');
       qc.invalidateQueries({ queryKey: ['reg_requests_hr'] });
       qc.invalidateQueries({ queryKey: ['intervention_log_recent'] });
       invalidateAttendanceCaches(qc);

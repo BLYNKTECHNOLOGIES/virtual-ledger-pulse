@@ -674,6 +674,8 @@ export function AdUptimePanel() {
                   ))}
                 </TableBody>
               </Table>
+              </Table>
+            </div>
           </div>
           )}
 
@@ -684,8 +686,6 @@ export function AdUptimePanel() {
             </p>
           )}
 
-
-          </div>
 
           {/* Shift comparison */}
           <div className="space-y-2">

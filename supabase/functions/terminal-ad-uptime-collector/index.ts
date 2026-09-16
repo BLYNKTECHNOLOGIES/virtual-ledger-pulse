@@ -245,10 +245,12 @@ serve(async (req) => {
       }
     }
 
-    // Keep today's (and yesterday's, around midnight IST) shift summary fresh so
-    // the dashboard is usable intraday, not only after the nightly rollup.
+    // Keep today's shift summary fresh so the dashboard is usable intraday, but
+    // only every 5th minute — the rollup scans the whole day's minute rows.
     const istToday = new Date(minute.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
-    await supabase.rpc("rollup_terminal_ad_uptime", { p_date: istToday });
+    if (minute.getUTCMinutes() % 5 === 0) {
+      await supabase.rpc("rollup_terminal_ad_uptime", { p_date: istToday });
+    }
 
     return new Response(JSON.stringify({ success: true, minute: minuteIso, results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

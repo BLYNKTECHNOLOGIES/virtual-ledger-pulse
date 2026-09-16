@@ -29509,6 +29509,23 @@ export type Database = {
         }[]
       }
       get_ad_pricing_health: { Args: never; Returns: Json }
+      get_ad_uptime_timeline: {
+        Args: {
+          p_account?: string
+          p_ad_class?: string
+          p_bucket_minutes?: number
+          p_date: string
+        }
+        Returns: {
+          ads_expected: number
+          bucket_start: string
+          effective_ads: number
+          hollow_ads: number
+          offline_ads: number
+          samples: number
+          shift_key: string
+        }[]
+      }
       get_authoritative_terminal_order_status: {
         Args: { p_order_number: string }
         Returns: string

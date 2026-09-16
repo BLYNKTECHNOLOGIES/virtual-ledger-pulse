@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { TerminalPermissionGate } from '@/components/terminal/TerminalPermissionGate';
+import { AdUptimePanel } from '@/components/terminal/mpi/AdUptimePanel';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { useTerminalJurisdiction } from '@/hooks/useTerminalJurisdiction';
 import { useTerminalUserPrefs } from '@/hooks/useTerminalUserPrefs';
@@ -569,6 +570,9 @@ export default function TerminalMPI() {
           </div>
         ))}
       </div>
+
+      {/* Shift-wise ad active time */}
+      <AdUptimePanel />
 
       {/* Leaderboard + Charts */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">

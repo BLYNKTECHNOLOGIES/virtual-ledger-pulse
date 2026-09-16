@@ -35,6 +35,9 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
   const [note, setNote] = useState("");
   const [evidence, setEvidence] = useState<any>(null);
   const [evidenceLoading, setEvidenceLoading] = useState(false);
+  // Optional day marking applied together with the approval (e.g. genuine
+  // off-site half shift where the punches alone would read as a short day).
+  const [dayMark, setDayMark] = useState<"none" | "present" | "half_day" | "absent">("none");
 
   const actionable = request?.status === "pending"
     || request?.status === "manager_review"

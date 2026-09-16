@@ -995,6 +995,18 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Tally Active sub-filter counts (before applying the sub-filter)
+    if (statusFilter === 'active') {
+      const counts = { all: enriched.length, unpaid: 0, paid: 0, appeal: 0 };
+      for (const o of enriched) {
+        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
+        if (op === 'Pending Payment') counts.unpaid++;
+        else if (op === 'Releasing' || op === 'Pending Release') counts.paid++;
+        else if (op === 'Under Appeal') counts.appeal++;
+      }
+      activeSubCountsRef.current = counts;
+    }
+
     // Active sub-filter: Unpaid (Pending Payment), Paid (buyer paid, awaiting release), Appeal
     if (statusFilter === 'active' && activeSubFilter !== 'all') {
       enriched = enriched.filter(o => {
@@ -1104,10 +1116,10 @@ function TerminalOrdersContent() {
     }
 
     return filtered;
-  }, [rawOrders, tradeFilter, statusFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, optimisticStatusVersion, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
+  }, [rawOrders, tradeFilter, statusFilter, activeSubFilter, assignmentFilter, search, lookupOrderNumber, directOrder, dateRange, historyStatusMap, recentStatusMap, staleDetailStatusMap, optimisticStatusVersion, getOrderVisibility, isTerminalAdmin, userSizeRanges, userAdIdAssignments]);
 
   // Reset visible count when filters change
-  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, search, dateRange]);
+  useEffect(() => { setVisibleCount(50); }, [tradeFilter, statusFilter, activeSubFilter, search, dateRange]);
 
   // Infinite scroll: load more when scrolling near bottom
   const loadMoreRef = useRef<HTMLDivElement>(null);

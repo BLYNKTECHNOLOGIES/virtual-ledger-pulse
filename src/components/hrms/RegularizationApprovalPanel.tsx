@@ -163,6 +163,17 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
         .eq("id", request.id);
       if (error) throw error;
 
+      // Optional: stamp the day as present / half day / absent alongside approval.
+      if (decision === "approved" && dayMark !== "none") {
+        const { error: markErr } = await (supabase as any).rpc("hr_set_manual_day_status", {
+          p_employee_id: request.employee_id,
+          p_date: request.attendance_date,
+          p_status: dayMark,
+          p_reason: `Regularization approval: ${auditNote}`,
+        });
+        if (markErr) throw new Error(`Approved, but the day could not be marked: ${markErr.message}`);
+      }
+
       await (supabase as any).from("hr_attendance_intervention_log").insert({
         request_id: request.id,
         employee_id: request.employee_id,

@@ -24,7 +24,7 @@ Bands come from the existing small sales configuration — no second definition.
 
 ## Scoring per shift
 
-- Sales side 60%, split equally: Lightning small sale 20%, Small sale 20%, Big sell 20%.
+- Sales side 60%: Lightning small sale 15%, Small sale 15%, Big sell 30%.
 - Buy side 40%: Big buy.
 - Each category's own score = active minutes / shift minutes, plus a multi-ad bonus: having more than one ad live at the same time in a category scores higher than one. The bonus is capped, so beyond the best simultaneous count we have seen for that category in the trailing 7 days it adds nothing (no manual targets to maintain).
 - Blended shift score = weighted sum of the four category scores. Shown per shift, never per person.
@@ -36,7 +36,7 @@ No expected-count targets. For each category and minute we report how many ads w
 ## Dashboard changes (MPI → Ad Uptime)
 
 - Four category cards: Lightning small sale, Small sale, Big sell, Big buy — each with active %, peak concurrent ads, private minutes.
-- One blended shift score headline with the 60/40 split shown.
+- One blended shift score headline with the 15/15/30/40 weights shown.
 - Timeline strip per category coloured active / offline / private / unmeasured.
 - Downtime table: ad number, category, coin, zone, from–to (IST), duration, state (offline or private), and who acted (from the existing ad action log).
 - Coin / zone filter for the Big buy and Big sell cards.
@@ -58,6 +58,6 @@ Online state, `advVisibleRet` (private), `tradeMethods`, `classify` (zone), asse
 
 1. Schema + category/grading change on the minute table.
 2. Collector rewrite: privacy enrichment, category assignment, drop the optimisation checks.
-3. Rollup rewrite: concurrency buckets, private minutes, blended 60/40 score with capped bonus.
+3. Rollup rewrite: concurrency buckets, private minutes, blended 15/15/30/40 score with capped bonus.
 4. MPI panel rework.
 5. Verify live against current ads (private ads must show 0 active minutes) and re-roll today.

@@ -215,18 +215,8 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
        return;
      }
  
-    // Receipt mandatory for expenses
-    if (formData.transactionType === 'EXPENSE') {
-      const willHaveBill = billFile || (!removeBill && existingBillUrl);
-      if (!willHaveBill) {
-        toast({
-          title: "Receipt required",
-          description: "Please attach a bill/receipt — it is mandatory for every expense entry.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+    // Receipt is optional for expenses
+
 
     if (isCreditAccount && !formData.subLedgerId) {
       toast({

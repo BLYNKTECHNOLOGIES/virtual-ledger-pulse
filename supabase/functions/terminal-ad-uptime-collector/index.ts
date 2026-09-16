@@ -1,20 +1,23 @@
 // Ad uptime collector — captures the live state of every Binance ad once a minute
-// per exchange account and grades each ad minute as effective / hollow / offline.
+// per exchange account and records whether it was ACTIVE (online + public),
+// PRIVATE (online but link-only) or OFFLINE.
 //
 // Truth comes ONLY from Binance ad data pulled server-side. No operator input is
 // ever accepted, and minutes with no heartbeat row stay "unmeasured" instead of
-// being credited as active.
+// being credited as active. No optimisation judgement is applied (no surplus,
+// limit or price checks) — an ad that is online and public is active.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { listActiveAccounts, resolveAccount, proxyHeadersFor } from "../_shared/binance-account.ts";
+import { classifyZone } from "../_shared/adZone.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-/** Max distance from the best market price before an online ad is "hollow". */
-const PRICE_GAP_LIMIT_PCT = 1.5;
+/** Binance identifier of Lightning UPI (as used in the Ad Manager). */
+const LIGHTNING_UPI = "UPIQRCODE";
 
 type Band = { min: number; max: number } | null;
 
@@ -23,7 +26,7 @@ function num(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function payMethodCount(ad: any): number {
+function payMethodIds(ad: any): string[] {
   const methods = Array.isArray(ad?.tradeMethods)
     ? ad.tradeMethods
     : Array.isArray(ad?.payMethods)
@@ -31,7 +34,9 @@ function payMethodCount(ad: any): number {
       : Array.isArray(ad?.adDetailResp?.tradeMethods)
         ? ad.adDetailResp.tradeMethods
         : [];
-  return methods.length;
+  return methods
+    .map((m: any) => String(m?.identifier || m?.payType || m?.tradeMethodName || "").trim())
+    .filter(Boolean);
 }
 
 function inBand(band: Band, min: number | null, max: number | null): boolean {
@@ -43,42 +48,14 @@ function inBand(band: Band, min: number | null, max: number | null): boolean {
   return lo >= band.min && hi <= band.max;
 }
 
+/** Small-sales / small-buys band exactly as configured in Terminal automation. */
 async function fetchBand(supabase: any, table: string): Promise<Band> {
-  const { data } = await supabase.from(table).select("min_amount, max_amount, is_enabled").limit(1).maybeSingle();
-  if (!data || data.is_enabled === false) return null;
+  const { data } = await supabase.from(table).select("min_amount, max_amount").limit(1).maybeSingle();
+  if (!data) return null;
   const min = num(data.min_amount);
   const max = num(data.max_amount);
   if (min === null || max === null) return null;
   return { min, max };
-}
-
-const marketCache = new Map<string, { price: number | null; at: number }>();
-
-/** Best price competitors are showing for the same asset/side (page 1 only — cheap). */
-async function bestMarketPrice(asset: string, fiat: string, tradeType: string): Promise<number | null> {
-  const key = `${asset}:${fiat}:${tradeType}`;
-  const cached = marketCache.get(key);
-  if (cached && Date.now() - cached.at < 55_000) return cached.price;
-  let price: number | null = null;
-  try {
-    const resp = await fetch("https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ asset, fiat, tradeType, page: 1, rows: 20, publisherType: "merchant", payTypes: [], classifies: ["mass", "profession"] }),
-    });
-    const json = await resp.json();
-    const prices = (json?.data || [])
-      .map((item: any) => num(item?.adv?.price))
-      .filter((p: number | null): p is number => p !== null && p > 0);
-    if (prices.length) {
-      // Our SELL ad competes on the lowest ask; our BUY ad on the highest bid.
-      price = tradeType === "SELL" ? Math.min(...prices) : Math.max(...prices);
-    }
-  } catch (e) {
-    console.error(`[ad-uptime] market price lookup failed for ${key}:`, e);
-  }
-  marketCache.set(key, { price, at: Date.now() });
-  return price;
 }
 
 async function fetchAllAds(acct: Awaited<ReturnType<typeof resolveAccount>>): Promise<any[]> {
@@ -105,49 +82,41 @@ async function fetchAllAds(acct: Awaited<ReturnType<typeof resolveAccount>>): Pr
   return all;
 }
 
-function gradeAd(ad: any, marketRef: number | null) {
-  const advStatus = num(ad?.advStatus);
-  const online = advStatus === 1;
-  const surplus = num(ad?.surplusAmount);
-  const minAmt = num(ad?.minSingleTransAmount);
-  const maxAmt = num(ad?.maxSingleTransAmount);
-  const price = num(ad?.price);
-  const methods = payMethodCount(ad);
-  const side = String(ad?.tradeType || "").toUpperCase();
+/**
+ * listWithPagination does not carry advVisibleRet, so online ads are enriched
+ * with the ad-detail call (same rule the Ad Manager uses: userSetVisible === 1
+ * means the ad is Private). A failed lookup marks privacy as unknown, and that
+ * minute is skipped for the ad rather than credited as active.
+ */
+async function enrichPrivacy(acct: Awaited<ReturnType<typeof resolveAccount>>, ads: any[]): Promise<void> {
+  const headers = proxyHeadersFor(acct);
+  const online = ads.filter((ad) => num(ad?.advStatus) === 1);
+  const one = (ad: any) =>
+    fetch(`${acct.proxyUrl}/api/sapi/v1/c2c/ads/getDetailByNo?adsNo=${ad.advNo || ad.adsNo}`, {
+      method: "POST",
+      headers,
+    })
+      .then((r) => r.json())
+      .then((detail) => {
+        const d = detail?.data?.data || detail?.data || detail;
+        const vis = d?.advVisibleRet;
+        if (vis && typeof vis.userSetVisible !== "undefined") {
+          ad._isPrivate = Number(vis.userSetVisible) === 1;
+        } else {
+          ad._privacyUnknown = true;
+        }
+        if (!Array.isArray(ad.tradeMethods) && Array.isArray(d?.tradeMethods)) ad.tradeMethods = d.tradeMethods;
+        if (!ad.classify && d?.classify) ad.classify = d.classify;
+      })
+      .catch((err) => {
+        ad._privacyUnknown = true;
+        console.warn(`[ad-uptime] detail lookup failed for ${ad.advNo}:`, (err as Error).message);
+      });
 
-  if (!online) {
-    return { grade: "offline", reasons: [] as string[], price, surplus, minAmt, maxAmt, methods, gapPct: null as number | null };
+  const BATCH = 8;
+  for (let i = 0; i < online.length; i += BATCH) {
+    await Promise.all(online.slice(i, i + BATCH).map(one));
   }
-
-  const reasons: string[] = [];
-
-  // Tradable surplus: at least one minimum-size trade must still be fillable.
-  const surplusFiat = surplus !== null && price !== null ? surplus * price : null;
-  if (surplus === null || surplus <= 0) reasons.push("no_surplus");
-  else if (surplusFiat !== null && minAmt !== null && surplusFiat < minAmt) reasons.push("surplus_below_min_limit");
-
-  if (minAmt === null || minAmt <= 0 || maxAmt === null || maxAmt < minAmt) reasons.push("invalid_limits");
-  if (methods === 0) reasons.push("no_payment_method");
-
-  let gapPct: number | null = null;
-  if (price !== null && marketRef !== null && marketRef > 0) {
-    gapPct = side === "SELL"
-      ? ((price - marketRef) / marketRef) * 100
-      : ((marketRef - price) / marketRef) * 100;
-    gapPct = Math.round(gapPct * 1000) / 1000;
-    if (gapPct > PRICE_GAP_LIMIT_PCT) reasons.push("price_off_market");
-  }
-
-  return {
-    grade: reasons.length ? "hollow" : "effective",
-    reasons,
-    price,
-    surplus,
-    minAmt,
-    maxAmt,
-    methods,
-    gapPct,
-  };
 }
 
 serve(async (req) => {
@@ -177,20 +146,42 @@ serve(async (req) => {
       try {
         const acct = await resolveAccount(accountRow.id);
         const ads = await fetchAllAds(acct);
+        await enrichPrivacy(acct, ads);
 
         const rows: Record<string, unknown>[] = [];
+        let skippedUnknown = 0;
+
         for (const ad of ads) {
           const advNo = ad?.advNo || ad?.adsNo;
           if (!advNo) continue;
+
+          const advStatus = num(ad?.advStatus);
+          const online = advStatus === 1;
+          const isPrivate = online && ad._isPrivate === true;
+
+          // Privacy could not be read for an online ad -> do not guess, leave the minute unmeasured.
+          if (online && ad._privacyUnknown === true) {
+            skippedUnknown++;
+            continue;
+          }
+
           const side = String(ad?.tradeType || "").toUpperCase() === "BUY" ? "BUY" : "SELL";
           const asset = ad?.asset ? String(ad.asset) : null;
-          const fiat = String(ad?.fiatUnit || ad?.fiatSymbol || "INR");
-          const marketRef = asset ? await bestMarketPrice(asset, fiat, side) : null;
-          const graded = gradeAd(ad, marketRef);
+          const minAmt = num(ad?.minSingleTransAmount);
+          const maxAmt = num(ad?.maxSingleTransAmount);
+          const methods = payMethodIds(ad);
+          const hasLightning = methods.some((m) => m.toUpperCase() === LIGHTNING_UPI);
 
           const band = side === "SELL" ? sellBand : buyBand;
-          const isSmall = inBand(band, graded.minAmt, graded.maxAmt);
-          const adClass = isSmall ? "small_sale" : side === "BUY" ? "buy" : "sell";
+          const isSmall = inBand(band, minAmt, maxAmt);
+
+          const adClass = side === "BUY"
+            ? "big_buy"
+            : isSmall
+              ? (hasLightning ? "lightning_small_sale" : "small_sale")
+              : "big_sell";
+
+          const grade = !online ? "offline" : isPrivate ? "private" : "active";
 
           rows.push({
             minute: minuteIso,
@@ -199,17 +190,18 @@ serve(async (req) => {
             side,
             ad_class: adClass,
             asset,
-            is_online: graded.grade !== "offline",
-            adv_status: num(ad?.advStatus),
-            surplus_amount: graded.surplus,
-            min_single_trans_amount: graded.minAmt,
-            max_single_trans_amount: graded.maxAmt,
-            pay_method_count: graded.methods,
-            price: graded.price,
-            market_ref_price: marketRef,
-            price_gap_pct: graded.gapPct,
-            grade: graded.grade,
-            hollow_reasons: graded.reasons,
+            zone: classifyZone(ad?.classify),
+            is_online: online,
+            is_private: isPrivate,
+            adv_status: advStatus,
+            surplus_amount: num(ad?.surplusAmount),
+            min_single_trans_amount: minAmt,
+            max_single_trans_amount: maxAmt,
+            pay_method_count: methods.length,
+            pay_methods: methods,
+            price: num(ad?.price),
+            grade,
+            hollow_reasons: [],
             ist_date: minuteIso.slice(0, 10), // overwritten by trigger to IST date
           });
         }
@@ -226,10 +218,11 @@ serve(async (req) => {
           exchange_account_id: acct.id,
           ads_seen: rows.length,
           status: rows.length ? "ok" : "empty",
+          error_text: skippedUnknown ? `privacy unknown for ${skippedUnknown} ad(s)` : null,
           duration_ms: Date.now() - startedAt,
         }, { onConflict: "minute,exchange_account_id" });
 
-        results.push({ account: acct.accountName, ads: rows.length });
+        results.push({ account: acct.accountName, ads: rows.length, skipped_unknown_privacy: skippedUnknown });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         console.error(`[ad-uptime] account ${accountRow.account_name} failed:`, message);

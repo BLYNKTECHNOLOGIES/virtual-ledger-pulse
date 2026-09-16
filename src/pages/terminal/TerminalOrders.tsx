@@ -995,6 +995,17 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Active sub-filter: Unpaid (Pending Payment), Paid (buyer paid, awaiting release), Appeal
+    if (statusFilter === 'active' && activeSubFilter !== 'all') {
+      enriched = enriched.filter(o => {
+        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
+        if (activeSubFilter === 'unpaid') return op === 'Pending Payment';
+        if (activeSubFilter === 'paid') return op === 'Releasing' || op === 'Pending Release';
+        if (activeSubFilter === 'appeal') return op === 'Under Appeal';
+        return true;
+      });
+    }
+
     if (search) {
       const q = search.toLowerCase();
       enriched = enriched.filter(o => {

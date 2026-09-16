@@ -15,10 +15,15 @@ import { setOptimisticOrderStatus } from '@/lib/optimisticOrderStatus';
 // every other Supabase call (clients/dashboard/etc.) gets queued behind it,
 // which is what users perceive as "ERP not loading / can't click anything".
 const BINANCE_CALL_TIMEOUT_MS = 25_000;
+// Chat sends legitimately take longer: the server probes the proxy, falls back
+// to a WebSocket frame, then verifies the echo in Binance history. Give that
+// flow enough headroom instead of aborting mid-verification.
+const BINANCE_CHAT_SEND_TIMEOUT_MS = 45_000;
 
 export async function callBinanceAds(action: string, payload: Record<string, any> = {}, accountId?: string) {
+  const timeoutMs = action === 'sendChatMessage' ? BINANCE_CHAT_SEND_TIMEOUT_MS : BINANCE_CALL_TIMEOUT_MS;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), BINANCE_CALL_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const body: Record<string, any> = { action, ...payload };
     // Explicit per-call account override (combined "All accounts" fan-out / row-scoped actions).
@@ -28,11 +33,17 @@ export async function callBinanceAds(action: string, payload: Record<string, any
       // @ts-ignore — supabase-js forwards AbortSignal to fetch
       signal: controller.signal,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      // supabase-js wraps an aborted fetch in FunctionsFetchError
+      // ("Failed to send a request to the Edge Function") — unwrap it so the
+      // operator sees the real cause instead of a misleading network error.
+      if (controller.signal.aborted) throw new Error(`Binance request timed out (${action})`);
+      throw new Error(error.message);
+    }
     if (!data?.success) throw new Error(data?.error || 'API call failed');
     return data.data;
   } catch (e: any) {
-    if (e?.name === 'AbortError' || /aborted|abort/i.test(String(e?.message || ''))) {
+    if (controller.signal.aborted || e?.name === 'AbortError' || /aborted|abort/i.test(String(e?.message || ''))) {
       throw new Error(`Binance request timed out (${action})`);
     }
     throw e;

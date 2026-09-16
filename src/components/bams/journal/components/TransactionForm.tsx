@@ -194,15 +194,8 @@ export function TransactionForm({ bankAccounts }: TransactionFormProps) {
       return;
     }
 
-    // Receipt/bill upload is MANDATORY for every expense entry
-    if (formData.transactionType === 'EXPENSE' && !billFile) {
-      toast({
-        title: "Receipt required",
-        description: "Please attach a bill/receipt — it is mandatory for every expense entry.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Receipt/bill upload is optional for expense entries
+
 
     // Sub-ledger is mandatory when a CREDIT account is selected
     if (isCreditAccount && !formData.subLedgerId) {

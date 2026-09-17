@@ -2193,6 +2193,943 @@ export type Database = {
         }
         Relationships: []
       }
+      cbt_attempt_items: {
+        Row: {
+          answered_at: string | null
+          attempt_section_id: string
+          created_at: string
+          display_order: number
+          id: string
+          is_correct: boolean | null
+          is_red_flag: boolean
+          marked_for_review: boolean
+          marks_awarded: number | null
+          option_order: Json | null
+          question_version_id: string
+          response: Json | null
+          updated_at: string
+          visited: boolean
+        }
+        Insert: {
+          answered_at?: string | null
+          attempt_section_id: string
+          created_at?: string
+          display_order: number
+          id?: string
+          is_correct?: boolean | null
+          is_red_flag?: boolean
+          marked_for_review?: boolean
+          marks_awarded?: number | null
+          option_order?: Json | null
+          question_version_id: string
+          response?: Json | null
+          updated_at?: string
+          visited?: boolean
+        }
+        Update: {
+          answered_at?: string | null
+          attempt_section_id?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_correct?: boolean | null
+          is_red_flag?: boolean
+          marked_for_review?: boolean
+          marks_awarded?: number | null
+          option_order?: Json | null
+          question_version_id?: string
+          response?: Json | null
+          updated_at?: string
+          visited?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_attempt_items_attempt_section_id_fkey"
+            columns: ["attempt_section_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_attempt_sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_attempt_items_question_version_id_fkey"
+            columns: ["question_version_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_question_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_attempt_sections: {
+        Row: {
+          attempt_id: string
+          created_at: string
+          deadline_at: string | null
+          entered_at: string | null
+          gate_passed: boolean | null
+          id: string
+          max_score: number | null
+          metrics: Json
+          normalized_score: number | null
+          order_index: number
+          raw_score: number | null
+          section_code: string
+          section_type: Database["public"]["Enums"]["cbt_section_type"]
+          started_at: string | null
+          status: Database["public"]["Enums"]["cbt_section_status"]
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_id: string
+          created_at?: string
+          deadline_at?: string | null
+          entered_at?: string | null
+          gate_passed?: boolean | null
+          id?: string
+          max_score?: number | null
+          metrics?: Json
+          normalized_score?: number | null
+          order_index: number
+          raw_score?: number | null
+          section_code: string
+          section_type: Database["public"]["Enums"]["cbt_section_type"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cbt_section_status"]
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_id?: string
+          created_at?: string
+          deadline_at?: string | null
+          entered_at?: string | null
+          gate_passed?: boolean | null
+          id?: string
+          max_score?: number | null
+          metrics?: Json
+          normalized_score?: number | null
+          order_index?: number
+          raw_score?: number | null
+          section_code?: string
+          section_type?: Database["public"]["Enums"]["cbt_section_type"]
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cbt_section_status"]
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_attempt_sections_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_attempts: {
+        Row: {
+          auto_submit_reason: string | null
+          blueprint_snapshot: Json
+          candidate_id: string
+          created_at: string
+          current_section_index: number
+          decision: Database["public"]["Enums"]["cbt_decision"]
+          decision_reason: string | null
+          decision_source: Database["public"]["Enums"]["cbt_decision_source"]
+          drive_id: string
+          id: string
+          ip_hash: string | null
+          is_internal: boolean
+          is_sandbox: boolean
+          job_role_id: string
+          last_heartbeat_at: string | null
+          public_ref: string
+          session_nonce: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["cbt_attempt_status"]
+          submitted_at: string | null
+          token_expires_at: string | null
+          token_hash: string | null
+          total_score: number | null
+          updated_at: string
+          user_agent: string | null
+          warning_count: number
+        }
+        Insert: {
+          auto_submit_reason?: string | null
+          blueprint_snapshot?: Json
+          candidate_id: string
+          created_at?: string
+          current_section_index?: number
+          decision?: Database["public"]["Enums"]["cbt_decision"]
+          decision_reason?: string | null
+          decision_source?: Database["public"]["Enums"]["cbt_decision_source"]
+          drive_id: string
+          id?: string
+          ip_hash?: string | null
+          is_internal?: boolean
+          is_sandbox?: boolean
+          job_role_id: string
+          last_heartbeat_at?: string | null
+          public_ref: string
+          session_nonce?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cbt_attempt_status"]
+          submitted_at?: string | null
+          token_expires_at?: string | null
+          token_hash?: string | null
+          total_score?: number | null
+          updated_at?: string
+          user_agent?: string | null
+          warning_count?: number
+        }
+        Update: {
+          auto_submit_reason?: string | null
+          blueprint_snapshot?: Json
+          candidate_id?: string
+          created_at?: string
+          current_section_index?: number
+          decision?: Database["public"]["Enums"]["cbt_decision"]
+          decision_reason?: string | null
+          decision_source?: Database["public"]["Enums"]["cbt_decision_source"]
+          drive_id?: string
+          id?: string
+          ip_hash?: string | null
+          is_internal?: boolean
+          is_sandbox?: boolean
+          job_role_id?: string
+          last_heartbeat_at?: string | null
+          public_ref?: string
+          session_nonce?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["cbt_attempt_status"]
+          submitted_at?: string | null
+          token_expires_at?: string | null
+          token_hash?: string | null
+          total_score?: number | null
+          updated_at?: string
+          user_agent?: string | null
+          warning_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_attempts_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_attempts_drive_id_fkey"
+            columns: ["drive_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_drives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_attempts_job_role_id_fkey"
+            columns: ["job_role_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_job_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after: Json | null
+          before: Json | null
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after?: Json | null
+          before?: Json | null
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
+      cbt_candidates: {
+        Row: {
+          anonymized_at: string | null
+          city: string | null
+          consent_at: string | null
+          consent_version: string | null
+          created_at: string
+          email: string | null
+          experience_years: number | null
+          full_name: string
+          id: string
+          is_internal: boolean
+          mobile: string | null
+          qualification: string | null
+          shift_availability: string[]
+          source: Database["public"]["Enums"]["cbt_candidate_source"]
+          updated_at: string
+        }
+        Insert: {
+          anonymized_at?: string | null
+          city?: string | null
+          consent_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          email?: string | null
+          experience_years?: number | null
+          full_name: string
+          id?: string
+          is_internal?: boolean
+          mobile?: string | null
+          qualification?: string | null
+          shift_availability?: string[]
+          source?: Database["public"]["Enums"]["cbt_candidate_source"]
+          updated_at?: string
+        }
+        Update: {
+          anonymized_at?: string | null
+          city?: string | null
+          consent_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          email?: string | null
+          experience_years?: number | null
+          full_name?: string
+          id?: string
+          is_internal?: boolean
+          mobile?: string | null
+          qualification?: string | null
+          shift_availability?: string[]
+          source?: Database["public"]["Enums"]["cbt_candidate_source"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cbt_departments: {
+        Row: {
+          code: string
+          created_at: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      cbt_drives: {
+        Row: {
+          access_code: string
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          id: string
+          is_internal_benchmark: boolean
+          is_sandbox: boolean
+          job_role_ids: string[]
+          mode: Database["public"]["Enums"]["cbt_drive_mode"]
+          name: string
+          show_score_to_candidate: boolean
+          starts_at: string
+          status: Database["public"]["Enums"]["cbt_drive_status"]
+          updated_at: string
+        }
+        Insert: {
+          access_code: string
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          id?: string
+          is_internal_benchmark?: boolean
+          is_sandbox?: boolean
+          job_role_ids?: string[]
+          mode?: Database["public"]["Enums"]["cbt_drive_mode"]
+          name: string
+          show_score_to_candidate?: boolean
+          starts_at: string
+          status?: Database["public"]["Enums"]["cbt_drive_status"]
+          updated_at?: string
+        }
+        Update: {
+          access_code?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          id?: string
+          is_internal_benchmark?: boolean
+          is_sandbox?: boolean
+          job_role_ids?: string[]
+          mode?: Database["public"]["Enums"]["cbt_drive_mode"]
+          name?: string
+          show_score_to_candidate?: boolean
+          starts_at?: string
+          status?: Database["public"]["Enums"]["cbt_drive_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cbt_job_roles: {
+        Row: {
+          code: string
+          created_at: string
+          department_code: string
+          difficulty_mix: Json
+          erp_position_aliases: string[]
+          hold_cutoff: number
+          id: string
+          is_active: boolean
+          level: number
+          name: string
+          retake_cooldown_days: number
+          shortlist_cutoff: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          department_code: string
+          difficulty_mix?: Json
+          erp_position_aliases?: string[]
+          hold_cutoff?: number
+          id?: string
+          is_active?: boolean
+          level?: number
+          name: string
+          retake_cooldown_days?: number
+          shortlist_cutoff?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          department_code?: string
+          difficulty_mix?: Json
+          erp_position_aliases?: string[]
+          hold_cutoff?: number
+          id?: string
+          is_active?: boolean
+          level?: number
+          name?: string
+          retake_cooldown_days?: number
+          shortlist_cutoff?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_job_roles_department_code_fkey"
+            columns: ["department_code"]
+            isOneToOne: false
+            referencedRelation: "cbt_departments"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      cbt_proctor_events: {
+        Row: {
+          attempt_id: string
+          event_type: Database["public"]["Enums"]["cbt_proctor_event_type"]
+          id: string
+          meta: Json
+          occurred_at: string
+        }
+        Insert: {
+          attempt_id: string
+          event_type: Database["public"]["Enums"]["cbt_proctor_event_type"]
+          id?: string
+          meta?: Json
+          occurred_at?: string
+        }
+        Update: {
+          attempt_id?: string
+          event_type?: Database["public"]["Enums"]["cbt_proctor_event_type"]
+          id?: string
+          meta?: Json
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_proctor_events_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_question_keys: {
+        Row: {
+          correct_option_id: string | null
+          created_at: string
+          explanation: string | null
+          numeric_answer: number | null
+          numeric_tolerance: number
+          pair_is_match: boolean | null
+          question_version_id: string
+          red_flag_option_ids: string[]
+          rubric: Json | null
+          sjt_scores: Json | null
+          updated_at: string
+        }
+        Insert: {
+          correct_option_id?: string | null
+          created_at?: string
+          explanation?: string | null
+          numeric_answer?: number | null
+          numeric_tolerance?: number
+          pair_is_match?: boolean | null
+          question_version_id: string
+          red_flag_option_ids?: string[]
+          rubric?: Json | null
+          sjt_scores?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          correct_option_id?: string | null
+          created_at?: string
+          explanation?: string | null
+          numeric_answer?: number | null
+          numeric_tolerance?: number
+          pair_is_match?: boolean | null
+          question_version_id?: string
+          red_flag_option_ids?: string[]
+          rubric?: Json | null
+          sjt_scores?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_question_keys_question_version_id_fkey"
+            columns: ["question_version_id"]
+            isOneToOne: true
+            referencedRelation: "cbt_question_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_question_versions: {
+        Row: {
+          content: Json
+          created_at: string
+          first_served_at: string | null
+          id: string
+          question_id: string
+          version_no: number
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          first_served_at?: string | null
+          id?: string
+          question_id: string
+          version_no?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          first_served_at?: string | null
+          id?: string
+          question_id?: string
+          version_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_question_versions_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_questions: {
+        Row: {
+          applicable_role_codes: string[] | null
+          approved_at: string | null
+          approved_by: string | null
+          category_tag: string
+          created_at: string
+          created_by: string | null
+          current_version_id: string | null
+          difficulty: Database["public"]["Enums"]["cbt_difficulty"]
+          id: string
+          status: Database["public"]["Enums"]["cbt_question_status"]
+          stimulus_id: string | null
+          times_served: number
+          type: Database["public"]["Enums"]["cbt_question_type"]
+          updated_at: string
+        }
+        Insert: {
+          applicable_role_codes?: string[] | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category_tag: string
+          created_at?: string
+          created_by?: string | null
+          current_version_id?: string | null
+          difficulty?: Database["public"]["Enums"]["cbt_difficulty"]
+          id?: string
+          status?: Database["public"]["Enums"]["cbt_question_status"]
+          stimulus_id?: string | null
+          times_served?: number
+          type: Database["public"]["Enums"]["cbt_question_type"]
+          updated_at?: string
+        }
+        Update: {
+          applicable_role_codes?: string[] | null
+          approved_at?: string | null
+          approved_by?: string | null
+          category_tag?: string
+          created_at?: string
+          created_by?: string | null
+          current_version_id?: string | null
+          difficulty?: Database["public"]["Enums"]["cbt_difficulty"]
+          id?: string
+          status?: Database["public"]["Enums"]["cbt_question_status"]
+          stimulus_id?: string | null
+          times_served?: number
+          type?: Database["public"]["Enums"]["cbt_question_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_questions_current_version_fk"
+            columns: ["current_version_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_question_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cbt_questions_stimulus_id_fkey"
+            columns: ["stimulus_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_stimuli"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      cbt_resume_codes: {
+        Row: {
+          attempt_id: string
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          issued_by: string | null
+          used_at: string | null
+        }
+        Insert: {
+          attempt_id: string
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          issued_by?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          attempt_id?: string
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issued_by?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_resume_codes_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_attempts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_role_sections: {
+        Row: {
+          category_tags: string[]
+          created_at: string
+          duration_seconds: number
+          full_marks_wpm: number | null
+          gate_min_accuracy: number | null
+          gate_min_net_wpm: number | null
+          gate_min_score: number | null
+          id: string
+          item_count: number
+          job_role_id: string
+          max_words: number | null
+          min_words: number | null
+          negative_mark: number
+          order_index: number
+          practice_seconds: number
+          section_code: string
+          section_type: Database["public"]["Enums"]["cbt_section_type"]
+          title: string
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          category_tags?: string[]
+          created_at?: string
+          duration_seconds: number
+          full_marks_wpm?: number | null
+          gate_min_accuracy?: number | null
+          gate_min_net_wpm?: number | null
+          gate_min_score?: number | null
+          id?: string
+          item_count?: number
+          job_role_id: string
+          max_words?: number | null
+          min_words?: number | null
+          negative_mark?: number
+          order_index: number
+          practice_seconds?: number
+          section_code: string
+          section_type: Database["public"]["Enums"]["cbt_section_type"]
+          title: string
+          updated_at?: string
+          weight?: number
+        }
+        Update: {
+          category_tags?: string[]
+          created_at?: string
+          duration_seconds?: number
+          full_marks_wpm?: number | null
+          gate_min_accuracy?: number | null
+          gate_min_net_wpm?: number | null
+          gate_min_score?: number | null
+          id?: string
+          item_count?: number
+          job_role_id?: string
+          max_words?: number | null
+          min_words?: number | null
+          negative_mark?: number
+          order_index?: number
+          practice_seconds?: number
+          section_code?: string
+          section_type?: Database["public"]["Enums"]["cbt_section_type"]
+          title?: string
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_role_sections_job_role_id_fkey"
+            columns: ["job_role_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_job_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_settings: {
+        Row: {
+          abandon_after_minutes: number
+          brand_name: string
+          company_name: string
+          created_at: string
+          deadline_grace_seconds: number
+          heartbeat_seconds: number
+          hr_email: string
+          id: boolean
+          logo_url: string | null
+          max_warnings: number
+          on_warning_limit: Database["public"]["Enums"]["cbt_warning_action"]
+          privacy_url: string
+          retention_days: number
+          terms_url: string
+          transition_seconds: number
+          typing_practice_passage: string
+          updated_at: string
+        }
+        Insert: {
+          abandon_after_minutes?: number
+          brand_name?: string
+          company_name?: string
+          created_at?: string
+          deadline_grace_seconds?: number
+          heartbeat_seconds?: number
+          hr_email?: string
+          id?: boolean
+          logo_url?: string | null
+          max_warnings?: number
+          on_warning_limit?: Database["public"]["Enums"]["cbt_warning_action"]
+          privacy_url?: string
+          retention_days?: number
+          terms_url?: string
+          transition_seconds?: number
+          typing_practice_passage?: string
+          updated_at?: string
+        }
+        Update: {
+          abandon_after_minutes?: number
+          brand_name?: string
+          company_name?: string
+          created_at?: string
+          deadline_grace_seconds?: number
+          heartbeat_seconds?: number
+          hr_email?: string
+          id?: boolean
+          logo_url?: string | null
+          max_warnings?: number
+          on_warning_limit?: Database["public"]["Enums"]["cbt_warning_action"]
+          privacy_url?: string
+          retention_days?: number
+          terms_url?: string
+          transition_seconds?: number
+          typing_practice_passage?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cbt_stimuli: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          status: Database["public"]["Enums"]["cbt_question_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["cbt_question_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          status?: Database["public"]["Enums"]["cbt_question_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cbt_time_extensions: {
+        Row: {
+          attempt_section_id: string
+          created_at: string
+          granted_by: string | null
+          id: string
+          reason: string | null
+          seconds: number
+        }
+        Insert: {
+          attempt_section_id: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          seconds: number
+        }
+        Update: {
+          attempt_section_id?: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          reason?: string | null
+          seconds?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_time_extensions_attempt_section_id_fkey"
+            columns: ["attempt_section_id"]
+            isOneToOne: false
+            referencedRelation: "cbt_attempt_sections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cbt_written_evaluations: {
+        Row: {
+          attempt_item_id: string
+          comments: string | null
+          created_at: string
+          evaluator_id: string | null
+          id: string
+          rubric_scores: Json
+          total: number | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_item_id: string
+          comments?: string | null
+          created_at?: string
+          evaluator_id?: string | null
+          id?: string
+          rubric_scores?: Json
+          total?: number | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_item_id?: string
+          comments?: string | null
+          created_at?: string
+          evaluator_id?: string | null
+          id?: string
+          rubric_scores?: Json
+          total?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cbt_written_evaluations_attempt_item_id_fkey"
+            columns: ["attempt_item_id"]
+            isOneToOne: true
+            referencedRelation: "cbt_attempt_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_message_senders: {
         Row: {
           created_at: string
@@ -28874,6 +29811,25 @@ export type Database = {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: undefined
       }
+      cbt_can_admin: { Args: { _user_id?: string }; Returns: boolean }
+      cbt_can_evaluate: { Args: { _user_id?: string }; Returns: boolean }
+      cbt_can_manage: { Args: { _user_id?: string }; Returns: boolean }
+      cbt_can_view: { Args: { _user_id?: string }; Returns: boolean }
+      cbt_finalize_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: undefined
+      }
+      cbt_norm_amount: { Args: { p: string }; Returns: number }
+      cbt_norm_text: { Args: { p: string }; Returns: string }
+      cbt_rescore_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: undefined
+      }
+      cbt_retention_purge: { Args: never; Returns: number }
+      cbt_score_section: { Args: { p_section_id: string }; Returns: undefined }
+      cbt_section_config: { Args: { p_section_id: string }; Returns: Json }
+      cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }
+      cbt_sweep_expired: { Args: never; Returns: number }
       check_in_terminal_appeal_case: {
         Args: { p_case_id: string; p_note?: string }
         Returns: undefined
@@ -32220,6 +33176,65 @@ export type Database = {
         | "hrms_mailbox_view"
         | "hrms_mailbox_manage"
         | "hrms_data_health_view"
+        | "hrms_quiz_view"
+        | "hrms_quiz_manage"
+        | "hrms_quiz_evaluate"
+        | "hrms_quiz_admin"
+      cbt_attempt_status:
+        | "registered"
+        | "in_progress"
+        | "submitted"
+        | "auto_submitted"
+        | "abandoned"
+        | "invalidated"
+      cbt_candidate_source:
+        | "Indeed"
+        | "Walk-in"
+        | "Referral"
+        | "LinkedIn"
+        | "Company website"
+        | "Other"
+      cbt_decision:
+        | "pending_evaluation"
+        | "shortlisted"
+        | "hold"
+        | "rejected"
+        | "incomplete"
+      cbt_decision_source: "auto" | "manual"
+      cbt_difficulty: "easy" | "medium" | "hard"
+      cbt_drive_mode: "on_site" | "remote"
+      cbt_drive_status: "draft" | "live" | "closed"
+      cbt_proctor_event_type:
+        | "fullscreen_exit"
+        | "tab_hidden"
+        | "window_blur"
+        | "paste_blocked"
+        | "copy_blocked"
+        | "shortcut_blocked"
+        | "burst_input"
+        | "resume"
+        | "second_session"
+      cbt_question_status: "draft" | "needs_review" | "approved" | "retired"
+      cbt_question_type:
+        | "mcq"
+        | "numeric"
+        | "sjt"
+        | "written"
+        | "typing_passage"
+        | "data_entry_record"
+        | "match_pair"
+      cbt_section_status:
+        | "pending"
+        | "in_progress"
+        | "submitted"
+        | "auto_submitted"
+      cbt_section_type:
+        | "typing"
+        | "data_entry"
+        | "match_pairs"
+        | "objective"
+        | "written"
+      cbt_warning_action: "flag_only" | "auto_submit"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -32646,7 +33661,73 @@ export const Constants = {
         "hrms_mailbox_view",
         "hrms_mailbox_manage",
         "hrms_data_health_view",
+        "hrms_quiz_view",
+        "hrms_quiz_manage",
+        "hrms_quiz_evaluate",
+        "hrms_quiz_admin",
       ],
+      cbt_attempt_status: [
+        "registered",
+        "in_progress",
+        "submitted",
+        "auto_submitted",
+        "abandoned",
+        "invalidated",
+      ],
+      cbt_candidate_source: [
+        "Indeed",
+        "Walk-in",
+        "Referral",
+        "LinkedIn",
+        "Company website",
+        "Other",
+      ],
+      cbt_decision: [
+        "pending_evaluation",
+        "shortlisted",
+        "hold",
+        "rejected",
+        "incomplete",
+      ],
+      cbt_decision_source: ["auto", "manual"],
+      cbt_difficulty: ["easy", "medium", "hard"],
+      cbt_drive_mode: ["on_site", "remote"],
+      cbt_drive_status: ["draft", "live", "closed"],
+      cbt_proctor_event_type: [
+        "fullscreen_exit",
+        "tab_hidden",
+        "window_blur",
+        "paste_blocked",
+        "copy_blocked",
+        "shortcut_blocked",
+        "burst_input",
+        "resume",
+        "second_session",
+      ],
+      cbt_question_status: ["draft", "needs_review", "approved", "retired"],
+      cbt_question_type: [
+        "mcq",
+        "numeric",
+        "sjt",
+        "written",
+        "typing_passage",
+        "data_entry_record",
+        "match_pair",
+      ],
+      cbt_section_status: [
+        "pending",
+        "in_progress",
+        "submitted",
+        "auto_submitted",
+      ],
+      cbt_section_type: [
+        "typing",
+        "data_entry",
+        "match_pairs",
+        "objective",
+        "written",
+      ],
+      cbt_warning_action: ["flag_only", "auto_submit"],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [
         "open",

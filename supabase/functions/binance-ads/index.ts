@@ -1279,13 +1279,46 @@ serve(async (req) => {
         const targetStatus = Number(payload.advStatus);
         const priorStatus = Number(payload.fromStatus);
         const statusUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/ads/updateStatus`;
-        const setBinanceStatus = async (status: number) => {
-          const body = { advNos: advNosList.map(String), advStatus: status };
+        const callStatus = async (advNos: string[], status: number) => {
+          const body = { advNos, advStatus: status };
           console.log("updateAdStatus request body:", JSON.stringify(body));
           const response = await fetch(statusUrl, { method: "POST", headers: proxyHeaders, body: JSON.stringify(body) });
           const text = await response.text();
-          console.log("updateAdStatus response:", response.status, text.substring(0, 500));
+          // Full body (not truncated) — the rejection code/message is the only
+          // authoritative explanation we can give the operator.
+          console.log("updateAdStatus response:", response.status, text);
           try { return JSON.parse(text); } catch { return { raw: text, status: response.status }; }
+        };
+
+        /**
+         * Binance's updateStatus takes a LIST of advNos and rejects the whole call
+         * when any single ad is refused, so one refused ad used to silently block
+         * every other selected ad. Each ad is now sent on its own call and the
+         * outcome is reported per ad.
+         */
+        const setBinanceStatus = async (status: number) => {
+          const list = advNosList.map(String);
+          if (list.length === 1) return await callStatus(list, status);
+
+          const failures: { advNo: string; reason: string }[] = [];
+          let okCount = 0;
+          for (const advNo of list) {
+            const r = await callStatus([advNo], status);
+            if (isSuccessfulBinancePayload(r, 200)) okCount++;
+            else {
+              failures.push({
+                advNo,
+                reason: String(r?.message || r?.msg || r?.code || "rejected by Binance"),
+              });
+            }
+          }
+          if (failures.length === 0) return { code: "000000", success: true, updated: okCount };
+          const detail = failures.map((f) => `…${f.advNo.slice(-8)}: ${f.reason}`).join("; ");
+          return {
+            code: "PARTIAL_STATUS_UPDATE",
+            success: false,
+            message: `${okCount} of ${list.length} ads updated. Binance refused ${failures.length}: ${detail}`,
+          };
         };
 
         if (targetStatus === 2) {
@@ -1323,6 +1356,53 @@ serve(async (req) => {
             console.log("Remove private visibility result:", JSON.stringify(visResult).substring(0, 500));
           }
           result = await setBinanceStatus(targetStatus);
+        }
+
+        // When Binance refuses to bring an ad online, attach the live per-zone
+        // picture for that coin/side (Block Trade zone vs the mixed P2P zone) so
+        // the operator sees facts instead of a bare numeric code. Binance's
+        // updateStatus has no zone parameter — the limit, whatever it is, is
+        // enforced on Binance's side; this only reports the state truthfully.
+        if ((targetStatus === 1 || targetStatus === 2) && !isSuccessfulBinancePayload(result, 200)) {
+          try {
+            const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const firstAdvNo = String(advNosList[0]);
+            const { data: mine } = await admin
+              .from("binance_ad_state_snapshots")
+              .select("adv_no, asset, trade_type, adv_status, raw_payload, captured_at")
+              .eq("exchange_account_id", EXCHANGE_ACCOUNT_ID)
+              .gte("captured_at", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
+              .order("captured_at", { ascending: false })
+              .limit(2000);
+            const latest = new Map<string, any>();
+            for (const row of mine || []) if (!latest.has(row.adv_no)) latest.set(row.adv_no, row);
+            const target = latest.get(firstAdvNo);
+            if (target) {
+              const zoneOf = (r: any) =>
+                String(r?.raw_payload?.classify || "").toLowerCase() === "block" ? "block" : "p2p";
+              const targetZone = zoneOf(target);
+              const peers = [...latest.values()].filter(
+                (r) => r.asset === target.asset && r.trade_type === target.trade_type,
+              );
+              const onlineIn = (z: string) =>
+                peers.filter((r) => Number(r.adv_status) === 1 && zoneOf(r) === z).length;
+              const zoneLabel = targetZone === "block" ? "Block Trade zone" : "P2P zone";
+              const context =
+                `${target.trade_type} ${target.asset}, ${zoneLabel}. Currently online for this coin/side: ` +
+                `${onlineIn("block")} in the Block Trade zone, ${onlineIn("p2p")} in the P2P zone.`;
+              const base = String(
+                (result as any)?.message || (result as any)?.msg || (result as any)?.code || "rejected",
+              );
+              (result as any) = {
+                ...(typeof result === "object" && result ? result : {}),
+                code: (result as any)?.code ?? "AD_ACTIVATION_REFUSED",
+                success: false,
+                message: `Binance refused to bring this ad online (${base}) — ${context}`,
+              };
+            }
+          } catch (ctxErr) {
+            console.warn("ad activation context lookup failed:", ctxErr);
+          }
         }
         break;
       }

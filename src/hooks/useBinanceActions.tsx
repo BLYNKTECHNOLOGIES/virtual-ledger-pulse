@@ -579,6 +579,7 @@ export function useCounterpartyCompletedOrderCount(
   return useQuery({
     queryKey: ['counterparty-completed-count', currentOrderNumber, exchangeAccountId],
     queryFn: async () => {
+      if (!currentOrderNumber) return { count: 0, resolved: false };
       const { supabase } = await import('@/integrations/supabase/client');
 
       // Resolve the counterparty's authoritative Binance userNo. cp_order_identity
@@ -588,7 +589,7 @@ export function useCounterpartyCompletedOrderCount(
       const { data: identity } = await supabase
         .from('cp_order_identity')
         .select('cp_userno')
-        .eq('order_number', currentOrderNumber!)
+        .eq('order_number', currentOrderNumber)
         .maybeSingle();
 
       const cpUserNo = (identity as any)?.cp_userno ?? null;
@@ -598,7 +599,7 @@ export function useCounterpartyCompletedOrderCount(
       // taker — the raw takerUserNo-only match previously missed most orders and
       // returned 0 for active orders not yet in history.
       const { data, error } = await supabase.rpc('get_counterparty_completed_order_count', {
-        p_order_number: currentOrderNumber!,
+        p_order_number: currentOrderNumber,
         p_cp_userno: cpUserNo,
         p_exchange_account_id: exchangeAccountId ?? null,
       });

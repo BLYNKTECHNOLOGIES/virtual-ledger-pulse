@@ -14,24 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _tmp_sync_check: {
-        Row: {
-          dept: string | null
-          name: string | null
-          step: string | null
-        }
-        Insert: {
-          dept?: string | null
-          name?: string | null
-          step?: string | null
-        }
-        Update: {
-          dept?: string | null
-          name?: string | null
-          step?: string | null
-        }
-        Relationships: []
-      }
       account_investigations: {
         Row: {
           assigned_to: string | null

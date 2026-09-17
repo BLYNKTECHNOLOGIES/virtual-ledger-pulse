@@ -37,6 +37,7 @@ const Reconciliation = lazy(() => import('./pages/Reconciliation'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const RaciPage = lazy(() => import('./pages/RaciPage'));
 const OnboardingApplyPage = lazy(() => import('./pages/public/OnboardingApplyPage'));
+const CbtTestPage = lazy(() => import('./pages/public/CbtTestPage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Sales = lazy(() => import('./pages/Sales'));
 const Purchase = lazy(() => import('./pages/Purchase'));
@@ -962,6 +963,11 @@ const router = createBrowserRouter([
     {
       path: "/onboarding/apply/:token",
       element: <OnboardingApplyPage />,
+    },
+    // Public candidate assessment (Quiz / CBT) — no login
+    {
+      path: "/test",
+      element: <CbtTestPage />,
     },
    // Catch-all route for 404 errors
     {

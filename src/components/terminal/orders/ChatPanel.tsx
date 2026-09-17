@@ -433,7 +433,8 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   }, [currentOrderMessages]);
 
-  // Track whether the operator is near the bottom for auto-scroll.
+  // Track whether the operator is near the bottom for auto-scroll, and load the
+  // next page of earlier chats once they scroll up to the top of the thread.
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -442,7 +443,22 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     shouldAutoScrollRef.current = distFromBottom < 80;
 
-  }, []);
+    // Lazy history: fetch the next batch only when the top comes into view.
+    if (container.scrollTop <= 120 && hasMoreHistory && !historyLoading && !historyUnavailable) {
+      pendingScrollRestoreRef.current = container.scrollHeight - container.scrollTop;
+      void loadMoreHistory();
+    }
+  }, [hasMoreHistory, historyLoading, historyUnavailable, loadMoreHistory]);
+
+  // Keep the operator's reading position stable when older chats are prepended.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    const anchor = pendingScrollRestoreRef.current;
+    if (!container || anchor == null) return;
+    pendingScrollRestoreRef.current = null;
+    container.scrollTop = container.scrollHeight - anchor;
+  }, [historicalChats]);
+
 
   const [isSending, setIsSending] = useState(false);
 

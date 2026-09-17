@@ -1,4 +1,4 @@
-import { useLocation, Link } from 'react-router-dom';
+import { Radio, useLocation, Link } from 'react-router-dom';
 import blynkIcon from "@/assets/brand/blynk-icon.svg";
 import {
   Sidebar,
@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
   { title: 'Assets', url: '/terminal/assets', icon: Wallet, tone: 'success', requiredPermission: 'terminal_assets_view' },
   { title: 'Analytics', url: '/terminal/analytics', icon: Activity, tone: 'info', requiredPermission: 'terminal_analytics_view' },
   { title: 'MPI', url: '/terminal/mpi', icon: BarChart3, tone: 'primary', requiredPermission: 'terminal_mpi_view_own' },
+  { title: 'Ad Active Time', url: '/terminal/ad-uptime', icon: Radio, tone: 'info', requiredPermission: 'terminal_ad_uptime_view' },
   { title: 'Audit Logs', url: '/terminal/audit-logs', icon: ScrollText, tone: 'muted', requiredPermission: 'terminal_audit_logs_view' },
   { title: 'KYC Team', url: '/terminal/kyc', icon: UserCheck, tone: 'info', requiredPermission: 'terminal_kyc_view', comingSoon: true },
   { title: 'Payer', url: '/terminal/payer', icon: CreditCard, tone: 'success', showPayerPendingCount: true, requiredPermission: 'terminal_payer_view' },

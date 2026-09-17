@@ -26,6 +26,7 @@ import {
   Wallet,
   ScrollText,
   BarChart3,
+  Radio,
   UserCheck,
   CreditCard,
   Coins,

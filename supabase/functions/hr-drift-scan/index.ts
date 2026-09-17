@@ -38,10 +38,14 @@ interface FieldSpec {
 
 const norm = (v: any): string | null => {
   if (v === null || v === undefined) return null;
-  const s = String(v).trim();
+  // Collapse internal runs of whitespace too: "cheri  sharma" and
+  // "cheri sharma" are the same name, and RazorpayX stores it collapsed,
+  // so a stray double space must never be reported as drift.
+  const s = String(v).replace(/\s+/g, " ").trim();
   if (!s) return null;
   return s.toLowerCase();
 };
+
 const normDate = (v: any): string | null => {
   if (!v) return null;
   // Accept YYYY-MM-DD or DD/MM/YYYY. Return YYYY-MM-DD.

@@ -167,7 +167,7 @@ export function CbtTypingSection({
           size="sm"
           onClick={() => {
             if (current.trim()) commitWord(current.trim());
-            else void sync(committed);
+            else void sync();
           }}
         >
           Save my progress

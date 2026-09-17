@@ -316,15 +316,36 @@ export function useCounterpartyChatHistory(
       loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId]);
+  }, [ensurePastOrders]);
 
-  // Self-triggering load: runs on mount and after every scope reset, so the
-  // panel never sits idle with an empty history.
-  const fetchRef = useRef(fetchPastOrders);
-  fetchRef.current = fetchPastOrders;
+  // On mount / scope reset we only DISCOVER whether earlier threads exist.
+  // Messages are fetched lazily, when the operator scrolls up to them.
+  const discoverRef = useRef(ensurePastOrders);
+  discoverRef.current = ensurePastOrders;
   useEffect(() => {
-    void fetchRef.current();
+    let cancelled = false;
+    setIsDiscovering(true);
+    void (async () => {
+      try {
+        await discoverRef.current();
+      } catch (err) {
+        console.error('Failed to discover counterparty chat history:', err);
+        if (!cancelled) setIsUnavailable(true);
+      } finally {
+        if (!cancelled) setIsDiscovering(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [fetchToken]);
 
-  return { historicalChats, isLoading, isUnavailable, hasMore, loadMore: fetchPastOrders };
+  return {
+    historicalChats,
+    isLoading,
+    isDiscovering,
+    isUnavailable,
+    hasMore,
+    pastThreadCount,
+    loadMore: fetchPastOrders,
+  };
+
 }

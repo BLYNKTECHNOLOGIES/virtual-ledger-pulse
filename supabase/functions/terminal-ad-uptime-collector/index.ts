@@ -141,7 +141,16 @@ serve(async (req) => {
       fetchBand(supabase, "small_buys_config"),
     ]);
 
-    for (const accountRow of accounts) {
+    // Only accounts explicitly flagged for ad-uptime tracking are measured.
+    const { data: trackedRows } = await supabase
+      .from("terminal_exchange_accounts")
+      .select("id")
+      .eq("is_active", true)
+      .eq("ad_uptime_tracked", true);
+    const tracked = new Set((trackedRows ?? []).map((r: { id: string }) => r.id));
+
+    for (const accountRow of accounts.filter((a) => tracked.has(a.id))) {
+
       const startedAt = Date.now();
       try {
         const acct = await resolveAccount(accountRow.id);

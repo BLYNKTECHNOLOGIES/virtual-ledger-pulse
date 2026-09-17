@@ -167,6 +167,19 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
   const { data: settings } = await db.from("cbt_settings").select("*").eq("id", true).single();
   const { data: sections } = await db.from("cbt_attempt_sections").select("*").eq("attempt_id", attemptId).order("order_index");
 
+  // before the attempt starts there are no attempt sections yet — show the role blueprint so the
+  // candidate can see how many sections there are and how long each one lasts
+  let blueprint: any[] = [];
+  if (!(sections ?? []).length) {
+    const { data: rs } = await db.from("cbt_role_sections")
+      .select("order_index, section_code, section_type, title, item_count, duration_seconds")
+      .eq("job_role_id", attempt!.job_role_id).order("order_index");
+    blueprint = (rs ?? []).map((s) => ({
+      order_index: s.order_index, section_code: s.section_code, section_type: s.section_type,
+      title: s.title, item_count: s.item_count, duration_seconds: s.duration_seconds,
+    }));
+  }
+
   const snapSections: any[] = (attempt!.blueprint_snapshot?.sections ?? []) as any[];
   const cfgFor = (orderIndex: number) => snapSections.find((s) => s.order_index === orderIndex) ?? {};
 
@@ -231,8 +244,9 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
       current_section_index: attempt!.current_section_index,
       candidate_name: candidate?.full_name, drive_name: drive?.name, drive_mode: drive?.mode,
       show_score_to_candidate: showScores, role_name: role?.name, role_code: role?.code,
-      total_sections: (sections ?? []).length,
+      total_sections: (sections ?? []).length || blueprint.length,
     },
+    blueprint,
     sections: (sections ?? []).map((s) => {
       const cfg = cfgFor(s.order_index);
       return {

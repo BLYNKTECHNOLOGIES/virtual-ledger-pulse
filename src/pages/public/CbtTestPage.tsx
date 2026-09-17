@@ -337,6 +337,7 @@ export default function CbtTestPage() {
 
   // 1) instructions
   if (attempt.status === 'registered') {
+    const planSections = state.sections.length ? state.sections : (state.blueprint ?? []);
     return (
       <CbtShell {...shellProps}>
         {banner}
@@ -349,7 +350,7 @@ export default function CbtTestPage() {
           </CardHeader>
           <CardContent className="space-y-5">
             <ol className="list-decimal space-y-2 pl-5 text-sm text-muted-foreground">
-              <li>There are {state.sections.length} sections. Each one is timed separately.</li>
+              <li>There are {planSections.length} sections. Each one is timed separately.</li>
               <li>Once a section's time ends it is submitted for you and cannot be reopened.</li>
               <li>Stay in this window and in full screen. Leaving is recorded as a warning.</li>
               <li>
@@ -368,8 +369,8 @@ export default function CbtTestPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {state.sections.map((s) => (
-                    <tr key={s.id} className="border-t border-border">
+                  {planSections.map((s) => (
+                    <tr key={s.section_code} className="border-t border-border">
                       <td className="px-3 py-2">{s.title ?? s.section_code}</td>
                       <td className="px-3 py-2">{s.item_count ?? '—'}</td>
                       <td className="px-3 py-2">

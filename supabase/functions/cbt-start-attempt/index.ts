@@ -93,9 +93,7 @@ Deno.serve(async (req) => {
         await db.from("cbt_attempt_items").insert(rows as any);
         await db.from("cbt_question_versions").update({ first_served_at: new Date().toISOString() })
           .in("id", versionIds).is("first_served_at", null);
-        for (const v of versions ?? []) {
-          await db.rpc("cbt_bump_served", { p_question_id: (v as any).question_id });
-        }
+        await Promise.all((versions ?? []).map((v: any) => db.rpc("cbt_bump_served", { p_question_id: v.question_id })));
         seen.push(...versionIds);
       }
     }

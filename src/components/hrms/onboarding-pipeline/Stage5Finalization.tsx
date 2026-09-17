@@ -1152,6 +1152,103 @@ export function Stage5Finalization({ onboardingRecord, onFinalize, onSave, onBac
       await onFinalize(payload);
       console.log("[Stage5] onFinalize resolved");
 
+      // ---- Annual CTC → RazorpayX ------------------------------------------
+      // ROOT CAUSE (17 Sep 2026 IST, Cheri Sharma / RazorpayX id 31): the
+      // onboarding create/link/write-back path only ever sent IDENTITY-class
+      // fields (name, phone, DOB, bank, manager, title…). RazorpayX refuses
+      // CTC on people:edit — the only accepted write is people:set-salary,
+      // which is a SEPARATE round-trip the proxy performs when a `ctc` field
+      // is present. The reconcile panel marks `ctc` API-unavailable (people:view
+      // never echoes it), so it never became an "hrms override" and the salary
+      // call was never made: RazorpayX stayed with no salary structure and Data
+      // Health reported "RAZORPAY (missing)" for every new hire.
+      // Fix: always push the onboarding annual CTC at finalization, then record
+      // the verified expectation so the drift scanner can accept it while the
+      // employee is still inside their joining month (no executed payroll month
+      // exists yet, so CTC cannot be read back from RazorpayX).
+      const finalizeCtc = Number(onboardingRecord?.ctc);
+      if (rpId && Number.isFinite(finalizeCtc) && finalizeCtc > 0) {
+        toast.loading(`Setting annual CTC ₹${finalizeCtc.toLocaleString("en-IN")} in RazorpayX…`, { id: toastId });
+        try {
+          const { data: ctcData, error: ctcErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+            body: { action: "edit_person_by_id", razorpay_employee_id: Number(rpId), fields: { ctc: finalizeCtc } },
+          });
+          const ctcResp = (ctcData || {}) as any;
+          const ctcOk = !ctcErr && ctcResp?.ok !== false && ctcResp?.salary?.ok !== false;
+          const ctcError = ctcErr?.message || ctcResp?.error || ctcResp?.salary?.error || null;
+
+          // Resolve the HRMS employee created by finalization so the audit row
+          // and any drift alert are attached to the right person.
+          let hrEmployeeId: string | null = null;
+          if (onboardingRecord?.id) {
+            const { data: obRow } = await supabase
+              .from("hr_employee_onboarding")
+              .select("employee_id")
+              .eq("id", onboardingRecord.id)
+              .maybeSingle();
+            hrEmployeeId = ((obRow as any)?.employee_id as string) || null;
+          }
+
+          if (hrEmployeeId) {
+            const { data: userData } = await supabase.auth.getUser();
+            await (supabase as any).from("hr_razorpay_pushback_log").insert({
+              hr_employee_id: hrEmployeeId,
+              razorpay_employee_id: String(rpId),
+              kind: "salary",
+              action: "verify_salary",
+              status: ctcOk ? "success" : "failure",
+              request_snapshot: { ctc: finalizeCtc, source: "onboarding_stage5_finalize" },
+              response_snapshot: {
+                push: ctcResp ?? null,
+                fields: [{
+                  key: "annual_ctc",
+                  label: "Annual CTC",
+                  expected: finalizeCtc,
+                  actual: ctcOk ? finalizeCtc : null,
+                  match: ctcOk ? true : false,
+                }],
+              },
+              error_message: ctcOk ? null : String(ctcError || "RazorpayX did not accept the salary push"),
+              triggered_by: userData?.user?.id ?? null,
+              triggered_from: "onboarding_stage5_finalize",
+            });
+
+            if (!ctcOk) {
+              await (supabase as any).from("hr_drift_alerts").upsert(
+                {
+                  hr_employee_id: hrEmployeeId,
+                  field: "annual_ctc",
+                  systems_involved: ["hrms", "razorpay"],
+                  severity: "high",
+                  resolution_note: `Onboarding CTC push failed: ${String(ctcError || "unknown").slice(0, 200)}`,
+                  last_seen_at: new Date().toISOString(),
+                  resolved_at: null,
+                },
+                { onConflict: "hr_employee_id,field" },
+              );
+            } else {
+              await (supabase as any)
+                .from("hr_drift_alerts")
+                .update({ resolved_at: new Date().toISOString(), resolution_note: "Auto-resolved: annual CTC set in RazorpayX at onboarding finalization." })
+                .eq("hr_employee_id", hrEmployeeId)
+                .eq("field", "annual_ctc")
+                .is("resolved_at", null);
+            }
+          }
+
+          if (!ctcOk) {
+            // Never roll back a completed onboarding for this — the employee
+            // exists and payroll simply needs the CTC retried from Data Health.
+            toast.warning(`RazorpayX did not accept the annual CTC — retry from Data Health. ${ctcError || ""}`.trim());
+          }
+        } catch (ctcEx: any) {
+          console.warn("[Stage5] CTC push to RazorpayX failed", ctcEx);
+          toast.warning(`Could not set annual CTC in RazorpayX — retry from Data Health. ${ctcEx?.message || ctcEx}`);
+        }
+      }
+
+
+
       // Post-finalize tally: re-fetch RazorpayX and diff against HRMS. Data
       // consistency across HRMS ↔ RazorpayX ↔ ESSL is a core rule, so we do
       // NOT trust the write-back responses alone — we read RazorpayX back and

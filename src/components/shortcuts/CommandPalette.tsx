@@ -71,7 +71,7 @@ async function fetchEntities(term: string): Promise<EntityResults> {
       .from("clients")
       .select("id, name, client_id, kyc_status, risk_appetite")
       .eq("is_deleted", false)
-      .or(`name.ilike.${like},client_id.ilike.${like}`)
+      .or(`name.ilike.${like},client_id.ilike.${like},phone.ilike.${like}`)
       .limit(8),
     supabase
       .from("sales_orders")

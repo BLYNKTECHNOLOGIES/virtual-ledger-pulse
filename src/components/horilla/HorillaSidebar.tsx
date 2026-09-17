@@ -196,7 +196,20 @@ const navGroups: NavGroup[] = [
   {
     title: "QUIZ",
     items: [
-      { label: "Quiz", icon: ClipboardCheck, path: "/hrms/quiz" },
+      {
+        label: "Quiz",
+        icon: ClipboardCheck,
+        path: "/hrms/quiz",
+        children: [
+          { label: "Dashboard", path: "/hrms/quiz" },
+          { label: "Drives", path: "/hrms/quiz?view=drives" },
+          { label: "Candidates & Attempts", path: "/hrms/quiz?view=attempts" },
+          { label: "Evaluations", path: "/hrms/quiz?view=evaluations" },
+          { label: "Question Bank", path: "/hrms/quiz?view=questions" },
+          { label: "Roles & Blueprints", path: "/hrms/quiz?view=roles" },
+          { label: "Settings", path: "/hrms/quiz?view=settings" },
+        ],
+      },
     ],
   },
   {
@@ -307,14 +320,19 @@ export function HorillaSidebar({
 
 
   const isActive = (path: string) => {
-    // Entries may carry query strings (e.g. LOP focus view) — match on pathname only.
+  // Entries may carry query strings; parent items match on pathname.
     const base = path.split("?")[0];
     const current = pendingPath ?? location.pathname;
     if (base === "/hrms") return current === "/hrms";
     return current.startsWith(base);
   };
 
-  const isChildActive = (path: string) => (pendingPath ?? location.pathname) === path.split("?")[0];
+  const isChildActive = (path: string) => {
+    const [pathname, query] = path.split("?");
+    if ((pendingPath ?? location.pathname) !== pathname) return false;
+    if (!query) return !location.search;
+    return location.search === `?${query}`;
+  };
 
   const toggleExpand = (label: string) => {
     setExpandedItems((prev) =>

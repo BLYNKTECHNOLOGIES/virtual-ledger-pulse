@@ -317,15 +317,17 @@ export function AdUptimePanel() {
     }> = {};
     for (const cls of AD_CLASSES) {
       const rows = filtered.filter((r) => r.ad_class === cls.key);
+      // Every minute figure below is CLOCK minutes of the shift, so
+      // active + private-only + offline always add back up to measured.
       const measured = rows.reduce((s, r) => s + r.measured_minutes, 0);
-      const weighted = rows.reduce((s, r) => s + Number(r.uptime_pct) * r.measured_minutes, 0);
+      const active = rows.reduce((s, r) => s + (r.active_clock_minutes ?? Math.max(r.measured_minutes - r.down_minutes, 0)), 0);
       const weightedScore = rows.reduce((s, r) => s + Number(r.category_score) * r.measured_minutes, 0);
       map[cls.key] = {
-        uptime: measured ? weighted / measured : 0,
+        uptime: measured ? (100 * active) / measured : 0,
         score: measured ? weightedScore / measured : 0,
-        active: rows.reduce((s, r) => s + r.effective_minutes, 0),
-        offline: rows.reduce((s, r) => s + r.offline_minutes, 0),
-        privateMin: rows.reduce((s, r) => s + (r.private_minutes ?? 0), 0),
+        active,
+        offline: rows.reduce((s, r) => s + (r.offline_clock_minutes ?? 0), 0),
+        privateMin: rows.reduce((s, r) => s + (r.private_only_minutes ?? 0), 0),
         unmeasured: rows.reduce((s, r) => s + r.unmeasured_minutes, 0),
         peak: rows.reduce((s, r) => Math.max(s, r.peak_concurrent ?? 0), 0),
         one: rows.reduce((s, r) => s + (r.minutes_one ?? 0), 0),
@@ -337,6 +339,7 @@ export function AdUptimePanel() {
     }
     return map;
   }, [filtered]);
+
 
   const blendedShown = useMemo(
     () => blended.filter((b) => shift === 'all' || b.shift_key === shift),

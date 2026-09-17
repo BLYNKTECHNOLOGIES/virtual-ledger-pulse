@@ -2607,6 +2607,7 @@ export type Database = {
           is_active: boolean
           level: number
           name: string
+          position_id: string
           retake_cooldown_days: number
           shortlist_cutoff: number
           updated_at: string
@@ -2622,6 +2623,7 @@ export type Database = {
           is_active?: boolean
           level?: number
           name: string
+          position_id: string
           retake_cooldown_days?: number
           shortlist_cutoff?: number
           updated_at?: string
@@ -2637,6 +2639,7 @@ export type Database = {
           is_active?: boolean
           level?: number
           name?: string
+          position_id?: string
           retake_cooldown_days?: number
           shortlist_cutoff?: number
           updated_at?: string
@@ -2648,6 +2651,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cbt_departments"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "cbt_job_roles_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: true
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
           },
         ]
       }

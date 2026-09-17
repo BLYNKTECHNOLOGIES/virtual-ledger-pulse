@@ -1076,6 +1076,30 @@ function TerminalOrdersContent() {
       });
     }
 
+    // Tally Active sub-filter counts from the fully filtered list (search,
+    // date range, scope and assignment all applied) so badges match the rows.
+    if (statusFilter === 'active') {
+      const counts = { all: filtered.length, unpaid: 0, paid: 0, appeal: 0 };
+      for (const r of filtered) {
+        const op = mapToOperationalStatus(r.order_status || '', r.trade_type || 'BUY');
+        if (op === 'Pending Payment') counts.unpaid++;
+        else if (op === 'Releasing' || op === 'Pending Release') counts.paid++;
+        else if (op === 'Under Appeal') counts.appeal++;
+      }
+      activeSubCountsRef.current = counts;
+    }
+
+    // Active sub-filter: Unpaid (Pending Payment), Paid (buyer paid, awaiting release), Appeal
+    if (statusFilter === 'active' && activeSubFilter !== 'all') {
+      filtered = filtered.filter(r => {
+        const op = mapToOperationalStatus(r.order_status || '', r.trade_type || 'BUY');
+        if (activeSubFilter === 'unpaid') return op === 'Pending Payment';
+        if (activeSubFilter === 'paid') return op === 'Releasing' || op === 'Pending Release';
+        if (activeSubFilter === 'appeal') return op === 'Under Appeal';
+        return true;
+      });
+    }
+
     // Sort: appeal/dispute orders go to the bottom; rest stay chronological (newest first)
     if (statusFilter === 'active' || statusFilter === 'all') {
       filtered.sort((a, b) => {

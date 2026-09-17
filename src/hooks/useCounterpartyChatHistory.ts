@@ -182,6 +182,7 @@ export function useCounterpartyChatHistory(
       const batch = allOrders.slice(offsetRef.current, offsetRef.current + PAGE_SIZE);
 
       if (batch.length === 0) {
+        hasMoreRef.current = false;
         setHasMore(false);
         setIsLoading(false);
         return;
@@ -271,6 +272,7 @@ export function useCounterpartyChatHistory(
 
 
       if (offsetRef.current >= allOrders.length) {
+        hasMoreRef.current = false;
         setHasMore(false);
       }
 
@@ -286,7 +288,15 @@ export function useCounterpartyChatHistory(
       loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, hasMore]);
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId]);
+
+  // Self-triggering load: runs on mount and after every scope reset, so the
+  // panel never sits idle with an empty history.
+  const fetchRef = useRef(fetchPastOrders);
+  fetchRef.current = fetchPastOrders;
+  useEffect(() => {
+    void fetchRef.current();
+  }, [fetchToken]);
 
   return { historicalChats, isLoading, isUnavailable, hasMore, loadMore: fetchPastOrders };
 }

@@ -29811,6 +29811,7 @@ export type Database = {
         Args: { p_reason?: string; p_revision_id: string }
         Returns: undefined
       }
+      cbt_bump_served: { Args: { p_question_id: string }; Returns: undefined }
       cbt_can_admin: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_evaluate: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_manage: { Args: { _user_id?: string }; Returns: boolean }
@@ -29819,6 +29820,7 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: undefined
       }
+      cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
       cbt_norm_text: { Args: { p: string }; Returns: string }
       cbt_rescore_attempt: {

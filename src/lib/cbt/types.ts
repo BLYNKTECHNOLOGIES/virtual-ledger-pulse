@@ -52,17 +52,23 @@ export type CbtCurrentSection = CbtSectionSummary & {
 export type CbtState = {
   ok: true;
   server_now?: string;
-  settings: CbtSettings;
-  candidate?: { full_name?: string };
-  drive?: { name?: string; mode?: string; show_score_to_candidate?: boolean };
-  role?: { code?: string; name?: string };
+  settings: CbtSettings & {
+    heartbeat_seconds?: number | null;
+    transition_seconds?: number | null;
+    typing_practice_passage?: string | null;
+  };
   attempt: {
-    id?: string;
     public_ref?: string;
     status: 'registered' | 'in_progress' | 'submitted' | 'auto_submitted' | 'abandoned' | 'invalidated';
     warning_count?: number;
     current_section_index?: number | null;
-    auto_submit_reason?: string | null;
+    candidate_name?: string;
+    drive_name?: string;
+    drive_mode?: string;
+    show_score_to_candidate?: boolean;
+    role_name?: string;
+    role_code?: string;
+    total_sections?: number;
     [key: string]: unknown;
   };
   sections: CbtSectionSummary[];

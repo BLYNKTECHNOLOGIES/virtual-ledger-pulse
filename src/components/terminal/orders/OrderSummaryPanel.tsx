@@ -12,6 +12,7 @@ import { mapToOperationalStatus, getStatusStyle, normaliseBinanceStatus, hasActi
 import { useState, useEffect } from 'react';
 import { useAlternateUpiRequest } from '@/hooks/usePayerModule';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
+import { useCounterpartyCompletedOrderCount } from '@/hooks/useBinanceActions';
 
 interface Props {
   order: P2POrderRecord;
@@ -22,6 +23,11 @@ interface Props {
 
 export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail, preserveOrderStatus = false }: Props) {
   const { hasPermission, isTerminalAdmin } = useTerminalAuth();
+  const {
+    data: completedHistory,
+    isPending: isHistoryLoading,
+    isError: isHistoryUnavailable,
+  } = useCounterpartyCompletedOrderCount(order.binance_order_number, order.exchange_account_id);
   const canActions = hasPermission('terminal_orders_actions') || isTerminalAdmin;
   const tradeColor = order.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell';
   const tradeChip = order.trade_type === 'BUY'
@@ -65,9 +71,10 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             {order.trade_type}
           </Badge>
           <CounterpartyBadge
-            isRepeat={order.is_repeat_client}
-            repeatCount={order.repeat_order_count}
+            repeatCount={completedHistory?.count}
             tradeType={order.trade_type}
+            isLoading={isHistoryLoading || completedHistory?.resolved === false}
+            isUnavailable={isHistoryUnavailable}
           />
         </div>
         <h2 className="text-lg font-semibold text-foreground t-mono">

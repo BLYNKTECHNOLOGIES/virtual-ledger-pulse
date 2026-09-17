@@ -582,7 +582,7 @@ export function AdUptimePanel() {
                           {row.minutes_one}m / {row.minutes_two}m / {row.minutes_three_plus}m
                         </TableCell>
                         <TableCell className="t-mono text-[10px] sm:text-xs text-destructive">{row.down_minutes}m</TableCell>
-                        <TableCell className="t-mono text-[10px] sm:text-xs text-warning">{row.private_minutes ?? 0}m</TableCell>
+                        <TableCell className="t-mono text-[10px] sm:text-xs text-warning">{row.private_only_minutes ?? 0}m</TableCell>
                         <TableCell className="t-mono text-[10px] sm:text-xs text-muted-foreground">{row.unmeasured_minutes}m</TableCell>
                       </TableRow>
                     ))

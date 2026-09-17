@@ -97,9 +97,11 @@ export function useCounterpartyChatHistory(
     setHasMore(true);
     setIsLoading(false);
     setIsUnavailable(false);
+    setPastThreadCount(0);
     setHistoricalChats([]);
     setFetchToken((t) => t + 1);
   }, [currentOrderNumber, counterpartyNickname, exchangeAccountId]);
+
 
   // Discovery only: resolve the list of past threads for this counterparty.
   // This is cheap (one indexed RPC) and tells the UI whether earlier chats

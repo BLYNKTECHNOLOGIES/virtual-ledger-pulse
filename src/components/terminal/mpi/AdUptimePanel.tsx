@@ -134,6 +134,7 @@ export function AdUptimePanel() {
   const [timelineClass, setTimelineClass] = useState<string>('big_sell');
 
 
+  // Only accounts flagged for ad-uptime tracking are measured or shown.
   const { data: accounts = [] } = useQuery({
     queryKey: ['terminal-exchange-accounts-uptime'],
     queryFn: async () => {
@@ -141,12 +142,14 @@ export function AdUptimePanel() {
         .from('terminal_exchange_accounts')
         .select('id, account_name, is_active')
         .eq('is_active', true)
+        .eq('ad_uptime_tracked', true)
         .order('display_order');
       if (error) throw error;
       return data ?? [];
     },
     staleTime: 300_000,
   });
+
 
   const { data: shifts = [] } = useQuery({
     queryKey: ['terminal-shift-windows'],

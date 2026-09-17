@@ -548,7 +548,8 @@ export function SellerOnboardingApprovals() {
 
   const filteredSellers = pendingSellers?.filter(seller =>
     seller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    seller.client_id.toLowerCase().includes(searchTerm.toLowerCase())
+    seller.client_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (seller.phone || '').replace(/\D/g, '').includes(searchTerm.replace(/\D/g, '')) && searchTerm.replace(/\D/g, '').length >= 3
   );
 
   const allVisibleSelected = !!filteredSellers?.length && filteredSellers.every(s => selectedIds.has(s.id));

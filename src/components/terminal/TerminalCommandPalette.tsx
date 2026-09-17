@@ -47,7 +47,7 @@ async function fetchClients(term: string): Promise<ClientResult[]> {
     .from("clients")
     .select("id, name, client_id, kyc_status, risk_appetite")
     .eq("is_deleted", false)
-    .or(`name.ilike.${like},client_id.ilike.${like}`)
+    .or(`name.ilike.${like},client_id.ilike.${like},phone.ilike.${like}`)
     .limit(8);
   return (data as ClientResult[]) ?? [];
 }

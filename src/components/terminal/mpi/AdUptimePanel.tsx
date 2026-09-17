@@ -441,15 +441,22 @@ export function AdUptimePanel() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="h-8 w-28 text-[10px] sm:text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All accounts</SelectItem>
-                  {(accounts as any[]).map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.account_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {(accounts as any[]).length > 1 ? (
+                <Select value={accountId} onValueChange={setAccountId}>
+                  <SelectTrigger className="h-8 w-28 text-[10px] sm:text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All accounts</SelectItem>
+                    {(accounts as any[]).map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.account_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (accounts as any[]).length === 1 ? (
+                <Badge variant="outline" className="h-8 px-2 text-[10px] sm:text-xs flex items-center">
+                  {(accounts as any[])[0].account_name}
+                </Badge>
+              ) : null}
+
               <Button
                 variant="outline"
                 size="sm"

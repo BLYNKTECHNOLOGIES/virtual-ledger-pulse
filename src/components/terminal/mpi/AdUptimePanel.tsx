@@ -134,6 +134,7 @@ export function AdUptimePanel() {
   const [timelineClass, setTimelineClass] = useState<string>('big_sell');
 
 
+  // Only accounts flagged for ad-uptime tracking are measured or shown.
   const { data: accounts = [] } = useQuery({
     queryKey: ['terminal-exchange-accounts-uptime'],
     queryFn: async () => {
@@ -141,12 +142,14 @@ export function AdUptimePanel() {
         .from('terminal_exchange_accounts')
         .select('id, account_name, is_active')
         .eq('is_active', true)
+        .eq('ad_uptime_tracked', true)
         .order('display_order');
       if (error) throw error;
       return data ?? [];
     },
     staleTime: 300_000,
   });
+
 
   const { data: shifts = [] } = useQuery({
     queryKey: ['terminal-shift-windows'],
@@ -438,15 +441,22 @@ export function AdUptimePanel() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={accountId} onValueChange={setAccountId}>
-                <SelectTrigger className="h-8 w-28 text-[10px] sm:text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All accounts</SelectItem>
-                  {(accounts as any[]).map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.account_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {(accounts as any[]).length > 1 ? (
+                <Select value={accountId} onValueChange={setAccountId}>
+                  <SelectTrigger className="h-8 w-28 text-[10px] sm:text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All accounts</SelectItem>
+                    {(accounts as any[]).map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.account_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (accounts as any[]).length === 1 ? (
+                <Badge variant="outline" className="h-8 px-2 text-[10px] sm:text-xs flex items-center">
+                  {(accounts as any[])[0].account_name}
+                </Badge>
+              ) : null}
+
               <Button
                 variant="outline"
                 size="sm"

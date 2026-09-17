@@ -25486,6 +25486,7 @@ export type Database = {
         Row: {
           account_identifier: string
           account_name: string
+          ad_uptime_tracked: boolean
           color: string | null
           created_at: string
           credential_key: string | null
@@ -25500,6 +25501,7 @@ export type Database = {
         Insert: {
           account_identifier: string
           account_name: string
+          ad_uptime_tracked?: boolean
           color?: string | null
           created_at?: string
           credential_key?: string | null
@@ -25514,6 +25516,7 @@ export type Database = {
         Update: {
           account_identifier?: string
           account_name?: string
+          ad_uptime_tracked?: boolean
           color?: string | null
           created_at?: string
           credential_key?: string | null

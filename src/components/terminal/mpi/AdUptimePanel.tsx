@@ -56,6 +56,13 @@ function scoreTone(value: number): string {
   return 'text-destructive';
 }
 
+/**
+ * Sentinel account id used by the rollup for the pooled "all accounts" line.
+ * A minute counts as active there if ANY account had a public, online ad, so
+ * accounts that simply do not run a category never drag the number down.
+ */
+const POOLED_ACCOUNT = '00000000-0000-0000-0000-000000000000';
+
 interface SummaryRow {
   ist_date: string;
   shift_key: string;
@@ -67,6 +74,9 @@ interface SummaryRow {
   effective_minutes: number;
   offline_minutes: number;
   private_minutes: number;
+  active_clock_minutes: number;
+  private_only_minutes: number;
+  offline_clock_minutes: number;
   full_coverage_minutes: number;
   partial_coverage_minutes: number;
   down_minutes: number;
@@ -88,6 +98,32 @@ interface SummaryRow {
     zone?: string | null;
   }>;
 }
+
+/**
+ * One row per shift + category: the pooled all-accounts line when no account
+ * filter is applied, otherwise that account's own line. Mixing the two is what
+ * made the category cards and the blended score disagree.
+ */
+function scopeRows<T extends SummaryRow>(rows: T[], accountId: string): T[] {
+  if (accountId !== 'all') return rows.filter((r) => r.exchange_account_id === accountId);
+  const pooled = new Set(
+    rows.filter((r) => r.exchange_account_id === POOLED_ACCOUNT).map((r) => `${r.shift_key}|${r.ad_class}`),
+  );
+  const best = new Map<string, T>();
+  for (const row of rows) {
+    const key = `${row.shift_key}|${row.ad_class}`;
+    if (row.exchange_account_id === POOLED_ACCOUNT) {
+      best.set(key, row);
+      continue;
+    }
+    if (pooled.has(key)) continue;
+    // Legacy days have no pooled line — fall back to the strongest account.
+    const current = best.get(key);
+    if (!current || Number(row.category_score) > Number(current.category_score)) best.set(key, row);
+  }
+  return [...best.values()];
+}
+
 
 export function AdUptimePanel() {
   const [mode, setMode] = useState<'day' | 'month'>('day');

@@ -1357,6 +1357,53 @@ serve(async (req) => {
           }
           result = await setBinanceStatus(targetStatus);
         }
+
+        // When Binance refuses to bring an ad online, attach the live per-zone
+        // picture for that coin/side (Block Trade zone vs the mixed P2P zone) so
+        // the operator sees facts instead of a bare numeric code. Binance's
+        // updateStatus has no zone parameter — the limit, whatever it is, is
+        // enforced on Binance's side; this only reports the state truthfully.
+        if ((targetStatus === 1 || targetStatus === 2) && !isSuccessfulBinancePayload(result, 200)) {
+          try {
+            const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+            const firstAdvNo = String(advNosList[0]);
+            const { data: mine } = await admin
+              .from("binance_ad_state_snapshots")
+              .select("adv_no, asset, trade_type, adv_status, raw_payload, captured_at")
+              .eq("exchange_account_id", EXCHANGE_ACCOUNT_ID)
+              .gte("captured_at", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
+              .order("captured_at", { ascending: false })
+              .limit(2000);
+            const latest = new Map<string, any>();
+            for (const row of mine || []) if (!latest.has(row.adv_no)) latest.set(row.adv_no, row);
+            const target = latest.get(firstAdvNo);
+            if (target) {
+              const zoneOf = (r: any) =>
+                String(r?.raw_payload?.classify || "").toLowerCase() === "block" ? "block" : "p2p";
+              const targetZone = zoneOf(target);
+              const peers = [...latest.values()].filter(
+                (r) => r.asset === target.asset && r.trade_type === target.trade_type,
+              );
+              const onlineIn = (z: string) =>
+                peers.filter((r) => Number(r.adv_status) === 1 && zoneOf(r) === z).length;
+              const zoneLabel = targetZone === "block" ? "Block Trade zone" : "P2P zone";
+              const context =
+                `${target.trade_type} ${target.asset}, ${zoneLabel}. Currently online for this coin/side: ` +
+                `${onlineIn("block")} in the Block Trade zone, ${onlineIn("p2p")} in the P2P zone.`;
+              const base = String(
+                (result as any)?.message || (result as any)?.msg || (result as any)?.code || "rejected",
+              );
+              (result as any) = {
+                ...(typeof result === "object" && result ? result : {}),
+                code: (result as any)?.code ?? "AD_ACTIVATION_REFUSED",
+                success: false,
+                message: `Binance refused to bring this ad online (${base}) — ${context}`,
+              };
+            }
+          } catch (ctxErr) {
+            console.warn("ad activation context lookup failed:", ctxErr);
+          }
+        }
         break;
       }
 

@@ -72,22 +72,27 @@ export function AddLeadDialog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    const trimOrNull = (v: string) => {
+      const t = (v ?? "").trim();
+      return t.length > 0 ? t : null;
+    };
+
     try {
       const { error } = await supabase
         .from('leads')
         .insert([{
-          name: formData.name,
-          contact_number: formData.contact_number,
+          name: formData.name.trim(),
+          contact_number: trimOrNull(formData.contact_number),
           estimated_order_value: Number(formData.estimated_order_value) || 0,
-          lead_type: formData.lead_type,
-          contact_channel: formData.contact_channel,
-          contact_channel_value: formData.contact_channel_value,
+          lead_type: trimOrNull(formData.lead_type),
+          contact_channel: trimOrNull(formData.contact_channel),
+          contact_channel_value: trimOrNull(formData.contact_channel_value),
           price_quoted: Number(formData.price_quoted) || 0,
-          follow_up_date: formData.follow_up_date || null,
-          follow_up_time: formData.follow_up_time || null,
-          follow_up_notes: formData.follow_up_notes,
-          description: formData.description
+          follow_up_date: trimOrNull(formData.follow_up_date),
+          follow_up_time: trimOrNull(formData.follow_up_time),
+          follow_up_notes: trimOrNull(formData.follow_up_notes),
+          description: trimOrNull(formData.description)
         }]);
 
       if (error) throw error;
@@ -111,14 +116,15 @@ export function AddLeadDialog() {
         description: ""
       });
       setOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to add lead",
+        description: error?.message ? `Failed to add lead: ${error.message}` : "Failed to add lead",
         variant: "destructive",
       });
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

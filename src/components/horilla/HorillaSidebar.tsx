@@ -186,12 +186,17 @@ const navGroups: NavGroup[] = [
         ],
       },
       { label: "Organization", icon: Building2, path: "/hrms/organization" },
-      { label: "Quiz", icon: ClipboardCheck, path: "/hrms/quiz" },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
       { label: "Announcements", icon: Megaphone, path: "/hrms/announcements" },
       { label: "Mailbox", icon: Mail, path: "/hrms/mailbox" },
       { label: "Disciplinary Actions", icon: AlertTriangle, path: "/hrms/disciplinary-actions" },
       
+    ],
+  },
+  {
+    title: "QUIZ",
+    items: [
+      { label: "Quiz", icon: ClipboardCheck, path: "/hrms/quiz" },
     ],
   },
   {

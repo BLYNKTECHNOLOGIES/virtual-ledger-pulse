@@ -188,10 +188,25 @@ export function useCounterpartyChatHistory(
           }
         }
         allPastOrdersRef.current = past;
-      }
+        setPastThreadCount(past.length);
+        if (past.length === 0) {
+          hasMoreRef.current = false;
+          setHasMore(false);
+        }
+        return past;
+    }
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId]);
 
-      const allOrders = allPastOrdersRef.current;
+  const fetchPastOrders = useCallback(async () => {
+    if (!hasMoreRef.current || loadingRef.current) return;
+    loadingRef.current = true;
+    setIsLoading(true);
+    setIsUnavailable(false);
+
+    try {
+      const allOrders = (await ensurePastOrders()) || [];
       const batch = allOrders.slice(offsetRef.current, offsetRef.current + PAGE_SIZE);
+
 
       if (batch.length === 0) {
         hasMoreRef.current = false;

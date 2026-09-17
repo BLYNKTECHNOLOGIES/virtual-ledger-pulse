@@ -91,19 +91,32 @@ export default function QuizDashboardPage() {
     onError: (error: Error) => toast({ title: "Drive not created", description: error.message, variant: "destructive" }),
   });
 
+  const selectedPosition = useMemo(
+    () => (data?.positions ?? []).find((position: any) => position.id === roleForm.positionId),
+    [data?.positions, roleForm.positionId],
+  );
+
+  const availablePositions = useMemo(() => {
+    const taken = new Set((data?.roles ?? []).map((role: any) => role.position_id));
+    return (data?.positions ?? []).filter((position: any) => !taken.has(position.id));
+  }, [data?.positions, data?.roles]);
+
   const createRole = useMutation({
     mutationFn: async () => {
-      const code = roleForm.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_");
-      if (!roleForm.name.trim() || !code || !roleForm.department) throw new Error("Enter the role name, code, and department.");
+      if (!selectedPosition) throw new Error("Select the company position this hiring role belongs to.");
+      const department = (selectedPosition as any).departments;
+      if (!department?.code) throw new Error("This position has no department assigned. Set its department first.");
+      const code = (roleForm.code.trim() || `${department.code}_${selectedPosition.title}`)
+        .toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
       const { error } = await supabase.from("cbt_job_roles").insert({
-        name: roleForm.name.trim(), code, department_code: roleForm.department,
+        position_id: selectedPosition.id, name: selectedPosition.title, code, department_code: department.code,
         shortlist_cutoff: Number(roleForm.shortlist), hold_cutoff: Number(roleForm.hold),
       });
       if (error) throw error;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
-      setDialog(null); setRoleForm({ name: "", code: "", department: "OPERATIONS", shortlist: "65", hold: "50" });
+      setDialog(null); setRoleForm({ positionId: "", code: "", shortlist: "65", hold: "50" });
       toast({ title: "Role blueprint created" });
     },
     onError: (error: Error) => toast({ title: "Role not created", description: error.message, variant: "destructive" }),

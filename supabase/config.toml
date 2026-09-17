@@ -19,6 +19,28 @@ project_id = "vagiqbespusdxsbqpvbo"
   port = 54322
 
 [functions]
+  [functions.cbt-validate-code]
+    verify_jwt = false
+  [functions.cbt-register]
+    verify_jwt = false
+  [functions.cbt-resume]
+    verify_jwt = false
+  [functions.cbt-start-attempt]
+    verify_jwt = false
+  [functions.cbt-get-state]
+    verify_jwt = false
+  [functions.cbt-start-section]
+    verify_jwt = false
+  [functions.cbt-save-response]
+    verify_jwt = false
+  [functions.cbt-submit-section]
+    verify_jwt = false
+  [functions.cbt-heartbeat]
+    verify_jwt = false
+  [functions.cbt-log-event]
+    verify_jwt = false
+  [functions.cbt-typing-sync]
+    verify_jwt = false
   [functions.hr-workflow-notify]
     verify_jwt = false
   [functions.hr-attendance-exception-notify]

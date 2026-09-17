@@ -30731,12 +30731,6 @@ export type Database = {
           verified_name: string
         }[]
       }
-      get_cp_order_identity_for_terminal: {
-        Args: { p_order_number: string }
-        Returns: {
-          cp_userno: string
-        }[]
-      }
       get_default_risk_level: { Args: never; Returns: string }
       get_latest_binance_ad_state: {
         Args: { p_adv_no: string }

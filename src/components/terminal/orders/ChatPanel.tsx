@@ -617,6 +617,28 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
       {/* Messages area */}
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+          {/* Lazy history control — sits at the very top, so scrolling up loads more */}
+          {historyDiscovering && (
+            <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking earlier chats…
+            </div>
+          )}
+          {!historyDiscovering && hasMoreHistory && !historyUnavailable && (
+            <div className="flex justify-center pb-3">
+              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
+                {historyLoading
+                  ? 'Loading earlier chats…'
+                  : historicalSections.length > 0
+                    ? 'Load earlier chats'
+                    : `Scroll up to load earlier chats${pastThreadCount > 0 ? ` (${pastThreadCount})` : ''}`}
+              </Button>
+            </div>
+          )}
+          {!historyDiscovering && !hasMoreHistory && historicalSections.length === 0 && !historyUnavailable && (
+            <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>
+          )}
+
           {historicalSections.length > 0 && (
             <div className="space-y-4 mb-4">
               {historicalSections.map((chat) => (

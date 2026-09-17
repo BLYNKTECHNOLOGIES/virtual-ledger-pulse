@@ -746,6 +746,18 @@ const router = createBrowserRouter([
       ),
     },
     {
+      path: "/terminal/ad-uptime",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalAdUptime />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
       path: "/terminal/mpi/:userId",
       element: (
         <QueryProvider>

@@ -119,10 +119,13 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const {
     historicalChats,
     isLoading: historyLoading,
+    isDiscovering: historyDiscovering,
     isUnavailable: historyUnavailable,
     hasMore: hasMoreHistory,
+    pastThreadCount,
     loadMore: loadMoreHistory,
   } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId, tradeType);
+
   const { data: chatListenerState } = useTerminalChatListenerState();
   const chatListenerHealthy = isChatListenerHealthy(chatListenerState);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();

@@ -24660,6 +24660,7 @@ export type Database = {
       }
       terminal_ad_uptime_monthly_summary: {
         Row: {
+          active_clock_minutes: number
           ad_class: string
           category_score: number
           concurrency_cap: number
@@ -24674,9 +24675,11 @@ export type Database = {
           minutes_three_plus: number
           minutes_two: number
           month_start: string
+          offline_clock_minutes: number
           offline_minutes: number
           peak_concurrent: number
           private_minutes: number
+          private_only_minutes: number
           shift_key: string
           shift_minutes: number
           unmeasured_minutes: number
@@ -24684,6 +24687,7 @@ export type Database = {
           uptime_pct: number
         }
         Insert: {
+          active_clock_minutes?: number
           ad_class: string
           category_score?: number
           concurrency_cap?: number
@@ -24698,9 +24702,11 @@ export type Database = {
           minutes_three_plus?: number
           minutes_two?: number
           month_start: string
+          offline_clock_minutes?: number
           offline_minutes?: number
           peak_concurrent?: number
           private_minutes?: number
+          private_only_minutes?: number
           shift_key: string
           shift_minutes?: number
           unmeasured_minutes?: number
@@ -24708,6 +24714,7 @@ export type Database = {
           uptime_pct?: number
         }
         Update: {
+          active_clock_minutes?: number
           ad_class?: string
           category_score?: number
           concurrency_cap?: number
@@ -24722,9 +24729,11 @@ export type Database = {
           minutes_three_plus?: number
           minutes_two?: number
           month_start?: string
+          offline_clock_minutes?: number
           offline_minutes?: number
           peak_concurrent?: number
           private_minutes?: number
+          private_only_minutes?: number
           shift_key?: string
           shift_minutes?: number
           unmeasured_minutes?: number
@@ -24768,6 +24777,7 @@ export type Database = {
       }
       terminal_ad_uptime_shift_summary: {
         Row: {
+          active_clock_minutes: number
           ad_class: string
           category_score: number
           concurrency_cap: number
@@ -24785,10 +24795,12 @@ export type Database = {
           minutes_one: number
           minutes_three_plus: number
           minutes_two: number
+          offline_clock_minutes: number
           offline_minutes: number
           partial_coverage_minutes: number
           peak_concurrent: number
           private_minutes: number
+          private_only_minutes: number
           shift_key: string
           shift_minutes: number
           unmeasured_minutes: number
@@ -24796,6 +24808,7 @@ export type Database = {
           uptime_pct: number
         }
         Insert: {
+          active_clock_minutes?: number
           ad_class: string
           category_score?: number
           concurrency_cap?: number
@@ -24813,10 +24826,12 @@ export type Database = {
           minutes_one?: number
           minutes_three_plus?: number
           minutes_two?: number
+          offline_clock_minutes?: number
           offline_minutes?: number
           partial_coverage_minutes?: number
           peak_concurrent?: number
           private_minutes?: number
+          private_only_minutes?: number
           shift_key: string
           shift_minutes?: number
           unmeasured_minutes?: number
@@ -24824,6 +24839,7 @@ export type Database = {
           uptime_pct?: number
         }
         Update: {
+          active_clock_minutes?: number
           ad_class?: string
           category_score?: number
           concurrency_cap?: number
@@ -24841,10 +24857,12 @@ export type Database = {
           minutes_one?: number
           minutes_three_plus?: number
           minutes_two?: number
+          offline_clock_minutes?: number
           offline_minutes?: number
           partial_coverage_minutes?: number
           peak_concurrent?: number
           private_minutes?: number
+          private_only_minutes?: number
           shift_key?: string
           shift_minutes?: number
           unmeasured_minutes?: number

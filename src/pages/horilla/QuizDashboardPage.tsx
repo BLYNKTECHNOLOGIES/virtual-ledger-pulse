@@ -46,27 +46,28 @@ export default function QuizDashboardPage() {
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<"drive" | "role" | null>(null);
   const [driveForm, setDriveForm] = useState({ name: "", accessCode: "", mode: "on_site", startsAt: "", endsAt: "" });
-  const [roleForm, setRoleForm] = useState({ name: "", code: "", department: "OPERATIONS", shortlist: "65", hold: "50" });
+  const [roleForm, setRoleForm] = useState({ positionId: "", code: "", shortlist: "65", hold: "50" });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cbt", "staff-workspace"],
     queryFn: async () => {
-      const [drives, candidates, attempts, questions, roles, departments, evaluations, settingsRow] = await Promise.all([
+      const [drives, candidates, attempts, questions, roles, departments, evaluations, settingsRow, positions] = await Promise.all([
         supabase.from("cbt_drives").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_candidates").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_attempts").select("*, cbt_candidates(full_name), cbt_job_roles(name), cbt_drives(name)").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_questions").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("cbt_job_roles").select("*").order("name").limit(100),
+        supabase.from("cbt_job_roles").select("*, positions(id, title, is_active, departments:department_id(code, name))").order("name").limit(100),
         supabase.from("cbt_departments").select("*").order("name"),
         supabase.from("cbt_written_evaluations").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_settings").select("*").eq("id", true).maybeSingle(),
+        supabase.from("positions").select("id, title, is_active, departments:department_id(code, name)").eq("is_active", true).order("title"),
       ]);
-      const errors = [drives.error, candidates.error, attempts.error, questions.error, roles.error, departments.error, evaluations.error, settingsRow.error].filter(Boolean);
+      const errors = [drives.error, candidates.error, attempts.error, questions.error, roles.error, departments.error, evaluations.error, settingsRow.error, positions.error].filter(Boolean);
       if (errors.length) throw errors[0];
       return {
         drives: drives.data ?? [], candidates: candidates.data ?? [], attempts: attempts.data ?? [],
         questions: questions.data ?? [], roles: roles.data ?? [], departments: departments.data ?? [],
-        evaluations: evaluations.data ?? [], settings: settingsRow.data,
+        evaluations: evaluations.data ?? [], settings: settingsRow.data, positions: positions.data ?? [],
       };
     },
   });

@@ -1,7 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from './useBinanceActions';
-import { resolveOrderUserNo } from '@/lib/clientIdentityResolver';
 
 export interface HistoricalOrderChat {
   orderNumber: string;
@@ -97,15 +96,6 @@ export function useCounterpartyChatHistory(
     try {
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
-        // Fresh active orders can reach this screen before the asynchronous
-        // identity collector. Resolve the current order first so the history
-        // RPC never incorrectly returns an empty list merely due to that race.
-        await withTimeout(resolveOrderUserNo({
-          orderNumber: currentOrderNumber,
-          tradeType,
-          exchangeAccountId,
-        }), 20_000, 'counterparty identity lookup');
-
         // Resolve the CURRENT order's counterparty user id. This is the only safe
         // key to group history by. The counterparty is resolved server-side by
         // get_counterparty_order_history: it detects OUR own account numbers
@@ -287,7 +277,7 @@ export function useCounterpartyChatHistory(
       loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, tradeType, hasMore]);
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, hasMore]);
 
   return { historicalChats, isLoading, isUnavailable, hasMore, loadMore: fetchPastOrders };
 }

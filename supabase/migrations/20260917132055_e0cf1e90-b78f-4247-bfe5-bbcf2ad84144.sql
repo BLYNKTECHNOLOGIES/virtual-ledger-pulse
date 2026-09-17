@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.get_cp_order_identity_for_terminal(text);

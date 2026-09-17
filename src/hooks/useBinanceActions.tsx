@@ -582,41 +582,20 @@ export function useCounterpartyCompletedOrderCount(
       if (!currentOrderNumber) return { count: 0, resolved: false };
       const { supabase } = await import('@/integrations/supabase/client');
 
-      // Resolve the counterparty's authoritative Binance userNo. cp_order_identity
-      // is populated asynchronously by resolve-order-userno; for freshly opened
-      // active orders it may not exist yet, in which case the RPC also falls back
-      // to binance_order_history if the order has already synced there.
-      const { data: identity } = await supabase
-        .from('cp_order_identity')
-        .select('cp_userno')
-        .eq('order_number', currentOrderNumber)
-        .maybeSingle();
-
-      const cpUserNo = (identity as any)?.cp_userno ?? null;
-
       // Server-side count. The RPC resolves the counterparty (non-self side) and
       // counts COMPLETED orders where they acted as EITHER the ad merchant or the
       // taker — the raw takerUserNo-only match previously missed most orders and
       // returned 0 for active orders not yet in history.
       const { data, error } = await supabase.rpc('get_counterparty_completed_order_count', {
         p_order_number: currentOrderNumber,
-        p_cp_userno: cpUserNo,
+        p_cp_userno: null,
         p_exchange_account_id: exchangeAccountId ?? null,
       });
       if (error) throw error;
-      return { count: (data as number) ?? 0, resolved: !!cpUserNo };
+      return { count: (data as number) ?? 0, resolved: true };
     },
     enabled: !!currentOrderNumber,
     staleTime: 30 * 1000,
-    // While the counterparty userNo hasn't resolved yet (async pipeline), keep
-    // polling every 15s so the "Orders Completed With Us" figure updates as soon
-    // as cp_order_identity lands — otherwise a freshly opened order shows a
-    // stale 0 for the full 5-min cache window.
-    refetchInterval: (query) => {
-      const d: any = query.state.data;
-      if (!d) return 15000;
-      return d.resolved ? false : 15000;
-    },
   });
 }
 

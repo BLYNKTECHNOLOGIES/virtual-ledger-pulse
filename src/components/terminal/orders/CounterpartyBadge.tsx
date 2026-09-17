@@ -40,7 +40,7 @@ export function CounterpartyBadge({ repeatCount, tradeType, isLoading = false, i
     return (
       <Badge className="text-[10px] gap-1 bg-trade-pending/15 text-trade-pending border border-trade-pending/30">
         <Zap className="h-2.5 w-2.5" />
-        High Frequency
+        High Frequency ({repeatCount})
       </Badge>
     );
   }

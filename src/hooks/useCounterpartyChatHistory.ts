@@ -80,7 +80,10 @@ export function useCounterpartyChatHistory(
   const [fetchToken, setFetchToken] = useState(0);
 
   useEffect(() => {
-    const scope = [currentOrderNumber, counterpartyVerifiedName || '', counterpartyNickname || '', exchangeAccountId || ''].join('|');
+    // Verified name is display-only and can arrive after the live order detail.
+    // It is not an identity key here, so it must not wipe an in-flight/history
+    // result when that late enrichment lands.
+    const scope = [currentOrderNumber, counterpartyNickname || '', exchangeAccountId || ''].join('|');
     if (scopeRef.current === scope) return;
     scopeRef.current = scope;
     allPastOrdersRef.current = null;
@@ -93,7 +96,7 @@ export function useCounterpartyChatHistory(
     setIsUnavailable(false);
     setHistoricalChats([]);
     setFetchToken((t) => t + 1);
-  }, [currentOrderNumber, counterpartyVerifiedName, counterpartyNickname, exchangeAccountId]);
+  }, [currentOrderNumber, counterpartyNickname, exchangeAccountId]);
 
   const fetchPastOrders = useCallback(async () => {
     if (!hasMoreRef.current || loadingRef.current) return;

@@ -163,15 +163,21 @@ export async function syncSmallBuys(options: SmallBuysSyncOptions): Promise<Smal
     .in('id', (allLinks || []).map((l) => l.wallet_id));
   const walletNameById = new Map<string, string>((walletRows || []).map((w: any) => [w.id, w.wallet_name]));
 
-  // Group by asset AND exchange account so each batch maps to one wallet
+  // Group by asset AND exchange account AND IST calendar day so a batch never
+  // spans midnight (an order from yesterday must not land in today's entry)
+  const istDayKey = (ms: number) =>
+    new Date(ms + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
   const assetGroups = new Map<string, typeof newOrders>();
   for (const order of newOrders) {
     const asset = order.asset || 'USDT';
     const accId = order.exchange_account_id || 'none';
-    const key = `${asset}::${accId}`;
+    const day = istDayKey(Number(order.create_time) || Date.now());
+    const key = `${asset}::${accId}::${day}`;
     if (!assetGroups.has(key)) assetGroups.set(key, []);
     assetGroups.get(key)!.push(order);
   }
+
 
   const batchId = `SB-${Date.now()}`;
   const userId = getCurrentUserId();

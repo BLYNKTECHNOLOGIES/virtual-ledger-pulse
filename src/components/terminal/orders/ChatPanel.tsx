@@ -636,11 +636,6 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               ))}
             </div>
           )}
-          {historyLoading && historicalSections.length === 0 && (
-            <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" /> Checking earlier chats…
-            </div>
-          )}
           {historyUnavailable && historicalSections.length === 0 && (
             <div className="flex flex-col items-center gap-1 py-2">
               <p className="text-center text-[10px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
@@ -650,17 +645,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               </Button>
             </div>
           )}
-          {!historyLoading && !historyUnavailable && historicalSections.length === 0 && (
-            <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>
-          )}
-          {hasMoreHistory && historicalSections.length > 0 && (
-            <div className="flex justify-center pb-3">
-              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
-                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
-                Load earlier chats
-              </Button>
-            </div>
-          )}
+
           {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
               {historicalSections.length > 0 && (

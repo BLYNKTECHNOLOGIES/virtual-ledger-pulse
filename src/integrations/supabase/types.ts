@@ -32430,6 +32430,10 @@ export type Database = {
         Args: { wallet_id_param: string }
         Returns: undefined
       }
+      recompute_p2p_counterparty_totals: {
+        Args: { p_nickname: string }
+        Returns: undefined
+      }
       reconcile_binance_app_chat_reads: {
         Args: { p_limit?: number }
         Returns: number

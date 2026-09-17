@@ -996,28 +996,9 @@ function TerminalOrdersContent() {
       });
     }
 
-    // Tally Active sub-filter counts (before applying the sub-filter)
-    if (statusFilter === 'active') {
-      const counts = { all: enriched.length, unpaid: 0, paid: 0, appeal: 0 };
-      for (const o of enriched) {
-        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
-        if (op === 'Pending Payment') counts.unpaid++;
-        else if (op === 'Releasing' || op === 'Pending Release') counts.paid++;
-        else if (op === 'Under Appeal') counts.appeal++;
-      }
-      activeSubCountsRef.current = counts;
-    }
-
-    // Active sub-filter: Unpaid (Pending Payment), Paid (buyer paid, awaiting release), Appeal
-    if (statusFilter === 'active' && activeSubFilter !== 'all') {
-      enriched = enriched.filter(o => {
-        const op = mapToOperationalStatus(o._resolvedStatus, o.tradeType || 'BUY');
-        if (activeSubFilter === 'unpaid') return op === 'Pending Payment';
-        if (activeSubFilter === 'paid') return op === 'Releasing' || op === 'Pending Release';
-        if (activeSubFilter === 'appeal') return op === 'Under Appeal';
-        return true;
-      });
-    }
+    // Active sub-filter + counts are applied at the END (after search, date
+    // range, scope and assignment filters) so the tab badges always match the
+    // orders the operator can actually see.
 
     if (search) {
       const q = search.toLowerCase();

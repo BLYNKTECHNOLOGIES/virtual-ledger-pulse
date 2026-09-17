@@ -622,7 +622,13 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
             </div>
           )}
           {historyUnavailable && historicalSections.length === 0 && (
-            <p className="py-2 text-center text-[10px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
+            <div className="flex flex-col items-center gap-1 py-2">
+              <p className="text-center text-[10px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
+              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
+                Retry earlier chats
+              </Button>
+            </div>
           )}
           {!historyLoading && !historyUnavailable && historicalSections.length === 0 && (
             <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>

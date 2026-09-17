@@ -132,51 +132,62 @@ export function useCounterpartyChatHistory(
         // accepted here; verified names are deliberately never used as keys.
         const nick = (counterpartyNickname || '').trim();
         if (past.length === 0 && nick && !nick.includes('*')) {
-          const recovered = await withTimeout(
-            callBinanceAds('findCounterpartyOrderHistory', {
-              currentOrderNo: currentOrderNumber,
-              counterpartyNickname: nick,
-              maxPages: 30,
-            }, exchangeAccountId || undefined),
-            25_000,
-            'recent counterparty order recovery',
-          );
-          const rows = recovered?.data ?? recovered?.list ?? recovered;
-          if (Array.isArray(rows)) past.push(...rows);
+          try {
+            const recovered = await withTimeout(
+              callBinanceAds('findCounterpartyOrderHistory', {
+                currentOrderNo: currentOrderNumber,
+                counterpartyNickname: nick,
+                maxPages: 30,
+              }, exchangeAccountId || undefined),
+              25_000,
+              'recent counterparty order recovery',
+            );
+            const rows = recovered?.data ?? recovered?.list ?? recovered;
+            if (Array.isArray(rows)) past.push(...rows);
+          } catch (err) {
+            // Recovery is best-effort. A slow/rate-limited Binance scan must not
+            // suppress order rows and archived messages already stored locally.
+            console.warn('Recent counterparty order recovery skipped:', err);
+          }
         }
 
         // Order-less enquiry threads (INQ-*) belong to the same person but have
         // no order row, so the RPC cannot return them. Pull them in by the
         // nickname Binance stamped on those messages (never a masked nickname).
         if (nick && !nick.includes('*')) {
-          let iq = supabase
-            .from('binance_order_chat_messages')
-            .select('order_number, binance_create_time')
-            .eq('sender_nickname', nick)
-            .like('order_number', 'INQ-%')
-            .order('binance_create_time', { ascending: true })
-            .limit(500);
-          if (exchangeAccountId) iq = iq.eq('exchange_account_id', exchangeAccountId);
-          const { data: inqRows } = await withTimeout(iq, 15_000, 'enquiry thread lookup');
-          const firstSeen = new Map<string, number>();
-          for (const r of inqRows || []) {
-            const on = String((r as any).order_number);
-            if (on === currentOrderNumber) continue;
-            if (!firstSeen.has(on)) firstSeen.set(on, Number((r as any).binance_create_time) || 0);
+          try {
+            let iq = supabase
+              .from('binance_order_chat_messages')
+              .select('order_number, binance_create_time')
+              .eq('sender_nickname', nick)
+              .like('order_number', 'INQ-%')
+              .order('binance_create_time', { ascending: true })
+              .limit(500);
+            if (exchangeAccountId) iq = iq.eq('exchange_account_id', exchangeAccountId);
+            const { data: inqRows, error: inqError } = await withTimeout(iq, 15_000, 'enquiry thread lookup');
+            if (inqError) throw inqError;
+            const firstSeen = new Map<string, number>();
+            for (const r of inqRows || []) {
+              const on = String((r as any).order_number);
+              if (on === currentOrderNumber) continue;
+              if (!firstSeen.has(on)) firstSeen.set(on, Number((r as any).binance_create_time) || 0);
+            }
+            for (const [on, t] of firstSeen) {
+              past.push({
+                order_number: on,
+                trade_type: 'ENQUIRY',
+                asset: null,
+                total_price: null,
+                fiat_unit: null,
+                create_time: t,
+                exchange_account_id: exchangeAccountId || null,
+                order_status: 'ENQUIRY',
+              } as any);
+            }
+            past.sort((a: any, b: any) => Number(b.create_time || 0) - Number(a.create_time || 0));
+          } catch (err) {
+            console.warn('Enquiry thread enrichment skipped:', err);
           }
-          for (const [on, t] of firstSeen) {
-            past.push({
-              order_number: on,
-              trade_type: 'ENQUIRY',
-              asset: null,
-              total_price: null,
-              fiat_unit: null,
-              create_time: t,
-              exchange_account_id: exchangeAccountId || null,
-              order_status: 'ENQUIRY',
-            } as any);
-          }
-          past.sort((a: any, b: any) => Number(b.create_time || 0) - Number(a.create_time || 0));
         }
         allPastOrdersRef.current = past;
       }
@@ -207,11 +218,12 @@ export function useCounterpartyChatHistory(
             .in('order_number', pending.map((o) => o.order_number))
             .order('binance_create_time', { ascending: true });
         if (exchangeAccountId) archiveQuery = archiveQuery.eq('exchange_account_id', exchangeAccountId);
-        const { data: rows } = await withTimeout(
+        const { data: rows, error: archiveError } = await withTimeout(
           archiveQuery,
           20_000,
           'stored chat lookup',
         );
+        if (archiveError) throw archiveError;
         for (const r of rows || []) {
           const key = String((r as any).order_number);
           (archived[key] ||= []).push({

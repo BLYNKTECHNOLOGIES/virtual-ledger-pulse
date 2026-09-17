@@ -1505,7 +1505,11 @@ serve(async (req) => {
           let pageResult: any;
           try { pageResult = JSON.parse(text); } catch { pageResult = { raw: text, status: response.status }; }
           if (!response.ok || (pageResult?.code && pageResult.code !== "000000" && pageResult.code !== 200)) {
-            throw new Error(pageResult?.message || pageResult?.msg || "Binance order-history recovery failed");
+            // This is a best-effort recovery scan. Preserve matches from earlier
+            // pages instead of turning one transient Binance failure into a
+            // complete loss of locally archived chat history in the UI.
+            console.warn("Counterparty order-history recovery stopped at page", page, response.status, pageResult?.code || "");
+            break;
           }
           const orders = unwrapOrderList(pageResult);
           if (orders.length === 0) break;

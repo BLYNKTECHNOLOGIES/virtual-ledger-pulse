@@ -46,27 +46,28 @@ export default function QuizDashboardPage() {
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<"drive" | "role" | null>(null);
   const [driveForm, setDriveForm] = useState({ name: "", accessCode: "", mode: "on_site", startsAt: "", endsAt: "" });
-  const [roleForm, setRoleForm] = useState({ name: "", code: "", department: "OPERATIONS", shortlist: "65", hold: "50" });
+  const [roleForm, setRoleForm] = useState({ positionId: "", code: "", shortlist: "65", hold: "50" });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cbt", "staff-workspace"],
     queryFn: async () => {
-      const [drives, candidates, attempts, questions, roles, departments, evaluations, settingsRow] = await Promise.all([
+      const [drives, candidates, attempts, questions, roles, departments, evaluations, settingsRow, positions] = await Promise.all([
         supabase.from("cbt_drives").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_candidates").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_attempts").select("*, cbt_candidates(full_name), cbt_job_roles(name), cbt_drives(name)").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_questions").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("cbt_job_roles").select("*").order("name").limit(100),
+        supabase.from("cbt_job_roles").select("*, positions(id, title, is_active, departments:department_id(code, name))").order("name").limit(100),
         supabase.from("cbt_departments").select("*").order("name"),
         supabase.from("cbt_written_evaluations").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_settings").select("*").eq("id", true).maybeSingle(),
+        supabase.from("positions").select("id, title, is_active, departments:department_id(code, name)").eq("is_active", true).order("title"),
       ]);
-      const errors = [drives.error, candidates.error, attempts.error, questions.error, roles.error, departments.error, evaluations.error, settingsRow.error].filter(Boolean);
+      const errors = [drives.error, candidates.error, attempts.error, questions.error, roles.error, departments.error, evaluations.error, settingsRow.error, positions.error].filter(Boolean);
       if (errors.length) throw errors[0];
       return {
         drives: drives.data ?? [], candidates: candidates.data ?? [], attempts: attempts.data ?? [],
         questions: questions.data ?? [], roles: roles.data ?? [], departments: departments.data ?? [],
-        evaluations: evaluations.data ?? [], settings: settingsRow.data,
+        evaluations: evaluations.data ?? [], settings: settingsRow.data, positions: positions.data ?? [],
       };
     },
   });
@@ -90,19 +91,32 @@ export default function QuizDashboardPage() {
     onError: (error: Error) => toast({ title: "Drive not created", description: error.message, variant: "destructive" }),
   });
 
+  const selectedPosition = useMemo(
+    () => (data?.positions ?? []).find((position: any) => position.id === roleForm.positionId),
+    [data?.positions, roleForm.positionId],
+  );
+
+  const availablePositions = useMemo(() => {
+    const taken = new Set((data?.roles ?? []).map((role: any) => role.position_id));
+    return (data?.positions ?? []).filter((position: any) => !taken.has(position.id));
+  }, [data?.positions, data?.roles]);
+
   const createRole = useMutation({
     mutationFn: async () => {
-      const code = roleForm.code.trim().toUpperCase().replace(/[^A-Z0-9_]/g, "_");
-      if (!roleForm.name.trim() || !code || !roleForm.department) throw new Error("Enter the role name, code, and department.");
+      if (!selectedPosition) throw new Error("Select the company position this hiring role belongs to.");
+      const department = (selectedPosition as any).departments;
+      if (!department?.code) throw new Error("This position has no department assigned. Set its department first.");
+      const code = (roleForm.code.trim() || `${department.code}_${selectedPosition.title}`)
+        .toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_|_$/g, "");
       const { error } = await supabase.from("cbt_job_roles").insert({
-        name: roleForm.name.trim(), code, department_code: roleForm.department,
+        position_id: selectedPosition.id, name: selectedPosition.title, code, department_code: department.code,
         shortlist_cutoff: Number(roleForm.shortlist), hold_cutoff: Number(roleForm.hold),
       });
       if (error) throw error;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
-      setDialog(null); setRoleForm({ name: "", code: "", department: "OPERATIONS", shortlist: "65", hold: "50" });
+      setDialog(null); setRoleForm({ positionId: "", code: "", shortlist: "65", hold: "50" });
       toast({ title: "Role blueprint created" });
     },
     onError: (error: Error) => toast({ title: "Role not created", description: error.message, variant: "destructive" }),
@@ -167,7 +181,7 @@ export default function QuizDashboardPage() {
         <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Versioned content, review status, difficulty, and usage.</p></div>{canManage && <Button variant="outline" disabled><Plus />Add question</Button>}</div>{!data?.questions.length ? noData(FileQuestion, "Question bank is empty", "Seed content and the question editor are not yet installed; no unapproved question will be served.") : <Table><TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Category</TableHead><TableHead>Difficulty</TableHead><TableHead>Status</TableHead><TableHead numeric>Times served</TableHead></TableRow></TableHeader><TableBody>{data.questions.map((question) => <TableRow key={question.id}><TableCell>{pretty(question.type)}</TableCell><TableCell>{question.category_tag}</TableCell><TableCell>{pretty(question.difficulty)}</TableCell><TableCell><Badge variant={statusVariant(question.status)}>{pretty(question.status)}</Badge></TableCell><TableCell numeric>{question.times_served}</TableCell></TableRow>)}</TableBody></Table>}
         </TabsContent>
 
-        <TabsContent value="roles" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Roles & blueprints</h2><p className="text-sm text-muted-foreground">Define role cut-offs before adding ordered test sections.</p></div>{canManage && <Button onClick={() => setDialog("role")}><Plus />New role</Button>}</div>{!data?.roles.length ? noData(BriefcaseBusiness, "No role blueprints", "Create the first hiring role, then configure its assessment sections.", canManage ? <Button onClick={() => setDialog("role")}><Plus />Create role</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead numeric>Shortlist</TableHead><TableHead numeric>Hold</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{data.roles.map((role) => <TableRow key={role.id}><TableCell><p className="font-medium">{role.name}</p><p className="text-xs text-muted-foreground font-mono">{role.code}</p></TableCell><TableCell>{role.department_code}</TableCell><TableCell numeric>{role.shortlist_cutoff}%</TableCell><TableCell numeric>{role.hold_cutoff}%</TableCell><TableCell><Badge variant={role.is_active ? "success" : "muted"}>{role.is_active ? "Active" : "Inactive"}</Badge></TableCell></TableRow>)}</TableBody></Table>}
+        <TabsContent value="roles" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Roles & blueprints</h2><p className="text-sm text-muted-foreground">Define role cut-offs before adding ordered test sections.</p></div>{canManage && <Button onClick={() => setDialog("role")}><Plus />New role</Button>}</div>{!data?.roles.length ? noData(BriefcaseBusiness, "No role blueprints", "Create the first hiring role, then configure its assessment sections.", canManage ? <Button onClick={() => setDialog("role")}><Plus />Create role</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead numeric>Shortlist</TableHead><TableHead numeric>Hold</TableHead><TableHead>Status</TableHead></TableRow></TableHeader><TableBody>{data.roles.map((role) => <TableRow key={role.id}><TableCell><p className="font-medium">{role.name}</p><p className="text-xs text-muted-foreground font-mono">{role.code}</p></TableCell><TableCell>{(role as any).positions?.departments?.name ?? role.department_code}</TableCell><TableCell numeric>{role.shortlist_cutoff}%</TableCell><TableCell numeric>{role.hold_cutoff}%</TableCell><TableCell><Badge variant={role.is_active ? "success" : "muted"}>{role.is_active ? "Active" : "Inactive"}</Badge></TableCell></TableRow>)}</TableBody></Table>}
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4"><div><h2 className="text-lg font-semibold">Quiz settings</h2><p className="text-sm text-muted-foreground">Global candidate-session, warning, and retention controls.</p></div>{data?.settings ? <div className="grid gap-x-8 gap-y-4 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-3">{[["Company", data.settings.company_name], ["HR contact", data.settings.hr_email], ["Retention", `${data.settings.retention_days} days`], ["Warning limit", data.settings.max_warnings], ["Heartbeat", `${data.settings.heartbeat_seconds} seconds`], ["Abandon after", `${data.settings.abandon_after_minutes} minutes`]].map(([label, value]) => <div key={String(label)}><p className="text-xs font-medium uppercase text-muted-foreground">{label}</p><p className="mt-1 text-sm font-medium">{value}</p></div>)}</div> : noData(Settings, "Settings unavailable", "Quiz settings have not been initialized.")}{!canAdmin && <p className="text-xs text-muted-foreground">Only Quiz administrators can change global settings.</p>}</TabsContent>
@@ -175,7 +189,7 @@ export default function QuizDashboardPage() {
 
       <Dialog open={dialog === "drive"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent><DialogHeader><DialogTitle>Create assessment drive</DialogTitle><DialogDescription>Creates a draft. Candidates cannot enter until it is configured and made live.</DialogDescription></DialogHeader><div className="grid gap-4"><div><Label htmlFor="drive-name">Drive name</Label><Input id="drive-name" value={driveForm.name} onChange={(e) => setDriveForm((v) => ({ ...v, name: e.target.value }))} /></div><div><Label htmlFor="drive-code">Access code</Label><Input id="drive-code" maxLength={6} className="uppercase font-mono" value={driveForm.accessCode} onChange={(e) => setDriveForm((v) => ({ ...v, accessCode: e.target.value }))} placeholder="ABC123" /></div><div><Label>Mode</Label><Select value={driveForm.mode} onValueChange={(mode) => setDriveForm((v) => ({ ...v, mode }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="on_site">On-site</SelectItem><SelectItem value="remote">Remote</SelectItem></SelectContent></Select></div><div className="grid grid-cols-2 gap-3"><div><Label htmlFor="drive-start">Starts</Label><Input id="drive-start" type="datetime-local" value={driveForm.startsAt} onChange={(e) => setDriveForm((v) => ({ ...v, startsAt: e.target.value }))} /></div><div><Label htmlFor="drive-end">Ends</Label><Input id="drive-end" type="datetime-local" value={driveForm.endsAt} onChange={(e) => setDriveForm((v) => ({ ...v, endsAt: e.target.value }))} /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createDrive.isPending} onClick={() => createDrive.mutate()}>Create draft</Button></DialogFooter></DialogContent></Dialog>
 
-      <Dialog open={dialog === "role"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent><DialogHeader><DialogTitle>Create role blueprint</DialogTitle><DialogDescription>Creates the role shell. Assessment sections are configured separately.</DialogDescription></DialogHeader><div className="grid gap-4"><div><Label htmlFor="role-name">Role name</Label><Input id="role-name" value={roleForm.name} onChange={(e) => setRoleForm((v) => ({ ...v, name: e.target.value }))} /></div><div><Label htmlFor="role-code">Role code</Label><Input id="role-code" value={roleForm.code} onChange={(e) => setRoleForm((v) => ({ ...v, code: e.target.value }))} placeholder="OPS_ASSOCIATE" /></div><div><Label>Department</Label><Select value={roleForm.department} onValueChange={(department) => setRoleForm((v) => ({ ...v, department }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{data?.departments.map((department) => <SelectItem key={department.code} value={department.code}>{department.name}</SelectItem>)}</SelectContent></Select></div><div className="grid grid-cols-2 gap-3"><div><Label htmlFor="shortlist">Shortlist %</Label><Input id="shortlist" type="number" min="0" max="100" value={roleForm.shortlist} onChange={(e) => setRoleForm((v) => ({ ...v, shortlist: e.target.value }))} /></div><div><Label htmlFor="hold">Hold %</Label><Input id="hold" type="number" min="0" max="100" value={roleForm.hold} onChange={(e) => setRoleForm((v) => ({ ...v, hold: e.target.value }))} /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createRole.isPending} onClick={() => createRole.mutate()}>Create role</Button></DialogFooter></DialogContent></Dialog>
+      <Dialog open={dialog === "role"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent><DialogHeader><DialogTitle>Create role blueprint</DialogTitle><DialogDescription>Pick the company position this hiring role is for. Its title and department come from the company records and stay in sync.</DialogDescription></DialogHeader><div className="grid gap-4"><div><Label>Company position</Label><Select value={roleForm.positionId} onValueChange={(positionId) => setRoleForm((v) => ({ ...v, positionId }))}><SelectTrigger><SelectValue placeholder="Select a position" /></SelectTrigger><SelectContent>{availablePositions.map((position: any) => <SelectItem key={position.id} value={position.id}>{position.title}{position.departments?.code ? ` — ${position.departments.code}` : ""}</SelectItem>)}</SelectContent></Select>{!availablePositions.length && <p className="mt-1 text-xs text-muted-foreground">Every active position already has a role blueprint.</p>}</div><div><Label>Department</Label><Input value={(selectedPosition as any)?.departments?.name ?? ""} readOnly disabled placeholder="Taken from the position" /></div><div><Label htmlFor="role-code">Role code</Label><Input id="role-code" value={roleForm.code} onChange={(e) => setRoleForm((v) => ({ ...v, code: e.target.value }))} placeholder="Auto-generated if left blank" /></div><div className="grid grid-cols-2 gap-3"><div><Label htmlFor="shortlist">Shortlist %</Label><Input id="shortlist" type="number" min="0" max="100" value={roleForm.shortlist} onChange={(e) => setRoleForm((v) => ({ ...v, shortlist: e.target.value }))} /></div><div><Label htmlFor="hold">Hold %</Label><Input id="hold" type="number" min="0" max="100" value={roleForm.hold} onChange={(e) => setRoleForm((v) => ({ ...v, hold: e.target.value }))} /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createRole.isPending} disabled={!roleForm.positionId} onClick={() => createRole.mutate()}>Create role</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }

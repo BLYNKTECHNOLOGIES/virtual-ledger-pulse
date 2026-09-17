@@ -494,7 +494,7 @@ export function AdUptimePanel() {
                     <div className={`t-mono text-2xl font-semibold leading-none mt-1 ${scoreTone(Number(b.blended_score))}`}>
                       {pct(b.blended_score)}
                     </div>
-                    {/* Auditable breakdown: each category's score × its weight. */}
+                    {/* Per-category score (no weight arithmetic shown). */}
                     <div className="mt-1.5 space-y-0.5">
                       {AD_CLASSES.map(({ key, short }) => {
                         const cat = b.categories?.[key];
@@ -502,13 +502,12 @@ export function AdUptimePanel() {
                         return (
                           <div key={key} className="flex items-center justify-between text-[9px] text-muted-foreground">
                             <span>{short}</span>
-                            <span className="t-mono">
-                              {Number(cat.score).toFixed(1)}% × {Number(cat.weight)} = {((Number(cat.score) * Number(cat.weight)) / Math.max(Number(b.weight_covered) || 100, 1)).toFixed(2)}
-                            </span>
+                            <span className="t-mono">{Number(cat.score).toFixed(1)}%</span>
                           </div>
                         );
                       })}
                     </div>
+
                   </div>
 
                 ))}

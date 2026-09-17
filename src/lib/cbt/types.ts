@@ -72,5 +72,6 @@ export type CbtState = {
     [key: string]: unknown;
   };
   sections: CbtSectionSummary[];
+  blueprint?: CbtSectionSummary[];
   current_section: CbtCurrentSection | null;
 };

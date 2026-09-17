@@ -31,37 +31,46 @@ export function CbtTypingSection({
   const dirty = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const sync = useCallback(
-    async (words: string[]) => {
-      if (syncing.current) return;
-      syncing.current = true;
-      try {
+  // the newest set of locked words, so a sync that had to wait always sends the latest list
+  const latest = useRef<string[]>([]);
+
+  const sync = useCallback(async () => {
+    if (syncing.current) {
+      dirty.current = true;
+      return;
+    }
+    syncing.current = true;
+    try {
+      // keep sending until nothing new arrived while the last call was in flight
+      while (true) {
+        dirty.current = false;
+        const words = latest.current.slice(0, 1000);
         const res = await cbtCall<any>('cbt-typing-sync', {
           section_id: section.id,
-          committed_words: words.slice(0, 1000),
+          committed_words: words,
           keystrokes: keystrokes.current,
           backspaces: backspaces.current,
         });
         noteServerNow(res.server_now);
-        dirty.current = false;
-      } catch (e: any) {
-        if (e?.code === 'second_session' || e?.code === 'no_token' || e?.code === 'expired') {
-          onSessionError(e.code, e.message);
-        }
-      } finally {
-        syncing.current = false;
+        if (!dirty.current) break;
       }
-    },
-    [section.id, onSessionError],
-  );
+    } catch (e: any) {
+      dirty.current = true;
+      if (e?.code === 'second_session' || e?.code === 'no_token' || e?.code === 'expired') {
+        onSessionError(e.code, e.message);
+      }
+    } finally {
+      syncing.current = false;
+    }
+  }, [section.id, onSessionError]);
 
   // periodic sync (every 5s while there is something new)
   useEffect(() => {
     const id = window.setInterval(() => {
-      if (dirty.current) void sync(committed);
+      if (dirty.current) void sync();
     }, 5000);
     return () => window.clearInterval(id);
-  }, [committed, sync]);
+  }, [sync]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -69,13 +78,15 @@ export function CbtTypingSection({
 
   const commitWord = (word: string) => {
     if (!word) return;
-    const next = [...committed, word];
     keystrokes.current += 1;
-    setCommitted(next);
+    setCommitted((prev) => {
+      const next = prev.length >= 1000 ? prev : [...prev, word];
+      latest.current = next;
+      return next;
+    });
     setCurrent('');
     dirty.current = true;
-    void sync(next);
-    if (next.length >= 1000) return;
+    void sync();
   };
 
   const lastBurstCheck = useRef({ at: Date.now(), count: 0 });
@@ -156,7 +167,7 @@ export function CbtTypingSection({
           size="sm"
           onClick={() => {
             if (current.trim()) commitWord(current.trim());
-            else void sync(committed);
+            else void sync();
           }}
         >
           Save my progress

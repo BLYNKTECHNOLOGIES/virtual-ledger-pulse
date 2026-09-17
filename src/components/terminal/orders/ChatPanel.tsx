@@ -151,9 +151,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
            /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
   }, []);
 
-  useEffect(() => {
-    void loadMoreHistory();
-  }, [loadMoreHistory]);
+  // Earlier chats are loaded lazily — only when the operator scrolls up to the
+  // top of the thread (see handleScroll). Nothing is fetched on open.
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+
 
   const historicalSections = useMemo(() => historicalChats.map((chat) => ({
     ...chat,

@@ -32220,6 +32220,10 @@ export type Database = {
         | "hrms_mailbox_view"
         | "hrms_mailbox_manage"
         | "hrms_data_health_view"
+        | "hrms_quiz_view"
+        | "hrms_quiz_manage"
+        | "hrms_quiz_evaluate"
+        | "hrms_quiz_admin"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
         | "open"
@@ -32646,6 +32650,10 @@ export const Constants = {
         "hrms_mailbox_view",
         "hrms_mailbox_manage",
         "hrms_data_health_view",
+        "hrms_quiz_view",
+        "hrms_quiz_manage",
+        "hrms_quiz_evaluate",
+        "hrms_quiz_admin",
       ],
       erp_task_priority: ["low", "medium", "high", "critical"],
       erp_task_status: [

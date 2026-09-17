@@ -29815,6 +29815,21 @@ export type Database = {
       cbt_can_evaluate: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_manage: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_view: { Args: { _user_id?: string }; Returns: boolean }
+      cbt_finalize_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: undefined
+      }
+      cbt_norm_amount: { Args: { p: string }; Returns: number }
+      cbt_norm_text: { Args: { p: string }; Returns: string }
+      cbt_rescore_attempt: {
+        Args: { p_attempt_id: string }
+        Returns: undefined
+      }
+      cbt_retention_purge: { Args: never; Returns: number }
+      cbt_score_section: { Args: { p_section_id: string }; Returns: undefined }
+      cbt_section_config: { Args: { p_section_id: string }; Returns: Json }
+      cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }
+      cbt_sweep_expired: { Args: never; Returns: number }
       check_in_terminal_appeal_case: {
         Args: { p_case_id: string; p_note?: string }
         Returns: undefined

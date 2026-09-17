@@ -64,8 +64,11 @@ export function useCounterpartyChatHistory(
 ) {
   const [historicalChats, setHistoricalChats] = useState<HistoricalOrderChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [pastThreadCount, setPastThreadCount] = useState(0);
   const [isUnavailable, setIsUnavailable] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
   const loadedOrdersRef = useRef<Set<string>>(new Set());
   const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null; order_status?: string | null }[] | null>(null);
   const offsetRef = useRef(0);

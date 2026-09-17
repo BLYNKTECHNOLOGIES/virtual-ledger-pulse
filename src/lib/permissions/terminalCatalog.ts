@@ -61,6 +61,7 @@ export type TerminalPermission =
   | 'terminal_mpi_view'
   | 'terminal_mpi_view_own'
   | 'terminal_mpi_view_all'
+  | 'terminal_ad_uptime_view'
   // Assets
   | 'terminal_assets_view'
   | 'terminal_assets_manage'
@@ -200,6 +201,7 @@ export const TERMINAL_PERMISSION_MODULES: TerminalPermissionModuleDef[] = [
       { key: 'terminal_analytics_export', label: 'Export Analytics', tier: 'action', requires: ['terminal_analytics_view'] },
       { key: 'terminal_mpi_view_own', label: 'MPI (Own)', tier: 'view' },
       { key: 'terminal_mpi_view_all', label: 'MPI (All Users)', tier: 'manage' },
+      { key: 'terminal_ad_uptime_view', label: 'Ad Active Time by Shift', tier: 'view' },
     ],
   },
   {
@@ -294,7 +296,7 @@ export const TERMINAL_ROLE_TEMPLATES: Record<string, { label: string; permission
       'terminal_autopay_view', 'terminal_autopay_toggle',
       'terminal_autoreply_view', 'terminal_autoreply_toggle',
       'terminal_shift_view', 'terminal_shift_manage',
-      'terminal_mpi_view_own', 'terminal_mpi_view_all',
+      'terminal_mpi_view_own', 'terminal_mpi_view_all', 'terminal_ad_uptime_view',
       'terminal_analytics_view', 'terminal_assets_view',
       'terminal_users_view', 'terminal_users_manage_subordinates',
     ],
@@ -332,7 +334,7 @@ export const TERMINAL_ROLE_TEMPLATES: Record<string, { label: string; permission
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
       'terminal_shift_view', 'terminal_shift_manage',
-      'terminal_mpi_view_own', 'terminal_mpi_view_all',
+      'terminal_mpi_view_own', 'terminal_mpi_view_all', 'terminal_ad_uptime_view',
       'terminal_analytics_view', 'terminal_analytics_export',
       'terminal_assets_view',
       'terminal_users_view', 'terminal_users_manage', 'terminal_users_manage_subordinates',
@@ -354,7 +356,7 @@ export const TERMINAL_ROLE_TEMPLATES: Record<string, { label: string; permission
       'terminal_autopay_view', 'terminal_autopay_toggle', 'terminal_autopay_configure',
       'terminal_autoreply_view', 'terminal_autoreply_manage', 'terminal_autoreply_toggle',
       'terminal_shift_view', 'terminal_shift_manage', 'terminal_shift_reconciliation',
-      'terminal_mpi_view_own', 'terminal_mpi_view_all',
+      'terminal_mpi_view_own', 'terminal_mpi_view_all', 'terminal_ad_uptime_view',
       'terminal_analytics_view', 'terminal_analytics_export',
       'terminal_assets_view', 'terminal_assets_manage',
       'terminal_kyc_view', 'terminal_kyc_manage',

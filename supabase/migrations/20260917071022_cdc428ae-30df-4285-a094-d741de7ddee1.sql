@@ -1,0 +1,1 @@
+ALTER TYPE terminal_permission ADD VALUE IF NOT EXISTS 'terminal_ad_uptime_view';

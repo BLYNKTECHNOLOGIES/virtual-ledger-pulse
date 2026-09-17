@@ -1,4 +1,4 @@
-import {
+import { Radio,
   LayoutDashboard, Megaphone, ShoppingCart, Bot, Wallet, Activity,
   BarChart3, CreditCard, FileWarning, ReceiptText, ScrollText, Users,
   Settings, Command, Search, Keyboard, ArrowLeftRight, ListChecks, MessageSquare,
@@ -60,6 +60,7 @@ export const TERMINAL_NAVIGATION_SHORTCUTS: TerminalShortcutDef[] = [
   { id: "t-nav-assets", category: "Navigation", label: "Assets", description: "Go to Assets", keys: ["Alt", "Shift", "W"], scope: "Any terminal page", combo: AS("KeyW"), icon: Wallet, url: "/terminal/assets", permissions: ["terminal_assets_view"] },
   { id: "t-nav-analytics", category: "Navigation", label: "Analytics", description: "Go to Analytics", keys: ["Alt", "Shift", "Y"], scope: "Any terminal page", combo: AS("KeyY"), icon: Activity, url: "/terminal/analytics", permissions: ["terminal_analytics_view"] },
   { id: "t-nav-mpi", category: "Navigation", label: "MPI", description: "Go to MPI performance", keys: ["Alt", "Shift", "M"], scope: "Any terminal page", combo: AS("KeyM"), icon: BarChart3, url: "/terminal/mpi", permissions: ["terminal_mpi_view_own", "terminal_mpi_view_all"] },
+  { id: "t-nav-ad-uptime", category: "Navigation", label: "Ad Active Time", description: "Go to shift-wise ad active time", keys: ["Alt", "Shift", "B"], scope: "Any terminal page", combo: AS("KeyB"), icon: Radio, url: "/terminal/ad-uptime", permissions: ["terminal_ad_uptime_view"] },
   { id: "t-nav-payer", category: "Navigation", label: "Payer", description: "Go to Payer", keys: ["Alt", "Shift", "P"], scope: "Any terminal page", combo: AS("KeyP"), icon: CreditCard, url: "/terminal/payer", permissions: ["terminal_payer_view"] },
   { id: "t-nav-appeals", category: "Navigation", label: "Appeals", description: "Go to Appeals", keys: ["Alt", "Shift", "J"], scope: "Any terminal page", combo: AS("KeyJ"), icon: FileWarning, url: "/terminal/appeals", permissions: ["terminal_appeals_view"] },
   { id: "t-nav-small-payments", category: "Navigation", label: "Small Payments", description: "Go to Small Payments", keys: ["Alt", "Shift", "K"], scope: "Any terminal page", combo: AS("KeyK"), icon: ReceiptText, url: "/terminal/small-payments", permissions: ["terminal_small_payments_view"] },

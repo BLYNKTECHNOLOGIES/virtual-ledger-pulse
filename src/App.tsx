@@ -25,6 +25,7 @@ const TerminalPayer = lazy(() => import('./pages/terminal/TerminalPayer'));
 const TerminalSmallPayments = lazy(() => import('./pages/terminal/TerminalSmallPayments'));
 const TerminalAppeals = lazy(() => import('./pages/terminal/TerminalAppeals'));
 const TerminalMPI = lazy(() => import('./pages/terminal/TerminalMPI'));
+const TerminalAdUptime = lazy(() => import('./pages/terminal/TerminalAdUptime'));
 const TerminalAuditLogs = lazy(() => import('./pages/terminal/TerminalAuditLogs'));
 const TerminalOperatorDetail = lazy(() => import('./pages/terminal/TerminalOperatorDetail'));
 const InvoiceCreatorPage = lazy(() => import('./pages/InvoiceCreatorPage'));
@@ -739,6 +740,18 @@ const router = createBrowserRouter([
             <AuthCheck>
               <TerminalLayout>
                 <TerminalMPI />
+              </TerminalLayout>
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
+    {
+      path: "/terminal/ad-uptime",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalLayout>
+                <TerminalAdUptime />
               </TerminalLayout>
             </AuthCheck>
         </QueryProvider>

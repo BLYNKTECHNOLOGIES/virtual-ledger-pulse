@@ -21,8 +21,7 @@ import {
   AlertTriangle,
   Mail,
   Inbox,
-
-  
+  ClipboardCheck,
   FileSpreadsheet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -187,6 +186,7 @@ const navGroups: NavGroup[] = [
         ],
       },
       { label: "Organization", icon: Building2, path: "/hrms/organization" },
+      { label: "Quiz", icon: ClipboardCheck, path: "/hrms/quiz" },
       { label: "Documents", icon: FileText, path: "/hrms/documents" },
       { label: "Announcements", icon: Megaphone, path: "/hrms/announcements" },
       { label: "Mailbox", icon: Mail, path: "/hrms/mailbox" },
@@ -215,7 +215,9 @@ const navGroups: NavGroup[] = [
 
 // HRMS is a single, non-subdivided module: one HR owner manages every area.
 // Every HRMS route is gated by the umbrella keys only.
-const HRMS_ROUTE_PERMISSIONS: Record<string, string[]> = {};
+const HRMS_ROUTE_PERMISSIONS: Record<string, string[]> = {
+  "/hrms/quiz": ["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"],
+};
 
 
 interface HorillaSidebarProps {

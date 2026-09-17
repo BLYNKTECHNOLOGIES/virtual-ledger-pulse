@@ -94,6 +94,7 @@ const ROUTE_MODULE: Record<string, string> = {
   "/hrms/helpdesk": "HelpdeskPage",
   "/hrms/helpdesk/policies": "HRPoliciesPage",
   "/hrms/organization": "OrganizationPage",
+  "/hrms/quiz": "QuizDashboardPage",
   "/hrms/documents": "DocumentsPage",
   "/hrms/announcements": "AnnouncementsPage",
   "/hrms/disciplinary-actions": "DisciplinaryActionsPage",

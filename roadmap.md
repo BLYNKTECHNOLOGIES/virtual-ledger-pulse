@@ -17,3 +17,5 @@
 - [x] Add lazy loading to approval and approval history blocks (keep counts correct) — ClientOnboardingApprovals; counts via get_buyer_onboarding_approval_counts RPC, history rows lazy via IntersectionObserver, both tables render 50 rows + Load more
 
 # [x] Terminal sidebar: collapsed/expanded icon Y-positions identical (label space preserved, 40px rows both modes, unified header padding + gap)
+
+# [x] HRMS Management: dedicated permission-gated Quiz tab and working Quiz overview route

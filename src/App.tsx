@@ -151,6 +151,7 @@ const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandid
 const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
 const MailboxPage = lazy(() => import('./pages/horilla/MailboxPage'));
 const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
+const QuizDashboardPage = lazy(() => import('./pages/horilla/QuizDashboardPage'));
 
 const ExchangeAccountsSettings = lazy(() => import('./pages/ExchangeAccountsSettings'));
 const ReportSettings = lazy(() => import('./pages/ReportSettings'));
@@ -880,6 +881,7 @@ const router = createBrowserRouter([
         
         { path: "helpdesk/policies", element: hrmsGate(["hrms_view", "hrms_manage"], <HRPoliciesPage />) },
         { path: "organization", element: hrmsGate(["hrms_view", "hrms_manage"], <OrganizationPage />) },
+        { path: "quiz", element: hrmsGate(["hrms_quiz_view", "hrms_quiz_manage", "hrms_quiz_evaluate", "hrms_quiz_admin"], <QuizDashboardPage />) },
         { path: "documents", element: hrmsGate(["hrms_view", "hrms_manage"], <DocumentsPage />) },
         { path: "documents/templates/new", element: hrmsGate(["hrms_view", "hrms_manage"], <DocumentTemplateEditorPage />) },
         { path: "documents/templates/:id", element: hrmsGate(["hrms_view", "hrms_manage"], <DocumentTemplateEditorPage />) },

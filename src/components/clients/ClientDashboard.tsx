@@ -126,7 +126,7 @@ export function ClientDashboard() {
   // Only the columns the directory actually renders/filters on are selected —
   // pulling every column for ~5k clients was a multi-MB payload per load.
   const DIRECTORY_COLUMNS =
-    'id, name, client_id, assigned_operator, risk_appetite, kyc_status, state, ' +
+    'id, name, client_id, phone, assigned_operator, risk_appetite, kyc_status, state, ' +
     'current_month_used, monthly_limit, first_order_value, date_of_onboarding, created_at, ' +
     'is_buyer, is_seller, buyer_approval_status, seller_approval_status';
 
@@ -396,7 +396,15 @@ export function ClientDashboard() {
     if (!normalizedSearch) return true;
     const normalizedName = (client.name || '').replace(/\s+/g, ' ').toLowerCase();
     if (normalizedName.includes(normalizedSearch)) return true;
-    return (client.client_id || '').toLowerCase().includes(normalizedSearch);
+    if ((client.client_id || '').toLowerCase().includes(normalizedSearch)) return true;
+    // Contact-number search: compare digit-only forms so formats like
+    // "+91 98765-43210" match a query of "9876543210" (and vice versa).
+    const searchDigits = normalizedSearch.replace(/\D/g, '');
+    if (searchDigits.length >= 3) {
+      const phoneDigits = (client.phone || '').replace(/\D/g, '');
+      if (phoneDigits && (phoneDigits.includes(searchDigits) || phoneDigits.endsWith(searchDigits))) return true;
+    }
+    return false;
   };
 
   // Filter clients by type based on actual order history
@@ -555,7 +563,7 @@ export function ClientDashboard() {
                     <div className="relative w-full max-w-sm">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
-                        placeholder="Search buyers by name or ID..."
+                        placeholder="Search buyers by name, ID, or phone..."
                         data-page-search
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
@@ -735,7 +743,7 @@ export function ClientDashboard() {
                     <div className="relative w-full max-w-sm">
                       <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
-                        placeholder="Search sellers by name or ID..."
+                        placeholder="Search sellers by name, ID, or phone..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-9"

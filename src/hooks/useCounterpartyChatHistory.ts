@@ -98,16 +98,14 @@ export function useCounterpartyChatHistory(
     setFetchToken((t) => t + 1);
   }, [currentOrderNumber, counterpartyNickname, exchangeAccountId]);
 
-  const fetchPastOrders = useCallback(async () => {
-    if (!hasMoreRef.current || loadingRef.current) return;
-    loadingRef.current = true;
-    setIsLoading(true);
-    setIsUnavailable(false);
+  // Discovery only: resolve the list of past threads for this counterparty.
+  // This is cheap (one indexed RPC) and tells the UI whether earlier chats
+  // exist at all — the actual messages are only fetched when the operator
+  // scrolls up to them.
+  const ensurePastOrders = useCallback(async () => {
+    if (allPastOrdersRef.current) return allPastOrdersRef.current;
+    {
 
-
-    try {
-      // Fetch the full list of past orders once and cache
-      if (!allPastOrdersRef.current) {
         // Resolve the CURRENT order's counterparty user id. This is the only safe
         // key to group history by. The counterparty is resolved server-side by
         // get_counterparty_order_history: it detects OUR own account numbers

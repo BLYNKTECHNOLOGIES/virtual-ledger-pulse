@@ -85,7 +85,8 @@ export function sanitize(value: unknown, allowSectionScores = false): unknown {
       if (FORBIDDEN.has(k)) continue;
       if (k === "normalized_score" && !allowSectionScores) continue;
       if (k === "record" && v && typeof v === "object") {
-        // data-entry answer keys are the record itself: candidates DO need to see it, keep as-is
+        // data-entry: `record` is the source document the candidate must copy, not an answer key.
+        // The graded key lives in cbt_question_keys, which candidate payloads never read.
         out[k] = v;
         continue;
       }

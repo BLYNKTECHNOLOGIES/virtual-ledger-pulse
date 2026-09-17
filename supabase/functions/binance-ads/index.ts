@@ -1475,6 +1475,84 @@ serve(async (req) => {
         break;
       }
 
+      case "findCounterpartyOrderHistory": {
+        // Bounded recovery for an older order that the rolling collector missed.
+        // Binance exposes no "orders by counterparty" endpoint, so scan only the
+        // requested recent window and accept an exact, unmasked Binance nickname.
+        // Never match verified names: unrelated customers can share them.
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
+        if (!callerIsServiceRole) {
+          if (!callerUserId) throw new Error("Authentication required");
+          const permissionAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          const { data: canViewOrders, error: permissionError } = await permissionAdmin.rpc("has_terminal_permission", {
+            _user_id: callerUserId,
+            _permission: "terminal_orders_view",
+          });
+          if (permissionError || !canViewOrders) throw new Error("Permission denied: terminal_orders_view required");
+        }
+        const nickname = String(payload.counterpartyNickname || "").trim();
+        const currentOrderNo = String(payload.currentOrderNo || "").trim();
+        if (!nickname || nickname.includes("*") || nickname.length > 128) {
+          throw new Error("An exact unmasked Binance nickname is required");
+        }
+
+        const maxPages = Math.min(Math.max(Number(payload.maxPages || 30), 1), 30);
+        const endTimestamp = Number(payload.endTimestamp || Date.now());
+        const startTimestamp = Number(payload.startTimestamp || Math.max(0, endTimestamp - 7 * 24 * 60 * 60 * 1000));
+        const matches: any[] = [];
+        const seen = new Set<string>();
+
+        for (let page = 1; page <= maxPages; page++) {
+          const params = new URLSearchParams({
+            page: String(page), rows: "50",
+            startTimestamp: String(startTimestamp), endTimestamp: String(endTimestamp),
+          });
+          const url = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listUserOrderHistory?${params.toString()}`;
+          const response = await fetchWithRetry(url, { method: "GET", headers: proxyHeaders }, 1, 400, 15000);
+          const text = await response.text();
+          let pageResult: any;
+          try { pageResult = JSON.parse(text); } catch { pageResult = { raw: text, status: response.status }; }
+          if (!response.ok || (pageResult?.code && pageResult.code !== "000000" && pageResult.code !== 200)) {
+            throw new Error(pageResult?.message || pageResult?.msg || "Binance order-history recovery failed");
+          }
+          const orders = unwrapOrderList(pageResult);
+          if (orders.length === 0) break;
+          for (const order of orders) {
+            const orderNo = String(order?.orderNumber ?? order?.orderNo ?? order?.adOrderNo ?? "");
+            const rowNickname = String(order?.counterPartNickName ?? order?.counterpartyNickname ?? "").trim();
+            if (!orderNo || orderNo === currentOrderNo || rowNickname !== nickname || seen.has(orderNo)) continue;
+            seen.add(orderNo);
+            matches.push(order);
+          }
+          // The proxy may cap pages below the requested 50 rows. An empty page,
+          // not a short page, is the only reliable end-of-history marker.
+          await new Promise((resolve) => setTimeout(resolve, 120));
+        }
+
+        const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const historyRows = matches.map((order) => orderToHistoryRow(order, EXCHANGE_ACCOUNT_ID));
+        if (historyRows.length > 0) {
+          const { error } = await admin.from("binance_order_history").upsert(historyRows, { onConflict: "order_number" });
+          if (error) throw error;
+          for (const row of historyRows) await admin.rpc("cp_identity_row", { p_order_number: row.order_number });
+        }
+        result = {
+          code: "000000",
+          message: "success",
+          data: historyRows.map((row) => ({
+            order_number: row.order_number,
+            trade_type: row.trade_type,
+            asset: row.asset,
+            total_price: row.total_price,
+            fiat_unit: row.fiat_unit,
+            create_time: row.create_time,
+            exchange_account_id: row.exchange_account_id,
+            order_status: row.order_status,
+          })),
+        };
+        break;
+      }
+
       case "syncTerminalOrdersForErp": {
         if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing Supabase service configuration");
 

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { callBinanceAds } from './useBinanceActions';
+import { resolveOrderUserNo } from '@/lib/clientIdentityResolver';
 
 export interface HistoricalOrderChat {
   orderNumber: string;
@@ -59,10 +60,12 @@ export function useCounterpartyChatHistory(
   counterpartyNickname: string,
   currentOrderNumber: string,
   counterpartyVerifiedName?: string,
-  exchangeAccountId?: string | null
+  exchangeAccountId?: string | null,
+  tradeType?: string | null,
 ) {
   const [historicalChats, setHistoricalChats] = useState<HistoricalOrderChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUnavailable, setIsUnavailable] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loadedOrdersRef = useRef<Set<string>>(new Set());
   const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null; order_status?: string | null }[] | null>(null);
@@ -80,6 +83,7 @@ export function useCounterpartyChatHistory(
     loadingRef.current = false;
     setHasMore(true);
     setIsLoading(false);
+    setIsUnavailable(false);
     setHistoricalChats([]);
   }, [currentOrderNumber, counterpartyVerifiedName, counterpartyNickname, exchangeAccountId]);
 
@@ -87,11 +91,21 @@ export function useCounterpartyChatHistory(
     if (!hasMore || loadingRef.current) return;
     loadingRef.current = true;
     setIsLoading(true);
+    setIsUnavailable(false);
 
 
     try {
       // Fetch the full list of past orders once and cache
       if (!allPastOrdersRef.current) {
+        // Fresh active orders can reach this screen before the asynchronous
+        // identity collector. Resolve the current order first so the history
+        // RPC never incorrectly returns an empty list merely due to that race.
+        await withTimeout(resolveOrderUserNo({
+          orderNumber: currentOrderNumber,
+          tradeType,
+          exchangeAccountId,
+        }), 20_000, 'counterparty identity lookup');
+
         // Resolve the CURRENT order's counterparty user id. This is the only safe
         // key to group history by. The counterparty is resolved server-side by
         // get_counterparty_order_history: it detects OUR own account numbers
@@ -110,10 +124,28 @@ export function useCounterpartyChatHistory(
         if (error) throw error;
         const past = [...(data || [])];
 
+        // Guarded recovery for older/cancelled orders whose identity trigger
+        // never ran. Binance's supported order-history endpoint is scoped to
+        // this exchange account. Only an exact, unmasked Binance nickname is
+        // accepted here; verified names are deliberately never used as keys.
+        const nick = (counterpartyNickname || '').trim();
+        if (past.length === 0 && nick && !nick.includes('*')) {
+          const recovered = await withTimeout(
+            callBinanceAds('findCounterpartyOrderHistory', {
+              currentOrderNo: currentOrderNumber,
+              counterpartyNickname: nick,
+              maxPages: 30,
+            }, exchangeAccountId || undefined),
+            25_000,
+            'recent counterparty order recovery',
+          );
+          const rows = recovered?.data ?? recovered?.list ?? recovered;
+          if (Array.isArray(rows)) past.push(...rows);
+        }
+
         // Order-less enquiry threads (INQ-*) belong to the same person but have
         // no order row, so the RPC cannot return them. Pull them in by the
         // nickname Binance stamped on those messages (never a masked nickname).
-        const nick = (counterpartyNickname || '').trim();
         if (nick && !nick.includes('*')) {
           let iq = supabase
             .from('binance_order_chat_messages')
@@ -166,12 +198,14 @@ export function useCounterpartyChatHistory(
 
       const archived: Record<string, HistoricalChatMessage[]> = {};
       if (pending.length) {
-        const { data: rows } = await withTimeout(
-          supabase
+        let archiveQuery = supabase
             .from('binance_order_chat_messages')
             .select('order_number,binance_message_id,message_type,chat_message_type,content_type,message_text,image_url,thumbnail_url,binance_create_time,sender_is_self,sender_nickname')
             .in('order_number', pending.map((o) => o.order_number))
-            .order('binance_create_time', { ascending: true }),
+            .order('binance_create_time', { ascending: true });
+        if (exchangeAccountId) archiveQuery = archiveQuery.eq('exchange_account_id', exchangeAccountId);
+        const { data: rows } = await withTimeout(
+          archiveQuery,
           20_000,
           'stored chat lookup',
         );
@@ -248,11 +282,12 @@ export function useCounterpartyChatHistory(
       ]);
     } catch (err) {
       console.error('Failed to load counterparty chat history:', err);
+      setIsUnavailable(true);
     } finally {
       loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, hasMore]);
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId, tradeType, hasMore]);
 
-  return { historicalChats, isLoading, hasMore, loadMore: fetchPastOrders };
+  return { historicalChats, isLoading, isUnavailable, hasMore, loadMore: fetchPastOrders };
 }

@@ -617,7 +617,6 @@ export function useCounterpartyCompletedOrderCount(
       if (!d) return 15000;
       return d.resolved ? false : 15000;
     },
-    select: (d: any) => (typeof d === 'number' ? d : d?.count ?? 0),
   });
 }
 

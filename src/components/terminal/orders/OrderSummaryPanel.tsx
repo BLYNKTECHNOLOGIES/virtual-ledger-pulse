@@ -24,7 +24,7 @@ interface Props {
 export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail, preserveOrderStatus = false }: Props) {
   const { hasPermission, isTerminalAdmin } = useTerminalAuth();
   const {
-    data: completedWithUs,
+    data: completedHistory,
     isPending: isHistoryLoading,
     isError: isHistoryUnavailable,
   } = useCounterpartyCompletedOrderCount(order.binance_order_number, order.exchange_account_id);
@@ -71,9 +71,9 @@ export function OrderSummaryPanel({ order, counterpartyVerifiedName, liveDetail,
             {order.trade_type}
           </Badge>
           <CounterpartyBadge
-            repeatCount={completedWithUs}
+            repeatCount={completedHistory?.count}
             tradeType={order.trade_type}
-            isLoading={isHistoryLoading}
+            isLoading={isHistoryLoading || completedHistory?.resolved === false}
             isUnavailable={isHistoryUnavailable}
           />
         </div>

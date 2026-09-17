@@ -25,4 +25,4 @@
 # [ ] CBT candidate test runner: public registration, instructions, timed sections, autosave, resume, completion
 # [ ] CBT advanced staff actions: attempt detail, re-score, time extension, invalidation, resume codes, question version approval/key correction
 # [ ] CBT production content: 12 role blueprints, reviewed question bank, cron jobs, and full V1–V13 verification
-- [ ] Restore exact-order Terminal counterparty history and stop endless unavailable/loading state (blocked until DB access migration succeeds and authenticated verification passes).
+- [x] Restore exact-order Terminal counterparty history and stop endless unavailable/loading state — removed the failing client-side identity prerequisite and restored protected history/count execution.

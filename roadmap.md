@@ -21,6 +21,7 @@
 # [x] HRMS Management: dedicated permission-gated Quiz tab and working Quiz overview route
 
 # [x] HRMS Quiz staff workspace: Dashboard, Drives, Candidates & Attempts, Evaluations, Question Bank, Roles & Blueprints, Settings
+# [ ] Terminal merged counterparty chat history: stable account-scoped identity, canceled-order recovery, read-only prior-order timeline, and runtime verification
 # [ ] CBT candidate test runner: public registration, instructions, timed sections, autosave, resume, completion
 # [ ] CBT advanced staff actions: attempt detail, re-score, time extension, invalidation, resume codes, question version approval/key correction
 # [ ] CBT production content: 12 role blueprints, reviewed question bank, cron jobs, and full V1–V13 verification

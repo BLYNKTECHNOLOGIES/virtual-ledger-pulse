@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { Badge } from '@/components/ui/badge';
-import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud } from 'lucide-react';
+import { Send, MessageSquare, Loader2, Volume2, VolumeX, Cloud, History } from 'lucide-react';
 import { useBinanceChatWebSocket } from '@/hooks/useBinanceChatWebSocket';
 import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
@@ -34,6 +34,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useChatSeenSnapshot, seenLabel } from '@/hooks/useChatSeenBy';
 import { fillTemplate, type TemplateOrderValues } from '@/lib/fill-template';
 import { isChatListenerHealthy, useTerminalChatListenerState } from '@/hooks/useTerminalCollector';
+import { useCounterpartyChatHistory, type HistoricalChatMessage } from '@/hooks/useCounterpartyChatHistory';
+import { format } from 'date-fns';
 
 /**
  * The same Binance frame can reach us twice (live socket + history sweep) with
@@ -93,9 +95,8 @@ function normalizeChatTimestamp(value: unknown): number {
 }
 
 export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
-  // Binance chat is strictly order-scoped. Never re-anchor an opened order to
-  // another order or merge prior-order messages into this panel: that can show
-  // unrelated KYC/payment evidence and can send a reply to the wrong order.
+  // Sending and read state stay strictly attached to the opened order. Earlier
+  // verified threads are rendered below as read-only, order-separated context.
   const orderNumber = openedOrderNumber;
   const queryClient = useQueryClient();
   // Chats Binance delivers without an order behind them (ad enquiries).
@@ -115,6 +116,13 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
   const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, clearQueuedMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId, handleDelivered);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
+  const {
+    historicalChats,
+    isLoading: historyLoading,
+    isUnavailable: historyUnavailable,
+    hasMore: hasMoreHistory,
+    loadMore: loadMoreHistory,
+  } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId, tradeType);
   const { data: chatListenerState } = useTerminalChatListenerState();
   const chatListenerHealthy = isChatListenerHealthy(chatListenerState);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
@@ -131,6 +139,46 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());
   const isInitialLoadRef = useRef(true);
   const shouldAutoScrollRef = useRef(true);
+
+  // Helper: detect if text content is actually an image URL
+  const isImageUrl = useCallback((messageText: string | undefined | null): boolean => {
+    if (!messageText) return false;
+    const trimmed = messageText.trim();
+    return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(trimmed) ||
+           /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
+  }, []);
+
+  useEffect(() => {
+    void loadMoreHistory();
+  }, [loadMoreHistory]);
+
+  const historicalSections = useMemo(() => historicalChats.map((chat) => ({
+    ...chat,
+    messages: dedupeMessages(chat.messages.map((msg: HistoricalChatMessage): UnifiedMessage => {
+      const msgType = String(msg.type || 'text').toLowerCase();
+      const content = msg.content || msg.message || '';
+      const isImage = msgType === 'image' || isImageUrl(content);
+      const isSharedAd = isCardPayload(content);
+      const isSystemLike = !isSharedAd && ['system', 'recall', 'mark', 'card', 'video', 'translate', 'error'].includes(msgType);
+      return {
+        id: `history-${chat.orderNumber}-${msg.id}`,
+        source: 'binance',
+        senderType: isSystemLike ? 'system' : (msg.self ? 'operator' : 'counterparty'),
+        text: isImage ? null : content || null,
+        imageUrl: isImage ? (msg.imageUrl || msg.thumbnailUrl || content || undefined) : (msg.imageUrl || msg.thumbnailUrl),
+        timestamp: normalizeChatTimestamp(msg.createTime),
+        senderName: msg.self ? getSenderName(chat.orderNumber, content) : msg.fromNickName,
+        messageType: msgType,
+        isRecall: msgType === 'recall',
+        isComplianceRelevant: isSystemLike,
+      };
+    }).sort((a, b) => a.timestamp - b.timestamp)),
+  })), [historicalChats, isImageUrl, getSenderName]);
+
+  useEffect(() => {
+    const historicalOrderNumbers = historicalChats.map((chat) => chat.orderNumber);
+    if (historicalOrderNumbers.length > 0) prefetchSenders(historicalOrderNumbers);
+  }, [historicalChats, prefetchSenders]);
 
   // Mark this order's chat as read locally so ChatInbox clears the unread badge.
   // The local mark is instant; the Binance write and archive sync are deferred
@@ -178,14 +226,6 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   useEffect(() => {
     localStorage.setItem('terminal-chat-sound', String(soundEnabled));
   }, [soundEnabled]);
-
-  // Helper: detect if text content is actually an image URL
-  const isImageUrl = useCallback((text: string | undefined | null): boolean => {
-    if (!text) return false;
-    const trimmed = text.trim();
-    return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|bmp|svg)(\?.*)?$/i.test(trimmed) ||
-           /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
-  }, []);
 
   // Prefetch sender records for the current order only.
   useEffect(() => {
@@ -557,8 +597,53 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
       {/* Messages area */}
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+          {historicalSections.length > 0 && (
+            <div className="space-y-4 mb-4">
+              {historicalSections.map((chat) => (
+                <section key={chat.orderNumber} className="space-y-2.5" aria-label={`Earlier order ${chat.orderNumber}`}>
+                  <div className="sticky top-0 z-10 flex items-center gap-2 py-1.5 bg-background/95 border-y border-border/60">
+                    <History className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-foreground">Earlier order •••{chat.orderNumber.slice(-4)}</span>
+                    <span className="text-[9px] text-muted-foreground">{chat.orderDate ? format(new Date(normalizeChatTimestamp(chat.orderDate)), 'dd MMM yyyy, HH:mm') : ''}</span>
+                    <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px]">{chat.orderStatus || 'Previous'}</Badge>
+                  </div>
+                  {chat.messages.length > 0 ? chat.messages.map((message) => (
+                    <ChatBubble key={message.id} message={message} />
+                  )) : (
+                    <p className="py-2 text-center text-[10px] text-muted-foreground">No stored messages for this order</p>
+                  )}
+                </section>
+              ))}
+            </div>
+          )}
+          {historyLoading && historicalSections.length === 0 && (
+            <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking earlier chats…
+            </div>
+          )}
+          {historyUnavailable && historicalSections.length === 0 && (
+            <p className="py-2 text-center text-[10px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
+          )}
+          {!historyLoading && !historyUnavailable && historicalSections.length === 0 && (
+            <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>
+          )}
+          {hasMoreHistory && historicalSections.length > 0 && (
+            <div className="flex justify-center pb-3">
+              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
+                Load earlier chats
+              </Button>
+            </div>
+          )}
           {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
+              {historicalSections.length > 0 && (
+                <div className="flex items-center gap-2 py-1.5 border-y border-primary/20">
+                  <MessageSquare className="h-3 w-3 text-primary" />
+                  <span className="text-[10px] font-semibold text-foreground">Current order •••{orderNumber.slice(-4)}</span>
+                  <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px] border-primary/30 text-primary">Active chat</Badge>
+                </div>
+              )}
               {currentOrderMessages.map((message) => (
                 <ChatBubble
                   key={message.id}

@@ -71,6 +71,13 @@ export function useCounterpartyChatHistory(
   const offsetRef = useRef(0);
   const scopeRef = useRef('');
   const loadingRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  // Bumped whenever the scope resets, so the fetch below always re-runs after a
+  // reset. Previously the reset only cleared state and relied on the consumer's
+  // effect to re-fire; when the verified name arrived a moment after mount the
+  // scope reset wiped the loaded history and nothing ever fetched again, which
+  // left the panel permanently on "No earlier chats found".
+  const [fetchToken, setFetchToken] = useState(0);
 
   useEffect(() => {
     const scope = [currentOrderNumber, counterpartyVerifiedName || '', counterpartyNickname || '', exchangeAccountId || ''].join('|');
@@ -80,14 +87,16 @@ export function useCounterpartyChatHistory(
     offsetRef.current = 0;
     loadedOrdersRef.current = new Set();
     loadingRef.current = false;
+    hasMoreRef.current = true;
     setHasMore(true);
     setIsLoading(false);
     setIsUnavailable(false);
     setHistoricalChats([]);
+    setFetchToken((t) => t + 1);
   }, [currentOrderNumber, counterpartyVerifiedName, counterpartyNickname, exchangeAccountId]);
 
   const fetchPastOrders = useCallback(async () => {
-    if (!hasMore || loadingRef.current) return;
+    if (!hasMoreRef.current || loadingRef.current) return;
     loadingRef.current = true;
     setIsLoading(true);
     setIsUnavailable(false);

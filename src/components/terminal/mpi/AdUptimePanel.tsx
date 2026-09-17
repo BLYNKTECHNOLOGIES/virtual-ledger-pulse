@@ -165,14 +165,12 @@ export function AdUptimePanel() {
   const { data: summary = [], isFetching, refetch } = useQuery({
     queryKey: ['ad-uptime-summary', date, accountId],
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('terminal_ad_uptime_shift_summary')
         .select('*')
         .eq('ist_date', date);
-      if (accountId !== 'all') q = q.eq('exchange_account_id', accountId);
-      const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as SummaryRow[];
+      return scopeRows((data ?? []) as unknown as SummaryRow[], accountId);
     },
     enabled: mode === 'day',
     refetchInterval: 60_000,
@@ -185,22 +183,22 @@ export function AdUptimePanel() {
   const { data: monthly = [], isFetching: monthFetching, refetch: refetchMonth } = useQuery({
     queryKey: ['ad-uptime-monthly', month, accountId],
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('terminal_ad_uptime_monthly_summary' as any)
         .select('*')
         .eq('month_start', `${month}-01`);
-      if (accountId !== 'all') q = q.eq('exchange_account_id', accountId);
-      const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
+      const rows = (data ?? []).map((r: any) => ({
         ...r,
         ist_date: r.month_start,
         downtime_episodes: [],
       })) as unknown as (SummaryRow & { days_counted: number })[];
+      return scopeRows(rows, accountId);
     },
     enabled: mode === 'month',
     staleTime: 300_000,
   });
+
 
 
   const { data: timeline = [] } = useQuery({

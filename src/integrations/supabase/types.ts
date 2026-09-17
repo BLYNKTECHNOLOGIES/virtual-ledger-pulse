@@ -30374,6 +30374,10 @@ export type Database = {
         Args: { p_credential_id: string }
         Returns: undefined
       }
+      ensure_client_onboarding_approval: {
+        Args: { p_sales_order_id: string }
+        Returns: undefined
+      }
       ensure_onboarding_for_orphans: { Args: never; Returns: number }
       escalate_terminal_order: {
         Args: {

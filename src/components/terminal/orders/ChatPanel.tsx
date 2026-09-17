@@ -119,10 +119,13 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const {
     historicalChats,
     isLoading: historyLoading,
+    isDiscovering: historyDiscovering,
     isUnavailable: historyUnavailable,
     hasMore: hasMoreHistory,
+    pastThreadCount,
     loadMore: loadMoreHistory,
   } = useCounterpartyChatHistory(counterpartyNickname, orderNumber, counterpartyVerifiedName, exchangeAccountId, tradeType);
+
   const { data: chatListenerState } = useTerminalChatListenerState();
   const chatListenerHealthy = isChatListenerHealthy(chatListenerState);
   const { logSender, prefetchSenders, getSenderName } = useChatMessageSenders();
@@ -148,9 +151,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
            /^https?:\/\/.*bnbstatic\.com\/.*\/(client_upload|chat)\//i.test(trimmed);
   }, []);
 
-  useEffect(() => {
-    void loadMoreHistory();
-  }, [loadMoreHistory]);
+  // Earlier chats are loaded lazily — only when the operator scrolls up to the
+  // top of the thread (see handleScroll). Nothing is fetched on open.
+  const pendingScrollRestoreRef = useRef<number | null>(null);
+
 
   const historicalSections = useMemo(() => historicalChats.map((chat) => ({
     ...chat,
@@ -429,7 +433,8 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     }
   }, [currentOrderMessages]);
 
-  // Track whether the operator is near the bottom for auto-scroll.
+  // Track whether the operator is near the bottom for auto-scroll, and load the
+  // next page of earlier chats once they scroll up to the top of the thread.
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
@@ -438,7 +443,22 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
     shouldAutoScrollRef.current = distFromBottom < 80;
 
-  }, []);
+    // Lazy history: fetch the next batch only when the top comes into view.
+    if (container.scrollTop <= 120 && hasMoreHistory && !historyLoading && !historyUnavailable) {
+      pendingScrollRestoreRef.current = container.scrollHeight - container.scrollTop;
+      void loadMoreHistory();
+    }
+  }, [hasMoreHistory, historyLoading, historyUnavailable, loadMoreHistory]);
+
+  // Keep the operator's reading position stable when older chats are prepended.
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    const anchor = pendingScrollRestoreRef.current;
+    if (!container || anchor == null) return;
+    pendingScrollRestoreRef.current = null;
+    container.scrollTop = container.scrollHeight - anchor;
+  }, [historicalChats]);
+
 
   const [isSending, setIsSending] = useState(false);
 
@@ -597,6 +617,28 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
       {/* Messages area */}
       <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+          {/* Lazy history control — sits at the very top, so scrolling up loads more */}
+          {historyDiscovering && (
+            <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Checking earlier chats…
+            </div>
+          )}
+          {!historyDiscovering && hasMoreHistory && !historyUnavailable && (
+            <div className="flex justify-center pb-3">
+              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
+                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
+                {historyLoading
+                  ? 'Loading earlier chats…'
+                  : historicalSections.length > 0
+                    ? 'Load earlier chats'
+                    : `Scroll up to load earlier chats${pastThreadCount > 0 ? ` (${pastThreadCount})` : ''}`}
+              </Button>
+            </div>
+          )}
+          {!historyDiscovering && !hasMoreHistory && historicalSections.length === 0 && !historyUnavailable && (
+            <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>
+          )}
+
           {historicalSections.length > 0 && (
             <div className="space-y-4 mb-4">
               {historicalSections.map((chat) => (
@@ -616,11 +658,6 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               ))}
             </div>
           )}
-          {historyLoading && historicalSections.length === 0 && (
-            <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">
-              <Loader2 className="h-3 w-3 animate-spin" /> Checking earlier chats…
-            </div>
-          )}
           {historyUnavailable && historicalSections.length === 0 && (
             <div className="flex flex-col items-center gap-1 py-2">
               <p className="text-center text-[10px] text-muted-foreground">Earlier chat history is temporarily unavailable</p>
@@ -630,17 +667,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
               </Button>
             </div>
           )}
-          {!historyLoading && !historyUnavailable && historicalSections.length === 0 && (
-            <p className="py-2 text-center text-[10px] text-muted-foreground">No earlier chats found</p>
-          )}
-          {hasMoreHistory && historicalSections.length > 0 && (
-            <div className="flex justify-center pb-3">
-              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => void loadMoreHistory()} disabled={historyLoading}>
-                {historyLoading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <History className="mr-1 h-3 w-3" />}
-                Load earlier chats
-              </Button>
-            </div>
-          )}
+
           {currentOrderMessages.length > 0 ? (
             <div className="space-y-2.5">
               {historicalSections.length > 0 && (

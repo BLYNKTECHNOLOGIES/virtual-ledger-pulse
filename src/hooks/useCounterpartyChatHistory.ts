@@ -64,8 +64,11 @@ export function useCounterpartyChatHistory(
 ) {
   const [historicalChats, setHistoricalChats] = useState<HistoricalOrderChat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDiscovering, setIsDiscovering] = useState(false);
+  const [pastThreadCount, setPastThreadCount] = useState(0);
   const [isUnavailable, setIsUnavailable] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
   const loadedOrdersRef = useRef<Set<string>>(new Set());
   const allPastOrdersRef = useRef<{ order_number: string; trade_type: string; asset: string | null; total_price: string | null; fiat_unit: string | null; create_time: number; exchange_account_id?: string | null; order_status?: string | null }[] | null>(null);
   const offsetRef = useRef(0);
@@ -94,20 +97,20 @@ export function useCounterpartyChatHistory(
     setHasMore(true);
     setIsLoading(false);
     setIsUnavailable(false);
+    setPastThreadCount(0);
     setHistoricalChats([]);
     setFetchToken((t) => t + 1);
   }, [currentOrderNumber, counterpartyNickname, exchangeAccountId]);
 
-  const fetchPastOrders = useCallback(async () => {
-    if (!hasMoreRef.current || loadingRef.current) return;
-    loadingRef.current = true;
-    setIsLoading(true);
-    setIsUnavailable(false);
 
+  // Discovery only: resolve the list of past threads for this counterparty.
+  // This is cheap (one indexed RPC) and tells the UI whether earlier chats
+  // exist at all — the actual messages are only fetched when the operator
+  // scrolls up to them.
+  const ensurePastOrders = useCallback(async () => {
+    if (allPastOrdersRef.current) return allPastOrdersRef.current;
+    {
 
-    try {
-      // Fetch the full list of past orders once and cache
-      if (!allPastOrdersRef.current) {
         // Resolve the CURRENT order's counterparty user id. This is the only safe
         // key to group history by. The counterparty is resolved server-side by
         // get_counterparty_order_history: it detects OUR own account numbers
@@ -190,10 +193,25 @@ export function useCounterpartyChatHistory(
           }
         }
         allPastOrdersRef.current = past;
-      }
+        setPastThreadCount(past.length);
+        if (past.length === 0) {
+          hasMoreRef.current = false;
+          setHasMore(false);
+        }
+        return past;
+    }
+  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId]);
 
-      const allOrders = allPastOrdersRef.current;
+  const fetchPastOrders = useCallback(async () => {
+    if (!hasMoreRef.current || loadingRef.current) return;
+    loadingRef.current = true;
+    setIsLoading(true);
+    setIsUnavailable(false);
+
+    try {
+      const allOrders = (await ensurePastOrders()) || [];
       const batch = allOrders.slice(offsetRef.current, offsetRef.current + PAGE_SIZE);
+
 
       if (batch.length === 0) {
         hasMoreRef.current = false;
@@ -303,15 +321,36 @@ export function useCounterpartyChatHistory(
       loadingRef.current = false;
       setIsLoading(false);
     }
-  }, [counterpartyNickname, currentOrderNumber, exchangeAccountId]);
+  }, [ensurePastOrders]);
 
-  // Self-triggering load: runs on mount and after every scope reset, so the
-  // panel never sits idle with an empty history.
-  const fetchRef = useRef(fetchPastOrders);
-  fetchRef.current = fetchPastOrders;
+  // On mount / scope reset we only DISCOVER whether earlier threads exist.
+  // Messages are fetched lazily, when the operator scrolls up to them.
+  const discoverRef = useRef(ensurePastOrders);
+  discoverRef.current = ensurePastOrders;
   useEffect(() => {
-    void fetchRef.current();
+    let cancelled = false;
+    setIsDiscovering(true);
+    void (async () => {
+      try {
+        await discoverRef.current();
+      } catch (err) {
+        console.error('Failed to discover counterparty chat history:', err);
+        if (!cancelled) setIsUnavailable(true);
+      } finally {
+        if (!cancelled) setIsDiscovering(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [fetchToken]);
 
-  return { historicalChats, isLoading, isUnavailable, hasMore, loadMore: fetchPastOrders };
+  return {
+    historicalChats,
+    isLoading,
+    isDiscovering,
+    isUnavailable,
+    hasMore,
+    pastThreadCount,
+    loadMore: fetchPastOrders,
+  };
+
 }

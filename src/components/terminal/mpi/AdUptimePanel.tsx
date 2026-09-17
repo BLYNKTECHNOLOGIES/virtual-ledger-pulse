@@ -56,6 +56,13 @@ function scoreTone(value: number): string {
   return 'text-destructive';
 }
 
+/**
+ * Sentinel account id used by the rollup for the pooled "all accounts" line.
+ * A minute counts as active there if ANY account had a public, online ad, so
+ * accounts that simply do not run a category never drag the number down.
+ */
+const POOLED_ACCOUNT = '00000000-0000-0000-0000-000000000000';
+
 interface SummaryRow {
   ist_date: string;
   shift_key: string;
@@ -67,6 +74,9 @@ interface SummaryRow {
   effective_minutes: number;
   offline_minutes: number;
   private_minutes: number;
+  active_clock_minutes: number;
+  private_only_minutes: number;
+  offline_clock_minutes: number;
   full_coverage_minutes: number;
   partial_coverage_minutes: number;
   down_minutes: number;
@@ -88,6 +98,32 @@ interface SummaryRow {
     zone?: string | null;
   }>;
 }
+
+/**
+ * One row per shift + category: the pooled all-accounts line when no account
+ * filter is applied, otherwise that account's own line. Mixing the two is what
+ * made the category cards and the blended score disagree.
+ */
+function scopeRows<T extends SummaryRow>(rows: T[], accountId: string): T[] {
+  if (accountId !== 'all') return rows.filter((r) => r.exchange_account_id === accountId);
+  const pooled = new Set(
+    rows.filter((r) => r.exchange_account_id === POOLED_ACCOUNT).map((r) => `${r.shift_key}|${r.ad_class}`),
+  );
+  const best = new Map<string, T>();
+  for (const row of rows) {
+    const key = `${row.shift_key}|${row.ad_class}`;
+    if (row.exchange_account_id === POOLED_ACCOUNT) {
+      best.set(key, row);
+      continue;
+    }
+    if (pooled.has(key)) continue;
+    // Legacy days have no pooled line — fall back to the strongest account.
+    const current = best.get(key);
+    if (!current || Number(row.category_score) > Number(current.category_score)) best.set(key, row);
+  }
+  return [...best.values()];
+}
+
 
 export function AdUptimePanel() {
   const [mode, setMode] = useState<'day' | 'month'>('day');
@@ -129,14 +165,12 @@ export function AdUptimePanel() {
   const { data: summary = [], isFetching, refetch } = useQuery({
     queryKey: ['ad-uptime-summary', date, accountId],
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('terminal_ad_uptime_shift_summary')
         .select('*')
         .eq('ist_date', date);
-      if (accountId !== 'all') q = q.eq('exchange_account_id', accountId);
-      const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as unknown as SummaryRow[];
+      return scopeRows((data ?? []) as unknown as SummaryRow[], accountId);
     },
     enabled: mode === 'day',
     refetchInterval: 60_000,
@@ -149,22 +183,22 @@ export function AdUptimePanel() {
   const { data: monthly = [], isFetching: monthFetching, refetch: refetchMonth } = useQuery({
     queryKey: ['ad-uptime-monthly', month, accountId],
     queryFn: async () => {
-      let q = supabase
+      const { data, error } = await supabase
         .from('terminal_ad_uptime_monthly_summary' as any)
         .select('*')
         .eq('month_start', `${month}-01`);
-      if (accountId !== 'all') q = q.eq('exchange_account_id', accountId);
-      const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((r: any) => ({
+      const rows = (data ?? []).map((r: any) => ({
         ...r,
         ist_date: r.month_start,
         downtime_episodes: [],
       })) as unknown as (SummaryRow & { days_counted: number })[];
+      return scopeRows(rows, accountId);
     },
     enabled: mode === 'month',
     staleTime: 300_000,
   });
+
 
 
   const { data: timeline = [] } = useQuery({
@@ -283,15 +317,17 @@ export function AdUptimePanel() {
     }> = {};
     for (const cls of AD_CLASSES) {
       const rows = filtered.filter((r) => r.ad_class === cls.key);
+      // Every minute figure below is CLOCK minutes of the shift, so
+      // active + private-only + offline always add back up to measured.
       const measured = rows.reduce((s, r) => s + r.measured_minutes, 0);
-      const weighted = rows.reduce((s, r) => s + Number(r.uptime_pct) * r.measured_minutes, 0);
+      const active = rows.reduce((s, r) => s + (r.active_clock_minutes ?? Math.max(r.measured_minutes - r.down_minutes, 0)), 0);
       const weightedScore = rows.reduce((s, r) => s + Number(r.category_score) * r.measured_minutes, 0);
       map[cls.key] = {
-        uptime: measured ? weighted / measured : 0,
+        uptime: measured ? (100 * active) / measured : 0,
         score: measured ? weightedScore / measured : 0,
-        active: rows.reduce((s, r) => s + r.effective_minutes, 0),
-        offline: rows.reduce((s, r) => s + r.offline_minutes, 0),
-        privateMin: rows.reduce((s, r) => s + (r.private_minutes ?? 0), 0),
+        active,
+        offline: rows.reduce((s, r) => s + (r.offline_clock_minutes ?? 0), 0),
+        privateMin: rows.reduce((s, r) => s + (r.private_only_minutes ?? 0), 0),
         unmeasured: rows.reduce((s, r) => s + r.unmeasured_minutes, 0),
         peak: rows.reduce((s, r) => Math.max(s, r.peak_concurrent ?? 0), 0),
         one: rows.reduce((s, r) => s + (r.minutes_one ?? 0), 0),
@@ -303,6 +339,7 @@ export function AdUptimePanel() {
     }
     return map;
   }, [filtered]);
+
 
   const blendedShown = useMemo(
     () => blended.filter((b) => shift === 'all' || b.shift_key === shift),
@@ -447,7 +484,23 @@ export function AdUptimePanel() {
                     <div className={`t-mono text-2xl font-semibold leading-none mt-1 ${scoreTone(Number(b.blended_score))}`}>
                       {pct(b.blended_score)}
                     </div>
+                    {/* Auditable breakdown: each category's score × its weight. */}
+                    <div className="mt-1.5 space-y-0.5">
+                      {AD_CLASSES.map(({ key, short }) => {
+                        const cat = b.categories?.[key];
+                        if (!cat) return null;
+                        return (
+                          <div key={key} className="flex items-center justify-between text-[9px] text-muted-foreground">
+                            <span>{short}</span>
+                            <span className="t-mono">
+                              {Number(cat.score).toFixed(1)}% × {Number(cat.weight)} = {((Number(cat.score) * Number(cat.weight)) / Math.max(Number(b.weight_covered) || 100, 1)).toFixed(2)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+
                 ))}
               </div>
             )}
@@ -545,7 +598,7 @@ export function AdUptimePanel() {
                           {row.minutes_one}m / {row.minutes_two}m / {row.minutes_three_plus}m
                         </TableCell>
                         <TableCell className="t-mono text-[10px] sm:text-xs text-destructive">{row.down_minutes}m</TableCell>
-                        <TableCell className="t-mono text-[10px] sm:text-xs text-warning">{row.private_minutes ?? 0}m</TableCell>
+                        <TableCell className="t-mono text-[10px] sm:text-xs text-warning">{row.private_only_minutes ?? 0}m</TableCell>
                         <TableCell className="t-mono text-[10px] sm:text-xs text-muted-foreground">{row.unmeasured_minutes}m</TableCell>
                       </TableRow>
                     ))

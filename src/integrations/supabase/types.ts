@@ -32383,6 +32383,7 @@ export type Database = {
         | "terminal_appeals_manage"
         | "terminal_appeals_request"
         | "terminal_appeals_toggle"
+        | "terminal_ad_uptime_view"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -32816,6 +32817,7 @@ export const Constants = {
         "terminal_appeals_manage",
         "terminal_appeals_request",
         "terminal_appeals_toggle",
+        "terminal_ad_uptime_view",
       ],
     },
   },

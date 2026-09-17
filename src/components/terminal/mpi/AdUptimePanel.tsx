@@ -493,7 +493,7 @@ export function AdUptimePanel() {
                           <div key={key} className="flex items-center justify-between text-[9px] text-muted-foreground">
                             <span>{short}</span>
                             <span className="t-mono">
-                              {Number(cat.score).toFixed(1)}% × {Number(cat.weight)} = {((Number(cat.score) * Number(cat.weight)) / 100).toFixed(2)}
+                              {Number(cat.score).toFixed(1)}% × {Number(cat.weight)} = {((Number(cat.score) * Number(cat.weight)) / Math.max(Number(b.weight_covered) || 100, 1)).toFixed(2)}
                             </span>
                           </div>
                         );

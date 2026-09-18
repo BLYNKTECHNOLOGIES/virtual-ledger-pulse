@@ -56,11 +56,17 @@ export default function QuizDashboardPage() {
   const canAdmin = hasAnyPermission(["hrms_quiz_admin"]);
   const canEvaluate = hasAnyPermission(["hrms_quiz_evaluate", "hrms_quiz_manage", "hrms_quiz_admin"]);
   const [search, setSearch] = useState("");
-  const [dialog, setDialog] = useState<"drive" | "role" | null>(null);
+  const [dialog, setDialog] = useState<"drive" | "role" | "question" | null>(null);
   const [gradingRow, setGradingRow] = useState<EvaluationRow | null>(null);
   const [gradingForm, setGradingForm] = useState({ score: "", comments: "" });
   const [driveForm, setDriveForm] = useState({ name: "", accessCode: "", mode: "on_site", startsAt: "", endsAt: "" });
   const [roleForm, setRoleForm] = useState({ positionId: "", code: "", shortlist: "65", hold: "50" });
+  const emptyQuestion = {
+    type: "mcq", categoryTag: "", difficulty: "medium", prompt: "", marks: "1",
+    options: ["", "", "", ""], correct: "a", numericAnswer: "", tolerance: "0",
+    roleCode: "__any", explanation: "", approve: true,
+  };
+  const [questionForm, setQuestionForm] = useState(emptyQuestion);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["cbt", "staff-workspace"],

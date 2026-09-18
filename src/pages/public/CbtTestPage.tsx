@@ -586,6 +586,24 @@ function SectionBody({
     );
   }
 
+  if (section.section_type === 'mental_maths' || section.section_type === 'memory_recall') {
+    return (
+      <div className="space-y-5">
+        <SectionHeading section={section} />
+        <CbtSkillDrill
+          section={section}
+          drafts={drafts}
+          setDraft={setDraft}
+          flushDraft={flushDraft}
+          savingItems={savingItems}
+          busy={busy}
+          onSubmit={onSubmit}
+          onPasteBlocked={onPasteBlocked}
+        />
+      </div>
+    );
+  }
+
   const items = section.items ?? [];
   const item = items[Math.min(index, Math.max(0, items.length - 1))];
   if (!item) {

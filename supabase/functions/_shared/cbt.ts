@@ -191,10 +191,12 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
   if (current) {
     const { data: rows } = await db
       .from("cbt_attempt_items")
-      .select("id, display_order, option_order, response, visited, marked_for_review, question_version_id")
+      .select(
+        "id, display_order, option_order, response, visited, marked_for_review, question_version_id, generated_content",
+      )
       .eq("attempt_section_id", current.id)
       .order("display_order");
-    const versionIds = (rows ?? []).map((r) => r.question_version_id);
+    const versionIds = (rows ?? []).map((r) => r.question_version_id).filter(Boolean);
     const { data: versions } = versionIds.length
       ? await db.from("cbt_question_versions").select("id, content, question_id").in("id", versionIds)
       : { data: [] as any[] };
@@ -203,6 +205,19 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
       ? await db.from("cbt_questions").select("id, type, category_tag, stimulus_id").in("id", questionIds)
       : { data: [] as any[] };
     items = (rows ?? []).map((r) => {
+      // Skill Box drills are generated per attempt: no question bank row, answer key never sent
+      if (!r.question_version_id) {
+        return {
+          id: r.id,
+          display_order: r.display_order,
+          type: current.section_type,
+          category_tag: null,
+          content: sanitize({ ...((r.generated_content ?? {}) as any) }),
+          response: r.response,
+          visited: r.visited,
+          marked_for_review: r.marked_for_review,
+        };
+      }
       const v = (versions ?? []).find((x: any) => x.id === r.question_version_id);
       const q = (questions ?? []).find((x: any) => x.id === v?.question_id);
       const content = { ...(v?.content ?? {}) } as any;

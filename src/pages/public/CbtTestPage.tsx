@@ -578,7 +578,7 @@ function SectionBody({
           onSessionError={onSessionError}
         />
         <div className="flex justify-end">
-          <Button size="lg" disabled={busy} onClick={onSubmit}>
+          <Button size="lg" className="w-full sm:w-auto" disabled={busy} onClick={onSubmit}>
             I have finished typing
           </Button>
         </div>
@@ -624,14 +624,14 @@ function SectionBody({
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
+        <CardHeader className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
           <div>
             <CardTitle className="text-base">
               Question {index + 1} of {items.length}
             </CardTitle>
             {item.category_tag && <CardDescription>{item.category_tag}</CardDescription>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
             {savingItems[item.id] && <span className="text-xs text-muted-foreground">Saving…</span>}
             <Button
               variant={item.marked_for_review ? 'default' : 'outline'}
@@ -643,7 +643,7 @@ function SectionBody({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <CbtQuestion
             item={item}
             response={drafts[item.id] ?? item.response}

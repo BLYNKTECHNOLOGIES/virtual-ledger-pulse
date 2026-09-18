@@ -610,6 +610,38 @@ export function AdUptimePanel() {
             })}
           </div>
 
+          {/* Big buy slot coverage — which coin/zone slot was short */}
+          {mode === 'day' && buySlots.length > 0 && (
+            <div className="t-panel p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-1.5">
+                  <ShoppingCart className="h-3.5 w-3.5 text-primary" /> Big buy slots
+                </span>
+                <span className="text-[9px] text-muted-foreground">
+                  required {buySlots.reduce((s, r) => s + Number(r.required_ads || 0), 0)} ads
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+                {buySlots.map((slot) => (
+                  <div
+                    key={`${slot.asset}-${slot.zone}`}
+                    className="flex items-center justify-between rounded-md border border-border px-2 py-1.5"
+                  >
+                    <span className="text-[10px] text-foreground">
+                      {slot.asset}
+                      <span className="text-muted-foreground"> · {slot.zone === 'block' ? 'Block' : 'P2P'} · {slot.required_ads} req</span>
+                    </span>
+                    <span className={`t-mono text-[11px] font-semibold ${scoreTone(Number(slot.slot_score))}`}>
+                      {pct(Number(slot.slot_score))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+
+
           {/* Shift table */}
           <div className="rounded-lg border border-border overflow-x-auto">
             <Table>

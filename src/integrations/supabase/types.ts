@@ -24583,11 +24583,13 @@ export type Database = {
           adv_no: string
           adv_status: number | null
           asset: string | null
+          break_reason: string | null
           created_at: string
           exchange_account_id: string
           grade: string
           hollow_reasons: string[]
           id: string
+          is_break: boolean
           is_online: boolean
           is_private: boolean
           ist_date: string
@@ -24609,11 +24611,13 @@ export type Database = {
           adv_no: string
           adv_status?: number | null
           asset?: string | null
+          break_reason?: string | null
           created_at?: string
           exchange_account_id: string
           grade: string
           hollow_reasons?: string[]
           id?: string
+          is_break?: boolean
           is_online?: boolean
           is_private?: boolean
           ist_date: string
@@ -24635,11 +24639,13 @@ export type Database = {
           adv_no?: string
           adv_status?: number | null
           asset?: string | null
+          break_reason?: string | null
           created_at?: string
           exchange_account_id?: string
           grade?: string
           hollow_reasons?: string[]
           id?: string
+          is_break?: boolean
           is_online?: boolean
           is_private?: boolean
           ist_date?: string
@@ -24662,6 +24668,7 @@ export type Database = {
         Row: {
           active_clock_minutes: number
           ad_class: string
+          break_minutes: number
           category_score: number
           concurrency_cap: number
           created_at: string
@@ -24689,6 +24696,7 @@ export type Database = {
         Insert: {
           active_clock_minutes?: number
           ad_class: string
+          break_minutes?: number
           category_score?: number
           concurrency_cap?: number
           created_at?: string
@@ -24716,6 +24724,7 @@ export type Database = {
         Update: {
           active_clock_minutes?: number
           ad_class?: string
+          break_minutes?: number
           category_score?: number
           concurrency_cap?: number
           created_at?: string
@@ -24779,6 +24788,7 @@ export type Database = {
         Row: {
           active_clock_minutes: number
           ad_class: string
+          break_minutes: number
           category_score: number
           concurrency_cap: number
           created_at: string
@@ -24810,6 +24820,7 @@ export type Database = {
         Insert: {
           active_clock_minutes?: number
           ad_class: string
+          break_minutes?: number
           category_score?: number
           concurrency_cap?: number
           created_at?: string
@@ -24841,6 +24852,7 @@ export type Database = {
         Update: {
           active_clock_minutes?: number
           ad_class?: string
+          break_minutes?: number
           category_score?: number
           concurrency_cap?: number
           created_at?: string

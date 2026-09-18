@@ -119,6 +119,50 @@ async function enrichPrivacy(acct: Awaited<ReturnType<typeof resolveAccount>>, a
   }
 }
 
+/**
+ * Break detection. During a break the ads can still LOOK online on Binance, but
+ * no trading is happening, so those minutes must never be credited as active.
+ * Two authoritative signals only (no operator input, no guessing):
+ *  1. Binance merchant business status == 3 ("take a break") from
+ *     /api/sapi/v1/c2c/user/baseDetail.
+ *  2. The Terminal ad rest timer being active for this minute.
+ */
+async function detectBinanceBreak(
+  acct: Awaited<ReturnType<typeof resolveAccount>>,
+): Promise<{ onBreak: boolean; known: boolean }> {
+  try {
+    const resp = await fetch(`${acct.proxyUrl}/api/sapi/v1/c2c/user/baseDetail`, {
+      method: "POST",
+      headers: proxyHeadersFor(acct),
+    });
+    const json = await resp.json().catch(() => null);
+    const data = json?.data?.data || json?.data || null;
+    const businessStatus = Number(data?.businessStatus);
+    if (!Number.isFinite(businessStatus)) return { onBreak: false, known: false };
+    return { onBreak: businessStatus === 3, known: true };
+  } catch (err) {
+    console.warn(`[ad-uptime] baseDetail lookup failed for ${acct.accountName}:`, (err as Error).message);
+    return { onBreak: false, known: false };
+  }
+}
+
+async function isRestTimerActive(supabase: any, minute: Date): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("ad_rest_timer")
+    .select("started_at, duration_minutes, is_active")
+    .eq("is_active", true)
+    .order("started_at", { ascending: false })
+    .limit(5);
+  if (error || !Array.isArray(data)) return false;
+  return data.some((row: { started_at: string; duration_minutes: number }) => {
+    const start = new Date(row.started_at).getTime();
+    const end = start + (Number(row.duration_minutes) || 0) * 60_000;
+    const t = minute.getTime();
+    return t >= start && t < end;
+  });
+}
+
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -149,13 +193,29 @@ serve(async (req) => {
       .eq("ad_uptime_tracked", true);
     const tracked = new Set((trackedRows ?? []).map((r: { id: string }) => r.id));
 
+    const restTimerOn = await isRestTimerActive(supabase, minute);
+
     for (const accountRow of accounts.filter((a) => tracked.has(a.id))) {
 
       const startedAt = Date.now();
       try {
         const acct = await resolveAccount(accountRow.id);
-        const ads = await fetchAllAds(acct);
+        const [ads, binanceBreak] = await Promise.all([
+          fetchAllAds(acct),
+          detectBinanceBreak(acct),
+        ]);
         await enrichPrivacy(acct, ads);
+
+        // Break minutes stay measured but score as not active — ads that merely
+        // remain displayed while operations are paused earn no active time.
+        const onBreak = binanceBreak.onBreak || restTimerOn;
+        const breakReason = !onBreak
+          ? null
+          : binanceBreak.onBreak && restTimerOn
+            ? "binance_take_break+terminal_rest_timer"
+            : binanceBreak.onBreak
+              ? "binance_take_break"
+              : "terminal_rest_timer";
 
         const rows: Record<string, unknown>[] = [];
         let skippedUnknown = 0;
@@ -169,7 +229,7 @@ serve(async (req) => {
           const isPrivate = online && ad._isPrivate === true;
 
           // Privacy could not be read for an online ad -> do not guess, leave the minute unmeasured.
-          if (online && ad._privacyUnknown === true) {
+          if (online && !onBreak && ad._privacyUnknown === true) {
             skippedUnknown++;
             continue;
           }
@@ -190,7 +250,7 @@ serve(async (req) => {
               ? (hasLightning ? "lightning_small_sale" : "small_sale")
               : "big_sell";
 
-          const grade = !online ? "offline" : isPrivate ? "private" : "active";
+          const grade = onBreak ? "break" : !online ? "offline" : isPrivate ? "private" : "active";
 
           rows.push({
             minute: minuteIso,
@@ -210,6 +270,8 @@ serve(async (req) => {
             pay_methods: methods,
             price: num(ad?.price),
             grade,
+            is_break: onBreak,
+            break_reason: breakReason,
             hollow_reasons: [],
             ist_date: minuteIso.slice(0, 10), // overwritten by trigger to IST date
           });
@@ -222,16 +284,29 @@ serve(async (req) => {
           if (error) throw error;
         }
 
+        const notes = [
+          skippedUnknown ? `privacy unknown for ${skippedUnknown} ad(s)` : null,
+          onBreak ? `break: ${breakReason}` : null,
+          binanceBreak.known ? null : "merchant business status unavailable",
+        ].filter(Boolean).join("; ");
+
         await supabase.from("terminal_ad_uptime_runs").upsert({
           minute: minuteIso,
           exchange_account_id: acct.id,
           ads_seen: rows.length,
           status: rows.length ? "ok" : "empty",
-          error_text: skippedUnknown ? `privacy unknown for ${skippedUnknown} ad(s)` : null,
+          error_text: notes || null,
           duration_ms: Date.now() - startedAt,
         }, { onConflict: "minute,exchange_account_id" });
 
-        results.push({ account: acct.accountName, ads: rows.length, skipped_unknown_privacy: skippedUnknown });
+        results.push({
+          account: acct.accountName,
+          ads: rows.length,
+          skipped_unknown_privacy: skippedUnknown,
+          on_break: onBreak,
+          break_reason: breakReason,
+        });
+
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         console.error(`[ad-uptime] account ${accountRow.account_name} failed:`, message);

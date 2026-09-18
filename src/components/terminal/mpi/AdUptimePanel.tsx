@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Activity, AlertTriangle, Clock, Radio, ShoppingCart, Store, Coins, Zap, RefreshCw, EyeOff } from 'lucide-react';
+import { Activity, AlertTriangle, Clock, Radio, ShoppingCart, Store, Coins, Zap, RefreshCw, EyeOff, Coffee } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 /** Categories we actually trade in, with the shift-score weights. */
@@ -77,6 +77,8 @@ interface SummaryRow {
   active_clock_minutes: number;
   private_only_minutes: number;
   offline_clock_minutes: number;
+  break_minutes?: number;
+
   full_coverage_minutes: number;
   partial_coverage_minutes: number;
   down_minutes: number;
@@ -316,8 +318,10 @@ export function AdUptimePanel() {
   const byClass = useMemo(() => {
     const map: Record<string, {
       score: number; uptime: number; active: number; offline: number; privateMin: number;
+      breakMin: number;
       unmeasured: number; measured: number; peak: number; one: number; two: number; threePlus: number; down: number;
     }> = {};
+
     for (const cls of AD_CLASSES) {
       const rows = filtered.filter((r) => r.ad_class === cls.key);
       // Every minute figure below is CLOCK minutes of the shift, so
@@ -331,6 +335,8 @@ export function AdUptimePanel() {
         active,
         offline: rows.reduce((s, r) => s + (r.offline_clock_minutes ?? 0), 0),
         privateMin: rows.reduce((s, r) => s + (r.private_only_minutes ?? 0), 0),
+        breakMin: rows.reduce((s, r) => s + (r.break_minutes ?? 0), 0),
+
         unmeasured: rows.reduce((s, r) => s + r.unmeasured_minutes, 0),
         peak: rows.reduce((s, r) => Math.max(s, r.peak_concurrent ?? 0), 0),
         one: rows.reduce((s, r) => s + (r.minutes_one ?? 0), 0),
@@ -548,9 +554,22 @@ export function AdUptimePanel() {
                         Ad was online on Binance but set to Private (link-only), so nobody could find it. Never counted as active.
                       </TooltipContent>
                     </Tooltip>
+                    {(stats?.breakMin ?? 0) > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge variant="outline" className="text-[9px] text-destructive border-destructive/40 cursor-help gap-1">
+                            <Coffee className="h-2.5 w-2.5" />{stats.breakMin}m break
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent className="text-[10px] max-w-56">
+                          Binance break mode or the Terminal rest timer was on. Ads may still look online, but nothing was trading, so these minutes never count as active.
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     <Badge variant="outline" className="text-[9px] text-muted-foreground">
                       {stats?.offline ?? 0}m off
                     </Badge>
+
                     {(stats?.unmeasured ?? 0) > 0 && (
                       <Badge variant="outline" className="text-[9px] text-info border-info/40">
                         {stats.unmeasured}m unmeasured

@@ -29926,6 +29926,18 @@ export type Database = {
         Returns: undefined
       }
       cbt_retention_purge: { Args: never; Returns: number }
+      cbt_save_role_blueprint: {
+        Args: {
+          p_code?: string
+          p_hold_cutoff?: number
+          p_is_active?: boolean
+          p_position_id?: string
+          p_role_id?: string
+          p_sections?: Json
+          p_shortlist_cutoff?: number
+        }
+        Returns: string
+      }
       cbt_score_section: { Args: { p_section_id: string }; Returns: undefined }
       cbt_section_config: { Args: { p_section_id: string }; Returns: Json }
       cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }

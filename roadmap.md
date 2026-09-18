@@ -28,3 +28,6 @@
 - [x] Restore exact-order Terminal counterparty history and stop endless unavailable/loading state — removed the failing client-side identity prerequisite and restored protected history/count execution.
 - [x] Restore Terminal admin access to prior-order history, prevent late verified-name enrichment from clearing loaded chats, and show the exact completed-order count on High Frequency badges.
 - [x] Restore resilient lazy-loaded earlier chats — replace invalid permission gate, isolate optional Binance/enquiry recovery failures, preserve archived-message loading, and expose retry on first-page failure.
+
+- [x] Missing KYC/onboarding approvals for terminal-synced sales (trigger only fired on UPDATE; now fires on INSERT + backfilled)
+- [ ] Quiz (CBT): mobile-friendly candidate UI for testing + document how to attempt a quiz

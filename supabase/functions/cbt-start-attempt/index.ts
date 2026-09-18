@@ -60,6 +60,32 @@ Deno.serve(async (req) => {
       // ---- select the items for this section ----
       let versionIds: string[] = [];
       const tags: string[] = rs.category_tags ?? [];
+
+      // Skill Box drills: generated fresh per attempt, key stored server-side only
+      if (rs.section_type === "mental_maths" || rs.section_type === "memory_recall") {
+        const count = Math.max(1, rs.item_count ?? 10);
+        const rows = Array.from({ length: count }, (_, idx) => {
+          if (rs.section_type === "mental_maths") {
+            const drill = makeMathsDrill(idx);
+            return {
+              attempt_section_id: section!.id,
+              display_order: idx + 1,
+              generated_content: { prompt: drill.prompt },
+              generated_key: { answer: drill.answer },
+            };
+          }
+          const seq = makeMemorySequence(idx);
+          return {
+            attempt_section_id: section!.id,
+            display_order: idx + 1,
+            generated_content: { sequence: seq, show_seconds: Math.min(12, 3 + Math.floor(seq.length / 2)) },
+            generated_key: { sequence: seq },
+          };
+        });
+        await db.from("cbt_attempt_items").insert(rows as any);
+        continue;
+      }
+
       if (rs.section_type === "typing") {
         versionIds = await pickQuestions(db, { types: ["typing_passage"], tags: tags.length ? tags : ["typing_passage"], count: 1, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
       } else if (rs.section_type === "data_entry") {

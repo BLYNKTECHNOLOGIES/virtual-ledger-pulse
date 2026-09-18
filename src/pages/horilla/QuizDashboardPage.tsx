@@ -142,6 +142,51 @@ export default function QuizDashboardPage() {
     onError: (error: Error) => toast({ title: "Role not created", description: error.message, variant: "destructive" }),
   });
 
+  const optionIds = ["a", "b", "c", "d"];
+  const createQuestion = useMutation({
+    mutationFn: async () => {
+      const marks = Number(questionForm.marks);
+      if (!questionForm.categoryTag.trim()) throw new Error("Enter the category tag used by the section blueprint.");
+      if (!questionForm.prompt.trim()) throw new Error("Enter the question text.");
+      if (!Number.isFinite(marks) || marks <= 0) throw new Error("Marks must be greater than zero.");
+      const payload: Record<string, unknown> = {
+        p_type: questionForm.type,
+        p_category_tag: questionForm.categoryTag.trim(),
+        p_difficulty: questionForm.difficulty,
+        p_prompt: questionForm.prompt.trim(),
+        p_marks: marks,
+        p_role_codes: questionForm.roleCode === "__any" ? null : [questionForm.roleCode],
+        p_explanation: questionForm.explanation.trim() || null,
+        p_approve: questionForm.approve,
+      };
+      if (questionForm.type === "mcq") {
+        const options = questionForm.options
+          .map((text, index) => ({ id: optionIds[index], text: text.trim() }))
+          .filter((option) => option.text.length > 0);
+        if (options.length < 2) throw new Error("Enter at least two options.");
+        if (!options.some((option) => option.id === questionForm.correct)) throw new Error("The correct option must have text.");
+        payload.p_options = options;
+        payload.p_correct_option_id = questionForm.correct;
+      } else if (questionForm.type === "numeric") {
+        const answer = Number(questionForm.numericAnswer);
+        const tolerance = Number(questionForm.tolerance || "0");
+        if (!Number.isFinite(answer)) throw new Error("Enter the correct numeric answer.");
+        if (!Number.isFinite(tolerance) || tolerance < 0) throw new Error("Tolerance must be zero or more.");
+        payload.p_numeric_answer = answer;
+        payload.p_numeric_tolerance = tolerance;
+      }
+      const { error } = await supabase.rpc("cbt_create_question" as never, payload as never);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
+      setDialog(null);
+      setQuestionForm(emptyQuestion);
+      toast({ title: "Question added" });
+    },
+    onError: (error: Error) => toast({ title: "Question not added", description: error.message, variant: "destructive" }),
+  });
+
   const gradeResponse = useMutation({
     mutationFn: async () => {
       if (!gradingRow) throw new Error("Select a written response to grade.");

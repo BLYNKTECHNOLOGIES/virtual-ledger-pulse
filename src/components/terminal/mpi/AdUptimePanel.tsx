@@ -291,6 +291,32 @@ export function AdUptimePanel() {
 
   const blended = mode === 'month' ? blendedMonth : blendedDay;
 
+  /**
+   * Big buy is scored slot by slot (coin + zone), so this breakdown shows exactly
+   * which buy slot was short. Raw minutes are kept ~4 days, so day mode only.
+   */
+  const { data: buySlots = [] } = useQuery({
+    queryKey: ['ad-uptime-buy-slots', date, shift, accountId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_ad_uptime_buy_slots' as any, {
+        p_date: date,
+        p_shift: shift,
+        p_account: accountId === 'all' ? null : accountId,
+      });
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        asset: string;
+        zone: string;
+        required_ads: number;
+        slot_score: number;
+        peak_active: number;
+        measured_minutes: number;
+      }>;
+    },
+    enabled: mode === 'day',
+    refetchInterval: 120_000,
+  });
+
   const { data: trend = [] } = useQuery({
     queryKey: ['ad-uptime-trend', accountId],
     queryFn: async () => {

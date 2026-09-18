@@ -16,11 +16,23 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 
 type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "roles" | "settings";
+type EvaluationRow = {
+  id: string;
+  attempt_item_id: string;
+  total: number | null;
+  comments: string | null;
+  updated_at: string;
+  cbt_attempt_items?: {
+    response?: { text?: string } | null;
+    cbt_question_versions?: { content?: { prompt?: string; marks?: number } | null } | null;
+  } | null;
+};
 const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "roles", "settings"];
 
 const statusVariant = (status: string) => {
@@ -45,6 +57,8 @@ export default function QuizDashboardPage() {
   const canEvaluate = hasAnyPermission(["hrms_quiz_evaluate", "hrms_quiz_manage", "hrms_quiz_admin"]);
   const [search, setSearch] = useState("");
   const [dialog, setDialog] = useState<"drive" | "role" | null>(null);
+  const [gradingRow, setGradingRow] = useState<EvaluationRow | null>(null);
+  const [gradingForm, setGradingForm] = useState({ score: "", comments: "" });
   const [driveForm, setDriveForm] = useState({ name: "", accessCode: "", mode: "on_site", startsAt: "", endsAt: "" });
   const [roleForm, setRoleForm] = useState({ positionId: "", code: "", shortlist: "65", hold: "50" });
 
@@ -58,7 +72,7 @@ export default function QuizDashboardPage() {
         supabase.from("cbt_questions").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_job_roles").select("*, positions(id, title, is_active, departments:department_id(code, name))").order("name").limit(100),
         supabase.from("cbt_departments").select("*").order("name"),
-        supabase.from("cbt_written_evaluations").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("cbt_written_evaluations").select("*, cbt_attempt_items(response, cbt_question_versions(content))").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_settings").select("*").eq("id", true).maybeSingle(),
         supabase.from("positions").select("id, title, is_active, departments:department_id(code, name)").eq("is_active", true).order("title"),
       ]);
@@ -122,6 +136,32 @@ export default function QuizDashboardPage() {
     onError: (error: Error) => toast({ title: "Role not created", description: error.message, variant: "destructive" }),
   });
 
+  const gradeResponse = useMutation({
+    mutationFn: async () => {
+      if (!gradingRow) throw new Error("Select a written response to grade.");
+      const score = Number(gradingForm.score);
+      if (!Number.isFinite(score) || score < 0 || score > 20) throw new Error("Enter a score from 0 to 20.");
+      const { error } = await supabase.rpc("cbt_grade_written_response", {
+        p_evaluation_id: gradingRow.id,
+        p_total: score,
+        p_comments: gradingForm.comments.trim() || undefined,
+      });
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["cbt", "staff-workspace"] });
+      setGradingRow(null);
+      setGradingForm({ score: "", comments: "" });
+      toast({ title: "Written response graded" });
+    },
+    onError: (error: Error) => toast({ title: "Response not graded", description: error.message, variant: "destructive" }),
+  });
+
+  const openGrading = (row: EvaluationRow) => {
+    setGradingRow(row);
+    setGradingForm({ score: row.total === null ? "" : String(row.total), comments: row.comments ?? "" });
+  };
+
   const filteredAttempts = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return data?.attempts ?? [];
@@ -175,7 +215,7 @@ export default function QuizDashboardPage() {
           {!filteredAttempts.length ? noData(Users, "No candidate attempts", "Attempts appear here after a candidate registers with a live drive code.") : <Table><TableHeader><TableRow><TableHead>Reference</TableHead><TableHead>Candidate</TableHead><TableHead>Role</TableHead><TableHead>Status</TableHead><TableHead numeric>Score</TableHead><TableHead>Decision</TableHead><TableHead numeric>Warnings</TableHead></TableRow></TableHeader><TableBody>{filteredAttempts.map((attempt: any) => <TableRow key={attempt.id}><TableCell className="font-mono text-xs">{attempt.public_ref}</TableCell><TableCell className="font-medium">{attempt.cbt_candidates?.full_name ?? "Anonymized"}</TableCell><TableCell>{attempt.cbt_job_roles?.name ?? "—"}</TableCell><TableCell><Badge variant={statusVariant(attempt.status)}>{pretty(attempt.status)}</Badge></TableCell><TableCell numeric>{attempt.total_score ?? "—"}</TableCell><TableCell><Badge variant={statusVariant(attempt.decision)}>{pretty(attempt.decision)}</Badge></TableCell><TableCell numeric>{attempt.warning_count}</TableCell></TableRow>)}</TableBody></Table>}
         </TabsContent>
 
-        <TabsContent value="evaluations" className="space-y-4"><div><h2 className="text-lg font-semibold">Blind written evaluations</h2><p className="text-sm text-muted-foreground">Written responses are graded without exposing candidate identity.</p></div>{!canEvaluate ? noData(ShieldCheck, "Evaluation permission required", "Ask a Quiz administrator for evaluator access.") : !data?.evaluations.length ? noData(ClipboardCheck, "No responses await grading", "Submitted written responses will enter this queue automatically.") : <Table><TableHeader><TableRow><TableHead>Response item</TableHead><TableHead numeric>Total</TableHead><TableHead>Comments</TableHead><TableHead>Updated</TableHead></TableRow></TableHeader><TableBody>{data.evaluations.map((row) => <TableRow key={row.id}><TableCell className="font-mono text-xs">{row.attempt_item_id.slice(0, 8)}</TableCell><TableCell numeric>{row.total ?? "—"}</TableCell><TableCell>{row.comments || "—"}</TableCell><TableCell>{fmtDate(row.updated_at)}</TableCell></TableRow>)}</TableBody></Table>}
+        <TabsContent value="evaluations" className="space-y-4"><div><h2 className="text-lg font-semibold">Blind written evaluations</h2><p className="text-sm text-muted-foreground">Written responses are graded without exposing candidate identity.</p></div>{!canEvaluate ? noData(ShieldCheck, "Evaluation permission required", "Ask a Quiz administrator for evaluator access.") : !data?.evaluations.length ? noData(ClipboardCheck, "No responses await grading", "Submitted written responses will enter this queue automatically.") : <div className="grid gap-3">{(data.evaluations as EvaluationRow[]).map((row) => { const prompt = row.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"; const answer = row.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"; return <Card key={row.id}><CardContent className="grid gap-3 p-4 sm:grid-cols-[1fr_auto] sm:items-center"><div className="min-w-0"><p className="text-sm font-medium">{prompt}</p><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{answer}</p><div className="mt-2 flex flex-wrap items-center gap-2"><Badge variant={row.total === null ? "warning" : "success"}>{row.total === null ? "Awaiting grading" : `${row.total}/20`}</Badge><span className="text-xs text-muted-foreground">Updated {fmtDate(row.updated_at)}</span></div></div><Button variant={row.total === null ? "default" : "outline"} onClick={() => openGrading(row)}>{row.total === null ? "Grade response" : "Review grade"}</Button></CardContent></Card>; })}</div>}
         </TabsContent>
 
         <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Versioned content, review status, difficulty, and usage.</p></div>{canManage && <Button variant="outline" disabled><Plus />Add question</Button>}</div>{!data?.questions.length ? noData(FileQuestion, "Question bank is empty", "Seed content and the question editor are not yet installed; no unapproved question will be served.") : <Table><TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Category</TableHead><TableHead>Difficulty</TableHead><TableHead>Status</TableHead><TableHead numeric>Times served</TableHead></TableRow></TableHeader><TableBody>{data.questions.map((question) => <TableRow key={question.id}><TableCell>{pretty(question.type)}</TableCell><TableCell>{question.category_tag}</TableCell><TableCell>{pretty(question.difficulty)}</TableCell><TableCell><Badge variant={statusVariant(question.status)}>{pretty(question.status)}</Badge></TableCell><TableCell numeric>{question.times_served}</TableCell></TableRow>)}</TableBody></Table>}
@@ -190,6 +230,8 @@ export default function QuizDashboardPage() {
       <Dialog open={dialog === "drive"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent><DialogHeader><DialogTitle>Create assessment drive</DialogTitle><DialogDescription>Creates a draft. Candidates cannot enter until it is configured and made live.</DialogDescription></DialogHeader><div className="grid gap-4"><div><Label htmlFor="drive-name">Drive name</Label><Input id="drive-name" value={driveForm.name} onChange={(e) => setDriveForm((v) => ({ ...v, name: e.target.value }))} /></div><div><Label htmlFor="drive-code">Access code</Label><Input id="drive-code" maxLength={6} className="uppercase font-mono" value={driveForm.accessCode} onChange={(e) => setDriveForm((v) => ({ ...v, accessCode: e.target.value }))} placeholder="ABC123" /></div><div><Label>Mode</Label><Select value={driveForm.mode} onValueChange={(mode) => setDriveForm((v) => ({ ...v, mode }))}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="on_site">On-site</SelectItem><SelectItem value="remote">Remote</SelectItem></SelectContent></Select></div><div className="grid grid-cols-2 gap-3"><div><Label htmlFor="drive-start">Starts</Label><Input id="drive-start" type="datetime-local" value={driveForm.startsAt} onChange={(e) => setDriveForm((v) => ({ ...v, startsAt: e.target.value }))} /></div><div><Label htmlFor="drive-end">Ends</Label><Input id="drive-end" type="datetime-local" value={driveForm.endsAt} onChange={(e) => setDriveForm((v) => ({ ...v, endsAt: e.target.value }))} /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createDrive.isPending} onClick={() => createDrive.mutate()}>Create draft</Button></DialogFooter></DialogContent></Dialog>
 
       <Dialog open={dialog === "role"} onOpenChange={(open) => !open && setDialog(null)}><DialogContent><DialogHeader><DialogTitle>Create role blueprint</DialogTitle><DialogDescription>Pick the company position this hiring role is for. Its title and department come from the company records and stay in sync.</DialogDescription></DialogHeader><div className="grid gap-4"><div><Label>Company position</Label><Select value={roleForm.positionId} onValueChange={(positionId) => setRoleForm((v) => ({ ...v, positionId }))}><SelectTrigger><SelectValue placeholder="Select a position" /></SelectTrigger><SelectContent>{availablePositions.map((position: any) => <SelectItem key={position.id} value={position.id}>{position.title}{position.departments?.code ? ` — ${position.departments.code}` : ""}</SelectItem>)}</SelectContent></Select>{!availablePositions.length && <p className="mt-1 text-xs text-muted-foreground">Every active position already has a role blueprint.</p>}</div><div><Label>Department</Label><Input value={(selectedPosition as any)?.departments?.name ?? ""} readOnly disabled placeholder="Taken from the position" /></div><div><Label htmlFor="role-code">Role code</Label><Input id="role-code" value={roleForm.code} onChange={(e) => setRoleForm((v) => ({ ...v, code: e.target.value }))} placeholder="Auto-generated if left blank" /></div><div className="grid grid-cols-2 gap-3"><div><Label htmlFor="shortlist">Shortlist %</Label><Input id="shortlist" type="number" min="0" max="100" value={roleForm.shortlist} onChange={(e) => setRoleForm((v) => ({ ...v, shortlist: e.target.value }))} /></div><div><Label htmlFor="hold">Hold %</Label><Input id="hold" type="number" min="0" max="100" value={roleForm.hold} onChange={(e) => setRoleForm((v) => ({ ...v, hold: e.target.value }))} /></div></div></div><DialogFooter><Button variant="outline" onClick={() => setDialog(null)}>Cancel</Button><Button loading={createRole.isPending} disabled={!roleForm.positionId} onClick={() => createRole.mutate()}>Create role</Button></DialogFooter></DialogContent></Dialog>
+
+      <Dialog open={Boolean(gradingRow)} onOpenChange={(open) => !open && setGradingRow(null)}><DialogContent><DialogHeader><DialogTitle>Grade written response</DialogTitle><DialogDescription>Candidate identity is hidden during evaluation.</DialogDescription></DialogHeader>{gradingRow && <div className="grid gap-4"><div className="rounded-lg border border-border bg-muted/30 p-3"><p className="text-sm font-medium">{gradingRow.cbt_attempt_items?.cbt_question_versions?.content?.prompt ?? "Written response"}</p><p className="mt-3 whitespace-pre-wrap text-sm text-foreground">{gradingRow.cbt_attempt_items?.response?.text?.trim() || "No answer submitted"}</p></div><div><Label htmlFor="written-score">Score out of 20</Label><Input id="written-score" type="number" min="0" max="20" step="0.5" inputMode="decimal" value={gradingForm.score} onChange={(event) => setGradingForm((value) => ({ ...value, score: event.target.value }))} /></div><div><Label htmlFor="written-comments">Evaluator comments</Label><Textarea id="written-comments" value={gradingForm.comments} onChange={(event) => setGradingForm((value) => ({ ...value, comments: event.target.value }))} placeholder="Optional internal comments" /></div></div>}<DialogFooter><Button variant="outline" onClick={() => setGradingRow(null)}>Cancel</Button><Button loading={gradeResponse.isPending} disabled={!gradingForm.score} onClick={() => gradeResponse.mutate()}>Save grade</Button></DialogFooter></DialogContent></Dialog>
     </div>
   );
 }

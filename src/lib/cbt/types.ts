@@ -17,7 +17,7 @@ export type CbtSectionSummary = {
   id: string;
   order_index: number;
   section_code: string;
-  section_type: 'typing' | 'data_entry' | 'match_pairs' | 'objective' | 'written';
+  section_type: 'typing' | 'data_entry' | 'match_pairs' | 'objective' | 'written' | 'mental_maths' | 'memory_recall';
   title?: string;
   status: 'pending' | 'in_progress' | 'submitted' | 'auto_submitted';
   entered_at?: string | null;
@@ -36,7 +36,7 @@ export type CbtSectionSummary = {
 export type CbtItem = {
   id: string;
   display_order: number;
-  type: 'mcq' | 'numeric' | 'sjt' | 'written' | 'typing_passage' | 'data_entry_record' | 'match_pair';
+  type: 'mcq' | 'numeric' | 'sjt' | 'written' | 'typing_passage' | 'data_entry_record' | 'match_pair' | 'mental_maths' | 'memory_recall';
   category_tag?: string | null;
   content: Record<string, any>;
   response: Record<string, any> | null;

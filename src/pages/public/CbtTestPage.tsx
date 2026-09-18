@@ -16,6 +16,7 @@ import { CbtShell } from '@/components/cbt/CbtShell';
 import { CbtEntry } from '@/components/cbt/CbtEntry';
 import { CbtQuestion } from '@/components/cbt/CbtQuestion';
 import { CbtTypingSection } from '@/components/cbt/CbtTypingSection';
+import { CbtSkillDrill } from '@/components/cbt/CbtSkillDrill';
 import { useCbtProctor } from '@/hooks/useCbtProctor';
 import {
   CbtError,
@@ -586,6 +587,24 @@ function SectionBody({
     );
   }
 
+  if (section.section_type === 'mental_maths' || section.section_type === 'memory_recall') {
+    return (
+      <div className="space-y-5">
+        <SectionHeading section={section} />
+        <CbtSkillDrill
+          section={section}
+          drafts={drafts}
+          setDraft={setDraft}
+          flushDraft={flushDraft}
+          savingItems={savingItems}
+          busy={busy}
+          onSubmit={onSubmit}
+          onPasteBlocked={onPasteBlocked}
+        />
+      </div>
+    );
+  }
+
   const items = section.items ?? [];
   const item = items[Math.min(index, Math.max(0, items.length - 1))];
   if (!item) {
@@ -612,9 +631,26 @@ function SectionBody({
     return d !== null && d !== undefined && Object.keys(d).length > 0;
   }).length;
 
+  const marked = items.filter((i) => i.marked_for_review).length;
+  const notVisited = items.filter((i) => {
+    const d = drafts[i.id] ?? i.response;
+    const isAnswered = d !== null && d !== undefined && Object.keys(d).length > 0;
+    return !i.visited && !isAnswered;
+  }).length;
+
   return (
     <div className="space-y-5">
       <SectionHeading section={section} extra={`${answered} of ${items.length} answered`} />
+
+      <SectionStats
+        answered={answered}
+        total={items.length}
+        marked={marked}
+        notVisited={notVisited}
+        unanswered={items.length - answered}
+      />
+
+
 
       {section.stimulus?.body && (
         <div className="rounded-lg border border-border bg-muted/40 p-4">
@@ -699,6 +735,48 @@ function SectionBody({
             Submit this section
           </Button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SectionStats({
+  answered,
+  total,
+  marked,
+  notVisited,
+  unanswered,
+}: {
+  answered: number;
+  total: number;
+  marked: number;
+  notVisited: number;
+  unanswered: number;
+}) {
+  const pct = total ? Math.round((answered / total) * 100) : 0;
+  const cells = [
+    { label: 'Answered', value: answered, dot: 'bg-primary' },
+    { label: 'Not answered', value: unanswered, dot: 'bg-muted-foreground/50' },
+    { label: 'Marked for review', value: marked, dot: 'bg-amber-500' },
+    { label: 'Not visited', value: notVisited, dot: 'bg-border' },
+  ];
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+      <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>Progress in this section</span>
+        <span className="font-semibold tabular-nums text-foreground">{pct}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct}>
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {cells.map((c) => (
+          <div key={c.label} className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.dot}`} aria-hidden />
+            <span className="min-w-0 truncate text-xs text-muted-foreground">{c.label}</span>
+            <span className="ml-auto text-sm font-semibold tabular-nums">{c.value}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

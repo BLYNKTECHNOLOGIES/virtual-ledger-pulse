@@ -48,6 +48,10 @@ Deno.serve(async (req) => {
     if (response && typeof (response as any).text === "string") {
       response = { ...(response as any), text: String((response as any).text).slice(0, 2000) };
     }
+    // short-answer drills (Skill Box) only ever need a small value
+    if (response && typeof (response as any).value === "string") {
+      response = { ...(response as any), value: String((response as any).value).slice(0, 120) };
+    }
 
     const patch: Record<string, unknown> = { visited: true };
     if (b.response !== undefined) {

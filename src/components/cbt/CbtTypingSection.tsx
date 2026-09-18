@@ -103,9 +103,50 @@ export function CbtTypingSection({
 
   const typedIndex = committed.length;
 
+  // Display-only live speed — the score itself is always computed on the server.
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const liveStats = useMemo(() => {
+    const started = section.started_at ? new Date(section.started_at).getTime() : Date.now();
+    const minutes = Math.max(1 / 60, (Date.now() - started) / 60000);
+    let correctWords = 0;
+    let correctChars = 0;
+    let typedChars = 0;
+    committed.forEach((w, i) => {
+      typedChars += w.length + 1;
+      if (w === passageWords[i]) {
+        correctWords += 1;
+        correctChars += w.length + 1;
+      }
+    });
+    return {
+      net: Math.round(correctChars / 5 / minutes),
+      gross: Math.round(typedChars / 5 / minutes),
+      accuracy: committed.length ? Math.round((correctWords / committed.length) * 100) : 100,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [committed, passageWords, section.started_at, tick]);
+
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-2 sm:max-w-md">
+        {[
+          { label: 'Net WPM', value: liveStats.net },
+          { label: 'Gross WPM', value: liveStats.gross },
+          { label: 'Accuracy', value: `${liveStats.accuracy}%` },
+        ].map((s) => (
+          <div key={s.label} className="rounded-lg border border-border bg-card px-3 py-2 text-center">
+            <p className="font-mono text-xl font-bold tabular-nums">{s.value}</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="rounded-lg border border-border bg-muted/40 p-4 text-base leading-relaxed">
+
         {passageWords.map((w, i) => {
           const done = i < typedIndex;
           const ok = done && committed[i] === w;

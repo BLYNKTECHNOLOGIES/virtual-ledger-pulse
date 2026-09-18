@@ -740,6 +740,48 @@ function SectionBody({
   );
 }
 
+function SectionStats({
+  answered,
+  total,
+  marked,
+  notVisited,
+  unanswered,
+}: {
+  answered: number;
+  total: number;
+  marked: number;
+  notVisited: number;
+  unanswered: number;
+}) {
+  const pct = total ? Math.round((answered / total) * 100) : 0;
+  const cells = [
+    { label: 'Answered', value: answered, dot: 'bg-primary' },
+    { label: 'Not answered', value: unanswered, dot: 'bg-muted-foreground/50' },
+    { label: 'Marked for review', value: marked, dot: 'bg-amber-500' },
+    { label: 'Not visited', value: notVisited, dot: 'bg-border' },
+  ];
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+      <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>Progress in this section</span>
+        <span className="font-semibold tabular-nums text-foreground">{pct}%</span>
+      </div>
+      <div className="h-2 w-full overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={pct}>
+        <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {cells.map((c) => (
+          <div key={c.label} className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${c.dot}`} aria-hidden />
+            <span className="min-w-0 truncate text-xs text-muted-foreground">{c.label}</span>
+            <span className="ml-auto text-sm font-semibold tabular-nums">{c.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionHeading({ section, extra }: { section: CbtCurrentSection; extra?: string }) {
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2">

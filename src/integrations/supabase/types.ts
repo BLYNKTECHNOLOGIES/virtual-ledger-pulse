@@ -29892,6 +29892,24 @@ export type Database = {
       cbt_can_evaluate: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_manage: { Args: { _user_id?: string }; Returns: boolean }
       cbt_can_view: { Args: { _user_id?: string }; Returns: boolean }
+      cbt_create_question: {
+        Args: {
+          p_approve?: boolean
+          p_category_tag: string
+          p_correct_option_id?: string
+          p_difficulty: Database["public"]["Enums"]["cbt_difficulty"]
+          p_explanation?: string
+          p_marks?: number
+          p_numeric_answer?: number
+          p_numeric_tolerance?: number
+          p_options?: Json
+          p_prompt: string
+          p_role_codes?: string[]
+          p_rubric?: Json
+          p_type: Database["public"]["Enums"]["cbt_question_type"]
+        }
+        Returns: string
+      }
       cbt_finalize_attempt: {
         Args: { p_attempt_id: string }
         Returns: undefined

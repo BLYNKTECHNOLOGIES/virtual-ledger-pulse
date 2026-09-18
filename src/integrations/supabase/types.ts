@@ -29945,6 +29945,10 @@ export type Database = {
         Returns: string
       }
       cbt_score_section: { Args: { p_section_id: string }; Returns: undefined }
+      cbt_score_skill_section: {
+        Args: { p_section_id: string }
+        Returns: undefined
+      }
       cbt_section_config: { Args: { p_section_id: string }; Returns: Json }
       cbt_sweep_attempt: { Args: { p_attempt_id: string }; Returns: undefined }
       cbt_sweep_expired: { Args: never; Returns: number }

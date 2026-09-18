@@ -33,12 +33,12 @@ export function CbtShell({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-3 py-2 sm:gap-3 sm:px-4 sm:py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             {logoUrl ? (
-              <img src={logoUrl} alt={`${brand ?? 'Company'} logo`} className="h-8 w-auto" />
+              <img src={logoUrl} alt={`${brand ?? 'Company'} logo`} className="h-7 w-auto sm:h-8" />
             ) : (
-              <ShieldCheck className="h-6 w-6 text-primary" aria-hidden />
+              <ShieldCheck className="h-5 w-5 text-primary sm:h-6 sm:w-6" aria-hidden />
             )}
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold">{brand ?? 'Assessment'}</p>
@@ -46,9 +46,9 @@ export function CbtShell({
             </div>
           </div>
 
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-3 text-xs">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2 text-xs sm:gap-3">
             {candidateName && (
-              <div className="text-right">
+              <div className="hidden text-right sm:block">
                 <p className="font-medium">{candidateName}</p>
                 <p className="text-muted-foreground">
                   {roleName}
@@ -80,7 +80,7 @@ export function CbtShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-5xl px-4 py-6">{children}</main>
+      <main className="mx-auto w-full max-w-5xl px-3 py-4 pb-24 sm:px-4 sm:py-6 sm:pb-6">{children}</main>
     </div>
   );
 }

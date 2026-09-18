@@ -255,6 +255,9 @@ export default function CbtTestPage() {
   }, [remaining, running, current, submitSection]);
 
   const requestFullscreen = async () => {
+    // Phones and tablets either refuse full screen or trap the keyboard behind it,
+    // so we only ask for it on pointer devices.
+    if (window.matchMedia?.('(pointer: coarse)').matches) return;
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
     } catch {
@@ -359,8 +362,8 @@ export default function CbtTestPage() {
               </li>
               <li>If your internet drops, stay on this page — your answers are saved as you go.</li>
             </ol>
-            <div className="rounded-lg border border-border">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[320px] text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left">Section</th>
@@ -575,7 +578,7 @@ function SectionBody({
           onSessionError={onSessionError}
         />
         <div className="flex justify-end">
-          <Button size="lg" disabled={busy} onClick={onSubmit}>
+          <Button size="lg" className="w-full sm:w-auto" disabled={busy} onClick={onSubmit}>
             I have finished typing
           </Button>
         </div>
@@ -621,14 +624,14 @@ function SectionBody({
       )}
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
+        <CardHeader className="flex flex-col items-start justify-between gap-2 sm:flex-row sm:gap-3">
           <div>
             <CardTitle className="text-base">
               Question {index + 1} of {items.length}
             </CardTitle>
             {item.category_tag && <CardDescription>{item.category_tag}</CardDescription>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
             {savingItems[item.id] && <span className="text-xs text-muted-foreground">Saving…</span>}
             <Button
               variant={item.marked_for_review ? 'default' : 'outline'}
@@ -640,7 +643,7 @@ function SectionBody({
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           <CbtQuestion
             item={item}
             response={drafts[item.id] ?? item.response}
@@ -652,7 +655,7 @@ function SectionBody({
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
         {items.map((it, i) => {
           const d = drafts[it.id] ?? it.response;
           const isAnswered = d !== null && d !== undefined && Object.keys(d).length > 0;
@@ -662,7 +665,7 @@ function SectionBody({
               type="button"
               onClick={() => void goTo(i)}
               aria-label={`Go to question ${i + 1}`}
-              className={`h-9 w-9 rounded-md border text-xs font-semibold ${
+              className={`h-10 w-10 shrink-0 snap-start rounded-md border text-xs font-semibold sm:h-9 sm:w-9 ${
                 i === index
                   ? 'border-primary bg-primary text-primary-foreground'
                   : it.marked_for_review
@@ -678,14 +681,21 @@ function SectionBody({
         })}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" disabled={index === 0} onClick={() => void goTo(index - 1)}>
+      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <Button
+          variant="outline"
+          className="flex-1 sm:flex-none"
+          disabled={index === 0}
+          onClick={() => void goTo(index - 1)}
+        >
           Previous
         </Button>
         {index < items.length - 1 ? (
-          <Button onClick={() => void goTo(index + 1)}>Next question</Button>
+          <Button className="flex-1 sm:flex-none" onClick={() => void goTo(index + 1)}>
+            Next question
+          </Button>
         ) : (
-          <Button size="lg" disabled={busy} onClick={onSubmit}>
+          <Button size="lg" className="flex-1 sm:flex-none" disabled={busy} onClick={onSubmit}>
             Submit this section
           </Button>
         )}

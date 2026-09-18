@@ -48,6 +48,11 @@ export function useCbtProctor(opts: {
   useEffect(() => {
     if (!active) return;
 
+    // On phones/tablets the on-screen keyboard itself fires blur and full-screen
+    // exit, so those two signals would punish an honest candidate. Tab switching,
+    // paste and shortcut blocking are still recorded everywhere.
+    const touchDevice = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+
     const onVisibility = () => {
       if (document.hidden) {
         onNotice('Leaving the test window is recorded as a warning.');
@@ -80,8 +85,10 @@ export function useCbtProctor(opts: {
     };
 
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('blur', onBlur);
-    document.addEventListener('fullscreenchange', onFullscreen);
+    if (!touchDevice) {
+      window.addEventListener('blur', onBlur);
+      document.addEventListener('fullscreenchange', onFullscreen);
+    }
     document.addEventListener('copy', onCopy);
     document.addEventListener('contextmenu', onContext);
     document.addEventListener('keydown', onKey);

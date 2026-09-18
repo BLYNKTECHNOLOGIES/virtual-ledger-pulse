@@ -29896,6 +29896,10 @@ export type Database = {
         Args: { p_attempt_id: string }
         Returns: undefined
       }
+      cbt_grade_written_response: {
+        Args: { p_comments?: string; p_evaluation_id: string; p_total: number }
+        Returns: undefined
+      }
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
       cbt_norm_text: { Args: { p: string }; Returns: string }

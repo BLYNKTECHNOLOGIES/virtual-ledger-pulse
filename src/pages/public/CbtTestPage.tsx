@@ -655,7 +655,7 @@ function SectionBody({
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
         {items.map((it, i) => {
           const d = drafts[it.id] ?? it.response;
           const isAnswered = d !== null && d !== undefined && Object.keys(d).length > 0;
@@ -665,7 +665,7 @@ function SectionBody({
               type="button"
               onClick={() => void goTo(i)}
               aria-label={`Go to question ${i + 1}`}
-              className={`h-9 w-9 rounded-md border text-xs font-semibold ${
+              className={`h-10 w-10 shrink-0 snap-start rounded-md border text-xs font-semibold sm:h-9 sm:w-9 ${
                 i === index
                   ? 'border-primary bg-primary text-primary-foreground'
                   : it.marked_for_review

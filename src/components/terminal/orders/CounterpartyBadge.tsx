@@ -38,22 +38,17 @@ export function CounterpartyBadge({ repeatCount, tradeType, isLoading = false, i
 
   if (repeatCount >= 10) {
     return (
-      <Badge className="text-[10px] gap-1 bg-trade-pending/15 text-trade-pending border border-trade-pending/30">
+      <Badge variant="outline" className="text-[10px] gap-1 border-border text-foreground bg-muted/30">
         <Zap className="h-2.5 w-2.5" />
-        High Frequency ({repeatCount})
+        Completed {repeatCount}×
       </Badge>
     );
   }
 
-  const label = tradeType === 'BUY' ? 'Repeat Buyer' : 'Repeat Seller';
-  const colorClass = tradeType === 'BUY'
-    ? 'bg-trade-buy/10 text-trade-buy border-trade-buy/30'
-    : 'bg-trade-sell/10 text-trade-sell border-trade-sell/30';
-
   return (
-    <Badge variant="outline" className={`text-[10px] gap-1 ${colorClass}`}>
+    <Badge variant="outline" className="text-[10px] gap-1 border-border text-foreground bg-muted/30">
       <Repeat className="h-2.5 w-2.5" />
-      {label} ({repeatCount})
+      Completed {repeatCount}×
     </Badge>
   );
 }

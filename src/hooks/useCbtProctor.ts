@@ -85,8 +85,10 @@ export function useCbtProctor(opts: {
     };
 
     document.addEventListener('visibilitychange', onVisibility);
-    window.addEventListener('blur', onBlur);
-    document.addEventListener('fullscreenchange', onFullscreen);
+    if (!touchDevice) {
+      window.addEventListener('blur', onBlur);
+      document.addEventListener('fullscreenchange', onFullscreen);
+    }
     document.addEventListener('copy', onCopy);
     document.addEventListener('contextmenu', onContext);
     document.addEventListener('keydown', onKey);

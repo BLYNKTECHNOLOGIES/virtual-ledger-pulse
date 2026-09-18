@@ -24883,6 +24883,39 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_ad_uptime_slot_targets: {
+        Row: {
+          ad_class: string
+          asset: string
+          created_at: string
+          id: string
+          is_active: boolean
+          required_ads: number
+          updated_at: string
+          zone: string
+        }
+        Insert: {
+          ad_class?: string
+          asset: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          required_ads?: number
+          updated_at?: string
+          zone: string
+        }
+        Update: {
+          ad_class?: string
+          asset?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          required_ads?: number
+          updated_at?: string
+          zone?: string
+        }
+        Relationships: []
+      }
       terminal_alternate_upi_requests: {
         Row: {
           created_at: string
@@ -30619,6 +30652,17 @@ export type Database = {
         }[]
       }
       get_ad_pricing_health: { Args: never; Returns: Json }
+      get_ad_uptime_buy_slots: {
+        Args: { p_account?: string; p_date: string; p_shift?: string }
+        Returns: {
+          asset: string
+          measured_minutes: number
+          peak_active: number
+          required_ads: number
+          slot_score: number
+          zone: string
+        }[]
+      }
       get_ad_uptime_monthly_score: {
         Args: { p_account?: string; p_month: string }
         Returns: {

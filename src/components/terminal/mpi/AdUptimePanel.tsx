@@ -291,6 +291,32 @@ export function AdUptimePanel() {
 
   const blended = mode === 'month' ? blendedMonth : blendedDay;
 
+  /**
+   * Big buy is scored slot by slot (coin + zone), so this breakdown shows exactly
+   * which buy slot was short. Raw minutes are kept ~4 days, so day mode only.
+   */
+  const { data: buySlots = [] } = useQuery({
+    queryKey: ['ad-uptime-buy-slots', date, shift, accountId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_ad_uptime_buy_slots' as any, {
+        p_date: date,
+        p_shift: shift,
+        p_account: accountId === 'all' ? null : accountId,
+      });
+      if (error) throw error;
+      return (data ?? []) as unknown as Array<{
+        asset: string;
+        zone: string;
+        required_ads: number;
+        slot_score: number;
+        peak_active: number;
+        measured_minutes: number;
+      }>;
+    },
+    enabled: mode === 'day',
+    refetchInterval: 120_000,
+  });
+
   const { data: trend = [] } = useQuery({
     queryKey: ['ad-uptime-trend', accountId],
     queryFn: async () => {
@@ -583,6 +609,38 @@ export function AdUptimePanel() {
               );
             })}
           </div>
+
+          {/* Big buy slot coverage — which coin/zone slot was short */}
+          {mode === 'day' && buySlots.length > 0 && (
+            <div className="t-panel p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground flex items-center gap-1.5">
+                  <ShoppingCart className="h-3.5 w-3.5 text-primary" /> Big buy slots
+                </span>
+                <span className="text-[9px] text-muted-foreground">
+                  required {buySlots.reduce((s, r) => s + Number(r.required_ads || 0), 0)} ads
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1.5">
+                {buySlots.map((slot) => (
+                  <div
+                    key={`${slot.asset}-${slot.zone}`}
+                    className="flex items-center justify-between rounded-md border border-border px-2 py-1.5"
+                  >
+                    <span className="text-[10px] text-foreground">
+                      {slot.asset}
+                      <span className="text-muted-foreground"> · {slot.zone === 'block' ? 'Block' : 'P2P'} · {slot.required_ads} req</span>
+                    </span>
+                    <span className={`t-mono text-[11px] font-semibold ${scoreTone(Number(slot.slot_score))}`}>
+                      {pct(Number(slot.slot_score))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+
 
           {/* Shift table */}
           <div className="rounded-lg border border-border overflow-x-auto">

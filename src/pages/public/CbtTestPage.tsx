@@ -255,6 +255,9 @@ export default function CbtTestPage() {
   }, [remaining, running, current, submitSection]);
 
   const requestFullscreen = async () => {
+    // Phones and tablets either refuse full screen or trap the keyboard behind it,
+    // so we only ask for it on pointer devices.
+    if (window.matchMedia?.('(pointer: coarse)').matches) return;
     try {
       if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
     } catch {
@@ -359,8 +362,8 @@ export default function CbtTestPage() {
               </li>
               <li>If your internet drops, stay on this page — your answers are saved as you go.</li>
             </ol>
-            <div className="rounded-lg border border-border">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <table className="w-full min-w-[320px] text-sm">
                 <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
                   <tr>
                     <th className="px-3 py-2 text-left">Section</th>

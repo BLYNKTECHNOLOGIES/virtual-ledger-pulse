@@ -681,14 +681,21 @@ function SectionBody({
         })}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Button variant="outline" disabled={index === 0} onClick={() => void goTo(index - 1)}>
+      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-border bg-card/95 px-3 py-3 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+        <Button
+          variant="outline"
+          className="flex-1 sm:flex-none"
+          disabled={index === 0}
+          onClick={() => void goTo(index - 1)}
+        >
           Previous
         </Button>
         {index < items.length - 1 ? (
-          <Button onClick={() => void goTo(index + 1)}>Next question</Button>
+          <Button className="flex-1 sm:flex-none" onClick={() => void goTo(index + 1)}>
+            Next question
+          </Button>
         ) : (
-          <Button size="lg" disabled={busy} onClick={onSubmit}>
+          <Button size="lg" className="flex-1 sm:flex-none" disabled={busy} onClick={onSubmit}>
             Submit this section
           </Button>
         )}

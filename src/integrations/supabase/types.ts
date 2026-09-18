@@ -24883,6 +24883,39 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_ad_uptime_slot_targets: {
+        Row: {
+          ad_class: string
+          asset: string
+          created_at: string
+          id: string
+          is_active: boolean
+          required_ads: number
+          updated_at: string
+          zone: string
+        }
+        Insert: {
+          ad_class?: string
+          asset: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          required_ads?: number
+          updated_at?: string
+          zone: string
+        }
+        Update: {
+          ad_class?: string
+          asset?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          required_ads?: number
+          updated_at?: string
+          zone?: string
+        }
+        Relationships: []
+      }
       terminal_alternate_upi_requests: {
         Row: {
           created_at: string

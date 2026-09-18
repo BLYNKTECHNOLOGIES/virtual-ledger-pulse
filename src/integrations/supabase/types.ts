@@ -2199,13 +2199,15 @@ export type Database = {
           attempt_section_id: string
           created_at: string
           display_order: number
+          generated_content: Json | null
+          generated_key: Json | null
           id: string
           is_correct: boolean | null
           is_red_flag: boolean
           marked_for_review: boolean
           marks_awarded: number | null
           option_order: Json | null
-          question_version_id: string
+          question_version_id: string | null
           response: Json | null
           updated_at: string
           visited: boolean
@@ -2215,13 +2217,15 @@ export type Database = {
           attempt_section_id: string
           created_at?: string
           display_order: number
+          generated_content?: Json | null
+          generated_key?: Json | null
           id?: string
           is_correct?: boolean | null
           is_red_flag?: boolean
           marked_for_review?: boolean
           marks_awarded?: number | null
           option_order?: Json | null
-          question_version_id: string
+          question_version_id?: string | null
           response?: Json | null
           updated_at?: string
           visited?: boolean
@@ -2231,13 +2235,15 @@ export type Database = {
           attempt_section_id?: string
           created_at?: string
           display_order?: number
+          generated_content?: Json | null
+          generated_key?: Json | null
           id?: string
           is_correct?: boolean | null
           is_red_flag?: boolean
           marked_for_review?: boolean
           marks_awarded?: number | null
           option_order?: Json | null
-          question_version_id?: string
+          question_version_id?: string | null
           response?: Json | null
           updated_at?: string
           visited?: boolean
@@ -33365,6 +33371,8 @@ export type Database = {
         | "match_pairs"
         | "objective"
         | "written"
+        | "mental_maths"
+        | "memory_recall"
       cbt_warning_action: "flag_only" | "auto_submit"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
@@ -33857,6 +33865,8 @@ export const Constants = {
         "match_pairs",
         "objective",
         "written",
+        "mental_maths",
+        "memory_recall",
       ],
       cbt_warning_action: ["flag_only", "auto_submit"],
       erp_task_priority: ["low", "medium", "high", "critical"],

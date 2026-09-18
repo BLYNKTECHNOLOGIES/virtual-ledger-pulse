@@ -630,9 +630,26 @@ function SectionBody({
     return d !== null && d !== undefined && Object.keys(d).length > 0;
   }).length;
 
+  const marked = items.filter((i) => i.marked_for_review).length;
+  const notVisited = items.filter((i) => {
+    const d = drafts[i.id] ?? i.response;
+    const isAnswered = d !== null && d !== undefined && Object.keys(d).length > 0;
+    return !i.visited && !isAnswered;
+  }).length;
+
   return (
     <div className="space-y-5">
       <SectionHeading section={section} extra={`${answered} of ${items.length} answered`} />
+
+      <SectionStats
+        answered={answered}
+        total={items.length}
+        marked={marked}
+        notVisited={notVisited}
+        unanswered={items.length - answered}
+      />
+
+
 
       {section.stimulus?.body && (
         <div className="rounded-lg border border-border bg-muted/40 p-4">

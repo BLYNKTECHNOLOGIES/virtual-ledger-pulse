@@ -1,5 +1,44 @@
 import { admin, authAttempt, buildState, corsHeaders, fail, json, pickQuestions, shuffleOptions } from "../_shared/cbt.ts";
 
+const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
+
+// Mental-maths drills get harder as the drill progresses; the answer never leaves the server.
+function makeMathsDrill(idx: number): { prompt: string; answer: number } {
+  const tier = idx < 4 ? 0 : idx < 8 ? 1 : 2;
+  const kind = rnd(0, tier === 0 ? 2 : 4);
+  if (kind === 0) {
+    const a = rnd(tier === 0 ? 11 : 120, tier === 0 ? 99 : 980);
+    const b = rnd(tier === 0 ? 11 : 120, tier === 0 ? 99 : 980);
+    return { prompt: `${a} + ${b}`, answer: a + b };
+  }
+  if (kind === 1) {
+    const a = rnd(tier === 0 ? 30 : 320, tier === 0 ? 99 : 990);
+    const b = rnd(10, a - 1);
+    return { prompt: `${a} − ${b}`, answer: a - b };
+  }
+  if (kind === 2) {
+    const a = rnd(tier === 0 ? 3 : 12, tier === 0 ? 12 : 29);
+    const b = rnd(tier === 0 ? 3 : 11, tier === 0 ? 12 : 19);
+    return { prompt: `${a} × ${b}`, answer: a * b };
+  }
+  if (kind === 3) {
+    const pct = [5, 10, 12, 15, 20, 25][rnd(0, 5)];
+    const base = rnd(4, 40) * 100;
+    return { prompt: `${pct}% of ${base}`, answer: (base * pct) / 100 };
+  }
+  const b = rnd(3, 19);
+  const q = rnd(4, 40);
+  return { prompt: `${b * q} ÷ ${b}`, answer: q };
+}
+
+// Memory-recall sequences start at 4 characters and grow one character every two items.
+function makeMemorySequence(idx: number): string[] {
+  const len = Math.min(9, 4 + Math.floor(idx / 2));
+  const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+  return Array.from({ length: len }, () => alphabet[rnd(0, alphabet.length - 1)]);
+}
+
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {

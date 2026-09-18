@@ -16,6 +16,7 @@ import { CbtShell } from '@/components/cbt/CbtShell';
 import { CbtEntry } from '@/components/cbt/CbtEntry';
 import { CbtQuestion } from '@/components/cbt/CbtQuestion';
 import { CbtTypingSection } from '@/components/cbt/CbtTypingSection';
+import { CbtSkillDrill } from '@/components/cbt/CbtSkillDrill';
 import { useCbtProctor } from '@/hooks/useCbtProctor';
 import {
   CbtError,

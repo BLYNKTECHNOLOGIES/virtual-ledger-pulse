@@ -374,6 +374,9 @@ export default function SkillPracticePage() {
             {drill === 'memory_recall' && <MemoryDrill key={runKey} level={level} />}
             {drill === 'data_entry' && <DataEntryDrill key={runKey} level={level} />}
             {drill === 'match_pairs' && <PairsDrill key={runKey} level={level} />}
+            {(['logical_reasoning', 'problem_solving', 'pattern_recognition', 'grammar', 'vocabulary'] as McqSkill[]).includes(drill as McqSkill) && (
+              <McqDrill key={runKey} level={level} skill={drill as McqSkill} />
+            )}
           </div>
         )}
       </div>

@@ -1062,32 +1062,33 @@ export function PendingSettlementsWidget() {
   const { data, isLoading } = useQuery({
     queryKey: ['widget_pending_settlements'],
     queryFn: async () => {
-      const { data: orders, error } = await supabase
-        .from('sales_orders')
-        .select('id, total_amount, sales_payment_method_id, sales_payment_methods!sales_orders_sales_payment_method_id_fkey(type, nickname, payment_gateway)')
-        .eq('settlement_status', 'PENDING');
+      // Single source of truth: the same pending_settlements legs the Pending Settlements tab shows
+      const { data: legs, error } = await supabase
+        .from('pending_settlements')
+        .select('id, payment_method_id, total_amount, settlement_amount, sales_payment_methods!payment_method_id(type, nickname)')
+        .eq('status', 'PENDING');
 
       if (error) throw error;
 
-      // Only include orders linked to a payment gateway method
-      const gwOrders = (orders || []).filter((o: any) => o.sales_payment_methods?.payment_gateway === true);
-      const totalAmount = gwOrders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
+      const rows = legs || [];
+      const amountOf = (r: any) => Number(r.settlement_amount ?? r.total_amount ?? 0);
+      const totalAmount = rows.reduce((sum: number, r: any) => sum + amountOf(r), 0);
 
-      // Group by payment gateway
+      // Group by payment gateway (payment method), exactly like the tab
       const groupMap: Record<string, { name: string; count: number; amount: number }> = {};
-      gwOrders.forEach((o: any) => {
-        const pm = o.sales_payment_methods;
-        const key = o.sales_payment_method_id || '_unknown';
+      rows.forEach((r: any) => {
+        const pm = r.sales_payment_methods;
+        const key = r.payment_method_id || '_unknown';
         const label = pm?.nickname || pm?.type || 'Gateway';
         if (!groupMap[key]) {
           groupMap[key] = { name: label, count: 0, amount: 0 };
         }
         groupMap[key].count += 1;
-        groupMap[key].amount += Number(o.total_amount || 0);
+        groupMap[key].amount += amountOf(r);
       });
 
       const groups = Object.values(groupMap).sort((a, b) => b.amount - a.amount);
-      return { groups, total: gwOrders.length, totalAmount };
+      return { groups, total: rows.length, totalAmount };
     },
     refetchInterval: 30000,
     staleTime: 30000,

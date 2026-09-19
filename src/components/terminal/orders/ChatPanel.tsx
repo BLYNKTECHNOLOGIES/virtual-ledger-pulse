@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
+import { DaySeparator, istDayKey } from './chat/DaySeparator';
 import { isCardPayload } from './chat/ChatAdCard';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { AttachAdPicker } from './chat/AttachAdPicker';

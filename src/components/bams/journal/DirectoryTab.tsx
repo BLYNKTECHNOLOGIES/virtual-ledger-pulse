@@ -800,6 +800,11 @@ export function DirectoryTab() {
                   Filtered
                 </Badge>
               )}
+              {opexOnly && (
+                <Badge variant="outline" className="text-destructive text-xs">
+                  Operating expenses only
+                </Badge>
+              )}
             </CardTitle>
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">

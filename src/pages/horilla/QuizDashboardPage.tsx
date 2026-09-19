@@ -227,7 +227,10 @@ export default function QuizDashboardPage() {
     mutationFn: async () => {
       const marks = Number(questionForm.marks);
       if (!questionForm.categoryTag.trim()) throw new Error("Enter the category tag used by the section blueprint.");
-      if (!questionForm.prompt.trim()) throw new Error("Enter the question text.");
+      if (!questionForm.prompt.trim()) throw new Error(questionForm.type === "typing_passage" ? "Enter the passage text." : "Enter the question text.");
+      if (questionForm.type === "typing_passage" && questionForm.prompt.trim().split(/\s+/).length < 40) {
+        throw new Error("A typing passage needs at least 40 words.");
+      }
       if (!Number.isFinite(marks) || marks <= 0) throw new Error("Marks must be greater than zero.");
       const payload: Record<string, unknown> = {
         p_type: questionForm.type,

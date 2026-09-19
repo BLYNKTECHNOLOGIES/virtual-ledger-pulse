@@ -71,6 +71,28 @@ function dedupeMessages(messages: UnifiedMessage[]): UnifiedMessage[] {
   return out;
 }
 
+/**
+ * Render a transcript with WhatsApp/Binance-style day dividers: whenever the
+ * IST calendar day changes between two consecutive messages, a centered
+ * "Today" / "Yesterday" / full-date pill is inserted before the newer message.
+ */
+function withDaySeparators(messages: UnifiedMessage[], renderMessage: (m: UnifiedMessage) => ReactNode): ReactNode[] {
+  const out: ReactNode[] = [];
+  let lastDay: string | null = null;
+  for (const m of messages) {
+    const ts = m.timestamp || 0;
+    const day = istDayKey(ts);
+    if (day && day !== lastDay) {
+      out.push(<DaySeparator key={`day-${m.id}`} ts={ts} />);
+      lastDay = day;
+    }
+    out.push(renderMessage(m));
+  }
+  return out;
+}
+
+
+
 
 interface Props {
   orderId: string;

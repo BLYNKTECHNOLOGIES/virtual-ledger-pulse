@@ -281,7 +281,7 @@ export async function buildState(db: SupabaseClient, attemptId: string) {
         id: current.id, order_index: current.order_index, section_code: current.section_code,
         section_type: current.section_type, status: current.status, entered_at: current.entered_at,
         started_at: current.started_at, deadline_at: current.deadline_at,
-        ...cfgFor(current.order_index),
+        ...(sanitize(cfgFor(current.order_index)) as Record<string, unknown>),
         items, stimulus,
       }
       : null,

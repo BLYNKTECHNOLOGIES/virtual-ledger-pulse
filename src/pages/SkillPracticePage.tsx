@@ -41,21 +41,21 @@ const CONFIG: Record<Level, {
     maths: { items: 8, seconds: 240, max: 99, ops: ['+', '−', '×'] },
     memory: { items: 5, seconds: 210, minLen: 4, maxLen: 5, show: 6 },
     dataEntry: { items: 3, seconds: 300 },
-    pairs: { items: 6, seconds: 150 },
+    pairs: { items: 6, seconds: 180 },
   },
   intermediate: {
     typing: { seconds: 180, targetWpm: 40, passWpm: 25, passAccuracy: 90 },
     maths: { items: 10, seconds: 240, max: 499, ops: ['+', '−', '×', '%'] },
     memory: { items: 6, seconds: 240, minLen: 5, maxLen: 7, show: 4 },
-    dataEntry: { items: 4, seconds: 300 },
-    pairs: { items: 8, seconds: 150 },
+    dataEntry: { items: 4, seconds: 260 },
+    pairs: { items: 8, seconds: 140 },
   },
   advanced: {
     typing: { seconds: 240, targetWpm: 55, passWpm: 40, passAccuracy: 95 },
     maths: { items: 12, seconds: 240, max: 989, ops: ['+', '−', '×', '%', '÷'] },
     memory: { items: 7, seconds: 240, minLen: 7, maxLen: 9, show: 3 },
-    dataEntry: { items: 5, seconds: 300 },
-    pairs: { items: 10, seconds: 140 },
+    dataEntry: { items: 6, seconds: 220 },
+    pairs: { items: 12, seconds: 110 },
   },
 };
 
@@ -438,7 +438,7 @@ function MemoryDrill({ level }: { level: Level }) {
 
 function DataEntryDrill({ level }: { level: Level }) {
   const cfg = CONFIG[level].dataEntry;
-  const records = useMemo(() => RECORDS.slice(0, cfg.items), [cfg.items]);
+  const records = useMemo(() => RECORDS[level].slice(0, cfg.items), [cfg.items, level]);
   const [index, setIndex] = useState(0);
   const [entries, setEntries] = useState<Record<string, string>[]>(() => records.map(() => ({})));
   const [done, setDone] = useState(false);
@@ -494,7 +494,7 @@ function DataEntryDrill({ level }: { level: Level }) {
 
 function PairsDrill({ level }: { level: Level }) {
   const cfg = CONFIG[level].pairs;
-  const pairs = useMemo(() => PAIRS.slice(0, cfg.items), [cfg.items]);
+  const pairs = useMemo(() => PAIRS[level].slice(0, cfg.items), [cfg.items, level]);
   const [answers, setAnswers] = useState<(boolean | null)[]>(() => pairs.map(() => null));
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);

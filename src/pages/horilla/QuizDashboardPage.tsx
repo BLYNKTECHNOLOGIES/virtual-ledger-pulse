@@ -455,9 +455,6 @@ export default function QuizDashboardPage() {
                               {skill.type === "typing" && section.gate_min_accuracy ? ` / ${section.gate_min_accuracy}% accuracy` : ""}
                             </p>
                           </div>
-                          {canManage && section.role && (
-                            <Button variant="ghost" size="sm" onClick={() => openRoleEditor(section.role)}><Pencil className="h-4 w-4" />Configure</Button>
-                          )}
                         </div>
                       ))}
                     </div>

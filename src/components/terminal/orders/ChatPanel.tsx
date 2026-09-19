@@ -165,6 +165,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const prevBinanceIdsRef = useRef<Set<number>>(new Set());
   const isInitialLoadRef = useRef(true);
   const shouldAutoScrollRef = useRef(true);
+  // While a chat opens, keep the view pinned to the newest message (instant
+  // jumps) until archived messages + history discovery settle — otherwise the
+  // smooth scroll lands mid-thread once prepended history/images shift layout.
+  const initialPinRef = useRef(true);
 
   // Helper: detect if text content is actually an image URL
   const isImageUrl = useCallback((messageText: string | undefined | null): boolean => {

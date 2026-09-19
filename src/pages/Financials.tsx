@@ -1,4 +1,4 @@
-import { isReversalTransaction } from "@/lib/isReversalTransaction";
+import { COGS_CATEGORY_IN_FILTER, isOperatingExpenseRow } from "@/lib/operatingExpense";
 import { useState } from "react";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,14 +100,11 @@ export default function Financials() {
       const operatingExpensesRaw = await fetchAllPaginated<any>(() =>
         supabase
           .from('bank_transactions')
-          .select('amount, transaction_date, category, description, reference_number')
+          .select('amount, transaction_date, category, description, reference_number, bank_account_id, is_reversed, reverses_transaction_id')
           .eq('transaction_type', 'EXPENSE')
-          .not('category', 'in', '("Purchase","Sales","Stock Purchase","Stock Sale","Trade","Trading","Payment Gateway Settlement","Settlement")')
+          .not('category', 'in', COGS_CATEGORY_IN_FILTER)
           .gte('transaction_date', format(startDate, 'yyyy-MM-dd'))
           .lte('transaction_date', format(endDate, 'yyyy-MM-dd')));
-      // Reversal / contra entries (incl. settlement reversals) are ledger corrections, not expenses.
-      const operatingExpenses = (operatingExpensesRaw || []).filter((t: any) => !isReversalTransaction(t));
-
 
       // Get bank balances (exclude audit/adjustment buckets)
       const { data: bankDataRaw } = await supabase
@@ -117,6 +114,11 @@ export default function Financials() {
       const bankData = (bankDataRaw || []).filter(b => !isAdjustmentBank(b.account_name));
       const adjustmentBankIds = new Set(
         (bankDataRaw || []).filter(b => isAdjustmentBank(b.account_name)).map(b => b.id)
+      );
+
+      // Reversal / contra entries and audit-only adjustment buckets are ledger corrections, not expenses.
+      const operatingExpenses = (operatingExpensesRaw || []).filter((t: any) =>
+        isOperatingExpenseRow(t) && !(t.bank_account_id && adjustmentBankIds.has(t.bank_account_id))
       );
 
       // Get recent transactions
@@ -275,7 +277,12 @@ export default function Financials() {
         {/* Total Expenses - Clickable to BAMS Journal */}
         <ClickableCard 
           to="/bams" 
-          searchParams={{ tab: 'journal' }}
+          searchParams={{
+            tab: 'journal',
+            journalView: 'opex',
+            dateFrom: format(startDate, 'yyyy-MM-dd'),
+            dateTo: format(endDate, 'yyyy-MM-dd'),
+          }}
           className="h-full"
         >
           <StatTile

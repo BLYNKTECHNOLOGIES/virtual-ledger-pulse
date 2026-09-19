@@ -1,4 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { isOperatingExpenseRow } from "@/lib/operatingExpense";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -36,12 +38,34 @@ export function DirectoryTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  // Filter states
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parseParamDate = (value: string | null) => {
+    if (!value) return undefined;
+    const d = new Date(`${value.slice(0, 10)}T00:00:00`);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  // Filter states — may be preset from a deep link (e.g. Financials → Total Expenses)
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
-  const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTransactionType, setSelectedTransactionType] = useState<string>(
+    () => (searchParams.get("journalView") === "opex" ? "expense" : "all")
+  );
+  const [opexOnly, setOpexOnly] = useState<boolean>(() => searchParams.get("journalView") === "opex");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => parseParamDate(searchParams.get("dateFrom")));
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => parseParamDate(searchParams.get("dateTo")));
+  const [showFilters, setShowFilters] = useState(
+    () => searchParams.get("journalView") === "opex" || !!searchParams.get("dateFrom")
+  );
+
+  // Consume the deep-link params so navigating away/back doesn't re-apply them
+  useEffect(() => {
+    if (!searchParams.get("journalView") && !searchParams.get("dateFrom") && !searchParams.get("dateTo")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("journalView");
+    next.delete("dateFrom");
+    next.delete("dateTo");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
   const [reverseReason, setReverseReason] = useState("");
@@ -357,16 +381,23 @@ export function DirectoryTab() {
       if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
         return false;
       }
+
+      // Operating-expense view (deep link from Financials → Total Expenses):
+      // only real OpEx spend, matching that figure exactly.
+      if (opexOnly) {
+        if (transaction.source !== 'BANK' || transaction.transaction_type !== 'EXPENSE') return false;
+        if (!isOperatingExpenseRow(transaction)) return false;
+      }
       return true;
     });
-  }, [allTransactions, selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
+  }, [allTransactions, selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise, opexOnly]);
 
   // Render only a window of rows — rendering ~18k cards freezes/crashes the tab
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
+  }, [selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise, opexOnly]);
   const visibleTransactions = useMemo(
     () => filteredTransactions.slice(0, visibleCount),
     [filteredTransactions, visibleCount]
@@ -378,9 +409,10 @@ export function DirectoryTab() {
     setSelectedTransactionType("all");
     setDateFrom(undefined);
     setDateTo(undefined);
+    setOpexOnly(false);
   };
 
-  const hasActiveFilters = (selectedBankAccount !== "all") || (selectedTransactionType !== "all") || dateFrom || dateTo;
+  const hasActiveFilters = (selectedBankAccount !== "all") || (selectedTransactionType !== "all") || dateFrom || dateTo || opexOnly;
 
   const getTransactionIcon = (type: string) => {
     switch (type) {
@@ -766,6 +798,11 @@ export function DirectoryTab() {
               {hasActiveFilters && (
                 <Badge variant="outline" className="text-info text-xs">
                   Filtered
+                </Badge>
+              )}
+              {opexOnly && (
+                <Badge variant="outline" className="text-destructive text-xs">
+                  Operating expenses only
                 </Badge>
               )}
             </CardTitle>

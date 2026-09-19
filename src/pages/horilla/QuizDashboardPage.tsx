@@ -326,6 +326,25 @@ export default function QuizDashboardPage() {
     <div className="rounded-lg border border-border bg-card"><EmptyState icon={icon} title={title} description={description} action={action} /></div>
   );
 
+  // Where each skill drill is already in use, and the content backing it.
+  const skillUsage = useMemo(() => {
+    const roleById = new Map((data?.roles ?? []).map((role: any) => [role.id, role]));
+    return SKILL_TYPES.map((skill) => {
+      const sections = (data?.roleSections ?? []).filter((section: any) => section.section_type === skill.type);
+      const contentCount = (data?.questions ?? []).filter((question: any) =>
+        (skill.type === "typing" && question.type === "typing_passage") ||
+        (skill.type === "data_entry" && question.type === "data_entry_record") ||
+        (skill.type === "match_pairs" && question.type === "match_pair")
+      ).length;
+      return {
+        ...skill,
+        sections: sections.map((section: any) => ({ ...section, role: roleById.get(section.job_role_id) })),
+        contentCount,
+        needsContent: ["typing", "data_entry", "match_pairs"].includes(skill.type),
+      };
+    });
+  }, [data?.roleSections, data?.roles, data?.questions]);
+
   return (
     <div className="page-mount space-y-5 p-2 sm:p-3 md:p-0">
       <PageHeader title="Quiz" description="Role-based candidate screening, scoring, evaluation, and test administration." />

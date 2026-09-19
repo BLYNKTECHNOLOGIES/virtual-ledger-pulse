@@ -206,9 +206,21 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
           </div>
         ) : (
           <div className="space-y-2">
-            {messages.map((msg) => (
-              <InternalChatBubble key={msg.id} message={msg} isOwn={msg.sender_id === userId} />
-            ))}
+            {(() => {
+              // Day dividers follow IST, same as the Binance order chat.
+              const nodes: ReactNode[] = [];
+              let lastDay: string | null = null;
+              for (const msg of messages) {
+                const ts = new Date(msg.created_at).getTime();
+                const day = istDayKey(ts);
+                if (day && day !== lastDay) {
+                  nodes.push(<DaySeparator key={`day-${msg.id}`} ts={ts} />);
+                  lastDay = day;
+                }
+                nodes.push(<InternalChatBubble key={msg.id} message={msg} isOwn={msg.sender_id === userId} />);
+              }
+              return nodes;
+            })()}
             <div ref={bottomRef} />
           </div>
         )}

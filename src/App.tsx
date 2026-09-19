@@ -970,6 +970,11 @@ const router = createBrowserRouter([
       path: "/test",
       element: <CbtTestPage />,
     },
+    // Public skills-only practice run (no login, nothing recorded)
+    {
+      path: "/test/practice",
+      element: <SkillPracticePage />,
+    },
    // Catch-all route for 404 errors
     {
       path: "*",

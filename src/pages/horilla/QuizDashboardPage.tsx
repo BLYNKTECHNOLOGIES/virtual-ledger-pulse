@@ -219,6 +219,7 @@ export default function QuizDashboardPage() {
         gate_min_accuracy: section.sectionType === "typing" ? section.gateMinAccuracy.trim() || null : null,
         practice_seconds: section.sectionType === "typing" && section.practiceMinutes.trim()
           ? Math.round(Number(section.practiceMinutes) * 60) : 0,
+        skill_level: SKILL_SECTION_TYPES.includes(section.sectionType) ? (section.skillLevel || "intermediate") : null,
       }));
       const { error } = await supabase.rpc("cbt_save_role_blueprint" as never, {
         p_role_id: editingRoleId,

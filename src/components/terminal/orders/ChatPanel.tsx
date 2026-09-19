@@ -700,7 +700,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                   <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px] border-primary/30 text-primary">Active chat</Badge>
                 </div>
               )}
-              {currentOrderMessages.map((message) => (
+              {withDaySeparators(currentOrderMessages, (message) => (
                 <ChatBubble
                   key={message.id}
                   message={message}

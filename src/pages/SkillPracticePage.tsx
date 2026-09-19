@@ -165,6 +165,7 @@ const norm = (v: string) => v.replace(/[^0-9A-Za-z]+/g, '').toUpperCase();
 const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export default function SkillPracticePage() {
+  const navigate = useNavigate();
   const [level, setLevel] = useState<Level>('intermediate');
   const [drill, setDrill] = useState<Drill | null>(null);
   const [runKey, setRunKey] = useState(0);

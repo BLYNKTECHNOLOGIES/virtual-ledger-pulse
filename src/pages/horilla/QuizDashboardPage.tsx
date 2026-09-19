@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
-  Activity, BookOpenCheck, BriefcaseBusiness, ClipboardCheck, FileQuestion,
-  Pencil, Plus, Search, Settings, ShieldCheck, Trash2, Users,
+  Activity, BookOpenCheck, Brain, BriefcaseBusiness, Calculator, ClipboardCheck, FileQuestion,
+  Gauge, Keyboard, ListChecks, Pencil, Plus, Search, Settings, ShieldCheck, Table2, Trash2, Users,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 
-type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "roles" | "settings";
+type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "skills" | "roles" | "settings";
 type EvaluationRow = {
   id: string;
   attempt_item_id: string;
@@ -54,7 +54,16 @@ const emptySection = (): BlueprintSectionForm => ({
   itemCount: "1", durationMinutes: "10", weight: "0", negativeMark: "0", gateMinScore: "",
   fullMarksWpm: "", gateMinNetWpm: "", gateMinAccuracy: "", practiceMinutes: "",
 });
-const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "roles", "settings"];
+const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "skills", "roles", "settings"];
+
+// Skill Test catalogue — the practical drills that measure ability rather than knowledge.
+const SKILL_TYPES = [
+  { type: "typing", title: "Typing test", icon: Keyboard, blurb: "Live net/gross WPM, accuracy, errors and character count, scored on the server.", tags: "Passage from the question bank (Typing Passage)" },
+  { type: "mental_maths", title: "Mental maths", icon: Calculator, blurb: "Freshly generated timed sums for every attempt, so nothing can be memorised.", tags: "Generated per attempt — no question bank content needed" },
+  { type: "memory_recall", title: "Memory recall", icon: Brain, blurb: "A sequence flashes on screen, then the candidate types it back. Spaces and case ignored.", tags: "Generated per attempt — no question bank content needed" },
+  { type: "data_entry", title: "Data entry accuracy", icon: Table2, blurb: "Copy banking-style records field by field; accuracy and speed are both marked.", tags: "Records from the question bank (Data Entry Record)" },
+  { type: "match_pairs", title: "Match pairs", icon: ListChecks, blurb: "Decide whether two records match — measures attention to detail under time.", tags: "Pairs from the question bank (Match Pair)" },
+] as const;
 
 const statusVariant = (status: string) => {
   if (["live", "submitted", "auto_submitted", "shortlisted", "approved"].includes(status)) return "success" as const;
@@ -317,6 +326,25 @@ export default function QuizDashboardPage() {
     <div className="rounded-lg border border-border bg-card"><EmptyState icon={icon} title={title} description={description} action={action} /></div>
   );
 
+  // Where each skill drill is already in use, and the content backing it.
+  const skillUsage = useMemo(() => {
+    const roleById = new Map((data?.roles ?? []).map((role: any) => [role.id, role]));
+    return SKILL_TYPES.map((skill) => {
+      const sections = (data?.roleSections ?? []).filter((section: any) => section.section_type === skill.type);
+      const contentCount = (data?.questions ?? []).filter((question: any) =>
+        (skill.type === "typing" && question.type === "typing_passage") ||
+        (skill.type === "data_entry" && question.type === "data_entry_record") ||
+        (skill.type === "match_pairs" && question.type === "match_pair")
+      ).length;
+      return {
+        ...skill,
+        sections: sections.map((section: any) => ({ ...section, role: roleById.get(section.job_role_id) })),
+        contentCount,
+        needsContent: ["typing", "data_entry", "match_pairs"].includes(skill.type),
+      };
+    });
+  }, [data?.roleSections, data?.roles, data?.questions]);
+
   return (
     <div className="page-mount space-y-5 p-2 sm:p-3 md:p-0">
       <PageHeader title="Quiz" description="Role-based candidate screening, scoring, evaluation, and test administration." />
@@ -325,8 +353,8 @@ export default function QuizDashboardPage() {
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
           <TabsTrigger value="attempts">Candidates & Attempts</TabsTrigger><TabsTrigger value="evaluations">Evaluations</TabsTrigger>
-          <TabsTrigger value="questions">Question Bank</TabsTrigger><TabsTrigger value="roles">Roles & Blueprints</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="questions">Question Bank</TabsTrigger><TabsTrigger value="skills">Skill Test</TabsTrigger>
+          <TabsTrigger value="roles">Roles & Blueprints</TabsTrigger><TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-5">
@@ -354,6 +382,56 @@ export default function QuizDashboardPage() {
 
         <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Versioned content, review status, difficulty, and usage.</p></div>{canManage && <Button variant="outline" onClick={() => setDialog("question")}><Plus />Add question</Button>}</div>{!data?.questions.length ? noData(FileQuestion, "Question bank is empty", "Use Add question to create approved content; unapproved questions are never served.") : <Table><TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Category</TableHead><TableHead>Difficulty</TableHead><TableHead>Status</TableHead><TableHead numeric>Times served</TableHead></TableRow></TableHeader><TableBody>{data.questions.map((question) => <TableRow key={question.id}><TableCell>{pretty(question.type)}</TableCell><TableCell>{question.category_tag}</TableCell><TableCell>{pretty(question.difficulty)}</TableCell><TableCell><Badge variant={statusVariant(question.status)}>{pretty(question.status)}</Badge></TableCell><TableCell numeric>{question.times_served}</TableCell></TableRow>)}</TableBody></Table>}
         </TabsContent>
+
+        <TabsContent value="skills" className="space-y-4">
+          <div><h2 className="text-lg font-semibold">Skill test</h2><p className="text-sm text-muted-foreground">Practical drills that measure ability — typing speed, mental maths, memory recall, data entry and match pairs. Add any of these as a section to a role blueprint; all marking happens on the server.</p></div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {skillUsage.map((skill) => (
+              <Card key={skill.type}>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><skill.icon className="h-5 w-5" /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{skill.title}</p>
+                        <Badge variant={skill.sections.length ? "success" : "muted"}>{skill.sections.length ? `In ${skill.sections.length} role${skill.sections.length > 1 ? "s" : ""}` : "Not in use"}</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{skill.blurb}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{skill.tags}{skill.needsContent ? ` · ${skill.contentCount} item${skill.contentCount === 1 ? "" : "s"} available` : ""}</p>
+                    </div>
+                  </div>
+                  {skill.sections.length > 0 && (
+                    <div className="space-y-2 border-t border-border pt-3">
+                      {skill.sections.map((section: any) => (
+                        <div key={section.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="font-medium">{section.role?.name ?? "Unlinked role"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {section.title || pretty(skill.type)} · {Math.round((section.duration_seconds ?? 0) / 60)} min · {section.item_count ?? 1} item{(section.item_count ?? 1) === 1 ? "" : "s"} · weight {section.weight}
+                              {skill.type === "typing" && section.full_marks_wpm ? ` · target ${section.full_marks_wpm} WPM` : ""}
+                              {skill.type === "typing" && section.gate_min_net_wpm ? ` · pass ${section.gate_min_net_wpm} WPM` : ""}
+                              {skill.type === "typing" && section.gate_min_accuracy ? ` / ${section.gate_min_accuracy}% accuracy` : ""}
+                            </p>
+                          </div>
+                          {canManage && section.role && (
+                            <Button variant="ghost" size="sm" onClick={() => openRoleEditor(section.role)}><Pencil className="h-4 w-4" />Configure</Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!skill.sections.length && canManage && (
+                    <div className="border-t border-border pt-3">
+                      <Button variant="outline" size="sm" onClick={() => changeView("roles")}><Gauge className="h-4 w-4" />Add to a role blueprint</Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {!canManage && <p className="text-xs text-muted-foreground">Quiz management access is needed to change where these drills are used.</p>}
+        </TabsContent>
+
 
         <TabsContent value="roles" className="space-y-4"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Roles & blueprints</h2><p className="text-sm text-muted-foreground">Define role cut-offs and ordered test sections.</p></div>{canManage && <Button onClick={openNewRole}><Plus />New role</Button>}</div>{!data?.roles.length ? noData(BriefcaseBusiness, "No role blueprints", "Create the first hiring role, then configure its assessment sections.", canManage ? <Button onClick={openNewRole}><Plus />Create role</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Shortlist</TableHead><TableHead numeric>Hold</TableHead><TableHead>Status</TableHead>{canManage && <TableHead className="w-16"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader><TableBody>{data.roles.map((role) => <TableRow key={role.id}><TableCell><p className="font-medium">{role.name}</p><p className="text-xs text-muted-foreground font-mono">{role.code}</p></TableCell><TableCell>{(role as any).positions?.departments?.name ?? role.department_code}</TableCell><TableCell numeric>{(data.roleSections ?? []).filter((section: any) => section.job_role_id === role.id).length}</TableCell><TableCell numeric>{role.shortlist_cutoff}%</TableCell><TableCell numeric>{role.hold_cutoff}%</TableCell><TableCell><Badge variant={role.is_active ? "success" : "muted"}>{role.is_active ? "Active" : "Inactive"}</Badge></TableCell>{canManage && <TableCell><Button variant="ghost" size="icon" title={`Edit ${role.name}`} aria-label={`Edit ${role.name}`} onClick={() => openRoleEditor(role)}><Pencil className="h-4 w-4" /></Button></TableCell>}</TableRow>)}</TableBody></Table>}
         </TabsContent>

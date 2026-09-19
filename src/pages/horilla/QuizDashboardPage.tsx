@@ -214,6 +214,10 @@ export default function QuizDashboardPage() {
       weight: String(section.weight),
       negativeMark: String(section.negative_mark),
       gateMinScore: section.gate_min_score === null ? "" : String(section.gate_min_score),
+      fullMarksWpm: section.full_marks_wpm === null || section.full_marks_wpm === undefined ? "" : String(section.full_marks_wpm),
+      gateMinNetWpm: section.gate_min_net_wpm === null || section.gate_min_net_wpm === undefined ? "" : String(section.gate_min_net_wpm),
+      gateMinAccuracy: section.gate_min_accuracy === null || section.gate_min_accuracy === undefined ? "" : String(section.gate_min_accuracy),
+      practiceMinutes: section.practice_seconds ? String(section.practice_seconds / 60) : "",
     })));
     setDialog("role");
   };

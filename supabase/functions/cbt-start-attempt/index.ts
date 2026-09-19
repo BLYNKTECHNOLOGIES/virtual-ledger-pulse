@@ -134,6 +134,10 @@ Deno.serve(async (req) => {
         versionIds = await pickQuestions(db, { types: ["data_entry_record"], tags: [], count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
       } else if (rs.section_type === "match_pairs") {
         versionIds = await pickQuestions(db, { types: ["match_pair"], tags: [], count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
+      } else if (["logical_reasoning", "problem_solving", "pattern_recognition", "grammar", "vocabulary"].includes(rs.section_type)) {
+        // Knowledge skills: MCQ bank tagged by skill, difficulty driven by the blueprint level.
+        const levelMix = rs.skill_level === "beginner" ? { easy: 100 } : rs.skill_level === "advanced" ? { hard: 100 } : { medium: 100 };
+        versionIds = await pickQuestions(db, { types: ["mcq"], tags: [rs.section_type], count: rs.item_count, mix: levelMix, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
       } else if (rs.section_type === "written") {
         versionIds = await pickQuestions(db, { types: ["written"], tags, count: rs.item_count, mix: role!.difficulty_mix ?? {}, roleCode: role!.code, seenVersionIds: seen, sandbox: drive!.is_sandbox });
       } else if (tags.includes("reading")) {

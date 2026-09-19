@@ -38,6 +38,7 @@ const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const RaciPage = lazy(() => import('./pages/RaciPage'));
 const OnboardingApplyPage = lazy(() => import('./pages/public/OnboardingApplyPage'));
 const CbtTestPage = lazy(() => import('./pages/public/CbtTestPage'));
+const SkillPracticePage = lazy(() => import('./pages/SkillPracticePage'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Sales = lazy(() => import('./pages/Sales'));
 const Purchase = lazy(() => import('./pages/Purchase'));
@@ -968,6 +969,11 @@ const router = createBrowserRouter([
     {
       path: "/test",
       element: <CbtTestPage />,
+    },
+    // Public skills-only practice run (no login, nothing recorded)
+    {
+      path: "/test/practice",
+      element: <SkillPracticePage />,
     },
    // Catch-all route for 404 errors
     {

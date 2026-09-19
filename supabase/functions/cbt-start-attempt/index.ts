@@ -3,8 +3,9 @@ import { admin, authAttempt, buildState, corsHeaders, fail, json, pickQuestions,
 const rnd = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
 
 // Mental-maths drills get harder as the drill progresses; the answer never leaves the server.
-function makeMathsDrill(idx: number): { prompt: string; answer: number } {
-  const tier = idx < 4 ? 0 : idx < 8 ? 1 : 2;
+function makeMathsDrill(idx: number, level = "intermediate"): { prompt: string; answer: number } {
+  const bump = level === "advanced" ? 1 : level === "beginner" ? -1 : 0;
+  const tier = Math.max(0, Math.min(2, (idx < 4 ? 0 : idx < 8 ? 1 : 2) + bump));
   const kind = rnd(0, tier === 0 ? 2 : 4);
   if (kind === 0) {
     const a = rnd(tier === 0 ? 11 : 120, tier === 0 ? 99 : 980);
@@ -32,8 +33,10 @@ function makeMathsDrill(idx: number): { prompt: string; answer: number } {
 }
 
 // Memory-recall sequences start at 4 characters and grow one character every two items.
-function makeMemorySequence(idx: number): string[] {
-  const len = Math.min(9, 4 + Math.floor(idx / 2));
+function makeMemorySequence(idx: number, level = "intermediate"): string[] {
+  const base = level === "advanced" ? 7 : level === "beginner" ? 4 : 5;
+  const cap = level === "advanced" ? 9 : level === "beginner" ? 5 : 7;
+  const len = Math.min(cap, base + Math.floor(idx / 2));
   const alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
   return Array.from({ length: len }, () => alphabet[rnd(0, alphabet.length - 1)]);
 }
@@ -105,7 +108,7 @@ Deno.serve(async (req) => {
         const count = Math.max(1, rs.item_count ?? 10);
         const rows = Array.from({ length: count }, (_, idx) => {
           if (rs.section_type === "mental_maths") {
-            const drill = makeMathsDrill(idx);
+            const drill = makeMathsDrill(idx, rs.skill_level ?? "intermediate");
             return {
               attempt_section_id: section!.id,
               display_order: idx + 1,
@@ -113,7 +116,7 @@ Deno.serve(async (req) => {
               generated_key: { answer: drill.answer },
             };
           }
-          const seq = makeMemorySequence(idx);
+          const seq = makeMemorySequence(idx, rs.skill_level ?? "intermediate");
           return {
             attempt_section_id: section!.id,
             display_order: idx + 1,

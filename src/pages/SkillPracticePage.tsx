@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 // no score in the database. Marking here is local and for self-practice only.
 
 type Level = 'beginner' | 'intermediate' | 'advanced';
-type Drill = 'typing' | 'mental_maths' | 'memory_recall' | 'data_entry' | 'match_pairs';
+type Drill = 'typing' | 'mental_maths' | 'memory_recall' | 'data_entry' | 'match_pairs'
+  | 'logical_reasoning' | 'problem_solving' | 'pattern_recognition' | 'grammar' | 'vocabulary';
 
 const LEVELS: { id: Level; label: string; blurb: string }[] = [
   { id: 'beginner', label: 'Beginner', blurb: 'Gentle pace, shorter drills, simpler content.' },
@@ -26,6 +27,11 @@ const DRILLS: { id: Drill; title: string; icon: typeof Keyboard; blurb: string }
   { id: 'memory_recall', title: 'Memory recall', icon: Brain, blurb: 'A sequence flashes, then you type it back.' },
   { id: 'data_entry', title: 'Data entry accuracy', icon: Table2, blurb: 'Copy banking records field by field.' },
   { id: 'match_pairs', title: 'Match pairs', icon: ListChecks, blurb: 'Decide whether two records match.' },
+  { id: 'logical_reasoning', title: 'Logical reasoning', icon: Lightbulb, blurb: 'Syllogisms, series logic and deduction.' },
+  { id: 'problem_solving', title: 'Problem solving', icon: Puzzle, blurb: 'Short situational and quantitative problems.' },
+  { id: 'pattern_recognition', title: 'Pattern recognition', icon: Shapes, blurb: 'Number and letter sequences — find what comes next.' },
+  { id: 'grammar', title: 'Grammar', icon: SpellCheck, blurb: 'Spot errors, choose the correct form.' },
+  { id: 'vocabulary', title: 'Vocabulary', icon: BookOpen, blurb: 'Synonyms, antonyms and word usage.' },
 ];
 
 const CONFIG: Record<Level, {

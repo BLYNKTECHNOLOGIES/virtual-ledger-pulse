@@ -379,16 +379,23 @@ export function DirectoryTab() {
       if (hideReversalNoise && transaction.source === 'BANK' && (transaction.is_reversed || transaction.reverses_transaction_id)) {
         return false;
       }
+
+      // Operating-expense view (deep link from Financials → Total Expenses):
+      // only real OpEx spend, matching that figure exactly.
+      if (opexOnly) {
+        if (transaction.source !== 'BANK' || transaction.transaction_type !== 'EXPENSE') return false;
+        if (!isOperatingExpenseRow(transaction)) return false;
+      }
       return true;
     });
-  }, [allTransactions, selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
+  }, [allTransactions, selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise, opexOnly]);
 
   // Render only a window of rows — rendering ~18k cards freezes/crashes the tab
   const PAGE_SIZE = 50;
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise]);
+  }, [selectedBankAccount, selectedTransactionType, dateFrom, dateTo, hideReversalNoise, opexOnly]);
   const visibleTransactions = useMemo(
     () => filteredTransactions.slice(0, visibleCount),
     [filteredTransactions, visibleCount]
@@ -400,9 +407,10 @@ export function DirectoryTab() {
     setSelectedTransactionType("all");
     setDateFrom(undefined);
     setDateTo(undefined);
+    setOpexOnly(false);
   };
 
-  const hasActiveFilters = (selectedBankAccount !== "all") || (selectedTransactionType !== "all") || dateFrom || dateTo;
+  const hasActiveFilters = (selectedBankAccount !== "all") || (selectedTransactionType !== "all") || dateFrom || dateTo || opexOnly;
 
   const getTransactionIcon = (type: string) => {
     switch (type) {

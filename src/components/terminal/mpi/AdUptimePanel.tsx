@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -244,6 +244,8 @@ export function AdUptimePanel() {
       return data;
     },
     refetchInterval: 60_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   /** Blended shift score (Lightning 15 / Small sale 15 / Big sell 30 / Big buy 40). */
@@ -404,8 +406,16 @@ export function AdUptimePanel() {
     return out;
   }, [trend, shifts]);
 
+  // Tick every 30s so the "last check" age updates even between refetches
+  // (e.g. after the tab was in the background and timers were throttled).
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
   const heartbeatAgeMin = heartbeat?.minute
-    ? Math.round((Date.now() - new Date(heartbeat.minute).getTime()) / 60_000)
+    ? Math.max(0, Math.floor((nowMs - new Date(heartbeat.minute).getTime()) / 60_000))
     : null;
   const heartbeatHealthy = heartbeatAgeMin !== null && heartbeatAgeMin <= 3 && heartbeat?.status !== 'error';
 

@@ -353,8 +353,8 @@ export default function QuizDashboardPage() {
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger><TabsTrigger value="drives">Drives</TabsTrigger>
           <TabsTrigger value="attempts">Candidates & Attempts</TabsTrigger><TabsTrigger value="evaluations">Evaluations</TabsTrigger>
-          <TabsTrigger value="questions">Question Bank</TabsTrigger><TabsTrigger value="roles">Roles & Blueprints</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="questions">Question Bank</TabsTrigger><TabsTrigger value="skills">Skill Test</TabsTrigger>
+          <TabsTrigger value="roles">Roles & Blueprints</TabsTrigger><TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-5">

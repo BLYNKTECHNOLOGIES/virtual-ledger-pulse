@@ -677,6 +677,62 @@ function PairsDrill({ level }: { level: Level }) {
   );
 }
 
+function McqDrill({ level, skill }: { level: Level; skill: McqSkill }) {
+  const items = useMemo(() => MCQ_BANKS[skill][level], [skill, level]);
+  const seconds = MCQ_SECONDS[level];
+  const [answers, setAnswers] = useState<(number | null)[]>(() => items.map(() => null));
+  const [index, setIndex] = useState(0);
+  const [done, setDone] = useState(false);
+  const left = useCountdown(seconds, !done, () => setDone(true));
+  const correct = items.filter((it, i) => answers[i] === it.answer).length;
+  const title = DRILLS.find((d) => d.id === skill)?.title ?? skill;
+
+  return (
+    <DrillShell title={title} left={left} total={seconds}>
+      {!done ? (
+        <>
+          <p className="text-xs text-muted-foreground">Question {index + 1} of {items.length}</p>
+          <p className="text-base font-medium leading-relaxed">{items[index].q}</p>
+          <div className="grid gap-2">
+            {items[index].options.map((opt, oi) => (
+              <button
+                key={oi}
+                type="button"
+                onClick={() => setAnswers((a) => a.map((v, i) => (i === index ? oi : v)))}
+                className={`rounded-lg border p-3 text-left text-sm transition-colors ${answers[index] === oi ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60'}`}
+              >
+                <span className="mr-2 font-mono text-xs uppercase text-muted-foreground">{String.fromCharCode(97 + oi)}.</span>{opt}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={index === 0} onClick={() => setIndex(index - 1)}>Previous</Button>
+            {index + 1 < items.length
+              ? <Button size="sm" onClick={() => setIndex(index + 1)}>Next</Button>
+              : <Button size="sm" onClick={() => setDone(true)}>Finish</Button>}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-4">
+          <Result correct={correct} total={items.length} />
+          <div className="space-y-2">
+            {items.map((it, i) => (
+              <div key={i} className={`rounded-lg border p-3 text-sm ${answers[i] === it.answer ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'}`}>
+                <p className="font-medium">{i + 1}. {it.q}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Correct: {it.options[it.answer]}
+                  {answers[i] !== it.answer && answers[i] !== null && <> · You chose: {it.options[answers[i] as number]}</>}
+                  {answers[i] === null && ' · Not answered'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </DrillShell>
+  );
+}
+
 function Result({ correct, total, unit = 'answers' }: { correct: number; total: number; unit?: string }) {
   const pct = total ? Math.round((correct / total) * 1000) / 10 : 0;
   return (

@@ -383,6 +383,56 @@ export default function QuizDashboardPage() {
         <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Versioned content, review status, difficulty, and usage.</p></div>{canManage && <Button variant="outline" onClick={() => setDialog("question")}><Plus />Add question</Button>}</div>{!data?.questions.length ? noData(FileQuestion, "Question bank is empty", "Use Add question to create approved content; unapproved questions are never served.") : <Table><TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Category</TableHead><TableHead>Difficulty</TableHead><TableHead>Status</TableHead><TableHead numeric>Times served</TableHead></TableRow></TableHeader><TableBody>{data.questions.map((question) => <TableRow key={question.id}><TableCell>{pretty(question.type)}</TableCell><TableCell>{question.category_tag}</TableCell><TableCell>{pretty(question.difficulty)}</TableCell><TableCell><Badge variant={statusVariant(question.status)}>{pretty(question.status)}</Badge></TableCell><TableCell numeric>{question.times_served}</TableCell></TableRow>)}</TableBody></Table>}
         </TabsContent>
 
+        <TabsContent value="skills" className="space-y-4">
+          <div><h2 className="text-lg font-semibold">Skill test</h2><p className="text-sm text-muted-foreground">Practical drills that measure ability — typing speed, mental maths, memory recall, data entry and match pairs. Add any of these as a section to a role blueprint; all marking happens on the server.</p></div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {skillUsage.map((skill) => (
+              <Card key={skill.type}>
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><skill.icon className="h-5 w-5" /></span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold">{skill.title}</p>
+                        <Badge variant={skill.sections.length ? "success" : "muted"}>{skill.sections.length ? `In ${skill.sections.length} role${skill.sections.length > 1 ? "s" : ""}` : "Not in use"}</Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{skill.blurb}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{skill.tags}{skill.needsContent ? ` · ${skill.contentCount} item${skill.contentCount === 1 ? "" : "s"} available` : ""}</p>
+                    </div>
+                  </div>
+                  {skill.sections.length > 0 && (
+                    <div className="space-y-2 border-t border-border pt-3">
+                      {skill.sections.map((section: any) => (
+                        <div key={section.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="font-medium">{section.role?.name ?? "Unlinked role"}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {section.title || pretty(skill.type)} · {Math.round((section.duration_seconds ?? 0) / 60)} min · {section.item_count ?? 1} item{(section.item_count ?? 1) === 1 ? "" : "s"} · weight {section.weight}
+                              {skill.type === "typing" && section.full_marks_wpm ? ` · target ${section.full_marks_wpm} WPM` : ""}
+                              {skill.type === "typing" && section.gate_min_net_wpm ? ` · pass ${section.gate_min_net_wpm} WPM` : ""}
+                              {skill.type === "typing" && section.gate_min_accuracy ? ` / ${section.gate_min_accuracy}% accuracy` : ""}
+                            </p>
+                          </div>
+                          {canManage && section.role && (
+                            <Button variant="ghost" size="sm" onClick={() => openRoleEditor(section.role)}><Pencil className="h-4 w-4" />Configure</Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {!skill.sections.length && canManage && (
+                    <div className="border-t border-border pt-3">
+                      <Button variant="outline" size="sm" onClick={() => changeView("roles")}><Gauge className="h-4 w-4" />Add to a role blueprint</Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {!canManage && <p className="text-xs text-muted-foreground">Quiz management access is needed to change where these drills are used.</p>}
+        </TabsContent>
+
+
         <TabsContent value="roles" className="space-y-4"><div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">Roles & blueprints</h2><p className="text-sm text-muted-foreground">Define role cut-offs and ordered test sections.</p></div>{canManage && <Button onClick={openNewRole}><Plus />New role</Button>}</div>{!data?.roles.length ? noData(BriefcaseBusiness, "No role blueprints", "Create the first hiring role, then configure its assessment sections.", canManage ? <Button onClick={openNewRole}><Plus />Create role</Button> : undefined) : <Table><TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Department</TableHead><TableHead numeric>Sections</TableHead><TableHead numeric>Shortlist</TableHead><TableHead numeric>Hold</TableHead><TableHead>Status</TableHead>{canManage && <TableHead className="w-16"><span className="sr-only">Actions</span></TableHead>}</TableRow></TableHeader><TableBody>{data.roles.map((role) => <TableRow key={role.id}><TableCell><p className="font-medium">{role.name}</p><p className="text-xs text-muted-foreground font-mono">{role.code}</p></TableCell><TableCell>{(role as any).positions?.departments?.name ?? role.department_code}</TableCell><TableCell numeric>{(data.roleSections ?? []).filter((section: any) => section.job_role_id === role.id).length}</TableCell><TableCell numeric>{role.shortlist_cutoff}%</TableCell><TableCell numeric>{role.hold_cutoff}%</TableCell><TableCell><Badge variant={role.is_active ? "success" : "muted"}>{role.is_active ? "Active" : "Inactive"}</Badge></TableCell>{canManage && <TableCell><Button variant="ghost" size="icon" title={`Edit ${role.name}`} aria-label={`Edit ${role.name}`} onClick={() => openRoleEditor(role)}><Pencil className="h-4 w-4" /></Button></TableCell>}</TableRow>)}</TableBody></Table>}
         </TabsContent>
 

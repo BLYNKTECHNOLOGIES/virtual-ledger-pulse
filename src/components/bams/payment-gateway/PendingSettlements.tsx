@@ -682,6 +682,7 @@ export function PendingSettlements() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                )}
               </Card>
             );
           })}

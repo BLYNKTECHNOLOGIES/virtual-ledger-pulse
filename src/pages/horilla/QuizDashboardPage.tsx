@@ -268,6 +268,7 @@ export default function QuizDashboardPage() {
       gateMinNetWpm: section.gate_min_net_wpm === null || section.gate_min_net_wpm === undefined ? "" : String(section.gate_min_net_wpm),
       gateMinAccuracy: section.gate_min_accuracy === null || section.gate_min_accuracy === undefined ? "" : String(section.gate_min_accuracy),
       practiceMinutes: section.practice_seconds ? String(section.practice_seconds / 60) : "",
+      skillLevel: (section.skill_level ?? "") as SkillLevel | "",
     })));
     setDialog("role");
   };

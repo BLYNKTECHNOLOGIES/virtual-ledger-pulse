@@ -130,11 +130,11 @@ const SKILL_TYPES = [
   { type: "memory_recall", title: "Memory recall", icon: Brain, blurb: "A sequence flashes on screen, then the candidate types it back. Spaces and case ignored.", tags: "Generated per attempt — no question bank content needed" },
   { type: "data_entry", title: "Data entry accuracy", icon: Table2, blurb: "Copy banking-style records field by field; accuracy and speed are both marked.", tags: "Records from the question bank (Data Entry Record)" },
   { type: "match_pairs", title: "Match pairs", icon: ListChecks, blurb: "Decide whether two records match — measures attention to detail under time.", tags: "Pairs from the question bank (Match Pair)" },
-  { type: "logical_reasoning", title: "Logical reasoning", icon: Lightbulb, blurb: "Syllogisms, deduction, coding-decoding and seating logic.", tags: "Objective section with category tag: logical reasoning" },
-  { type: "problem_solving", title: "Problem solving", icon: Puzzle, blurb: "Situational and quantitative problems — percentages, ratios, work and speed.", tags: "Objective section with category tag: problem solving" },
-  { type: "pattern_recognition", title: "Pattern recognition", icon: Shapes, blurb: "Number and letter sequences — find what comes next.", tags: "Objective section with category tag: pattern recognition" },
-  { type: "grammar", title: "Grammar", icon: SpellCheck, blurb: "Error spotting, sentence correction, voice and narration.", tags: "Objective section with category tag: grammar" },
-  { type: "vocabulary", title: "Vocabulary", icon: BookOpen, blurb: "Synonyms, antonyms and word usage in context.", tags: "Objective section with category tag: vocabulary" },
+  { type: "logical_reasoning", title: "Logical reasoning", icon: Lightbulb, blurb: "Syllogisms, deduction, coding-decoding and seating logic.", tags: "Objective questions from the question bank (tag: logical reasoning) — 6 per level seeded" },
+  { type: "problem_solving", title: "Problem solving", icon: Puzzle, blurb: "Situational and quantitative problems — percentages, ratios, work and speed.", tags: "Objective questions from the question bank (tag: problem solving) — 6 per level seeded" },
+  { type: "pattern_recognition", title: "Pattern recognition", icon: Shapes, blurb: "Number and letter sequences — find what comes next.", tags: "Objective questions from the question bank (tag: pattern recognition) — 6 per level seeded" },
+  { type: "grammar", title: "Grammar", icon: SpellCheck, blurb: "Error spotting, sentence correction, voice and narration.", tags: "Objective questions from the question bank (tag: grammar) — 6 per level seeded" },
+  { type: "vocabulary", title: "Vocabulary", icon: BookOpen, blurb: "Synonyms, antonyms and word usage in context.", tags: "Objective questions from the question bank (tag: vocabulary) — 6 per level seeded" },
 ] as const;
 
 const statusVariant = (status: string) => {

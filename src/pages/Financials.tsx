@@ -1,4 +1,4 @@
-import { isReversalTransaction } from "@/lib/isReversalTransaction";
+import { COGS_CATEGORY_IN_FILTER, isOperatingExpenseRow } from "@/lib/operatingExpense";
 import { useState } from "react";
 import { isAdjustmentBank } from "@/lib/adjustment-accounts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

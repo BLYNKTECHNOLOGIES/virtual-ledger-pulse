@@ -585,6 +585,7 @@ export function PendingSettlements() {
                     </div>
                   </div>
                 </CardHeader>
+                {!collapsedGateways[gatewayGroup.paymentMethodId] && (
                 <CardContent>
                   <Table>
                     <TableHeader>

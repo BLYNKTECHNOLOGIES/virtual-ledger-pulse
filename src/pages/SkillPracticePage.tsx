@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Brain, Calculator, Keyboard, Lightbulb, ListChecks, Puzzle, RotateCcw, Shapes, SpellCheck, Table2, Timer } from 'lucide-react';
+import { BackButton } from '@/components/shared/BackButton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -316,12 +317,15 @@ export default function SkillPracticePage() {
   return (
     <div className="min-h-screen bg-background px-4 py-6 sm:px-6 sm:py-10">
       <div className="mx-auto w-full max-w-3xl space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold">Skill test — practice run</h1>
-            <p className="text-sm text-muted-foreground">
-              Try any drill at any level. This is practice only — nothing is recorded and no result is sent to HR.
-            </p>
+        <div className="space-y-3">
+          <BackButton fallbackTo="/hrms/quiz" label="Back" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold">Skill test — practice run</h1>
+              <p className="text-sm text-muted-foreground">
+                Try any drill at any level. This is practice only — nothing is recorded and no result is sent to HR.
+              </p>
+            </div>
           </div>
         </div>
 

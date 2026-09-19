@@ -453,12 +453,44 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     prevCountRef.current = currentOrderMessages.length;
   }, [wsMessages, currentOrderMessages.length, soundEnabled, counterpartyNickname]);
 
+  // Initial open: instant-pin to the newest message while anything about the
+  // initial content changes (archived fetch, history discovery, prepends).
+  const initialContentReady = !archivedLoading && !historyDiscovering && !historyLoading;
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (initialPinRef.current && container) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [currentOrderMessages, historicalSections, initialContentReady]);
+
+  // Release the initial pin shortly after the content settles, so the
+  // operator regains free scrolling (and lazy history loading) right after.
+  useEffect(() => {
+    if (!initialContentReady) return;
+    const t = setTimeout(() => { initialPinRef.current = false; }, 1200);
+    return () => clearTimeout(t);
+  }, [initialContentReady]);
+
   // Auto-scroll on new current-order messages (only if user is at bottom)
   useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (initialPinRef.current && container) {
+      container.scrollTop = container.scrollHeight;
+      return;
+    }
     if (shouldAutoScrollRef.current) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [currentOrderMessages]);
+
+  // Late-loading images grow the content above; stay at the bottom when the
+  // operator was already there (or while the initial pin is active).
+  const handleContentLoad = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (container && (initialPinRef.current || shouldAutoScrollRef.current)) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, []);
 
   // Track whether the operator is near the bottom for auto-scroll, and load the
   // next page of earlier chats once they scroll up to the top of the thread.
@@ -643,7 +675,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
 
       {/* Messages area */}
-      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+      <div ref={scrollContainerRef} onScroll={handleScroll} onLoadCapture={handleContentLoad} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
           {/* Lazy history control — sits at the very top, so scrolling up loads more */}
           {historyDiscovering && (
             <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">

@@ -532,7 +532,17 @@ export function PendingSettlements() {
               <Card key={gatewayGroup.paymentMethodId}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="flex items-center gap-3 text-left cursor-pointer rounded-md -m-1 p-1 hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleGatewayCollapsed(gatewayGroup.paymentMethodId)}
+                      aria-expanded={!collapsedGateways[gatewayGroup.paymentMethodId]}
+                    >
+                      {collapsedGateways[gatewayGroup.paymentMethodId] ? (
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
                       <CreditCard className="h-5 w-5 text-primary" />
                       <div>
                         <CardTitle className="text-lg">{gatewayGroup.gatewayName}</CardTitle>
@@ -543,7 +553,7 @@ export function PendingSettlements() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-semibold">₹{gatewayGroup.totalAmount.toLocaleString('en-IN')}</p>

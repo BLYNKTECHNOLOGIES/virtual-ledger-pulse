@@ -36,12 +36,34 @@ export function DirectoryTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  // Filter states
+  const [searchParams, setSearchParams] = useSearchParams();
+  const parseParamDate = (value: string | null) => {
+    if (!value) return undefined;
+    const d = new Date(`${value.slice(0, 10)}T00:00:00`);
+    return isNaN(d.getTime()) ? undefined : d;
+  };
+  // Filter states — may be preset from a deep link (e.g. Financials → Total Expenses)
   const [selectedBankAccount, setSelectedBankAccount] = useState<string>("all");
-  const [selectedTransactionType, setSelectedTransactionType] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [showFilters, setShowFilters] = useState(false);
+  const [selectedTransactionType, setSelectedTransactionType] = useState<string>(
+    () => (searchParams.get("journalView") === "opex" ? "expense" : "all")
+  );
+  const [opexOnly, setOpexOnly] = useState<boolean>(() => searchParams.get("journalView") === "opex");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(() => parseParamDate(searchParams.get("dateFrom")));
+  const [dateTo, setDateTo] = useState<Date | undefined>(() => parseParamDate(searchParams.get("dateTo")));
+  const [showFilters, setShowFilters] = useState(
+    () => searchParams.get("journalView") === "opex" || !!searchParams.get("dateFrom")
+  );
+
+  // Consume the deep-link params so navigating away/back doesn't re-apply them
+  useEffect(() => {
+    if (!searchParams.get("journalView") && !searchParams.get("dateFrom") && !searchParams.get("dateTo")) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete("journalView");
+    next.delete("dateFrom");
+    next.delete("dateTo");
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [reverseDialogOpen, setReverseDialogOpen] = useState(false);
   const [transactionToReverse, setTransactionToReverse] = useState<any>(null);
   const [reverseReason, setReverseReason] = useState("");

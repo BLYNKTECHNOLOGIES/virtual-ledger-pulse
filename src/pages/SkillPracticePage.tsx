@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Brain, Calculator, Keyboard, ListChecks, RotateCcw, Table2, Timer } from 'lucide-react';
+import { BookOpen, Brain, Calculator, Keyboard, Lightbulb, ListChecks, Puzzle, RotateCcw, Shapes, SpellCheck, Table2, Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 // no score in the database. Marking here is local and for self-practice only.
 
 type Level = 'beginner' | 'intermediate' | 'advanced';
-type Drill = 'typing' | 'mental_maths' | 'memory_recall' | 'data_entry' | 'match_pairs';
+type Drill = 'typing' | 'mental_maths' | 'memory_recall' | 'data_entry' | 'match_pairs'
+  | 'logical_reasoning' | 'problem_solving' | 'pattern_recognition' | 'grammar' | 'vocabulary';
 
 const LEVELS: { id: Level; label: string; blurb: string }[] = [
   { id: 'beginner', label: 'Beginner', blurb: 'Gentle pace, shorter drills, simpler content.' },
@@ -26,6 +27,11 @@ const DRILLS: { id: Drill; title: string; icon: typeof Keyboard; blurb: string }
   { id: 'memory_recall', title: 'Memory recall', icon: Brain, blurb: 'A sequence flashes, then you type it back.' },
   { id: 'data_entry', title: 'Data entry accuracy', icon: Table2, blurb: 'Copy banking records field by field.' },
   { id: 'match_pairs', title: 'Match pairs', icon: ListChecks, blurb: 'Decide whether two records match.' },
+  { id: 'logical_reasoning', title: 'Logical reasoning', icon: Lightbulb, blurb: 'Syllogisms, series logic and deduction.' },
+  { id: 'problem_solving', title: 'Problem solving', icon: Puzzle, blurb: 'Short situational and quantitative problems.' },
+  { id: 'pattern_recognition', title: 'Pattern recognition', icon: Shapes, blurb: 'Number and letter sequences — find what comes next.' },
+  { id: 'grammar', title: 'Grammar', icon: SpellCheck, blurb: 'Spot errors, choose the correct form.' },
+  { id: 'vocabulary', title: 'Vocabulary', icon: BookOpen, blurb: 'Synonyms, antonyms and word usage.' },
 ];
 
 const CONFIG: Record<Level, {
@@ -160,6 +166,145 @@ const PAIRS: Record<Level, { left: string; right: string; match: boolean }[]> = 
 };
 
 
+// ---- MCQ skill banks: logical reasoning, problem solving, pattern recognition, grammar, vocabulary ----
+type Mcq = { q: string; options: string[]; answer: number };
+type McqSkill = 'logical_reasoning' | 'problem_solving' | 'pattern_recognition' | 'grammar' | 'vocabulary';
+
+const MCQ_SECONDS: Record<Level, number> = { beginner: 300, intermediate: 300, advanced: 240 };
+
+const MCQ_BANKS: Record<McqSkill, Record<Level, Mcq[]>> = {
+  logical_reasoning: {
+    beginner: [
+      { q: 'All operators are staff. Ravi is an operator. Therefore Ravi is…', options: ['Staff', 'A manager', 'Not staff', 'Cannot say'], answer: 0 },
+      { q: 'If today is Wednesday, what day will it be 10 days from now?', options: ['Saturday', 'Friday', 'Sunday', 'Monday'], answer: 0 },
+      { q: 'Find the odd one out: 3, 5, 11, 14, 17', options: ['14', '3', '11', '17'], answer: 0 },
+      { q: 'Pen is to write as knife is to…', options: ['Cut', 'Sharp', 'Blade', 'Steel'], answer: 0 },
+      { q: 'A is taller than B. B is taller than C. Who is the shortest?', options: ['C', 'A', 'B', 'Cannot say'], answer: 0 },
+      { q: 'Statement: No fake note is genuine. Some notes are fake. Conclusion: Some notes are not genuine.', options: ['True', 'False', 'Cannot say'], answer: 0 },
+    ],
+    intermediate: [
+      { q: 'Some clerks are auditors. All auditors are graduates. Conclusion: Some clerks are graduates.', options: ['Definitely true', 'Definitely false', 'Cannot be determined'], answer: 2 },
+      { q: 'In a code, ORDER is written as PSEFS. How is TRADE written?', options: ['USBEF', 'USBDF', 'USCBF', 'UTBEF'], answer: 0 },
+      { q: 'Five people sit in a row. P sits left of Q but right of R. S sits right of Q. Who sits in the middle if T is at the far left?', options: ['P', 'Q', 'R', 'S'], answer: 0 },
+      { q: 'If all Bloops are Razzies and all Razzies are Lazzies, then all Bloops are definitely…', options: ['Lazzies', 'Razzies only', 'Neither', 'Cannot say'], answer: 0 },
+      { q: 'Pointing to a photo, Meena says, "He is the son of my grandfather’s only son." How is the man related to Meena?', options: ['Brother', 'Uncle', 'Cousin', 'Father'], answer: 0 },
+      { q: 'Clock shows 3:15. What is the angle between the hands?', options: ['7.5°', '0°', '15°', '22.5°'], answer: 0 },
+    ],
+    advanced: [
+      { q: 'In a row of 40, Asha is 12th from the left and Beena is 9th from the right. How many people sit between them?', options: ['19', '18', '20', '21'], answer: 0 },
+      { q: 'Six faces of a cube are painted red. It is cut into 64 equal small cubes. How many small cubes have exactly two painted faces?', options: ['24', '8', '16', '32'], answer: 0 },
+      { q: 'If A + B means A is the mother of B; A − B means A is the brother of B; then P + M − Q means Q is P’s…', options: ['Nephew/Niece (child of P’s child’s brother)', 'Son', 'Brother', 'Father'], answer: 0 },
+      { q: 'Statements: All pens are books. No book is a chair. Conclusion I: No pen is a chair. Conclusion II: Some books are pens.', options: ['Both follow', 'Only I follows', 'Only II follows', 'Neither follows'], answer: 0 },
+      { q: 'A man walks 5 km north, turns right and walks 3 km, turns right again and walks 5 km. How far is he from the start?', options: ['3 km', '5 km', '8 km', '2 km'], answer: 0 },
+      { q: 'In a certain code, 157 means "sweet white rose", 269 means "red rose bud", 534 means "white lily bloom". Which digit means "white"?', options: ['5', '1', '7', '3'], answer: 0 },
+    ],
+  },
+  problem_solving: {
+    beginner: [
+      { q: 'A cashier collects ₹450 in the morning and ₹725 in the evening. What is the day’s total?', options: ['₹1,175', '₹1,275', '₹1,075', '₹1,225'], answer: 0 },
+      { q: 'A pen costs ₹15. How much do 8 pens cost?', options: ['₹120', '₹110', '₹105', '₹130'], answer: 0 },
+      { q: 'If 5 clerks finish a job in 10 days, how long would 10 clerks take at the same rate?', options: ['5 days', '10 days', '2 days', '20 days'], answer: 0 },
+      { q: 'A bill of ₹2,400 is split equally among 6 people. Each pays…', options: ['₹400', '₹300', '₹500', '₹450'], answer: 0 },
+      { q: 'What is 15% of 200?', options: ['30', '15', '25', '35'], answer: 0 },
+      { q: 'A train covers 60 km in 1 hour. How far in 2.5 hours?', options: ['150 km', '120 km', '140 km', '160 km'], answer: 0 },
+    ],
+    intermediate: [
+      { q: 'An item marked ₹800 is sold at 12% discount. The selling price is…', options: ['₹704', '₹696', '₹712', '₹688'], answer: 0 },
+      { q: 'The average of five numbers is 27. If one number is 45, the average of the remaining four is…', options: ['22.5', '24', '21', '25'], answer: 0 },
+      { q: 'A and B together finish work in 12 days. A alone takes 20 days. B alone takes…', options: ['30 days', '24 days', '32 days', '28 days'], answer: 0 },
+      { q: '₹12,000 is invested at 10% simple interest per year. Interest after 18 months is…', options: ['₹1,800', '₹1,200', '₹2,400', '₹1,500'], answer: 0 },
+      { q: 'A ratio of 3:5 splits ₹4,800. The smaller share is…', options: ['₹1,800', '₹2,000', '₹1,600', '₹2,400'], answer: 0 },
+      { q: 'After a 20% hike, a salary is ₹42,000. The original salary was…', options: ['₹35,000', '₹33,600', '₹36,000', '₹34,000'], answer: 0 },
+    ],
+    advanced: [
+      { q: 'A sum doubles in 8 years at simple interest. The annual rate is…', options: ['12.5%', '10%', '8%', '15%'], answer: 0 },
+      { q: 'Two pipes fill a tank in 12 and 18 hours. A third empties it in 36 hours. All open together, the tank fills in…', options: ['9 hours', '8 hours', '10 hours', '7.2 hours'], answer: 0 },
+      { q: 'Selling 2 articles at ₹990 each — one at 10% profit, one at 10% loss. Overall result…', options: ['Loss of ₹20', 'No profit no loss', 'Profit of ₹20', 'Loss of ₹10'], answer: 0 },
+      { q: 'A 300 m train crosses a 200 m platform in 25 seconds. Its speed is…', options: ['72 km/h', '60 km/h', '54 km/h', '80 km/h'], answer: 0 },
+      { q: 'The compound interest on ₹10,000 at 10% p.a. for 2 years is…', options: ['₹2,100', '₹2,000', '₹2,200', '₹2,050'], answer: 0 },
+      { q: 'A mixture has milk and water in 7:3. How much water must be added to 40 L to make the ratio 7:5?', options: ['8 L', '6 L', '10 L', '5 L'], answer: 0 },
+    ],
+  },
+  pattern_recognition: {
+    beginner: [
+      { q: '2, 4, 6, 8, ?', options: ['10', '9', '12', '11'], answer: 0 },
+      { q: '5, 10, 15, 20, ?', options: ['25', '24', '30', '22'], answer: 0 },
+      { q: 'A, C, E, G, ?', options: ['I', 'H', 'J', 'K'], answer: 0 },
+      { q: '1, 4, 9, 16, ?', options: ['25', '20', '24', '36'], answer: 0 },
+      { q: '100, 90, 80, 70, ?', options: ['60', '65', '55', '50'], answer: 0 },
+      { q: 'Z, X, V, T, ?', options: ['R', 'S', 'Q', 'P'], answer: 0 },
+    ],
+    intermediate: [
+      { q: '3, 6, 12, 24, ?', options: ['48', '36', '42', '30'], answer: 0 },
+      { q: '2, 3, 5, 8, 12, ?', options: ['17', '16', '18', '15'], answer: 0 },
+      { q: 'B2, D4, F6, H8, ?', options: ['J10', 'I10', 'J12', 'K10'], answer: 0 },
+      { q: '7, 14, 28, 56, ?', options: ['112', '84', '96', '108'], answer: 0 },
+      { q: '1, 1, 2, 3, 5, 8, ?', options: ['13', '11', '12', '10'], answer: 0 },
+      { q: '81, 27, 9, 3, ?', options: ['1', '2', '0', '1.5'], answer: 0 },
+    ],
+    advanced: [
+      { q: '2, 6, 12, 20, 30, ?', options: ['42', '40', '36', '44'], answer: 0 },
+      { q: '11, 13, 17, 19, 23, ?', options: ['29', '27', '25', '31'], answer: 0 },
+      { q: '4, 9, 25, 49, 121, ?', options: ['169', '144', '196', '225'], answer: 0 },
+      { q: '1, 8, 27, 64, ?', options: ['125', '100', '216', '81'], answer: 0 },
+      { q: '3, 10, 29, 66, 127, ?', options: ['218', '196', '215', '224'], answer: 0 },
+      { q: 'AZ, BY, CX, DW, ?', options: ['EV', 'EU', 'FV', 'EX'], answer: 0 },
+    ],
+  },
+  grammar: {
+    beginner: [
+      { q: 'Choose the correct sentence:', options: ['She goes to office daily.', 'She go to office daily.', 'She going to office daily.', 'She gone to office daily.'], answer: 0 },
+      { q: 'Fill in: They ___ playing cricket now.', options: ['are', 'is', 'was', 'be'], answer: 0 },
+      { q: 'Plural of "child" is…', options: ['children', 'childs', 'childes', 'childrens'], answer: 0 },
+      { q: 'Choose the correct article: ___ honest man.', options: ['An', 'A', 'The', 'No article'], answer: 0 },
+      { q: 'Past tense of "bring" is…', options: ['brought', 'bringed', 'brang', 'bring'], answer: 0 },
+      { q: 'Fill in: I have lived here ___ 2019.', options: ['since', 'for', 'from', 'at'], answer: 0 },
+    ],
+    intermediate: [
+      { q: 'Choose the correct sentence:', options: ['Neither of the answers is correct.', 'Neither of the answers are correct.', 'Neither of the answer is correct.', 'Neither answers is correct.'], answer: 0 },
+      { q: 'Fill in: If I ___ rich, I would travel the world.', options: ['were', 'was', 'am', 'be'], answer: 0 },
+      { q: 'Identify the error: "One of my friend is coming today."', options: ['friend → friends', 'One → A', 'is → are', 'No error'], answer: 0 },
+      { q: 'Choose the correct preposition: He is good ___ mathematics.', options: ['at', 'in', 'on', 'for'], answer: 0 },
+      { q: 'Passive voice of "She wrote a letter":', options: ['A letter was written by her.', 'A letter is written by her.', 'A letter had written by her.', 'A letter was wrote by her.'], answer: 0 },
+      { q: 'Fill in: The manager, along with his team, ___ arrived.', options: ['has', 'have', 'are', 'were'], answer: 0 },
+    ],
+    advanced: [
+      { q: 'Identify the error: "The Ganges is one of the longest river in India."', options: ['river → rivers', 'is → are', 'longest → longer', 'No error'], answer: 0 },
+      { q: 'Choose the correct sentence:', options: ['Hardly had he arrived when the meeting began.', 'Hardly he had arrived when the meeting began.', 'Hardly had he arrived than the meeting began.', 'Hardly he arrived when the meeting had begun.'], answer: 0 },
+      { q: 'Fill in: No sooner did she enter ___ the phone rang.', options: ['than', 'when', 'then', 'that'], answer: 0 },
+      { q: 'Reported speech: He said, "I will finish it tomorrow."', options: ['He said that he would finish it the next day.', 'He said that he will finish it tomorrow.', 'He said that he would finish it tomorrow.', 'He said that he will finish it the next day.'], answer: 0 },
+      { q: 'Choose the correct usage:', options: ['The committee has reached its decision.', 'The committee have reached its decision always.', 'The committee are reached its decision.', 'The committee has reach its decision.'], answer: 0 },
+      { q: 'Identify the correctly punctuated sentence:', options: ['Its raining, so take your umbrella.', 'It’s raining, so take your umbrella.', 'Its’ raining so, take your umbrella.', 'Its raining so take, your umbrella.'], answer: 1 },
+    ],
+  },
+  vocabulary: {
+    beginner: [
+      { q: 'Synonym of "happy":', options: ['joyful', 'sad', 'angry', 'tired'], answer: 0 },
+      { q: 'Antonym of "begin":', options: ['end', 'start', 'commence', 'open'], answer: 0 },
+      { q: 'Meaning of "rapid":', options: ['fast', 'slow', 'heavy', 'late'], answer: 0 },
+      { q: 'Synonym of "big":', options: ['large', 'tiny', 'narrow', 'short'], answer: 0 },
+      { q: 'Antonym of "honest":', options: ['dishonest', 'truthful', 'sincere', 'loyal'], answer: 0 },
+      { q: 'A person who types documents is a…', options: ['typist', 'teacher', 'tailor', 'teller'], answer: 0 },
+    ],
+    intermediate: [
+      { q: 'Synonym of "diligent":', options: ['hardworking', 'lazy', 'clever', 'quick'], answer: 0 },
+      { q: 'Antonym of "expand":', options: ['contract', 'extend', 'enlarge', 'spread'], answer: 0 },
+      { q: 'Meaning of "candid":', options: ['frank', 'secretive', 'rude', 'clever'], answer: 0 },
+      { q: 'Synonym of "abbreviate":', options: ['shorten', 'lengthen', 'explain', 'write'], answer: 0 },
+      { q: 'Antonym of "transparent":', options: ['opaque', 'clear', 'obvious', 'thin'], answer: 0 },
+      { q: '"To reconcile" two accounts means to…', options: ['make them agree', 'close them', 'open them', 'transfer funds'], answer: 0 },
+    ],
+    advanced: [
+      { q: 'Synonym of "meticulous":', options: ['thorough', 'careless', 'hasty', 'vague'], answer: 0 },
+      { q: 'Antonym of "frugal":', options: ['extravagant', 'thrifty', 'stingy', 'prudent'], answer: 0 },
+      { q: 'Meaning of "ubiquitous":', options: ['present everywhere', 'very rare', 'extremely old', 'hard to find'], answer: 0 },
+      { q: 'Synonym of "exonerate":', options: ['acquit', 'blame', 'accuse', 'punish'], answer: 0 },
+      { q: 'Antonym of "benevolent":', options: ['malevolent', 'kind', 'generous', 'gentle'], answer: 0 },
+      { q: 'Meaning of "pragmatic":', options: ['practical', 'idealistic', 'emotional', 'careless'], answer: 0 },
+    ],
+  },
+};
+
 const norm = (v: string) => v.replace(/[^0-9A-Za-z]+/g, '').toUpperCase();
 const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -229,6 +374,9 @@ export default function SkillPracticePage() {
             {drill === 'memory_recall' && <MemoryDrill key={runKey} level={level} />}
             {drill === 'data_entry' && <DataEntryDrill key={runKey} level={level} />}
             {drill === 'match_pairs' && <PairsDrill key={runKey} level={level} />}
+            {(['logical_reasoning', 'problem_solving', 'pattern_recognition', 'grammar', 'vocabulary'] as McqSkill[]).includes(drill as McqSkill) && (
+              <McqDrill key={runKey} level={level} skill={drill as McqSkill} />
+            )}
           </div>
         )}
       </div>
@@ -524,6 +672,62 @@ function PairsDrill({ level }: { level: Level }) {
         </>
       ) : (
         <Result correct={correct} total={pairs.length} />
+      )}
+    </DrillShell>
+  );
+}
+
+function McqDrill({ level, skill }: { level: Level; skill: McqSkill }) {
+  const items = useMemo(() => MCQ_BANKS[skill][level], [skill, level]);
+  const seconds = MCQ_SECONDS[level];
+  const [answers, setAnswers] = useState<(number | null)[]>(() => items.map(() => null));
+  const [index, setIndex] = useState(0);
+  const [done, setDone] = useState(false);
+  const left = useCountdown(seconds, !done, () => setDone(true));
+  const correct = items.filter((it, i) => answers[i] === it.answer).length;
+  const title = DRILLS.find((d) => d.id === skill)?.title ?? skill;
+
+  return (
+    <DrillShell title={title} left={left} total={seconds}>
+      {!done ? (
+        <>
+          <p className="text-xs text-muted-foreground">Question {index + 1} of {items.length}</p>
+          <p className="text-base font-medium leading-relaxed">{items[index].q}</p>
+          <div className="grid gap-2">
+            {items[index].options.map((opt, oi) => (
+              <button
+                key={oi}
+                type="button"
+                onClick={() => setAnswers((a) => a.map((v, i) => (i === index ? oi : v)))}
+                className={`rounded-lg border p-3 text-left text-sm transition-colors ${answers[index] === oi ? 'border-primary bg-primary/10' : 'border-border hover:bg-muted/60'}`}
+              >
+                <span className="mr-2 font-mono text-xs uppercase text-muted-foreground">{String.fromCharCode(97 + oi)}.</span>{opt}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" disabled={index === 0} onClick={() => setIndex(index - 1)}>Previous</Button>
+            {index + 1 < items.length
+              ? <Button size="sm" onClick={() => setIndex(index + 1)}>Next</Button>
+              : <Button size="sm" onClick={() => setDone(true)}>Finish</Button>}
+          </div>
+        </>
+      ) : (
+        <div className="space-y-4">
+          <Result correct={correct} total={items.length} />
+          <div className="space-y-2">
+            {items.map((it, i) => (
+              <div key={i} className={`rounded-lg border p-3 text-sm ${answers[i] === it.answer ? 'border-success/40 bg-success/5' : 'border-destructive/40 bg-destructive/5'}`}>
+                <p className="font-medium">{i + 1}. {it.q}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Correct: {it.options[it.answer]}
+                  {answers[i] !== it.answer && answers[i] !== null && <> · You chose: {it.options[answers[i] as number]}</>}
+                  {answers[i] === null && ' · Not answered'}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </DrillShell>
   );

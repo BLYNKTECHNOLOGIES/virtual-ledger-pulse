@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard, CheckCircle } from "lucide-react";
+import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
@@ -127,6 +127,10 @@ const fetchActiveBankAccounts = async (): Promise<BankAccount[]> => {
 export function PendingSettlements() {
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState("");
+  const [collapsedGateways, setCollapsedGateways] = useState<Record<string, boolean>>({});
+
+  const toggleGatewayCollapsed = (id: string) =>
+    setCollapsedGateways(prev => ({ ...prev, [id]: !prev[id] }));
   const [mdrAmount, setMdrAmount] = useState("0");
   const [deductMdr, setDeductMdr] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
@@ -528,7 +532,17 @@ export function PendingSettlements() {
               <Card key={gatewayGroup.paymentMethodId}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="flex items-center gap-3 text-left cursor-pointer rounded-md -m-1 p-1 hover:bg-muted/50 transition-colors"
+                      onClick={() => toggleGatewayCollapsed(gatewayGroup.paymentMethodId)}
+                      aria-expanded={!collapsedGateways[gatewayGroup.paymentMethodId]}
+                    >
+                      {collapsedGateways[gatewayGroup.paymentMethodId] ? (
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      )}
                       <CreditCard className="h-5 w-5 text-primary" />
                       <div>
                         <CardTitle className="text-lg">{gatewayGroup.gatewayName}</CardTitle>
@@ -539,7 +553,7 @@ export function PendingSettlements() {
                           </div>
                         )}
                       </div>
-                    </div>
+                    </button>
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         <p className="font-semibold">₹{gatewayGroup.totalAmount.toLocaleString('en-IN')}</p>
@@ -571,6 +585,7 @@ export function PendingSettlements() {
                     </div>
                   </div>
                 </CardHeader>
+                {!collapsedGateways[gatewayGroup.paymentMethodId] && (
                 <CardContent>
                   <Table>
                     <TableHeader>
@@ -667,6 +682,7 @@ export function PendingSettlements() {
                     </TableBody>
                   </Table>
                 </CardContent>
+                )}
               </Card>
             );
           })}

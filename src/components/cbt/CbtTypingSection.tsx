@@ -111,7 +111,8 @@ export function CbtTypingSection({
   }, []);
   const liveStats = useMemo(() => {
     const started = section.started_at ? new Date(section.started_at).getTime() : Date.now();
-    const minutes = Math.max(1 / 60, (Date.now() - started) / 60000);
+    const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
+    const minutes = Math.max(1 / 60, seconds / 60);
     let correctWords = 0;
     let correctChars = 0;
     let typedChars = 0;
@@ -122,28 +123,53 @@ export function CbtTypingSection({
         correctChars += w.length + 1;
       }
     });
+    const errors = committed.length - correctWords;
     return {
       net: Math.round(correctChars / 5 / minutes),
       gross: Math.round(typedChars / 5 / minutes),
       accuracy: committed.length ? Math.round((correctWords / committed.length) * 100) : 100,
+      errors,
+      typedChars,
+      seconds,
+      backspaces: backspaces.current,
+      keystrokes: keystrokes.current,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [committed, passageWords, section.started_at, tick]);
 
+  const targetWpm = Number((section as any).full_marks_wpm ?? 0) || null;
+  const progress = passageWords.length ? Math.min(100, (typedIndex / passageWords.length) * 100) : 0;
+  const mmss = `${String(Math.floor(liveStats.seconds / 60)).padStart(2, '0')}:${String(liveStats.seconds % 60).padStart(2, '0')}`;
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2 sm:max-w-md">
+      <div className="grid grid-cols-3 gap-2 lg:grid-cols-6">
         {[
-          { label: 'Net WPM', value: liveStats.net },
+          { label: 'Net WPM', value: liveStats.net, hint: targetWpm ? `target ${targetWpm}` : undefined },
           { label: 'Gross WPM', value: liveStats.gross },
           { label: 'Accuracy', value: `${liveStats.accuracy}%` },
+          { label: 'Errors', value: liveStats.errors },
+          { label: 'Characters', value: liveStats.typedChars },
+          { label: 'Time on test', value: mmss },
         ].map((s) => (
           <div key={s.label} className="rounded-lg border border-border bg-card px-3 py-2 text-center">
             <p className="font-mono text-xl font-bold tabular-nums">{s.value}</p>
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.label}</p>
+            {s.hint && <p className="text-[10px] text-muted-foreground">{s.hint}</p>}
           </div>
         ))}
       </div>
+
+      <div className="space-y-1">
+        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+          <div className="h-full rounded-full bg-primary transition-[width] duration-300" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="flex flex-wrap justify-between gap-x-4 text-[11px] text-muted-foreground">
+          <span>{typedIndex} of {passageWords.length} words · {Math.round(progress)}% of the passage</span>
+          <span>Keystrokes {liveStats.keystrokes} · corrections {liveStats.backspaces}</span>
+        </div>
+      </div>
+
 
       <div className="rounded-lg border border-border bg-muted/40 p-4 text-base leading-relaxed">
 

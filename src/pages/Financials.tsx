@@ -277,7 +277,12 @@ export default function Financials() {
         {/* Total Expenses - Clickable to BAMS Journal */}
         <ClickableCard 
           to="/bams" 
-          searchParams={{ tab: 'journal' }}
+          searchParams={{
+            tab: 'journal',
+            journalView: 'opex',
+            dateFrom: format(startDate, 'yyyy-MM-dd'),
+            dateTo: format(endDate, 'yyyy-MM-dd'),
+          }}
           className="h-full"
         >
           <StatTile

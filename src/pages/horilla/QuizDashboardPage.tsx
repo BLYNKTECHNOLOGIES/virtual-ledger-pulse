@@ -21,7 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
 
-type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "roles" | "settings";
+type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "skills" | "roles" | "settings";
 type EvaluationRow = {
   id: string;
   attempt_item_id: string;

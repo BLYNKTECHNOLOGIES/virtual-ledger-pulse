@@ -33380,6 +33380,11 @@ export type Database = {
         | "written"
         | "mental_maths"
         | "memory_recall"
+        | "logical_reasoning"
+        | "problem_solving"
+        | "pattern_recognition"
+        | "grammar"
+        | "vocabulary"
       cbt_warning_action: "flag_only" | "auto_submit"
       erp_task_priority: "low" | "medium" | "high" | "critical"
       erp_task_status:
@@ -33874,6 +33879,11 @@ export const Constants = {
         "written",
         "mental_maths",
         "memory_recall",
+        "logical_reasoning",
+        "problem_solving",
+        "pattern_recognition",
+        "grammar",
+        "vocabulary",
       ],
       cbt_warning_action: ["flag_only", "auto_submit"],
       erp_task_priority: ["low", "medium", "high", "critical"],

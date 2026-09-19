@@ -44,10 +44,15 @@ type BlueprintSectionForm = {
   weight: string;
   negativeMark: string;
   gateMinScore: string;
+  fullMarksWpm: string;
+  gateMinNetWpm: string;
+  gateMinAccuracy: string;
+  practiceMinutes: string;
 };
 const emptySection = (): BlueprintSectionForm => ({
   sectionCode: "", sectionType: "objective", title: "", categoryTags: "",
   itemCount: "1", durationMinutes: "10", weight: "0", negativeMark: "0", gateMinScore: "",
+  fullMarksWpm: "", gateMinNetWpm: "", gateMinAccuracy: "", practiceMinutes: "",
 });
 const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "roles", "settings"];
 
@@ -160,6 +165,11 @@ export default function QuizDashboardPage() {
         weight: Number(section.weight),
         negative_mark: Number(section.negativeMark),
         gate_min_score: section.gateMinScore.trim() || null,
+        full_marks_wpm: section.sectionType === "typing" ? section.fullMarksWpm.trim() || null : null,
+        gate_min_net_wpm: section.sectionType === "typing" ? section.gateMinNetWpm.trim() || null : null,
+        gate_min_accuracy: section.sectionType === "typing" ? section.gateMinAccuracy.trim() || null : null,
+        practice_seconds: section.sectionType === "typing" && section.practiceMinutes.trim()
+          ? Math.round(Number(section.practiceMinutes) * 60) : 0,
       }));
       const { error } = await supabase.rpc("cbt_save_role_blueprint" as never, {
         p_role_id: editingRoleId,

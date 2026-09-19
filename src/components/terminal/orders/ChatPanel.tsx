@@ -672,7 +672,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                     <span className="text-[9px] text-muted-foreground">{chat.orderDate ? format(new Date(normalizeChatTimestamp(chat.orderDate)), 'dd MMM yyyy, HH:mm') : ''}</span>
                     <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px]">{chat.orderStatus || 'Previous'}</Badge>
                   </div>
-                  {chat.messages.length > 0 ? chat.messages.map((message) => (
+                  {chat.messages.length > 0 ? withDaySeparators(chat.messages, (message) => (
                     <ChatBubble key={message.id} message={message} />
                   )) : (
                     <p className="py-2 text-center text-[10px] text-muted-foreground">No stored messages for this order</p>

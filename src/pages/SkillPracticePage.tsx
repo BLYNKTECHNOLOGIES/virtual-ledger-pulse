@@ -87,30 +87,79 @@ const makeSequence = (level: Level, idx: number) => {
   return Array.from({ length: len }, () => ALPHABET[rnd(0, ALPHABET.length - 1)]).join('');
 };
 
-const RECORDS = [
-  { name: 'Ramesh Kumar Patel', pan: 'AFZPK7190K', account_number: '50100238417653', ifsc: 'HDFC0000123', amount: '24500.00' },
-  { name: 'Sunita Devi Sharma', pan: 'BKLPS4432M', account_number: '91820045637281', ifsc: 'ICIC0004561', amount: '7890.50' },
-  { name: 'Mohd. Faizan Ummar Khan', pan: 'EQWPK1123J', account_number: '000401558976231', ifsc: 'UTIB0000401', amount: '104325.75' },
-  { name: 'Lakshmi Narasimhan Iyer', pan: 'FRTPL5566N', account_number: '20049988776655', ifsc: 'KKBK0008812', amount: '63410.20' },
-  { name: 'Jagadeeshwaran Balasubramaniam', pan: 'JMNPJ3311T', account_number: '918020056473829', ifsc: 'IDIB000M104', amount: '1287654.05' },
-];
-const RECORD_FIELDS: { key: keyof typeof RECORDS[number]; label: string }[] = [
+type Record5 = { name: string; pan: string; account_number: string; ifsc: string; amount: string };
+
+// Level-specific records: beginner = short and clean, advanced = long names,
+// awkward spacing and look-alike characters.
+const RECORDS: Record<Level, Record5[]> = {
+  beginner: [
+    { name: 'Ramesh Patel', pan: 'AFZPK7190K', account_number: '50100238417', ifsc: 'HDFC0000123', amount: '2450.00' },
+    { name: 'Sunita Sharma', pan: 'BKLPS4432M', account_number: '91820045637', ifsc: 'ICIC0004561', amount: '7890.50' },
+    { name: 'Anil Verma', pan: 'CDQPV1178H', account_number: '32100987456', ifsc: 'SBIN0011276', amount: '1200.00' },
+    { name: 'Neha Gupta', pan: 'DLMPG6621R', account_number: '44120056789', ifsc: 'UBIN0553301', amount: '5600.25' },
+  ],
+  intermediate: [
+    { name: 'Mohd. Faizan Khan', pan: 'EQWPK1123J', account_number: '000401558976231', ifsc: 'UTIB0000401', amount: '104325.75' },
+    { name: 'Lakshmi Narasimhan Iyer', pan: 'FRTPL5566N', account_number: '20049988776655', ifsc: 'KKBK0008812', amount: '63410.20' },
+    { name: 'Priyanka Deshpande Rao', pan: 'GHZPD9043Q', account_number: '918020034567812', ifsc: 'PUNB0234500', amount: '28907.60' },
+    { name: 'Shrishti R. Chaturvedi', pan: 'HJKPC2287L', account_number: '50200761234508', ifsc: 'RATN0000088', amount: '9450.05' },
+    { name: 'Vikram Singh Rathore', pan: 'IKLPR7734B', account_number: '30987612345670', ifsc: 'BARB0DBGHAZ', amount: '215600.00' },
+  ],
+  advanced: [
+    { name: 'Jagadeeshwaran Balasubramaniam', pan: 'JMNPJ3311T', account_number: '918020056473829', ifsc: 'IDIB000M104', amount: '1287654.05' },
+    { name: 'Mohd. Abdul Rehman Sheikh Jr.', pan: 'KOQPS0O19I', account_number: '550100778899001', ifsc: 'YESB0CMSNOC', amount: '9080706.50' },
+    { name: "D'Souza Maria Fernandes-Pinto", pan: 'LPRPD1I05O', account_number: '000011002233445', ifsc: 'SCBL0036078', amount: '4500000.99' },
+    { name: 'Venkata Subrahmanyam Dhanekula', pan: 'MQSPD8B0O5', account_number: '107701001234567', ifsc: 'IOBA0001077', amount: '78912.03' },
+    { name: 'Shyam Sundar Agarwal (HUF)', pan: 'AABHS1102C', account_number: '628505500123456', ifsc: 'ICIC0006285', amount: '10500000.00' },
+    { name: 'Kaustubh Vaidyanathan Krishnamoorthy', pan: 'NRTPK5O0I1', account_number: '201000456789012', ifsc: 'INDB0000201', amount: '655432.10' },
+  ],
+};
+const RECORD_FIELDS: { key: keyof Record5; label: string }[] = [
   { key: 'name', label: 'Name' }, { key: 'pan', label: 'PAN' },
   { key: 'account_number', label: 'Account number' }, { key: 'ifsc', label: 'IFSC' }, { key: 'amount', label: 'Amount' },
 ];
 
-const PAIRS: { left: string; right: string; match: boolean }[] = [
-  { left: 'Ramesh Kumar Patel · A/c 50100238417653 · Rs 24,500.00', right: 'Ramesh Kumar Patel · A/c 50100238417653 · Rs 24,500.00', match: true },
-  { left: 'Sunita Devi Sharma · IFSC ICIC0004561 · Rs 7,890.50', right: 'Sunita Devi Sharma · IFSC ICIC0004561 · Rs 7,890.05', match: false },
-  { left: 'UTR SBIN524098766 · 15/08/2026', right: 'UTR SBIN524098766 · 15/08/2026', match: true },
-  { left: 'PAN AFZPK7190K · Anil Vishwakarma', right: 'PAN AFZPK7T90K · Anil Vishwakarma', match: false },
-  { left: 'Mohd. Faizan Ummar Khan · A/c 000401558976231', right: 'Mohd Faizan Ummar Khan · A/c 000401558976231', match: true },
-  { left: 'A/c 20049988776655 · Rs 63,410.20', right: 'A/c 20049988767655 · Rs 63,410.20', match: false },
-  { left: 'IFSC PUNB0234500 · Priyanka Deshpande-Rao', right: 'IFSC PUNB0234S00 · Priyanka Deshpande-Rao', match: false },
-  { left: 'Vikram Singh Rathore · UTR BARBR52200998', right: 'Vikram Singh Rathore · UTR BARBR52200998', match: true },
-  { left: 'Shrishti R. Chaturvedi · UTR RATNH229004411', right: 'Shrishti R. Chaturvedi · UTR RATNH229004411', match: true },
-  { left: 'Abdul Rehman Sheikh · A/c 550100778899001', right: 'Abdul Rehman Sheikh · A/c 550100778899O01', match: false },
-];
+// Level-specific pairs: beginner differences are obvious, advanced are single
+// look-alike characters (O/0, I/1, S/5) and transposed digits.
+const PAIRS: Record<Level, { left: string; right: string; match: boolean }[]> = {
+  beginner: [
+    { left: 'Ramesh Patel · Rs 2,450.00', right: 'Ramesh Patel · Rs 2,450.00', match: true },
+    { left: 'Sunita Sharma · Rs 7,890.50', right: 'Sunita Verma · Rs 7,890.50', match: false },
+    { left: 'A/c 50100238417', right: 'A/c 50100238417', match: true },
+    { left: 'A/c 44120056789', right: 'A/c 44120056798', match: false },
+    { left: 'IFSC SBIN0011276', right: 'IFSC SBIN0011276', match: true },
+    { left: 'Rs 1,200.00', right: 'Rs 12,000.00', match: false },
+    { left: 'Neha Gupta · IFSC UBIN0553301', right: 'Neha Gupta · IFSC UBIN0553301', match: true },
+    { left: 'PAN CDQPV1178H', right: 'PAN CDQPV1179H', match: false },
+  ],
+  intermediate: [
+    { left: 'Lakshmi Narasimhan Iyer · A/c 20049988776655', right: 'Lakshmi Narasimhan Iyer · A/c 20049988776655', match: true },
+    { left: 'Priyanka Deshpande Rao · IFSC PUNB0234500', right: 'Priyanka Deshpande Rao · IFSC PUNB0234S00', match: false },
+    { left: 'UTR SBIN524098766 · 15/08/2026', right: 'UTR SBIN524098766 · 15/08/2026', match: true },
+    { left: 'Shrishti R. Chaturvedi · Rs 9,450.05', right: 'Shrishti R. Chaturvedi · Rs 9,450.50', match: false },
+    { left: 'Mohd. Faizan Khan · A/c 000401558976231', right: 'Mohd Faizan Khan · A/c 000401558976231', match: true },
+    { left: 'A/c 30987612345670 · Rs 2,15,600.00', right: 'A/c 30987612345760 · Rs 2,15,600.00', match: false },
+    { left: 'PAN EQWPK1123J · Faizan Khan', right: 'PAN EQWPK1123J · Faizan Khan', match: true },
+    { left: 'IFSC RATN0000088 · Rs 9,450.05', right: 'IFSC RATN0000O88 · Rs 9,450.05', match: false },
+    { left: 'Vikram Singh Rathore · UTR BARBR52200998', right: 'Vikram Singh Rathore · UTR BARBR52200998', match: true },
+    { left: 'A/c 918020034567812', right: 'A/c 918020034567812', match: true },
+  ],
+  advanced: [
+    { left: 'Jagadeeshwaran Balasubramaniam · A/c 918020056473829', right: 'Jagadeeshwaran Balasubramaniam · A/c 918020056473829', match: true },
+    { left: 'PAN KOQPS0O19I · Abdul Rehman Sheikh', right: 'PAN KOQPSOO19I · Abdul Rehman Sheikh', match: false },
+    { left: "D'Souza Maria Fernandes-Pinto · Rs 45,00,000.99", right: "D'Souza Maria Fernandes-Pinto · Rs 45,00,000.99", match: true },
+    { left: 'A/c 550100778899001 · YESB0CMSNOC', right: 'A/c 550100778899O01 · YESB0CMSNOC', match: false },
+    { left: 'UTR IDIBH2290O4411 · 18/09/2026', right: 'UTR IDIBH22904411 · 18/09/2026', match: false },
+    { left: 'Venkata Subrahmanyam Dhanekula · IFSC IOBA0001077', right: 'Venkata Subrahmanyam Dhanekula · IFSC IOBA0001O77', match: false },
+    { left: 'Shyam Sundar Agarwal (HUF) · PAN AABHS1102C', right: 'Shyam Sundar Agarwal (HUF) · PAN AABHS1102C', match: true },
+    { left: 'A/c 201000456789012 · Rs 6,55,432.10', right: 'A/c 201000456789012 · Rs 6,55,432.10', match: true },
+    { left: 'Kaustubh Vaidyanathan Krishnamoorthy', right: 'Kaustubh Vaidynathan Krishnamoorthy', match: false },
+    { left: 'IFSC SCBL0036078 · Rs 45,00,000.99', right: 'IFSC SCBL0036O78 · Rs 45,00,000.99', match: false },
+    { left: 'PAN MQSPD8B0O5 · V. S. Dhanekula', right: 'PAN MQSPD8BO05 · V. S. Dhanekula', match: false },
+    { left: 'A/c 107701001234567 · Rs 78,912.03', right: 'A/c 107701001234567 · Rs 78,912.03', match: true },
+  ],
+};
+
 
 const norm = (v: string) => v.replace(/[^0-9A-Za-z]+/g, '').toUpperCase();
 const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

@@ -32771,6 +32771,10 @@ export type Database = {
         Returns: Json
       }
       sync_p2p_orders_batch: { Args: { p_orders: Json }; Returns: number }
+      sync_sales_order_settlement_status: {
+        Args: { p_order_ids: string[] }
+        Returns: undefined
+      }
       sync_split_payment_settlements: {
         Args: { p_order_id: string }
         Returns: Json

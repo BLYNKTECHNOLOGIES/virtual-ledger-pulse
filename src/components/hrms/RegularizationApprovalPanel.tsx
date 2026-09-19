@@ -238,10 +238,30 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
     );
   }
 
+  const dayMarkSelector = (
+    <div className="space-y-1">
+      <Label>Also mark this day as <span className="text-muted-foreground font-normal">(optional — applies only on approval)</span></Label>
+      <Select value={dayMark} onValueChange={(v) => setDayMark(v as typeof dayMark)}>
+        <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">Leave the day as the system calculated it</SelectItem>
+          <SelectItem value="present">Present (full day)</SelectItem>
+          <SelectItem value="half_day">Half day</SelectItem>
+          <SelectItem value="absent">Absent</SelectItem>
+        </SelectContent>
+      </Select>
+      <p className="text-[11px] text-muted-foreground">
+        Use this when the approved times alone would read wrong — e.g. an off-site half shift that should still
+        count as a half day. Rejection ignores this and leaves attendance unchanged.
+      </p>
+    </div>
+  );
+
   return (
     <div className="space-y-3">
       {mode === "idle" && (
         <div className="space-y-2">
+          {dayMarkSelector}
           <div className="flex flex-col sm:flex-row gap-2">
             <Button className="flex-1 h-10" onClick={() => setMode("approve")}>
               <CheckCircle2 className="h-4 w-4 mr-2" /> Approve
@@ -312,22 +332,7 @@ export function RegularizationApprovalPanel({ request, onDone }: { request: any;
             </Select>
           </div>
 
-          <div className="space-y-1">
-            <Label>Also mark this day as <span className="text-muted-foreground font-normal">(optional)</span></Label>
-            <Select value={dayMark} onValueChange={(v) => setDayMark(v as typeof dayMark)}>
-              <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Leave the day as the system calculated it</SelectItem>
-                <SelectItem value="present">Present (full day)</SelectItem>
-                <SelectItem value="half_day">Half day</SelectItem>
-                <SelectItem value="absent">Absent</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground">
-              Use this when the approved times alone would read wrong — e.g. an off-site half shift that should still
-              count as a half day. The marking is audited with your reason.
-            </p>
-          </div>
+          {dayMarkSelector}
 
           {evidence && !evidence.evidence_ok && (
             <div className="space-y-1">

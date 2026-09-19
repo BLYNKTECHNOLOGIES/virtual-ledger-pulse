@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard, CheckCircle } from "lucide-react";
+import { Loader2, DollarSign, Calendar, Building, ArrowRight, CreditCard, CheckCircle, ChevronDown, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ViewOnlyWrapper } from "@/components/ui/view-only-wrapper";
@@ -127,6 +127,10 @@ const fetchActiveBankAccounts = async (): Promise<BankAccount[]> => {
 export function PendingSettlements() {
   const [selectedSales, setSelectedSales] = useState<string[]>([]);
   const [selectedBankAccount, setSelectedBankAccount] = useState("");
+  const [collapsedGateways, setCollapsedGateways] = useState<Record<string, boolean>>({});
+
+  const toggleGatewayCollapsed = (id: string) =>
+    setCollapsedGateways(prev => ({ ...prev, [id]: !prev[id] }));
   const [mdrAmount, setMdrAmount] = useState("0");
   const [deductMdr, setDeductMdr] = useState(false);
   const [isSettling, setIsSettling] = useState(false);

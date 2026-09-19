@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Brain, Calculator, Keyboard, ListChecks, RotateCcw, Table2, Timer } from 'lucide-react';
+import { Brain, Calculator, Keyboard, ListChecks, RotateCcw, Table2, Timer } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -165,7 +164,6 @@ const norm = (v: string) => v.replace(/[^0-9A-Za-z]+/g, '').toUpperCase();
 const fmtClock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
 export default function SkillPracticePage() {
-  const navigate = useNavigate();
   const [level, setLevel] = useState<Level>('intermediate');
   const [drill, setDrill] = useState<Drill | null>(null);
   const [runKey, setRunKey] = useState(0);

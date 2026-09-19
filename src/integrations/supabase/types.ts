@@ -2925,6 +2925,7 @@ export type Database = {
           practice_seconds: number
           section_code: string
           section_type: Database["public"]["Enums"]["cbt_section_type"]
+          skill_level: string | null
           title: string
           updated_at: string
           weight: number
@@ -2947,6 +2948,7 @@ export type Database = {
           practice_seconds?: number
           section_code: string
           section_type: Database["public"]["Enums"]["cbt_section_type"]
+          skill_level?: string | null
           title: string
           updated_at?: string
           weight?: number
@@ -2969,6 +2971,7 @@ export type Database = {
           practice_seconds?: number
           section_code?: string
           section_type?: Database["public"]["Enums"]["cbt_section_type"]
+          skill_level?: string | null
           title?: string
           updated_at?: string
           weight?: number

@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Send, Paperclip, Image, FileText, Users, Loader2, UserCheck, Wallet } from 'lucide-react';
 import { useInternalMessages, useSendInternalMessage, useMarkInternalChatRead, InternalMessage } from '@/hooks/useInternalChat';
+import { DaySeparator, istDayKey } from './chat/DaySeparator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';

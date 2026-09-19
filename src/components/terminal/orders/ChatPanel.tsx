@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useArchivedBinanceChatMessages } from '@/hooks/useBinanceActions';
 import { useChatMessageSenders } from '@/hooks/useChatMessageSenders';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { ChatBubble, UnifiedMessage } from './chat/ChatBubble';
+import { DaySeparator, istDayKey } from './chat/DaySeparator';
 import { isCardPayload } from './chat/ChatAdCard';
 import { ChatImageUpload } from './chat/ChatImageUpload';
 import { AttachAdPicker } from './chat/AttachAdPicker';
@@ -69,6 +70,28 @@ function dedupeMessages(messages: UnifiedMessage[]): UnifiedMessage[] {
   }
   return out;
 }
+
+/**
+ * Render a transcript with WhatsApp/Binance-style day dividers: whenever the
+ * IST calendar day changes between two consecutive messages, a centered
+ * "Today" / "Yesterday" / full-date pill is inserted before the newer message.
+ */
+function withDaySeparators(messages: UnifiedMessage[], renderMessage: (m: UnifiedMessage) => ReactNode): ReactNode[] {
+  const out: ReactNode[] = [];
+  let lastDay: string | null = null;
+  for (const m of messages) {
+    const ts = m.timestamp || 0;
+    const day = istDayKey(ts);
+    if (day && day !== lastDay) {
+      out.push(<DaySeparator key={`day-${m.id}`} ts={ts} />);
+      lastDay = day;
+    }
+    out.push(renderMessage(m));
+  }
+  return out;
+}
+
+
 
 
 interface Props {
@@ -649,7 +672,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                     <span className="text-[9px] text-muted-foreground">{chat.orderDate ? format(new Date(normalizeChatTimestamp(chat.orderDate)), 'dd MMM yyyy, HH:mm') : ''}</span>
                     <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px]">{chat.orderStatus || 'Previous'}</Badge>
                   </div>
-                  {chat.messages.length > 0 ? chat.messages.map((message) => (
+                  {chat.messages.length > 0 ? withDaySeparators(chat.messages, (message) => (
                     <ChatBubble key={message.id} message={message} />
                   )) : (
                     <p className="py-2 text-center text-[10px] text-muted-foreground">No stored messages for this order</p>
@@ -677,7 +700,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
                   <Badge variant="outline" className="ml-auto h-4 px-1.5 text-[8px] border-primary/30 text-primary">Active chat</Badge>
                 </div>
               )}
-              {currentOrderMessages.map((message) => (
+              {withDaySeparators(currentOrderMessages, (message) => (
                 <ChatBubble
                   key={message.id}
                   message={message}

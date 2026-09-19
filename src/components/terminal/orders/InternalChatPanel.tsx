@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { useFileDropzone } from '@/hooks/useFileDropzone';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Send, Paperclip, Image, FileText, Users, Loader2, UserCheck, Wallet } from 'lucide-react';
 import { useInternalMessages, useSendInternalMessage, useMarkInternalChatRead, InternalMessage } from '@/hooks/useInternalChat';
+import { DaySeparator, istDayKey } from './chat/DaySeparator';
 import { useTerminalAuth } from '@/hooks/useTerminalAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -205,9 +206,21 @@ export function InternalChatPanel({ orderNumber, advNo, totalPrice, tradeType }:
           </div>
         ) : (
           <div className="space-y-2">
-            {messages.map((msg) => (
-              <InternalChatBubble key={msg.id} message={msg} isOwn={msg.sender_id === userId} />
-            ))}
+            {(() => {
+              // Day dividers follow IST, same as the Binance order chat.
+              const nodes: ReactNode[] = [];
+              let lastDay: string | null = null;
+              for (const msg of messages) {
+                const ts = new Date(msg.created_at).getTime();
+                const day = istDayKey(ts);
+                if (day && day !== lastDay) {
+                  nodes.push(<DaySeparator key={`day-${msg.id}`} ts={ts} />);
+                  lastDay = day;
+                }
+                nodes.push(<InternalChatBubble key={msg.id} message={msg} isOwn={msg.sender_id === userId} />);
+              }
+              return nodes;
+            })()}
             <div ref={bottomRef} />
           </div>
         )}

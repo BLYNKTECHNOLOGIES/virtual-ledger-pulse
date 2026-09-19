@@ -33,10 +33,12 @@ type EvaluationRow = {
     cbt_question_versions?: { content?: { prompt?: string; marks?: number } | null } | null;
   } | null;
 };
+type SkillLevel = "beginner" | "intermediate" | "advanced";
+type SectionType = "typing" | "data_entry" | "match_pairs" | "objective" | "written" | "mental_maths" | "memory_recall";
 type BlueprintSectionForm = {
   id?: string;
   sectionCode: string;
-  sectionType: "typing" | "data_entry" | "match_pairs" | "objective" | "written" | "mental_maths" | "memory_recall";
+  sectionType: SectionType;
   title: string;
   categoryTags: string;
   itemCount: string;
@@ -48,12 +50,50 @@ type BlueprintSectionForm = {
   gateMinNetWpm: string;
   gateMinAccuracy: string;
   practiceMinutes: string;
+  skillLevel: SkillLevel | "";
 };
 const emptySection = (): BlueprintSectionForm => ({
   sectionCode: "", sectionType: "objective", title: "", categoryTags: "",
   itemCount: "1", durationMinutes: "10", weight: "0", negativeMark: "0", gateMinScore: "",
-  fullMarksWpm: "", gateMinNetWpm: "", gateMinAccuracy: "", practiceMinutes: "",
+  fullMarksWpm: "", gateMinNetWpm: "", gateMinAccuracy: "", practiceMinutes: "", skillLevel: "",
 });
+
+const SKILL_SECTION_TYPES: SectionType[] = ["typing", "data_entry", "match_pairs", "mental_maths", "memory_recall"];
+const SKILL_LEVELS: { id: SkillLevel; label: string }[] = [
+  { id: "beginner", label: "Beginner" },
+  { id: "intermediate", label: "Intermediate" },
+  { id: "advanced", label: "Advanced" },
+];
+// Level presets — the pace, length and pass targets a drill runs at for a role.
+const LEVEL_PRESETS: Record<SectionType, Partial<Record<SkillLevel, Partial<BlueprintSectionForm>>>> = {
+  typing: {
+    beginner: { itemCount: "1", durationMinutes: "2", fullMarksWpm: "30", gateMinNetWpm: "20", gateMinAccuracy: "90" },
+    intermediate: { itemCount: "1", durationMinutes: "3", fullMarksWpm: "40", gateMinNetWpm: "25", gateMinAccuracy: "90" },
+    advanced: { itemCount: "1", durationMinutes: "4", fullMarksWpm: "55", gateMinNetWpm: "40", gateMinAccuracy: "95" },
+  },
+  mental_maths: {
+    beginner: { itemCount: "8", durationMinutes: "4" },
+    intermediate: { itemCount: "10", durationMinutes: "4" },
+    advanced: { itemCount: "12", durationMinutes: "4" },
+  },
+  memory_recall: {
+    beginner: { itemCount: "5", durationMinutes: "3.5" },
+    intermediate: { itemCount: "6", durationMinutes: "4" },
+    advanced: { itemCount: "8", durationMinutes: "4" },
+  },
+  data_entry: {
+    beginner: { itemCount: "3", durationMinutes: "5" },
+    intermediate: { itemCount: "4", durationMinutes: "5" },
+    advanced: { itemCount: "6", durationMinutes: "5" },
+  },
+  match_pairs: {
+    beginner: { itemCount: "6", durationMinutes: "2.5" },
+    intermediate: { itemCount: "8", durationMinutes: "4" },
+    advanced: { itemCount: "10", durationMinutes: "2.5" },
+  },
+  objective: {},
+  written: {},
+};
 const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "skills", "roles", "settings"];
 
 // Skill Test catalogue — the practical drills that measure ability rather than knowledge.

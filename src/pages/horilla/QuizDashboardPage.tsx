@@ -35,7 +35,7 @@ type EvaluationRow = {
   } | null;
 };
 type SkillLevel = "beginner" | "intermediate" | "advanced";
-type SectionType = "typing" | "data_entry" | "match_pairs" | "objective" | "written" | "mental_maths" | "memory_recall";
+type SectionType = "typing" | "data_entry" | "match_pairs" | "objective" | "written" | "mental_maths" | "memory_recall" | "logical_reasoning" | "problem_solving" | "pattern_recognition" | "grammar" | "vocabulary";
 type BlueprintSectionForm = {
   id?: string;
   sectionCode: string;
@@ -59,7 +59,8 @@ const emptySection = (): BlueprintSectionForm => ({
   fullMarksWpm: "", gateMinNetWpm: "", gateMinAccuracy: "", practiceMinutes: "", skillLevel: "",
 });
 
-const SKILL_SECTION_TYPES: SectionType[] = ["typing", "data_entry", "match_pairs", "mental_maths", "memory_recall"];
+const SKILL_SECTION_TYPES: SectionType[] = ["typing", "data_entry", "match_pairs", "mental_maths", "memory_recall", "logical_reasoning", "problem_solving", "pattern_recognition", "grammar", "vocabulary"];
+const MCQ_SKILL_TYPES: SectionType[] = ["logical_reasoning", "problem_solving", "pattern_recognition", "grammar", "vocabulary"];
 const SKILL_LEVELS: { id: SkillLevel; label: string }[] = [
   { id: "beginner", label: "Beginner" },
   { id: "intermediate", label: "Intermediate" },
@@ -91,6 +92,31 @@ const LEVEL_PRESETS: Record<SectionType, Partial<Record<SkillLevel, Partial<Blue
     beginner: { itemCount: "6", durationMinutes: "2.5" },
     intermediate: { itemCount: "8", durationMinutes: "4" },
     advanced: { itemCount: "10", durationMinutes: "2.5" },
+  },
+  logical_reasoning: {
+    beginner: { itemCount: "6", durationMinutes: "6" },
+    intermediate: { itemCount: "6", durationMinutes: "5" },
+    advanced: { itemCount: "6", durationMinutes: "4" },
+  },
+  problem_solving: {
+    beginner: { itemCount: "6", durationMinutes: "6" },
+    intermediate: { itemCount: "6", durationMinutes: "5" },
+    advanced: { itemCount: "6", durationMinutes: "4" },
+  },
+  pattern_recognition: {
+    beginner: { itemCount: "6", durationMinutes: "6" },
+    intermediate: { itemCount: "6", durationMinutes: "5" },
+    advanced: { itemCount: "6", durationMinutes: "4" },
+  },
+  grammar: {
+    beginner: { itemCount: "6", durationMinutes: "6" },
+    intermediate: { itemCount: "6", durationMinutes: "5" },
+    advanced: { itemCount: "6", durationMinutes: "4" },
+  },
+  vocabulary: {
+    beginner: { itemCount: "6", durationMinutes: "6" },
+    intermediate: { itemCount: "6", durationMinutes: "5" },
+    advanced: { itemCount: "6", durationMinutes: "4" },
   },
   objective: {},
   written: {},

@@ -180,8 +180,15 @@ export default function SkillPracticePage() {
               Try any drill at any level. This is practice only — nothing is recorded and no result is sent to HR.
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link to="/test"><ArrowLeft className="h-4 w-4" />Real test</Link>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (window.history.length > 1) navigate(-1);
+              else navigate('/hrms/quiz', { state: { view: 'skills' } });
+            }}
+          >
+            <ArrowLeft className="h-4 w-4" />Back
           </Button>
         </div>
 

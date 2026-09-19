@@ -54,7 +54,16 @@ const emptySection = (): BlueprintSectionForm => ({
   itemCount: "1", durationMinutes: "10", weight: "0", negativeMark: "0", gateMinScore: "",
   fullMarksWpm: "", gateMinNetWpm: "", gateMinAccuracy: "", practiceMinutes: "",
 });
-const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "roles", "settings"];
+const views: QuizView[] = ["dashboard", "drives", "attempts", "evaluations", "questions", "skills", "roles", "settings"];
+
+// Skill Test catalogue — the practical drills that measure ability rather than knowledge.
+const SKILL_TYPES = [
+  { type: "typing", title: "Typing test", icon: Keyboard, blurb: "Live net/gross WPM, accuracy, errors and character count, scored on the server.", tags: "Passage from the question bank (Typing Passage)" },
+  { type: "mental_maths", title: "Mental maths", icon: Calculator, blurb: "Freshly generated timed sums for every attempt, so nothing can be memorised.", tags: "Generated per attempt — no question bank content needed" },
+  { type: "memory_recall", title: "Memory recall", icon: Brain, blurb: "A sequence flashes on screen, then the candidate types it back. Spaces and case ignored.", tags: "Generated per attempt — no question bank content needed" },
+  { type: "data_entry", title: "Data entry accuracy", icon: Table2, blurb: "Copy banking-style records field by field; accuracy and speed are both marked.", tags: "Records from the question bank (Data Entry Record)" },
+  { type: "match_pairs", title: "Match pairs", icon: ListChecks, blurb: "Decide whether two records match — measures attention to detail under time.", tags: "Pairs from the question bank (Match Pair)" },
+] as const;
 
 const statusVariant = (status: string) => {
   if (["live", "submitted", "auto_submitted", "shortlisted", "approved"].includes(status)) return "success" as const;

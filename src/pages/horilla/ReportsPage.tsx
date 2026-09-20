@@ -448,11 +448,17 @@ export default function ReportsPage() {
                     warning: "border-warning/25 bg-warning/5",
                     info: "border-info/25 bg-info/5",
                   };
+                  const dotClasses = {
+                    success: "bg-success",
+                    destructive: "bg-destructive",
+                    warning: "bg-warning",
+                    info: "bg-info",
+                  };
                   return (
                     <div key={x.l} className={`rounded-xl border p-3.5 ${toneClasses[x.tone]}`}>
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <p className="text-[11px] font-semibold text-foreground">{x.l}</p>
-                        <span className={`h-2 w-2 rounded-full bg-${x.tone}`} aria-hidden="true" />
+                        <span className={`h-2 w-2 rounded-full ${dotClasses[x.tone]}`} aria-hidden="true" />
                       </div>
                       <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
                         <p className="t-mono text-xl font-bold tabular-nums text-foreground">{x.v}</p>

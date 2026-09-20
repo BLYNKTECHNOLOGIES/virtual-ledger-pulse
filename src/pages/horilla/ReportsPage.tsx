@@ -11,7 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
 } from "recharts";
-import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus } from "lucide-react";
+import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollBreakdownDialog";
@@ -254,6 +254,22 @@ export default function ReportsPage() {
       .sort((a, b) => (b.absentPct + b.latePct) - (a.absentPct + a.latePct));
   }, [attendance]);
 
+  const attendanceInsights = useMemo(() => {
+    const absenceLed = attentionList.filter((r) => r.absentPct >= r.latePct).length;
+    const latenessLed = attentionList.length - absenceLed;
+    const totalDaysLost = attStats.absent + attStats.halfDay * 0.5;
+    return { absenceLed, latenessLed, totalDaysLost };
+  }, [attentionList, attStats.absent, attStats.halfDay]);
+
+  const reportRangeLabel = useMemo(() => {
+    const formatDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    return `${formatDate(dateFrom)} – ${formatDate(dateTo)}`;
+  }, [dateFrom, dateTo]);
+
 
   const attendanceTrend = useMemo(() => {
     const wm: Record<string, { present: number; absent: number; late: number; half: number }> = {};
@@ -392,72 +408,118 @@ export default function ReportsPage() {
       </div>
 
       {/* Attendance health strip */}
-      <Card>
-        <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Health</CardTitle></CardHeader>
-        <CardContent>
+      <Card className="overflow-hidden">
+        <CardHeader className="pb-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <CardTitle className="text-base font-semibold">Attendance Health</CardTitle>
+            <p className="text-xs text-muted-foreground">{reportRangeLabel}</p>
+          </div>
+        </CardHeader>
+        <CardContent className="px-4 pb-0 sm:px-6">
           {attendance.length ? (
             <>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {[
                   {
-                    l: "Attendance rate", v: `${attStats.pct.toFixed(1)}%`,
+                    l: "Attendance", v: `${attStats.pct.toFixed(1)}%`,
                     d: prevAttStats.considered ? attStats.pct - prevAttStats.pct : null, good: "up" as const,
-                    sub: "of scheduled days worked",
+                    sub: "Scheduled days worked", tone: "success" as const,
                   },
                   {
-                    l: "Absenteeism rate", v: `${attStats.absenteeism.toFixed(1)}%`,
+                    l: "Absenteeism", v: `${attStats.absenteeism.toFixed(1)}%`,
                     d: prevAttStats.considered ? attStats.absenteeism - prevAttStats.absenteeism : null, good: "down" as const,
-                    sub: `${attStats.absent} full + ${attStats.halfDay} half days lost`,
+                    sub: `${attendanceInsights.totalDaysLost.toLocaleString("en-IN")} days lost`, tone: "destructive" as const,
                   },
                   {
-                    l: "On-time rate", v: `${attStats.punctuality.toFixed(1)}%`,
+                    l: "Punctuality", v: `${attStats.punctuality.toFixed(1)}%`,
                     d: prevAttStats.considered ? attStats.punctuality - prevAttStats.punctuality : null, good: "up" as const,
-                    sub: attStats.late ? `avg ${Math.round(attStats.avgLateMin)} min late when late` : "no late arrivals",
+                    sub: attStats.late ? `${attStats.late.toLocaleString("en-IN")} late arrivals · ${Math.round(attStats.avgLateMin)} min avg` : "No late arrivals", tone: "warning" as const,
                   },
                   {
-                    l: "Avg hours / worked day", v: `${attStats.avgHours.toFixed(1)} h`,
+                    l: "Workday", v: `${attStats.avgHours.toFixed(1)} h`,
                     d: null, good: "up" as const,
-                    sub: `${attStats.earlyOutRate.toFixed(0)}% days ended early`,
-                  },
-                  {
-                    l: "Employees to review", v: attentionList.length,
-                    d: null, good: "down" as const,
-                    sub: "≥10% days lost or ≥30% late",
+                    sub: `${attStats.earlyOutRate.toFixed(0)}% of worked days ended early`, tone: "info" as const,
                   },
                 ].map(x => {
                   const improving = x.d == null ? null : (x.good === "up" ? x.d > 0 : x.d < 0);
+                  const toneClasses = {
+                    success: "border-success/25 bg-success/5",
+                    destructive: "border-destructive/25 bg-destructive/5",
+                    warning: "border-warning/25 bg-warning/5",
+                    info: "border-info/25 bg-info/5",
+                  };
+                  const dotClasses = {
+                    success: "bg-success",
+                    destructive: "bg-destructive",
+                    warning: "bg-warning",
+                    info: "bg-info",
+                  };
                   return (
-                    <div key={x.l} className="rounded-lg border border-border p-2.5">
-                      <div className="flex items-baseline gap-1.5">
-                        <p className="text-lg font-bold tabular-nums text-foreground">{x.v}</p>
+                    <div key={x.l} className={`rounded-xl border p-3.5 ${toneClasses[x.tone]}`}>
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] font-semibold text-foreground">{x.l}</p>
+                        <span className={`h-2 w-2 rounded-full ${dotClasses[x.tone]}`} aria-hidden="true" />
+                      </div>
+                      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+                        <p className="t-mono text-xl font-bold tabular-nums text-foreground">{x.v}</p>
                         {x.d != null && Math.abs(x.d) >= 0.1 && (
-                          <span className={`text-[10px] font-semibold tabular-nums ${improving ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                          <span className={`text-[10px] font-semibold tabular-nums ${improving ? "text-success" : "text-destructive"}`}>
                             {x.d > 0 ? "+" : ""}{x.d.toFixed(1)} pt
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-muted-foreground">{x.l}</p>
-                      <p className="text-[10px] text-muted-foreground/80">{x.sub}</p>
+                      <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{x.sub}</p>
                     </div>
                   );
                 })}
               </div>
               {attentionList.length > 0 && (
-                <div className="mt-3 rounded-md border border-border bg-muted/40 p-2.5">
-                  <p className="text-[11px] font-semibold text-foreground">Needs attention</p>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                    {attentionList.slice(0, 5).map(a => (
-                      <span key={a.id} className="text-[11px] text-muted-foreground">
-                        <span className="text-foreground">{empName(a.id)}</span> · {a.absentPct.toFixed(0)}% days lost · {a.latePct.toFixed(0)}% late
-                      </span>
-                    ))}
-                    {attentionList.length > 5 && <span className="text-[11px] text-muted-foreground">+{attentionList.length - 5} more</span>}
+                <div className="-mx-4 mt-5 rounded-t-3xl bg-foreground px-4 py-5 text-background sm:-mx-6 sm:px-6">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-warning" />
+                        <p className="text-sm font-semibold">Needs attention</p>
+                      </div>
+                      <p className="mt-1 text-[11px] text-background/65">
+                        {attentionList.length} employees flagged · {attendanceInsights.absenceLed} absence-led · {attendanceInsights.latenessLed} lateness-led
+                      </p>
+                    </div>
+                    <span className="rounded-full bg-destructive px-2 py-1 text-[10px] font-semibold text-destructive-foreground">
+                      {attentionList.length} reviews
+                    </span>
                   </div>
+
+                  <div className="divide-y divide-background/15">
+                    {attentionList.slice(0, 5).map((a, index) => {
+                      const primaryIssue = a.absentPct >= a.latePct
+                        ? `${a.lost.toLocaleString("en-IN")} days lost`
+                        : `${a.late.toLocaleString("en-IN")} late arrivals`;
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 py-2.5">
+                          <span className="t-mono w-5 shrink-0 text-xs text-background/50">{index + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-semibold">{empName(a.id)}</p>
+                            <p className="mt-0.5 text-[10px] text-background/65">Primary issue: {primaryIssue}</p>
+                          </div>
+                          <div className="shrink-0 text-right t-mono text-[10px]">
+                            <p>{a.absentPct.toFixed(0)}% lost</p>
+                            <p className="text-background/65">{a.latePct.toFixed(0)}% late</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {attentionList.length > 5 && (
+                    <p className="mt-3 text-center text-[11px] font-medium text-background/70">
+                      {attentionList.length - 5} more employees need review
+                    </p>
+                  )}
                 </div>
               )}
             </>
           ) : <NoData reason="No attendance rows recorded in the selected range." />}
-          <Source>attendance engine daily rollup (hr_attendance_daily) · {attStats.considered} marked day-rows; {attStats.noData} rows with no device data excluded · deltas compare the same-length window before this range</Source>
         </CardContent>
       </Card>
 

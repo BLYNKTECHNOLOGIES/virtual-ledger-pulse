@@ -24,7 +24,7 @@ import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityD
 import {
   useDeleteSeatCapacity,
   useSeatCapacity,
-  useStaffingMatrix,
+  useSeatOccupancy,
   useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
 import { EMPTY_FILTERS, type WorkforceFilterState } from "@/lib/hrms/workforce";

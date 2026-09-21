@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
@@ -89,11 +90,11 @@ export default function PositionsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["hr_positions"] });
-      toast.success("Status updated");
+      toast.success("Position status updated");
     },
   });
 
-  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", description: "" }); };
+  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", description: "", is_active: true }); };
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
@@ -101,16 +102,24 @@ export default function PositionsPage() {
   const jdForPosition = (positionId: string) =>
     (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
 
+  const activeCount = (positions || []).filter((p: any) => p.is_active !== false).length;
+  const tentativeCount = (positions || []).length - activeCount;
+
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
-    return p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
+    const matchesTerm =
+      p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
+    const isActive = (p as any).is_active !== false;
+    const matchesStatus =
+      statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive);
+    return matchesTerm && matchesStatus;
   });
 
   return (
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Positions"
-        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""} · ${(jobDescriptions || []).length} job descriptions available`}
+        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""} · ${activeCount} active in the organisation · ${tentativeCount} tentative · ${(jobDescriptions || []).length} job descriptions available`}
         actions={
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <Button variant="outline" className="h-9 w-full sm:w-auto" onClick={() => setLibraryOpen(true)}>
@@ -118,7 +127,7 @@ export default function PositionsPage() {
               JD Library
             </Button>
             <Button
-              onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
+              onClick={() => { setForm({ title: "", department_id: "", description: "", is_active: true }); setEditId(null); setAddOpen(true); }}
               className="h-9 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
@@ -141,6 +150,26 @@ export default function PositionsPage() {
         />
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        {([
+          { key: "all", label: `All (${(positions || []).length})` },
+          { key: "active", label: `Active in organisation (${activeCount})` },
+          { key: "tentative", label: `Tentative (${tentativeCount})` },
+        ] as const).map((chip) => (
+          <button
+            key={chip.key}
+            onClick={() => setStatusFilter(chip.key)}
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+              statusFilter === chip.key
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
       {isLoading ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -155,7 +184,7 @@ export default function PositionsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm({ title: "", department_id: "", description: "", is_active: true }); setEditId(null); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Position
@@ -202,18 +231,23 @@ export default function PositionsPage() {
               <td className="py-3 px-4">
                 <button
                   onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  title={
+                    p.is_active
+                      ? "Active in the organisation — filled or actively being filled. Click to mark tentative."
+                      : "Tentative — planned on paper, not being filled right now. Click to mark active."
+                  }
                   className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
                     p.is_active
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                      : "bg-destructive/10 text-destructive border-destructive/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                   }`}
                 >
-                  {p.is_active ? "Active" : "Inactive"}
+                  {p.is_active ? "Active" : "Tentative"}
                 </button>
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
+                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                     className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
                   <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                     className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -236,10 +270,10 @@ export default function PositionsPage() {
                   className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
                     p.is_active
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
-                      : "bg-destructive/10 text-destructive border-destructive/20"
+                      : "bg-amber-500/10 text-amber-600 border-amber-500/20"
                   }`}
                 >
-                  {p.is_active ? "Active" : "Inactive"}
+                  {p.is_active ? "Active" : "Tentative"}
                 </button>
               </div>
               {p.description && <p className="text-sm text-muted-foreground break-words">{p.description}</p>}
@@ -255,7 +289,7 @@ export default function PositionsPage() {
                 )}
                 <div className="flex items-center gap-1">
 
-                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
+                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                   className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
@@ -291,6 +325,19 @@ export default function PositionsPage() {
               <option value="">Select</option>
               {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
+          </div>
+          <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-3">
+            <div className="min-w-0">
+              <Label className="text-sm">Active in the organisation</Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                On means this role exists today — filled, or a seat we are actively filling. Off marks it
+                tentative: planned on paper, not being filled right now.
+              </p>
+            </div>
+            <Switch
+              checked={form.is_active}
+              onCheckedChange={(v) => setForm({ ...form, is_active: v })}
+            />
           </div>
           <div>
             <Label>Description</Label>

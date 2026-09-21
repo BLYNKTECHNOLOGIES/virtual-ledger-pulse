@@ -125,7 +125,7 @@ export default function PositionsPage() {
               JD Library
             </Button>
             <Button
-              onClick={() => { setForm({ title: "", department_id: "", description: "", is_active: true }); setEditId(null); setAddOpen(true); }}
+              onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setAddOpen(true); }}
               className="h-9 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
@@ -182,7 +182,7 @@ export default function PositionsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ title: "", department_id: "", description: "", is_active: true }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Position
@@ -197,7 +197,6 @@ export default function PositionsPage() {
           columns={[
             { key: "position", label: "Position" },
             { key: "department", label: "Department" },
-            { key: "description", label: "Description" },
             { key: "jd", label: "Job Description" },
             { key: "status", label: "Status" },
 
@@ -213,7 +212,6 @@ export default function PositionsPage() {
                 </div>
               </td>
               <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
-              <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">{p.description || "—"}</td>
               <td className="py-3 px-4">
                 {jdForPosition(p.id) ? (
                   <Button variant="outline" className="h-7 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
@@ -245,7 +243,7 @@ export default function PositionsPage() {
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
+                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                     className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
                   <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                     className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -274,7 +272,6 @@ export default function PositionsPage() {
                   {p.is_active ? "Active" : "Tentative"}
                 </button>
               </div>
-              {p.description && <p className="text-sm text-muted-foreground break-words">{p.description}</p>}
               <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
                 {jdForPosition(p.id) ? (
                   <Button variant="outline" className="h-8 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
@@ -287,7 +284,7 @@ export default function PositionsPage() {
                 )}
                 <div className="flex items-center gap-1">
 
-                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
+                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                   className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>

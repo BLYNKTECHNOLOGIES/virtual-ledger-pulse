@@ -331,19 +331,9 @@ export default function PositionsPage() {
               {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-3">
-            <div className="min-w-0">
-              <Label className="text-sm">Active in the organisation</Label>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                On means this role exists today — filled, or a seat we are actively filling. Off marks it
-                tentative: planned on paper, not being filled right now.
-              </p>
-            </div>
-            <Switch
-              checked={form.is_active}
-              onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-            />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            New positions start Active. Use the switch in the list to mark a role tentative (planned on paper, not being filled right now).
+          </p>
         </div>
       </ResponsiveDialog>
 

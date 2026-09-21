@@ -88,8 +88,11 @@ function renderTemplate(template: string, order: BinanceOrder, verifiedName?: st
     .replace(/\{\{unitPrice\}\}/g, order.unitPrice)
     .replace(/\{\{asset\}\}/g, order.asset || "USDT")
     .replace(/\{\{fiat\}\}/g, order.fiatUnit || "INR")
-    .replace(/\s*\{\{counterparty\}\}\s*/g, name ? ` ${name} ` : " ")
-    .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A");
+    .replace(/\{\{counterparty\}\}/g, name || "")
+    .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A")
+    .replace(/\s+([.,!?])/g, "$1")
+    .replace(/ {2,}/g, " ")
+    .trim();
 }
 
 function detectTriggerEvents(order: BinanceOrder): string[] {

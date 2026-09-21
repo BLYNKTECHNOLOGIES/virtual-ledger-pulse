@@ -95,6 +95,10 @@ export default function PositionsPage() {
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
+  const { data: jobDescriptions } = useJobDescriptions();
+  const jdForPosition = (positionId: string) =>
+    (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
+
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
     return p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
@@ -104,17 +108,24 @@ export default function PositionsPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Positions"
-        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""}`}
+        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""} · ${(jobDescriptions || []).length} job descriptions available`}
         actions={
-          <Button
-            onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
-            className="h-9 w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Add Position
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button variant="outline" className="h-9 w-full sm:w-auto" onClick={() => setLibraryOpen(true)}>
+              <Library className="h-4 w-4" />
+              JD Library
+            </Button>
+            <Button
+              onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
+              className="h-9 w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Add Position
+            </Button>
+          </div>
         }
       />
+
 
       {/* Search bar */}
       <div className="flex items-center bg-card rounded-lg border border-border h-9 px-3 w-full max-w-sm">

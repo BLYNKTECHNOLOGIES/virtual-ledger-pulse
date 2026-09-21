@@ -106,8 +106,7 @@ export default function PositionsPage() {
 
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
-    const matchesTerm =
-      p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
+    const matchesTerm = p.title.toLowerCase().includes(term);
     const isActive = (p as any).is_active !== false;
     const matchesStatus =
       statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive);

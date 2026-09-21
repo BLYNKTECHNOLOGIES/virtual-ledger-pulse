@@ -121,7 +121,7 @@ export default function CapacitySeatsPage() {
     <div className="space-y-4 p-3 md:p-6">
       <PageHeader
         title="Capacity & seats"
-        description="Desks, workstations and how many of them are occupied. Seats are tracked separately from sanctioned and required headcount — they are never mixed together."
+        description="Desks, workstations and how many of them are in use. Desks are shared across shifts, so occupancy counts the busiest single shift, not everyone on roll added together. Desks are tracked separately from sanctioned and required headcount."
         actions={
           canManage && (
             <Button onClick={() => setDialog({ open: true })}>
@@ -202,7 +202,17 @@ export default function CapacitySeatsPage() {
                         <td className="px-3 py-2 text-right tabular-nums">
                           {s.max_operational_capacity ?? "—"}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">{s.currentOccupancy}</td>
+                        <td
+                          className="px-3 py-2 text-right tabular-nums"
+                          title={`${s.totalOnRoll} on roll across all shifts`}
+                        >
+                          {s.currentOccupancy}
+                          {s.totalOnRoll !== s.currentOccupancy && (
+                            <span className="ml-1 text-xs text-muted-foreground">
+                              / {s.totalOnRoll}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-right tabular-nums">{s.availableSeats}</td>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2">
@@ -283,7 +293,14 @@ export default function CapacitySeatsPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Occupied</p>
-                      <p className="font-semibold text-foreground">{s.currentOccupancy}</p>
+                      <p className="font-semibold text-foreground">
+                        {s.currentOccupancy}
+                        {s.totalOnRoll !== s.currentOccupancy && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            / {s.totalOnRoll}
+                          </span>
+                        )}
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Utilisation</p>

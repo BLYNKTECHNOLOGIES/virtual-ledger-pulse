@@ -68,12 +68,12 @@ export function useSeatOccupancy() {
       const { data, error } = await supabase
         .from("hr_employee_work_info")
         .select(
-          "department_id, job_position_id, shift_id, hr_employees!inner(id, is_active, resignation_status)",
+          "department_id, job_position_id, shift_id, employee:hr_employees!hr_employee_work_info_employee_id_fkey!inner(id, is_active, resignation_status)",
         )
-        .eq("hr_employees.is_active", true);
+        .eq("employee.is_active", true);
       if (error) throw error;
       return (data || []).filter(
-        (r: any) => (r.hr_employees?.resignation_status ?? "") !== "completed",
+        (r: any) => (r.employee?.resignation_status ?? "") !== "completed",
       );
     },
     staleTime: STALE,

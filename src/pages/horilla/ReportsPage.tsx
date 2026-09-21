@@ -720,6 +720,39 @@ export default function ReportsPage() {
         deptOf={deptOf}
         empBadge={(id) => (empById.get(id) as any)?.badge_id || "—"}
       />
+
+      <Dialog open={attentionOpen} onOpenChange={setAttentionOpen}>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-base">Employees needing review</DialogTitle>
+            <DialogDescription>
+              {attentionList.length} flagged · {attendanceInsights.absenceLed} absence-led · {attendanceInsights.latenessLed} lateness-led · {reportRangeLabel}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto pr-1">
+            {attentionList.map((a, index) => {
+              const primaryIssue = a.absentPct >= a.latePct
+                ? `${a.lost.toLocaleString("en-IN")} days lost`
+                : `${a.late.toLocaleString("en-IN")} late arrivals`;
+              return (
+                <div key={a.id} className="flex items-center gap-3 py-2.5">
+                  <span className="t-mono w-6 shrink-0 text-xs text-muted-foreground">{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{empName(a.id)}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {deptOf(a.id)} · Primary issue: {primaryIssue}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right t-mono text-[11px] text-foreground">
+                    <p>{a.absentPct.toFixed(0)}% lost</p>
+                    <p className="text-muted-foreground">{a.latePct.toFixed(0)}% late</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

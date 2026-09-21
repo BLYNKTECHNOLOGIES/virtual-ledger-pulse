@@ -21,7 +21,7 @@ export default function PositionsPage() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", department_id: "", description: "", is_active: true });
+  const [form, setForm] = useState({ title: "", department_id: "", is_active: true });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "tentative">("all");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -51,7 +51,6 @@ export default function PositionsPage() {
       const payload = {
         title: form.title,
         department_id: form.department_id || null,
-        description: form.description || null,
         is_active: form.is_active,
       };
       if (editId) {
@@ -94,7 +93,7 @@ export default function PositionsPage() {
     },
   });
 
-  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", description: "", is_active: true }); };
+  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", is_active: true }); };
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
@@ -107,8 +106,7 @@ export default function PositionsPage() {
 
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
-    const matchesTerm =
-      p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
+    const matchesTerm = p.title.toLowerCase().includes(term);
     const isActive = (p as any).is_active !== false;
     const matchesStatus =
       statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive);
@@ -127,7 +125,7 @@ export default function PositionsPage() {
               JD Library
             </Button>
             <Button
-              onClick={() => { setForm({ title: "", department_id: "", description: "", is_active: true }); setEditId(null); setAddOpen(true); }}
+              onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setAddOpen(true); }}
               className="h-9 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
@@ -184,7 +182,7 @@ export default function PositionsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ title: "", department_id: "", description: "", is_active: true }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm({ title: "", department_id: "", is_active: true }); setEditId(null); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Position
@@ -199,7 +197,6 @@ export default function PositionsPage() {
           columns={[
             { key: "position", label: "Position" },
             { key: "department", label: "Department" },
-            { key: "description", label: "Description" },
             { key: "jd", label: "Job Description" },
             { key: "status", label: "Status" },
 
@@ -215,7 +212,6 @@ export default function PositionsPage() {
                 </div>
               </td>
               <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
-              <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">{p.description || "—"}</td>
               <td className="py-3 px-4">
                 {jdForPosition(p.id) ? (
                   <Button variant="outline" className="h-7 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
@@ -229,25 +225,31 @@ export default function PositionsPage() {
               </td>
 
               <td className="py-3 px-4">
-                <button
-                  onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                <div
+                  className="flex items-center gap-2"
                   title={
                     p.is_active
-                      ? "Active in the organisation — filled or actively being filled. Click to mark tentative."
-                      : "Tentative — planned on paper, not being filled right now. Click to mark active."
+                      ? "Active in the organisation — filled or actively being filled. Switch off to mark tentative."
+                      : "Tentative — planned on paper, not being filled right now. Switch on to mark active."
                   }
-                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                >
+                  <Switch
+                    checked={p.is_active !== false}
+                    disabled={toggleActiveMutation.isPending}
+                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  />
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
-                >
-                  {p.is_active ? "Active" : "Tentative"}
-                </button>
+                  }`}>
+                    {p.is_active ? "Active" : "Tentative"}
+                  </span>
+                </div>
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1">
-                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
+                  <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                     className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
                   <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                     className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -265,18 +267,21 @@ export default function PositionsPage() {
                     <p className="text-xs text-muted-foreground break-words">{getDeptName(p.department_id)}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
-                  className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                <div className="flex items-center gap-2 shrink-0">
+                  <Switch
+                    checked={p.is_active !== false}
+                    disabled={toggleActiveMutation.isPending}
+                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  />
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
-                >
-                  {p.is_active ? "Active" : "Tentative"}
-                </button>
+                  }`}>
+                    {p.is_active ? "Active" : "Tentative"}
+                  </span>
+                </div>
               </div>
-              {p.description && <p className="text-sm text-muted-foreground break-words">{p.description}</p>}
               <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
                 {jdForPosition(p.id) ? (
                   <Button variant="outline" className="h-8 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
@@ -289,7 +294,7 @@ export default function PositionsPage() {
                 )}
                 <div className="flex items-center gap-1">
 
-                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
+                <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                   className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
@@ -326,27 +331,9 @@ export default function PositionsPage() {
               {departments?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
             </select>
           </div>
-          <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-muted/30 p-3">
-            <div className="min-w-0">
-              <Label className="text-sm">Active in the organisation</Label>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                On means this role exists today — filled, or a seat we are actively filling. Off marks it
-                tentative: planned on paper, not being filled right now.
-              </p>
-            </div>
-            <Switch
-              checked={form.is_active}
-              onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-            />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="mt-1 min-h-[76px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            New positions start Active. Use the switch in the list to mark a role tentative (planned on paper, not being filled right now).
+          </p>
         </div>
       </ResponsiveDialog>
 

@@ -241,7 +241,18 @@ export default function PositionsPage() {
                 </button>
               </div>
               {p.description && <p className="text-sm text-muted-foreground break-words">{p.description}</p>}
-              <div className="flex items-center justify-end gap-1 border-t border-border pt-2">
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+                {jdForPosition(p.id) ? (
+                  <Button variant="outline" className="h-8 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
+                    <FileText className="h-3.5 w-3.5" /> View JD
+                  </Button>
+                ) : (
+                  <button onClick={() => setLibraryOpen(true)} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+                    Link JD
+                  </button>
+                )}
+                <div className="flex items-center gap-1">
+
                 <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}

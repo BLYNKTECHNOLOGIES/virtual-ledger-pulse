@@ -143,7 +143,15 @@ export default function DataHealthPage() {
   );
   const [scanning, setScanning] = useState(false);
   const [scanSignal, setScanSignal] = useState(0);
-  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
+  const markResolving = (id: string) =>
+    setResolvingIds((prev) => new Set(prev).add(id));
+  const clearResolving = (id: string) =>
+    setResolvingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   const [pullTarget, setPullTarget] = useState<PullTarget | null>(null);
   const [esslDeleteTarget, setEsslDeleteTarget] = useState<Drift | null>(null);
   const [pulling, setPulling] = useState(false);
@@ -379,7 +387,7 @@ export default function DataHealthPage() {
       toast.info("This field has no automated push route — resolve manually in Razorpay.");
       return;
     }
-    setResolvingId(drift.id);
+    markResolving(drift.id);
     try {
       const res = await push(drift.hr_employee_id);
       if (res?.ok) {
@@ -423,14 +431,14 @@ export default function DataHealthPage() {
     } catch (e: any) {
       toast.error(`Push verification failed: ${e?.message || e}`);
     } finally {
-      setResolvingId(null);
+      clearResolving(drift.id);
     }
   }
 
   // Push HRMS value into eSSL biometric devices. Roster drift is closed only
   // after the device ACKs the command (webhook mirrors the change).
   async function adoptEssl(drift: Drift) {
-    setResolvingId(drift.id);
+    markResolving(drift.id);
     try {
       const isInactive = drift.field === "active_state" && !drift.is_active;
       const res = isInactive
@@ -447,7 +455,7 @@ export default function DataHealthPage() {
         qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
       }
     } finally {
-      setResolvingId(null);
+      clearResolving(drift.id);
     }
   }
 
@@ -456,7 +464,7 @@ export default function DataHealthPage() {
   // We never trust the claim: re-read RazorpayX live and close the card only
   // when the fresh snapshot actually matches HRMS.
   async function verifyManualRazorpayUpdate(drift: Drift) {
-    setResolvingId(drift.id);
+    markResolving(drift.id);
     try {
       const { data: scan, error: scanError } = await supabase.functions.invoke("hr-drift-scan", {
         body: { employee_id: drift.hr_employee_id, max_age_hours: 0 },
@@ -504,7 +512,7 @@ export default function DataHealthPage() {
     } catch (e: any) {
       toast.error(`Verification failed: ${e?.message || e}`);
     } finally {
-      setResolvingId(null);
+      clearResolving(drift.id);
     }
   }
 
@@ -513,7 +521,7 @@ export default function DataHealthPage() {
   // hidden until HRMS or RazorpayX (or eSSL) actually changes that value.
   async function markResolved(drift: Drift, note: string) {
 
-    setResolvingId(drift.id);
+    markResolving(drift.id);
     try {
       const { data: userData } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
@@ -535,7 +543,7 @@ export default function DataHealthPage() {
       toast.success("Marked resolved — it will only come back if either value changes");
       qc.invalidateQueries({ queryKey: ["data_health_drifts"] });
     } finally {
-      setResolvingId(null);
+      clearResolving(drift.id);
     }
   }
 
@@ -759,7 +767,7 @@ export default function DataHealthPage() {
                       const canPull = PULLABLE_FIELDS.has(d.field) && (d.systems_involved || []).includes("razorpay");
                       const esslRemoval = d.field === "active_state" && !d.is_active;
                       const canEssl = ESSL_PUSHABLE_FIELDS.has(d.field);
-                      const busy = resolvingId === d.id;
+                      const busy = resolvingIds.has(d.id);
 
 
                       return (

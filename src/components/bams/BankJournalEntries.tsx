@@ -1,5 +1,6 @@
 
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExpensesIncomesTab } from "./journal/ExpensesIncomesTab";
@@ -8,6 +9,8 @@ import { DirectoryTab } from "./journal/DirectoryTab";
 import { BookOpen, TrendingUp, ArrowRightLeft, List } from "lucide-react";
 
 export function BankJournalEntries() {
+  const [searchParams] = useSearchParams();
+  const initialSubTab = searchParams.get("journalView") === "opex" ? "directory" : "expenses-incomes";
   return (
     <div className="space-y-6">
       <div className="flex items-center">
@@ -19,7 +22,7 @@ export function BankJournalEntries() {
 
       <Card className="shadow-sm">
         <CardContent className="p-6">
-          <Tabs defaultValue="expenses-incomes" className="space-y-6">
+          <Tabs defaultValue={initialSubTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="expenses-incomes" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />

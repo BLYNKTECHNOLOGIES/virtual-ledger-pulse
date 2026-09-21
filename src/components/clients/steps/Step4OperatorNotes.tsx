@@ -13,7 +13,7 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
     <div className="space-y-6">
       <div className="text-center">
         <h3 className="text-lg font-semibold text-foreground mb-2">Review & Add Notes</h3>
-        <p className="text-muted-foreground">Review the client information and add any operator notes</p>
+        <p className="text-muted-foreground">Review the client information and add any Operations Associate notes</p>
       </div>
 
       {/* Summary Cards */}
@@ -75,9 +75,9 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
         </Card>
       </div>
 
-      {/* Operator Notes */}
+      {/* Operations Associate Notes */}
       <div className="space-y-3">
-        <Label htmlFor="operator_notes">Operator Notes</Label>
+        <Label htmlFor="operator_notes">Operations Associate Notes</Label>
         <Textarea
           id="operator_notes"
           value={formData.operator_notes || ''}
@@ -87,7 +87,7 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
           className="resize-none"
         />
         <p className="text-sm text-muted-foreground">
-          These notes will be visible to all operators and can include information about client preferences, 
+          These notes will be visible to all Operations Associates and can include information about client preferences, 
           special requirements, risk assessments, or any other relevant details.
         </p>
       </div>
@@ -114,7 +114,7 @@ export function Step4OperatorNotes({ formData, setFormData }: Step4OperatorNotes
                 <li>{formData.email ? '✓' : '○'} Email address</li>
                 <li>{formData.phone ? '✓' : '○'} Phone number</li>
                 <li>{formData.linked_bank_accounts?.length > 0 ? '✓' : '○'} Bank accounts</li>
-                <li>{formData.operator_notes ? '✓' : '○'} Operator notes</li>
+                <li>{formData.operator_notes ? '✓' : '○'} Operations Associate notes</li>
               </ul>
             </div>
           </div>

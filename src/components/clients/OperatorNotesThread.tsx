@@ -109,7 +109,7 @@ export function OperatorNotesThread({ clientId, legacyNote }: OperatorNotesThrea
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <MessageSquare className="h-5 w-5" />
-          Operator Notes
+          Operations Associate Notes
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

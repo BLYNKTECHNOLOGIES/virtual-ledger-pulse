@@ -96,7 +96,7 @@ interface OperatorProfile {
 function getRoleType(roleName: string): 'payer' | 'operator' | 'admin' | 'hybrid' {
   const name = roleName.toLowerCase();
   const isPayer = name.includes('payer');
-  const isOperator = name.includes('operator');
+  const isOperator = name.includes('operator') || name.includes('operations associate');
   if (isPayer && isOperator) return 'hybrid';
   if (name.includes('super') || name.includes('admin') || name.includes('coo')) return 'admin';
   if (isPayer) return 'payer';
@@ -107,7 +107,7 @@ function getRoleBadgeClass(roleName: string) {
   const name = roleName.toLowerCase();
   if (name.includes('super')) return 'bg-warning/20 text-warning border-warning/30';
   if (name.includes('admin') || name.includes('coo')) return 'bg-info/20 text-info border-info/30';
-  if (name.includes('payer') && name.includes('operator')) return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
+  if (name.includes('payer') && (name.includes('operator') || name.includes('operations associate'))) return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
   if (name.includes('payer')) return 'bg-primary/20 text-primary border-primary/30';
   return 'bg-primary/20 text-primary border-primary/30';
 }
@@ -277,7 +277,7 @@ function TerminalOperatorDetailContent() {
       }
 
       // Get role name
-      let roleName = 'Operator';
+      let roleName = 'Operations Associate';
       if (userRolesRes.data && userRolesRes.data.length > 0) {
         const roleIds = userRolesRes.data.map(r => r.role_id);
         const { data: roles } = await supabase.from('p2p_terminal_roles').select('name').in('id', roleIds);
@@ -1133,7 +1133,7 @@ function TerminalOperatorDetailContent() {
               <CardContent className="p-2.5 text-center">
                 <ClipboardList className="h-4 w-4 text-primary mx-auto mb-1" />
                 <div className="t-mono text-base font-semibold text-foreground">{operatorAssignData.filter(a => a.is_active).length}/{operatorAssignData.length}</div>
-                <div className="text-[8px] text-muted-foreground">Operator Assigns</div>
+                <div className="text-[8px] text-muted-foreground">Associate Assigns</div>
               </CardContent>
             </Card>
             <Card className="border-border bg-card border-l-2 border-l-cyan-500">
@@ -1194,12 +1194,12 @@ function TerminalOperatorDetailContent() {
             </Card>
           )}
 
-          {/* Operator Assignments Table */}
+          {/* Operations Associate Assignments Table */}
           {operatorAssignData.length > 0 && (
             <Card className="border-border bg-card">
               <CardHeader className="pb-2 px-3 pt-3">
                 <CardTitle className="text-xs flex items-center gap-2">
-                  <ClipboardList className="h-3.5 w-3.5 text-primary" /> Operator Assignments
+                  <ClipboardList className="h-3.5 w-3.5 text-primary" /> Operations Associate Assignments
                   <Badge variant="outline" className="text-[9px]">{operatorAssignData.length}</Badge>
                 </CardTitle>
               </CardHeader>
@@ -1523,12 +1523,12 @@ function TerminalOperatorDetailContent() {
             </Card>
           )}
 
-          {/* Operator assignments table */}
+          {/* Operations Associate assignments table */}
           {recentAssignments.length > 0 && (
             <Card className="border-border bg-card">
               <CardContent className="p-3">
                 <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                  <Package className="h-3.5 w-3.5 text-primary" /> {isPayer ? 'Operator Assignments' : 'All Assignments'} ({recentAssignments.length})
+                  <Package className="h-3.5 w-3.5 text-primary" /> {isPayer ? 'Operations Associate Assignments' : 'All Assignments'} ({recentAssignments.length})
                 </h4>
                 <div className="overflow-x-auto -mx-1">
                   <table className="w-full text-[10px] sm:text-[11px]">

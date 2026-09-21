@@ -275,7 +275,7 @@ export const TERMINAL_TIER_SWITCH_STYLES: Record<TerminalPermissionTier, string>
 // ─── Terminal role template presets ──────────────────────────────────────────
 export const TERMINAL_ROLE_TEMPLATES: Record<string, { label: string; permissions: TerminalPermission[] }> = {
   operator: {
-    label: 'Operator',
+    label: 'Operations Associate',
     permissions: [
       'terminal_dashboard_view', 'terminal_orders_view', 'terminal_orders_actions',
       'terminal_orders_chat', 'terminal_orders_escalate', 'terminal_ads_view',

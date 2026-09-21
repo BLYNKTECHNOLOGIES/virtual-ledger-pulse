@@ -214,7 +214,7 @@ export function PurposeCommunication({ clientId }: PurposeCommunicationProps) {
 
         <div>
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-muted-foreground">Operator Notes</label>
+            <label className="text-sm font-medium text-muted-foreground">Operations Associate Notes</label>
             <PermissionGate permissions={["clients_manage"]} showFallback={false}>
               {!isEditingNotes && (
                 <Button size="sm" variant="ghost" onClick={handleNotesEdit}>

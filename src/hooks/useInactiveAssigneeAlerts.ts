@@ -138,7 +138,7 @@ export function useInactiveAssigneeAlerts() {
         const operatorAssigned = ((operatorRes.data || []) as any[]).some(a => a.operator_user_id === offlineUid);
         const roles: string[] = [];
         if (payerAssigned) roles.push('Payer');
-        if (operatorAssigned) roles.push('Operator');
+        if (operatorAssigned) roles.push('Operations Associate');
 
         for (const ancestorId of ancestors) {
           // Use SECURITY DEFINER RPC (handles dedup internally)

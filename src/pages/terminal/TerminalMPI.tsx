@@ -128,7 +128,7 @@ function getRoleBadgeClass(roleName: string) {
   const name = roleName.toLowerCase();
   if (name.includes('super')) return 'bg-warning/20 text-warning border-warning/30';
   if (name.includes('admin') || name.includes('coo')) return 'bg-info/20 text-info border-info/30';
-  if (name.includes('payer') && name.includes('operator')) return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
+  if (name.includes('payer') && (name.includes('operator') || name.includes('operations associate'))) return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
   if (name.includes('payer')) return 'bg-primary/20 text-primary border-primary/30';
   if (name.includes('viewer')) return 'bg-muted text-muted-foreground border-border';
   return 'bg-primary/20 text-primary border-primary/30';
@@ -452,7 +452,7 @@ export default function TerminalMPI() {
     if (viewLevel === 'all') return metrics;
     return metrics.filter(m => {
       const name = m.roleName.toLowerCase();
-      if (viewLevel === 'operators') return name.includes('operator');
+      if (viewLevel === 'operators') return name.includes('operator') || name.includes('operations associate');
       if (viewLevel === 'payers') return name.includes('payer');
       if (viewLevel === 'admins') return name.includes('admin') || name.includes('super') || name.includes('coo');
       return true;
@@ -511,7 +511,7 @@ export default function TerminalMPI() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="operators">Operators</SelectItem>
+                <SelectItem value="operators">Operations Associates</SelectItem>
                 <SelectItem value="payers">Payers</SelectItem>
                 <SelectItem value="admins">Admins</SelectItem>
               </SelectContent>
@@ -609,12 +609,12 @@ export default function TerminalMPI() {
           </CardContent>
         </Card>
 
-        {/* Volume by Operator */}
+        {/* Volume by Operations Associate */}
         <Card className="border-border bg-card sm:col-span-1 lg:col-span-2">
           <CardHeader className="pb-2 px-3 pt-3">
             <CardTitle className="text-xs sm:text-sm flex items-center gap-2">
               <TrendingUp className="h-3.5 w-3.5 text-primary" />
-              Volume by Operator
+              Volume by Operations Associate
             </CardTitle>
           </CardHeader>
           <CardContent className="px-3 pb-3">
@@ -670,12 +670,12 @@ export default function TerminalMPI() {
         </Card>
       </div>
 
-      {/* Operator Performance Cards */}
+      {/* Operations Associate Performance Cards */}
       <div>
         <div className="flex items-center justify-between mb-2 sm:mb-3">
           <h3 className="text-xs sm:text-sm font-semibold text-foreground flex items-center gap-2">
             <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
-            Operator Performance
+            Operations Associate Performance
             <Badge variant="outline" className="text-[8px] sm:text-[9px] ml-1">{filteredMetrics.length} users</Badge>
           </h3>
         </div>
@@ -689,7 +689,7 @@ export default function TerminalMPI() {
             ))
           ) : filteredMetrics.length === 0 ? (
             <div className="col-span-full text-center py-12 text-sm text-muted-foreground">
-              No operator data available for this period.
+              No Operations Associate data available for this period.
             </div>
           ) : (
             filteredMetrics.map((m, idx) => (
@@ -829,7 +829,7 @@ export default function TerminalMPI() {
                           </TooltipTrigger>
                           <TooltipContent>
                             <div className="text-xs space-y-0.5">
-                              <p>Operator: {m.operatorAssignments.active} active / {m.operatorAssignments.total} total</p>
+                              <p>Operations Associate: {m.operatorAssignments.active} active / {m.operatorAssignments.total} total</p>
                               {m.operatorAssignments.sizeRanges.length > 0 && <p>Ranges: {m.operatorAssignments.sizeRanges.join(', ')}</p>}
                               {m.operatorAssignments.adIds.length > 0 && <p>Ads: {m.operatorAssignments.adIds.length}</p>}
                             </div>

@@ -166,7 +166,7 @@ export function ChatBubble({ message, teachEnabled, onPin, onBlacklist }: ChatBu
           <p className={`text-[9px] font-semibold mb-0.5 ${
             isOperator ? 'text-primary' : 'text-trade-pending'
           }`}>
-            {isOperator ? (message.senderName || 'Operator') : 'Counterparty'}
+            {isOperator ? (message.senderName || 'Operations Associate') : 'Counterparty'}
           </p>
 
           {message.imageUrl && !imgError && (

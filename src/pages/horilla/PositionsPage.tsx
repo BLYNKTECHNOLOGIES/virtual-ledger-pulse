@@ -20,8 +20,9 @@ export default function PositionsPage() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", department_id: "", description: "" });
+  const [form, setForm] = useState({ title: "", department_id: "", description: "", is_active: true });
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "tentative">("all");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [viewingJd, setViewingJd] = useState<JobDescriptionRow | null>(null);
@@ -50,6 +51,7 @@ export default function PositionsPage() {
         title: form.title,
         department_id: form.department_id || null,
         description: form.description || null,
+        is_active: form.is_active,
       };
       if (editId) {
         const { data, error } = await supabase.from("positions").update(payload).eq("id", editId).select("id");

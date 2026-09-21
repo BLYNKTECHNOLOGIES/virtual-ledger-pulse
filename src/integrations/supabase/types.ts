@@ -12027,6 +12027,88 @@ export type Database = {
           },
         ]
       }
+      hr_headcount_plans: {
+        Row: {
+          approved_hc: number
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          effective_from: string
+          employment_type: string | null
+          id: string
+          is_active: boolean
+          location: string | null
+          notes: string | null
+          position_id: string | null
+          priority: string
+          required_hc: number
+          shift_id: string | null
+          shift_label: string | null
+          target_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_hc?: number
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          effective_from?: string
+          employment_type?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          notes?: string | null
+          position_id?: string | null
+          priority?: string
+          required_hc?: number
+          shift_id?: string | null
+          shift_label?: string | null
+          target_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_hc?: number
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          effective_from?: string
+          employment_type?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          notes?: string | null
+          position_id?: string | null
+          priority?: string
+          required_hc?: number
+          shift_id?: string | null
+          shift_label?: string | null
+          target_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_headcount_plans_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_headcount_plans_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_headcount_plans_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_helpdesk_tickets: {
         Row: {
           assigned_to: string | null
@@ -12168,6 +12250,186 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_freshness"
             referencedColumns: ["hr_employee_id"]
+          },
+        ]
+      }
+      hr_hiring_requirements: {
+        Row: {
+          approved_at: string | null
+          approver_id: string | null
+          approver_name: string | null
+          created_at: string
+          department_id: string | null
+          employment_type: string | null
+          experience_required: string | null
+          id: string
+          location: string | null
+          notes: string | null
+          number_required: number
+          position_id: string | null
+          positions_filled: number
+          priority: string
+          reason: string
+          reason_notes: string | null
+          recruitment_id: string | null
+          rejection_reason: string | null
+          replacement_employee_id: string | null
+          requested_at: string
+          requested_by: string | null
+          requested_by_name: string | null
+          required_skills: string | null
+          requirement_no: string
+          salary_max: number | null
+          salary_min: number | null
+          shift_id: string | null
+          shift_label: string | null
+          status: string
+          target_joining_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_name?: string | null
+          created_at?: string
+          department_id?: string | null
+          employment_type?: string | null
+          experience_required?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          number_required?: number
+          position_id?: string | null
+          positions_filled?: number
+          priority?: string
+          reason?: string
+          reason_notes?: string | null
+          recruitment_id?: string | null
+          rejection_reason?: string | null
+          replacement_employee_id?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_name?: string | null
+          required_skills?: string | null
+          requirement_no: string
+          salary_max?: number | null
+          salary_min?: number | null
+          shift_id?: string | null
+          shift_label?: string | null
+          status?: string
+          target_joining_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string | null
+          approver_name?: string | null
+          created_at?: string
+          department_id?: string | null
+          employment_type?: string | null
+          experience_required?: string | null
+          id?: string
+          location?: string | null
+          notes?: string | null
+          number_required?: number
+          position_id?: string | null
+          positions_filled?: number
+          priority?: string
+          reason?: string
+          reason_notes?: string | null
+          recruitment_id?: string | null
+          rejection_reason?: string | null
+          replacement_employee_id?: string | null
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_name?: string | null
+          required_skills?: string | null
+          requirement_no?: string
+          salary_max?: number | null
+          salary_min?: number | null
+          shift_id?: string | null
+          shift_label?: string | null
+          status?: string
+          target_joining_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_hiring_requirements_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_recruitment_id_fkey"
+            columns: ["recruitment_id"]
+            isOneToOne: false
+            referencedRelation: "hr_recruitments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_replacement_employee_id_fkey"
+            columns: ["replacement_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -17966,6 +18228,76 @@ export type Database = {
         }
         Relationships: []
       }
+      hr_seat_capacity: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          id: string
+          is_active: boolean
+          location: string | null
+          max_operational_capacity: number | null
+          notes: string | null
+          physical_seats: number
+          position_id: string | null
+          shift_id: string | null
+          shift_label: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          max_operational_capacity?: number | null
+          notes?: string | null
+          physical_seats?: number
+          position_id?: string | null
+          shift_id?: string | null
+          shift_label?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          is_active?: boolean
+          location?: string | null
+          max_operational_capacity?: number | null
+          notes?: string | null
+          physical_seats?: number
+          position_id?: string | null
+          shift_id?: string | null
+          shift_label?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_seat_capacity_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_seat_capacity_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_seat_capacity_shift_id_fkey"
+            columns: ["shift_id"]
+            isOneToOne: false
+            referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_shadow_component_breakdown: {
         Row: {
           amount: number
@@ -18867,6 +19199,83 @@ export type Database = {
           is_alternating?: boolean | null
           name?: string
           weekly_offs?: number[]
+        }
+        Relationships: []
+      }
+      hr_workforce_forecast_assumptions: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          expected_monthly_attrition_pct: number
+          id: string
+          notes: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          expected_monthly_attrition_pct?: number
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          expected_monthly_attrition_pct?: number
+          id?: string
+          notes?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_workforce_forecast_assumptions_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hr_workforce_plan_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          changed_by_name: string | null
+          entity: string
+          entity_id: string | null
+          field_changed: string | null
+          id: string
+          new_value: string | null
+          old_value: string | null
+          reason: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          entity: string
+          entity_id?: string | null
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          changed_by_name?: string | null
+          entity?: string
+          entity_id?: string | null
+          field_changed?: string | null
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          reason?: string | null
         }
         Relationships: []
       }
@@ -31735,6 +32144,17 @@ export type Database = {
         Args: { p_employee_id?: string; p_from: string; p_to: string }
         Returns: number
       }
+      hr_hiring_requirement_progress: {
+        Args: { p_requirement_id: string }
+        Returns: {
+          applied: number
+          interview: number
+          joined: number
+          joining_pending: number
+          screened: number
+          selected: number
+        }[]
+      }
       hr_is_contractor: { Args: { _employee_id: string }; Returns: boolean }
       hr_is_holiday: { Args: { p_date: string }; Returns: boolean }
       hr_is_hr_admin: { Args: never; Returns: boolean }
@@ -31997,6 +32417,7 @@ export type Database = {
         }
       }
       hr_new_joiner_check_sweep: { Args: never; Returns: number }
+      hr_next_hiring_requirement_no: { Args: never; Returns: string }
       hr_next_razorpay_employee_id: { Args: never; Returns: string }
       hr_normalize_pay_head: { Args: { p_label: string }; Returns: string }
       hr_notify: {
@@ -32153,6 +32574,10 @@ export type Database = {
           installment_no: number
           period_month: string
         }[]
+      }
+      hr_send_requirement_to_recruitment: {
+        Args: { p_requirement_id: string }
+        Returns: string
       }
       hr_set_manual_day_status: {
         Args: {
@@ -32355,6 +32780,44 @@ export type Database = {
         }[]
       }
       hr_withdraw_holiday_credits: { Args: { p_date: string }; Returns: Json }
+      hr_workforce_staffing_matrix: {
+        Args: never
+        Returns: {
+          approved_hc: number
+          current_hc: number
+          department_id: string
+          department_name: string
+          employment_type: string
+          location: string
+          notice_period_hc: number
+          open_requirement_count: number
+          open_requirement_hc: number
+          pending_joining_hc: number
+          physical_seats: number
+          pipeline_hc: number
+          plan_id: string
+          position_id: string
+          position_title: string
+          priority: string
+          required_hc: number
+          selected_hc: number
+          shift_id: string
+          shift_name: string
+          target_date: string
+        }[]
+      }
+      hr_workforce_unplanned_scopes: {
+        Args: never
+        Returns: {
+          current_hc: number
+          department_id: string
+          department_name: string
+          position_id: string
+          position_title: string
+          shift_id: string
+          shift_name: string
+        }[]
+      }
       indian_financial_year: { Args: { d: string }; Returns: string }
       initiate_shift_handover:
         | {

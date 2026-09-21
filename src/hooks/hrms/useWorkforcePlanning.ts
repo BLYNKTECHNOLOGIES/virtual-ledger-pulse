@@ -56,6 +56,30 @@ export function useStaffingMatrix() {
   return { ...query, rows };
 }
 
+/**
+ * People actually on roll per department, role and shift.
+ * Used for seat occupancy: a desk is shared across shifts, so the number of
+ * people sitting at once is the busiest single shift, not everyone added up.
+ */
+export function useSeatOccupancy() {
+  return useQuery({
+    queryKey: ["workforce_seat_occupancy"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("hr_employee_work_info")
+        .select(
+          "department_id, job_position_id, shift_id, hr_employees!inner(id, is_active, resignation_status)",
+        )
+        .eq("hr_employees.is_active", true);
+      if (error) throw error;
+      return (data || []).filter(
+        (r: any) => (r.hr_employees?.resignation_status ?? "") !== "completed",
+      );
+    },
+    staleTime: STALE,
+  });
+}
+
 /** Roles that hold employees but have no headcount plan yet. */
 export function useUnplannedScopes() {
   return useQuery({

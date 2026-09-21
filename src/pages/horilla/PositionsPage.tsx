@@ -21,7 +21,7 @@ export default function PositionsPage() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", department_id: "", description: "", is_active: true });
+  const [form, setForm] = useState({ title: "", department_id: "", is_active: true });
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "tentative">("all");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -51,7 +51,6 @@ export default function PositionsPage() {
       const payload = {
         title: form.title,
         department_id: form.department_id || null,
-        description: form.description || null,
         is_active: form.is_active,
       };
       if (editId) {
@@ -94,7 +93,7 @@ export default function PositionsPage() {
     },
   });
 
-  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", description: "", is_active: true }); };
+  const closeDialog = () => { setAddOpen(false); setEditId(null); setForm({ title: "", department_id: "", is_active: true }); };
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 

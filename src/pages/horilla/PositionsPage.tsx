@@ -257,7 +257,9 @@ export default function PositionsPage() {
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                   className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                </div>
               </div>
+
             </div>
           )}
         />

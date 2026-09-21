@@ -186,6 +186,18 @@ export default function PositionsPage() {
               <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
               <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">{p.description || "—"}</td>
               <td className="py-3 px-4">
+                {jdForPosition(p.id) ? (
+                  <Button variant="outline" className="h-7 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
+                    <FileText className="h-3.5 w-3.5" /> View JD
+                  </Button>
+                ) : (
+                  <button onClick={() => setLibraryOpen(true)} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+                    Link JD
+                  </button>
+                )}
+              </td>
+
+              <td className="py-3 px-4">
                 <button
                   onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
                   className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${

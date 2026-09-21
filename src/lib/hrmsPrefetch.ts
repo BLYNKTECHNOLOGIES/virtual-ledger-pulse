@@ -30,6 +30,13 @@ const ROUTE_MODULE: Record<string, string> = {
   "/hrms/onboarding-pipeline": "EmployeeOnboardingPipelinePage",
   "/hrms/offboarding/fnf": "FnFSettlementPage",
 
+  "/hrms/workforce-planning": "WorkforceOverviewPage",
+  "/hrms/workforce-planning/staffing-plan": "StaffingPlanPage",
+  "/hrms/workforce-planning/capacity-seats": "CapacitySeatsPage",
+  "/hrms/workforce-planning/hiring-requirements": "HiringRequirementsPage",
+  "/hrms/workforce-planning/forecast": "WorkforceForecastPage",
+
+
   "/hrms/recruitment": "RecruitmentDashboardPage",
   "/hrms/recruitment/pipeline": "RecruitmentPipelinePage",
   "/hrms/recruitment/candidates": "CandidatesListPage",

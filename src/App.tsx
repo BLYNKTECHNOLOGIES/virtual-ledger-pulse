@@ -111,6 +111,11 @@ const EmployeeDocumentsPage = lazy(() => import('./pages/horilla/EmployeeDocumen
 const SeparationPage = lazy(() => import('./pages/horilla/SeparationPage'));
 const SalaryRevisionsPage = lazy(() => import('./pages/horilla/SalaryRevisionsPage'));
 const StatutorySettingsPage = lazy(() => import('./pages/horilla/StatutorySettingsPage'));
+const WorkforceOverviewPage = lazy(() => import('./pages/horilla/WorkforceOverviewPage'));
+const StaffingPlanPage = lazy(() => import('./pages/horilla/StaffingPlanPage'));
+const CapacitySeatsPage = lazy(() => import('./pages/horilla/CapacitySeatsPage'));
+const HiringRequirementsPage = lazy(() => import('./pages/horilla/HiringRequirementsPage'));
+const WorkforceForecastPage = lazy(() => import('./pages/horilla/WorkforceForecastPage'));
 
 const RazorpaySyncPage = lazy(() => import('./pages/hr/RazorpaySyncPage'));
 

@@ -77,7 +77,7 @@ function useCreateOperatorAssignment() {
       if (error) throw error;
     },
     onSuccess: () => {
-      sonnerToast.success('Operator assignment created');
+      sonnerToast.success('Operations Associate assignment created');
       queryClient.invalidateQueries({ queryKey: ['all-operator-assignments'] });
     },
     onError: (err: Error) => sonnerToast.error(`Failed: ${err.message}`),
@@ -224,7 +224,7 @@ export function OperatorAssignmentManager() {
   };
 
   const handleCreate = async () => {
-    if (!selectedOperator) { toast.error('Select an operator'); return; }
+    if (!selectedOperator) { toast.error('Select an Operations Associate'); return; }
     if (formType === 'size_range' && !selectedRange) { toast.error('Select a size range'); return; }
     if (formType === 'ad_id' && !adId.trim()) { toast.error('Enter an ad ID'); return; }
     await createAssignment.mutateAsync({
@@ -241,8 +241,8 @@ export function OperatorAssignmentManager() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-foreground">Operator Assignments</h3>
-          <p className="text-[11px] text-muted-foreground">Configure which orders each operator handles by size range or ad ID</p>
+          <h3 className="text-sm font-medium text-foreground">Operations Associate Assignments</h3>
+          <p className="text-[11px] text-muted-foreground">Configure which orders each Operations Associate handles by size range or ad ID</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -251,12 +251,12 @@ export function OperatorAssignmentManager() {
             </Button>
           </DialogTrigger>
           <DialogContent className="t-scale-in">
-            <DialogHeader><DialogTitle>Create Operator Assignment</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Create Operations Associate Assignment</DialogTitle></DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label className="text-xs">Operator</Label>
+                <Label className="text-xs">Operations Associate</Label>
                 <Select value={selectedOperator} onValueChange={setSelectedOperator}>
-                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select operator..." /></SelectTrigger>
+                  <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Select Operations Associate..." /></SelectTrigger>
                   <SelectContent>
                     {operatorUsers.map((u: any) => (
                       <SelectItem key={u.id} value={u.id} className="text-xs">{getUserName(u)} ({u.username})</SelectItem>
@@ -320,7 +320,7 @@ export function OperatorAssignmentManager() {
             </div>
           ) : groupedAssignments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <p className="text-sm text-muted-foreground">No operator assignments configured</p>
+            <p className="text-sm text-muted-foreground">No Operations Associate assignments configured</p>
             </div>
           ) : (
             <div className="divide-y divide-border">
@@ -358,7 +358,7 @@ export function OperatorAssignmentManager() {
                       <Table>
                         <TableHeader>
                           <TableRow className="border-border hover:bg-transparent">
-                            {groupBy === 'size_range' && <TableHead className="text-[10px] text-muted-foreground font-medium pl-10">Operator</TableHead>}
+                            {groupBy === 'size_range' && <TableHead className="text-[10px] text-muted-foreground font-medium pl-10">Operations Associate</TableHead>}
                             <TableHead className="text-[10px] text-muted-foreground font-medium pl-10">Type</TableHead>
                             {groupBy === 'user' && <TableHead className="text-[10px] text-muted-foreground font-medium">Assignment</TableHead>}
                             <TableHead className="text-[10px] text-muted-foreground font-medium">Active</TableHead>

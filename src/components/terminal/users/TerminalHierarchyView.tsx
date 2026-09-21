@@ -23,7 +23,7 @@ const LEVEL_ICONS: Record<number, React.ElementType> = {
   2: Shield,   // Ops Manager
   3: Briefcase, // AM
   4: Users,    // Team Lead
-  5: User,     // Operator
+  5: User,     // Operations Associate
 };
 
 const LEVEL_COLORS: Record<number, string> = {

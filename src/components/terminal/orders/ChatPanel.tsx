@@ -359,7 +359,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         text: qm.type === 'image' ? null : qm.content,
         imageUrl: qm.type === 'image' ? qm.content : undefined,
         timestamp: normalizeChatTimestamp(qm.createdAt),
-        senderName: username || 'Operator',
+        senderName: username || 'Operations Associate',
         _deliveryStatus: deliveryStatus,
         _tempId: qm.tempId,
         _onRetry: retryMessage,
@@ -589,7 +589,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     const preceding = (idx > 0 ? currentOrderMessages.slice(0, idx) : [])
       .filter((m) => m.senderType !== 'system' && m.text)
       .slice(-6);
-    return preceding.map((m) => `${m.senderType === 'operator' ? 'Operator' : 'Counterparty'}: ${m.text}`).join('\n');
+    return preceding.map((m) => `${m.senderType === 'operator' ? 'Operations Associate' : 'Counterparty'}: ${m.text}`).join('\n');
   }, [currentOrderMessages]);
 
   const handlePin = useCallback(async (msg: UnifiedMessage) => {

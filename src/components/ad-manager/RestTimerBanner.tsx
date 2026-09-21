@@ -64,7 +64,7 @@ export function RestTimerBanner({ onlineAds, activeAds }: Props) {
             <div>
               <p className="text-sm font-medium text-foreground">Rest Mode Active</p>
               <p className="text-xs text-muted-foreground">
-                Started by {activeTimer?.started_by || 'Operator'} · All ads are offline
+                Started by {activeTimer?.started_by || 'Operations Associate'} · All ads are offline
               </p>
             </div>
           </div>

@@ -57,7 +57,7 @@ const ROLE_KPIS: Record<string, { label: string; icon: any; compute: (m: Operato
     { label: 'Reassigned', icon: Activity, compute: (m) => Math.floor(m.ordersCancelled * 0.3) },
     { label: 'Approval Queue', icon: Target, compute: (m) => m.activeLoad },
   ],
-  'Operator': [
+  'Operations Associate': [
     { label: 'Orders Processed', icon: Package, compute: (m) => m.ordersHandled },
     { label: 'Success Rate', icon: CheckCircle, compute: (m) => m.ordersHandled > 0 ? `${Math.round((m.ordersCompleted / m.ordersHandled) * 100)}%` : '0%' },
     { label: 'Avg Handle Time', icon: Timer, compute: (m) => `${m.avgCompletionTime}m` },
@@ -77,7 +77,7 @@ function getRoleKPIs(roleName: string) {
   if (name.includes('super')) return ROLE_KPIS['Super Admin'];
   if (name.includes('admin') || name.includes('coo')) return ROLE_KPIS['Admin'];
   if (name.includes('payer')) return ROLE_KPIS['Payer'];
-  return ROLE_KPIS['Operator'];
+  return ROLE_KPIS['Operations Associate'];
 }
 
 function getRoleBadgeClass(roleName: string) {

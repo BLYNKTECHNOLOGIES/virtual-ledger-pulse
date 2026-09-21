@@ -249,7 +249,7 @@ export function EditClientDetailsDialog({ open, onOpenChange, client }: EditClie
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="operator_notes">Operator Notes</Label>
+            <Label htmlFor="operator_notes">Operations Associate Notes</Label>
             <Textarea
               id="operator_notes"
               value={formData.operator_notes}

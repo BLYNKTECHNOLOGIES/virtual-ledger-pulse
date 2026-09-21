@@ -61,7 +61,7 @@ export function useAutoAssignment() {
 
       const operators = await getEligibleOperators();
       if (operators.length === 0) {
-        return { assigned: false, reason: 'No eligible operators' };
+        return { assigned: false, reason: 'No eligible Operations Associates' };
       }
 
       // Filter by specialization
@@ -75,7 +75,7 @@ export function useAutoAssignment() {
       eligible = eligible.filter(op => op.activeOrderCount < config.max_orders_per_operator);
 
       if (eligible.length === 0) {
-        return { assigned: false, reason: 'All eligible operators at max capacity' };
+        return { assigned: false, reason: 'All eligible Operations Associates are at max capacity' };
       }
 
       // Strategy: least_workload (already sorted) or round_robin

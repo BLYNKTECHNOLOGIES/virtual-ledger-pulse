@@ -132,7 +132,7 @@ export function ShiftReconciliationWidget() {
         ID: b.id,
         Name: b.account_name,
         Identifier: `${b.bank_name} - ${b.account_number}`,
-        "Operator Balance": "",
+        "Operations Associate Balance": "",
       }));
 
       const stockRows = (wallets || []).map(w => ({
@@ -140,7 +140,7 @@ export function ShiftReconciliationWidget() {
         ID: w.id,
         Name: w.wallet_name,
         Identifier: w.wallet_address,
-        "Operator Balance": "",
+        "Operations Associate Balance": "",
       }));
 
       const posRows = (gateways || []).map(g => ({
@@ -148,7 +148,7 @@ export function ShiftReconciliationWidget() {
         ID: g.id,
         Name: g.nickname || g.type,
         Identifier: g.type,
-        "Operator Balance": "",
+        "Operations Associate Balance": "",
       }));
 
       const allDataRows = [...bankRows, ...stockRows, ...posRows];
@@ -177,12 +177,12 @@ export function ShiftReconciliationWidget() {
           ID: "",
           Name: "",
           Identifier: "",
-          "Operator Balance": "",
+          "Operations Associate Balance": "",
         });
         // Add actual data rows
         sheetData.push(...section.rows);
         // Add a blank separator row
-        sheetData.push({ Category: "", ID: "", Name: "", Identifier: "", "Operator Balance": "" });
+        sheetData.push({ Category: "", ID: "", Name: "", Identifier: "", "Operations Associate Balance": "" });
       }
 
       // Remove trailing blank row
@@ -199,7 +199,7 @@ export function ShiftReconciliationWidget() {
         { wch: 40 }, // ID
         { wch: 32 }, // Name
         { wch: 50 }, // Identifier
-        { wch: 22 }, // Operator Balance
+        { wch: 28 }, // Operations Associate Balance
       ];
 
       // Bold section header rows & the header row
@@ -210,7 +210,7 @@ export function ShiftReconciliationWidget() {
       XLSX.utils.book_append_sheet(wb, ws, "Shift Reconciliation");
       XLSX.writeFile(wb, `Shift_Reconciliation_Template_${format(new Date(), "yyyy-MM-dd_HHmm")}.xlsx`);
 
-      toast({ title: "Template Downloaded", description: "Fill the 'Operator Balance' column and upload back." });
+      toast({ title: "Template Downloaded", description: "Fill the 'Operations Associate Balance' column and upload back." });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -239,19 +239,25 @@ export function ShiftReconciliationWidget() {
       }
 
       // Validate required columns
-      const requiredCols = ["Category", "ID", "Name", "Operator Balance"];
+      const balanceColumn = "Operations Associate Balance" in rows[0]
+        ? "Operations Associate Balance"
+        : "Operator Balance" in rows[0]
+          ? "Operator Balance"
+          : null;
+      const requiredCols = ["Category", "ID", "Name"];
       const missingCols = requiredCols.filter(c => !(c in rows[0]));
-      if (missingCols.length > 0) {
+      if (!balanceColumn) missingCols.push("Operations Associate Balance");
+      if (missingCols.length > 0 || !balanceColumn) {
         toast({ title: "Invalid Format", description: `Missing columns: ${missingCols.join(", ")}`, variant: "destructive" });
         return;
       }
 
-      // Validate all operator balances are filled
-      const emptyRows = rows.filter(r => r["Operator Balance"] === "" || r["Operator Balance"] === undefined || r["Operator Balance"] === null);
+      // Keep older exported templates valid while all new templates use the renamed heading.
+      const emptyRows = rows.filter(r => r[balanceColumn] === "" || r[balanceColumn] === undefined || r[balanceColumn] === null);
       if (emptyRows.length > 0) {
         toast({ 
           title: "Incomplete Data", 
-          description: `${emptyRows.length} row(s) have empty 'Operator Balance'. Please fill all values.`, 
+          description: `${emptyRows.length} row(s) have empty 'Operations Associate Balance'. Please fill all values.`, 
           variant: "destructive" 
         });
         return;
@@ -301,7 +307,7 @@ export function ShiftReconciliationWidget() {
       // Build comparison
       const comparison: ReconciliationItem[] = rows.map(row => {
         const category = row.Category as "BANK" | "STOCK" | "POS";
-        const operatorValue = Number(row["Operator Balance"]) || 0;
+        const operatorValue = Number(row[balanceColumn]) || 0;
         let erpValue = 0;
         let tolerance = 0;
 
@@ -480,7 +486,7 @@ export function ShiftReconciliationWidget() {
                       <tr className="border-b bg-muted/30">
                         <th className="text-left p-2 font-medium">Name</th>
                         <th className="text-left p-2 font-medium">Identifier</th>
-                        <th className="text-right p-2 font-medium">Operator Value</th>
+                        <th className="text-right p-2 font-medium">Operations Associate Value</th>
                         <th className="text-right p-2 font-medium">ERP Value</th>
                         <th className="text-right p-2 font-medium">Difference</th>
                         <th className="text-center p-2 font-medium">Status</th>
@@ -667,7 +673,7 @@ placeholder="Review notes explaining each mismatch (REQUIRED for approval)..."
                     <h3 className="font-semibold text-lg">Step 1: Download Template</h3>
                     <p className="text-sm text-muted-foreground">
                       Downloads an Excel file with all active Banks, USDT Wallets, and Payment Gateways.
-                      Fill the "Operator Balance" column with actual values.
+                      Fill the "Operations Associate Balance" column with actual values.
                     </p>
                     <Button onClick={handleDownloadTemplate} disabled={downloading} className="bg-primary hover:bg-primary">
                       <Download className="h-4 w-4 mr-2" />

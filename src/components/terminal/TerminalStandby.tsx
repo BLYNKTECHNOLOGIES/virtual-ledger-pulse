@@ -47,7 +47,7 @@ export function TerminalStandby() {
     setShowRegistration(true);
   };
 
-  const display = firstName && lastName ? `${firstName} ${lastName}` : username || 'Operator';
+  const display = firstName && lastName ? `${firstName} ${lastName}` : username || 'Operations Associate';
   const enrolled = credentials.length > 0;
 
   return (

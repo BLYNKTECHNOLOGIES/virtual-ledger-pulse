@@ -196,7 +196,7 @@ export function CopilotSettings() {
               users={users}
               selected={settings.operator_allowlist || []}
               onChange={(ids) => save.mutate({ operator_allowlist: ids })}
-              placeholder="Select operators"
+              placeholder="Select Operations Associates"
               icon={<Users className="h-3.5 w-3.5" />}
             />
           </div>

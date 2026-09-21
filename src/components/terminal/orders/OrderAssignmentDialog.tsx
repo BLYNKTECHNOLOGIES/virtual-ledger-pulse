@@ -111,11 +111,11 @@ export function OrderAssignmentDialog({
           </div>
         ) : operators.length === 0 ? (
           <div className="text-center py-8 text-sm text-muted-foreground">
-            No eligible operators found in your jurisdiction.
+            No eligible Operations Associates found in your jurisdiction.
           </div>
         ) : (
           <div className="space-y-1.5">
-            <p className="text-xs text-muted-foreground">Select operator (sorted by workload):</p>
+            <p className="text-xs text-muted-foreground">Select Operations Associate (sorted by workload):</p>
             {operators.map(op => (
               <button
                 key={op.userId}

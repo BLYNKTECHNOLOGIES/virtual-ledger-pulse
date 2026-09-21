@@ -73,7 +73,7 @@ export function AutoAssignmentSettings() {
         <div className="flex items-center justify-between p-3 rounded-lg bg-muted/10 border border-border">
           <div>
             <Label className="text-sm font-medium">Enable Auto-Assignment</Label>
-            <p className="text-xs text-muted-foreground mt-0.5">Automatically route new orders to eligible operators</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Automatically route new orders to eligible Operations Associates</p>
           </div>
           <Switch
             checked={config.is_enabled}

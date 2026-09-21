@@ -37,7 +37,7 @@ export default function TerminalUsers() {
             <TabsTrigger value="ranges" className="text-xs">Size Ranges</TabsTrigger>
             <TabsTrigger value="payer" className="text-xs">Payer Assignments</TabsTrigger>
             {canManageSmallPaymentAssignments && <TabsTrigger value="small-payments" className="text-xs">Small Payments</TabsTrigger>}
-            <TabsTrigger value="operator" className="text-xs">Operator Assignments</TabsTrigger>
+            <TabsTrigger value="operator" className="text-xs">Operations Associate Assignments</TabsTrigger>
             <TabsTrigger value="orgchart" className="text-xs">Org Chart</TabsTrigger>
           </TabsList>
 

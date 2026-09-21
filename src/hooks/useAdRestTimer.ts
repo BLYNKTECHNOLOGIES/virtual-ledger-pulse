@@ -114,7 +114,7 @@ export function useAdRestTimer() {
 
       // Store timer in DB with per-ad status snapshots
       const { error } = await supabase.from('ad_rest_timer').insert({
-        started_by: userName || 'Operator',
+        started_by: userName || 'Operations Associate',
         duration_minutes: 60,
         deactivated_ad_nos: advNos,
         deactivated_ad_statuses: adStatuses as any,

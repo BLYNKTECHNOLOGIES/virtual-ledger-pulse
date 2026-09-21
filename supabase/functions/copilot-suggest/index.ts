@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
 
     // Retrieve exemplars (embedding cosine when available; RPC falls back to
     // recency when embeddings are null). Best-effort — never fatal.
-    const convoBlob = messages.map((m) => `${m.isSelf ? "Operator" : "Counterparty"}: ${m.text}`).join("\n");
+    const convoBlob = messages.map((m) => `${m.isSelf ? "Operations Associate" : "Counterparty"}: ${m.text}`).join("\n");
     const qEmbed = await embedCopilot(convoBlob || situation);
     const queryEmbedding = qEmbed ? `[${qEmbed.join(",")}]` : null;
     const matchExemplars = async (accountId: string | null) => {

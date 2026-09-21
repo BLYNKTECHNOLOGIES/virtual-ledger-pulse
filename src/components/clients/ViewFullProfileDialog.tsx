@@ -219,7 +219,7 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] 
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Assigned Operator</label>
+                <label className="text-sm font-medium text-muted-foreground">Assigned Operations Associate</label>
                 <p className="text-base">{client.assigned_operator || 'Unassigned'}</p>
               </div>
             </CardContent>
@@ -347,7 +347,7 @@ export function ViewFullProfileDialog({ open, onOpenChange, client, orders = [] 
             </Card>
           )}
 
-          {/* Operator Notes (threaded) */}
+          {/* Operations Associate Notes (threaded) */}
           <OperatorNotesThread clientId={client.id} legacyNote={client.operator_notes} />
 
 

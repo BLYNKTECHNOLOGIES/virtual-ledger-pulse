@@ -34,6 +34,7 @@ export default function ReportsPage() {
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [drillMonth, setDrillMonth] = useState<string | null>(null);
+  const [attentionOpen, setAttentionOpen] = useState(false);
 
   // ─── Sources of truth ───
   // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).

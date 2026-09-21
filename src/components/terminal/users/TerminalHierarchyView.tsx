@@ -22,7 +22,7 @@ const LEVEL_ICONS: Record<number, React.ElementType> = {
   1: Crown,    // COO
   2: Shield,   // Ops Manager
   3: Briefcase, // AM
-  4: Users,    // Team Lead
+  4: Users,    // Operations Executive
   5: User,     // Operations Associate
 };
 

@@ -285,7 +285,7 @@ export const TERMINAL_ROLE_TEMPLATES: Record<string, { label: string; permission
     ],
   },
   team_lead: {
-    label: 'Team Lead',
+    label: 'Operations Executive',
     permissions: [
       'terminal_dashboard_view', 'terminal_dashboard_export',
       'terminal_orders_view', 'terminal_orders_manage', 'terminal_orders_actions',

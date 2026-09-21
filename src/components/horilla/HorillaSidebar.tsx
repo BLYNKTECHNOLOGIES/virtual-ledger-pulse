@@ -23,6 +23,7 @@ import {
   Inbox,
   ClipboardCheck,
   FileSpreadsheet,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchHrmsRoute } from "@/lib/hrmsPrefetch";
@@ -64,6 +65,23 @@ const navGroups: NavGroup[] = [
           { label: "Documents", path: "/hrms/employee/documents" },
           { label: "Separation", path: "/hrms/employee/separation" },
           { label: "F&F Settlement", path: "/hrms/offboarding/fnf" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "WORKFORCE PLANNING",
+    items: [
+      {
+        label: "Workforce Planning",
+        icon: Target,
+        path: "/hrms/workforce-planning",
+        children: [
+          { label: "Overview", path: "/hrms/workforce-planning" },
+          { label: "Staffing Plan", path: "/hrms/workforce-planning/staffing-plan" },
+          { label: "Capacity & Seats", path: "/hrms/workforce-planning/capacity-seats" },
+          { label: "Hiring Requirements", path: "/hrms/workforce-planning/hiring-requirements" },
+          { label: "Workforce Forecast", path: "/hrms/workforce-planning/forecast" },
         ],
       },
     ],

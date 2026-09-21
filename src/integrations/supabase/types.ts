@@ -31303,6 +31303,24 @@ export type Database = {
           verified_name: string
         }[]
       }
+      get_counterparty_recent_completed_orders: {
+        Args: {
+          p_exchange_account_id?: string
+          p_limit?: number
+          p_order_number: string
+        }
+        Returns: {
+          amount: string
+          asset: string
+          create_time: number
+          exchange_account_id: string
+          fiat_unit: string
+          order_number: string
+          total_price: string
+          trade_type: string
+          unit_price: string
+        }[]
+      }
       get_default_risk_level: { Args: never; Returns: string }
       get_latest_binance_ad_state: {
         Args: { p_adv_no: string }

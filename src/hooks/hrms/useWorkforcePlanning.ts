@@ -73,7 +73,7 @@ export function useSeatOccupancy() {
         .eq("employee.is_active", true);
       if (error) throw error;
       return (data || []).filter(
-        (r: any) => (r.hr_employees?.resignation_status ?? "") !== "completed",
+        (r: any) => (r.employee?.resignation_status ?? "") !== "completed",
       );
     },
     staleTime: STALE,

@@ -65,15 +65,16 @@ export function ResponsiveDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={contentClassName}>
-        <DialogHeader>
+      {/* Single scroller: DialogContent is flex + overflow-hidden, body is the only scroll area */}
+      <DialogContent className={cn("flex max-h-[90vh] flex-col overflow-hidden", contentClassName)}>
+        <DialogHeader className="shrink-0">
           <DialogTitle>{title}</DialogTitle>
           {description ? (
             <DialogDescription>{description}</DialogDescription>
           ) : null}
         </DialogHeader>
-        <div className="max-h-[72vh] overflow-y-auto pr-1">{children}</div>
-        {footer ? <DialogFooter>{footer}</DialogFooter> : null}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">{children}</div>
+        {footer ? <DialogFooter className="shrink-0">{footer}</DialogFooter> : null}
       </DialogContent>
     </Dialog>
   );

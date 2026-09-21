@@ -12390,6 +12390,62 @@ export type Database = {
           },
         ]
       }
+      hr_job_descriptions: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          page_from: number | null
+          page_to: number | null
+          position_id: string | null
+          reference: string
+          reports_to: string | null
+          role_title: string
+          section: string | null
+          source_document: string | null
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          page_from?: number | null
+          page_to?: number | null
+          position_id?: string | null
+          reference: string
+          reports_to?: string | null
+          role_title: string
+          section?: string | null
+          source_document?: string | null
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          page_from?: number | null
+          page_to?: number | null
+          position_id?: string | null
+          reference?: string
+          reports_to?: string | null
+          role_title?: string
+          section?: string | null
+          source_document?: string | null
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hr_job_descriptions_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hr_late_come_early_out: {
         Row: {
           attendance_date: string

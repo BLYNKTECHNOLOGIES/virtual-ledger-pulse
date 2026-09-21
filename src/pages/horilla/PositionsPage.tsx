@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Briefcase, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Briefcase, Search, FileText, Library } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -11,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
+import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
+import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
+import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
+
 
 export default function PositionsPage() {
   const queryClient = useQueryClient();
@@ -19,6 +23,9 @@ export default function PositionsPage() {
   const [form, setForm] = useState({ title: "", department_id: "", description: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [viewingJd, setViewingJd] = useState<JobDescriptionRow | null>(null);
+
 
   const { data: positions, isLoading } = useQuery({
     queryKey: ["hr_positions"],
@@ -88,6 +95,10 @@ export default function PositionsPage() {
 
   const getDeptName = (id: string | null) => departments?.find((d) => d.id === id)?.name || "—";
 
+  const { data: jobDescriptions } = useJobDescriptions();
+  const jdForPosition = (positionId: string) =>
+    (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
+
   const filteredPositions = (positions || []).filter(p => {
     const term = searchTerm.toLowerCase();
     return p.title.toLowerCase().includes(term) || (p.description || "").toLowerCase().includes(term);
@@ -97,17 +108,24 @@ export default function PositionsPage() {
     <div className="hrms-page space-y-4">
       <PageHeader
         title="Positions"
-        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""}`}
+        description={`${filteredPositions.length} position${filteredPositions.length !== 1 ? "s" : ""} · ${(jobDescriptions || []).length} job descriptions available`}
         actions={
-          <Button
-            onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
-            className="h-9 w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Add Position
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button variant="outline" className="h-9 w-full sm:w-auto" onClick={() => setLibraryOpen(true)}>
+              <Library className="h-4 w-4" />
+              JD Library
+            </Button>
+            <Button
+              onClick={() => { setForm({ title: "", department_id: "", description: "" }); setEditId(null); setAddOpen(true); }}
+              className="h-9 w-full sm:w-auto"
+            >
+              <Plus className="h-4 w-4" />
+              Add Position
+            </Button>
+          </div>
         }
       />
+
 
       {/* Search bar */}
       <div className="flex items-center bg-card rounded-lg border border-border h-9 px-3 w-full max-w-sm">
@@ -151,7 +169,9 @@ export default function PositionsPage() {
             { key: "position", label: "Position" },
             { key: "department", label: "Department" },
             { key: "description", label: "Description" },
+            { key: "jd", label: "Job Description" },
             { key: "status", label: "Status" },
+
             { key: "actions", label: "Actions", className: "text-right" },
           ]}
           keyFor={(p: any) => p.id}
@@ -165,6 +185,18 @@ export default function PositionsPage() {
               </td>
               <td className="py-3 px-4 text-muted-foreground">{getDeptName(p.department_id)}</td>
               <td className="py-3 px-4 text-muted-foreground max-w-xs truncate">{p.description || "—"}</td>
+              <td className="py-3 px-4">
+                {jdForPosition(p.id) ? (
+                  <Button variant="outline" className="h-7 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
+                    <FileText className="h-3.5 w-3.5" /> View JD
+                  </Button>
+                ) : (
+                  <button onClick={() => setLibraryOpen(true)} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+                    Link JD
+                  </button>
+                )}
+              </td>
+
               <td className="py-3 px-4">
                 <button
                   onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
@@ -209,12 +241,25 @@ export default function PositionsPage() {
                 </button>
               </div>
               {p.description && <p className="text-sm text-muted-foreground break-words">{p.description}</p>}
-              <div className="flex items-center justify-end gap-1 border-t border-border pt-2">
+              <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
+                {jdForPosition(p.id) ? (
+                  <Button variant="outline" className="h-8 text-xs" onClick={() => setViewingJd(jdForPosition(p.id))}>
+                    <FileText className="h-3.5 w-3.5" /> View JD
+                  </Button>
+                ) : (
+                  <button onClick={() => setLibraryOpen(true)} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+                    Link JD
+                  </button>
+                )}
+                <div className="flex items-center gap-1">
+
                 <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", description: p.description || "" }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
                 <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
                   className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                </div>
               </div>
+
             </div>
           )}
         />
@@ -255,6 +300,20 @@ export default function PositionsPage() {
           </div>
         </div>
       </ResponsiveDialog>
+
+      <JobDescriptionLibraryDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        positions={(positions || []).map((p: any) => ({ id: p.id, title: p.title }))}
+      />
+      <JobDescriptionViewer
+        open={!!viewingJd}
+        onOpenChange={(o) => !o && setViewingJd(null)}
+        title={viewingJd?.role_title || ""}
+        subtitle={viewingJd?.reference}
+        storagePath={viewingJd?.storage_path || null}
+      />
+
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

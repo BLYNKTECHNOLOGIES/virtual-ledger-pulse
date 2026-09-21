@@ -46,6 +46,7 @@ interface BinanceOrder {
 }
 
 const ACTIONABLE_ORDER_STATUS_LIST = [1, 2];
+const RELEASE_RECOVERY_WINDOW_MINUTES = 150;
 
 
 function extractOrders(data: any): BinanceOrder[] {
@@ -75,11 +76,11 @@ function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null):
   return clean(verifiedName) || clean(isSell ? order.buyerRealName : order.sellerRealName) || clean(isSell ? order.buyerName : order.sellerName);
 }
 
-function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string | null {
+function renderTemplate(template: string, order: BinanceOrder, verifiedName?: string | null): string {
   const name = getCounterpartyName(order, verifiedName);
-  // Never personalize with a Binance nickname. If the template needs a name,
-  // defer it until Binance supplies the verified KYC name.
-  if (template.includes("{{counterparty}}") && !name) return null;
+  // Never substitute a Binance nickname. If Binance genuinely provides no
+  // verified name, send the configured message without personalization rather
+  // than silently starving an otherwise eligible release forever.
   return template
     .replace(/\{\{orderNumber\}\}/g, order.orderNumber)
     .replace(/\{\{amount\}\}/g, order.amount)
@@ -87,7 +88,7 @@ function renderTemplate(template: string, order: BinanceOrder, verifiedName?: st
     .replace(/\{\{unitPrice\}\}/g, order.unitPrice)
     .replace(/\{\{asset\}\}/g, order.asset || "USDT")
     .replace(/\{\{fiat\}\}/g, order.fiatUnit || "INR")
-    .replace(/\{\{counterparty\}\}/g, name || "")
+    .replace(/\s*\{\{counterparty\}\}\s*/g, name ? ` ${name} ` : " ")
     .replace(/\{\{payMethod\}\}/g, order.payMethodName || "N/A");
 }
 
@@ -105,7 +106,7 @@ function detectTriggerEvents(order: BinanceOrder): string[] {
     // Fast pay+release trades are covered by the seller_payed chat trigger,
     // which fires while the order is still open.
     const completedAgeMinutes = (Date.now() - order.createTime) / 60000;
-    if (order.tradeType === "SELL" && completedAgeMinutes < 180) {
+    if (order.tradeType === "SELL" && completedAgeMinutes < RELEASE_RECOVERY_WINDOW_MINUTES) {
       events.push("order_released");
     }
     return events;
@@ -628,7 +629,7 @@ serve(async (req) => {
       if (hasReleaseRule) {
         const seen = new Set(allActiveOrders.map((o) => o.orderNumber));
         // ROOT CAUSE of "released feedback never arrived on busy hours": a single
-        // page of 50 completed orders covers well under the 180-minute reply
+        // page of 50 completed orders covers well under the recovery window
         // window when 60+ small sales close per hour, so every order pushed off
         // page 1 between two cycles was never seen again. Walk pages until the
         // rows fall outside the window.
@@ -649,7 +650,7 @@ serve(async (req) => {
             let inWindow = 0;
             for (const o of completedOrders) {
               const ageMinutes = (Date.now() - Number(o?.createTime || 0)) / 60000;
-              if (!Number.isFinite(ageMinutes) || ageMinutes > 150) continue;
+              if (!Number.isFinite(ageMinutes) || ageMinutes > RELEASE_RECOVERY_WINDOW_MINUTES) continue;
               inWindow++;
               if (!o?.orderNumber || seen.has(o.orderNumber)) continue;
               seen.add(o.orderNumber);
@@ -668,7 +669,7 @@ serve(async (req) => {
         // no reply logged is re-queued here, so a burst can never permanently
         // lose a feedback message.
         try {
-          const windowStartMs = Date.now() - 150 * 60 * 1000;
+          const windowStartMs = Date.now() - RELEASE_RECOVERY_WINDOW_MINUTES * 60 * 1000;
           const { data: histRows } = await supabase
             .from("binance_order_history")
             .select("order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, counter_part_nick_name, pay_method_name, create_time")
@@ -859,15 +860,6 @@ serve(async (req) => {
 
             const verifiedName = verifiedNameMap.get(order.orderNumber) || null;
             const message = renderTemplate(rule.message_template, order, verifiedName);
-            if (!message) {
-              await supabase.from("p2p_auto_reply_processed")
-                .delete()
-                .eq("order_number", order.orderNumber)
-                .eq("trigger_event", event)
-                .eq("rule_id", rule.id);
-              console.warn(`Verified counterparty name unavailable for ${order.orderNumber}; personalized auto-reply deferred`);
-              continue;
-            }
 
             // A previous attempt may have been reported unverified even though
             // Binance did deliver it. Never send the same text twice.
@@ -899,7 +891,7 @@ serve(async (req) => {
             // whole invocations (killing the run before it could even log) and
             // starve the freshly released orders that CAN still be answered.
             const orderAgeMin = (Date.now() - (Number(order.createTime) || Date.now())) / 60000;
-            if (event === "order_released" && orderAgeMin > 150) {
+            if (event === "order_released" && orderAgeMin > RELEASE_RECOVERY_WINDOW_MINUTES) {
               await supabase.from("p2p_auto_reply_log").insert({
                 rule_id: rule.id,
                 order_number: order.orderNumber,
@@ -1012,7 +1004,7 @@ serve(async (req) => {
           if (result.verified) {
             console.log(`✅ Auto-reply sent & VERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
             verified++;
-          } else if ((Date.now() - pm.createTime) / 60000 > 150) {
+          } else if ((Date.now() - pm.createTime) / 60000 > RELEASE_RECOVERY_WINDOW_MINUTES) {
             // Binance closes the chat channel a while after release: retrying
             // such an order can never succeed and used to loop every cycle,
             // burning the whole invocation and starving freshly released orders.

@@ -225,21 +225,27 @@ export default function PositionsPage() {
               </td>
 
               <td className="py-3 px-4">
-                <button
-                  onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                <div
+                  className="flex items-center gap-2"
                   title={
                     p.is_active
-                      ? "Active in the organisation — filled or actively being filled. Click to mark tentative."
-                      : "Tentative — planned on paper, not being filled right now. Click to mark active."
+                      ? "Active in the organisation — filled or actively being filled. Switch off to mark tentative."
+                      : "Tentative — planned on paper, not being filled right now. Switch on to mark active."
                   }
-                  className={`text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                >
+                  <Switch
+                    checked={p.is_active !== false}
+                    disabled={toggleActiveMutation.isPending}
+                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  />
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
-                >
-                  {p.is_active ? "Active" : "Tentative"}
-                </button>
+                  }`}>
+                    {p.is_active ? "Active" : "Tentative"}
+                  </span>
+                </div>
               </td>
               <td className="py-3 px-4 text-right">
                 <div className="flex items-center justify-end gap-1">
@@ -332,14 +338,6 @@ export default function PositionsPage() {
             <Switch
               checked={form.is_active}
               onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-            />
-          </div>
-          <div>
-            <Label>Description</Label>
-            <textarea
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="mt-1 min-h-[76px] w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
         </div>

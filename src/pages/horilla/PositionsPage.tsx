@@ -267,16 +267,20 @@ export default function PositionsPage() {
                     <p className="text-xs text-muted-foreground break-words">{getDeptName(p.department_id)}</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
-                  className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full border cursor-pointer ${
+                <div className="flex items-center gap-2 shrink-0">
+                  <Switch
+                    checked={p.is_active !== false}
+                    disabled={toggleActiveMutation.isPending}
+                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                  />
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active
                       ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       : "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                  }`}
-                >
-                  {p.is_active ? "Active" : "Tentative"}
-                </button>
+                  }`}>
+                    {p.is_active ? "Active" : "Tentative"}
+                  </span>
+                </div>
               </div>
               <div className="flex items-center justify-between gap-2 border-t border-border pt-2">
                 {jdForPosition(p.id) ? (

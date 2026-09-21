@@ -300,6 +300,20 @@ export default function PositionsPage() {
           </div>
         </div>
       </ResponsiveDialog>
+
+      <JobDescriptionLibraryDialog
+        open={libraryOpen}
+        onOpenChange={setLibraryOpen}
+        positions={(positions || []).map((p: any) => ({ id: p.id, title: p.title }))}
+      />
+      <JobDescriptionViewer
+        open={!!viewingJd}
+        onOpenChange={(o) => !o && setViewingJd(null)}
+        title={viewingJd?.role_title || ""}
+        subtitle={viewingJd?.reference}
+        storagePath={viewingJd?.storage_path || null}
+      />
+
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

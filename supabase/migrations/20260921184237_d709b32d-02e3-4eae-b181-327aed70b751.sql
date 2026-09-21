@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.notify_auto_reply_on_release() FROM PUBLIC, anon, authenticated;

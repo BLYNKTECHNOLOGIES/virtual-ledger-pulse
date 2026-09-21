@@ -61,6 +61,7 @@ interface PendingMessage {
   event: string;
   rule: AutoReplyRule;
   sendTimestamp: number;
+  createTime: number;
 }
 
 function getCounterpartyName(order: BinanceOrder, verifiedName?: string | null): string | null {
@@ -240,6 +241,7 @@ async function sendChatMessage(
   orderNo: string,
   content: string,
   cachedCredential?: { chatWssUrl: string; listenKey: string; token: string } | null,
+  maxWsAttempts = 3,
 ): Promise<{ success: boolean; verified: boolean; error?: string; credential?: { chatWssUrl: string; listenKey: string; token: string } }> {
   const sendStartMs = Date.now();
   // First try proxy REST endpoint (in case it supports sendMessage)
@@ -253,7 +255,7 @@ async function sendChatMessage(
       try { data = JSON.parse(proxyText); } catch { data = { raw: proxyText }; }
       if (data?.code === "000000" || data?.success) {
         // Verify delivery
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 1200));
         const verified = await verifyMessageDelivery(proxyUrl, proxyHeaders, orderNo, content, sendStartMs);
         return { success: true, verified };
       }
@@ -269,7 +271,7 @@ async function sendChatMessage(
   }
 
   // Try WebSocket send up to 2 times
-  const WS_MAX_ATTEMPTS = 3;
+  const WS_MAX_ATTEMPTS = Math.max(1, maxWsAttempts);
   for (let wsAttempt = 1; wsAttempt <= WS_MAX_ATTEMPTS; wsAttempt++) {
     try {
       const wssUrl = `${cred.chatWssUrl}/${cred.listenKey}?token=${cred.token}&clientType=web`;
@@ -459,6 +461,7 @@ serve(async (req) => {
       });
     }
 
+    const RUN_START_MS = Date.now();
     let processed = 0;
     let verified = 0;
     let unverified = 0;
@@ -474,25 +477,32 @@ serve(async (req) => {
     // cycle retries while the order is still inside the sweep window.
     {
       const staleCutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+      // Bulk anti-join. The previous per-claim probe scanned only the 200
+      // OLDEST claims, which on a busy day are all already-logged ones, so the
+      // genuinely orphaned claims were never reached and blocked their order
+      // until it aged out of the reply window — the permanent-miss cause.
       const { data: staleClaims } = await supabase
         .from("p2p_auto_reply_processed")
         .select("id, order_number, trigger_event, rule_id")
         .lt("processed_at", staleCutoff)
         .gte("processed_at", new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString())
-        .limit(200);
+        .order("processed_at", { ascending: false })
+        .limit(2000);
 
-      for (const claim of staleClaims || []) {
-        const { data: logRow } = await supabase
+      const claims = staleClaims || [];
+      for (let i = 0; i < claims.length; i += 200) {
+        const chunk = claims.slice(i, i + 200);
+        const { data: logRows } = await supabase
           .from("p2p_auto_reply_log")
-          .select("id")
-          .eq("order_number", claim.order_number)
-          .eq("trigger_event", claim.trigger_event)
-          .eq("rule_id", claim.rule_id)
-          .limit(1);
-        if (logRow && logRow.length > 0) continue;
-        await supabase.from("p2p_auto_reply_processed").delete().eq("id", claim.id);
-        staleClaimsReleased++;
-        console.log(`♻️ Released orphaned claim ${claim.order_number}:${claim.trigger_event}`);
+          .select("order_number, trigger_event, rule_id")
+          .in("order_number", chunk.map((c: any) => c.order_number));
+        const logged = new Set((logRows || []).map((l: any) => `${l.order_number}|${l.trigger_event}|${l.rule_id}`));
+        const orphanIds = chunk
+          .filter((c: any) => !logged.has(`${c.order_number}|${c.trigger_event}|${c.rule_id}`))
+          .map((c: any) => c.id);
+        if (orphanIds.length === 0) continue;
+        await supabase.from("p2p_auto_reply_processed").delete().in("id", orphanIds);
+        staleClaimsReleased += orphanIds.length;
       }
       if (staleClaimsReleased > 0) console.log(`Released ${staleClaimsReleased} orphaned auto-reply claims`);
     }
@@ -507,7 +517,7 @@ serve(async (req) => {
       .select("id, order_number, trigger_event, rule_id, message_sent")
       .eq("status", "sent_unverified")
       .gte("executed_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
-      .limit(10);
+      .limit(40);
 
     if (unverifiedMessages && unverifiedMessages.length > 0) {
       console.log(`${unverifiedMessages.length} unverified messages to check`);
@@ -616,33 +626,94 @@ serve(async (req) => {
       // OR a sell-side payment_marked rule exists.
       const hasReleaseRule = (rules as AutoReplyRule[]).some((r) => r.trigger_event === "order_released");
       if (hasReleaseRule) {
-
+        const seen = new Set(allActiveOrders.map((o) => o.orderNumber));
+        // ROOT CAUSE of "released feedback never arrived on busy hours": a single
+        // page of 50 completed orders covers well under the 180-minute reply
+        // window when 60+ small sales close per hour, so every order pushed off
+        // page 1 between two cycles was never seen again. Walk pages until the
+        // rows fall outside the window.
         try {
-          const seen = new Set(allActiveOrders.map((o) => o.orderNumber));
-          const completedRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
-            method: "POST",
-            headers: proxyHeaders,
-            body: JSON.stringify({ page: 1, rows: 50, orderStatusList: [4] }),
-          });
-          const completedData = await completedRes.json();
-          if (completedRes.ok && (!completedData?.code || completedData.code === "000000")) {
+          let added = 0;
+          for (let page = 1; page <= 4; page++) {
+            const completedRes = await fetch(`${BINANCE_PROXY_URL}/api/sapi/v1/c2c/orderMatch/listOrders`, {
+              method: "POST",
+              headers: proxyHeaders,
+              body: JSON.stringify({ page, rows: 50, orderStatusList: [4] }),
+            });
+            const completedData = await completedRes.json();
+            if (!completedRes.ok || (completedData?.code && completedData.code !== "000000")) {
+              listOrdersDiagnostics.completedSweepError = completedData?.code || completedRes.status;
+              break;
+            }
             const completedOrders: BinanceOrder[] = extractOrders(completedData);
-            let added = 0;
+            let inWindow = 0;
             for (const o of completedOrders) {
+              const ageMinutes = (Date.now() - Number(o?.createTime || 0)) / 60000;
+              if (!Number.isFinite(ageMinutes) || ageMinutes > 150) continue;
+              inWindow++;
               if (!o?.orderNumber || seen.has(o.orderNumber)) continue;
-              const ageMinutes = (Date.now() - Number(o.createTime || 0)) / 60000;
-              if (!Number.isFinite(ageMinutes) || ageMinutes > 180) continue;
+              seen.add(o.orderNumber);
               allActiveOrders.push(o);
               added++;
             }
-            listOrdersDiagnostics.pages.push({ page: 1, count: added, filtered: true, completedSweep: true });
-          } else {
-            listOrdersDiagnostics.completedSweepError = completedData?.code || completedRes.status;
+            if (completedOrders.length < 50 || inWindow === 0) break;
           }
+          listOrdersDiagnostics.pages.push({ count: added, filtered: true, completedSweep: true });
         } catch (e) {
           console.warn("Completed-order sweep failed:", e);
         }
+
+        // Second safety net, independent of Binance list visibility: our own
+        // synced history. Any completed order inside the window that still has
+        // no reply logged is re-queued here, so a burst can never permanently
+        // lose a feedback message.
+        try {
+          const windowStartMs = Date.now() - 150 * 60 * 1000;
+          const { data: histRows } = await supabase
+            .from("binance_order_history")
+            .select("order_number, adv_no, trade_type, asset, fiat_unit, amount, total_price, unit_price, counter_part_nick_name, pay_method_name, create_time")
+            .eq("order_status", "COMPLETED")
+            .eq("trade_type", "SELL")
+            .gte("create_time", windowStartMs)
+            .order("create_time", { ascending: true })
+            .limit(500);
+
+          const candidates = (histRows || []).filter((r: any) => r?.order_number && !seen.has(r.order_number));
+          if (candidates.length > 0) {
+            const { data: doneRows } = await supabase
+              .from("p2p_auto_reply_log")
+              .select("order_number")
+              .eq("trigger_event", "order_released")
+              .in("order_number", candidates.map((r: any) => r.order_number));
+            const done = new Set((doneRows || []).map((r: any) => r.order_number));
+            let backlog = 0;
+            for (const r of candidates) {
+              if (done.has(r.order_number)) continue;
+              seen.add(r.order_number);
+              allActiveOrders.push({
+                orderNumber: r.order_number,
+                advNo: r.adv_no,
+                tradeType: "SELL",
+                asset: r.asset,
+                fiatUnit: r.fiat_unit,
+                totalPrice: String(r.total_price ?? ""),
+                amount: String(r.amount ?? ""),
+                unitPrice: String(r.unit_price ?? ""),
+                orderStatus: "COMPLETED",
+                createTime: Number(r.create_time) || Date.now(),
+                counterPartNickName: r.counter_part_nick_name,
+                payMethodName: r.pay_method_name || undefined,
+              } as BinanceOrder);
+              backlog++;
+            }
+            if (backlog > 0) console.log(`📥 Re-queued ${backlog} released orders from local history backlog`);
+            listOrdersDiagnostics.historyBacklog = backlog;
+          }
+        } catch (e) {
+          console.warn("History backlog sweep failed:", e);
+        }
       }
+
       console.log(`Processing ${allActiveOrders.length} orders for auto-reply`);
 
     }
@@ -704,9 +775,16 @@ serve(async (req) => {
       // For orders still without a clean name, fetch from Binance detail API,
       // then fall back to the multi-account resolver (the order may live on a
       // non-primary exchange account whose credentials this function lacks).
+      // Bounded: a large backlog must not burn the whole invocation on name
+      // lookups and starve the send phase.
+      let nameLookups = 0;
+      const NAME_LOOKUP_BUDGET = 15;
       for (const order of allActiveOrders) {
         if (verifiedNameMap.has(order.orderNumber)) continue;
+        if (nameLookups >= NAME_LOOKUP_BUDGET) break;
+        nameLookups++;
         const detailName = await fetchVerifiedName(BINANCE_PROXY_URL, proxyHeaders, order.orderNumber, order.tradeType);
+
         if (detailName) {
           verifiedNameMap.set(order.orderNumber, detailName);
           continue;
@@ -815,11 +893,35 @@ serve(async (req) => {
             }
 
 
-            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now() });
+            // Binance closes an order's chat channel a while after release, so
+            // a stale release reply can never be delivered. Retire it instead of
+            // retrying: the 3-attempt WS retry on such orders used to consume
+            // whole invocations (killing the run before it could even log) and
+            // starve the freshly released orders that CAN still be answered.
+            const orderAgeMin = (Date.now() - (Number(order.createTime) || Date.now())) / 60000;
+            if (event === "order_released" && orderAgeMin > 150) {
+              await supabase.from("p2p_auto_reply_log").insert({
+                rule_id: rule.id,
+                order_number: order.orderNumber,
+                trigger_event: event,
+                message_sent: message,
+                status: "skipped",
+                error_message: `Binance chat closed (${Math.round(orderAgeMin)} min after release); not deliverable`,
+              });
+              console.log(`🚫 Retiring stale release reply for ${order.orderNumber} (${Math.round(orderAgeMin)} min old)`);
+              continue;
+            }
+
+            pendingMessages.push({ orderNumber: order.orderNumber, message, event, rule, sendTimestamp: Date.now(), createTime: Number(order.createTime) || Date.now() });
 
           }
         }
       }
+
+      // Freshest first: a just-released order is the one whose chat is certain
+      // to still be open, so it must never wait behind a backlog. Older ones
+      // follow with whatever time is left and are retried next cycle.
+      pendingMessages.sort((a, b) => b.createTime - a.createTime);
 
       console.log(`${pendingMessages.length} pending auto-reply messages to send`);
 
@@ -859,7 +961,10 @@ serve(async (req) => {
       // Send each message with verification. A burst can queue more messages
       // than one invocation can deliver; stop before the runtime kills us and
       // hand the leftovers back so the next cycle sends them.
-      const sendDeadline = Date.now() + 110_000;
+      // Deadline anchored to the INVOCATION start, not the send phase: sweeps
+      // and name lookups can eat a minute, and overrunning the platform wall
+      // clock kills the run mid-loop, leaving orphaned claims behind.
+      const sendDeadline = Math.min(RUN_START_MS + 120_000, Date.now() + 100_000);
       let sentInThisRun = 0;
       let deferred = 0;
       for (const pm of pendingMessages) {
@@ -875,7 +980,7 @@ serve(async (req) => {
           continue;
         }
         // Space out consecutive chat sessions on the same account.
-        if (sentInThisRun > 0) await new Promise((r) => setTimeout(r, 3000));
+        if (sentInThisRun > 0) await new Promise((r) => setTimeout(r, 1200));
         sentInThisRun++;
         pm.sendTimestamp = Date.now();
 
@@ -885,6 +990,10 @@ serve(async (req) => {
           pm.orderNumber,
           pm.message,
           chatCredential,
+          // Backlogged orders get a single attempt: they are still worth trying
+          // (Binance often accepts them) but must not consume the session time
+          // that freshly released orders need.
+          (Date.now() - pm.createTime) / 60000 > 25 ? 1 : 3,
         );
         if (result.credential) chatCredential = result.credential;
 
@@ -903,6 +1012,13 @@ serve(async (req) => {
           if (result.verified) {
             console.log(`✅ Auto-reply sent & VERIFIED: [${pm.event}] ${pm.rule.name} → Order ${pm.orderNumber}`);
             verified++;
+          } else if ((Date.now() - pm.createTime) / 60000 > 150) {
+            // Binance closes the chat channel a while after release: retrying
+            // such an order can never succeed and used to loop every cycle,
+            // burning the whole invocation and starving freshly released orders.
+            // Keep the claim so it is retired instead of retried forever.
+            console.log(`🚫 Chat closed after release, retiring ${pm.orderNumber} (${Math.round((Date.now() - pm.createTime) / 60000)} min old)`);
+            unverified++;
           } else {
             // Unverified means Binance never echoed the message back. Release
             // the claim so the next cycle can retry while the order is open.

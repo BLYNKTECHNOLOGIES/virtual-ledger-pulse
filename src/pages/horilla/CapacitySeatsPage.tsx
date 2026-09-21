@@ -39,34 +39,40 @@ export default function CapacitySeatsPage() {
 
   const { data: seats = [], isLoading } = useSeatCapacity();
   const { data: lookups } = useWorkforceLookups();
-  const { rows } = useStaffingMatrix();
+  const { data: people = [] } = useSeatOccupancy();
   const removeSeat = useDeleteSeatCapacity();
 
-  /** Occupancy comes from the staffing matrix so it always matches the employee list. */
-  const occupancy = useMemo(() => {
-    const map = new Map<string, number>();
-    rows.forEach((r) => {
-      const keys = [
-        `${r.department_id}|${r.position_id}|${r.shift_id ?? "-"}`,
-        `${r.department_id}|${r.position_id}|-`,
-        `${r.department_id}|-|${r.shift_id ?? "-"}`,
-        `${r.department_id}|-|-`,
-      ];
-      keys.forEach((k) => map.set(k, (map.get(k) || 0) + r.current_hc));
-    });
-    return map;
-  }, [rows]);
-
+  /**
+   * Occupancy is read straight from the people on roll. A desk is shared across
+   * shifts, so a desk entry that is not tied to one shift counts the busiest
+   * single shift (people sitting at the same time), while the total on roll is
+   * kept alongside it.
+   */
   const enriched = useMemo(
     () =>
       seats.map((s: any) => {
-        const key = `${s.department_id}|${s.position_id ?? "-"}|${s.shift_id ?? "-"}`;
-        const current = occupancy.get(key) ?? 0;
+        const matching = (people as any[]).filter(
+          (p) =>
+            p.department_id === s.department_id &&
+            (!s.position_id || p.job_position_id === s.position_id) &&
+            (!s.shift_id || p.shift_id === s.shift_id),
+        );
+        const totalOnRoll = matching.length;
+        let current = totalOnRoll;
+        if (!s.shift_id) {
+          const perShift = new Map<string, number>();
+          matching.forEach((p) => {
+            const k = p.shift_id ?? "-";
+            perShift.set(k, (perShift.get(k) || 0) + 1);
+          });
+          current = perShift.size ? Math.max(...perShift.values()) : 0;
+        }
         const physical = s.physical_seats || 0;
         const utilisation = physical > 0 ? (current / physical) * 100 : null;
         return {
           ...s,
           currentOccupancy: current,
+          totalOnRoll,
           availableSeats: physical - current,
           utilisation,
           shiftName: s.hr_shifts?.name ?? s.shift_label ?? null,
@@ -74,7 +80,7 @@ export default function CapacitySeatsPage() {
           positionTitle: s.positions?.title ?? null,
         };
       }),
-    [seats, occupancy],
+    [seats, people],
   );
 
   const filtered = useMemo(

@@ -19,8 +19,6 @@ project_id = "vagiqbespusdxsbqpvbo"
   port = 54322
 
 [functions]
-  [functions.jd-v4-seed]
-    verify_jwt = false
   [functions.cbt-validate-code]
     verify_jwt = false
   [functions.cbt-register]

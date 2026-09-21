@@ -15,6 +15,7 @@ import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus, Al
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollBreakdownDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
 
@@ -34,6 +35,7 @@ export default function ReportsPage() {
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
   const [drillMonth, setDrillMonth] = useState<string | null>(null);
+  const [attentionOpen, setAttentionOpen] = useState(false);
 
   // ─── Sources of truth ───
   // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).
@@ -512,9 +514,13 @@ export default function ReportsPage() {
                   </div>
 
                   {attentionList.length > 5 && (
-                    <p className="mt-3 text-center text-[11px] font-medium text-background/70">
+                    <button
+                      type="button"
+                      onClick={() => setAttentionOpen(true)}
+                      className="mt-3 w-full rounded-lg border border-background/25 py-2 text-center text-[11px] font-medium text-background/80 transition-colors hover:bg-background/10"
+                    >
                       {attentionList.length - 5} more employees need review
-                    </p>
+                    </button>
                   )}
                 </div>
               )}
@@ -715,6 +721,39 @@ export default function ReportsPage() {
         deptOf={deptOf}
         empBadge={(id) => (empById.get(id) as any)?.badge_id || "—"}
       />
+
+      <Dialog open={attentionOpen} onOpenChange={setAttentionOpen}>
+        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-base">Employees needing review</DialogTitle>
+            <DialogDescription>
+              {attentionList.length} flagged · {attendanceInsights.absenceLed} absence-led · {attendanceInsights.latenessLed} lateness-led · {reportRangeLabel}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto pr-1">
+            {attentionList.map((a, index) => {
+              const primaryIssue = a.absentPct >= a.latePct
+                ? `${a.lost.toLocaleString("en-IN")} days lost`
+                : `${a.late.toLocaleString("en-IN")} late arrivals`;
+              return (
+                <div key={a.id} className="flex items-center gap-3 py-2.5">
+                  <span className="t-mono w-6 shrink-0 text-xs text-muted-foreground">{index + 1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-foreground">{empName(a.id)}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {deptOf(a.id)} · Primary issue: {primaryIssue}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right t-mono text-[11px] text-foreground">
+                    <p>{a.absentPct.toFixed(0)}% lost</p>
+                    <p className="text-muted-foreground">{a.latePct.toFixed(0)}% late</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

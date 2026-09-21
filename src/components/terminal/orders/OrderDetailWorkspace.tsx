@@ -12,7 +12,7 @@ import { P2POrderRecord } from '@/hooks/useP2PTerminal';
 import { OrderSummaryPanel } from './OrderSummaryPanel';
 import { ChatPanel } from './ChatPanel';
 import { useP2PCounterparty, useP2PCounterpartyByNickname } from '@/hooks/useP2PTerminal';
-import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
+import { useCounterpartyBinanceStats, useBinanceOrderDetail, useBinanceOrderLiveStatus, useCounterpartyCompletedOrderCount, useCounterpartyRecentCompletedOrders, useBinanceChatMessages, useBinanceOrderRiskSnapshot, useOrderCommissionSnapshots } from '@/hooks/useBinanceActions';
 import { useCounterpartyLinkedClient, RISK_BADGE_STYLES } from '@/hooks/useCounterpartyLinkedClient';
 import { ShieldAlert } from 'lucide-react';
 import { hasActiveBinanceComplaint, normaliseBinanceStatus } from '@/lib/orderStatusMapper';
@@ -331,6 +331,7 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
   const [showMoreBinanceData, setShowMoreBinanceData] = useState(false);
   const { data: completedHistory } = useCounterpartyCompletedOrderCount(order.binance_order_number, order.exchange_account_id);
   const completedWithUs = completedHistory?.resolved ? completedHistory.count : undefined;
+  const { data: recentCompleted } = useCounterpartyRecentCompletedOrders(order.binance_order_number, order.exchange_account_id, 5);
   const { data: linkedClient } = useCounterpartyLinkedClient(
     counterpartyNickname,
     counterpartyVerifiedName,
@@ -380,6 +381,58 @@ function CounterpartyProfile({ counterparty, order, binanceStats, counterpartyNi
             <span className="text-[11px] font-medium text-foreground">Orders Completed With Us</span>
           </div>
           <span className="text-sm font-bold text-primary tabular-nums">{completedWithUs}</span>
+        </div>
+      )}
+
+      {/* Recent completed orders with us — amount, rate, when */}
+      {recentCompleted && recentCompleted.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Recent Completed With Us
+          </span>
+          <div className="max-h-[168px] overflow-y-auto space-y-1.5 pr-0.5">
+            {recentCompleted.map((ro) => {
+              const total = parseFloat(ro.total_price);
+              const rate = parseFloat(ro.unit_price);
+              const qty = parseFloat(ro.amount);
+              return (
+                <div
+                  key={ro.order_number}
+                  className="rounded-md border border-border bg-secondary/30 px-2.5 py-2"
+                  title={`Order #${ro.order_number}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-semibold text-foreground tabular-nums">
+                      {Number.isFinite(total)
+                        ? `₹${total.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
+                        : '—'}
+                    </span>
+                    <span className={`text-[9px] font-semibold ${ro.trade_type === 'BUY' ? 'text-trade-buy' : 'text-trade-sell'}`}>
+                      {ro.trade_type}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <span className="text-[10px] text-muted-foreground tabular-nums">
+                      {Number.isFinite(qty) ? qty.toLocaleString('en-IN', { maximumFractionDigits: 4 }) : '—'} {ro.asset}
+                      {Number.isFinite(rate) && ` @ ₹${rate.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground whitespace-nowrap">
+                      {ro.create_time
+                        ? new Date(Number(ro.create_time)).toLocaleString('en-IN', {
+                            timeZone: 'Asia/Kolkata',
+                            day: '2-digit',
+                            month: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: false,
+                          })
+                        : ''}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

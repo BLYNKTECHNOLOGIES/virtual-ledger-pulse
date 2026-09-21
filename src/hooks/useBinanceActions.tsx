@@ -599,6 +599,43 @@ export function useCounterpartyCompletedOrderCount(
   });
 }
 
+export interface CounterpartyRecentOrder {
+  order_number: string;
+  trade_type: string;
+  asset: string;
+  amount: string;
+  total_price: string;
+  unit_price: string;
+  fiat_unit: string;
+  create_time: number;
+  exchange_account_id: string | null;
+}
+
+// Recent completed orders with this counterparty (same resolution rules as the
+// completed count). Used by the order profile panel to show amount + rate.
+export function useCounterpartyRecentCompletedOrders(
+  currentOrderNumber?: string,
+  exchangeAccountId?: string | null,
+  limit = 5
+) {
+  return useQuery({
+    queryKey: ['counterparty-recent-completed', currentOrderNumber, exchangeAccountId, limit],
+    queryFn: async () => {
+      if (!currentOrderNumber) return [] as CounterpartyRecentOrder[];
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data, error } = await supabase.rpc('get_counterparty_recent_completed_orders', {
+        p_order_number: currentOrderNumber,
+        p_exchange_account_id: exchangeAccountId ?? null,
+        p_limit: limit,
+      });
+      if (error) throw error;
+      return (data as CounterpartyRecentOrder[]) ?? [];
+    },
+    enabled: !!currentOrderNumber,
+    staleTime: 30 * 1000,
+  });
+}
+
 // ==================== CHAT ====================
 
 export interface BinanceChatMessage {

@@ -239,15 +239,21 @@ export function ShiftReconciliationWidget() {
       }
 
       // Validate required columns
-      const requiredCols = ["Category", "ID", "Name", "Operations Associate Balance"];
+      const balanceColumn = "Operations Associate Balance" in rows[0]
+        ? "Operations Associate Balance"
+        : "Operator Balance" in rows[0]
+          ? "Operator Balance"
+          : null;
+      const requiredCols = ["Category", "ID", "Name"];
       const missingCols = requiredCols.filter(c => !(c in rows[0]));
-      if (missingCols.length > 0) {
+      if (!balanceColumn) missingCols.push("Operations Associate Balance");
+      if (missingCols.length > 0 || !balanceColumn) {
         toast({ title: "Invalid Format", description: `Missing columns: ${missingCols.join(", ")}`, variant: "destructive" });
         return;
       }
 
-      // Validate all operator balances are filled
-      const emptyRows = rows.filter(r => r["Operations Associate Balance"] === "" || r["Operations Associate Balance"] === undefined || r["Operations Associate Balance"] === null);
+      // Keep older exported templates valid while all new templates use the renamed heading.
+      const emptyRows = rows.filter(r => r[balanceColumn] === "" || r[balanceColumn] === undefined || r[balanceColumn] === null);
       if (emptyRows.length > 0) {
         toast({ 
           title: "Incomplete Data", 
@@ -301,7 +307,7 @@ export function ShiftReconciliationWidget() {
       // Build comparison
       const comparison: ReconciliationItem[] = rows.map(row => {
         const category = row.Category as "BANK" | "STOCK" | "POS";
-        const operatorValue = Number(row["Operations Associate Balance"]) || 0;
+        const operatorValue = Number(row[balanceColumn]) || 0;
         let erpValue = 0;
         let tolerance = 0;
 

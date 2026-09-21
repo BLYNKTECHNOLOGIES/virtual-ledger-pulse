@@ -152,7 +152,7 @@ const KycRmReport = ({ date, kpis, shifts, firstTime, trading, topClients, produ
                   <table style={tbl}>
                     <thead><tr>
                       <th style={th}>Client</th><th style={th}>Phone</th>
-                      <th style={thR}>First Order (₹)</th><th style={th}>Operator</th>
+                      <th style={thR}>First Order (₹)</th><th style={th}>Operations Associate</th>
                     </tr></thead>
                     <tbody>
                       {firstTime.rows.map((r, i) => (

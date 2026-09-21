@@ -315,7 +315,7 @@ Deno.serve(async (req) => {
         .filter((m) => !m.is_system_message && m.message_text)
         .slice(-CONTEXT_LIMIT);
       const context_text = preceding
-        .map((m) => `${m.sender_is_self ? "Operator" : "Counterparty"}: ${m.message_text}`)
+        .map((m) => `${m.sender_is_self ? "Operations Associate" : "Counterparty"}: ${m.message_text}`)
         .join("\n");
       const lastCounterparty = [...preceding].reverse().find((m) => !m.sender_is_self);
 

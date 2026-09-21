@@ -15,6 +15,7 @@ import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus, Al
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollBreakdownDialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
 

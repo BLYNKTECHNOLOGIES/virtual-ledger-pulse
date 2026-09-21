@@ -512,9 +512,13 @@ export default function ReportsPage() {
                   </div>
 
                   {attentionList.length > 5 && (
-                    <p className="mt-3 text-center text-[11px] font-medium text-background/70">
+                    <button
+                      type="button"
+                      onClick={() => setAttentionOpen(true)}
+                      className="mt-3 w-full rounded-lg border border-background/25 py-2 text-center text-[11px] font-medium text-background/80 transition-colors hover:bg-background/10"
+                    >
                       {attentionList.length - 5} more employees need review
-                    </p>
+                    </button>
                   )}
                 </div>
               )}

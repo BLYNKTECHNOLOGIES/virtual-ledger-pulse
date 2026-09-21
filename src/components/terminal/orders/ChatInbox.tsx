@@ -310,8 +310,17 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       const orderNumbers = Array.from(
         new Set([conv.orderNumber, ...(conv.mergedOrderNumbers || [])])
       );
-      orderNumbers.forEach((n) => markOrderChatRead(n));
-      markLocallyRead(orderNumbers);
+
+      // Open the chat FIRST. Marking read mutates the unread-filtered list and
+      // removes this row — if that happens before the open transition, it looks
+      // like the wrong chat was tapped. Defer the removal so it happens in the
+      // background, after the chat view is already on screen.
+      onOpenChat(conv);
+
+      window.setTimeout(() => {
+        orderNumbers.forEach((n) => markOrderChatRead(n));
+        markLocallyRead(orderNumbers);
+      }, 350);
 
       const { error } = await supabase.rpc('mark_terminal_binance_chats_read', {
         p_order_numbers: orderNumbers,
@@ -333,7 +342,6 @@ export function ChatInbox({ onClose, onOpenChat }: Props) {
       callBinanceAds('markUserMessagesRead', { orderNo: conv.orderNumber }).catch((err) => {
         console.warn('Failed to mark counterparty user chats read:', err);
       });
-      onOpenChat(conv);
     },
     [onOpenChat, queryClient, markLocallyRead]
   );

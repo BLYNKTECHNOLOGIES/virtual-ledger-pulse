@@ -14,7 +14,7 @@ import { PermissionGate } from "@/components/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDeepLinkHighlight } from "@/components/transaction-detail";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -23,6 +23,8 @@ export default function BAMS() {
   useDeepLinkHighlight(['txId']);
   const { hasAnyPermission } = usePermissions();
   const canFullBams = hasAnyPermission(["bams_view", "bams_manage"]);
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "journal" ? "journal-entries" : (canFullBams ? "bank-accounts" : "journal-entries");
 
   return (
     <PermissionGate 

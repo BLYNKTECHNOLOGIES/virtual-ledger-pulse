@@ -169,7 +169,9 @@ export default function PositionsPage() {
             { key: "position", label: "Position" },
             { key: "department", label: "Department" },
             { key: "description", label: "Description" },
+            { key: "jd", label: "Job Description" },
             { key: "status", label: "Status" },
+
             { key: "actions", label: "Actions", className: "text-right" },
           ]}
           keyFor={(p: any) => p.id}

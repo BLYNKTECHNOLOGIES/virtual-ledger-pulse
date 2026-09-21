@@ -910,6 +910,12 @@ const router = createBrowserRouter([
         { path: "recruitment/skill-zones", element: hrmsGate(["hrms_view", "hrms_manage"], <SkillZonePage />) },
         { path: "recruitment/surveys", element: hrmsGate(["hrms_view", "hrms_manage"], <RecruitmentSurveyPage />) },
         { path: "recruitment/rejected", element: hrmsGate(["hrms_view", "hrms_manage"], <RejectedCandidatesPage />) },
+        { path: "workforce-planning", element: hrmsGate(["hrms_view", "hrms_manage"], <WorkforceOverviewPage />) },
+        { path: "workforce-planning/overview", element: <Navigate to="/hrms/workforce-planning" replace /> },
+        { path: "workforce-planning/staffing-plan", element: hrmsGate(["hrms_view", "hrms_manage"], <StaffingPlanPage />) },
+        { path: "workforce-planning/capacity-seats", element: hrmsGate(["hrms_view", "hrms_manage"], <CapacitySeatsPage />) },
+        { path: "workforce-planning/hiring-requirements", element: hrmsGate(["hrms_view", "hrms_manage"], <HiringRequirementsPage />) },
+        { path: "workforce-planning/forecast", element: hrmsGate(["hrms_view", "hrms_manage"], <WorkforceForecastPage />) },
       ],
     },
   {

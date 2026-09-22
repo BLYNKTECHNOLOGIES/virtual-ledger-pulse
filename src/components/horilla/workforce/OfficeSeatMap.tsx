@@ -118,14 +118,21 @@ export function OfficeSeatMap({
             <div key={selectedShiftId} className="animate-in fade-in-0 space-y-8 duration-300">
               {departments.map(([department, departmentRoles]) => {
                 const departmentSeats = departmentRoles.reduce((sum, role) => sum + role.physicalSeats, 0);
+                const departmentOccupied = departmentRoles.reduce(
+                  (sum, role) => sum + Math.min(role.occupiedSeats, role.physicalSeats),
+                  0,
+                );
                 return (
                   <div key={department}>
                     <div className="mb-4 flex items-center gap-3">
                       <span className="h-px flex-1 bg-border" />
                       <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{department}</p>
-                      <span className="font-mono text-[10px] text-muted-foreground">{departmentSeats}</span>
+                      <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+                        {departmentOccupied}/{departmentSeats} in use
+                      </span>
                       <span className="h-px flex-1 bg-border" />
                     </div>
+
 
                     <div className="space-y-5">
                       {departmentRoles.map((role) => {
@@ -257,18 +264,23 @@ export function OfficeSeatMap({
           <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${Math.min(100, utilisation)}%` }} />
           </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {occupied + overflow} {occupied + overflow === 1 ? "person" : "people"} scheduled in this shift
+          </p>
         </div>
+
         {[
           ["Utilisation", `${utilisation.toFixed(0)}%`, "text-foreground"],
-          ["Allocated", physical, "text-foreground"],
-          ["Occupied", occupied, "text-primary"],
-          [overflow > 0 ? "Over capacity" : "Available", overflow > 0 ? overflow : vacant, overflow > 0 ? "text-destructive" : "text-success"],
+          ["Desks", physical, "text-foreground"],
+          ["Desks in use", occupied, "text-primary"],
+          [overflow > 0 ? "Without a desk" : "Free desks", overflow > 0 ? overflow : vacant, overflow > 0 ? "text-destructive" : "text-success"],
         ].map(([label, value, tone]) => (
           <div key={String(label)} className="border-r border-t border-border p-3 text-center last:border-r-0 sm:border-t-0">
             <p className={`font-mono text-xl font-semibold ${tone}`}>{value}</p>
             <p className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
           </div>
         ))}
+
       </div>
     </section>
   );

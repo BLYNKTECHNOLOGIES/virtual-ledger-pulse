@@ -237,6 +237,7 @@ export default function CapacitySeatsPage() {
         if (seat.is_training_only) return sum + (seat.physical_seats || 0);
         const hasMatchingAssignment = assignedPeople.some(
           (person) =>
+            !traineeIds.has(person.employee_id) &&
             person.department_id === seat.department_id &&
             seatAllowsPosition(seat, person.job_position_id),
         );
@@ -258,6 +259,7 @@ export default function CapacitySeatsPage() {
         if (seat.shift_id) return sum;
         const hasMatchingAssignment = unassignedPeople.some(
           (person) =>
+            !traineeIds.has(person.employee_id) &&
             person.department_id === seat.department_id &&
             seatAllowsPosition(seat, person.job_position_id),
         );

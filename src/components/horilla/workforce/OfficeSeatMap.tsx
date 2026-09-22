@@ -193,6 +193,9 @@ export function OfficeSeatMap({
 
                             <div className="text-center font-mono text-[11px] text-muted-foreground md:text-right">
                               <span className="font-semibold text-foreground">{Math.min(role.occupiedSeats, role.physicalSeats)}</span>/{role.physicalSeats}
+                              {role.overflow > 0 && (
+                                <span className="block text-[10px] font-semibold text-destructive">+{role.overflow} unseated</span>
+                              )}
                             </div>
                           </div>
                         );

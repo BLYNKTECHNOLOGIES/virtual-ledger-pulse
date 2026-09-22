@@ -117,9 +117,12 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
             tradeMethods,
             payTimeLimit: ad.payTimeLimit || 15,
             ...(ad.priceType === 1 ? { price: ad.price } : { priceFloatingRatio: ad.priceFloatingRatio }),
-          }, { onSuccess: () => resolve(), onError: (e) => reject(e) });
+          }, {
+            onSuccess: (data: any) => resolve(data?.data?.quantityNotice || data?.quantityNotice),
+            onError: (e) => reject(e),
+          });
         });
-        setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'success' } }));
+        setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'success', message: notice } }));
       } catch (e: any) {
         const message = e?.message || 'Failed';
         setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'error', message } }));

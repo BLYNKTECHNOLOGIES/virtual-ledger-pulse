@@ -83,6 +83,13 @@ function employeeName(person: SeatPerson) {
   return name || "Unnamed employee";
 }
 
+function seatAllowsPosition(seat: any, positionId: string | null) {
+  const eligible = Array.isArray(seat.eligible_position_ids) ? seat.eligible_position_ids : [];
+  return eligible.length > 0
+    ? !!positionId && eligible.includes(positionId)
+    : !seat.position_id || seat.position_id === positionId;
+}
+
 export default function CapacitySeatsPage() {
   const { hasPermission } = usePermissions();
   const canManage = hasPermission("hrms_manage");
@@ -111,7 +118,7 @@ export default function CapacitySeatsPage() {
             (s.is_training_only
               ? p.shift_id === s.shift_id
               : p.department_id === s.department_id &&
-                (!s.position_id || p.job_position_id === s.position_id) &&
+                seatAllowsPosition(s, p.job_position_id) &&
                 (!s.shift_id || p.shift_id === s.shift_id)),
         );
         const totalOnRoll = matching.length;
@@ -119,7 +126,8 @@ export default function CapacitySeatsPage() {
         if (!s.shift_id) {
           const perShift = new Map<string, number>();
           matching.forEach((p) => {
-            const k = p.shift_id ?? "-";
+            const shiftName = (lookups?.shifts || []).find((shift) => shift.id === p.shift_id)?.name;
+            const k = isMorningShift(shiftName) ? COMBINED_MORNING_ID : p.shift_id ?? "-";
             perShift.set(k, (perShift.get(k) || 0) + 1);
           });
           current = perShift.size ? Math.max(...perShift.values()) : 0;
@@ -134,10 +142,15 @@ export default function CapacitySeatsPage() {
           utilisation,
           shiftName: s.hr_shifts?.name ?? s.shift_label ?? null,
           departmentName: s.departments?.name ?? null,
-          positionTitle: s.positions?.title ?? null,
+          positionTitle: Array.isArray(s.eligible_position_ids) && s.eligible_position_ids.length > 1
+            ? s.eligible_position_ids
+                .map((id: string) => (lookups?.positions || []).find((position) => position.id === id)?.title)
+                .filter(Boolean)
+                .join(" / ")
+            : s.positions?.title ?? null,
         };
       }),
-    [seats, people],
+    [seats, people, lookups?.positions, lookups?.shifts],
   );
 
   const filtered = useMemo(
@@ -145,7 +158,7 @@ export default function CapacitySeatsPage() {
       enriched.filter((s) => {
         if (filters.departmentId !== "all" && s.department_id !== filters.departmentId)
           return false;
-        if (filters.positionId !== "all" && s.position_id !== filters.positionId) return false;
+        if (filters.positionId !== "all" && !seatAllowsPosition(s, filters.positionId)) return false;
         if (
           filters.shift !== "all" &&
           (filters.shift === "Morning Shift"
@@ -165,7 +178,7 @@ export default function CapacitySeatsPage() {
           (seat.is_training_only
             ? seat.shift_id === person.shift_id
             : seat.department_id === person.department_id &&
-              (!seat.position_id || seat.position_id === person.job_position_id) &&
+              seatAllowsPosition(seat, person.job_position_id) &&
               (!seat.shift_id || seat.shift_id === person.shift_id)),
       );
       if (belongsToVisibleSeat) unique.set(person.employee_id, person);
@@ -199,7 +212,7 @@ export default function CapacitySeatsPage() {
         const hasMatchingAssignment = assignedPeople.some(
           (person) =>
             person.department_id === seat.department_id &&
-            (!seat.position_id || person.job_position_id === seat.position_id),
+            seatAllowsPosition(seat, person.job_position_id),
         );
         return sum + (hasMatchingAssignment ? seat.physical_seats || 0 : 0);
       }, 0);
@@ -220,7 +233,7 @@ export default function CapacitySeatsPage() {
         const hasMatchingAssignment = unassignedPeople.some(
           (person) =>
             person.department_id === seat.department_id &&
-            (!seat.position_id || person.job_position_id === seat.position_id),
+            seatAllowsPosition(seat, person.job_position_id),
         );
         return sum + (hasMatchingAssignment ? seat.physical_seats || 0 : 0);
       }, 0);
@@ -279,7 +292,7 @@ export default function CapacitySeatsPage() {
           const matching = filteredPeople.filter(
             (person) =>
               person.department_id === seat.department_id &&
-              (!seat.position_id || person.job_position_id === seat.position_id),
+              seatAllowsPosition(seat, person.job_position_id),
           );
           const byShift = new Map<string, number>();
           matching.forEach((person) => {
@@ -341,7 +354,7 @@ export default function CapacitySeatsPage() {
         return selectedShiftPeople.some(
           (person) =>
             person.department_id === seat.department_id &&
-            (!seat.position_id || person.job_position_id === seat.position_id),
+            seatAllowsPosition(seat, person.job_position_id),
         );
       })
       .map((seat) => {
@@ -349,7 +362,7 @@ export default function CapacitySeatsPage() {
           (person) =>
             seat.is_training_only ||
             (person.department_id === seat.department_id &&
-            (!seat.position_id || person.job_position_id === seat.position_id)),
+            seatAllowsPosition(seat, person.job_position_id)),
         ).sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
         const occupiedSeats = matchingPeople.length;
         const physicalSeats = seat.physical_seats || 0;

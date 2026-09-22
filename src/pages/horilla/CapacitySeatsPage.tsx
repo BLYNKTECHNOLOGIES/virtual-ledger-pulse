@@ -418,6 +418,7 @@ export default function CapacitySeatsPage() {
     );
     return filtered
       .filter((seat) => {
+        if (isTrainingShiftView) return !!seat.is_training_only;
         if (seat.is_training_only) return !!seat.shift_id && selectedShiftIds.includes(seat.shift_id);
         if (seat.shift_id) return selectedShiftIds.includes(seat.shift_id);
         // Shift-neutral desks are shared across shifts, but they only become

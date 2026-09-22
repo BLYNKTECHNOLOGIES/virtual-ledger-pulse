@@ -43,6 +43,8 @@ export interface StaffingDerived extends StaffingMatrixRow {
   staffingGap: number;
   /** People still to hire once selected candidates and confirmed joiners land. */
   netHiringRequirement: number;
+  /** Still-uncovered hiring after open requirements are also deducted. */
+  uncoveredHiringRequirement: number;
   /** Physical seats still free. */
   availablePhysicalSeats: number;
   seatUtilisationPct: number | null;
@@ -59,6 +61,10 @@ export function deriveStaffingRow(row: StaffingMatrixRow): StaffingDerived {
     0,
     row.required_hc - row.current_hc - row.selected_hc - row.pending_joining_hc,
   );
+  const uncoveredHiringRequirement = Math.max(
+    0,
+    netHiringRequirement - row.open_requirement_hc,
+  );
   const availablePhysicalSeats = row.physical_seats
     ? row.physical_seats - row.current_hc
     : 0;
@@ -68,7 +74,9 @@ export function deriveStaffingRow(row: StaffingMatrixRow): StaffingDerived {
 
   let status: StaffingStatus;
   if (staffingGap > 0) {
-    status = row.open_requirement_count > 0 ? "hiring" : "understaffed";
+    // A requisition does not make a vacant seat staffed. Keep the shortage
+    // visible until a person actually joins; open hiring is shown separately.
+    status = "understaffed";
   } else if (staffingGap === 0) {
     status = "fully_staffed";
   } else {
@@ -95,6 +103,7 @@ export function deriveStaffingRow(row: StaffingMatrixRow): StaffingDerived {
     availableSeats,
     staffingGap,
     netHiringRequirement,
+    uncoveredHiringRequirement,
     availablePhysicalSeats,
     seatUtilisationPct,
     status,

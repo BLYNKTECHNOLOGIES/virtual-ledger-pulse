@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import manifest from "./manifest.json" with { type: "json" };
+import assets from "./assets.json" with { type: "json" };
 
 Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -10,8 +11,9 @@ Deno.serve(async (req) => {
   if (token !== "JD42-182P-41R-SEP22") return new Response("Unauthorized", { status: 401 });
   const supabase = createClient(supabaseUrl, serviceKey);
   for (const row of manifest) {
-    const local = row.storage_path.split("/").at(-1) ?? "";
-    const bytes = await Deno.readFile(new URL(`./pdfs/${local}`, import.meta.url));
+    const encoded = (assets as Record<string, string>)[row.storage_path];
+    if (!encoded) return Response.json({ error: `Missing PDF for ${row.reference}` }, { status: 500 });
+    const bytes = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0));
     const { error: uploadError } = await supabase.storage.from("job-descriptions").upload(row.storage_path, bytes, { contentType: "application/pdf", upsert: true });
     if (uploadError) return Response.json({ error: `Upload failed for ${row.reference}: ${uploadError.message}` }, { status: 500 });
     const { data: existing, error: findError } = await supabase.from("hr_job_descriptions").select("id,position_id").eq("reference", row.reference).maybeSingle();

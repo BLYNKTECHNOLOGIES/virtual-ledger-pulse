@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import manifest from "./manifest.json" with { type: "json" };
+import asset from "./asset.json" with { type: "json" };
 
 Deno.serve(async (req) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, serviceKey);
   const local = "Blynk_Job_Description_Compendium_v4.2.pdf";
   const remote = "v4.2-2026/Blynk_Job_Description_Compendium_v4.2.pdf";
-  const bytes = await Deno.readFile(new URL(`./pdfs/${local}`, import.meta.url));
+  const bytes = Uint8Array.from(atob(asset.data), (char) => char.charCodeAt(0));
   const { error } = await supabase.storage.from("job-descriptions").upload(remote, bytes, { contentType: "application/pdf", upsert: true });
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true, version: "4.2", pages: 182, full_compendium: remote });

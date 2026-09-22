@@ -33,6 +33,7 @@ import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityD
 import { OfficeSeatMap } from "@/components/horilla/workforce/OfficeSeatMap";
 import {
   useDeleteSeatCapacity,
+  useHeadcountPlans,
   useSeatCapacity,
   useSeatOccupancy,
   useWorkforceLookups,
@@ -102,6 +103,7 @@ export default function CapacitySeatsPage() {
   const { data: seats = [], isLoading } = useSeatCapacity();
   const { data: lookups } = useWorkforceLookups();
   const { data: people = [] } = useSeatOccupancy();
+  const { data: headcountPlans = [] } = useHeadcountPlans();
   const removeSeat = useDeleteSeatCapacity();
 
   /**

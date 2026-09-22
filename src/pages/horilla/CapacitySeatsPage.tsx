@@ -114,6 +114,37 @@ export default function CapacitySeatsPage() {
   const { data: headcountPlans = [] } = useHeadcountPlans();
   const removeSeat = useDeleteSeatCapacity();
 
+  /** Shifts that exist purely for training, so their people sit in the training zone. */
+  const trainingShiftIds = useMemo(
+    () => new Set((seats as any[]).filter((s) => s.is_training_only && s.shift_id).map((s) => s.shift_id as string)),
+    [seats],
+  );
+
+  /**
+   * Trainees are counted once, in the training zone only. Without this they would
+   * also fill a desk in their own department and be counted twice.
+   */
+  const traineeIds = useMemo(
+    () =>
+      new Set(
+        (people as SeatPerson[])
+          .filter((person) => person.shift_id && trainingShiftIds.has(person.shift_id))
+          .map((person) => person.employee_id),
+      ),
+    [people, trainingShiftIds],
+  );
+
+  const seatMatchesPerson = useCallback(
+    (seat: any, person: SeatPerson) =>
+      seat.is_training_only
+        ? person.shift_id === seat.shift_id
+        : !traineeIds.has(person.employee_id) &&
+          person.department_id === seat.department_id &&
+          seatAllowsPosition(seat, person.job_position_id) &&
+          (!seat.shift_id || person.shift_id === seat.shift_id),
+    [traineeIds],
+  );
+
   /**
    * Occupancy is read straight from the people on roll. A desk is shared across
    * shifts, so a desk entry that is not tied to one shift counts the busiest
@@ -123,14 +154,7 @@ export default function CapacitySeatsPage() {
   const enriched = useMemo(
     () =>
       seats.map((s: any) => {
-        const matching = (people as any[]).filter(
-          (p) =>
-            (s.is_training_only
-              ? p.shift_id === s.shift_id
-              : p.department_id === s.department_id &&
-                seatAllowsPosition(s, p.job_position_id) &&
-                (!s.shift_id || p.shift_id === s.shift_id)),
-        );
+        const matching = (people as SeatPerson[]).filter((p) => seatMatchesPerson(s, p));
         const totalOnRoll = matching.length;
         let current = totalOnRoll;
         if (!s.shift_id) {

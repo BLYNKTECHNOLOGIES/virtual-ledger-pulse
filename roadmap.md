@@ -10,7 +10,7 @@
 
 ## Shift-aware seat map
 
-- [ ] Add a movie-booking-style office seat map to Capacity & Seats.
-- [ ] Make seat availability respond to the selected shift.
-- [ ] Keep every physical seat reserved to its assigned role.
+- [x] Add a movie-booking-style office seat map to Capacity & Seats.
+- [x] Make seat availability respond to the selected shift.
+- [x] Keep every physical seat reserved to its assigned role.
 - [ ] Verify desktop/mobile rendering and live calculations.

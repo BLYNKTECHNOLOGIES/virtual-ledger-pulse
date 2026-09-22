@@ -108,9 +108,11 @@ export default function CapacitySeatsPage() {
       seats.map((s: any) => {
         const matching = (people as any[]).filter(
           (p) =>
-            p.department_id === s.department_id &&
-            (!s.position_id || p.job_position_id === s.position_id) &&
-            (!s.shift_id || p.shift_id === s.shift_id),
+            (s.is_training_only
+              ? p.shift_id === s.shift_id
+              : p.department_id === s.department_id &&
+                (!s.position_id || p.job_position_id === s.position_id) &&
+                (!s.shift_id || p.shift_id === s.shift_id)),
         );
         const totalOnRoll = matching.length;
         let current = totalOnRoll;
@@ -160,9 +162,11 @@ export default function CapacitySeatsPage() {
     (people as SeatPerson[]).forEach((person) => {
       const belongsToVisibleSeat = filtered.some(
         (seat) =>
-          seat.department_id === person.department_id &&
-          (!seat.position_id || seat.position_id === person.job_position_id) &&
-          (!seat.shift_id || seat.shift_id === person.shift_id),
+          (seat.is_training_only
+            ? seat.shift_id === person.shift_id
+            : seat.department_id === person.department_id &&
+              (!seat.position_id || seat.position_id === person.job_position_id) &&
+              (!seat.shift_id || seat.shift_id === person.shift_id)),
       );
       if (belongsToVisibleSeat) unique.set(person.employee_id, person);
     });
@@ -241,10 +245,6 @@ export default function CapacitySeatsPage() {
       (a, s) => a + (s.is_training_only ? 0 : s.max_operational_capacity || s.physical_seats || 0),
       0,
     );
-    const workingPeople = filteredPeople.filter((person) => {
-      const shift = (lookups?.shifts || []).find((item: ShiftLookup) => item.id === person.shift_id);
-      return shift?.name !== "Trainees Shift";
-    });
     const occupied = shiftBreakdown.reduce((peak, shift) => shift.name === "Trainees Shift" ? peak : Math.max(peak, shift.assigned), 0);
     return {
       physical,
@@ -253,7 +253,7 @@ export default function CapacitySeatsPage() {
       free: Math.max(0, physical - occupied),
       utilisation: physical > 0 ? (occupied / physical) * 100 : 0,
     };
-  }, [filtered, filteredPeople, lookups?.shifts, shiftBreakdown]);
+  }, [filtered, shiftBreakdown]);
 
   const seatBreakdown = useMemo(() => {
     const grouped = new Map<
@@ -309,6 +309,14 @@ export default function CapacitySeatsPage() {
       })),
     [shiftBreakdown],
   );
+
+  const capacityFilterShifts = useMemo(() => {
+    const shifts = (lookups?.shifts || []) as ShiftLookup[];
+    const morning = shifts.find((shift) => shift.name === "Morning Shift");
+    return shifts.filter((shift) => shift.name !== "Morning Shift Exemption").map((shift) =>
+      shift.name === "Morning Shift" && morning ? { ...shift, name: "Morning Shift" } : shift,
+    );
+  }, [lookups?.shifts]);
 
   const activeMapShiftId = useMemo(() => {
     if (mapShifts.some((shift) => shift.id === selectedMapShiftId)) return selectedMapShiftId;
@@ -381,7 +389,7 @@ export default function CapacitySeatsPage() {
         onChange={setFilters}
         departments={lookups?.departments || []}
         positions={lookups?.positions || []}
-        shifts={lookups?.shifts || []}
+        shifts={capacityFilterShifts}
         showStatus={false}
         showPriority={false}
         showDates={false}

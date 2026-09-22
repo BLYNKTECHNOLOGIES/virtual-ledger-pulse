@@ -12034,6 +12034,8 @@ export type Database = {
           created_by: string | null
           department_id: string | null
           effective_from: string
+          eligible_position_ids: string[]
+          eligible_shift_ids: string[]
           employment_type: string | null
           id: string
           is_active: boolean
@@ -12053,6 +12055,8 @@ export type Database = {
           created_by?: string | null
           department_id?: string | null
           effective_from?: string
+          eligible_position_ids?: string[]
+          eligible_shift_ids?: string[]
           employment_type?: string | null
           id?: string
           is_active?: boolean
@@ -12072,6 +12076,8 @@ export type Database = {
           created_by?: string | null
           department_id?: string | null
           effective_from?: string
+          eligible_position_ids?: string[]
+          eligible_shift_ids?: string[]
           employment_type?: string | null
           id?: string
           is_active?: boolean
@@ -18246,6 +18252,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           department_id: string | null
+          eligible_position_ids: string[]
           id: string
           is_active: boolean
           is_training_only: boolean
@@ -18262,6 +18269,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           department_id?: string | null
+          eligible_position_ids?: string[]
           id?: string
           is_active?: boolean
           is_training_only?: boolean
@@ -18278,6 +18286,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           department_id?: string | null
+          eligible_position_ids?: string[]
           id?: string
           is_active?: boolean
           is_training_only?: boolean

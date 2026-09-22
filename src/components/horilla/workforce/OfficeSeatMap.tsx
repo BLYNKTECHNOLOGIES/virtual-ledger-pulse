@@ -48,6 +48,10 @@ export function OfficeSeatMap({
   const overflow = roles.reduce((sum, role) => sum + role.overflow, 0);
   const vacant = Math.max(0, physical - occupied);
   const utilisation = physical > 0 ? (occupied / physical) * 100 : 0;
+  const onNoticeCount = roles.reduce(
+    (sum, role) => sum + role.occupants.filter((occupant) => occupant.onNotice).length,
+    0,
+  );
 
   const departments = Array.from(
     roles.reduce((groups, role) => {

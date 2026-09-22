@@ -178,7 +178,7 @@ export function JobDescriptionLibraryDialog({
         open={viewFull}
         onOpenChange={setViewFull}
         title="Job Description Compendium"
-        subtitle="BVT/HR/JD/2026/COMP-01 — all 31 role descriptions"
+        subtitle="BVT/HR/JD/2026/COMP-01 · v4.2 · all 41 role descriptions"
         storagePath={JD_FULL_COMPENDIUM_PATH}
       />
     </>

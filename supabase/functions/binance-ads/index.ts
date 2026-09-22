@@ -1139,6 +1139,13 @@ serve(async (req) => {
             await new Promise((resolve) => setTimeout(resolve, 350));
           }
           adUpdateBody.initAmount = desiredRemaining;
+          // Ask Binance for the same tradable (remaining) amount as well. Binance
+          // derives surplusAmount itself and may clamp it to what the account can
+          // actually trade right now (shared ad quota / available balance), but
+          // sending it is the only documented way to request the full tradable
+          // amount instead of leaving a partially consumed remainder.
+          adUpdateBody.surplusAmount = desiredRemaining;
+
           console.log("updateAd quantity restore:", JSON.stringify({
             advNo: adUpdateBody.advNo,
             currentTotal,

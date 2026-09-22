@@ -12283,6 +12283,8 @@ export type Database = {
           salary_min: number | null
           shift_id: string | null
           shift_label: string | null
+          source: string
+          staffing_plan_id: string | null
           status: string
           target_joining_date: string | null
           updated_at: string
@@ -12316,6 +12318,8 @@ export type Database = {
           salary_min?: number | null
           shift_id?: string | null
           shift_label?: string | null
+          source?: string
+          staffing_plan_id?: string | null
           status?: string
           target_joining_date?: string | null
           updated_at?: string
@@ -12349,6 +12353,8 @@ export type Database = {
           salary_min?: number | null
           shift_id?: string | null
           shift_label?: string | null
+          source?: string
+          staffing_plan_id?: string | null
           status?: string
           target_joining_date?: string | null
           updated_at?: string
@@ -12429,6 +12435,13 @@ export type Database = {
             columns: ["shift_id"]
             isOneToOne: false
             referencedRelation: "hr_shifts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hr_hiring_requirements_staffing_plan_id_fkey"
+            columns: ["staffing_plan_id"]
+            isOneToOne: false
+            referencedRelation: "hr_headcount_plans"
             referencedColumns: ["id"]
           },
         ]
@@ -32534,6 +32547,10 @@ export type Database = {
         Returns: number
       }
       hr_rebuild_loan_schedule: { Args: { p_loan_id: string }; Returns: number }
+      hr_reconcile_capacity_hiring: {
+        Args: { p_sync_plans?: boolean }
+        Returns: Json
+      }
       hr_reconcile_holiday_date: { Args: { p_date: string }; Returns: Json }
       hr_reconcile_late_early: {
         Args: { _from: string; _to: string }

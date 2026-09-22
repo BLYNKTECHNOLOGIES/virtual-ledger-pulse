@@ -73,7 +73,7 @@ export function useSeatOccupancy() {
         supabase
           .from("hr_employee_work_info")
           .select(
-            "employee_id, department_id, job_position_id, shift_id, employee:hr_employees!hr_employee_work_info_employee_id_fkey!inner(id, is_active, resignation_status)",
+            "employee_id, department_id, job_position_id, shift_id, employee_type, employee:hr_employees!hr_employee_work_info_employee_id_fkey!inner(id, first_name, last_name, is_active, resignation_status)",
           )
           .eq("employee.is_active", true),
         supabase

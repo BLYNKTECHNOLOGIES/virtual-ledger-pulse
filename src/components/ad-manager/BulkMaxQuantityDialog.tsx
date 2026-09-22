@@ -185,6 +185,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
 
                         )}
                         {res?.message && res.status === 'error' && <div className="text-destructive mt-1">{res.message}</div>}
+                        {res?.message && res.status === 'success' && <div className="text-warning mt-1">{res.message}</div>}
                       </div>
                     </div>
                   );

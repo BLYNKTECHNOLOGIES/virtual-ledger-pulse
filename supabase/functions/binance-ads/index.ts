@@ -1171,19 +1171,36 @@ serve(async (req) => {
             }
           }
           const verifiedRemaining = Number(verifiedDetail?.surplusAmount);
+          const verifiedTotal = Number(verifiedDetail?.initAmount);
           const tolerance = Math.max(0.00000001, desiredRemaining * 1e-10);
-          if (!Number.isFinite(verifiedRemaining) || verifiedRemaining < desiredRemaining - tolerance) {
+          const totalStored = Number.isFinite(verifiedTotal) && verifiedTotal >= desiredRemaining - tolerance;
+          if (!Number.isFinite(verifiedRemaining) && !totalStored) {
             result = {
               code: "QUANTITY_VERIFICATION_FAILED",
-              message: `Binance accepted the update but remaining quantity is ${Number.isFinite(verifiedRemaining) ? verifiedRemaining : "unavailable"}, expected ${desiredRemaining}`,
+              message: `Binance accepted the update but the new quantity could not be read back from the ad`,
+            };
+          } else if (!totalStored) {
+            // Binance stored a smaller total than requested — the update did not take.
+            result = {
+              code: "QUANTITY_VERIFICATION_FAILED",
+              message: `Binance accepted the update but total quantity is ${Number.isFinite(verifiedTotal) ? verifiedTotal : "unavailable"}, expected ${desiredRemaining}`,
             };
           } else {
+            // Total quantity is stored as requested. Binance may report a lower
+            // tradable remaining (surplusAmount) because it clamps to what the
+            // account can actually trade — that is Binance's own value, not a
+            // failed update, so report it instead of failing the push.
+            const capped = Number.isFinite(verifiedRemaining) && verifiedRemaining < desiredRemaining - tolerance;
             result = {
               ...result,
               data: {
                 ...(result?.data && typeof result.data === "object" ? result.data : {}),
-                verifiedInitAmount: Number(verifiedDetail.initAmount),
+                verifiedInitAmount: verifiedTotal,
                 verifiedSurplusAmount: verifiedRemaining,
+                quantityCappedByBinance: capped,
+                quantityNotice: capped
+                  ? `Total quantity set to ${desiredRemaining}; Binance reports ${verifiedRemaining} tradable right now.`
+                  : undefined,
               },
             };
           }

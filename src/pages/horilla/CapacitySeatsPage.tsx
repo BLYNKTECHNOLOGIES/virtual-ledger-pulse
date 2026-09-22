@@ -367,6 +367,21 @@ export default function CapacitySeatsPage() {
     return peakShift?.id ?? mapShifts[0]?.id ?? "";
   }, [mapShifts, peakShift?.id, selectedMapShiftId]);
 
+  /**
+   * Which shifts each role is actually worked in, taken from the people on roll.
+   * A staffing plan without a shift of its own is scoped to those shifts only —
+   * treating it as "every shift" made every role show up in every shift.
+   */
+  const shiftIdsByPosition = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    (people as SeatPerson[]).forEach((person) => {
+      if (!person.job_position_id || !person.shift_id) return;
+      if (!map.has(person.job_position_id)) map.set(person.job_position_id, new Set());
+      map.get(person.job_position_id)!.add(person.shift_id);
+    });
+    return map;
+  }, [people]);
+
   /** Approved staffing demand per shift, used to keep planned seats visible. */
   const planScopes = useMemo(
     () =>
@@ -376,14 +391,18 @@ export default function CapacitySeatsPage() {
           : plan.position_id
             ? [plan.position_id]
             : [];
-        const shiftIds: string[] = Array.isArray(plan.eligible_shift_ids) && plan.eligible_shift_ids.length
+        const explicitShiftIds: string[] = Array.isArray(plan.eligible_shift_ids) && plan.eligible_shift_ids.length
           ? plan.eligible_shift_ids
           : plan.shift_id
             ? [plan.shift_id]
             : [];
+        // No shift on the plan: fall back to the shifts that role is worked in.
+        const shiftIds = explicitShiftIds.length
+          ? explicitShiftIds
+          : positionIds.flatMap((id) => Array.from(shiftIdsByPosition.get(id) || []));
         return { positionIds, shiftIds };
       }),
-    [headcountPlans],
+    [headcountPlans, shiftIdsByPosition],
   );
 
   const mapRoles = useMemo(() => {

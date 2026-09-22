@@ -185,7 +185,8 @@ export function OfficeSeatMap({
                                 );
                               })}
                               {Array.from({ length: role.overflow }, (_, index) => {
-                                const occupantName = role.occupants[role.physicalSeats + index]?.name || "Unnamed employee";
+                                 const overflowOccupant = role.occupants[role.physicalSeats + index];
+                                 const occupantName = overflowOccupant?.name || "Unnamed employee";
                                 const slotIndex = role.physicalSeats + index;
                                 const center = (role.physicalSeats + role.overflow - 1) / 2;
                                 const curveOffset = Math.min(8, Math.abs(slotIndex - center) * 2);

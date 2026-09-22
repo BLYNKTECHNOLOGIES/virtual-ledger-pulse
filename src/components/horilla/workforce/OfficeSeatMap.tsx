@@ -118,14 +118,21 @@ export function OfficeSeatMap({
             <div key={selectedShiftId} className="animate-in fade-in-0 space-y-8 duration-300">
               {departments.map(([department, departmentRoles]) => {
                 const departmentSeats = departmentRoles.reduce((sum, role) => sum + role.physicalSeats, 0);
+                const departmentOccupied = departmentRoles.reduce(
+                  (sum, role) => sum + Math.min(role.occupiedSeats, role.physicalSeats),
+                  0,
+                );
                 return (
                   <div key={department}>
                     <div className="mb-4 flex items-center gap-3">
                       <span className="h-px flex-1 bg-border" />
                       <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{department}</p>
-                      <span className="font-mono text-[10px] text-muted-foreground">{departmentSeats}</span>
+                      <span className="whitespace-nowrap font-mono text-[10px] text-muted-foreground">
+                        {departmentOccupied}/{departmentSeats} in use
+                      </span>
                       <span className="h-px flex-1 bg-border" />
                     </div>
+
 
                     <div className="space-y-5">
                       {departmentRoles.map((role) => {

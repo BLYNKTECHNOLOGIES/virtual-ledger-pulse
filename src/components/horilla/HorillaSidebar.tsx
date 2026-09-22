@@ -377,7 +377,7 @@ export function HorillaSidebar({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       className={cn(
-        "horilla-sidebar h-screen flex flex-col shrink-0",
+        "horilla-sidebar h-screen flex flex-col shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground",
         "transition-[width,box-shadow] duration-200 ease-out will-change-[width]",
         isMobile
           ? cn(
@@ -387,20 +387,20 @@ export function HorillaSidebar({
           : cn(
               "absolute inset-y-0 left-0 z-40",
               collapsed ? "w-[68px]" : "w-[240px]",
-              peek && "shadow-2xl shadow-black/40"
+              peek && "shadow-lg"
             )
       )}
     >
 
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-[#6C63FF]/10">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-primary/10">
             <img src={blynkIcon} alt="BLYNK" className="w-6 h-6" />
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight animate-fade-in">
-              <span className="text-white font-semibold text-xs tracking-tight whitespace-nowrap">BLYNK VIRTUAL</span>
-              <span className="text-white font-semibold text-xs tracking-tight whitespace-nowrap">TECHNOLOGIES</span>
+              <span className="text-sidebar-accent-foreground font-display font-semibold text-xs tracking-normal whitespace-nowrap">BLYNK VIRTUAL</span>
+              <span className="text-sidebar-accent-foreground font-display font-semibold text-xs tracking-normal whitespace-nowrap">TECHNOLOGIES</span>
             </div>
           )}
         </div>
@@ -412,14 +412,14 @@ export function HorillaSidebar({
           Array.from({ length: 8 }).map((_, i) => (
             <div
               key={`sk-${i}`}
-              className="h-8 rounded-lg bg-white/5 animate-pulse"
+               className="h-8 rounded-lg bg-sidebar-accent animate-pulse"
             />
           ))}
 
         {visibleNavGroups.map((group) => (
           <div key={group.title}>
             {!collapsed && (
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] px-2 mb-1.5 hrms-sidebar-label">
+                <p className="text-[10px] font-semibold uppercase tracking-normal px-2 mb-1.5 text-muted-foreground">
                 {group.title}
               </p>
             )}
@@ -454,8 +454,8 @@ export function HorillaSidebar({
                       className={cn(
                         "w-full flex items-center gap-3 px-2.5 py-2 rounded-lg text-[13px] font-medium transition-colors duration-150",
                         active
-                          ? "bg-[#6C63FF] text-white"
-                          : "hrms-sidebar-item hover:text-white hover:bg-[#252540]",
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent",
                         collapsed && "justify-center px-2"
                       )}
                     >
@@ -477,7 +477,7 @@ export function HorillaSidebar({
                     </button>
 
                     {!collapsed && hasChildren && expanded && (
-                      <div className="mt-0.5 ml-6 space-y-0.5 border-l border-[#2a2a40] pl-3">
+                      <div className="mt-0.5 ml-6 space-y-0.5 border-l border-sidebar-border pl-3">
                         {item.children!.map((child) => {
                           const childActive = isChildActive(child.path);
                           return (
@@ -488,7 +488,7 @@ export function HorillaSidebar({
                               onClick={() => handleNavigate(child.path)}
                                 className={cn(
                                   "w-full text-left text-[13px] py-1.5 px-2 rounded-md transition-colors",
-                                  childActive ? "text-[#6C63FF] font-medium" : "hrms-sidebar-child hover:text-white hover:bg-[#252540]/80"
+                                  childActive ? "bg-primary/10 text-primary font-medium" : "text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
                                 )}
                             >
                               {child.label}
@@ -499,8 +499,8 @@ export function HorillaSidebar({
                     )}
 
                     {!isMobile && collapsed && hoveredItem === item.label && hasChildren && (
-                      <div className="absolute left-full top-0 ml-2 bg-[#1a1a2e] border border-[#2a2a40] rounded-lg shadow-2xl py-2 min-w-[180px] z-50">
-                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider hrms-sidebar-label">
+                      <div className="absolute left-full top-0 ml-2 bg-popover border border-border rounded-lg shadow-lg py-2 min-w-[180px] z-50">
+                        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-normal text-muted-foreground">
                           {item.label}
                         </div>
                         {item.children!.map((child) => (
@@ -512,8 +512,8 @@ export function HorillaSidebar({
                             className={cn(
                               "w-full text-left text-sm py-2 px-3 transition-colors",
                               isChildActive(child.path)
-                                ? "text-[#6C63FF] bg-[#6C63FF]/10"
-                                : "hrms-sidebar-item hover:text-white hover:bg-[#252540]"
+                                ? "text-primary bg-primary/10"
+                                : "text-popover-foreground hover:bg-accent"
                             )}
                           >
                             {child.label}
@@ -530,10 +530,10 @@ export function HorillaSidebar({
       </nav>
 
       {!isMobile && (
-        <div className="px-3 py-3 border-t border-[#2a2a40] shrink-0">
+        <div className="px-3 py-3 border-t border-sidebar-border shrink-0">
           <button
             onClick={onToggle}
-            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg hrms-sidebar-item hover:text-white hover:bg-[#252540] transition-colors text-[13px]"
+            className="w-full flex items-center justify-center gap-2 px-2 py-2 rounded-lg text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent transition-colors text-[13px]"
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />

@@ -36,7 +36,7 @@ export function RouteProgressBar() {
   return (
     <div className="relative h-0.5 w-full overflow-hidden bg-transparent" role="presentation">
       <div
-        className="h-full bg-[#6C63FF] transition-[width,opacity] ease-out"
+        className="h-full bg-primary transition-[width,opacity] ease-out"
         style={{
           width: done ? "100%" : "72%",
           opacity: done ? 0 : 1,

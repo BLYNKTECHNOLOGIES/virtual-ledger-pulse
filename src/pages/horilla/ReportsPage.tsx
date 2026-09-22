@@ -17,7 +17,10 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollBreakdownDialog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const COLORS = ["#E8604C", "#6C63FF", "#10B981", "#F59E0B", "#3B82F6", "#8B5CF6", "#EC4899", "#14B8A6"];
+const COLORS = [
+  "hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))",
+  "hsl(var(--info))", "hsl(var(--accent-foreground))", "hsl(var(--muted-foreground))", "hsl(var(--secondary-foreground))",
+];
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 const monthLabel = (iso: string) =>
@@ -536,7 +539,7 @@ export default function ReportsPage() {
             {headcountTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}><AreaChart data={headcountTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
-                <Area type="monotone" dataKey="total" name="Headcount" fill="#6C63FF" fillOpacity={0.15} stroke="#6C63FF" strokeWidth={2} />
+                <Area type="monotone" dataKey="total" name="Headcount" fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary))" strokeWidth={2} />
               </AreaChart></ResponsiveContainer>
             ) : <NoData reason="No joinings or exits recorded in the selected range." />}
             <Source>joining dates (work info) minus exits (resignation / last working day)</Source>
@@ -549,7 +552,7 @@ export default function ReportsPage() {
             {newHires.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}><BarChart data={newHires}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
-                <Bar dataKey="count" name="Joined" fill="#E8604C" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" name="Joined" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
               </BarChart></ResponsiveContainer>
             ) : <NoData reason="No employee joined within the selected range." />}
             <Source>hr_employee_work_info.joining_date (actual hiring date, not record import date)</Source>
@@ -570,9 +573,9 @@ export default function ReportsPage() {
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
                 <Tooltip formatter={(v: any) => inr(Number(v))} />
-                <Line type="monotone" dataKey="gross" name="Gross" stroke="#E8604C" strokeWidth={2} />
-                <Line type="monotone" dataKey="net" name="Net" stroke="#6C63FF" strokeWidth={2} />
-                <Line type="monotone" dataKey="deductions" name="Deductions" stroke="#10B981" strokeWidth={1.5} strokeDasharray="5 5" />
+                <Line type="monotone" dataKey="gross" name="Gross" stroke="hsl(var(--primary))" strokeWidth={2} />
+                <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--info))" strokeWidth={2} />
+                <Line type="monotone" dataKey="deductions" name="Deductions" stroke="hsl(var(--success))" strokeWidth={1.5} strokeDasharray="5 5" />
               </LineChart></ResponsiveContainer>
             ) : <NoData reason="No payslips exist for the selected months." />}
             <Source>RazorpayX payslip mirror (hr_payslips_v), grouped by pay period · click any month for the employee-by-employee breakdown</Source>
@@ -689,7 +692,7 @@ export default function ReportsPage() {
             {deptLeaveData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}><BarChart data={deptLeaveData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis type="number" fontSize={11} /><YAxis dataKey="name" type="category" fontSize={10} width={110} /><Tooltip />
-                <Bar dataKey="days" name="Leave days" fill="#F59E0B" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="days" name="Leave days" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} />
               </BarChart></ResponsiveContainer>
             ) : <NoData reason="No leave requests were raised in the selected range." />}
             <Source>hr_leave_requests joined to work info departments</Source>
@@ -702,10 +705,10 @@ export default function ReportsPage() {
             {attendanceTrend.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}><BarChart data={attendanceTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="week" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
-                <Bar dataKey="present" name="Present" fill="#10B981" stackId="a" />
-                <Bar dataKey="half" name="Half day" fill="#F59E0B" stackId="a" />
-                <Bar dataKey="absent" name="Absent" fill="#EF4444" stackId="a" />
-                <Bar dataKey="late" name="Late (of present)" fill="#6C63FF" />
+                <Bar dataKey="present" name="Present" fill="hsl(var(--success))" stackId="a" />
+                <Bar dataKey="half" name="Half day" fill="hsl(var(--warning))" stackId="a" />
+                <Bar dataKey="absent" name="Absent" fill="hsl(var(--destructive))" stackId="a" />
+                <Bar dataKey="late" name="Late (of present)" fill="hsl(var(--primary))" />
               </BarChart></ResponsiveContainer>
             ) : <NoData reason="No attendance rows recorded in the selected range." />}
             <Source>attendance engine daily rollup (hr_attendance_daily), bucketed by week starting Sunday</Source>

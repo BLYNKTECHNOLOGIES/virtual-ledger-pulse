@@ -56,7 +56,7 @@ export function HorillaLayout() {
         </div>
       }
     >
-    <div className="horilla-root flex h-screen w-full max-w-full overflow-hidden bg-muted/40 dark:bg-background">
+    <div className="horilla-root flex h-screen w-full max-w-full overflow-hidden bg-background text-foreground">
       {/* Peek container: while peeking, the rail-width spacer stays put and the
           expanded panel floats above the content, so nothing reflows. */}
       <div
@@ -98,7 +98,7 @@ export function HorillaLayout() {
             region, so the sidebar and header never unmount on navigation. */}
         <main
           ref={workAreaRef}
-          className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto p-2 sm:p-3 md:p-6"
+          className="flex-1 min-w-0 overflow-x-hidden overflow-y-auto bg-background p-3 sm:p-4 md:p-6 lg:p-8"
         >
           <Suspense fallback={<HrmsRouteFallback />}>
             <Outlet />

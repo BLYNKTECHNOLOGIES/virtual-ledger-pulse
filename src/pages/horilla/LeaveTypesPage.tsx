@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const defaultForm = {
-  name: "", code: "", max_days_per_year: 12, is_paid: true, requires_approval: true, color: "#6C63FF",
+  name: "", code: "", max_days_per_year: 12, is_paid: true, requires_approval: true, color: "#00CCFF",
   reset: false, reset_based: "" as string, reset_month: "", reset_day: "",
   is_encashable: false, exclude_company_leave: false, exclude_holiday: false, is_compensatory_leave: false,
   carryforward_type: "carryforward", carryforward_expire_in: null as number | null, carryforward_expire_period: "",
@@ -127,7 +127,7 @@ export default function LeaveTypesPage() {
     setEditId(t.id);
     setForm({
       name: t.name, code: t.code, max_days_per_year: t.max_days_per_year || 12,
-      is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#6C63FF",
+      is_paid: t.is_paid ?? true, requires_approval: t.requires_approval ?? true, color: t.color || "#00CCFF",
       reset: t.reset ?? false, reset_based: t.reset_based || "", reset_month: t.reset_month || "", reset_day: t.reset_day || "",
       is_encashable: t.is_encashable ?? false, exclude_company_leave: t.exclude_company_leave ?? false,
       exclude_holiday: t.exclude_holiday ?? false, is_compensatory_leave: t.is_compensatory_leave ?? false,
@@ -205,7 +205,7 @@ export default function LeaveTypesPage() {
                     <div className="flex items-center gap-2.5">
                       <div
                         className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-2 ring-offset-card"
-                        style={{ backgroundColor: t.color || "#6C63FF", boxShadow: `0 0 6px ${t.color || "#6C63FF"}40` }}
+                        style={{ backgroundColor: t.color || "#00CCFF", boxShadow: `0 0 6px ${t.color || "#00CCFF"}40` }}
                       />
                       <div>
                         <div className="flex items-center gap-2">

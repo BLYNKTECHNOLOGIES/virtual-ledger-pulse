@@ -283,12 +283,24 @@ export default function CapacitySeatsPage() {
 
   const mapRoles = useMemo(() => {
     if (!activeMapShiftId) return [];
+    const selectedShiftPeople = filteredPeople.filter(
+      (person) => person.shift_id === (activeMapShiftId === "unassigned" ? null : activeMapShiftId),
+    );
     return filtered
-      .filter((seat) => !seat.shift_id || seat.shift_id === activeMapShiftId)
-      .map((seat) => {
-        const occupiedSeats = filteredPeople.filter(
+      .filter((seat) => {
+        if (seat.shift_id) return seat.shift_id === activeMapShiftId;
+        // Shift-neutral desks are shared across shifts, but they only become
+        // eligible for a shift when that exact department/role works it.
+        // This prevents one Support Staff assignment from inheriting all 22 desks.
+        return selectedShiftPeople.some(
           (person) =>
-            person.shift_id === (activeMapShiftId === "unassigned" ? null : activeMapShiftId) &&
+            person.department_id === seat.department_id &&
+            (!seat.position_id || person.job_position_id === seat.position_id),
+        );
+      })
+      .map((seat) => {
+        const occupiedSeats = selectedShiftPeople.filter(
+          (person) =>
             person.department_id === seat.department_id &&
             (!seat.position_id || person.job_position_id === seat.position_id),
         ).length;

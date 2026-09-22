@@ -10,6 +10,12 @@ export type SeatMapShift = {
   end_time?: string | null;
 };
 
+export type SeatMapOccupant = {
+  name: string;
+  /** Serving notice: the desk frees up shortly, so it is flagged amber. */
+  onNotice?: boolean;
+};
+
 export type SeatMapRole = {
   id: string;
   departmentName: string;
@@ -17,7 +23,7 @@ export type SeatMapRole = {
   physicalSeats: number;
   occupiedSeats: number;
   overflow: number;
-  occupantNames: string[];
+  occupants: SeatMapOccupant[];
   trainingOnly?: boolean;
 };
 

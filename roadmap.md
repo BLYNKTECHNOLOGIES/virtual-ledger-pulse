@@ -14,3 +14,4 @@
 - [x] Make seat availability respond to the selected shift.
 - [x] Keep every physical seat reserved to its assigned role.
 - [x] Verify desktop/mobile rendering and live calculations.
+- [x] Replace the interim boxed dashboard with the approved cinema-style role-row seating plan.

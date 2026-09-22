@@ -12035,6 +12035,7 @@ export type Database = {
           department_id: string | null
           effective_from: string
           eligible_position_ids: string[]
+          eligible_shift_ids: string[]
           employment_type: string | null
           id: string
           is_active: boolean
@@ -12055,6 +12056,7 @@ export type Database = {
           department_id?: string | null
           effective_from?: string
           eligible_position_ids?: string[]
+          eligible_shift_ids?: string[]
           employment_type?: string | null
           id?: string
           is_active?: boolean
@@ -12075,6 +12077,7 @@ export type Database = {
           department_id?: string | null
           effective_from?: string
           eligible_position_ids?: string[]
+          eligible_shift_ids?: string[]
           employment_type?: string | null
           id?: string
           is_active?: boolean

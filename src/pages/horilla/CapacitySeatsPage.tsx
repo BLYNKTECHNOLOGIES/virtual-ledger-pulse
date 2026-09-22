@@ -353,10 +353,22 @@ export default function CapacitySeatsPage() {
         // Shift-neutral desks are shared across shifts, but they only become
         // eligible for a shift when that exact department/role works it.
         // This prevents one Support Staff assignment from inheriting all 22 desks.
-        return selectedShiftPeople.some(
-          (person) =>
-            person.department_id === seat.department_id &&
-            seatAllowsPosition(seat, person.job_position_id),
+        if (
+          selectedShiftPeople.some(
+            (person) =>
+              person.department_id === seat.department_id &&
+              seatAllowsPosition(seat, person.job_position_id),
+          )
+        ) {
+          return true;
+        }
+        // A desk also belongs to a shift when the approved staffing plan asks for
+        // that role in that shift, even while the seats are still empty. Without
+        // this, planned-but-unstaffed roles vanish from the shift entirely.
+        return planScopes.some(
+          (plan) =>
+            plan.shiftIds.some((id: string) => selectedShiftIds.includes(id)) &&
+            plan.positionIds.some((id: string) => seatAllowsPosition(seat, id)),
         );
       })
       .map((seat) => {

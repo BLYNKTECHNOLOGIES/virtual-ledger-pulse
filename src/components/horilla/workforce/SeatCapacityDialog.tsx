@@ -140,8 +140,9 @@ export function SeatCapacityDialog({
               {positions.map((position) => {
                 const checked = form.eligible_position_ids.includes(position.id);
                 return (
-                  <label key={position.id} className="flex items-center gap-2 text-xs text-foreground">
+                  <div key={position.id} className="flex items-center gap-2 text-xs text-foreground">
                     <Checkbox
+                      id={`seat-eligible-${position.id}`}
                       checked={checked}
                       disabled={position.id === form.position_id && form.eligible_position_ids.length > 0}
                       onCheckedChange={(value) => set({
@@ -150,8 +151,10 @@ export function SeatCapacityDialog({
                           : form.eligible_position_ids.filter((id) => id !== position.id),
                       })}
                     />
-                    {position.title}
-                  </label>
+                    <Label htmlFor={`seat-eligible-${position.id}`} className="cursor-pointer text-xs font-normal">
+                      {position.title}
+                    </Label>
+                  </div>
                 );
               })}
             </div>

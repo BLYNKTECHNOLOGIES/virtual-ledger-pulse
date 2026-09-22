@@ -400,13 +400,7 @@ export default function CapacitySeatsPage() {
         // Shift-neutral desks are shared across shifts, but they only become
         // eligible for a shift when that exact department/role works it.
         // This prevents one Support Staff assignment from inheriting all 22 desks.
-        if (
-          selectedShiftPeople.some(
-            (person) =>
-              person.department_id === seat.department_id &&
-              seatAllowsPosition(seat, person.job_position_id),
-          )
-        ) {
+        if (selectedShiftPeople.some((person) => seatMatchesPerson(seat, person))) {
           return true;
         }
         // A desk also belongs to a shift when the approved staffing plan asks for
@@ -422,12 +416,9 @@ export default function CapacitySeatsPage() {
         );
       })
       .map((seat) => {
-        const matchingPeople = selectedShiftPeople.filter(
-          (person) =>
-            seat.is_training_only ||
-            (person.department_id === seat.department_id &&
-            seatAllowsPosition(seat, person.job_position_id)),
-        ).sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
+        const matchingPeople = selectedShiftPeople
+          .filter((person) => seatMatchesPerson(seat, person))
+          .sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
         const occupiedSeats = matchingPeople.length;
         const physicalSeats = seat.physical_seats || 0;
         return {
@@ -437,7 +428,10 @@ export default function CapacitySeatsPage() {
           physicalSeats,
           occupiedSeats,
           overflow: Math.max(0, occupiedSeats - physicalSeats),
-          occupantNames: matchingPeople.map(employeeName),
+          occupants: matchingPeople.map((person) => ({
+            name: employeeName(person),
+            onNotice: isOnNotice(person),
+          })),
           trainingOnly: !!seat.is_training_only,
         };
       })
@@ -446,7 +440,7 @@ export default function CapacitySeatsPage() {
         a.departmentName.localeCompare(b.departmentName) ||
         a.positionTitle.localeCompare(b.positionTitle),
       );
-  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown]);
+  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown, seatMatchesPerson]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">

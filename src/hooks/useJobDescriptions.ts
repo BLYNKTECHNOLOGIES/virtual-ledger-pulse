@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 export const JD_BUCKET = "job-descriptions";
 export const JD_FULL_COMPENDIUM_PATH =
-  "compendium-2026/Blynk_Job_Description_Compendium.pdf";
+  "v4.2-2026/Blynk_Job_Description_Compendium_v4.2.pdf";
 
 export interface JobDescriptionRow {
   id: string;
@@ -19,7 +19,7 @@ export interface JobDescriptionRow {
   is_active: boolean;
 }
 
-/** All job descriptions in the HR library (31 role charters from the compendium). */
+/** All active role charters from the latest HR job-description compendium. */
 export function useJobDescriptions() {
   return useQuery({
     queryKey: ["hr_job_descriptions"],

@@ -129,7 +129,6 @@ export default function CapacitySeatsPage() {
           return false;
         if (filters.positionId !== "all" && s.position_id !== filters.positionId) return false;
         if (filters.shift !== "all" && (s.shiftName || "—") !== filters.shift) return false;
-        if (filters.location !== "all" && (s.location || "—") !== filters.location) return false;
         return true;
       }),
     [enriched, filters],
@@ -148,11 +147,6 @@ export default function CapacitySeatsPage() {
     });
     return Array.from(unique.values());
   }, [filtered, people]);
-
-  const locations = useMemo(
-    () => Array.from(new Set(enriched.map((s) => s.location || "—"))).sort(),
-    [enriched],
-  );
 
   const shiftBreakdown = useMemo(() => {
     const shifts = (lookups?.shifts || []) as ShiftLookup[];
@@ -341,7 +335,6 @@ export default function CapacitySeatsPage() {
         departments={lookups?.departments || []}
         positions={lookups?.positions || []}
         shifts={lookups?.shifts || []}
-        locations={locations}
         showStatus={false}
         showPriority={false}
         showDates={false}
@@ -562,7 +555,7 @@ export default function CapacitySeatsPage() {
         <EmptyState
           icon={LayoutGrid}
           title="No seat capacity recorded"
-          description="Add the number of desks per department, shift and location to see how full the floor is."
+          description="Add the number of desks per department and shift to see how full the floor is."
         />
       ) : (
         <>
@@ -575,7 +568,6 @@ export default function CapacitySeatsPage() {
                       <th className="px-3 py-2">Department</th>
                       <th className="px-3 py-2">Position</th>
                       <th className="px-3 py-2">Shift</th>
-                      <th className="px-3 py-2">Location</th>
                       <th className="px-3 py-2 text-right">Physical seats</th>
                       <th className="px-3 py-2 text-right">Max operational</th>
                       <th className="px-3 py-2 text-right">Occupied</th>
@@ -609,7 +601,6 @@ export default function CapacitySeatsPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">{s.location || "—"}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{s.physical_seats}</td>
                         <td className="px-3 py-2 text-right tabular-nums">
                           {s.max_operational_capacity ?? "—"}
@@ -657,7 +648,6 @@ export default function CapacitySeatsPage() {
                                       position_id: s.position_id,
                                       shift_id: s.shift_id,
                                       shift_label: s.shift_label,
-                                      location: s.location,
                                       physical_seats: s.physical_seats,
                                       max_operational_capacity: s.max_operational_capacity,
                                       notes: s.notes,
@@ -695,7 +685,7 @@ export default function CapacitySeatsPage() {
                       {s.departmentName} · {s.positionTitle || "Whole department"}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {[s.shiftName, s.location].filter(Boolean).join(" · ") || "—"}
+                      {s.shiftName || "—"}
                     </p>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-xs">
@@ -734,7 +724,6 @@ export default function CapacitySeatsPage() {
                             position_id: s.position_id,
                             shift_id: s.shift_id,
                             shift_label: s.shift_label,
-                            location: s.location,
                             physical_seats: s.physical_seats,
                             max_operational_capacity: s.max_operational_capacity,
                             notes: s.notes,

@@ -144,16 +144,6 @@ export function SeatCapacityDialog({
         </div>
 
         <div className="space-y-1">
-          <Label>Location</Label>
-          <Input
-            className="text-foreground"
-            value={form.location ?? ""}
-            onChange={(e) => set({ location: e.target.value || null })}
-            placeholder="Office / floor"
-          />
-        </div>
-
-        <div className="space-y-1">
           <Label>Total physical seats</Label>
           <Input
             type="number"

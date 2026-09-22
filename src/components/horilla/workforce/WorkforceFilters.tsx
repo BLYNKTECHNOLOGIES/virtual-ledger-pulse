@@ -24,7 +24,6 @@ interface WorkforceFiltersProps {
   departments: { id: string; name: string }[];
   positions: { id: string; title: string }[];
   shifts: { id: string; name: string }[];
-  locations: string[];
   /** Hide the staffing-status filter on pages where it has no meaning. */
   showStatus?: boolean;
   showPriority?: boolean;
@@ -37,7 +36,6 @@ export function WorkforceFilters({
   departments,
   positions,
   shifts,
-  locations,
   showStatus = true,
   showPriority = true,
   showDates = true,
@@ -93,23 +91,6 @@ export function WorkforceFilters({
               {shifts.map((s) => (
                 <SelectItem key={s.id} value={s.name}>
                   {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <Label className="text-xs text-muted-foreground">Location</Label>
-          <Select value={value.location} onValueChange={(v) => set({ location: v })}>
-            <SelectTrigger className="h-9 text-foreground">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All locations</SelectItem>
-              {locations.map((l) => (
-                <SelectItem key={l} value={l}>
-                  {l}
                 </SelectItem>
               ))}
             </SelectContent>

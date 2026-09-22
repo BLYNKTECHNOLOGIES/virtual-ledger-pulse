@@ -59,11 +59,6 @@ export default function StaffingPlanPage() {
     [rows, filters],
   );
 
-  const locations = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.location || "—"))).sort(),
-    [rows],
-  );
-
   const planById = useMemo(
     () => new Map(plans.map((p: any) => [p.id, p])),
     [plans],
@@ -80,7 +75,6 @@ export default function StaffingPlanPage() {
             position_id: plan.position_id,
             shift_id: plan.shift_id,
             shift_label: plan.shift_label,
-            location: plan.location,
             employment_type: plan.employment_type,
             approved_hc: plan.approved_hc,
             required_hc: plan.required_hc,
@@ -115,7 +109,6 @@ export default function StaffingPlanPage() {
         departments={lookups?.departments || []}
         positions={lookups?.positions || []}
         shifts={lookups?.shifts || []}
-        locations={locations}
       />
 
       {isLoading ? (
@@ -137,7 +130,6 @@ export default function StaffingPlanPage() {
                     <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <th className="px-3 py-2">Department / position</th>
                       <th className="px-3 py-2">Shift</th>
-                      <th className="px-3 py-2">Location</th>
                       <th className="px-3 py-2 text-right">Approved</th>
                       <th className="px-3 py-2 text-right">On roll</th>
                       <th className="px-3 py-2 text-right">Required</th>
@@ -163,7 +155,6 @@ export default function StaffingPlanPage() {
                           <p className="text-xs text-muted-foreground">{r.department_name}</p>
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{r.shift_name || "—"}</td>
-                        <td className="px-3 py-2 text-muted-foreground">{r.location || "—"}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.approved_hc}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.current_hc}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{r.required_hc}</td>
@@ -216,7 +207,6 @@ export default function StaffingPlanPage() {
                                     position_id: r.position_id!,
                                     shift_id: r.shift_id,
                                     shift_label: r.shift_name,
-                                    location: r.location,
                                     employment_type: r.employment_type,
                                     number_required: r.uncoveredHiringRequirement,
                                     target_joining_date: r.target_date,
@@ -314,7 +304,6 @@ export default function StaffingPlanPage() {
                               position_id: r.position_id!,
                               shift_id: r.shift_id,
                               shift_label: r.shift_name,
-                              location: r.location,
                               employment_type: r.employment_type,
                               number_required: r.uncoveredHiringRequirement,
                               target_joining_date: r.target_date,

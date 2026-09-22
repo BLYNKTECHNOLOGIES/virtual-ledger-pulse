@@ -73,11 +73,6 @@ export default function WorkforceOverviewPage() {
     [rows, filters],
   );
 
-  const locations = useMemo(
-    () => Array.from(new Set(rows.map((r) => r.location || "—"))).sort(),
-    [rows],
-  );
-
   const totals = useMemo(() => {
     const sum = (key: keyof (typeof filtered)[number]) =>
       filtered.reduce((acc, r) => acc + (Number(r[key]) || 0), 0);
@@ -186,7 +181,6 @@ export default function WorkforceOverviewPage() {
         departments={lookups?.departments || []}
         positions={lookups?.positions || []}
         shifts={lookups?.shifts || []}
-        locations={locations}
       />
 
       {isLoading ? (
@@ -327,7 +321,6 @@ export default function WorkforceOverviewPage() {
                                   position_id: r.position_id!,
                                   shift_id: r.shift_id,
                                   shift_label: r.shift_name,
-                                  location: r.location,
                                   employment_type: r.employment_type,
                                   number_required: r.uncoveredHiringRequirement,
                                   target_joining_date: r.target_date,

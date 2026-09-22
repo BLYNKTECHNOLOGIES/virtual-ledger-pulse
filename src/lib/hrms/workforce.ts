@@ -203,7 +203,6 @@ export interface WorkforceFilterState {
   departmentId: string;
   positionId: string;
   shift: string;
-  location: string;
   employmentType: string;
   status: string;
   priority: string;
@@ -215,7 +214,6 @@ export const EMPTY_FILTERS: WorkforceFilterState = {
   departmentId: "all",
   positionId: "all",
   shift: "all",
-  location: "all",
   employmentType: "all",
   status: "all",
   priority: "all",
@@ -230,7 +228,6 @@ export function matchesFilters(
   if (f.departmentId !== "all" && row.department_id !== f.departmentId) return false;
   if (f.positionId !== "all" && row.position_id !== f.positionId) return false;
   if (f.shift !== "all" && (row.shift_name || "—") !== f.shift) return false;
-  if (f.location !== "all" && (row.location || "—") !== f.location) return false;
   if (
     f.employmentType !== "all" &&
     (row.employment_type || "—") !== f.employmentType

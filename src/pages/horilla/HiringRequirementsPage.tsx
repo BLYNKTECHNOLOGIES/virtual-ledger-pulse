@@ -70,7 +70,6 @@ export default function HiringRequirementsPage() {
         r.positions?.title,
         r.departments?.name,
         r.shift_label,
-        r.location,
       ]
         .filter(Boolean)
         .some((v: string) => v.toLowerCase().includes(q));
@@ -160,7 +159,6 @@ export default function HiringRequirementsPage() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {needed} required · target {formatIstDate(r.target_joining_date)}
-                        {r.location ? ` · ${r.location}` : ""}
                       </p>
                     </div>
 

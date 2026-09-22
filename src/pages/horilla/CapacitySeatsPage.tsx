@@ -317,10 +317,12 @@ export default function CapacitySeatsPage() {
     () =>
       filtered
         .map((seat) => {
-          const matching = filteredPeople.filter(
-            (person) =>
-              person.department_id === seat.department_id &&
-              seatAllowsPosition(seat, person.job_position_id),
+          const matching = filteredPeople.filter((person) =>
+            seat.is_training_only
+              ? !!person.shift_id && trainingShiftIds.has(person.shift_id)
+              : !traineeIds.has(person.employee_id) &&
+                person.department_id === seat.department_id &&
+                seatAllowsPosition(seat, person.job_position_id),
           );
           const byShift = new Map<string, number>();
           matching.forEach((person) => {
@@ -330,7 +332,7 @@ export default function CapacitySeatsPage() {
           return { ...seat, byShift };
         })
         .sort((a, b) => b.totalOnRoll - a.totalOnRoll),
-    [filtered, filteredPeople],
+    [filtered, filteredPeople, traineeIds, trainingShiftIds],
   );
 
   const peakShift = useMemo(

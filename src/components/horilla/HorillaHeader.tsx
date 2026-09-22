@@ -196,7 +196,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
 
 
   return (
-    <header className="h-12 md:h-14 bg-card/90 backdrop-blur-sm border-b border-border flex items-center justify-between px-2 md:px-4 shrink-0 gap-1.5 md:gap-2 supports-[padding:max(0px)]:pt-[max(0px,env(safe-area-inset-top))]">
+    <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-2 md:px-6 shrink-0 gap-1.5 md:gap-2 supports-[padding:max(0px)]:pt-[max(0px,env(safe-area-inset-top))]">
       <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
         <button
           onClick={onToggleSidebar}
@@ -207,7 +207,7 @@ export function HorillaHeader({ onToggleSidebar, isMobile = false }: HorillaHead
         </button>
 
         <div ref={searchRef} className="relative w-full min-w-0 sm:w-72 sm:max-w-none">
-          <div className="flex min-w-0 items-center rounded-lg border border-border bg-muted/60 px-2 py-1.5 transition-all focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/30 sm:px-3">
+          <div className="flex min-w-0 items-center rounded-lg border border-border bg-background px-2 py-1.5 transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 sm:px-3">
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
             <input
               type="text"

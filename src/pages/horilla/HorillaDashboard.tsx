@@ -166,9 +166,9 @@ export default function HorillaDashboard() {
   const typeData = Object.entries(typeCounts).map(([name, value]) => ({ name, value }));
 
   const attendancePie = [
-    { name: "Present", value: presentToday, color: "#10B981" },
-    { name: "Absent", value: absentToday, color: "#EF4444" },
-    { name: "Late", value: lateToday, color: "#F59E0B" },
+    { name: "Present", value: presentToday, color: "hsl(var(--success))" },
+    { name: "Absent", value: absentToday, color: "hsl(var(--destructive))" },
+    { name: "Late", value: lateToday, color: "hsl(var(--warning))" },
   ].filter(d => d.value > 0);
 
   const stats = [
@@ -183,7 +183,7 @@ export default function HorillaDashboard() {
   ];
 
   return (
-    <div className="space-y-4 page-mount">
+    <div className="hrms-page space-y-6 page-mount">
       <PageHeader
         title="Dashboard"
         description="Welcome back! Here's what's happening today."
@@ -192,15 +192,15 @@ export default function HorillaDashboard() {
       <AnnouncementsBanner />
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {stats.map((c) => (
-          <div key={c.label} className="bg-card rounded-xl border border-border p-5 flex items-start justify-between">
+          <div key={c.label} className="group bg-card rounded-lg border border-border p-5 flex items-start justify-between transition-colors duration-200 hover:border-primary/30">
             <div>
-              <p className="text-xs text-muted-foreground">{c.label}</p>
-              <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{c.value}</p>
+              <p className="text-xs font-semibold uppercase tracking-normal text-muted-foreground">{c.label}</p>
+              <p className="font-mono text-3xl font-bold text-foreground mt-2 tabular-nums first:text-primary">{c.value}</p>
               <p className="text-[11px] mt-1 text-muted-foreground">{c.sub}</p>
             </div>
-            <div className={`w-10 h-10 rounded-xl ${c.iconBg} flex items-center justify-center shrink-0`}>
+            <div className={`w-9 h-9 rounded-lg ${c.iconBg} flex items-center justify-center shrink-0`}>
               <c.icon className={`h-5 w-5 ${c.iconColor}`} />
             </div>
           </div>
@@ -208,10 +208,10 @@ export default function HorillaDashboard() {
       </div>
 
       {/* Data completeness — HR manager's daily "what next" home base */}
-      <HRDashboardCompletenessCard />
-
-      {/* Org-wide setup gaps that block payroll/attendance from running */}
-      <HRSetupChecklistCard />
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
+        <div className="xl:col-span-2"><HRDashboardCompletenessCard /></div>
+        <HRSetupChecklistCard />
+      </div>
 
       {/* Upcoming company holidays — read-only visibility for everyone */}
       <UpcomingHolidaysCard />
@@ -222,7 +222,7 @@ export default function HorillaDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Pending Leave Requests - Actionable */}
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5 transition-colors hover:border-warning/30">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <AlertTriangle className="h-4 w-4 text-warning" /> Pending Leave Requests
@@ -255,7 +255,7 @@ export default function HorillaDashboard() {
         </div>
 
         {/* Today's Absentees - Actionable */}
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5 transition-colors hover:border-destructive/30">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <XCircle className="h-4 w-4 text-destructive" /> Today's Absentees
@@ -284,7 +284,7 @@ export default function HorillaDashboard() {
         </div>
 
         {/* Payroll Action Items */}
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border border-l-4 border-l-primary p-5 transition-colors hover:border-primary/40">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
               <Wallet className="h-4 w-4 text-primary" /> Payroll Actions
@@ -325,7 +325,7 @@ export default function HorillaDashboard() {
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Department Distribution</h3>
           {deptDistribution.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
@@ -342,7 +342,7 @@ export default function HorillaDashboard() {
           )}
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Today's Attendance</h3>
           {attendancePie.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No attendance data</p>
@@ -370,7 +370,7 @@ export default function HorillaDashboard() {
           )}
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Employee Types</h3>
           {typeData.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No data</p>
@@ -401,7 +401,7 @@ export default function HorillaDashboard() {
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Leave Summary</h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
@@ -418,7 +418,7 @@ export default function HorillaDashboard() {
           </div>
         </div>
 
-        <div className="bg-card rounded-xl border border-border p-5">
+        <div className="bg-card rounded-lg border border-border p-5">
           <h3 className="text-sm font-semibold text-foreground mb-3">Payroll Overview</h3>
           {(payrollRuns || []).length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">No payroll runs yet</p>

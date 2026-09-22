@@ -71,11 +71,15 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
     });
   }, [ads, map, balances]);
 
-  // An ad needs a push when its *remaining* quantity is below the target. The
-  // server converts the desired remainder into Binance's cumulative initAmount
-  // using a fresh detail read, then verifies the resulting surplusAmount.
+  // BUY edits Binance's Tradable Quantity; SELL edits Binance's Quantity.
+  // The server converts BUY targets to the cumulative initAmount required by
+  // Binance while preserving the amount already traded on the ad.
   const EPS = 0.00000001;
-  const needsPush = (p: PlanRow) => p.target !== null && (p.remaining < (p.target as number) - EPS || Math.abs((p.target as number) - p.current) > EPS);
+  const needsPush = (p: PlanRow) => p.target !== null && (
+    p.ad.tradeType === 'BUY'
+      ? Math.abs((p.target as number) - p.remaining) > EPS
+      : Math.abs((p.target as number) - p.current) > EPS
+  );
   const actionable = plan.filter(needsPush);
   const unchanged = plan.filter((p) => p.target !== null && !needsPush(p));
   const skipped = plan.filter((p) => p.target === null);
@@ -175,8 +179,8 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
                           <span className="text-warning">{p.skipReason}</span>
                         ) : (
                           <>
-                            remaining {fmtQty(p.remaining)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
-                            {' · '}total ceiling {fmtQty(p.target)}
+                            {p.ad.tradeType === 'BUY' ? 'tradable quantity' : 'quantity'}{' '}
+                            {fmtQty(p.ad.tradeType === 'BUY' ? p.remaining : p.current)} → <span className="text-foreground font-medium">{fmtQty(p.target)}</span> {p.ad.asset}
                             {' · '}
                             {p.bound === 'balance'
                               ? `clamped to available balance (cap ${fmtQty(p.cap as number)})`

@@ -316,7 +316,7 @@ function getBusinessStatusLabel(status: unknown): string {
 }
 
 const AD_UPDATE_FIELDS = new Set([
-  "advNo", "price", "priceFloatingRatio", "priceType", "advStatus", "initAmount", "surplusAmount",
+  "advNo", "price", "priceFloatingRatio", "priceType", "advStatus", "initAmount",
   "minSingleTransAmount", "maxSingleTransAmount", "tradeMethods", "payTimeLimit", "buyerKycLimit",
   "buyerRegDaysLimit", "buyerBtcPositionLimit", "takerAdditionalKycRequired", "autoReplyMsg", "remarks",
   "asset", "fiatUnit", "tradeType", "classify", "onlineNow", "onlineDelayTime", "updateMode"
@@ -1088,12 +1088,15 @@ serve(async (req) => {
         }
 
 
-        // Re-sending an unchanged initAmount returns success but Binance treats it
-        // as a no-op, leaving a partially consumed surplusAmount untouched. For
-        // the Max Quantity action, force a real quantity transition just below
-        // the ceiling before restoring the exact requested ceiling. This never
-        // submits a value above the saved Binance maximum.
+        // Binance only accepts initAmount on AdUpdateReq. surplusAmount and
+        // tradableQuantity are response fields. On BUY ads the Binance editor's
+        // "tradable quantity" operation preserves the already-filled quantity:
+        //   new initAmount = filled quantity + requested tradable quantity.
+        // SELL ads edit the ordinary Quantity field, so their initAmount is the
+        // requested value directly.
         let desiredRemaining: number | null = null;
+        let desiredInitialAmount: number | null = null;
+        let quantityTradeType: "BUY" | "SELL" | null = null;
         if (desiredRemainingRaw !== undefined) {
           desiredRemaining = Number(desiredRemainingRaw);
           if (!Number.isFinite(desiredRemaining) || desiredRemaining <= 0) {
@@ -1115,43 +1118,21 @@ serve(async (req) => {
           if (!Number.isFinite(currentTotal) || !Number.isFinite(currentRemaining)) {
             throw new Error("Binance did not return the current total and remaining quantity");
           }
-          const quantityStep = ["USDC", "FDUSD"].includes(String(detail?.asset || adUpdateBody.asset || "").toUpperCase()) ? 1 : 0.00000001;
-          const sameTotal = Math.abs(currentTotal - desiredRemaining) <= quantityStep / 2;
-          if (sameTotal && currentRemaining < desiredRemaining - quantityStep / 2) {
-            const nudgeBody = {
-              ...adUpdateBody,
-              initAmount: Number(Math.max(quantityStep, desiredRemaining - quantityStep).toFixed(8)),
-            };
-            console.log("updateAd quantity nudge:", JSON.stringify({
-              advNo: adUpdateBody.advNo,
-              currentTotal,
-              currentRemaining,
-              desiredRemaining,
-              nudgeTotal: nudgeBody.initAmount,
-            }));
-            const nudgeResponse = await fetch(url, { method: "POST", headers: proxyHeaders, body: JSON.stringify(nudgeBody) });
-            const nudgeText = await nudgeResponse.text();
-            let nudgeResult: any;
-            try { nudgeResult = JSON.parse(nudgeText); } catch { nudgeResult = { raw: nudgeText, status: nudgeResponse.status }; }
-            if (!isSuccessfulBinancePayload(nudgeResult, nudgeResponse.status)) {
-              throw new Error(nudgeResult?.message || nudgeResult?.msg || "Binance rejected the quantity reset step");
-            }
-            await new Promise((resolve) => setTimeout(resolve, 350));
-          }
-          adUpdateBody.initAmount = desiredRemaining;
-          // Ask Binance for the same tradable (remaining) amount as well. Binance
-          // derives surplusAmount itself and may clamp it to what the account can
-          // actually trade right now (shared ad quota / available balance), but
-          // sending it is the only documented way to request the full tradable
-          // amount instead of leaving a partially consumed remainder.
-          adUpdateBody.surplusAmount = desiredRemaining;
+          quantityTradeType = String(detail?.tradeType || adUpdateBody.tradeType || "").toUpperCase() === "BUY" ? "BUY" : "SELL";
+          const filledQuantity = Math.max(0, currentTotal - currentRemaining);
+          desiredInitialAmount = quantityTradeType === "BUY"
+            ? desiredRemaining + filledQuantity
+            : desiredRemaining;
+          adUpdateBody.initAmount = Number(desiredInitialAmount.toFixed(8));
 
-          console.log("updateAd quantity restore:", JSON.stringify({
+          console.log("updateAd quantity request:", JSON.stringify({
             advNo: adUpdateBody.advNo,
+            tradeType: quantityTradeType,
             currentTotal,
             currentRemaining,
+            filledQuantity,
             desiredRemaining,
-            submittedTotal: desiredRemaining,
+            submittedTotal: adUpdateBody.initAmount,
           }));
         }
         console.log("updateAd request body:", JSON.stringify(adUpdateBody).substring(0, 1000), "skipped:", skippedFields);
@@ -1174,40 +1155,42 @@ serve(async (req) => {
             if (detail && Number.isFinite(Number(detail.surplusAmount))) {
               verifiedDetail = detail;
               const tolerance = Math.max(0.00000001, desiredRemaining * 1e-10);
-              if (Number(detail.surplusAmount) >= desiredRemaining - tolerance) break;
+              const verifiedRemaining = Number(detail.surplusAmount);
+              const verifiedTotal = Number(detail.initAmount);
+              const verified = quantityTradeType === "BUY"
+                ? Math.abs(verifiedRemaining - desiredRemaining) <= tolerance
+                : desiredInitialAmount !== null && Math.abs(verifiedTotal - desiredInitialAmount) <= tolerance;
+              if (verified) break;
             }
           }
           const verifiedRemaining = Number(verifiedDetail?.surplusAmount);
           const verifiedTotal = Number(verifiedDetail?.initAmount);
           const tolerance = Math.max(0.00000001, desiredRemaining * 1e-10);
-          const totalStored = Number.isFinite(verifiedTotal) && verifiedTotal >= desiredRemaining - tolerance;
-          if (!Number.isFinite(verifiedRemaining) && !totalStored) {
+          const totalStored = desiredInitialAmount !== null && Number.isFinite(verifiedTotal)
+            && Math.abs(verifiedTotal - desiredInitialAmount) <= tolerance;
+          const tradableStored = Number.isFinite(verifiedRemaining)
+            && Math.abs(verifiedRemaining - desiredRemaining) <= tolerance;
+          const quantityStored = quantityTradeType === "BUY" ? tradableStored : totalStored;
+          if (!Number.isFinite(verifiedRemaining) && !Number.isFinite(verifiedTotal)) {
             result = {
               code: "QUANTITY_VERIFICATION_FAILED",
               message: `Binance accepted the update but the new quantity could not be read back from the ad`,
             };
-          } else if (!totalStored) {
-            // Binance stored a smaller total than requested — the update did not take.
+          } else if (!quantityStored) {
             result = {
               code: "QUANTITY_VERIFICATION_FAILED",
-              message: `Binance accepted the update but total quantity is ${Number.isFinite(verifiedTotal) ? verifiedTotal : "unavailable"}, expected ${desiredRemaining}`,
+              message: quantityTradeType === "BUY"
+                ? `Binance accepted the update but tradable quantity is ${Number.isFinite(verifiedRemaining) ? verifiedRemaining : "unavailable"}, expected ${desiredRemaining}`
+                : `Binance accepted the update but quantity is ${Number.isFinite(verifiedTotal) ? verifiedTotal : "unavailable"}, expected ${desiredRemaining}`,
             };
           } else {
-            // Total quantity is stored as requested. Binance may report a lower
-            // tradable remaining (surplusAmount) because it clamps to what the
-            // account can actually trade — that is Binance's own value, not a
-            // failed update, so report it instead of failing the push.
-            const capped = Number.isFinite(verifiedRemaining) && verifiedRemaining < desiredRemaining - tolerance;
             result = {
               ...result,
               data: {
                 ...(result?.data && typeof result.data === "object" ? result.data : {}),
                 verifiedInitAmount: verifiedTotal,
                 verifiedSurplusAmount: verifiedRemaining,
-                quantityCappedByBinance: capped,
-                quantityNotice: capped
-                  ? `Total quantity set to ${desiredRemaining}; Binance reports ${verifiedRemaining} tradable right now.`
-                  : undefined,
+                quantityMode: quantityTradeType === "BUY" ? "tradable" : "quantity",
               },
             };
           }

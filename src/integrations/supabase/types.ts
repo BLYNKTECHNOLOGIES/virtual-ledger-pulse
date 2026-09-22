@@ -18248,6 +18248,7 @@ export type Database = {
           department_id: string | null
           id: string
           is_active: boolean
+          is_training_only: boolean
           location: string | null
           max_operational_capacity: number | null
           notes: string | null
@@ -18263,6 +18264,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           is_active?: boolean
+          is_training_only?: boolean
           location?: string | null
           max_operational_capacity?: number | null
           notes?: string | null
@@ -18278,6 +18280,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           is_active?: boolean
+          is_training_only?: boolean
           location?: string | null
           max_operational_capacity?: number | null
           notes?: string | null

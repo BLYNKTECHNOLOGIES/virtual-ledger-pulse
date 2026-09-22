@@ -10,6 +10,12 @@ export type SeatMapShift = {
   end_time?: string | null;
 };
 
+export type SeatMapOccupant = {
+  name: string;
+  /** Serving notice: the desk frees up shortly, so it is flagged amber. */
+  onNotice?: boolean;
+};
+
 export type SeatMapRole = {
   id: string;
   departmentName: string;
@@ -17,7 +23,7 @@ export type SeatMapRole = {
   physicalSeats: number;
   occupiedSeats: number;
   overflow: number;
-  occupantNames: string[];
+  occupants: SeatMapOccupant[];
   trainingOnly?: boolean;
 };
 
@@ -42,6 +48,10 @@ export function OfficeSeatMap({
   const overflow = roles.reduce((sum, role) => sum + role.overflow, 0);
   const vacant = Math.max(0, physical - occupied);
   const utilisation = physical > 0 ? (occupied / physical) * 100 : 0;
+  const onNoticeCount = roles.reduce(
+    (sum, role) => sum + role.occupants.filter((occupant) => occupant.onNotice).length,
+    0,
+  );
 
   const departments = Array.from(
     roles.reduce((groups, role) => {
@@ -131,7 +141,9 @@ export function OfficeSeatMap({
                             <div className="flex min-h-16 flex-wrap items-start justify-center gap-x-2 gap-y-3 pt-1 sm:gap-x-3">
                               {Array.from({ length: role.physicalSeats }, (_, index) => {
                                 const occupiedSeat = index < role.occupiedSeats;
-                                const occupantName = role.occupantNames[index];
+                                const occupant = role.occupants[index];
+                                const occupantName = occupant?.name;
+                                const leavingSoon = occupiedSeat && !!occupant?.onNotice;
                                 const displayNumber = firstSeatNumber + index;
                                 const totalPositions = role.physicalSeats + role.overflow;
                                 const center = (totalPositions - 1) / 2;
@@ -143,11 +155,13 @@ export function OfficeSeatMap({
                                         <div
                                           tabIndex={0}
                                           className={
-                                            occupiedSeat
-                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
-                                              : "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                            leavingSoon
+                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-warning bg-warning/25 text-warning shadow-[0_4px_0_hsl(var(--warning)/0.4)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                              : occupiedSeat
+                                                ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                                : "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
                                           }
-                                          aria-label={`${role.positionTitle} seat ${displayNumber}, ${occupantName ? `allocated to ${occupantName}` : "vacant"}`}
+                                          aria-label={`${role.positionTitle} seat ${displayNumber}, ${occupantName ? `allocated to ${occupantName}${leavingSoon ? ", serving notice" : ""}` : "vacant"}`}
                                         >
                                           <Armchair className="h-4 w-4" />
                                         </div>
@@ -155,15 +169,18 @@ export function OfficeSeatMap({
                                       <TooltipContent side="top" className="max-w-64">
                                         <p className="font-semibold">Seat {String(displayNumber).padStart(2, "0")}</p>
                                         <p>{occupantName || "Available"}</p>
+                                        {leavingSoon && (
+                                          <p className="text-[10px] font-semibold text-warning">Serving notice · desk frees up soon</p>
+                                        )}
                                         <p className="text-[10px] text-muted-foreground">{role.trainingOnly ? "Training only · not a working seat" : role.positionTitle}</p>
                                       </TooltipContent>
                                     </Tooltip>
-                                    <span className="font-mono text-[9px] text-muted-foreground">{String(displayNumber).padStart(2, "0")}</span>
+                                    <span className={`font-mono text-[9px] ${leavingSoon ? "text-warning" : "text-muted-foreground"}`}>{String(displayNumber).padStart(2, "0")}</span>
                                   </div>
                                 );
                               })}
                               {Array.from({ length: role.overflow }, (_, index) => {
-                                const occupantName = role.occupantNames[role.physicalSeats + index] || "Unnamed employee";
+                                const occupantName = role.occupants[role.physicalSeats + index]?.name || "Unnamed employee";
                                 const slotIndex = role.physicalSeats + index;
                                 const center = (role.physicalSeats + role.overflow - 1) / 2;
                                 const curveOffset = Math.min(8, Math.abs(slotIndex - center) * 2);
@@ -210,6 +227,7 @@ export function OfficeSeatMap({
           <div className="mt-9 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-primary bg-primary" /> Occupied</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-border bg-background" /> Available</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-warning bg-warning/25" /> On notice{onNoticeCount > 0 ? ` (${onNoticeCount})` : ""}</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-destructive bg-destructive/15" /> Over capacity</span>
             <span className="flex items-center gap-1.5"><LockKeyhole className="h-3 w-3" /> Locked to role</span>
           </div>

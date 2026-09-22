@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Armchair,
   Clock3,
@@ -49,8 +49,16 @@ type SeatPerson = {
   employee?: {
     first_name?: string | null;
     last_name?: string | null;
+    resignation_status?: string | null;
   } | null;
 };
+
+/** People serving notice keep their desk today but it frees up shortly. */
+const NOTICE_STATUSES = new Set(["notice_period", "serving_notice", "resigned"]);
+
+function isOnNotice(person: SeatPerson) {
+  return NOTICE_STATUSES.has((person.employee?.resignation_status || "").toLowerCase());
+}
 
 type ShiftLookup = {
   id: string;
@@ -106,6 +114,37 @@ export default function CapacitySeatsPage() {
   const { data: headcountPlans = [] } = useHeadcountPlans();
   const removeSeat = useDeleteSeatCapacity();
 
+  /** Shifts that exist purely for training, so their people sit in the training zone. */
+  const trainingShiftIds = useMemo(
+    () => new Set((seats as any[]).filter((s) => s.is_training_only && s.shift_id).map((s) => s.shift_id as string)),
+    [seats],
+  );
+
+  /**
+   * Trainees are counted once, in the training zone only. Without this they would
+   * also fill a desk in their own department and be counted twice.
+   */
+  const traineeIds = useMemo(
+    () =>
+      new Set(
+        (people as SeatPerson[])
+          .filter((person) => person.shift_id && trainingShiftIds.has(person.shift_id))
+          .map((person) => person.employee_id),
+      ),
+    [people, trainingShiftIds],
+  );
+
+  const seatMatchesPerson = useCallback(
+    (seat: any, person: SeatPerson) =>
+      seat.is_training_only
+        ? person.shift_id === seat.shift_id
+        : !traineeIds.has(person.employee_id) &&
+          person.department_id === seat.department_id &&
+          seatAllowsPosition(seat, person.job_position_id) &&
+          (!seat.shift_id || person.shift_id === seat.shift_id),
+    [traineeIds],
+  );
+
   /**
    * Occupancy is read straight from the people on roll. A desk is shared across
    * shifts, so a desk entry that is not tied to one shift counts the busiest
@@ -115,14 +154,7 @@ export default function CapacitySeatsPage() {
   const enriched = useMemo(
     () =>
       seats.map((s: any) => {
-        const matching = (people as any[]).filter(
-          (p) =>
-            (s.is_training_only
-              ? p.shift_id === s.shift_id
-              : p.department_id === s.department_id &&
-                seatAllowsPosition(s, p.job_position_id) &&
-                (!s.shift_id || p.shift_id === s.shift_id)),
-        );
+        const matching = (people as SeatPerson[]).filter((p) => seatMatchesPerson(s, p));
         const totalOnRoll = matching.length;
         let current = totalOnRoll;
         if (!s.shift_id) {
@@ -152,7 +184,7 @@ export default function CapacitySeatsPage() {
             : s.positions?.title ?? null,
         };
       }),
-    [seats, people, lookups?.positions, lookups?.shifts],
+    [seats, people, lookups?.positions, lookups?.shifts, seatMatchesPerson],
   );
 
   const filtered = useMemo(
@@ -175,18 +207,10 @@ export default function CapacitySeatsPage() {
   const filteredPeople = useMemo(() => {
     const unique = new Map<string, SeatPerson>();
     (people as SeatPerson[]).forEach((person) => {
-      const belongsToVisibleSeat = filtered.some(
-        (seat) =>
-          (seat.is_training_only
-            ? seat.shift_id === person.shift_id
-            : seat.department_id === person.department_id &&
-              seatAllowsPosition(seat, person.job_position_id) &&
-              (!seat.shift_id || seat.shift_id === person.shift_id)),
-      );
-      if (belongsToVisibleSeat) unique.set(person.employee_id, person);
+      if (filtered.some((seat) => seatMatchesPerson(seat, person))) unique.set(person.employee_id, person);
     });
     return Array.from(unique.values());
-  }, [filtered, people]);
+  }, [filtered, people, seatMatchesPerson]);
 
   const shiftBreakdown = useMemo(() => {
     const shifts = (lookups?.shifts || []) as ShiftLookup[];
@@ -213,6 +237,7 @@ export default function CapacitySeatsPage() {
         if (seat.is_training_only) return sum + (seat.physical_seats || 0);
         const hasMatchingAssignment = assignedPeople.some(
           (person) =>
+            !traineeIds.has(person.employee_id) &&
             person.department_id === seat.department_id &&
             seatAllowsPosition(seat, person.job_position_id),
         );
@@ -234,6 +259,7 @@ export default function CapacitySeatsPage() {
         if (seat.shift_id) return sum;
         const hasMatchingAssignment = unassignedPeople.some(
           (person) =>
+            !traineeIds.has(person.employee_id) &&
             person.department_id === seat.department_id &&
             seatAllowsPosition(seat, person.job_position_id),
         );
@@ -252,7 +278,7 @@ export default function CapacitySeatsPage() {
       });
     }
     return rows.filter((row) => row.assigned > 0 || row.seats > 0);
-  }, [filtered, filteredPeople, lookups?.shifts]);
+  }, [filtered, filteredPeople, lookups?.shifts, traineeIds]);
 
   const totals = useMemo(() => {
     const workingSeats = filtered.filter((seat) => !seat.is_training_only);
@@ -291,10 +317,12 @@ export default function CapacitySeatsPage() {
     () =>
       filtered
         .map((seat) => {
-          const matching = filteredPeople.filter(
-            (person) =>
-              person.department_id === seat.department_id &&
-              seatAllowsPosition(seat, person.job_position_id),
+          const matching = filteredPeople.filter((person) =>
+            seat.is_training_only
+              ? !!person.shift_id && trainingShiftIds.has(person.shift_id)
+              : !traineeIds.has(person.employee_id) &&
+                person.department_id === seat.department_id &&
+                seatAllowsPosition(seat, person.job_position_id),
           );
           const byShift = new Map<string, number>();
           matching.forEach((person) => {
@@ -304,7 +332,7 @@ export default function CapacitySeatsPage() {
           return { ...seat, byShift };
         })
         .sort((a, b) => b.totalOnRoll - a.totalOnRoll),
-    [filtered, filteredPeople],
+    [filtered, filteredPeople, traineeIds, trainingShiftIds],
   );
 
   const peakShift = useMemo(
@@ -372,13 +400,7 @@ export default function CapacitySeatsPage() {
         // Shift-neutral desks are shared across shifts, but they only become
         // eligible for a shift when that exact department/role works it.
         // This prevents one Support Staff assignment from inheriting all 22 desks.
-        if (
-          selectedShiftPeople.some(
-            (person) =>
-              person.department_id === seat.department_id &&
-              seatAllowsPosition(seat, person.job_position_id),
-          )
-        ) {
+        if (selectedShiftPeople.some((person) => seatMatchesPerson(seat, person))) {
           return true;
         }
         // A desk also belongs to a shift when the approved staffing plan asks for
@@ -394,12 +416,9 @@ export default function CapacitySeatsPage() {
         );
       })
       .map((seat) => {
-        const matchingPeople = selectedShiftPeople.filter(
-          (person) =>
-            seat.is_training_only ||
-            (person.department_id === seat.department_id &&
-            seatAllowsPosition(seat, person.job_position_id)),
-        ).sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
+        const matchingPeople = selectedShiftPeople
+          .filter((person) => seatMatchesPerson(seat, person))
+          .sort((a, b) => employeeName(a).localeCompare(employeeName(b)));
         const occupiedSeats = matchingPeople.length;
         const physicalSeats = seat.physical_seats || 0;
         return {
@@ -409,7 +428,10 @@ export default function CapacitySeatsPage() {
           physicalSeats,
           occupiedSeats,
           overflow: Math.max(0, occupiedSeats - physicalSeats),
-          occupantNames: matchingPeople.map(employeeName),
+          occupants: matchingPeople.map((person) => ({
+            name: employeeName(person),
+            onNotice: isOnNotice(person),
+          })),
           trainingOnly: !!seat.is_training_only,
         };
       })
@@ -418,7 +440,7 @@ export default function CapacitySeatsPage() {
         a.departmentName.localeCompare(b.departmentName) ||
         a.positionTitle.localeCompare(b.positionTitle),
       );
-  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown]);
+  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown, seatMatchesPerson]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">

@@ -1,9 +1,18 @@
 import { useMemo, useState } from "react";
-import { LayoutGrid, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Armchair,
+  Clock3,
+  LayoutGrid,
+  Pencil,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -28,6 +37,34 @@ import {
   useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
 import { EMPTY_FILTERS, type WorkforceFilterState } from "@/lib/hrms/workforce";
+
+type SeatPerson = {
+  employee_id: string;
+  department_id: string | null;
+  job_position_id: string | null;
+  shift_id: string | null;
+};
+
+type ShiftLookup = {
+  id: string;
+  name: string;
+  start_time?: string | null;
+  end_time?: string | null;
+};
+
+function formatShiftTime(value?: string | null) {
+  if (!value) return "—";
+  const [hours = "0", minutes = "00"] = value.split(":");
+  const hour = Number(hours);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  return `${hour % 12 || 12}:${minutes} ${suffix}`;
+}
+
+function occupancyTone(utilisation: number) {
+  if (utilisation > 100) return "bg-destructive";
+  if (utilisation >= 90) return "bg-warning";
+  return "bg-primary";
+}
 
 export default function CapacitySeatsPage() {
   const { hasPermission } = usePermissions();
@@ -96,6 +133,20 @@ export default function CapacitySeatsPage() {
     [enriched, filters],
   );
 
+  const filteredPeople = useMemo(() => {
+    const unique = new Map<string, SeatPerson>();
+    (people as SeatPerson[]).forEach((person) => {
+      const belongsToVisibleSeat = filtered.some(
+        (seat) =>
+          seat.department_id === person.department_id &&
+          (!seat.position_id || seat.position_id === person.job_position_id) &&
+          (!seat.shift_id || seat.shift_id === person.shift_id),
+      );
+      if (belongsToVisibleSeat) unique.set(person.employee_id, person);
+    });
+    return Array.from(unique.values());
+  }, [filtered, people]);
+
   const locations = useMemo(
     () => Array.from(new Set(enriched.map((s) => s.location || "—"))).sort(),
     [enriched],
@@ -116,6 +167,83 @@ export default function CapacitySeatsPage() {
       utilisation: physical > 0 ? (occupied / physical) * 100 : 0,
     };
   }, [filtered]);
+
+  const shiftBreakdown = useMemo(() => {
+    const shifts = (lookups?.shifts || []) as ShiftLookup[];
+    const rows = shifts.map((shift) => {
+      const assigned = filteredPeople.filter((person) => person.shift_id === shift.id).length;
+      const eligibleSeats = filtered.reduce(
+        (sum, seat) => sum + (!seat.shift_id || seat.shift_id === shift.id ? seat.physical_seats || 0 : 0),
+        0,
+      );
+      const utilisation = eligibleSeats > 0 ? (assigned / eligibleSeats) * 100 : 0;
+      return {
+        ...shift,
+        assigned,
+        seats: eligibleSeats,
+        available: eligibleSeats - assigned,
+        utilisation,
+      };
+    });
+    const unassigned = filteredPeople.filter((person) => !person.shift_id).length;
+    if (unassigned > 0) {
+      rows.push({
+        id: "unassigned",
+        name: "Unassigned",
+        start_time: null,
+        end_time: null,
+        assigned: unassigned,
+        seats: totals.physical,
+        available: totals.physical - unassigned,
+        utilisation: totals.physical > 0 ? (unassigned / totals.physical) * 100 : 0,
+      });
+    }
+    return rows.filter((row) => row.assigned > 0 || row.seats > 0);
+  }, [filtered, filteredPeople, lookups?.shifts, totals.physical]);
+
+  const seatBreakdown = useMemo(() => {
+    const grouped = new Map<
+      string,
+      { name: string; physical: number; occupied: number; onRoll: number }
+    >();
+    filtered.forEach((seat) => {
+      const name = seat.departmentName || "Unassigned";
+      const row = grouped.get(name) || { name, physical: 0, occupied: 0, onRoll: 0 };
+      row.physical += seat.physical_seats || 0;
+      row.occupied += seat.currentOccupancy;
+      row.onRoll += seat.totalOnRoll;
+      grouped.set(name, row);
+    });
+    return Array.from(grouped.values()).sort((a, b) => b.physical - a.physical);
+  }, [filtered]);
+
+  const planningRows = useMemo(
+    () =>
+      filtered
+        .map((seat) => {
+          const matching = filteredPeople.filter(
+            (person) =>
+              person.department_id === seat.department_id &&
+              (!seat.position_id || person.job_position_id === seat.position_id),
+          );
+          const byShift = new Map<string, number>();
+          matching.forEach((person) => {
+            const key = person.shift_id ?? "unassigned";
+            byShift.set(key, (byShift.get(key) || 0) + 1);
+          });
+          return { ...seat, byShift };
+        })
+        .sort((a, b) => b.totalOnRoll - a.totalOnRoll),
+    [filtered, filteredPeople],
+  );
+
+  const peakShift = useMemo(
+    () => shiftBreakdown.reduce<(typeof shiftBreakdown)[number] | null>(
+      (peak, shift) => (!peak || shift.assigned > peak.assigned ? shift : peak),
+      null,
+    ),
+    [shiftBreakdown],
+  );
 
   return (
     <div className="space-y-4 p-3 md:p-6">
@@ -144,13 +272,19 @@ export default function CapacitySeatsPage() {
       />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <WorkforceKpiCard label="Physical seats" value={totals.physical} icon={LayoutGrid} />
+        <WorkforceKpiCard label="Physical seats" value={totals.physical} icon={Armchair} />
         <WorkforceKpiCard
           label="Operational capacity"
           value={totals.operational}
           hint="People who can work at once"
+          icon={LayoutGrid}
         />
-        <WorkforceKpiCard label="Currently occupied" value={totals.occupied} />
+        <WorkforceKpiCard
+          label="Peak shift occupancy"
+          value={totals.occupied}
+          hint={peakShift ? `${peakShift.name}: ${peakShift.assigned} assigned` : "No shift assignments"}
+          icon={Users}
+        />
         <WorkforceKpiCard
           label="Seat utilisation"
           value={`${totals.utilisation.toFixed(0)}%`}
@@ -158,6 +292,154 @@ export default function CapacitySeatsPage() {
           tone={totals.utilisation >= 100 ? "danger" : totals.utilisation >= 90 ? "warning" : "success"}
         />
       </div>
+
+      {!isLoading && filtered.length > 0 && (
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+          <Card>
+            <CardContent className="p-4">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-heading text-sm font-semibold text-foreground">Seat breakdown</h2>
+                  <p className="text-xs text-muted-foreground">Busiest-shift occupancy by department</p>
+                </div>
+                <Badge variant="outline">{totals.free} free</Badge>
+              </div>
+              <ScrollArea className="h-[264px] pr-3">
+                <div className="space-y-4">
+                  {seatBreakdown.map((row) => {
+                    const occupied = Math.min(row.occupied, row.physical);
+                    const available = Math.max(0, row.physical - row.occupied);
+                    const overflow = Math.max(0, row.occupied - row.physical);
+                    const denominator = Math.max(row.physical, row.occupied, 1);
+                    return (
+                      <div key={row.name} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-3 text-xs">
+                          <span className="truncate font-medium text-foreground">{row.name}</span>
+                          <span className="shrink-0 tabular-nums text-muted-foreground">
+                            {row.occupied}/{row.physical} occupied
+                            {row.onRoll !== row.occupied ? ` · ${row.onRoll} on roll` : ""}
+                          </span>
+                        </div>
+                        <div className="flex h-2.5 overflow-hidden rounded-sm bg-muted" aria-label={`${row.name}: ${occupied} occupied, ${available} available, ${overflow} overflow`}>
+                          <div className="bg-primary transition-all" style={{ width: `${(occupied / denominator) * 100}%` }} />
+                          {available > 0 && <div className="bg-success/35" style={{ width: `${(available / denominator) * 100}%` }} />}
+                          {overflow > 0 && <div className="bg-destructive" style={{ width: `${(overflow / denominator) * 100}%` }} />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+              <div className="mt-3 flex flex-wrap gap-3 border-t border-border pt-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-primary" /> Occupied</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-success/35" /> Available</span>
+                <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-sm bg-destructive" /> Overflow</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-heading text-sm font-semibold text-foreground">Shift-wise occupancy</h2>
+                  <p className="text-xs text-muted-foreground">Current effective schedules against usable desks</p>
+                </div>
+                <Clock3 className="h-4 w-4 text-primary" />
+              </div>
+              <ScrollArea className="h-[300px] pr-3">
+                <div className="space-y-3">
+                  {shiftBreakdown.map((shift) => (
+                    <div key={shift.id} className="rounded-md border border-border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-foreground">{shift.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {shift.id === "unassigned"
+                              ? "Needs a current shift schedule"
+                              : `${formatShiftTime(shift.start_time)} – ${formatShiftTime(shift.end_time)} IST`}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-sm font-semibold tabular-nums text-foreground">{shift.assigned}/{shift.seats}</p>
+                          <p className={`text-[11px] font-medium ${shift.available < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                            {shift.available < 0 ? `${Math.abs(shift.available)} over capacity` : `${shift.available} available`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="h-2 flex-1 overflow-hidden rounded-sm bg-muted">
+                          <div
+                            className={`h-full transition-all ${occupancyTone(shift.utilisation)}`}
+                            style={{ width: `${Math.min(100, shift.utilisation)}%` }}
+                          />
+                        </div>
+                        <span className="w-10 text-right text-xs tabular-nums text-muted-foreground">{shift.utilisation.toFixed(0)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!isLoading && filtered.length > 0 && (
+        <Card>
+          <CardContent className="p-0">
+            <div className="flex flex-col gap-1 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-heading text-sm font-semibold text-foreground">Shift planning</h2>
+                <p className="text-xs text-muted-foreground">People scheduled by role; the peak column determines shared-desk occupancy</p>
+              </div>
+              <Badge variant="outline" className="w-fit">Live schedules</Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] text-sm">
+                <thead className="border-b border-border bg-muted/40">
+                  <tr className="text-left text-xs uppercase text-muted-foreground">
+                    <th className="px-4 py-2">Role</th>
+                    {((lookups?.shifts || []) as ShiftLookup[]).map((shift) => (
+                      <th key={shift.id} className="px-2 py-2 text-center">{shift.name}</th>
+                    ))}
+                    <th className="px-3 py-2 text-center">Unassigned</th>
+                    <th className="px-4 py-2 text-right">Peak / seats</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {planningRows.map((row) => (
+                    <tr key={row.id} className="border-b border-border/60 last:border-0">
+                      <td className="px-4 py-2.5">
+                        <p className="font-medium text-foreground">{row.positionTitle || "Whole department"}</p>
+                        <p className="text-xs text-muted-foreground">{row.departmentName || "Unassigned"}</p>
+                      </td>
+                      {((lookups?.shifts || []) as ShiftLookup[]).map((shift) => {
+                        const count = row.byShift.get(shift.id) || 0;
+                        return (
+                          <td key={shift.id} className="px-2 py-2.5 text-center tabular-nums">
+                            <span className={count > 0 ? "font-semibold text-foreground" : "text-muted-foreground/50"}>{count}</span>
+                          </td>
+                        );
+                      })}
+                      <td className="px-3 py-2.5 text-center tabular-nums">
+                        <span className={row.byShift.get("unassigned") ? "font-semibold text-warning" : "text-muted-foreground/50"}>
+                          {row.byShift.get("unassigned") || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right tabular-nums">
+                        <span className={row.currentOccupancy > row.physical_seats ? "font-semibold text-destructive" : "font-semibold text-foreground"}>
+                          {row.currentOccupancy} / {row.physical_seats}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading ? (
         <TableSkeleton />
@@ -196,7 +478,22 @@ export default function CapacitySeatsPage() {
                         <td className="px-3 py-2 text-muted-foreground">
                           {s.positionTitle || "Whole department"}
                         </td>
-                        <td className="px-3 py-2 text-muted-foreground">{s.shiftName || "—"}</td>
+                        <td className="px-3 py-2 text-muted-foreground">
+                          {s.shiftName || (
+                            <div className="flex max-w-52 flex-wrap gap-1">
+                              {((lookups?.shifts || []) as ShiftLookup[])
+                                .filter((shift) => (planningRows.find((row) => row.id === s.id)?.byShift.get(shift.id) || 0) > 0)
+                                .map((shift) => (
+                                  <Badge key={shift.id} variant="secondary" className="text-[10px] font-medium">
+                                    {shift.name}: {planningRows.find((row) => row.id === s.id)?.byShift.get(shift.id)}
+                                  </Badge>
+                                ))}
+                              {(planningRows.find((row) => row.id === s.id)?.byShift.get("unassigned") || 0) > 0 && (
+                                <Badge variant="outline" className="border-warning/40 text-[10px] text-warning">Unassigned</Badge>
+                              )}
+                            </div>
+                          )}
+                        </td>
                         <td className="px-3 py-2 text-muted-foreground">{s.location || "—"}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{s.physical_seats}</td>
                         <td className="px-3 py-2 text-right tabular-nums">

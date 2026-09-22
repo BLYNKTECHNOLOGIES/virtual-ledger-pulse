@@ -18,7 +18,11 @@ export function useWorkforceLookups() {
       const [departments, positions, shifts, employees] = await Promise.all([
         supabase.from("departments").select("id, name").eq("is_active", true).order("name"),
         supabase.from("positions").select("id, title, department_id").eq("is_active", true).order("title"),
-        supabase.from("hr_shifts").select("id, name").eq("is_active", true).order("name"),
+        supabase
+          .from("hr_shifts")
+          .select("id, name, start_time, end_time")
+          .eq("is_active", true)
+          .order("start_time"),
         supabase
           .from("hr_employees")
           .select("id, badge_id, first_name, last_name, resignation_status")
@@ -65,16 +69,35 @@ export function useSeatOccupancy() {
   return useQuery({
     queryKey: ["workforce_seat_occupancy"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hr_employee_work_info")
-        .select(
-          "department_id, job_position_id, shift_id, employee:hr_employees!hr_employee_work_info_employee_id_fkey!inner(id, is_active, resignation_status)",
-        )
-        .eq("employee.is_active", true);
-      if (error) throw error;
-      return (data || []).filter(
-        (r: any) => (r.employee?.resignation_status ?? "") !== "completed",
-      );
+      const [workInfoResult, schedulesResult] = await Promise.all([
+        supabase
+          .from("hr_employee_work_info")
+          .select(
+            "employee_id, department_id, job_position_id, shift_id, employee:hr_employees!hr_employee_work_info_employee_id_fkey!inner(id, is_active, resignation_status)",
+          )
+          .eq("employee.is_active", true),
+        supabase
+          .from("hr_employee_shift_schedule")
+          .select("employee_id, shift_id, effective_from")
+          .eq("is_current", true)
+          .order("effective_from", { ascending: false }),
+      ]);
+      if (workInfoResult.error) throw workInfoResult.error;
+      if (schedulesResult.error) throw schedulesResult.error;
+
+      const currentShiftByEmployee = new Map<string, string>();
+      (schedulesResult.data || []).forEach((schedule) => {
+        if (!currentShiftByEmployee.has(schedule.employee_id)) {
+          currentShiftByEmployee.set(schedule.employee_id, schedule.shift_id);
+        }
+      });
+
+      return (workInfoResult.data || [])
+        .filter((row: any) => (row.employee?.resignation_status ?? "") !== "completed")
+        .map((row) => ({
+          ...row,
+          shift_id: currentShiftByEmployee.get(row.employee_id) ?? row.shift_id ?? null,
+        }));
     },
     staleTime: STALE,
   });

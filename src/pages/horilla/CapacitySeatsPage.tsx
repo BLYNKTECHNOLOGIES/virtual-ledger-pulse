@@ -395,7 +395,7 @@ export default function CapacitySeatsPage() {
               </div>
               <Badge variant="outline" className="w-fit">Live schedules</Badge>
             </div>
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[720px] text-sm">
                 <thead className="border-b border-border bg-muted/40">
                   <tr className="text-left text-xs uppercase text-muted-foreground">
@@ -436,6 +436,35 @@ export default function CapacitySeatsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="divide-y divide-border md:hidden">
+              {planningRows.map((row) => (
+                <div key={row.id} className="space-y-2.5 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-foreground">{row.positionTitle || "Whole department"}</p>
+                      <p className="truncate text-xs text-muted-foreground">{row.departmentName || "Unassigned"}</p>
+                    </div>
+                    <span className={`shrink-0 text-sm tabular-nums ${row.currentOccupancy > row.physical_seats ? "font-semibold text-destructive" : "font-semibold text-foreground"}`}>
+                      {row.currentOccupancy} / {row.physical_seats} peak
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {((lookups?.shifts || []) as ShiftLookup[])
+                      .filter((shift) => (row.byShift.get(shift.id) || 0) > 0)
+                      .map((shift) => (
+                        <Badge key={shift.id} variant="secondary" className="text-[10px] font-medium">
+                          {shift.name}: {row.byShift.get(shift.id)}
+                        </Badge>
+                      ))}
+                    {(row.byShift.get("unassigned") || 0) > 0 && (
+                      <Badge variant="outline" className="border-warning/40 text-[10px] text-warning">
+                        Unassigned: {row.byShift.get("unassigned")}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

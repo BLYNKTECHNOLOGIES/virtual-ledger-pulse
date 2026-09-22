@@ -384,9 +384,12 @@ export default function CapacitySeatsPage() {
         // A desk also belongs to a shift when the approved staffing plan asks for
         // that role in that shift, even while the seats are still empty. Without
         // this, planned-but-unstaffed roles vanish from the shift entirely.
+        // A plan with no shift scope means "any shift" (same rule as the DB RPCs).
+        if (activeMapShiftId === "unassigned") return false;
         return planScopes.some(
           (plan) =>
-            plan.shiftIds.some((id: string) => selectedShiftIds.includes(id)) &&
+            (plan.shiftIds.length === 0 ||
+              plan.shiftIds.some((id: string) => selectedShiftIds.includes(id))) &&
             plan.positionIds.some((id: string) => seatAllowsPosition(seat, id)),
         );
       })

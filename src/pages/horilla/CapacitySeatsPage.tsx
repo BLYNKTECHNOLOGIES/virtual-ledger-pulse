@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Armchair,
   Clock3,
@@ -49,8 +49,16 @@ type SeatPerson = {
   employee?: {
     first_name?: string | null;
     last_name?: string | null;
+    resignation_status?: string | null;
   } | null;
 };
+
+/** People serving notice keep their desk today but it frees up shortly. */
+const NOTICE_STATUSES = new Set(["notice_period", "serving_notice", "resigned"]);
+
+function isOnNotice(person: SeatPerson) {
+  return NOTICE_STATUSES.has((person.employee?.resignation_status || "").toLowerCase());
+}
 
 type ShiftLookup = {
   id: string;

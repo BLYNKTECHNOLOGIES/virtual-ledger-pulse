@@ -14,6 +14,8 @@ export type SeatMapOccupant = {
   name: string;
   /** Serving notice: the desk frees up shortly, so it is flagged amber. */
   onNotice?: boolean;
+  /** The sitter's own position title (shared desks lock to multiple roles). */
+  position?: string | null;
 };
 
 export type SeatMapRole = {

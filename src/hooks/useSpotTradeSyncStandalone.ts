@@ -91,17 +91,30 @@ async function syncSpotTradesForAccount(accountId: string): Promise<number> {
     }
   }
 
-  const newRows = rows.filter((r) => !terminalOrderIds.has(r.binance_order_id));
+  const candidates = rows.filter((r) => !terminalOrderIds.has(r.binance_order_id));
+
+  // INSERT-ONLY, never UPSERT. A PostgREST upsert on (binance_trade_id, symbol)
+  // resolves as ON CONFLICT DO UPDATE and rewrites the row's primary key, which
+  // violates erp_product_conversions_spot_trade_id_fkey once a trade is booked as
+  // a conversion — the batch then failed and NO new trades were imported at all.
+  const tradeIds = [...new Set(candidates.map((r) => r.binance_trade_id))];
+  const existing = new Set<string>();
+  for (let i = 0; i < tradeIds.length; i += 500) {
+    const { data: ex } = await supabase
+      .from("spot_trade_history")
+      .select("binance_trade_id, symbol")
+      .in("binance_trade_id", tradeIds.slice(i, i + 500));
+    for (const e of (ex || []) as any[]) existing.add(`${e.binance_trade_id}|${e.symbol}`);
+  }
+  const newRows = candidates.filter((r) => !existing.has(`${r.binance_trade_id}|${r.symbol}`));
 
   const CHUNK_SIZE = 50;
   for (let i = 0; i < newRows.length; i += CHUNK_SIZE) {
     const chunk = newRows.slice(i, i + CHUNK_SIZE);
-    await supabase
-      .from("spot_trade_history")
-      .upsert(chunk, {
-        onConflict: "binance_trade_id,symbol",
-        ignoreDuplicates: true,
-      });
+      const { error: insertError } = await supabase.from("spot_trade_history").insert(chunk);
+      if (insertError) {
+        console.warn("Spot trade insert error:", insertError);
+      }
   }
 
   return rows.length;

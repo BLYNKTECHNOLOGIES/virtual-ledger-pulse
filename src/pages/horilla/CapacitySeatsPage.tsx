@@ -33,6 +33,7 @@ import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityD
 import { OfficeSeatMap } from "@/components/horilla/workforce/OfficeSeatMap";
 import {
   useDeleteSeatCapacity,
+  useHeadcountPlans,
   useSeatCapacity,
   useSeatOccupancy,
   useWorkforceLookups,
@@ -102,6 +103,7 @@ export default function CapacitySeatsPage() {
   const { data: seats = [], isLoading } = useSeatCapacity();
   const { data: lookups } = useWorkforceLookups();
   const { data: people = [] } = useSeatOccupancy();
+  const { data: headcountPlans = [] } = useHeadcountPlans();
   const removeSeat = useDeleteSeatCapacity();
 
   /**
@@ -337,6 +339,25 @@ export default function CapacitySeatsPage() {
     return peakShift?.id ?? mapShifts[0]?.id ?? "";
   }, [mapShifts, peakShift?.id, selectedMapShiftId]);
 
+  /** Approved staffing demand per shift, used to keep planned seats visible. */
+  const planScopes = useMemo(
+    () =>
+      (headcountPlans as any[]).map((plan) => {
+        const positionIds: string[] = Array.isArray(plan.eligible_position_ids) && plan.eligible_position_ids.length
+          ? plan.eligible_position_ids
+          : plan.position_id
+            ? [plan.position_id]
+            : [];
+        const shiftIds: string[] = Array.isArray(plan.eligible_shift_ids) && plan.eligible_shift_ids.length
+          ? plan.eligible_shift_ids
+          : plan.shift_id
+            ? [plan.shift_id]
+            : [];
+        return { positionIds, shiftIds };
+      }),
+    [headcountPlans],
+  );
+
   const mapRoles = useMemo(() => {
     if (!activeMapShiftId) return [];
     const selectedShift = shiftBreakdown.find((shift) => shift.id === activeMapShiftId);
@@ -351,10 +372,22 @@ export default function CapacitySeatsPage() {
         // Shift-neutral desks are shared across shifts, but they only become
         // eligible for a shift when that exact department/role works it.
         // This prevents one Support Staff assignment from inheriting all 22 desks.
-        return selectedShiftPeople.some(
-          (person) =>
-            person.department_id === seat.department_id &&
-            seatAllowsPosition(seat, person.job_position_id),
+        if (
+          selectedShiftPeople.some(
+            (person) =>
+              person.department_id === seat.department_id &&
+              seatAllowsPosition(seat, person.job_position_id),
+          )
+        ) {
+          return true;
+        }
+        // A desk also belongs to a shift when the approved staffing plan asks for
+        // that role in that shift, even while the seats are still empty. Without
+        // this, planned-but-unstaffed roles vanish from the shift entirely.
+        return planScopes.some(
+          (plan) =>
+            plan.shiftIds.some((id: string) => selectedShiftIds.includes(id)) &&
+            plan.positionIds.some((id: string) => seatAllowsPosition(seat, id)),
         );
       })
       .map((seat) => {
@@ -382,7 +415,7 @@ export default function CapacitySeatsPage() {
         a.departmentName.localeCompare(b.departmentName) ||
         a.positionTitle.localeCompare(b.positionTitle),
       );
-  }, [activeMapShiftId, filtered, filteredPeople, shiftBreakdown]);
+  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">

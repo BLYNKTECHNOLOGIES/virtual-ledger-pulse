@@ -156,7 +156,7 @@ export function OfficeSeatMap({
                                           tabIndex={0}
                                           className={
                                             leavingSoon
-                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-warning bg-warning text-warning-foreground shadow-[0_4px_0_hsl(var(--warning)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-warning bg-warning/25 text-warning shadow-[0_4px_0_hsl(var(--warning)/0.4)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
                                               : occupiedSeat
                                                 ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
                                                 : "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
@@ -227,6 +227,7 @@ export function OfficeSeatMap({
           <div className="mt-9 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 border-t border-border pt-4 text-[11px] text-muted-foreground">
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-primary bg-primary" /> Occupied</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-border bg-background" /> Available</span>
+            <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-warning bg-warning/25" /> On notice{onNoticeCount > 0 ? ` (${onNoticeCount})` : ""}</span>
             <span className="flex items-center gap-1.5"><span className="h-3 w-3 rounded-sm border border-destructive bg-destructive/15" /> Over capacity</span>
             <span className="flex items-center gap-1.5"><LockKeyhole className="h-3 w-3" /> Locked to role</span>
           </div>

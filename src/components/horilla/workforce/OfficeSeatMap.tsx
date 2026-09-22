@@ -14,6 +14,8 @@ export type SeatMapOccupant = {
   name: string;
   /** Serving notice: the desk frees up shortly, so it is flagged amber. */
   onNotice?: boolean;
+  /** The sitter's own position title (shared desks lock to multiple roles). */
+  position?: string | null;
 };
 
 export type SeatMapRole = {
@@ -169,10 +171,13 @@ export function OfficeSeatMap({
                                       <TooltipContent side="top" className="max-w-64">
                                         <p className="font-semibold">Seat {String(displayNumber).padStart(2, "0")}</p>
                                         <p>{occupantName || "Available"}</p>
+                                        {occupant?.position && <p className="text-[10px] text-muted-foreground">{occupant.position}</p>}
                                         {leavingSoon && (
                                           <p className="text-[10px] font-semibold text-warning">Serving notice · desk frees up soon</p>
                                         )}
-                                        <p className="text-[10px] text-muted-foreground">{role.trainingOnly ? "Training only · not a working seat" : role.positionTitle}</p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {role.trainingOnly ? "Training only · not a working seat" : `Desk reserved for: ${role.positionTitle}`}
+                                        </p>
                                       </TooltipContent>
                                     </Tooltip>
                                     <span className={`font-mono text-[9px] ${leavingSoon ? "text-warning" : "text-muted-foreground"}`}>{String(displayNumber).padStart(2, "0")}</span>
@@ -180,7 +185,8 @@ export function OfficeSeatMap({
                                 );
                               })}
                               {Array.from({ length: role.overflow }, (_, index) => {
-                                const occupantName = role.occupants[role.physicalSeats + index]?.name || "Unnamed employee";
+                                 const overflowOccupant = role.occupants[role.physicalSeats + index];
+                                 const occupantName = overflowOccupant?.name || "Unnamed employee";
                                 const slotIndex = role.physicalSeats + index;
                                 const center = (role.physicalSeats + role.overflow - 1) / 2;
                                 const curveOffset = Math.min(8, Math.abs(slotIndex - center) * 2);
@@ -197,9 +203,10 @@ export function OfficeSeatMap({
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent side="top" className="max-w-64">
-                                        <p className="font-semibold">{occupantName}</p>
-                                        <p className="text-destructive">No allocated seat · over capacity</p>
-                                        <p className="text-[10px] text-muted-foreground">{role.positionTitle}</p>
+                                         <p className="font-semibold">{occupantName}</p>
+                                         {overflowOccupant?.position && <p className="text-[10px] text-muted-foreground">{overflowOccupant.position}</p>}
+                                         <p className="text-destructive">No allocated seat · over capacity</p>
+                                         <p className="text-[10px] text-muted-foreground">Desk reserved for: {role.positionTitle}</p>
                                       </TooltipContent>
                                     </Tooltip>
                                     <span className="font-mono text-[9px] text-destructive">+{index + 1}</span>

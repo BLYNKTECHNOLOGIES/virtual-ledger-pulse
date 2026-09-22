@@ -431,6 +431,9 @@ export default function CapacitySeatsPage() {
           occupants: matchingPeople.map((person) => ({
             name: employeeName(person),
             onNotice: isOnNotice(person),
+            // The sitter's own position, so shared desks (e.g. Payment
+            // Operations Associate / Executive) still name the actual role.
+            position: (lookups?.positions || []).find((position) => position.id === person.job_position_id)?.title ?? null,
           })),
           trainingOnly: !!seat.is_training_only,
         };

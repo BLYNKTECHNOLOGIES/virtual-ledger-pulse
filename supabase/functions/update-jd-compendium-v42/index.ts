@@ -6,7 +6,13 @@ Deno.serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (!supabaseUrl || !serviceKey) return new Response("Missing server configuration", { status: 500 });
   const auth = req.headers.get("Authorization") ?? "";
-  if (auth !== `Bearer ${serviceKey}`) return new Response("Unauthorized", { status: 401 });
+  const caller = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "", {
+    global: { headers: { Authorization: auth } },
+  });
+  const { data: userData } = await caller.auth.getUser();
+  if (!userData.user) return new Response("Unauthorized", { status: 401 });
+  const { data: isHr } = await caller.rpc("hr_is_hr_staff", { _user_id: userData.user.id });
+  if (!isHr) return new Response("HR permission required", { status: 403 });
   const supabase = createClient(supabaseUrl, serviceKey);
   const uploads = [
     { local: "Blynk_Job_Description_Compendium_v4.2.pdf", remote: "v4.2-2026/Blynk_Job_Description_Compendium_v4.2.pdf" },

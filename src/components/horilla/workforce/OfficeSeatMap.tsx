@@ -171,10 +171,13 @@ export function OfficeSeatMap({
                                       <TooltipContent side="top" className="max-w-64">
                                         <p className="font-semibold">Seat {String(displayNumber).padStart(2, "0")}</p>
                                         <p>{occupantName || "Available"}</p>
+                                        {occupant?.position && <p className="text-[10px] text-muted-foreground">{occupant.position}</p>}
                                         {leavingSoon && (
                                           <p className="text-[10px] font-semibold text-warning">Serving notice · desk frees up soon</p>
                                         )}
-                                        <p className="text-[10px] text-muted-foreground">{role.trainingOnly ? "Training only · not a working seat" : role.positionTitle}</p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                          {role.trainingOnly ? "Training only · not a working seat" : `Desk reserved for: ${role.positionTitle}`}
+                                        </p>
                                       </TooltipContent>
                                     </Tooltip>
                                     <span className={`font-mono text-[9px] ${leavingSoon ? "text-warning" : "text-muted-foreground"}`}>{String(displayNumber).padStart(2, "0")}</span>

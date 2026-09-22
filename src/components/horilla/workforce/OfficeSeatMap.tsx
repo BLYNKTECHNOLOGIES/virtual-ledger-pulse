@@ -264,11 +264,11 @@ export function OfficeSeatMap({
           <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
             <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${Math.min(100, utilisation)}%` }} />
           </div>
-        </div>
           <p className="mt-2 text-[11px] text-muted-foreground">
             {occupied + overflow} {occupied + overflow === 1 ? "person" : "people"} scheduled in this shift
           </p>
         </div>
+
         {[
           ["Utilisation", `${utilisation.toFixed(0)}%`, "text-foreground"],
           ["Desks", physical, "text-foreground"],

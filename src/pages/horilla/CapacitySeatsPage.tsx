@@ -229,6 +229,7 @@ export default function CapacitySeatsPage() {
         name: "Unassigned",
         start_time: null,
         end_time: null,
+        memberIds: [],
         assigned: unassigned,
         seats: unassignedSeats,
         available: unassignedSeats - unassigned,

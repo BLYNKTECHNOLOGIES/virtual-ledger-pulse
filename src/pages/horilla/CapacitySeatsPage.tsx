@@ -30,6 +30,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { WorkforceFilters } from "@/components/horilla/workforce/WorkforceFilters";
 import { WorkforceKpiCard } from "@/components/horilla/workforce/WorkforceKpiCard";
 import { SeatCapacityDialog } from "@/components/horilla/workforce/SeatCapacityDialog";
+import { OfficeSeatMap } from "@/components/horilla/workforce/OfficeSeatMap";
 import {
   useDeleteSeatCapacity,
   useSeatCapacity,
@@ -71,6 +72,7 @@ export default function CapacitySeatsPage() {
   const canManage = hasPermission("hrms_manage");
 
   const [filters, setFilters] = useState<WorkforceFilterState>({ ...EMPTY_FILTERS });
+  const [selectedMapShiftId, setSelectedMapShiftId] = useState("");
   const [dialog, setDialog] = useState<{ open: boolean; initial?: any }>({ open: false });
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
 
@@ -263,6 +265,50 @@ export default function CapacitySeatsPage() {
     [shiftBreakdown],
   );
 
+  const mapShifts = useMemo(
+    () =>
+      shiftBreakdown.map((shift) => ({
+        id: shift.id,
+        name: shift.name,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+      })),
+    [shiftBreakdown],
+  );
+
+  const activeMapShiftId = useMemo(() => {
+    if (mapShifts.some((shift) => shift.id === selectedMapShiftId)) return selectedMapShiftId;
+    return peakShift?.id ?? mapShifts[0]?.id ?? "";
+  }, [mapShifts, peakShift?.id, selectedMapShiftId]);
+
+  const mapRoles = useMemo(() => {
+    if (!activeMapShiftId) return [];
+    return filtered
+      .filter((seat) => !seat.shift_id || seat.shift_id === activeMapShiftId)
+      .map((seat) => {
+        const occupiedSeats = filteredPeople.filter(
+          (person) =>
+            person.shift_id === (activeMapShiftId === "unassigned" ? null : activeMapShiftId) &&
+            person.department_id === seat.department_id &&
+            (!seat.position_id || person.job_position_id === seat.position_id),
+        ).length;
+        const physicalSeats = seat.physical_seats || 0;
+        return {
+          id: seat.id,
+          departmentName: seat.departmentName || "Unassigned department",
+          positionTitle: seat.positionTitle || "Department pool",
+          physicalSeats,
+          occupiedSeats,
+          overflow: Math.max(0, occupiedSeats - physicalSeats),
+        };
+      })
+      .filter((role) => role.physicalSeats > 0)
+      .sort((a, b) =>
+        a.departmentName.localeCompare(b.departmentName) ||
+        a.positionTitle.localeCompare(b.positionTitle),
+      );
+  }, [activeMapShiftId, filtered, filteredPeople]);
+
   return (
     <div className="space-y-4 p-3 md:p-6">
       <PageHeader
@@ -310,6 +356,16 @@ export default function CapacitySeatsPage() {
           tone={totals.utilisation >= 100 ? "danger" : totals.utilisation >= 90 ? "warning" : "success"}
         />
       </div>
+
+      {!isLoading && filtered.length > 0 && mapShifts.length > 0 && (
+        <OfficeSeatMap
+          shifts={mapShifts}
+          selectedShiftId={activeMapShiftId}
+          onShiftChange={setSelectedMapShiftId}
+          roles={mapRoles}
+          formatShiftTime={formatShiftTime}
+        />
+      )}
 
       {!isLoading && filtered.length > 0 && (
         <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">

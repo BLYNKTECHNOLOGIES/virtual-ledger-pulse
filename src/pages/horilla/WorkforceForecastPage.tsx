@@ -142,7 +142,7 @@ export default function WorkforceForecastPage() {
       const e = map.get(name) || { name, current: 0, required: 0, hiring: 0 };
       e.current += r.current_hc;
       e.required += r.required_hc;
-      e.hiring += r.netHiringRequirement;
+      e.hiring += r.uncoveredHiringRequirement;
       map.set(name, e);
     });
     return Array.from(map.values()).sort((a, b) => b.required - a.required);

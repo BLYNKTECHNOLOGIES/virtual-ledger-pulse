@@ -89,6 +89,7 @@ export default function WorkforceOverviewPage() {
     const selected = sum("selected_hc");
     const notice = sum("notice_period_hc");
     const netHiring = filtered.reduce((a, r) => a + r.netHiringRequirement, 0);
+    const uncoveredHiring = filtered.reduce((a, r) => a + r.uncoveredHiringRequirement, 0);
     return {
       approved,
       required,
@@ -98,6 +99,7 @@ export default function WorkforceOverviewPage() {
       selected,
       notice,
       netHiring,
+      uncoveredHiring,
       vacantSeats: approved - current,
       hiringRequired: Math.max(0, required - current),
       projectedGap: required - (current + pending + selected - notice),
@@ -220,7 +222,7 @@ export default function WorkforceOverviewPage() {
             <WorkforceKpiCard
               label="Hiring required"
               value={totals.hiringRequired}
-              hint="Required minus on roll"
+              hint={`${totals.netHiring} after pipeline · ${totals.uncoveredHiring} not yet requested`}
               icon={UserPlus}
               tone={totals.hiringRequired > 0 ? "danger" : "success"}
             />
@@ -282,7 +284,7 @@ export default function WorkforceOverviewPage() {
                   <EmptyState
                     icon={UserCheck}
                     title="No hiring needed right now"
-                    description="Every planned role is staffed, or the gap is already covered by selected candidates and confirmed joiners."
+                    description="Every planned role is staffed or its remaining shortage is already covered by pipeline and open requirements."
                   />
                 ) : (
                   actionRows.map((r) => (
@@ -299,17 +301,24 @@ export default function WorkforceOverviewPage() {
                           <p className="text-xs text-muted-foreground">
                             Required {r.required_hc} · On roll {r.current_hc} · Approved{" "}
                             {r.approved_hc} · Pipeline {r.pipeline_hc} · Joining{" "}
-                            {r.pending_joining_hc} · Target {formatIstDate(r.target_date)}
+                            {r.pending_joining_hc} · Open hiring {r.open_requirement_hc} · Target {formatIstDate(r.target_date)}
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className={PRIORITY_CLASS[r.priority]}>
                             {PRIORITY_LABEL[r.priority]}
                           </Badge>
-                          <span className="text-lg font-semibold tabular-nums text-destructive">
-                            +{r.netHiringRequirement}
-                          </span>
-                          {canManage && (
+                          <div className="text-right">
+                            <span className="block text-lg font-semibold tabular-nums text-destructive">
+                              Short {r.staffingGap}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              {r.uncoveredHiringRequirement > 0
+                                ? `${r.uncoveredHiringRequirement} not requested`
+                                : `${r.open_requirement_hc} requested`}
+                            </span>
+                          </div>
+                          {canManage && r.uncoveredHiringRequirement > 0 && (
                             <Button
                               size="sm"
                               onClick={() =>
@@ -320,7 +329,7 @@ export default function WorkforceOverviewPage() {
                                   shift_label: r.shift_name,
                                   location: r.location,
                                   employment_type: r.employment_type,
-                                  number_required: r.netHiringRequirement,
+                                  number_required: r.uncoveredHiringRequirement,
                                   target_joining_date: r.target_date,
                                   priority: r.priority,
                                 })

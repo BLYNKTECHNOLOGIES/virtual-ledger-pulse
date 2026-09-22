@@ -148,6 +148,11 @@ export default function HiringRequirementsPage() {
                         {r.replacement_employee_id && (
                           <Badge variant="outline">Replacement</Badge>
                         )}
+                        {r.source === "capacity_occupancy" && (
+                          <Badge variant="outline" className="border-primary/30 bg-primary/10 text-primary">
+                            Capacity gap
+                          </Badge>
+                        )}
                       </div>
                       <p className="truncate font-medium text-foreground">
                         {r.positions?.title ?? "Position"} · {r.departments?.name ?? "Department"}

@@ -146,7 +146,9 @@ export default function StaffingPlanPage() {
                       <th className="px-3 py-2 text-right">Gap</th>
                       <th className="px-3 py-2 text-right">Pipeline</th>
                       <th className="px-3 py-2 text-right">Joining</th>
-                      <th className="px-3 py-2 text-right">Net hiring</th>
+                      <th className="px-3 py-2 text-right">Net need</th>
+                      <th className="px-3 py-2 text-right">Open hiring</th>
+                      <th className="px-3 py-2 text-right">Uncovered</th>
                       <th className="px-3 py-2">Target</th>
                       <th className="px-3 py-2">Priority</th>
                       <th className="px-3 py-2">Status</th>
@@ -185,6 +187,10 @@ export default function StaffingPlanPage() {
                         <td className="px-3 py-2 text-right font-semibold tabular-nums">
                           {r.netHiringRequirement}
                         </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{r.open_requirement_hc}</td>
+                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-destructive">
+                          {r.uncoveredHiringRequirement}
+                        </td>
                         <td className="px-3 py-2 text-muted-foreground">
                           {formatIstDate(r.target_date)}
                         </td>
@@ -200,7 +206,7 @@ export default function StaffingPlanPage() {
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex items-center justify-end gap-1">
-                            {canManage && r.netHiringRequirement > 0 && (
+                            {canManage && r.uncoveredHiringRequirement > 0 && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -212,7 +218,7 @@ export default function StaffingPlanPage() {
                                     shift_label: r.shift_name,
                                     location: r.location,
                                     employment_type: r.employment_type,
-                                    number_required: r.netHiringRequirement,
+                                    number_required: r.uncoveredHiringRequirement,
                                     target_joining_date: r.target_date,
                                     priority: r.priority,
                                   })
@@ -263,7 +269,7 @@ export default function StaffingPlanPage() {
                       {STATUS_LABEL[r.status]}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-xs">
+                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div>
                       <p className="text-muted-foreground">Approved</p>
                       <p className="font-semibold text-foreground">{r.approved_hc}</p>
@@ -285,13 +291,21 @@ export default function StaffingPlanPage() {
                       <p className="font-semibold text-foreground">{r.pipeline_hc}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Net hiring</p>
+                       <p className="text-muted-foreground">Net need</p>
                       <p className="font-semibold text-foreground">{r.netHiringRequirement}</p>
                     </div>
+                     <div>
+                       <p className="text-muted-foreground">Open hiring</p>
+                       <p className="font-semibold text-foreground">{r.open_requirement_hc}</p>
+                     </div>
+                     <div>
+                       <p className="text-muted-foreground">Uncovered</p>
+                       <p className="font-semibold text-destructive">{r.uncoveredHiringRequirement}</p>
+                     </div>
                   </div>
                   {canManage && (
                     <div className="flex flex-wrap gap-2">
-                      {r.netHiringRequirement > 0 && (
+                       {r.uncoveredHiringRequirement > 0 && (
                         <Button
                           size="sm"
                           onClick={() =>
@@ -302,7 +316,7 @@ export default function StaffingPlanPage() {
                               shift_label: r.shift_name,
                               location: r.location,
                               employment_type: r.employment_type,
-                              number_required: r.netHiringRequirement,
+                              number_required: r.uncoveredHiringRequirement,
                               target_joining_date: r.target_date,
                               priority: r.priority,
                             })

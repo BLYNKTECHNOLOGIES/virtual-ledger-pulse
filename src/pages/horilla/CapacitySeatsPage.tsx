@@ -415,7 +415,7 @@ export default function CapacitySeatsPage() {
         a.departmentName.localeCompare(b.departmentName) ||
         a.positionTitle.localeCompare(b.positionTitle),
       );
-  }, [activeMapShiftId, filtered, filteredPeople, shiftBreakdown]);
+  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">

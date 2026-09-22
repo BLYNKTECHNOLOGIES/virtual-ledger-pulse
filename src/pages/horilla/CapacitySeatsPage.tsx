@@ -184,7 +184,7 @@ export default function CapacitySeatsPage() {
             : s.positions?.title ?? null,
         };
       }),
-    [seats, people, lookups?.positions, lookups?.shifts],
+    [seats, people, lookups?.positions, lookups?.shifts, seatMatchesPerson],
   );
 
   const filtered = useMemo(
@@ -207,18 +207,10 @@ export default function CapacitySeatsPage() {
   const filteredPeople = useMemo(() => {
     const unique = new Map<string, SeatPerson>();
     (people as SeatPerson[]).forEach((person) => {
-      const belongsToVisibleSeat = filtered.some(
-        (seat) =>
-          (seat.is_training_only
-            ? seat.shift_id === person.shift_id
-            : seat.department_id === person.department_id &&
-              seatAllowsPosition(seat, person.job_position_id) &&
-              (!seat.shift_id || seat.shift_id === person.shift_id)),
-      );
-      if (belongsToVisibleSeat) unique.set(person.employee_id, person);
+      if (filtered.some((seat) => seatMatchesPerson(seat, person))) unique.set(person.employee_id, person);
     });
     return Array.from(unique.values());
-  }, [filtered, people]);
+  }, [filtered, people, seatMatchesPerson]);
 
   const shiftBreakdown = useMemo(() => {
     const shifts = (lookups?.shifts || []) as ShiftLookup[];

@@ -50,15 +50,19 @@ export function ResponsiveDialog({
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="max-h-[92vh]">
-          <DrawerHeader className="text-left">
+        <DrawerContent className="max-h-[calc(100dvh-1rem)] overflow-hidden">
+          <DrawerHeader className="shrink-0 text-left">
             <DrawerTitle>{title}</DrawerTitle>
             {description ? (
               <DrawerDescription>{description}</DrawerDescription>
             ) : null}
           </DrawerHeader>
-          <div className="overflow-y-auto px-4 pb-4">{children}</div>
-          {footer ? <DrawerFooter className="gap-2 [&>button]:w-full">{footer}</DrawerFooter> : null}
+          <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-4 pb-4">{children}</div>
+          {footer ? (
+            <DrawerFooter className="shrink-0 gap-2 border-t border-border bg-background pb-[max(1rem,env(safe-area-inset-bottom))] [&>button]:w-full">
+              {footer}
+            </DrawerFooter>
+          ) : null}
         </DrawerContent>
       </Drawer>
     );

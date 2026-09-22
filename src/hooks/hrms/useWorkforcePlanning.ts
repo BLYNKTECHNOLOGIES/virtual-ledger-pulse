@@ -458,12 +458,17 @@ export function useSaveForecastAssumption() {
       pct: number;
       notes?: string | null;
     }) => {
-      const { data: existing } = await supabase
+      let existingQuery = supabase
         .from("hr_workforce_forecast_assumptions")
-        .select("id")
-        .is("department_id", departmentId ? undefined : null)
-        .eq(departmentId ? "department_id" : "id", departmentId ?? "00000000-0000-0000-0000-000000000000")
-        .maybeSingle();
+        .select("id");
+
+      existingQuery = departmentId
+        ? existingQuery.eq("department_id", departmentId)
+        : existingQuery.is("department_id", null);
+
+      const { data: existing, error: lookupError } = await existingQuery.maybeSingle();
+      if (lookupError) throw lookupError;
+
       if (existing?.id) {
         const { error } = await supabase
           .from("hr_workforce_forecast_assumptions")

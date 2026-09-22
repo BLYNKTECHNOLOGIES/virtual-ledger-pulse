@@ -128,13 +128,14 @@ export function OfficeSeatMap({
                               </p>
                             </div>
 
-                            <div className="flex flex-wrap items-end justify-center gap-x-2 gap-y-3 sm:gap-x-3">
+                            <div className="flex min-h-16 flex-wrap items-start justify-center gap-x-2 gap-y-3 pt-1 sm:gap-x-3">
                               {Array.from({ length: role.physicalSeats }, (_, index) => {
                                 const occupiedSeat = index < role.occupiedSeats;
                                 const occupantName = role.occupantNames[index];
                                 const displayNumber = firstSeatNumber + index;
-                                const center = (role.physicalSeats - 1) / 2;
-                                const curveOffset = Math.abs(index - center) * 3;
+                                const totalPositions = role.physicalSeats + role.overflow;
+                                const center = (totalPositions - 1) / 2;
+                                const curveOffset = Math.min(8, Math.abs(index - center) * 2);
                                 return (
                                   <div key={`${role.id}-${index}`} className="flex w-10 flex-col items-center gap-1" style={{ transform: `translateY(${curveOffset}px)` }}>
                                     <Tooltip>
@@ -161,18 +162,33 @@ export function OfficeSeatMap({
                                   </div>
                                 );
                               })}
-                              {Array.from({ length: role.overflow }, (_, index) => (
-                                <div key={`${role.id}-overflow-${index}`} className="flex w-10 flex-col items-center gap-1">
-                                  <div
-                                    className="flex h-9 w-9 items-center justify-center rounded-t-md rounded-b-sm border border-destructive bg-destructive/15 text-destructive shadow-[0_4px_0_hsl(var(--destructive)/0.22)] sm:h-10 sm:w-10"
-                                    title={`${role.positionTitle}: scheduled beyond allocated seats`}
-                                    aria-label={`${role.positionTitle} over capacity`}
-                                  >
-                                    <Users className="h-4 w-4" />
+                              {Array.from({ length: role.overflow }, (_, index) => {
+                                const occupantName = role.occupantNames[role.physicalSeats + index] || "Unnamed employee";
+                                const slotIndex = role.physicalSeats + index;
+                                const center = (role.physicalSeats + role.overflow - 1) / 2;
+                                const curveOffset = Math.min(8, Math.abs(slotIndex - center) * 2);
+                                return (
+                                  <div key={`${role.id}-overflow-${index}`} className="flex w-10 flex-col items-center gap-1" style={{ transform: `translateY(${curveOffset}px)` }}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          tabIndex={0}
+                                          className="flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-destructive bg-destructive/15 text-destructive shadow-[0_4px_0_hsl(var(--destructive)/0.22)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                          aria-label={`${role.positionTitle}, ${occupantName}, over capacity`}
+                                        >
+                                          <Users className="h-4 w-4" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-64">
+                                        <p className="font-semibold">{occupantName}</p>
+                                        <p className="text-destructive">No allocated seat · over capacity</p>
+                                        <p className="text-[10px] text-muted-foreground">{role.positionTitle}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                    <span className="font-mono text-[9px] text-destructive">+{index + 1}</span>
                                   </div>
-                                  <span className="font-mono text-[9px] text-destructive">+{index + 1}</span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
 
                             <div className="text-center font-mono text-[11px] text-muted-foreground md:text-right">

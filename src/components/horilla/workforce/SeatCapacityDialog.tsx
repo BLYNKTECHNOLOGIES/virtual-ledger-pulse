@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -26,6 +27,7 @@ interface SeatCapacityDialogProps {
 const BLANK: SeatCapacityInput = {
   department_id: "",
   position_id: null,
+  eligible_position_ids: [],
   shift_id: null,
   shift_label: null,
   location: null,
@@ -88,7 +90,7 @@ export function SeatCapacityDialog({
           <Label>Department</Label>
           <Select
             value={form.department_id}
-            onValueChange={(v) => set({ department_id: v, position_id: null })}
+            onValueChange={(v) => set({ department_id: v, position_id: null, eligible_position_ids: [] })}
           >
             <SelectTrigger className="text-foreground">
               <SelectValue placeholder="Select department" />
@@ -107,7 +109,15 @@ export function SeatCapacityDialog({
           <Label>Position (optional)</Label>
           <Select
             value={form.position_id ?? "none"}
-            onValueChange={(v) => set({ position_id: v === "none" ? null : v })}
+            onValueChange={(v) => {
+              const positionId = v === "none" ? null : v;
+              set({
+                position_id: positionId,
+                eligible_position_ids: positionId && form.eligible_position_ids.length
+                  ? Array.from(new Set([positionId, ...form.eligible_position_ids]))
+                  : [],
+              });
+            }}
           >
             <SelectTrigger className="text-foreground">
               <SelectValue placeholder="Whole department" />
@@ -122,6 +132,32 @@ export function SeatCapacityDialog({
             </SelectContent>
           </Select>
         </div>
+
+        {form.position_id && (
+          <div className="space-y-2 sm:col-span-2">
+            <Label>Inter-usable roles</Label>
+            <div className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-2">
+              {positions.map((position) => {
+                const checked = form.eligible_position_ids.includes(position.id);
+                return (
+                  <label key={position.id} className="flex items-center gap-2 text-xs text-foreground">
+                    <Checkbox
+                      checked={checked}
+                      disabled={position.id === form.position_id && form.eligible_position_ids.length > 0}
+                      onCheckedChange={(value) => set({
+                        eligible_position_ids: value
+                          ? Array.from(new Set([...(form.position_id ? [form.position_id] : []), ...form.eligible_position_ids, position.id]))
+                          : form.eligible_position_ids.filter((id) => id !== position.id),
+                      })}
+                    />
+                    {position.title}
+                  </label>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">Selected roles can use any seat in this shared pool.</p>
+          </div>
+        )}
 
         <div className="space-y-1">
           <Label>Shift</Label>

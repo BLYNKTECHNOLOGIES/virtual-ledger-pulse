@@ -18,3 +18,5 @@
 - [x] Add six role-independent training-only seats excluded from working capacity and hiring demand.
 - [x] Combine Morning Shift and Morning Shift Exemption for seat occupancy while retaining attendance schedules.
 - [x] Show the allocated employee name when a seat is hovered or keyboard-focused.
+- [x] Show employee details on over-capacity seats and correct cinema-row alignment.
+- [x] Support shared eligible roles throughout Payment Operations seat and staffing-plan screens.

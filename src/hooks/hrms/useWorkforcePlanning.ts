@@ -120,7 +120,9 @@ export interface HeadcountPlanInput {
   id?: string;
   department_id: string;
   position_id: string;
+  eligible_position_ids: string[];
   shift_id: string | null;
+  eligible_shift_ids: string[];
   shift_label: string | null;
   location: string | null;
   employment_type: string | null;
@@ -204,6 +206,7 @@ export interface SeatCapacityInput {
   id?: string;
   department_id: string;
   position_id: string | null;
+  eligible_position_ids: string[];
   shift_id: string | null;
   shift_label: string | null;
   location: string | null;

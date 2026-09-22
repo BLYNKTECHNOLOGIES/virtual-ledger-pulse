@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -32,7 +33,9 @@ interface HeadcountPlanDialogProps {
 const BLANK: HeadcountPlanInput = {
   department_id: "",
   position_id: "",
+  eligible_position_ids: [],
   shift_id: null,
+  eligible_shift_ids: [],
   shift_label: null,
   location: null,
   employment_type: null,
@@ -67,8 +70,14 @@ export function HeadcountPlanDialog({
 
   const submit = () => {
     const shift = lookups?.shifts.find((s) => s.id === form.shift_id);
+    const eligiblePositions = form.eligible_position_ids.length > 0
+      ? Array.from(new Set([form.position_id, ...form.eligible_position_ids]))
+      : [];
+    const eligibleShifts = form.eligible_shift_ids.length > 0 && form.shift_id
+      ? Array.from(new Set([form.shift_id, ...form.eligible_shift_ids]))
+      : form.eligible_shift_ids;
     save.mutate(
-      { ...form, shift_label: shift?.name ?? form.shift_label ?? null },
+      { ...form, eligible_position_ids: eligiblePositions, eligible_shift_ids: eligibleShifts, shift_label: shift?.name ?? form.shift_label ?? null },
       { onSuccess: () => onOpenChange(false) },
     );
   };
@@ -96,7 +105,7 @@ export function HeadcountPlanDialog({
           <Label>Department</Label>
           <Select
             value={form.department_id}
-            onValueChange={(v) => set({ department_id: v, position_id: "" })}
+            onValueChange={(v) => set({ department_id: v, position_id: "", eligible_position_ids: [] })}
           >
             <SelectTrigger className="text-foreground">
               <SelectValue placeholder="Select department" />
@@ -113,7 +122,7 @@ export function HeadcountPlanDialog({
 
         <div className="space-y-1">
           <Label>Position</Label>
-          <Select value={form.position_id} onValueChange={(v) => set({ position_id: v })}>
+          <Select value={form.position_id} onValueChange={(v) => set({ position_id: v, eligible_position_ids: form.eligible_position_ids.length ? Array.from(new Set([v, ...form.eligible_position_ids])) : [] })}>
             <SelectTrigger className="text-foreground">
               <SelectValue placeholder="Select position" />
             </SelectTrigger>
@@ -125,6 +134,30 @@ export function HeadcountPlanDialog({
               ))}
             </SelectContent>
           </Select>
+        </div>
+
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Shared eligible roles</Label>
+          <div className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-2">
+            {positions.map((position) => {
+              const checked = form.eligible_position_ids.includes(position.id);
+              return (
+                <label key={position.id} className="flex items-center gap-2 text-xs text-foreground">
+                  <Checkbox
+                    checked={checked}
+                    disabled={position.id === form.position_id && form.eligible_position_ids.length > 0}
+                    onCheckedChange={(value) => set({
+                      eligible_position_ids: value
+                        ? Array.from(new Set([...(form.position_id ? [form.position_id] : []), ...form.eligible_position_ids, position.id]))
+                        : form.eligible_position_ids.filter((id) => id !== position.id),
+                    })}
+                  />
+                  {position.title}
+                </label>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-muted-foreground">Select roles that share one combined staffing target.</p>
         </div>
 
         <div className="space-y-1">

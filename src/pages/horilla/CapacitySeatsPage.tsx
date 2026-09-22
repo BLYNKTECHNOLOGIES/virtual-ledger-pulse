@@ -152,30 +152,22 @@ export default function CapacitySeatsPage() {
     [enriched],
   );
 
-  const totals = useMemo(() => {
-    const physical = filtered.reduce((a, s) => a + (s.physical_seats || 0), 0);
-    const operational = filtered.reduce(
-      (a, s) => a + (s.max_operational_capacity || s.physical_seats || 0),
-      0,
-    );
-    const occupied = filtered.reduce((a, s) => a + s.currentOccupancy, 0);
-    return {
-      physical,
-      operational,
-      occupied,
-      free: physical - occupied,
-      utilisation: physical > 0 ? (occupied / physical) * 100 : 0,
-    };
-  }, [filtered]);
-
   const shiftBreakdown = useMemo(() => {
     const shifts = (lookups?.shifts || []) as ShiftLookup[];
     const rows = shifts.map((shift) => {
-      const assigned = filteredPeople.filter((person) => person.shift_id === shift.id).length;
-      const eligibleSeats = filtered.reduce(
-        (sum, seat) => sum + (!seat.shift_id || seat.shift_id === shift.id ? seat.physical_seats || 0 : 0),
-        0,
-      );
+      const assignedPeople = filteredPeople.filter((person) => person.shift_id === shift.id);
+      const assigned = assignedPeople.length;
+      // Capacity is role-scoped. A shift containing only Office Help must be
+      // compared with the Office Help seat, not every desk in the office.
+      const eligibleSeats = filtered.reduce((sum, seat) => {
+        if (seat.shift_id && seat.shift_id !== shift.id) return sum;
+        const hasMatchingAssignment = assignedPeople.some(
+          (person) =>
+            person.department_id === seat.department_id &&
+            (!seat.position_id || person.job_position_id === seat.position_id),
+        );
+        return sum + (hasMatchingAssignment ? seat.physical_seats || 0 : 0);
+      }, 0);
       const utilisation = eligibleSeats > 0 ? (assigned / eligibleSeats) * 100 : 0;
       return {
         ...shift,
@@ -187,19 +179,45 @@ export default function CapacitySeatsPage() {
     });
     const unassigned = filteredPeople.filter((person) => !person.shift_id).length;
     if (unassigned > 0) {
+      const unassignedPeople = filteredPeople.filter((person) => !person.shift_id);
+      const unassignedSeats = filtered.reduce((sum, seat) => {
+        if (seat.shift_id) return sum;
+        const hasMatchingAssignment = unassignedPeople.some(
+          (person) =>
+            person.department_id === seat.department_id &&
+            (!seat.position_id || person.job_position_id === seat.position_id),
+        );
+        return sum + (hasMatchingAssignment ? seat.physical_seats || 0 : 0);
+      }, 0);
       rows.push({
         id: "unassigned",
         name: "Unassigned",
         start_time: null,
         end_time: null,
         assigned: unassigned,
-        seats: totals.physical,
-        available: totals.physical - unassigned,
-        utilisation: totals.physical > 0 ? (unassigned / totals.physical) * 100 : 0,
+        seats: unassignedSeats,
+        available: unassignedSeats - unassigned,
+        utilisation: unassignedSeats > 0 ? (unassigned / unassignedSeats) * 100 : 0,
       });
     }
     return rows.filter((row) => row.assigned > 0 || row.seats > 0);
-  }, [filtered, filteredPeople, lookups?.shifts, totals.physical]);
+  }, [filtered, filteredPeople, lookups?.shifts]);
+
+  const totals = useMemo(() => {
+    const physical = filtered.reduce((a, s) => a + (s.physical_seats || 0), 0);
+    const operational = filtered.reduce(
+      (a, s) => a + (s.max_operational_capacity || s.physical_seats || 0),
+      0,
+    );
+    const occupied = shiftBreakdown.reduce((peak, shift) => Math.max(peak, shift.assigned), 0);
+    return {
+      physical,
+      operational,
+      occupied,
+      free: Math.max(0, physical - occupied),
+      utilisation: physical > 0 ? (occupied / physical) * 100 : 0,
+    };
+  }, [filtered, shiftBreakdown]);
 
   const seatBreakdown = useMemo(() => {
     const grouped = new Map<
@@ -343,7 +361,7 @@ export default function CapacitySeatsPage() {
               <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <h2 className="font-heading text-sm font-semibold text-foreground">Shift-wise occupancy</h2>
-                  <p className="text-xs text-muted-foreground">Current effective schedules against usable desks</p>
+                  <p className="text-xs text-muted-foreground">Current schedules against seats assigned to roles working that shift</p>
                 </div>
                 <Clock3 className="h-4 w-4 text-primary" />
               </div>

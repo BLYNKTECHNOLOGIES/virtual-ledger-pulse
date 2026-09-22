@@ -141,7 +141,9 @@ export function OfficeSeatMap({
                             <div className="flex min-h-16 flex-wrap items-start justify-center gap-x-2 gap-y-3 pt-1 sm:gap-x-3">
                               {Array.from({ length: role.physicalSeats }, (_, index) => {
                                 const occupiedSeat = index < role.occupiedSeats;
-                                const occupantName = role.occupantNames[index];
+                                const occupant = role.occupants[index];
+                                const occupantName = occupant?.name;
+                                const leavingSoon = occupiedSeat && !!occupant?.onNotice;
                                 const displayNumber = firstSeatNumber + index;
                                 const totalPositions = role.physicalSeats + role.overflow;
                                 const center = (totalPositions - 1) / 2;
@@ -153,11 +155,13 @@ export function OfficeSeatMap({
                                         <div
                                           tabIndex={0}
                                           className={
-                                            occupiedSeat
-                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
-                                              : "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                            leavingSoon
+                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-warning bg-warning text-warning-foreground shadow-[0_4px_0_hsl(var(--warning)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                              : occupiedSeat
+                                                ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                                : "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
                                           }
-                                          aria-label={`${role.positionTitle} seat ${displayNumber}, ${occupantName ? `allocated to ${occupantName}` : "vacant"}`}
+                                          aria-label={`${role.positionTitle} seat ${displayNumber}, ${occupantName ? `allocated to ${occupantName}${leavingSoon ? ", serving notice" : ""}` : "vacant"}`}
                                         >
                                           <Armchair className="h-4 w-4" />
                                         </div>
@@ -165,15 +169,18 @@ export function OfficeSeatMap({
                                       <TooltipContent side="top" className="max-w-64">
                                         <p className="font-semibold">Seat {String(displayNumber).padStart(2, "0")}</p>
                                         <p>{occupantName || "Available"}</p>
+                                        {leavingSoon && (
+                                          <p className="text-[10px] font-semibold text-warning">Serving notice · desk frees up soon</p>
+                                        )}
                                         <p className="text-[10px] text-muted-foreground">{role.trainingOnly ? "Training only · not a working seat" : role.positionTitle}</p>
                                       </TooltipContent>
                                     </Tooltip>
-                                    <span className="font-mono text-[9px] text-muted-foreground">{String(displayNumber).padStart(2, "0")}</span>
+                                    <span className={`font-mono text-[9px] ${leavingSoon ? "text-warning" : "text-muted-foreground"}`}>{String(displayNumber).padStart(2, "0")}</span>
                                   </div>
                                 );
                               })}
                               {Array.from({ length: role.overflow }, (_, index) => {
-                                const occupantName = role.occupantNames[role.physicalSeats + index] || "Unnamed employee";
+                                const occupantName = role.occupants[role.physicalSeats + index]?.name || "Unnamed employee";
                                 const slotIndex = role.physicalSeats + index;
                                 const center = (role.physicalSeats + role.overflow - 1) / 2;
                                 const curveOffset = Math.min(8, Math.abs(slotIndex - center) * 2);

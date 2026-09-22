@@ -20,3 +20,11 @@
 - [x] Show the allocated employee name when a seat is hovered or keyboard-focused.
 - [x] Show employee details on over-capacity seats and correct cinema-row alignment.
 - [x] Support shared eligible roles throughout Payment Operations seat and staffing-plan screens.
+
+## Binance bulk maximum quantity
+
+- [x] Validate BUY and SELL quantity semantics against Binance's official ad-update contract.
+- [x] Update BUY ads by targeting tradable quantity while preserving already-traded quantity.
+- [x] Keep SELL ads on the standard quantity field and remove response-only quantity fields from update requests.
+- [x] Deploy the corrected Binance Ads function and verify preview compilation.
+- [ ] Run a live authenticated BUY-ad update (blocked: this external Supabase session is not available to automated verification).

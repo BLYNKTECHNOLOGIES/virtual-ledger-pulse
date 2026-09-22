@@ -103,7 +103,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
           identifier: m.identifier,
           ...(m.payId ? { payId: m.payId } : {}),
         }));
-        await new Promise<void>((resolve, reject) => {
+        const notice = await new Promise<string | undefined>((resolve, reject) => {
           updateAd.mutate({
             advNo: ad.advNo,
             exchange_account_id: ad._exchangeAccountId,
@@ -117,9 +117,12 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
             tradeMethods,
             payTimeLimit: ad.payTimeLimit || 15,
             ...(ad.priceType === 1 ? { price: ad.price } : { priceFloatingRatio: ad.priceFloatingRatio }),
-          }, { onSuccess: () => resolve(), onError: (e) => reject(e) });
+          }, {
+            onSuccess: (data: any) => resolve(data?.data?.quantityNotice || data?.quantityNotice),
+            onError: (e) => reject(e),
+          });
         });
-        setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'success' } }));
+        setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'success', message: notice } }));
       } catch (e: any) {
         const message = e?.message || 'Failed';
         setResults((prev) => ({ ...prev, [ad.advNo]: { status: 'error', message } }));
@@ -182,6 +185,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
 
                         )}
                         {res?.message && res.status === 'error' && <div className="text-destructive mt-1">{res.message}</div>}
+                        {res?.message && res.status === 'success' && <div className="text-warning mt-1">{res.message}</div>}
                       </div>
                     </div>
                   );

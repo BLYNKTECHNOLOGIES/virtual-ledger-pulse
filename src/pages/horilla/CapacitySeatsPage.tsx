@@ -278,7 +278,7 @@ export default function CapacitySeatsPage() {
       });
     }
     return rows.filter((row) => row.assigned > 0 || row.seats > 0);
-  }, [filtered, filteredPeople, lookups?.shifts]);
+  }, [filtered, filteredPeople, lookups?.shifts, traineeIds]);
 
   const totals = useMemo(() => {
     const workingSeats = filtered.filter((seat) => !seat.is_training_only);

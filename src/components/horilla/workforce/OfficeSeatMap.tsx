@@ -203,9 +203,10 @@ export function OfficeSeatMap({
                                         </div>
                                       </TooltipTrigger>
                                       <TooltipContent side="top" className="max-w-64">
-                                        <p className="font-semibold">{occupantName}</p>
-                                        <p className="text-destructive">No allocated seat · over capacity</p>
-                                        <p className="text-[10px] text-muted-foreground">{role.positionTitle}</p>
+                                         <p className="font-semibold">{occupantName}</p>
+                                         {overflowOccupant?.position && <p className="text-[10px] text-muted-foreground">{overflowOccupant.position}</p>}
+                                         <p className="text-destructive">No allocated seat · over capacity</p>
+                                         <p className="text-[10px] text-muted-foreground">Desk reserved for: {role.positionTitle}</p>
                                       </TooltipContent>
                                     </Tooltip>
                                     <span className="font-mono text-[9px] text-destructive">+{index + 1}</span>

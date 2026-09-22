@@ -167,10 +167,6 @@ export function HiringRequirementDetailDialog({
             <span className="text-foreground">{requirement.employment_type || "—"}</span>
           </p>
           <p>
-            <span className="text-muted-foreground">Location: </span>
-            <span className="text-foreground">{requirement.location || "—"}</span>
-          </p>
-          <p>
             <span className="text-muted-foreground">Experience: </span>
             <span className="text-foreground">{requirement.experience_required || "—"}</span>
           </p>

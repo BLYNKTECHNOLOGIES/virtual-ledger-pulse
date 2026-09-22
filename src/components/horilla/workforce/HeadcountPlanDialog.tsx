@@ -148,16 +148,6 @@ export function HeadcountPlanDialog({
         </div>
 
         <div className="space-y-1">
-          <Label>Location</Label>
-          <Input
-            className="text-foreground"
-            value={form.location ?? ""}
-            onChange={(e) => set({ location: e.target.value || null })}
-            placeholder="Office / site"
-          />
-        </div>
-
-        <div className="space-y-1">
           <Label>Employment type</Label>
           <Select
             value={form.employment_type ?? "none"}

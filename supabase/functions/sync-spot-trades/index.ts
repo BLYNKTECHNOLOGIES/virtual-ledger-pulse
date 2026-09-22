@@ -45,6 +45,7 @@ async function importTradesForAccount(accountId: string): Promise<number> {
 
   const resolvedAccountId: string = body._resolvedExchangeAccountId || accountId;
   const trades = (body.data || []) as any[];
+  console.info(`sync-spot-trades: account=${accountId} startTime=${startTime} fetched=${trades.length}`);
   if (!trades.length) return 0;
 
   const rows = trades.map((t: any) => ({
@@ -272,8 +273,10 @@ Deno.serve(async (req) => {
     for (const accountId of accountIds) {
       try {
         const imported = await importTradesForAccount(accountId);
+        console.info(`sync-spot-trades: account=${accountId} trades imported=${imported}`);
         perAccount.push({ accountId, imported });
       } catch (e) {
+        console.warn(`sync-spot-trades: account=${accountId} failed: ${(e as Error).message}`);
         perAccount.push({ accountId, error: (e as Error).message });
       }
     }

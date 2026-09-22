@@ -97,14 +97,30 @@ async function importTradesForAccount(accountId: string): Promise<number> {
       .eq("source", "terminal");
   }
 
-  const newRows = rows.filter((r) => !terminalOrderIds.has(r.binance_order_id));
+  const candidates = rows.filter((r) => !terminalOrderIds.has(r.binance_order_id));
+
+  // INSERT-ONLY, never UPSERT. A PostgREST upsert on (binance_trade_id, symbol)
+  // resolves as ON CONFLICT DO UPDATE and rewrites the row's primary key, which
+  // trips erp_product_conversions_spot_trade_id_fkey the moment any trade is
+  // already booked as a conversion — the whole batch then failed and no new
+  // trades were ever imported. So we filter out rows that already exist and
+  // insert only the genuinely new ones.
+  const tradeIds = [...new Set(candidates.map((r) => r.binance_trade_id))];
+  const existing = new Set<string>();
+  for (let i = 0; i < tradeIds.length; i += 500) {
+    const { data: ex } = await svc
+      .from("spot_trade_history")
+      .select("binance_trade_id, symbol")
+      .in("binance_trade_id", tradeIds.slice(i, i + 500));
+    for (const e of (ex || []) as any[]) existing.add(`${e.binance_trade_id}|${e.symbol}`);
+  }
+  const newRows = candidates.filter((r) => !existing.has(`${r.binance_trade_id}|${r.symbol}`));
+
   let imported = 0;
   for (let i = 0; i < newRows.length; i += 50) {
     const chunk = newRows.slice(i, i + 50);
-    const { error } = await svc
-      .from("spot_trade_history")
-      .upsert(chunk, { onConflict: "binance_trade_id,symbol", ignoreDuplicates: true });
-    if (error) throw new Error(`upsert failed: ${error.message}`);
+    const { error } = await svc.from("spot_trade_history").insert(chunk);
+    if (error) throw new Error(`insert failed: ${error.message}`);
     imported += chunk.length;
   }
   return imported;

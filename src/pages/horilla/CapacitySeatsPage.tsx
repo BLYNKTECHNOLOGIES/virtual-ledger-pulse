@@ -339,6 +339,25 @@ export default function CapacitySeatsPage() {
     return peakShift?.id ?? mapShifts[0]?.id ?? "";
   }, [mapShifts, peakShift?.id, selectedMapShiftId]);
 
+  /** Approved staffing demand per shift, used to keep planned seats visible. */
+  const planScopes = useMemo(
+    () =>
+      (headcountPlans as any[]).map((plan) => {
+        const positionIds: string[] = Array.isArray(plan.eligible_position_ids) && plan.eligible_position_ids.length
+          ? plan.eligible_position_ids
+          : plan.position_id
+            ? [plan.position_id]
+            : [];
+        const shiftIds: string[] = Array.isArray(plan.eligible_shift_ids) && plan.eligible_shift_ids.length
+          ? plan.eligible_shift_ids
+          : plan.shift_id
+            ? [plan.shift_id]
+            : [];
+        return { positionIds, shiftIds };
+      }),
+    [headcountPlans],
+  );
+
   const mapRoles = useMemo(() => {
     if (!activeMapShiftId) return [];
     const selectedShift = shiftBreakdown.find((shift) => shift.id === activeMapShiftId);

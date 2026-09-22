@@ -162,3 +162,12 @@ project_id = "vagiqbespusdxsbqpvbo"
 [studio]
   enabled = true
   port = 54323
+
+[functions.update-jd-v42-a]
+verify_jwt = false
+
+[functions.update-jd-v42-b]
+verify_jwt = false
+
+[functions.update-jd-v42-full]
+verify_jwt = false

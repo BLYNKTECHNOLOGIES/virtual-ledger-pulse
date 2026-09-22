@@ -15,3 +15,6 @@
 - [x] Keep every physical seat reserved to its assigned role.
 - [x] Verify desktop/mobile rendering and live calculations.
 - [x] Replace the interim boxed dashboard with the approved cinema-style role-row seating plan.
+- [x] Add six role-independent training-only seats excluded from working capacity and hiring demand.
+- [x] Combine Morning Shift and Morning Shift Exemption for seat occupancy while retaining attendance schedules.
+- [x] Show the allocated employee name when a seat is hovered or keyboard-focused.

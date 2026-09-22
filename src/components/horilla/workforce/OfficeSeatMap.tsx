@@ -1,6 +1,7 @@
 import { Armchair, Clock3, LockKeyhole, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type SeatMapShift = {
   id: string;
@@ -16,6 +17,8 @@ export type SeatMapRole = {
   physicalSeats: number;
   occupiedSeats: number;
   overflow: number;
+  occupantNames: string[];
+  trainingOnly?: boolean;
 };
 
 type OfficeSeatMapProps = {
@@ -85,10 +88,11 @@ export function OfficeSeatMap({
         </div>
       </div>
 
+      <TooltipProvider delayDuration={150}>
       <div className="bg-muted/20 p-4 sm:p-6 lg:p-8">
         <div className="mx-auto max-w-5xl">
           <div className="mb-7 text-center sm:mb-10">
-            <div className="mx-auto h-2 w-4/5 max-w-3xl rounded-t-full border-x border-t border-primary/40 bg-primary/15 shadow-[0_-8px_24px_hsl(var(--primary)/0.16)]" />
+            <div className="mx-auto h-8 w-4/5 max-w-3xl rounded-[50%_50%_0_0/100%_100%_0_0] border-x border-t-2 border-primary/50 bg-primary/10 shadow-[0_-10px_28px_hsl(var(--primary)/0.16)]" />
             <p className="mt-2 text-[10px] font-semibold uppercase tracking-widest text-primary">Front entrance / reception</p>
           </div>
 
@@ -120,27 +124,39 @@ export function OfficeSeatMap({
                             <div className="min-w-0 text-center md:text-left">
                               <p className="truncate text-xs font-semibold text-foreground">{role.positionTitle}</p>
                               <p className="mt-0.5 flex items-center justify-center gap-1 text-[10px] text-muted-foreground md:justify-start">
-                                <LockKeyhole className="h-2.5 w-2.5" /> Role reserved
+                                <LockKeyhole className="h-2.5 w-2.5" /> {role.trainingOnly ? "Training use only" : "Role reserved"}
                               </p>
                             </div>
 
                             <div className="flex flex-wrap items-end justify-center gap-x-2 gap-y-3 sm:gap-x-3">
                               {Array.from({ length: role.physicalSeats }, (_, index) => {
                                 const occupiedSeat = index < role.occupiedSeats;
+                                const occupantName = role.occupantNames[index];
                                 const displayNumber = firstSeatNumber + index;
+                                const center = (role.physicalSeats - 1) / 2;
+                                const curveOffset = Math.abs(index - center) * 3;
                                 return (
-                                  <div key={`${role.id}-${index}`} className="flex w-10 flex-col items-center gap-1">
-                                    <div
-                                      className={
-                                        occupiedSeat
-                                          ? "flex h-9 w-9 items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-colors sm:h-10 sm:w-10"
-                                          : "flex h-9 w-9 items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-colors sm:h-10 sm:w-10"
-                                      }
-                                      title={`${role.positionTitle} seat ${displayNumber}: ${occupiedSeat ? "occupied" : "vacant"} on ${selectedShift?.name || "selected shift"}`}
-                                      aria-label={`${role.positionTitle} seat ${displayNumber}, ${occupiedSeat ? "occupied" : "vacant"}`}
-                                    >
-                                      <Armchair className="h-4 w-4" />
-                                    </div>
+                                  <div key={`${role.id}-${index}`} className="flex w-10 flex-col items-center gap-1" style={{ transform: `translateY(${curveOffset}px)` }}>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <div
+                                          tabIndex={0}
+                                          className={
+                                            occupiedSeat
+                                              ? "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-primary bg-primary text-primary-foreground shadow-[0_4px_0_hsl(var(--primary)/0.35)] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                              : "flex h-9 w-9 cursor-help items-center justify-center rounded-t-md rounded-b-sm border border-border bg-background text-muted-foreground shadow-[0_4px_0_hsl(var(--border))] transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-10 sm:w-10"
+                                          }
+                                          aria-label={`${role.positionTitle} seat ${displayNumber}, ${occupantName ? `allocated to ${occupantName}` : "vacant"}`}
+                                        >
+                                          <Armchair className="h-4 w-4" />
+                                        </div>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="top" className="max-w-64">
+                                        <p className="font-semibold">Seat {String(displayNumber).padStart(2, "0")}</p>
+                                        <p>{occupantName || "Available"}</p>
+                                        <p className="text-[10px] text-muted-foreground">{role.trainingOnly ? "Training only · not a working seat" : role.positionTitle}</p>
+                                      </TooltipContent>
+                                    </Tooltip>
                                     <span className="font-mono text-[9px] text-muted-foreground">{String(displayNumber).padStart(2, "0")}</span>
                                   </div>
                                 );
@@ -180,6 +196,7 @@ export function OfficeSeatMap({
           </div>
         </div>
       </div>
+      </TooltipProvider>
 
       <div className="grid border-t border-border bg-secondary/30 sm:grid-cols-[minmax(190px,1.35fr)_repeat(4,minmax(92px,0.65fr))]">
         <div className="border-b border-border p-4 sm:border-b-0 sm:border-r">

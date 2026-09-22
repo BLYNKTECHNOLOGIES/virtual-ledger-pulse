@@ -146,7 +146,7 @@ export function SeatCapacityDialog({
                       disabled={position.id === form.position_id && form.eligible_position_ids.length > 0}
                       onCheckedChange={(value) => set({
                         eligible_position_ids: value
-                          ? Array.from(new Set([form.position_id, ...form.eligible_position_ids, position.id].filter(Boolean)))
+                          ? Array.from(new Set([...(form.position_id ? [form.position_id] : []), ...form.eligible_position_ids, position.id]))
                           : form.eligible_position_ids.filter((id) => id !== position.id),
                       })}
                     />

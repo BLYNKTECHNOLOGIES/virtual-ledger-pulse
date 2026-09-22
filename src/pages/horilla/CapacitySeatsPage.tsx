@@ -409,6 +409,10 @@ export default function CapacitySeatsPage() {
     if (!activeMapShiftId) return [];
     const selectedShift = shiftBreakdown.find((shift) => shift.id === activeMapShiftId);
     const selectedShiftIds = selectedShift?.memberIds || [activeMapShiftId];
+    // A training-only shift only ever shows the training zone — trainees carry
+    // their future position on their profile, which would otherwise leak every
+    // department's desks into the training view.
+    const isTrainingShiftView = trainingShiftIds.has(activeMapShiftId);
     const selectedShiftPeople = filteredPeople.filter(
       (person) => activeMapShiftId === "unassigned" ? !person.shift_id : !!person.shift_id && selectedShiftIds.includes(person.shift_id),
     );

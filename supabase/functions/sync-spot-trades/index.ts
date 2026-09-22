@@ -157,7 +157,10 @@ async function bookPendingConversions(): Promise<number> {
   const now = Date.now();
   for (const t of (rawTrades || []) as any[]) {
     const key = t.binance_order_id || t.id;
-    const fillTs = t.created_at ? new Date(t.created_at).getTime() : 0;
+    // Quiet-window must be measured on the EXCHANGE fill time, not the row's DB
+    // insert time — freshly back-filled trades would otherwise always look
+    // "still filling" and never get booked.
+    const fillTs = Number(t.trade_time) || (t.created_at ? new Date(t.created_at).getTime() : 0);
     const existing = orderMap.get(key);
     if (!existing) {
       orderMap.set(key, { ...t, _fill_ids: [t.id], _last_fill_ts: fillTs });

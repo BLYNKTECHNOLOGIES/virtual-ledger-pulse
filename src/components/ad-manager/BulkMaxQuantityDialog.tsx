@@ -103,7 +103,7 @@ export function BulkMaxQuantityDialog({ open, onOpenChange, ads, onComplete }: P
           identifier: m.identifier,
           ...(m.payId ? { payId: m.payId } : {}),
         }));
-        await new Promise<void>((resolve, reject) => {
+        const notice = await new Promise<string | undefined>((resolve, reject) => {
           updateAd.mutate({
             advNo: ad.advNo,
             exchange_account_id: ad._exchangeAccountId,

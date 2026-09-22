@@ -409,11 +409,16 @@ export default function CapacitySeatsPage() {
     if (!activeMapShiftId) return [];
     const selectedShift = shiftBreakdown.find((shift) => shift.id === activeMapShiftId);
     const selectedShiftIds = selectedShift?.memberIds || [activeMapShiftId];
+    // A training-only shift only ever shows the training zone — trainees carry
+    // their future position on their profile, which would otherwise leak every
+    // department's desks into the training view.
+    const isTrainingShiftView = trainingShiftIds.has(activeMapShiftId);
     const selectedShiftPeople = filteredPeople.filter(
       (person) => activeMapShiftId === "unassigned" ? !person.shift_id : !!person.shift_id && selectedShiftIds.includes(person.shift_id),
     );
     return filtered
       .filter((seat) => {
+        if (isTrainingShiftView) return !!seat.is_training_only;
         if (seat.is_training_only) return !!seat.shift_id && selectedShiftIds.includes(seat.shift_id);
         if (seat.shift_id) return selectedShiftIds.includes(seat.shift_id);
         // Shift-neutral desks are shared across shifts, but they only become
@@ -462,7 +467,7 @@ export default function CapacitySeatsPage() {
         a.departmentName.localeCompare(b.departmentName) ||
         a.positionTitle.localeCompare(b.positionTitle),
       );
-  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown, seatMatchesPerson]);
+  }, [activeMapShiftId, filtered, filteredPeople, planScopes, shiftBreakdown, seatMatchesPerson, trainingShiftIds]);
 
   return (
     <div className="space-y-4 p-3 md:p-6">

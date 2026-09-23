@@ -25808,31 +25808,43 @@ export type Database = {
       terminal_biometric_sessions: {
         Row: {
           authenticated_at: string
+          client_ip: string | null
+          credential_id: string | null
+          enforced_reason: string | null
           expires_at: string
           extend_count: number
           id: string
           is_active: boolean
           max_expires_at: string | null
+          mode: string
           session_token: string
           user_id: string
         }
         Insert: {
           authenticated_at?: string
+          client_ip?: string | null
+          credential_id?: string | null
+          enforced_reason?: string | null
           expires_at?: string
           extend_count?: number
           id?: string
           is_active?: boolean
           max_expires_at?: string | null
+          mode?: string
           session_token: string
           user_id: string
         }
         Update: {
           authenticated_at?: string
+          client_ip?: string | null
+          credential_id?: string | null
+          enforced_reason?: string | null
           expires_at?: string
           extend_count?: number
           id?: string
           is_active?: boolean
           max_expires_at?: string | null
+          mode?: string
           session_token?: string
           user_id?: string
         }
@@ -26023,6 +26035,63 @@ export type Database = {
           last_status?: string
           last_tick_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      terminal_device_enrolment_codes: {
+        Row: {
+          code: string
+          consumed_at: string | null
+          consumed_credential_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          issued_by: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          consumed_at?: string | null
+          consumed_credential_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issued_by: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          consumed_at?: string | null
+          consumed_credential_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          issued_by?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      terminal_device_guard_settings: {
+        Row: {
+          enforcement_mode: string
+          id: boolean
+          require_office_network: boolean
+          updated_at: string
+          view_only_lookback_hours: number
+        }
+        Insert: {
+          enforcement_mode?: string
+          id?: boolean
+          require_office_network?: boolean
+          updated_at?: string
+          view_only_lookback_hours?: number
+        }
+        Update: {
+          enforcement_mode?: string
+          id?: boolean
+          require_office_network?: boolean
+          updated_at?: string
+          view_only_lookback_hours?: number
         }
         Relationships: []
       }
@@ -27166,6 +27235,36 @@ export type Database = {
           },
         ]
       }
+      terminal_trusted_networks: {
+        Row: {
+          cidr: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          label: string
+          updated_at: string
+        }
+        Insert: {
+          cidr: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          updated_at?: string
+        }
+        Update: {
+          cidr?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       terminal_user_exchange_mappings: {
         Row: {
           created_at: string
@@ -27345,6 +27444,57 @@ export type Database = {
         }
         Relationships: []
       }
+      terminal_view_only_denials: {
+        Row: {
+          created_at: string
+          detail: Json
+          enforcement_mode: string | null
+          id: string
+          object_name: string | null
+          operation: string | null
+          session_mode: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          enforcement_mode?: string | null
+          id?: string
+          object_name?: string | null
+          operation?: string | null
+          session_mode?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          enforcement_mode?: string | null
+          id?: string
+          object_name?: string | null
+          operation?: string | null
+          session_mode?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      terminal_view_only_write_allowlist: {
+        Row: {
+          created_at: string
+          reason: string
+          table_name: string
+        }
+        Insert: {
+          created_at?: string
+          reason?: string
+          table_name: string
+        }
+        Update: {
+          created_at?: string
+          reason?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       terminal_wallet_links: {
         Row: {
           api_identifier: string
@@ -27439,33 +27589,48 @@ export type Database = {
       }
       terminal_webauthn_credentials: {
         Row: {
+          approved_by: string | null
           created_at: string
           credential_id: string
           device_name: string | null
+          enrolled_ip: string | null
+          enrolled_via: string | null
           id: string
           last_used_at: string | null
           public_key: string
+          revoked_at: string | null
           sign_count: number
+          trust_level: string
           user_id: string
         }
         Insert: {
+          approved_by?: string | null
           created_at?: string
           credential_id: string
           device_name?: string | null
+          enrolled_ip?: string | null
+          enrolled_via?: string | null
           id?: string
           last_used_at?: string | null
           public_key: string
+          revoked_at?: string | null
           sign_count?: number
+          trust_level?: string
           user_id: string
         }
         Update: {
+          approved_by?: string | null
           created_at?: string
           credential_id?: string
           device_name?: string | null
+          enrolled_ip?: string | null
+          enrolled_via?: string | null
           id?: string
           last_used_at?: string | null
           public_key?: string
+          revoked_at?: string | null
           sign_count?: number
+          trust_level?: string
           user_id?: string
         }
         Relationships: [
@@ -33393,7 +33558,12 @@ export type Database = {
         Returns: string
       }
       terminal_revoke_all_access: { Args: { _uid: string }; Returns: Json }
+      terminal_session_mode: { Args: { p_user_id: string }; Returns: string }
       terminal_shift_key_for: { Args: { p_ts: string }; Returns: string }
+      terminal_write_allowed: {
+        Args: { p_object_name?: string; p_user_id: string }
+        Returns: boolean
+      }
       transfer_customer_support_ticket: {
         Args: {
           p_ticket_id: string

@@ -317,8 +317,11 @@ export default function PositionsPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <Switch
                     checked={p.is_active !== false}
-                    disabled={toggleActiveMutation.isPending}
-                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                    disabled={toggleActiveMutation.isPending || (p.is_active !== false && hiredCount(p.id) > 0)}
+                    onCheckedChange={() => {
+                      if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;
+                      toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active });
+                    }}
                   />
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active

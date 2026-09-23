@@ -34,8 +34,11 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
+  const caller = await requireCaller(req, corsHeaders);
+  if (!caller.ok) return caller.response;
+
   try {
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE, { auth: { persistSession: false } });
+    const admin = caller.admin;
 
     let employeeId: string | null = null;
     try {

@@ -352,8 +352,10 @@ export default function PositionsPage() {
 
                 <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
-                <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
-                  className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                <button
+                  onClick={() => { if (!blockIfOccupied(p, "delete")) setDeleteTarget({ id: p.id, name: p.title }); }}
+                  disabled={hiredCount(p.id) > 0}
+                  className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
 

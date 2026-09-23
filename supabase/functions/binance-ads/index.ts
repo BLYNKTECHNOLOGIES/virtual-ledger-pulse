@@ -861,6 +861,15 @@ serve(async (req) => {
     const { action, ...payload } = await req.json();
     console.log("binance-ads action:", action, "payload keys:", Object.keys(payload));
 
+    // === Personal (view-only) device guard ===
+    // Edge functions run with the service role and therefore bypass RLS and the
+    // database statement guard, so every state-changing action is checked here
+    // against the caller's current terminal unlock mode.
+    if (!callerIsServiceRole && !callerIsScheduler && callerUserId && MUTATING_ACTIONS.has(action)) {
+      const guardAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+      await assertTerminalWriteAllowed(guardAdmin, callerUserId, `binance-ads:${action}`);
+    }
+
     // Scheduler-secret callers may only run internal read-only sync actions.
     if (callerIsScheduler && !callerIsServiceRole && !["syncTerminalOrdersForErp", "listActiveOrders"].includes(action)) {
       return new Response(JSON.stringify({ error: "Forbidden for scheduler caller" }), {

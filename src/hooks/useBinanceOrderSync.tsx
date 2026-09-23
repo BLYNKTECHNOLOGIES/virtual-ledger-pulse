@@ -303,9 +303,16 @@ export async function syncOrderHistoryFromBinance({
 export async function syncTerminalOrdersForErp({
   forceGapFill = true,
 }: { forceGapFill?: boolean } = {}) {
-  const { data, error } = await supabase.functions.invoke('binance-ads', {
-    body: { action: 'syncTerminalOrdersForErp', forceGapFill },
-  });
+  const call = () =>
+    supabase.functions.invoke('binance-ads', {
+      body: { action: 'syncTerminalOrdersForErp', forceGapFill },
+    });
+  let { data, error } = await call();
+  // A dropped mobile connection surfaces as a fetch error — retry once.
+  if (error && /Failed to send a request/i.test(error.message || '')) {
+    await new Promise((r) => setTimeout(r, 1500));
+    ({ data, error } = await call());
+  }
   if (error) throw new Error(error.message);
   if (!data?.success) throw new Error(data?.error || 'Terminal order refresh failed');
   const result = data.data;

@@ -26,8 +26,12 @@ Deno.serve(async (req) => {
 
   // Service-role callers (cron / internal re-dispatch) act as the system identity.
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  const internalKey = Deno.env.get('HR_MAIL_INTERNAL_KEY') || ''
   const bearer = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
-  const isSystem = !!serviceKey && bearer === serviceKey
+  const internalHeader = (req.headers.get('x-internal-key') || '').trim()
+  const isSystem =
+    (!!serviceKey && bearer === serviceKey) ||
+    (!!internalKey && internalHeader === internalKey)
 
   let auth: { ok: true; userId: string | null; email: string | null; admin: any }
   if (isSystem) {

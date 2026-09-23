@@ -17,12 +17,14 @@ import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
  * only read actions plus chat read markers and presence.
  */
 const MUTATING_ACTIONS = new Set<string>([
+  // Ads
   "postAd", "updateAd", "updateAdStatus", "applyAdRiskGuard", "setUserAdvVisible",
-  "bulkUpdateAds", "bulkUpdateAdStatus", "deleteAd",
+  // Orders
   "cancelOrder", "markOrderAsPaid", "releaseCoin", "confirmOrderVerified",
-  "sendChatMessage", "uploadChatImage", "sendChatImage",
+  // Chat sending (read markers stay allowed)
+  "sendChatMessage", "getChatImageUploadUrl", "sendVerifyCode",
+  // Merchant presence on Binance
   "merchantOnline", "merchantOffline",
-  "createAppeal", "submitAppeal", "cancelAppeal",
 ]);
 
 

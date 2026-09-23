@@ -459,8 +459,6 @@ export default function QuizDashboardPage() {
         <TabsContent value="questions" className="space-y-4"><div className="flex items-center justify-between"><div><h2 className="text-lg font-semibold">Question bank</h2><p className="text-sm text-muted-foreground">Subject-wise content with per-question performance — accuracy, wrong answers and option choices.</p></div>{canManage && <Button variant="outline" onClick={() => setDialog("question")}><Plus />Add question</Button>}</div><QuestionBankWorkspace onAddQuestion={canManage ? () => setDialog("question") : undefined} />
         </TabsContent>
 
-        </TabsContent>
-
         <TabsContent value="skills" className="space-y-4">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-semibold">Skill test</h2><p className="text-sm text-muted-foreground">Practical drills that measure ability — typing speed, mental maths, memory recall, data entry and match pairs. Add any of these as a section to a role blueprint; all marking happens on the server.</p></div><Button asChild variant="outline" size="sm"><a href="/test/practice"><Gauge className="h-4 w-4" />Take demo skill test</a></Button></div>
           <div className="grid gap-3 lg:grid-cols-2">

@@ -84,6 +84,13 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
       setOpen(false);
       reset();
       toast.success("Document uploaded");
+      if (form.document_type === "passport_photo") {
+        // Make the passport photo the profile picture right away (also handled by a DB trigger).
+        supabase.functions
+          .invoke("employee-photo-sync", { body: { employee_id: employeeId } })
+          .then(() => qc.invalidateQueries({ queryKey: ["hr-employee", employeeId] }))
+          .catch(() => {});
+      }
     } catch (e: any) {
       toast.error(e?.message || "Upload failed");
     } finally {

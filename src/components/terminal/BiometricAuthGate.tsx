@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { BiometricRegistrationDialog } from './BiometricRegistrationDialog';
+import { TerminalDeviceModeProvider } from '@/contexts/TerminalDeviceModeContext';
 
 interface BiometricAuthGateProps {
   children: React.ReactNode;
@@ -175,8 +176,12 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
       });
       if (error || data?.error) throw new Error(data?.error || error?.message || 'Invalid code');
 
-      setSession(data.session_token);
-      toast.success('Bypass code accepted! Terminal unlocked.');
+      setSession(data.session_token, data.mode === 'view_only' ? 'view_only' : 'full', data.mode_reason ?? null);
+      toast.success(
+        data.mode === 'view_only'
+          ? 'Bypass code accepted — unlocked in view-only mode.'
+          : 'Bypass code accepted! Terminal unlocked.'
+      );
       setBypassCode('');
       setShowBypassInput(false);
     } catch (err: any) {
@@ -197,7 +202,11 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   // A transient re-validation must not unmount the terminal (it would destroy
   // an open order chat). Only the genuine first check shows the full spinner.
   if (isLoading && wasAuthedRef.current) {
-    return <>{children}</>;
+    return (
+      <TerminalDeviceModeProvider mode={sessionMode} reason={modeReason}>
+        {children}
+      </TerminalDeviceModeProvider>
+    );
   }
 
   if (isLoading) {
@@ -209,7 +218,11 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   }
 
   if (isAuthenticated) {
-    return <>{children}</>;
+    return (
+      <TerminalDeviceModeProvider mode={sessionMode} reason={modeReason}>
+        {children}
+      </TerminalDeviceModeProvider>
+    );
   }
 
 

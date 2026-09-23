@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/integrations/supabase/client";
+import { QuestionBankWorkspace } from "@/components/hrms/quiz/QuestionBankWorkspace";
+
 
 type QuizView = "dashboard" | "drives" | "attempts" | "evaluations" | "questions" | "skills" | "roles" | "settings";
 type EvaluationRow = {

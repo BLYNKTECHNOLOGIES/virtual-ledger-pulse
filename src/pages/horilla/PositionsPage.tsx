@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, Briefcase, Search, FileText, Library } from "lucide-react";
+import { Plus, Edit, Trash2, Briefcase, Search, FileText, Library, Users } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
+import { useSeatOccupancy } from "@/hooks/hrms/useWorkforcePlanning";
 import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
 import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
 
@@ -100,6 +101,26 @@ export default function PositionsPage() {
   const { data: jobDescriptions } = useJobDescriptions();
   const jdForPosition = (positionId: string) =>
     (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
+
+  // People currently on roll against each position (active employees only).
+  const { data: occupancy } = useSeatOccupancy();
+  const headcountByPosition = (occupancy || []).reduce<Record<string, number>>((acc, row: any) => {
+    if (row.job_position_id) acc[row.job_position_id] = (acc[row.job_position_id] || 0) + 1;
+    return acc;
+  }, {});
+  const hiredCount = (positionId: string) => headcountByPosition[positionId] || 0;
+
+  const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
+    const count = hiredCount(p.id);
+    if (count === 0) return false;
+    toast.error(
+      action === "tentative"
+        ? `${p.title} has ${count} ${count === 1 ? "person" : "people"} on roll — it cannot be marked tentative. Move or offboard them first.`
+        : `${p.title} has ${count} ${count === 1 ? "person" : "people"} on roll — it cannot be deleted. Move or offboard them first.`,
+    );
+    return true;
+  };
+
 
   const activeCount = (positions || []).filter((p: any) => p.is_active !== false).length;
   const tentativeCount = (positions || []).length - activeCount;
@@ -198,7 +219,9 @@ export default function PositionsPage() {
             { key: "position", label: "Position" },
             { key: "department", label: "Department" },
             { key: "jd", label: "Job Description" },
+            { key: "people", label: "People on Roll" },
             { key: "status", label: "Status" },
+
 
             { key: "actions", label: "Actions", className: "text-right" },
           ]}
@@ -225,18 +248,39 @@ export default function PositionsPage() {
               </td>
 
               <td className="py-3 px-4">
+                {hiredCount(p.id) > 0 ? (
+                  <span
+                    className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                    title={`${hiredCount(p.id)} active ${hiredCount(p.id) === 1 ? "employee holds" : "employees hold"} this position`}
+                  >
+                    <Users className="h-3.5 w-3.5" />
+                    {hiredCount(p.id)}
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted-foreground" title="Nobody is on roll against this position">
+                    None
+                  </span>
+                )}
+              </td>
+
+              <td className="py-3 px-4">
                 <div
                   className="flex items-center gap-2"
                   title={
-                    p.is_active
-                      ? "Active in the organisation — filled or actively being filled. Switch off to mark tentative."
-                      : "Tentative — planned on paper, not being filled right now. Switch on to mark active."
+                    hiredCount(p.id) > 0
+                      ? `${hiredCount(p.id)} ${hiredCount(p.id) === 1 ? "person is" : "people are"} on roll — this position cannot be marked tentative.`
+                      : p.is_active
+                        ? "Active in the organisation — filled or actively being filled. Switch off to mark tentative."
+                        : "Tentative — planned on paper, not being filled right now. Switch on to mark active."
                   }
                 >
                   <Switch
                     checked={p.is_active !== false}
-                    disabled={toggleActiveMutation.isPending}
-                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                    disabled={toggleActiveMutation.isPending || (p.is_active !== false && hiredCount(p.id) > 0)}
+                    onCheckedChange={() => {
+                      if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;
+                      toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active });
+                    }}
                   />
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active
@@ -251,8 +295,11 @@ export default function PositionsPage() {
                 <div className="flex items-center justify-end gap-1">
                   <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                     className="p-1.5 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-3.5 w-3.5" /></button>
-                  <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
-                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button
+                    onClick={() => { if (!blockIfOccupied(p, "delete")) setDeleteTarget({ id: p.id, name: p.title }); }}
+                    disabled={hiredCount(p.id) > 0}
+                    title={hiredCount(p.id) > 0 ? "People are on roll against this position" : "Delete position"}
+                    className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               </td>
             </>
@@ -265,13 +312,22 @@ export default function PositionsPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-foreground break-words">{p.title}</p>
                     <p className="text-xs text-muted-foreground break-words">{getDeptName(p.department_id)}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Users className="h-3 w-3" />
+                      {hiredCount(p.id) > 0
+                        ? `${hiredCount(p.id)} on roll`
+                        : "Nobody on roll"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <Switch
                     checked={p.is_active !== false}
-                    disabled={toggleActiveMutation.isPending}
-                    onCheckedChange={() => toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active })}
+                    disabled={toggleActiveMutation.isPending || (p.is_active !== false && hiredCount(p.id) > 0)}
+                    onCheckedChange={() => {
+                      if (p.is_active !== false && blockIfOccupied(p, "tentative")) return;
+                      toggleActiveMutation.mutate({ id: p.id, isActive: p.is_active });
+                    }}
                   />
                   <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${
                     p.is_active
@@ -296,8 +352,10 @@ export default function PositionsPage() {
 
                 <button onClick={() => { setForm({ title: p.title, department_id: p.department_id || "", is_active: p.is_active !== false }); setEditId(p.id); setAddOpen(true); }}
                   className="p-2 rounded-md hover:bg-muted text-muted-foreground"><Edit className="h-4 w-4" /></button>
-                <button onClick={() => setDeleteTarget({ id: p.id, name: p.title })}
-                  className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
+                <button
+                  onClick={() => { if (!blockIfOccupied(p, "delete")) setDeleteTarget({ id: p.id, name: p.title }); }}
+                  disabled={hiredCount(p.id) > 0}
+                  className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
 

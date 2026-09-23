@@ -312,6 +312,12 @@ export default function PositionsPage() {
                   <div className="min-w-0">
                     <p className="font-medium text-foreground break-words">{p.title}</p>
                     <p className="text-xs text-muted-foreground break-words">{getDeptName(p.department_id)}</p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                      <Users className="h-3 w-3" />
+                      {hiredCount(p.id) > 0
+                        ? `${hiredCount(p.id)} on roll`
+                        : "Nobody on roll"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">

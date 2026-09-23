@@ -111,8 +111,17 @@ async function decideSessionMode(
   }
 
   if (requireOfficeNetwork) {
-    const onOffice = await isOfficeNetwork(supabase, clientIpFromRequest(req));
-    if (!onOffice) return { mode: 'view_only', reason: 'outside the office network' };
+    // Until at least one office network is configured, the network test cannot
+    // be meaningful — an office device stays full rather than downgrading
+    // everyone on day one.
+    const { count } = await supabase
+      .from('terminal_trusted_networks')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true);
+    if ((count ?? 0) > 0) {
+      const onOffice = await isOfficeNetwork(supabase, clientIpFromRequest(req));
+      if (!onOffice) return { mode: 'view_only', reason: 'outside the office network' };
+    }
   }
 
   return { mode: 'full', reason: null };
@@ -263,7 +272,11 @@ Deno.serve(async (req) => {
         if (!issuedBy) {
           trustNote = 'Office enrolment code invalid or expired — registered as view-only.';
         } else {
-          const onOffice = await isOfficeNetwork(supabase, ip);
+          const { count: netCount } = await supabase
+            .from('terminal_trusted_networks')
+            .select('id', { count: 'exact', head: true })
+            .eq('is_active', true);
+          const onOffice = (netCount ?? 0) === 0 ? true : await isOfficeNetwork(supabase, ip);
           if (requireOfficeNetwork && !onOffice) {
             trustNote = 'Office code accepted but this network is not an approved office network — registered as view-only.';
             enrolledVia = 'office_code_off_network';

@@ -24,8 +24,24 @@ function fillPlaceholders(tpl: string, vars: Record<string, string>) {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
-  const auth = await requireAuth(req, { corsHeaders })
-  if (!auth.ok) return auth.response
+  // Service-role callers (cron / internal re-dispatch) act as the system identity.
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+  const bearer = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim()
+  const isSystem = !!serviceKey && bearer === serviceKey
+
+  let auth: { ok: true; userId: string | null; email: string | null; admin: any }
+  if (isSystem) {
+    auth = {
+      ok: true,
+      userId: null,
+      email: 'system@blynkex.com',
+      admin: createClient(Deno.env.get('SUPABASE_URL')!, serviceKey),
+    }
+  } else {
+    const gate = await requireAuth(req, { corsHeaders })
+    if (!gate.ok) return gate.response
+    auth = { ok: true, userId: gate.userId, email: gate.email, admin: gate.admin }
+  }
   const admin = auth.admin
 
   let body: any

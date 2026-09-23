@@ -32,6 +32,8 @@ export function BiometricRegistrationDialog({
 }: BiometricRegistrationDialogProps) {
   const [step, setStep] = useState<'info' | 'register' | 'done'>('info');
   const [deviceName, setDeviceName] = useState('');
+  const [officeCode, setOfficeCode] = useState('');
+  const [trustNote, setTrustNote] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [hasPlatformAuth, setHasPlatformAuth] = useState<boolean | null>(null);
 
@@ -39,6 +41,8 @@ export function BiometricRegistrationDialog({
     if (open) {
       setStep('info');
       setDeviceName('');
+      setOfficeCode('');
+      setTrustNote(null);
       checkPlatformAuthenticator().then(setHasPlatformAuth);
     }
   }, [open]);
@@ -51,7 +55,13 @@ export function BiometricRegistrationDialog({
       const cachedUser = getSessionUser();
       const username = cachedUser?.username || 'User';
 
-      await registerBiometric(userId, username, deviceName || undefined);
+      const res = await registerBiometric(
+        userId,
+        username,
+        deviceName || undefined,
+        officeCode || undefined,
+      );
+      setTrustNote(res?.trust_note || null);
       setStep('done');
       setTimeout(() => {
         onComplete();
@@ -106,6 +116,23 @@ export function BiometricRegistrationDialog({
                   Helps you identify this device later if you have multiple.
                 </p>
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="office-code">Office authorisation code (optional)</Label>
+                <Input
+                  id="office-code"
+                  placeholder="6-character code from a Super Admin"
+                  value={officeCode}
+                  onChange={(e) => setOfficeCode(e.target.value.toUpperCase())}
+                  maxLength={12}
+                  className="font-mono tracking-[0.2em]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave blank on a personal laptop — it registers as <span className="text-warning">view only</span>,
+                  so you can watch but not act. On an office computer, enter the code a Super Admin gives you to
+                  enable full actions.
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end gap-2">
@@ -136,6 +163,9 @@ export function BiometricRegistrationDialog({
             <p className="text-sm text-muted-foreground text-center">
               Your fingerprint has been registered. You can now use it to access the terminal.
             </p>
+            {trustNote && (
+              <p className="text-xs text-center text-warning max-w-sm">{trustNote}</p>
+            )}
           </div>
         )}
       </DialogContent>

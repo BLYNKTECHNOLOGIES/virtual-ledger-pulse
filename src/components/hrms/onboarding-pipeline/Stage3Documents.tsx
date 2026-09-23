@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { privateDocRef } from "@/lib/storedDoc";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,10 +89,9 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
       const safe = file.name.replace(/[^\w.\-]+/g, "_").slice(-120);
       const path = `onboarding/${empId}/${key}/${Date.now()}_${safe}`;
       const uploaded = await smartUpload({ bucket: "employee-documents", path, file, contentType: file.type || undefined });
-      const { data: urlD } = supabase.storage.from("employee-documents").getPublicUrl(uploaded);
       const next = {
         ...docs,
-        [key]: { ...docs[key], received: true, file_url: urlD?.publicUrl || "", file_name: file.name },
+        [key]: { ...docs[key], received: true, file_url: privateDocRef("employee-documents", uploaded), file_name: file.name },
       };
       setDocs(next);
       await persistDocs(next);

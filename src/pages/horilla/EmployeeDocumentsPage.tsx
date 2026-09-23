@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { EmployeePicker } from "@/components/hrms/EmployeePicker";
-import { openStoredDocument } from "@/lib/storedDoc";
+import { openStoredDocument, privateDocRef } from "@/lib/storedDoc";
 
 
 const DOC_TYPES = [
@@ -50,10 +50,10 @@ export default function EmployeeDocumentsPage() {
         .from("employee-documents")
         .upload(path, file, { cacheControl: "3600", upsert: false, contentType: file.type || undefined });
       if (error) throw error;
-      const { data } = supabase.storage.from("employee-documents").getPublicUrl(path);
+      const storedRef = privateDocRef("employee-documents", path);
       setForm((f) => ({
         ...f,
-        file_url: data.publicUrl,
+        file_url: storedRef,
         document_name: f.document_name || file.name.replace(/\.[^.]+$/, ""),
       }));
       setUploadedName(file.name);

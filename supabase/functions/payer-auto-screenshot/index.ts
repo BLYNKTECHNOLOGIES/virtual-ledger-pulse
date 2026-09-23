@@ -177,6 +177,14 @@ Deno.serve(async (req: Request) => {
   const phase = String(body?.phase || "prepare");
   if (!orderNumber) return jsonResponse({ error: "orderNumber required" }, 400);
 
+  // This endpoint sends a payment screenshot into a live Binance chat, so it is
+  // blocked on personal (view-only) devices.
+  try {
+    await assertTerminalWriteAllowed(adminClient, payerId, "payer-auto-screenshot:send");
+  } catch (e) {
+    return jsonResponse({ error: (e as Error).message }, 403);
+  }
+
   // Resolve payer display name for logging.
   let payerName: string | null = null;
   try {

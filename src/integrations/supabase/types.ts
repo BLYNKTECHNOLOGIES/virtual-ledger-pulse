@@ -30585,6 +30585,35 @@ export type Database = {
       cbt_next_attempt_ref: { Args: never; Returns: string }
       cbt_norm_amount: { Args: { p: string }; Returns: number }
       cbt_norm_text: { Args: { p: string }; Returns: string }
+      cbt_question_bank_analytics: {
+        Args: never
+        Returns: {
+          accuracy: number
+          answered_items: number
+          applicable_role_codes: string[]
+          avg_marks: number
+          category_tag: string
+          correct_items: number
+          correct_option_id: string
+          created_at: string
+          difficulty: string
+          explanation: string
+          last_served_at: string
+          marks: number
+          numeric_answer: number
+          option_tally: Json
+          options: Json
+          prompt: string
+          question_id: string
+          served_items: number
+          skipped_items: number
+          status: string
+          times_served: number
+          type: string
+          version_no: number
+          wrong_items: number
+        }[]
+      }
       cbt_rescore_attempt: {
         Args: { p_attempt_id: string }
         Returns: undefined

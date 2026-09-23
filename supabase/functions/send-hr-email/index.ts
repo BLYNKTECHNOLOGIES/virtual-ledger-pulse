@@ -212,7 +212,7 @@ Deno.serve(async (req) => {
       const authRes = await requireAuth(req, { corsHeaders })
       if (!authRes.ok) return authRes.response
       recipientEmail = body.recipientEmail || body.recipient_email
-      subject = body.subject
+      subject = tidyMailSubject(body.subject || '')
       htmlBody = body.htmlBody || body.html_body
     }
 

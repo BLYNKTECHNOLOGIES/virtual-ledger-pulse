@@ -8,7 +8,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
+
 const BINANCE_BASE = "https://api.binance.com";
+
+/** Money-moving asset actions — blocked on personal (view-only) devices. */
+const MUTATING_ASSET_ACTIONS = new Set<string>([
+  "transfer", "spotOrder", "spotOrderDirect", "executeTradeWithTransfer",
+]);
 
 async function fetchWithRetry(
   url: string,
@@ -82,6 +89,22 @@ serve(async (req) => {
   try {
     const { action, ...payload } = await req.json();
     console.info(`binance-assets: action=${action}`);
+
+    // === Personal (view-only) device guard for money-moving actions ===
+    if (MUTATING_ASSET_ACTIONS.has(action)) {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const isServiceRole = authHeader === `Bearer ${serviceRoleKey}`;
+      if (!isServiceRole && authHeader.startsWith("Bearer ")) {
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const guardAdmin = createClient(supabaseUrl, serviceRoleKey);
+        const userClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: userData } = await userClient.auth.getUser();
+        await assertTerminalWriteAllowed(guardAdmin, userData?.user?.id ?? null, `binance-assets:${action}`);
+      }
+    }
 
     const acct = await resolveAccount(accountIdFromPayload(payload));
     const EXCHANGE_ACCOUNT_ID = acct.id;

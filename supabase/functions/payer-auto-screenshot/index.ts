@@ -4,6 +4,7 @@
 // then uploaded to Binance via this function. This guarantees the
 // auto-screenshot is byte-identical to the manual one.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

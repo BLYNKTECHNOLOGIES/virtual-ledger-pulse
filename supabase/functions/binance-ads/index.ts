@@ -10,6 +10,20 @@ import {
   fundPasswordForSuffix,
   isFundPwdEligible,
 } from "../_shared/binance-fund-pwd.ts";
+import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
+
+/**
+ * Every state-changing terminal action. A personal (view-only) device may call
+ * only read actions plus chat read markers and presence.
+ */
+const MUTATING_ACTIONS = new Set<string>([
+  "postAd", "updateAd", "updateAdStatus", "applyAdRiskGuard", "setUserAdvVisible",
+  "bulkUpdateAds", "bulkUpdateAdStatus", "deleteAd",
+  "cancelOrder", "markOrderAsPaid", "releaseCoin", "confirmOrderVerified",
+  "sendChatMessage", "uploadChatImage", "sendChatImage",
+  "merchantOnline", "merchantOffline",
+  "createAppeal", "submitAppeal", "cancelAppeal",
+]);
 
 
 const corsHeaders = {

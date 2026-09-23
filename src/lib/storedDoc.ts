@@ -33,10 +33,9 @@ export function privateDocRef(bucket: string, path: string): string {
 
 /** Resolve any stored document reference into an openable URL. */
 export async function resolveDocUrl(url: string): Promise<string> {
-  const m = isPrivateDocRef(url) ? PRIVATE_PREFIX.exec(url) : null;
-  if (!m) return url;
-  const [, bucket, path] = m;
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, 300);
+  const ref = resolvePrivateRef(url);
+  if (!ref) return url;
+  const { data, error } = await supabase.storage.from(ref.bucket).createSignedUrl(ref.path, 300);
   if (error || !data?.signedUrl) throw error || new Error("Could not open this document");
   return data.signedUrl;
 }
@@ -45,14 +44,14 @@ export async function resolveDocUrl(url: string): Promise<string> {
 export async function openStoredDocument(url: string) {
   const preview = window.open("", "_blank");
   try {
-    const match = isPrivateDocRef(url) ? PRIVATE_PREFIX.exec(url) : null;
-    if (!match) {
+    const ref = resolvePrivateRef(url);
+    if (!ref) {
       if (preview && !preview.closed) preview.location.replace(url);
       else window.open(url, "_blank", "noopener,noreferrer");
       return;
     }
 
-    const [, bucket, path] = match;
+    const { bucket, path } = ref;
     const { data, error } = await supabase.storage.from(bucket).download(path);
     if (error || !data) throw error || new Error("Could not open this document");
     const objectUrl = URL.createObjectURL(data);

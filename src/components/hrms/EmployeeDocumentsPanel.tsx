@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { smartUpload } from "@/lib/resumable-upload";
-import { openStoredDocument } from "@/lib/storedDoc";
+import { openStoredDocument, privateDocRef } from "@/lib/storedDoc";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,13 +70,12 @@ export function EmployeeDocumentsPanel({ employeeId }: { employeeId: string }) {
         file,
         contentType: file.type || undefined,
       });
-      const { data: urlD } = supabase.storage.from("employee-documents").getPublicUrl(uploaded);
       const { data: auth } = await supabase.auth.getUser();
       const { error } = await (supabase as any).from("hr_employee_documents").insert({
         employee_id: employeeId,
         document_type: form.document_type,
         document_name: form.document_name?.trim() || file.name,
-        file_url: urlD?.publicUrl || "",
+        file_url: privateDocRef("employee-documents", uploaded),
         notes: form.notes || null,
         uploaded_by: auth?.user?.email || null,
       });

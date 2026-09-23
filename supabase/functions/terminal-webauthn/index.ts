@@ -183,7 +183,7 @@ Deno.serve(async (req) => {
 
     // =================== REGISTER ===================
     if (path === 'register') {
-      const { credential_id, public_key, challenge, device_name } = body;
+      const { credential_id, public_key, challenge, device_name, office_code } = body;
 
       if (!credential_id || !public_key || !challenge) {
         return errorResponse('Missing required fields', 400);
@@ -202,12 +202,50 @@ Deno.serve(async (req) => {
         return errorResponse('Invalid or expired challenge', 403);
       }
 
+      // === Device trust decision at enrolment ===
+      // Every new device is view-only unless BOTH hold: a valid one-time office
+      // enrolment code issued by a Super Admin, and (when required) the office
+      // network. An employee at home has no path to an office registration.
+      const ip = clientIpFromRequest(req);
+      const { requireOfficeNetwork } = await getGuardSettings(supabase);
+      let trustLevel = 'view_only';
+      let enrolledVia = 'self_view_only';
+      let approvedBy: string | null = null;
+      let trustNote = 'Registered as a personal (view-only) device.';
+
+      if (office_code && String(office_code).trim()) {
+        const { data: issuedBy } = await supabase.rpc('consume_terminal_office_enrolment_code', {
+          p_user_id: userId,
+          p_code: String(office_code).trim(),
+          p_credential_id: credential_id,
+        });
+        if (!issuedBy) {
+          trustNote = 'Office enrolment code invalid or expired — registered as view-only.';
+        } else {
+          const onOffice = await isOfficeNetwork(supabase, ip);
+          if (requireOfficeNetwork && !onOffice) {
+            trustNote = 'Office code accepted but this network is not an approved office network — registered as view-only.';
+            enrolledVia = 'office_code_off_network';
+            approvedBy = issuedBy as string;
+          } else {
+            trustLevel = 'office';
+            enrolledVia = 'office_code';
+            approvedBy = issuedBy as string;
+            trustNote = 'Registered as an office device with full actions.';
+          }
+        }
+      }
+
       // Store the credential
-      const { data: credId, error } = await supabase.rpc('store_webauthn_credential', {
+      const { data: credId, error } = await supabase.rpc('store_webauthn_credential_v2', {
         p_user_id: userId,
         p_credential_id: credential_id,
         p_public_key: public_key,
         p_device_name: device_name || null,
+        p_trust_level: trustLevel,
+        p_enrolled_ip: ip,
+        p_enrolled_via: enrolledVia,
+        p_approved_by: approvedBy,
       });
 
       if (error) throw error;
@@ -216,9 +254,17 @@ Deno.serve(async (req) => {
         `Biometric credential registered: ${device_name || 'Unknown device'}`, {
           credential_db_id: credId,
           device_name: device_name || null,
+          trust_level: trustLevel,
+          enrolled_via: enrolledVia,
+          enrolled_ip: ip,
         });
 
-      return jsonResponse({ success: true, credential_id: credId });
+      return jsonResponse({
+        success: true,
+        credential_id: credId,
+        trust_level: trustLevel,
+        trust_note: trustNote,
+      });
     }
 
     // =================== VERIFY ===================
@@ -290,9 +336,15 @@ Deno.serve(async (req) => {
           p_sign_count: sign_count ?? matchedCred.sign_count + 1,
         });
 
-        // Create session for the TARGET user (not admin)
-        const { data: sessionToken, error } = await supabase.rpc('create_terminal_biometric_session', {
+        // Create session for the TARGET user (not admin). An override unlock is
+        // full only on the office network.
+        const overrideDecision = await decideSessionMode(supabase, userId, 'office', req);
+        const { data: sessionToken, error } = await supabase.rpc('create_terminal_biometric_session_v2', {
           p_user_id: userId,
+          p_mode: overrideDecision.mode,
+          p_credential_id: credential_id,
+          p_client_ip: clientIpFromRequest(req),
+          p_reason: overrideDecision.reason,
         });
         if (error) throw error;
 
@@ -300,9 +352,15 @@ Deno.serve(async (req) => {
           `Admin ${admin_user_id} unlocked terminal for user ${userId}`, {
             admin_user_id,
             device_name: matchedCred.device_name,
+            mode: overrideDecision.mode,
           });
 
-        return jsonResponse({ success: true, session_token: sessionToken });
+        return jsonResponse({
+          success: true,
+          session_token: sessionToken,
+          mode: overrideDecision.mode,
+          mode_reason: overrideDecision.reason,
+        });
       }
 
       // Normal flow: verify credential belongs to target user
@@ -335,9 +393,27 @@ Deno.serve(async (req) => {
         p_sign_count: sign_count ?? matchedCred.sign_count + 1,
       });
 
+      // Device trust: the WebAuthn credential is hardware-bound, so the stored
+      // trust level IS this machine's identity. Re-checked against the office
+      // network on every unlock, so an office laptop used from home downgrades.
+      const { data: credRow } = await supabase
+        .from('terminal_webauthn_credentials')
+        .select('trust_level')
+        .eq('user_id', userId)
+        .eq('credential_id', credential_id)
+        .maybeSingle();
+
+      const decision = await decideSessionMode(
+        supabase, userId, (credRow?.trust_level as string) || 'view_only', req,
+      );
+
       // Create biometric session
-      const { data: sessionToken, error } = await supabase.rpc('create_terminal_biometric_session', {
+      const { data: sessionToken, error } = await supabase.rpc('create_terminal_biometric_session_v2', {
         p_user_id: userId,
+        p_mode: decision.mode,
+        p_credential_id: credential_id,
+        p_client_ip: clientIpFromRequest(req),
+        p_reason: decision.reason,
       });
 
       if (error) throw error;
@@ -345,9 +421,16 @@ Deno.serve(async (req) => {
       await logBiometricEvent(supabase, userId, 'BIOMETRIC_AUTH_SUCCESS',
         'Biometric authentication successful, terminal session created', {
           device_name: matchedCred.device_name,
+          mode: decision.mode,
+          reason: decision.reason,
         });
 
-      return jsonResponse({ success: true, session_token: sessionToken });
+      return jsonResponse({
+        success: true,
+        session_token: sessionToken,
+        mode: decision.mode,
+        mode_reason: decision.reason,
+      });
     }
 
     // =================== GENERATE BYPASS CODE (Super Admin only) ===================
@@ -405,10 +488,29 @@ Deno.serve(async (req) => {
         return errorResponse('Invalid or expired bypass code', 403);
       }
 
-      await logBiometricEvent(supabase, userId, 'BYPASS_CODE_USED',
-        'Terminal unlocked via bypass code');
+      // A bypass unlock is only a full session when it happens on the office
+      // network (or the network requirement is switched off) — otherwise the
+      // operator gets a view-only session.
+      const bypassDecision = await decideSessionMode(supabase, userId, 'office', req);
+      if (bypassDecision.mode === 'view_only') {
+        await supabase.rpc('set_terminal_session_mode', {
+          p_user_id: userId,
+          p_token: sessionToken,
+          p_mode: 'view_only',
+          p_reason: bypassDecision.reason,
+          p_client_ip: clientIpFromRequest(req),
+        });
+      }
 
-      return jsonResponse({ success: true, session_token: sessionToken });
+      await logBiometricEvent(supabase, userId, 'BYPASS_CODE_USED',
+        'Terminal unlocked via bypass code', { mode: bypassDecision.mode, reason: bypassDecision.reason });
+
+      return jsonResponse({
+        success: true,
+        session_token: sessionToken,
+        mode: bypassDecision.mode,
+        mode_reason: bypassDecision.reason,
+      });
     }
 
     return errorResponse('Unknown action', 404);

@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 import { wrapHrEmail } from '../_shared/hrSignature.ts'
-import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress, tidyMailFilename } from '../_shared/mailBody.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -668,7 +668,7 @@ Deno.serve(async (req) => {
           content: 'Please view this email in an HTML-compatible client.',
           html: tidyMailHtml(buildHtml(row, month, processedOn)),
           attachments: [{
-            filename: `Payslip_${label.replace(/ /g, '_')}_${row.name.replace(/[^A-Za-z0-9]+/g, '_')}.pdf`,
+            filename: tidyMailFilename(`Payslip_${label.replace(/ /g, '_')}_${row.name.replace(/[^A-Za-z0-9]+/g, '_')}.pdf`, 'Payslip.pdf'),
             content: b64,
             encoding: 'base64',
             contentType: 'application/pdf',

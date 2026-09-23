@@ -61,3 +61,16 @@ export function tidyMailSubject(s: string, max = 150): string {
 export function tidyMailAddress(s: string): string {
   return tidyMailSubject(s, 78).replace(/[<>]/g, "");
 }
+
+// Attachment file names travel in the Content-Disposition / Content-Type headers,
+// so a non-ASCII character there hits exactly the same encoded-word folding bug as
+// a subject does: the header breaks mid-way and the MIME source leaks into the body.
+/** ASCII-safe attachment file name (keeps the extension, no spaces or quotes). */
+export function tidyMailFilename(s: string, fallback = "attachment"): string {
+  const raw = tidyMailSubject(String(s || ""), 160);
+  const dot = raw.lastIndexOf(".");
+  const stem = (dot > 0 ? raw.slice(0, dot) : raw).replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "");
+  const ext = (dot > 0 ? raw.slice(dot + 1) : "").replace(/[^A-Za-z0-9]+/g, "").slice(0, 8);
+  const name = (stem || fallback).slice(0, 100);
+  return ext ? `${name}.${ext}` : name;
+}

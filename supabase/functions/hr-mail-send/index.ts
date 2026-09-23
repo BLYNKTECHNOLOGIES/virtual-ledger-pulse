@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { requireAuth } from '../_shared/require-auth.ts'
 import { appendHrSignatureHtml, hrSignatureText } from '../_shared/hrSignature.ts'
-import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress, tidyMailFilename } from '../_shared/mailBody.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
       binary += String.fromCharCode(...buf.subarray(i, i + 8192))
     }
     attachments.push({
-      filename: path.split('/').pop() || 'attachment',
+      filename: tidyMailFilename(path.split('/').pop() || 'attachment'),
       content: btoa(binary),
       encoding: 'base64',
       contentType: (file as Blob).type || 'application/octet-stream',

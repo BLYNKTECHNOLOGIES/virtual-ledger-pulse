@@ -5,6 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { wrapHrEmail, hrSignatureText } from "../_shared/hrSignature.ts";
 import { buildDocEmail } from "../_shared/docEmailTemplates.ts";
+import { tidyMailSubject, tidyMailAddress, tidyMailFilename } from "../_shared/mailBody.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,8 +23,8 @@ const fmt = (d?: string | null) => {
 };
 // Keep subjects strictly ASCII and short: denomailer 1.6.0 does not fold long
 // RFC2047 encoded-words, which leaks header text into the message body.
-const sanitizeSubject = (s: string) =>
-  s.replace(/[\u2010-\u2015]/g, "-").replace(/[^\x20-\x7E]/g, "").replace(/\s+/g, " ").trim().slice(0, 72);
+// Shared implementation so every sender behaves identically.
+const sanitizeSubject = (s: string) => tidyMailSubject(s, 120);
 
 type Mailbox = { from: string; host: string; user: string; pass: string };
 
@@ -35,7 +36,7 @@ async function getMailbox(admin: any): Promise<Mailbox | { error: string }> {
   const user = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get("HR_SMTP_USER") || "").trim();
   const pass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
   if (!host || !user || !pass) return { error: "SMTP credentials are not configured" };
-  return { from: `${sanitizeSubject(mailbox.from_name || "Blynk HR")} <${mailbox.from_address || user}>`, host, user, pass };
+  return { from: `${tidyMailAddress(mailbox.from_name || "Blynk HR")} <${mailbox.from_address || user}>`, host, user, pass };
 }
 
 // denomailer's quoted-printable encoder turns any space that sits at the end of a
@@ -50,7 +51,7 @@ async function sendMail(mb: Mailbox, to: string, subject: string, html: string, 
   });
   try {
     await client.send({
-      from: mb.from, to, subject,
+      from: mb.from, to, subject: sanitizeSubject(subject),
       content: tidyBody(hrSignatureText()),
       html: tidyBody(html),
       attachments: attachment ? ([attachment] as any) : undefined,
@@ -99,7 +100,7 @@ Deno.serve(async (req) => {
         const buf = new Uint8Array(await file.arrayBuffer());
         let bin = "";
         for (let i = 0; i < buf.length; i += 8192) bin += String.fromCharCode(...buf.subarray(i, i + 8192));
-        return { filename, content: btoa(bin), encoding: "base64" as const, contentType: "application/pdf" };
+        return { filename: tidyMailFilename(filename, "letter.pdf"), content: btoa(bin), encoding: "base64" as const, contentType: "application/pdf" };
       }
       return null;
     };

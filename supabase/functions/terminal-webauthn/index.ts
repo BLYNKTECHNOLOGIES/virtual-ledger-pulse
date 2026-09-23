@@ -550,6 +550,32 @@ Deno.serve(async (req) => {
       });
     }
 
+    // =================== ISSUE OFFICE ENROLMENT CODE (Super Admin only) ===================
+    if (path === 'issue_office_code') {
+      const { target_user_id } = body;
+      if (!target_user_id || !UUID_REGEX.test(target_user_id)) {
+        return errorResponse('Missing target_user_id', 400);
+      }
+
+      const { data: issuerRoles } = await supabase
+        .from('user_roles')
+        .select('roles:role_id(name)')
+        .eq('user_id', userId);
+      // deno-lint-ignore no-explicit-any
+      const issuerIsSuperAdmin = (issuerRoles || []).some((r: any) => r.roles?.name === 'Super Admin');
+      if (!issuerIsSuperAdmin) {
+        return errorResponse('Only Super Admins can authorise an office device', 403);
+      }
+
+      const { data: code, error } = await supabase.rpc('issue_terminal_office_enrolment_code', {
+        p_user_id: target_user_id,
+        p_issued_by: userId,
+      });
+      if (error) throw error;
+
+      return jsonResponse({ success: true, code, expires_in_minutes: 10 });
+    }
+
     return errorResponse('Unknown action', 404);
 
   } catch (err) {

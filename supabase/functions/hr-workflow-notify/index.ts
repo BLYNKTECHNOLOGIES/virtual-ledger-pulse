@@ -15,7 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { HR_BRAND, hrHeaderHtml, hrSignatureHtml, hrSignatureText } from "../_shared/hrSignature.ts";
-import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
     const { client, user } = makeClient(mailbox);
     try {
       await client.send({
-        from: `${mailbox.from_name || "Blynkex HR"} <${mailbox.from_address || user}>`,
+        from: `${tidyMailAddress(mailbox.from_name || "Blynkex HR")} <${mailbox.from_address || user}>`,
         to,
         subject,
         content: tidyMailText(rendered.text),

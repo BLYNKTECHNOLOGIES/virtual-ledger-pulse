@@ -10,7 +10,7 @@ import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { pausedResponse } from "../_shared/attendance-gate.ts";
 
-import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -99,7 +99,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
     d.earlyBy ? row("Early out by", `${d.earlyBy} min`) : "",
   ].join("");
 
-  const subject = `Attendance: ${label} — ${shortDate(d.attendanceDate)}`;
+  const subject = tidyMailSubject(`Attendance: ${label} - ${shortDate(d.attendanceDate)}`);
   // Unique trailing token: prevents Gmail from collapsing the identical footer
   // of successive notices behind the "..." trimmed-content toggle.
   const noticeRef = `${d.attendanceDate.replace(/-/g, "")}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -255,9 +255,9 @@ Deno.serve(async (req) => {
       const { subject, html, text } = renderNotice(data!);
       const { client, user } = makeClient(mailbox);
       await client.send({
-        from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`,
+        from: `${tidyMailAddress(mailbox.from_name || "HR")} <${mailbox.from_address || user}>`,
         to,
-        subject: `[SAMPLE] ${subject}`,
+        subject: tidyMailSubject(`[SAMPLE] ${subject}`),
         content: tidyMailText(text),
         html: tidyMailHtml(html),
       });
@@ -267,7 +267,7 @@ Deno.serve(async (req) => {
         message_id: crypto.randomUUID(),
         template_name: "attendance-exception-notice",
         recipient_email: to,
-        subject: `[SAMPLE] ${subject}`,
+        subject: tidyMailSubject(`[SAMPLE] ${subject}`),
         status: "sent",
       });
 
@@ -302,7 +302,7 @@ Deno.serve(async (req) => {
       const { subject, html, text } = renderNotice(notice);
       const { client, user } = makeClient(mailbox);
       try {
-        await client.send({ from: `${mailbox.from_name || "HR"} <${mailbox.from_address || user}>`, to, subject, content: tidyMailText(text), html: tidyMailHtml(html) });
+        await client.send({ from: `${tidyMailAddress(mailbox.from_name || "HR")} <${mailbox.from_address || user}>`, to, subject: tidyMailSubject(subject), content: tidyMailText(text), html: tidyMailHtml(html) });
         await admin.from("hr_attendance_notice_log").update({
           status: "sent", sent_at: new Date().toISOString(), error_message: null,
           attempts: (row.attempts || 0) + 1, last_attempt_at: new Date().toISOString(),
@@ -499,9 +499,9 @@ Deno.serve(async (req) => {
       try {
         if (!smtp) smtp = makeClient(mailbox);
         await smtp.client.send({
-          from: `${mailbox.from_name || "HR"} <${mailbox.from_address || smtp.user}>`,
+          from: `${tidyMailAddress(mailbox.from_name || "HR")} <${mailbox.from_address || smtp.user}>`,
           to: emp.email,
-          subject,
+          subject: tidyMailSubject(subject),
           content: tidyMailText(text),
           html: tidyMailHtml(html),
         });
@@ -513,7 +513,7 @@ Deno.serve(async (req) => {
           message_id: crypto.randomUUID(),
           template_name: "attendance-exception-notice",
           recipient_email: emp.email,
-          subject,
+          subject: tidyMailSubject(subject),
           status: "sent",
         });
       } catch (err) {
@@ -528,7 +528,7 @@ Deno.serve(async (req) => {
           message_id: crypto.randomUUID(),
           template_name: "attendance-exception-notice",
           recipient_email: emp.email,
-          subject,
+          subject: tidyMailSubject(subject),
           status: "failed",
           error_message: msg,
         });

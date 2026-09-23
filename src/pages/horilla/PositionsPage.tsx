@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { useJobDescriptions, type JobDescriptionRow } from "@/hooks/useJobDescriptions";
+import { useSeatOccupancy } from "@/hooks/hrms/useWorkforcePlanning";
 import { JobDescriptionViewer } from "@/components/horilla/positions/JobDescriptionViewer";
 import { JobDescriptionLibraryDialog } from "@/components/horilla/positions/JobDescriptionLibraryDialog";
 

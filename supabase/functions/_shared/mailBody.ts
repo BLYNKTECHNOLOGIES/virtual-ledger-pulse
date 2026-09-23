@@ -26,3 +26,38 @@ export function tidyMailText(s: string): string {
     .replace(/[ \t]+$/, "")
     .trim();
 }
+
+// ---------------------------------------------------------------------------
+// Header safety.
+//
+// denomailer 1.6.0 encodes any header value that contains a non-ASCII character
+// as a single RFC 2047 encoded-word, and its quoted-printable encoder injects a
+// soft line break ("=\r\n") every 74 characters. Inside a header that is an
+// unfolded continuation line, so the receiving MTA/client treats everything
+// after the break as the message body: the recipient sees the tail of the
+// subject followed by the raw MIME source ("Content-Type: multipart/mixed;
+// boundary=attachment100", quoted-printable "=" artefacts and all).
+//
+// Keeping header values strictly ASCII avoids the encoded-word entirely, so
+// every outgoing header stays on one legal line.
+/** Transliterate to ASCII, collapse whitespace and drop CR/LF from a subject. */
+export function tidyMailSubject(s: string, max = 150): string {
+  if (!s) return "";
+  return s
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[\u2018\u2019\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u2033]/g, '"')
+    .replace(/\u2026/g, "...")
+    .replace(/[\u00A0\u2007\u202F\u2009]/g, " ")
+    .replace(/\u20B9/g, "Rs.")
+    .replace(/\u2022/g, "-")
+    .replace(/[^\x20-\x7E]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, max);
+}
+
+/** Same guard for the display name of a From/Reply-To address. */
+export function tidyMailAddress(s: string): string {
+  return tidyMailSubject(s, 78).replace(/[<>]/g, "");
+}

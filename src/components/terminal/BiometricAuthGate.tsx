@@ -19,7 +19,8 @@ interface BiometricAuthGateProps {
 
 export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
   const { userId, isTerminalAdmin, isSuperAdmin } = useTerminalAuth();
-  const { isAuthenticated, isLoading, setSession } = useTerminalBiometricSession(userId);
+  const { isAuthenticated, isLoading, setSession, sessionMode, modeReason } =
+    useTerminalBiometricSession(userId);
   // Remembers that this gate has already let the operator through once.
   const wasAuthedRef = useRef(false);
   if (isAuthenticated) wasAuthedRef.current = true;
@@ -88,9 +89,13 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
         return;
       }
 
-      const sessionToken = await authenticateBiometric(userId);
-      setSession(sessionToken);
-      toast.success('Biometric verification successful');
+      const unlock = await authenticateBiometric(userId);
+      setSession(unlock.sessionToken, unlock.mode, unlock.reason);
+      if (unlock.mode === 'view_only') {
+        toast.warning('Unlocked in view-only mode — actions are disabled on this device');
+      } else {
+        toast.success('Biometric verification successful');
+      }
     } catch (err: any) {
       console.error('Biometric auth error:', err);
       if (err.name === 'NotAllowedError') {
@@ -141,9 +146,13 @@ export function BiometricAuthGate({ children }: BiometricAuthGateProps) {
       }
 
       // Authenticate using the Super Admin's registered fingerprint, but unlock for the current user
-      const sessionToken = await authenticateBiometric(userId, adminId);
-      setSession(sessionToken);
-      toast.success('Admin override: Terminal unlocked');
+      const unlock = await authenticateBiometric(userId, adminId);
+      setSession(unlock.sessionToken, unlock.mode, unlock.reason);
+      toast.success(
+        unlock.mode === 'view_only'
+          ? 'Admin override: unlocked in view-only mode'
+          : 'Admin override: Terminal unlocked'
+      );
     } catch (err: any) {
       console.error('Admin override error:', err);
       if (err.name === 'NotAllowedError') {

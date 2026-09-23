@@ -154,8 +154,11 @@ const DOC_KEY_MAP: Record<string, string> = {
   experience: 'experience_letter',
 };
 
+// `employee-documents` is a PRIVATE bucket: a /object/public/ URL returns
+// NoSuchBucket. Store the bucket-scoped reference instead; the app signs it on
+// read (see src/lib/storedDoc.ts).
 function publicUrl(path: string): string {
-  return `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/employee-documents/${path}`;
+  return `employee-documents://${path}`;
 }
 
 async function mergeIntoOnboarding(onboardingId: string, p: Record<string, any>): Promise<{ ok: boolean; error?: string }> {

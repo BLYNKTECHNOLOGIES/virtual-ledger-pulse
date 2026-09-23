@@ -668,7 +668,7 @@ Deno.serve(async (req) => {
           content: 'Please view this email in an HTML-compatible client.',
           html: tidyMailHtml(buildHtml(row, month, processedOn)),
           attachments: [{
-            filename: `Payslip_${label.replace(/ /g, '_')}_${row.name.replace(/[^A-Za-z0-9]+/g, '_')}.pdf`,
+            filename: tidyMailFilename(`Payslip_${label.replace(/ /g, '_')}_${row.name.replace(/[^A-Za-z0-9]+/g, '_')}.pdf`, 'Payslip.pdf'),
             content: b64,
             encoding: 'base64',
             contentType: 'application/pdf',

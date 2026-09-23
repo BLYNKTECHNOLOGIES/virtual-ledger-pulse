@@ -12,6 +12,7 @@ import { ExchangeAccountProvider } from '@/contexts/ExchangeAccountContext';
 import { TerminalShortcutsProvider } from '@/contexts/TerminalShortcutsProvider';
 import { TerminalThemeProvider, useTerminalTheme } from '@/contexts/TerminalThemeContext';
 import { useSidebarAutoCollapse } from '@/hooks/useSidebarAutoCollapse';
+import { ViewOnlyBanner } from './ViewOnlyBanner';
 
 
 interface TerminalLayoutProps {
@@ -84,6 +85,7 @@ function TerminalShell({ children }: { children: React.ReactNode }) {
         <TerminalSidebar />
       </div>
       <SidebarInset className="flex flex-col flex-1 min-w-0">
+        <ViewOnlyBanner />
         <TerminalHeader />
         <main ref={workAreaRef} className="flex-1 overflow-auto t-grid-bg">
           <div className="t-mount">

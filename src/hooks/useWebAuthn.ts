@@ -56,7 +56,12 @@ async function callWebAuthn(action: string, body: Record<string, unknown>) {
   return data;
 }
 
-export async function registerBiometric(userId: string, username: string, deviceName?: string) {
+export async function registerBiometric(
+  userId: string,
+  username: string,
+  deviceName?: string,
+  officeCode?: string,
+) {
   // 1. Get challenge from server
   const challengeData = await callWebAuthn('challenge', {
     user_id: userId,
@@ -101,16 +106,23 @@ export async function registerBiometric(userId: string, username: string, device
     public_key: bufferToBase64url(response.getPublicKey?.() || response.attestationObject),
     challenge: challengeData.challenge,
     device_name: deviceName || getDeviceName(),
+    office_code: officeCode?.trim() || undefined,
   });
 
-  return result;
+  return result as { success: boolean; credential_id: string; trust_level: 'office' | 'view_only'; trust_note?: string };
+}
+
+export interface BiometricUnlockResult {
+  sessionToken: string;
+  mode: 'full' | 'view_only';
+  reason: string | null;
 }
 
 export async function authenticateBiometric(
   userId: string,
   adminUserId?: string,
   attachment?: 'platform' | 'cross-platform'
-): Promise<string> {
+): Promise<BiometricUnlockResult> {
   // 1. Get challenge (with admin override if applicable)
   const challengeBody: Record<string, unknown> = {
     user_id: adminUserId || userId,
@@ -182,7 +194,11 @@ export async function authenticateBiometric(
 
   const result = await callWebAuthn('verify', verifyBody);
 
-  return result.session_token;
+  return {
+    sessionToken: result.session_token,
+    mode: result.mode === 'view_only' ? 'view_only' : 'full',
+    reason: result.mode_reason ?? null,
+  };
 }
 
 function getDeviceName(): string {

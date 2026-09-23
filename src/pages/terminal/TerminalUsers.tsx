@@ -9,6 +9,7 @@ import { PayerAssignmentManager } from "@/components/terminal/payer/PayerAssignm
 import { SmallPaymentManagerAssignmentManager } from "@/components/terminal/small-payments/SmallPaymentManagerAssignmentManager";
 import { OperatorAssignmentManager } from "@/components/terminal/users/OperatorAssignmentManager";
 import { TerminalOrgChart } from "@/components/terminal/users/TerminalOrgChart";
+import { TerminalDevicesList } from "@/components/terminal/users/TerminalDevicesList";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { useTerminalUserPrefs } from "@/hooks/useTerminalUserPrefs";
 
@@ -38,6 +39,7 @@ export default function TerminalUsers() {
             <TabsTrigger value="payer" className="text-xs">Payer Assignments</TabsTrigger>
             {canManageSmallPaymentAssignments && <TabsTrigger value="small-payments" className="text-xs">Small Payments</TabsTrigger>}
             <TabsTrigger value="operator" className="text-xs">Operations Associate Assignments</TabsTrigger>
+            <TabsTrigger value="devices" className="text-xs">Devices</TabsTrigger>
             <TabsTrigger value="orgchart" className="text-xs">Org Chart</TabsTrigger>
           </TabsList>
 
@@ -70,6 +72,10 @@ export default function TerminalUsers() {
 
           <TabsContent value="operator" className="mt-4">
             <OperatorAssignmentManager />
+          </TabsContent>
+
+          <TabsContent value="devices" className="mt-4">
+            <TerminalDevicesList />
           </TabsContent>
 
           <TabsContent value="orgchart" className="mt-4">

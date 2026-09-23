@@ -7,10 +7,15 @@ const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const WARNING_BEFORE_MS = 2 * 60 * 1000; // warn 2 min before
 const REVALIDATION_INTERVAL_MS = 2 * 60 * 1000; // re-check server every 2 min
 
+export type TerminalSessionMode = 'full' | 'view_only';
+
 interface BiometricSessionState {
   isAuthenticated: boolean;
   isLoading: boolean;
   sessionToken: string | null;
+  /** Server-decided mode of this unlock. Never trusted from the browser. */
+  sessionMode: TerminalSessionMode;
+  modeReason: string | null;
 }
 
 export function useTerminalBiometricSession(userId: string | null) {
@@ -18,6 +23,8 @@ export function useTerminalBiometricSession(userId: string | null) {
     isAuthenticated: false,
     isLoading: true,
     sessionToken: null,
+    sessionMode: 'full',
+    modeReason: null,
   });
 
   const inactivityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -25,54 +32,63 @@ export function useTerminalBiometricSession(userId: string | null) {
   const revalidationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const extendThrottleRef = useRef<number>(0);
 
-  // Server-side session validation (with timeout)
-  const validateServerSession = useCallback(async (token: string): Promise<boolean> => {
-    if (!userId) return false;
-    try {
-      let timer: ReturnType<typeof setTimeout>;
-      const timeoutPromise = new Promise<{ data: null }>((resolve) => {
-        timer = setTimeout(() => resolve({ data: null }), 10000);
-      });
-      const rpcPromise = supabase.rpc('validate_terminal_biometric_session', {
-        p_user_id: userId,
-        p_token: token,
-      }).then(r => { clearTimeout(timer!); return r; });
-      const { data } = await Promise.race([rpcPromise, timeoutPromise]);
-      return !!data;
-    } catch {
-      return false;
-    }
-  }, [userId]);
+  // Server-side session validation — also returns the authoritative mode.
+  const validateServerSession = useCallback(
+    async (token: string): Promise<TerminalSessionMode | null> => {
+      if (!userId) return null;
+      try {
+        let timer: ReturnType<typeof setTimeout>;
+        const timeoutPromise = new Promise<{ data: null }>((resolve) => {
+          timer = setTimeout(() => resolve({ data: null }), 10000);
+        });
+        const rpcPromise = supabase
+          .rpc('get_terminal_session_mode_for_token', { p_user_id: userId, p_token: token })
+          .then((r) => {
+            clearTimeout(timer!);
+            return r;
+          });
+        const { data } = await Promise.race([rpcPromise, timeoutPromise]);
+        if (!data) return null;
+        return data === 'view_only' ? 'view_only' : 'full';
+      } catch {
+        return null;
+      }
+    },
+    [userId]
+  );
 
   // Validate session on mount
   useEffect(() => {
     if (!userId) {
-      setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+      setState({ isAuthenticated: false, isLoading: false, sessionToken: null, sessionMode: 'full', modeReason: null });
       return;
     }
 
     const token = sessionStorage.getItem(SESSION_KEY);
     if (!token) {
-      setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+      setState({ isAuthenticated: false, isLoading: false, sessionToken: null, sessionMode: 'full', modeReason: null });
       return;
     }
 
     (async () => {
-      const valid = await validateServerSession(token);
-      if (valid) {
-        setState({ isAuthenticated: true, isLoading: false, sessionToken: token });
+      const mode = await validateServerSession(token);
+      if (mode) {
+        setState({ isAuthenticated: true, isLoading: false, sessionToken: token, sessionMode: mode, modeReason: null });
       } else {
         sessionStorage.removeItem(SESSION_KEY);
-        setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+        setState({ isAuthenticated: false, isLoading: false, sessionToken: null, sessionMode: 'full', modeReason: null });
       }
     })();
   }, [userId, validateServerSession]);
 
   // Set session after successful auth
-  const setSession = useCallback((token: string) => {
-    sessionStorage.setItem(SESSION_KEY, token);
-    setState({ isAuthenticated: true, isLoading: false, sessionToken: token });
-  }, []);
+  const setSession = useCallback(
+    (token: string, mode: TerminalSessionMode = 'full', reason: string | null = null) => {
+      sessionStorage.setItem(SESSION_KEY, token);
+      setState({ isAuthenticated: true, isLoading: false, sessionToken: token, sessionMode: mode, modeReason: reason });
+    },
+    []
+  );
 
   // Revoke session
   const revokeSession = useCallback(async () => {
@@ -82,7 +98,7 @@ export function useTerminalBiometricSession(userId: string | null) {
       } catch { /* ignore */ }
     }
     sessionStorage.removeItem(SESSION_KEY);
-    setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+    setState({ isAuthenticated: false, isLoading: false, sessionToken: null, sessionMode: 'full', modeReason: null });
   }, [userId]);
 
   // Extend session on activity (throttled to once per 60s)
@@ -103,7 +119,7 @@ export function useTerminalBiometricSession(userId: string | null) {
       if (!extended) {
         toast.error('Terminal session expired. Please re-authenticate.');
         sessionStorage.removeItem(SESSION_KEY);
-        setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+        setState({ isAuthenticated: false, isLoading: false, sessionToken: null, sessionMode: 'full', modeReason: null });
       }
     } catch { /* ignore */ }
   }, [userId]);
@@ -115,14 +131,16 @@ export function useTerminalBiometricSession(userId: string | null) {
     revalidationTimerRef.current = setInterval(async () => {
       const token = sessionStorage.getItem(SESSION_KEY);
       if (!token) {
-        setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+        setState((s) => ({ ...s, isAuthenticated: false, isLoading: false, sessionToken: null }));
         return;
       }
-      const valid = await validateServerSession(token);
-      if (!valid) {
+      const mode = await validateServerSession(token);
+      if (!mode) {
         sessionStorage.removeItem(SESSION_KEY);
-        setState({ isAuthenticated: false, isLoading: false, sessionToken: null });
+        setState({ isAuthenticated: false, isLoading: false, sessionToken: null, sessionMode: 'full', modeReason: null });
         toast.error('Terminal session invalidated. Please re-authenticate.');
+      } else {
+        setState((s) => (s.sessionMode === mode ? s : { ...s, sessionMode: mode }));
       }
     }, REVALIDATION_INTERVAL_MS);
 

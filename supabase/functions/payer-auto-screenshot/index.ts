@@ -4,6 +4,7 @@
 // then uploaded to Binance via this function. This guarantees the
 // auto-screenshot is byte-identical to the manual one.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { assertTerminalWriteAllowed } from "../_shared/terminalDeviceMode.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -176,6 +177,14 @@ Deno.serve(async (req: Request) => {
   const orderNumber = String(body?.orderNumber || "").trim();
   const phase = String(body?.phase || "prepare");
   if (!orderNumber) return jsonResponse({ error: "orderNumber required" }, 400);
+
+  // This endpoint sends a payment screenshot into a live Binance chat, so it is
+  // blocked on personal (view-only) devices.
+  try {
+    await assertTerminalWriteAllowed(adminClient, payerId, "payer-auto-screenshot:send");
+  } catch (e) {
+    return jsonResponse({ error: (e as Error).message }, 403);
+  }
 
   // Resolve payer display name for logging.
   let payerName: string | null = null;

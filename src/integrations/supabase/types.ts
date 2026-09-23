@@ -33496,6 +33496,16 @@ export type Database = {
         Args: { p_credential_id: string; p_trust_level: string }
         Returns: boolean
       }
+      set_terminal_session_mode: {
+        Args: {
+          p_client_ip?: string
+          p_mode: string
+          p_reason?: string
+          p_token: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       set_terminal_user_status: {
         Args: { p_status: string; p_user_id: string }
         Returns: Json

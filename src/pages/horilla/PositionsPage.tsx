@@ -219,7 +219,9 @@ export default function PositionsPage() {
             { key: "position", label: "Position" },
             { key: "department", label: "Department" },
             { key: "jd", label: "Job Description" },
+            { key: "people", label: "People on Roll" },
             { key: "status", label: "Status" },
+
 
             { key: "actions", label: "Actions", className: "text-right" },
           ]}

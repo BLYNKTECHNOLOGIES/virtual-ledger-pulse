@@ -30702,6 +30702,10 @@ export type Database = {
         Args: { p_is_march: boolean; p_monthly_gross: number; p_state: string }
         Returns: number
       }
+      consume_terminal_office_enrolment_code: {
+        Args: { p_code: string; p_credential_id: string; p_user_id: string }
+        Returns: string
+      }
       cp_identity_row: { Args: { p_order_number: string }; Returns: undefined }
       create_bank_transfer:
         | {
@@ -30997,6 +31001,16 @@ export type Database = {
       }
       create_terminal_biometric_session: {
         Args: { p_user_id: string }
+        Returns: string
+      }
+      create_terminal_biometric_session_v2: {
+        Args: {
+          p_client_ip?: string
+          p_credential_id?: string
+          p_mode?: string
+          p_reason?: string
+          p_user_id: string
+        }
         Returns: string
       }
       create_user_with_password: {
@@ -31608,6 +31622,21 @@ export type Database = {
         }[]
       }
       get_terminal_dashboard_summary: { Args: never; Returns: Json }
+      get_terminal_devices: {
+        Args: never
+        Returns: {
+          active_session_mode: string
+          created_at: string
+          device_name: string
+          enrolled_ip: string
+          enrolled_via: string
+          id: string
+          last_used_at: string
+          trust_level: string
+          user_id: string
+          user_name: string
+        }[]
+      }
       get_terminal_mpi_leaderboard: {
         Args: { p_from: string; p_limit?: number; p_to: string }
         Returns: Json
@@ -31658,6 +31687,10 @@ export type Database = {
       get_terminal_permissions: {
         Args: { p_user_id: string }
         Returns: string[]
+      }
+      get_terminal_session_mode_for_token: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: string
       }
       get_terminal_subordinates: {
         Args: { p_user_id: string }
@@ -33060,6 +33093,10 @@ export type Database = {
         Args: { p_order_number: string }
         Returns: boolean
       }
+      issue_terminal_office_enrolment_code: {
+        Args: { p_issued_by: string; p_user_id: string }
+        Returns: string
+      }
       link_client_userno: {
         Args: { p_client_id: string; p_cp_userno: string; p_source?: string }
         Returns: undefined
@@ -33420,6 +33457,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: undefined
       }
+      revoke_terminal_device: {
+        Args: { p_credential_id: string }
+        Returns: boolean
+      }
       rollup_terminal_ad_uptime: { Args: { p_date: string }; Returns: number }
       rollup_terminal_ad_uptime_monthly: {
         Args: { p_month: string }
@@ -33451,6 +33492,10 @@ export type Database = {
         Args: { p_case_id: string; p_minutes: number }
         Returns: undefined
       }
+      set_terminal_device_trust: {
+        Args: { p_credential_id: string; p_trust_level: string }
+        Returns: boolean
+      }
       set_terminal_user_status: {
         Args: { p_status: string; p_user_id: string }
         Returns: Json
@@ -33475,6 +33520,19 @@ export type Database = {
           p_credential_id: string
           p_device_name?: string
           p_public_key: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      store_webauthn_credential_v2: {
+        Args: {
+          p_approved_by?: string
+          p_credential_id: string
+          p_device_name?: string
+          p_enrolled_ip?: string
+          p_enrolled_via?: string
+          p_public_key: string
+          p_trust_level?: string
           p_user_id: string
         }
         Returns: string
@@ -33536,7 +33594,9 @@ export type Database = {
           last_tick_at: string
         }[]
       }
+      terminal_guard_attach_all: { Args: never; Returns: number }
       terminal_heartbeat: { Args: { p_user_id: string }; Returns: undefined }
+      terminal_ip_is_office: { Args: { p_ip: string }; Returns: boolean }
       terminal_order_final_appeal_status: {
         Args: { p_status: string }
         Returns: string

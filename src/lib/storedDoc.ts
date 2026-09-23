@@ -1,14 +1,30 @@
 import { supabase } from "@/integrations/supabase/client";
+import { PRIVATE_DOCUMENT_BUCKETS, parseStorageRef } from "@/lib/storage-url";
 
 /**
  * Some employee document rows point at a private bucket instead of a public
  * URL (issued HR letters live in `hr-doc-issued`). Those are stored as
  * `bucket://path` and resolved to a short-lived signed URL on demand.
+ *
+ * Historic rows (onboarding submissions, employee KYC uploads) still hold a
+ * `/storage/v1/object/public/<bucket>/<path>` string for buckets that are in
+ * fact PRIVATE — opening those directly returns `NoSuchBucket`. Those URLs are
+ * parsed back into (bucket, path) and signed/downloaded on read as well.
  */
 const PRIVATE_PREFIX = /^([a-z0-9-]+):\/\/(.+)$/i;
 
 export function isPrivateDocRef(url?: string | null): boolean {
   return !!url && PRIVATE_PREFIX.test(url) && !/^https?:\/\//i.test(url);
+}
+
+/** (bucket, path) for any reference that needs signing, else null. */
+function resolvePrivateRef(url?: string | null): { bucket: string; path: string } | null {
+  if (!url) return null;
+  const m = isPrivateDocRef(url) ? PRIVATE_PREFIX.exec(url) : null;
+  if (m) return { bucket: m[1], path: m[2] };
+  const ref = parseStorageRef(url);
+  if (ref && PRIVATE_DOCUMENT_BUCKETS.has(ref.bucket)) return ref;
+  return null;
 }
 
 export function privateDocRef(bucket: string, path: string): string {

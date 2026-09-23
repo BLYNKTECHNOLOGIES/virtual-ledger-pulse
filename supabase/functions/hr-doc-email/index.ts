@@ -35,7 +35,7 @@ async function getMailbox(admin: any): Promise<Mailbox | { error: string }> {
   const user = (Deno.env.get(mailbox.smtp_user_secret) || Deno.env.get("HR_SMTP_USER") || "").trim();
   const pass = (Deno.env.get(mailbox.smtp_pass_secret) || Deno.env.get("HR_SMTP_PASS") || "").replace(/\s+/g, "");
   if (!host || !user || !pass) return { error: "SMTP credentials are not configured" };
-  return { from: `${mailbox.from_name || "Blynk HR"} <${mailbox.from_address || user}>`, host, user, pass };
+  return { from: `${sanitizeSubject(mailbox.from_name || "Blynk HR")} <${mailbox.from_address || user}>`, host, user, pass };
 }
 
 // denomailer's quoted-printable encoder turns any space that sits at the end of a

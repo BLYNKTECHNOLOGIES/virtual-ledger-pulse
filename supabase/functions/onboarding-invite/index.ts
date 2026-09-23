@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { HR_BRAND, hrHeaderHtml, hrSignatureHtml, hrSignatureText } from '../_shared/hrSignature.ts';
-import { tidyMailHtml, tidyMailText } from '../_shared/mailBody.ts'
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
 
 const APP_URL = 'https://erp.blynkex.com';
 
@@ -122,7 +122,7 @@ async function mailInvite(to: string, name: string, link: string, expiresAt: str
   const client = new SMTPClient({ connection: { hostname: host, port: 465, tls: true, auth: { username: user, password: pass } } });
   try {
     await client.send({
-      from: `${mailbox.from_name || 'Blynkex HR'} <${mailbox.from_address || user}>`,
+      from: `${tidyMailAddress(mailbox.from_name || 'Blynkex HR')} <${mailbox.from_address || user}>`,
       to,
       subject: 'Complete your onboarding details - Blynk',
       content: tidyMailText(text),

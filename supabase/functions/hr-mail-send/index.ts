@@ -2,7 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { requireAuth } from '../_shared/require-auth.ts'
 import { appendHrSignatureHtml, hrSignatureText } from '../_shared/hrSignature.ts'
-import { tidyMailHtml, tidyMailText } from '../_shared/mailBody.ts'
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -198,12 +198,12 @@ Deno.serve(async (req) => {
     }
     try {
       await client.send({
-        from: `${mailbox.from_name || 'HR'} <${mailbox.from_address || smtpUser}>`,
+        from: `${tidyMailAddress(mailbox.from_name || 'HR')} <${mailbox.from_address || smtpUser}>`,
         to: r.email,
         cc: [...(mailbox.cc_addresses || []), ...(campaign.cc_addresses || [])]
           .filter((a: string, i: number, arr: string[]) =>
             a && a.toLowerCase() !== r.email.toLowerCase() && arr.findIndex(x => x.toLowerCase() === a.toLowerCase()) === i),
-        subject: fillPlaceholders(campaign.subject, vars),
+        subject: tidyMailSubject(fillPlaceholders(campaign.subject, vars)),
         content: tidyMailText(hrSignatureText()),
         html: tidyMailHtml(appendHrSignatureHtml(fillPlaceholders(campaign.body_html, vars))),
 

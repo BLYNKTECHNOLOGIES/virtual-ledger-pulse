@@ -9,7 +9,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { requireCaller } from "../_shared/require-caller.ts";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
-import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -426,7 +426,7 @@ Deno.serve(async (req) => {
       const { client, from } = makeClient();
       await client.send({
         from,
-        to, subject, content: tidyMailText(text), html: tidyMailHtml(html),
+        to, subject: tidyMailSubject(subject), content: tidyMailText(text), html: tidyMailHtml(html),
       });
       await client.close();
       return json({ ok: true, sent_to: to, items: all.length });
@@ -444,7 +444,7 @@ Deno.serve(async (req) => {
       const { client, from } = makeClient();
       await client.send({
         from,
-        to, subject, content: tidyMailText(text), html: tidyMailHtml(html),
+        to, subject: tidyMailSubject(subject), content: tidyMailText(text), html: tidyMailHtml(html),
       });
       await client.close();
       return json({ ok: true, sent_to: to, items: all.length });
@@ -470,7 +470,7 @@ Deno.serve(async (req) => {
     const { client, from } = makeClient();
     await client.send({
       from,
-      to, subject, content: tidyMailText(text), html: tidyMailHtml(html),
+      to, subject: tidyMailSubject(subject), content: tidyMailText(text), html: tidyMailHtml(html),
     });
     await client.close();
 

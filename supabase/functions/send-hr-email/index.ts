@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts"
 import { wrapHrEmail, hasHrSignature } from "../_shared/hrSignature.ts"
-import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
       recipientEmail = body.recipientEmail || body.recipient_email || CAREERS_RECIPIENT
       const applicantName = data.fullName || data.name || 'Applicant'
       const role = data.role || data.position || data.jobTitle || 'Unspecified Role'
-      subject = body.subject || `New Application — ${role} — ${applicantName}`
+      subject = tidyMailSubject(body.subject || `New Application - ${role} - ${applicantName}`)
       htmlBody = buildCareersHtml(data)
       if (!replyTo && data.email) replyTo = String(data.email)
     } else {
@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
     const ccList = HR_CC_RECIPIENTS.filter(addr => addr.toLowerCase() !== primaryLower)
 
     await client.send({
-      from: `${fromName} <${fromAddress}>`,
+      from: `${tidyMailAddress(fromName)} <${fromAddress}>`,
       to: recipientEmail,
       cc: ccList.length ? ccList : undefined,
       replyTo: replyTo,

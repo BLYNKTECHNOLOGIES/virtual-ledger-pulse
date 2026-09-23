@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 import { wrapHrEmail } from '../_shared/hrSignature.ts'
-import { tidyMailHtml, tidyMailText } from '../_shared/mailBody.ts'
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from '../_shared/mailBody.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -594,7 +594,7 @@ Deno.serve(async (req) => {
     const results: { employee_id: string; name: string; ok: boolean; error?: string; skipped?: boolean }[] = []
     for (const row of targets) {
       const label = monthLabel(month)
-      const subject = `${mode === 'preview' ? '[PREVIEW] ' : ''}Your Payslip — ${label} | Blynk Virtual Technologies`
+      const subject = tidyMailSubject(`${mode === 'preview' ? '[PREVIEW] ' : ''}Your Payslip - ${label} | Blynk Virtual Technologies`)
       const to = mode === 'preview' ? previewTo! : row.email!
       let claimId: string | null = null
 
@@ -662,7 +662,7 @@ Deno.serve(async (req) => {
         const b64 = btoa(bin)
 
         await client.send({
-          from: `${fromName} <${fromAddress}>`,
+          from: `${tidyMailAddress(fromName)} <${fromAddress}>`,
           to,
           subject,
           content: 'Please view this email in an HTML-compatible client.',
@@ -693,7 +693,7 @@ Deno.serve(async (req) => {
             message_id: crypto.randomUUID(),
             template_name: TEMPLATE,
             recipient_email: row.email,
-            subject: `Your Payslip — ${monthLabel(month)}`,
+            subject: tidyMailSubject(`Your Payslip - ${monthLabel(month)}`),
             status: 'failed',
             error_message: msg,
             metadata: { employee_id: row.employee_id, period_month: month, failed: true },

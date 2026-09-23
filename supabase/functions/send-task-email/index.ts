@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
-import { tidyMailHtml, tidyMailText } from "../_shared/mailBody.ts"
+import { tidyMailHtml, tidyMailText, tidyMailSubject, tidyMailAddress } from "../_shared/mailBody.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
         await client.send({
           from: `Task Notifications - Blynk Virtual Technologies <${smtpUser}>`,
           to: recipient.email,
-          subject: getSubject(eventType, body.taskTitle),
+          subject: tidyMailSubject(getSubject(eventType, body.taskTitle)),
           content: "Please view this email in an HTML-capable client.",
           html: tidyMailHtml(getEmailBody(eventType, body)),
         });

@@ -102,6 +102,26 @@ export default function PositionsPage() {
   const jdForPosition = (positionId: string) =>
     (jobDescriptions || []).find((j) => j.position_id === positionId) || null;
 
+  // People currently on roll against each position (active employees only).
+  const { data: occupancy } = useSeatOccupancy();
+  const headcountByPosition = (occupancy || []).reduce<Record<string, number>>((acc, row: any) => {
+    if (row.job_position_id) acc[row.job_position_id] = (acc[row.job_position_id] || 0) + 1;
+    return acc;
+  }, {});
+  const hiredCount = (positionId: string) => headcountByPosition[positionId] || 0;
+
+  const blockIfOccupied = (p: any, action: "tentative" | "delete") => {
+    const count = hiredCount(p.id);
+    if (count === 0) return false;
+    toast.error(
+      action === "tentative"
+        ? `${p.title} has ${count} ${count === 1 ? "person" : "people"} on roll — it cannot be marked tentative. Move or offboard them first.`
+        : `${p.title} has ${count} ${count === 1 ? "person" : "people"} on roll — it cannot be deleted. Move or offboard them first.`,
+    );
+    return true;
+  };
+
+
   const activeCount = (positions || []).filter((p: any) => p.is_active !== false).length;
   const tentativeCount = (positions || []).length - activeCount;
 

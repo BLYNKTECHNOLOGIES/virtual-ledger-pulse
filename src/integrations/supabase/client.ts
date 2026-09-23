@@ -12,10 +12,22 @@ const SUPABASE_REQUEST_TIMEOUT_MS = 30000;
 // signs the user out, which surfaced as random "logged out again and again".
 const AUTH_REQUEST_TIMEOUT_MS = 60000;
 
+// Edge functions (Binance sync, gap-fill, payroll engines) legitimately run
+// longer than 30s; the platform's own wall-clock limit is 150s. Aborting them
+// at 30s surfaced as "Failed to send a request to the Edge Function".
+const FUNCTION_REQUEST_TIMEOUT_MS = 150000;
+
+const urlOf = (input: RequestInfo | URL) =>
+  typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+
 const isAuthRequest = (input: RequestInfo | URL) => {
-  const url =
-    typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  const url = urlOf(input);
   return typeof url === 'string' && url.includes('/auth/v1/');
+};
+
+const isFunctionRequest = (input: RequestInfo | URL) => {
+  const url = urlOf(input);
+  return typeof url === 'string' && url.includes('/functions/v1/');
 };
 
 const fetchWithTimeout: typeof fetch = async (input, init) => {
@@ -25,7 +37,11 @@ const fetchWithTimeout: typeof fetch = async (input, init) => {
   const authCall = isAuthRequest(input);
   const timeoutId = window.setTimeout(
     () => controller.abort(),
-    authCall ? AUTH_REQUEST_TIMEOUT_MS : SUPABASE_REQUEST_TIMEOUT_MS
+    authCall
+      ? AUTH_REQUEST_TIMEOUT_MS
+      : isFunctionRequest(input)
+        ? FUNCTION_REQUEST_TIMEOUT_MS
+        : SUPABASE_REQUEST_TIMEOUT_MS
   );
 
   if (upstreamSignal) {

@@ -69,8 +69,11 @@ export function tidyMailAddress(s: string): string {
 export function tidyMailFilename(s: string, fallback = "attachment"): string {
   const raw = tidyMailSubject(String(s || ""), 160);
   const dot = raw.lastIndexOf(".");
-  const stem = (dot > 0 ? raw.slice(0, dot) : raw).replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^_+|_+$/g, "");
-  const ext = (dot > 0 ? raw.slice(dot + 1) : "").replace(/[^A-Za-z0-9]+/g, "").slice(0, 8);
-  const name = (stem || fallback).slice(0, 100);
+  const rawExt = (dot >= 0 ? raw.slice(dot + 1) : "").replace(/[^A-Za-z0-9]+/g, "").slice(0, 8);
+  const rawStem = (dot >= 0 ? raw.slice(0, dot) : raw).replace(/[^A-Za-z0-9._-]+/g, "_").replace(/^[_.]+|_+$/g, "");
+  const fbStem = fallback.replace(/\.[^.]*$/, "") || "attachment";
+  const fbExt = (fallback.match(/\.([A-Za-z0-9]+)$/)?.[1] || "");
+  const name = (rawStem || fbStem).slice(0, 100);
+  const ext = rawExt || fbExt;
   return ext ? `${name}.${ext}` : name;
 }

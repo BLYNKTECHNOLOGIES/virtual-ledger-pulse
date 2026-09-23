@@ -1,4 +1,9 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import {
+  clientIpFromRequest,
+  getGuardSettings,
+  isOfficeNetwork,
+} from '../_shared/terminalDeviceMode.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

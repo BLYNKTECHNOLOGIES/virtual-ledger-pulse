@@ -77,6 +77,43 @@ async function logBiometricEvent(
   }
 }
 
+/**
+ * Decides whether an unlock yields a full or view-only session.
+ * Trust is re-evaluated at every unlock, never inherited:
+ *  - a view-only device is always view-only
+ *  - an office device is full only while on an approved office network
+ *  - Super Admins are exempt (always full)
+ */
+async function decideSessionMode(
+  // deno-lint-ignore no-explicit-any
+  supabase: any,
+  userId: string,
+  credentialTrust: string,
+  req: Request,
+): Promise<{ mode: 'full' | 'view_only'; reason: string | null }> {
+  const { enforcementMode, requireOfficeNetwork } = await getGuardSettings(supabase);
+  if (enforcementMode === 'off') return { mode: 'full', reason: null };
+
+  const { data: roles } = await supabase
+    .from('user_roles')
+    .select('roles:role_id(name)')
+    .eq('user_id', userId);
+  // deno-lint-ignore no-explicit-any
+  const isSuperAdmin = (roles || []).some((r: any) => r.roles?.name === 'Super Admin');
+  if (isSuperAdmin) return { mode: 'full', reason: null };
+
+  if (credentialTrust !== 'office') {
+    return { mode: 'view_only', reason: 'personal device' };
+  }
+
+  if (requireOfficeNetwork) {
+    const onOffice = await isOfficeNetwork(supabase, clientIpFromRequest(req));
+    if (!onOffice) return { mode: 'view_only', reason: 'outside the office network' };
+  }
+
+  return { mode: 'full', reason: null };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });

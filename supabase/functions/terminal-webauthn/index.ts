@@ -77,6 +77,10 @@ async function logBiometricEvent(
   }
 }
 
+function normalizeRole(name?: string | null): string {
+  return String(name || '').trim().toLowerCase().replace(/[\s_-]+/g, '');
+}
+
 /**
  * Decides whether an unlock yields a full or view-only session.
  * Trust is re-evaluated at every unlock, never inherited:
@@ -99,7 +103,7 @@ async function decideSessionMode(
     .select('roles:role_id(name)')
     .eq('user_id', userId);
   // deno-lint-ignore no-explicit-any
-  const isSuperAdmin = (roles || []).some((r: any) => r.roles?.name === 'Super Admin');
+  const isSuperAdmin = (roles || []).some((r: any) => normalizeRole(r.roles?.name) === 'superadmin');
   if (isSuperAdmin) return { mode: 'full', reason: null };
 
   if (credentialTrust !== 'office') {
@@ -562,7 +566,9 @@ Deno.serve(async (req) => {
         .select('roles:role_id(name)')
         .eq('user_id', userId);
       // deno-lint-ignore no-explicit-any
-      const issuerIsSuperAdmin = (issuerRoles || []).some((r: any) => r.roles?.name === 'Super Admin');
+      const issuerIsSuperAdmin = (issuerRoles || []).some(
+        (r: any) => normalizeRole(r.roles?.name) === 'superadmin',
+      );
       if (!issuerIsSuperAdmin) {
         return errorResponse('Only Super Admins can authorise an office device', 403);
       }

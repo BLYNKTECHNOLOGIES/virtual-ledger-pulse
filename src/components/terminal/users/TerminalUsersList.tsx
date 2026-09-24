@@ -81,6 +81,7 @@ export function TerminalUsersList() {
   const [configUsername, setConfigUsername] = useState("");
   const [configDisplayName, setConfigDisplayName] = useState("");
   const [bioUserId, setBioUserId] = useState<string | null>(null);
+  const [invite, setInvite] = useState<{ id: string; name: string } | null>(null);
   const [bioUsername, setBioUsername] = useState("");
   const [bioDisplayName, setBioDisplayName] = useState("");
 

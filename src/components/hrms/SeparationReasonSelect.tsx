@@ -1,12 +1,18 @@
 import { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { SEPARATION_REASONS, SEPARATION_REASON_OTHER } from "@/data/separationReasons";
+import {
+  SEPARATION_GROUPS,
+  SEPARATION_REASONS,
+  separationGroupOf,
+  type SeparationGroup,
+} from "@/data/separationReasons";
 
 /**
- * Selectable exit-reason picker. Standard reasons are stored verbatim;
- * "Other (specify)" reveals a free-text field whose text is stored instead,
- * so legacy/custom values round-trip correctly when editing.
+ * Two-step exit-reason picker: first Voluntary / Non-Voluntary, then only the
+ * reasons of that group. Standard reasons are stored verbatim; the per-group
+ * "Other" option reveals a free-text field whose text is stored instead, so
+ * legacy/custom values round-trip correctly when editing.
  */
 export function SeparationReasonSelect({
   value,
@@ -17,36 +23,66 @@ export function SeparationReasonSelect({
   onChange: (v: string) => void;
   compact?: boolean;
 }) {
+  const knownGroup = separationGroupOf(value);
   const initiallyOther = value !== "" && !SEPARATION_REASONS.includes(value);
+  const [group, setGroup] = useState<SeparationGroup | null>(knownGroup);
   const [otherMode, setOtherMode] = useState(initiallyOther);
   const [otherText, setOtherText] = useState(initiallyOther ? value : "");
+
+  const activeGroup = SEPARATION_GROUPS.find((g) => g.key === group) ?? null;
+  const triggerCls = compact ? "h-9 mt-1 text-foreground" : "text-foreground";
 
   return (
     <div className="space-y-2">
       <Select
-        value={otherMode ? SEPARATION_REASON_OTHER : value || undefined}
+        value={group ?? undefined}
         onValueChange={(v) => {
-          if (v === SEPARATION_REASON_OTHER) {
-            setOtherMode(true);
-            onChange(otherText);
-          } else {
-            setOtherMode(false);
-            onChange(v);
-          }
+          const g = v as SeparationGroup;
+          setGroup(g);
+          setOtherMode(false);
+          setOtherText("");
+          onChange("");
         }}
       >
-        <SelectTrigger className={compact ? "h-9 mt-1 text-foreground" : "text-foreground"}>
-          <SelectValue placeholder="Select exit reason" />
+        <SelectTrigger className={triggerCls}>
+          <SelectValue placeholder="Select type of separation" />
         </SelectTrigger>
         <SelectContent>
-          {SEPARATION_REASONS.map((r) => (
-            <SelectItem key={r} value={r}>
-              {r}
+          {SEPARATION_GROUPS.map((g) => (
+            <SelectItem key={g.key} value={g.key}>
+              {g.label}
             </SelectItem>
           ))}
-          <SelectItem value={SEPARATION_REASON_OTHER}>{SEPARATION_REASON_OTHER}</SelectItem>
         </SelectContent>
       </Select>
+
+      {activeGroup && (
+        <Select
+          value={otherMode ? activeGroup.otherLabel : value || undefined}
+          onValueChange={(v) => {
+            if (v === activeGroup.otherLabel) {
+              setOtherMode(true);
+              onChange(otherText);
+            } else {
+              setOtherMode(false);
+              onChange(v);
+            }
+          }}
+        >
+          <SelectTrigger className={triggerCls}>
+            <SelectValue placeholder="Select reason" />
+          </SelectTrigger>
+          <SelectContent>
+            {activeGroup.reasons.map((r) => (
+              <SelectItem key={r} value={r}>
+                {r.replace(/^.*?— /, "")}
+              </SelectItem>
+            ))}
+            <SelectItem value={activeGroup.otherLabel}>{activeGroup.otherLabel}</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+
       {otherMode && (
         <Textarea
           className={compact ? "text-foreground" : undefined}

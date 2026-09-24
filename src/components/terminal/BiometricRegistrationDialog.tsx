@@ -22,6 +22,8 @@ interface BiometricRegistrationDialogProps {
   onOpenChange: (open: boolean) => void;
   userId: string;
   onComplete: () => void;
+  /** Registration link token sent by an admin; decides office vs view-only. */
+  inviteToken?: string;
 }
 
 export function BiometricRegistrationDialog({
@@ -29,10 +31,10 @@ export function BiometricRegistrationDialog({
   onOpenChange,
   userId,
   onComplete,
+  inviteToken,
 }: BiometricRegistrationDialogProps) {
   const [step, setStep] = useState<'info' | 'register' | 'done'>('info');
   const [deviceName, setDeviceName] = useState('');
-  const [officeCode, setOfficeCode] = useState('');
   const [trustNote, setTrustNote] = useState<string | null>(null);
   const [isRegistering, setIsRegistering] = useState(false);
   const [hasPlatformAuth, setHasPlatformAuth] = useState<boolean | null>(null);
@@ -41,7 +43,6 @@ export function BiometricRegistrationDialog({
     if (open) {
       setStep('info');
       setDeviceName('');
-      setOfficeCode('');
       setTrustNote(null);
       checkPlatformAuthenticator().then(setHasPlatformAuth);
     }
@@ -59,7 +60,7 @@ export function BiometricRegistrationDialog({
         userId,
         username,
         deviceName || undefined,
-        officeCode || undefined,
+        inviteToken,
       );
       setTrustNote(res?.trust_note || null);
       setStep('done');
@@ -117,22 +118,12 @@ export function BiometricRegistrationDialog({
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="office-code">Office authorisation code (optional)</Label>
-                <Input
-                  id="office-code"
-                  placeholder="6-character code from a Super Admin"
-                  value={officeCode}
-                  onChange={(e) => setOfficeCode(e.target.value.toUpperCase())}
-                  maxLength={12}
-                  className="font-mono tracking-[0.2em]"
-                />
+              {!inviteToken && (
                 <p className="text-xs text-muted-foreground">
-                  Leave blank on a personal laptop — it registers as <span className="text-warning">view only</span>,
-                  so you can watch but not act. On an office computer, enter the code a Super Admin gives you to
-                  enable full actions.
+                  Registered without an admin link, this device is <span className="text-warning">view only</span>.
+                  For full access on an office computer, ask your admin to email you a registration link.
                 </p>
-              </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2">

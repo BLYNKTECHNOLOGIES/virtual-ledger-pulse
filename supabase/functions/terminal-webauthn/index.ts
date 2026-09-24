@@ -1,9 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import {
-  clientIpFromRequest,
-  getGuardSettings,
-  isOfficeNetwork,
-} from '../_shared/terminalDeviceMode.ts';
+import { clientIpFromRequest } from '../_shared/terminalDeviceMode.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,21 +79,17 @@ function normalizeRole(name?: string | null): string {
 
 /**
  * Decides whether an unlock yields a full or view-only session.
- * Trust is re-evaluated at every unlock, never inherited:
- *  - a view-only device is always view-only
- *  - an office device is full only while on an approved office network
  *  - Super Admins are exempt (always full)
+ *  - an office-registered device (via an admin's emailed link) is full
+ *  - everything else is view-only
  */
 async function decideSessionMode(
   // deno-lint-ignore no-explicit-any
   supabase: any,
   userId: string,
   credentialTrust: string,
-  req: Request,
+  _req: Request,
 ): Promise<{ mode: 'full' | 'view_only'; reason: string | null }> {
-  const { enforcementMode, requireOfficeNetwork } = await getGuardSettings(supabase);
-  if (enforcementMode === 'off') return { mode: 'full', reason: null };
-
   const { data: roles } = await supabase
     .from('user_roles')
     .select('roles:role_id(name)')
@@ -105,25 +97,7 @@ async function decideSessionMode(
   // deno-lint-ignore no-explicit-any
   const isSuperAdmin = (roles || []).some((r: any) => normalizeRole(r.roles?.name) === 'superadmin');
   if (isSuperAdmin) return { mode: 'full', reason: null };
-
-  if (credentialTrust !== 'office') {
-    return { mode: 'view_only', reason: 'personal device' };
-  }
-
-  if (requireOfficeNetwork) {
-    // Until at least one office network is configured, the network test cannot
-    // be meaningful — an office device stays full rather than downgrading
-    // everyone on day one.
-    const { count } = await supabase
-      .from('terminal_trusted_networks')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true);
-    if ((count ?? 0) > 0) {
-      const onOffice = await isOfficeNetwork(supabase, clientIpFromRequest(req));
-      if (!onOffice) return { mode: 'view_only', reason: 'outside the office network' };
-    }
-  }
-
+  if (credentialTrust !== 'office') return { mode: 'view_only', reason: 'personal device' };
   return { mode: 'full', reason: null };
 }
 
@@ -233,7 +207,7 @@ Deno.serve(async (req) => {
 
     // =================== REGISTER ===================
     if (path === 'register') {
-      const { credential_id, public_key, challenge, device_name, office_code } = body;
+      const { credential_id, public_key, challenge, device_name, invite_token } = body;
 
       if (!credential_id || !public_key || !challenge) {
         return errorResponse('Missing required fields', 400);
@@ -253,41 +227,29 @@ Deno.serve(async (req) => {
       }
 
       // === Device trust decision at enrolment ===
-      // Every new device is view-only unless BOTH hold: a valid one-time office
-      // enrolment code issued by a Super Admin, and (when required) the office
-      // network. An employee at home has no path to an office registration.
+      // Only an admin-sent registration link can grant office (full) access.
+      // The invite must belong to the caller, be unexpired, unconsumed and not
+      // revoked; it is consumed atomically so it registers exactly one device.
       const ip = clientIpFromRequest(req);
-      const { requireOfficeNetwork } = await getGuardSettings(supabase);
       let trustLevel = 'view_only';
       let enrolledVia = 'self_view_only';
-      let approvedBy: string | null = null;
+      const approvedBy: string | null = null;
       let trustNote = 'Registered as a personal (view-only) device.';
 
-      if (office_code && String(office_code).trim()) {
-        const { data: issuedBy } = await supabase.rpc('consume_terminal_office_enrolment_code', {
+      if (invite_token && String(invite_token).trim()) {
+        const { data: invitedLevel, error: invErr } = await supabase.rpc('consume_terminal_biometric_invite', {
           p_user_id: userId,
-          p_code: String(office_code).trim(),
+          p_token: String(invite_token).trim(),
           p_credential_id: credential_id,
         });
-        if (!issuedBy) {
-          trustNote = 'Office enrolment code invalid or expired — registered as view-only.';
-        } else {
-          const { count: netCount } = await supabase
-            .from('terminal_trusted_networks')
-            .select('id', { count: 'exact', head: true })
-            .eq('is_active', true);
-          const onOffice = (netCount ?? 0) === 0 ? true : await isOfficeNetwork(supabase, ip);
-          if (requireOfficeNetwork && !onOffice) {
-            trustNote = 'Office code accepted but this network is not an approved office network — registered as view-only.';
-            enrolledVia = 'office_code_off_network';
-            approvedBy = issuedBy as string;
-          } else {
-            trustLevel = 'office';
-            enrolledVia = 'office_code';
-            approvedBy = issuedBy as string;
-            trustNote = 'Registered as an office device with full actions.';
-          }
+        if (invErr || !invitedLevel) {
+          return errorResponse('This registration link is invalid, expired, already used or not meant for your account. Ask your admin for a new one.', 403);
         }
+        trustLevel = invitedLevel === 'office' ? 'office' : 'view_only';
+        enrolledVia = 'email_invite';
+        trustNote = trustLevel === 'office'
+          ? 'Registered as an office device with full actions.'
+          : 'Registered as a personal (view-only) device.';
       }
 
       // Store the credential
@@ -565,34 +527,6 @@ Deno.serve(async (req) => {
         mode: bypassDecision.mode,
         mode_reason: bypassDecision.reason,
       });
-    }
-
-    // =================== ISSUE OFFICE ENROLMENT CODE (Super Admin only) ===================
-    if (path === 'issue_office_code') {
-      const { target_user_id } = body;
-      if (!target_user_id || !UUID_REGEX.test(target_user_id)) {
-        return errorResponse('Missing target_user_id', 400);
-      }
-
-      const { data: issuerRoles } = await supabase
-        .from('user_roles')
-        .select('roles:role_id(name)')
-        .eq('user_id', userId);
-      // deno-lint-ignore no-explicit-any
-      const issuerIsSuperAdmin = (issuerRoles || []).some(
-        (r: any) => normalizeRole(r.roles?.name) === 'superadmin',
-      );
-      if (!issuerIsSuperAdmin) {
-        return errorResponse('Only Super Admins can authorise an office device', 403);
-      }
-
-      const { data: code, error } = await supabase.rpc('issue_terminal_office_enrolment_code', {
-        p_user_id: target_user_id,
-        p_issued_by: userId,
-      });
-      if (error) throw error;
-
-      return jsonResponse({ success: true, code, expires_in_minutes: 10 });
     }
 
     return errorResponse('Unknown action', 404);

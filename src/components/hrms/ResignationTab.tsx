@@ -18,7 +18,6 @@ import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail, ExternalLink } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
-import { createFnFDraft } from "@/lib/fnfEngine";
 import { FnFSettlementDialog } from "@/components/hrms/FnFSettlementDialog";
 import { deactivateErpAccount, getErpAccountStatus } from "@/lib/erpAccountDeactivation";
 import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/lib/issueLetter";
@@ -63,8 +62,6 @@ export function ResignationTab() {
   const [showInitiateDialog, setShowInitiateDialog] = useState(false);
   const [showChecklistDialog, setShowChecklistDialog] = useState(false);
   const [showTemplateDialog, setShowTemplateDialog] = useState(false);
-  const [showAcknowledgement, setShowAcknowledgement] = useState(false);
-  const [acknowledgementData, setAcknowledgementData] = useState<any>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<ResignationEmployee | null>(null);
   const [formData, setFormData] = useState({
     employee_id: "",
@@ -992,82 +989,6 @@ export function ResignationTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Resignation Acknowledgement Dialog (B1) */}
-      <Dialog open={showAcknowledgement} onOpenChange={setShowAcknowledgement}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" /> Resignation Acknowledgement
-            </DialogTitle>
-          </DialogHeader>
-          {acknowledgementData && (
-            <div className="space-y-4">
-              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Employee</span>
-                  <span className="font-medium">{acknowledgementData.name}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Badge ID</span>
-                  <span className="font-medium">#{acknowledgementData.badge}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Resignation Date</span>
-                  <span className="font-medium">{acknowledgementData.resignationDate ? new Date(acknowledgementData.resignationDate).toLocaleDateString() : "—"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Last Working Day</span>
-                  <span className="font-medium">{acknowledgementData.lastWorkingDay ? new Date(acknowledgementData.lastWorkingDay).toLocaleDateString() : "—"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Reason</span>
-                  <span className="font-medium">{acknowledgementData.reason || "—"}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Checklist</span>
-                  <span className="font-medium">{acknowledgementData.checklistCompleted} completed</span>
-                </div>
-              </div>
-              {acknowledgementData.fnf && (
-                <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">F&F Settlement (Draft)</p>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Final Month Salary (RazorpayX)</span>
-                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.pending_salary || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Deposit Refund</span>
-                    <span className="font-medium text-success">+₹{Number(acknowledgementData.fnf.deposit_refund || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Loan Recovery</span>
-                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.loan_recovery || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Penalty Deductions</span>
-                    <span className="font-medium text-destructive">-₹{Number(acknowledgementData.fnf.penalty_deductions || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-semibold border-t pt-2 mt-1">
-                    <span>Net Payable</span>
-                    <span>₹{Number(acknowledgementData.fnf.net_payable || 0).toLocaleString("en-IN")}</span>
-                  </div>
-                </div>
-              )}
-
-              <div className="bg-success/10 dark:bg-success/30 border border-success/20 dark:border-success rounded-lg p-3">
-                <ul className="text-sm text-success dark:text-success space-y-1">
-                  <li className="flex items-start gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> Employee has been deactivated</li>
-                  <li className="flex items-start gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> F&amp;F Settlement draft created with calculated values</li>
-                  <li className="flex items-start gap-1.5"><CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5" /> Account deletion scheduled</li>
-                </ul>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAcknowledgement(false)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

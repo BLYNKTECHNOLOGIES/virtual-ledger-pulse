@@ -726,11 +726,13 @@ function ConversationRow({
           onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
           title={isPinned ? 'Unpin chat' : 'Pin chat'}
           aria-label={isPinned ? 'Unpin chat' : 'Pin chat'}
-          className={`shrink-0 mr-3 h-7 w-7 rounded-md flex items-center justify-center transition-all hover:bg-muted ${
-            isPinned ? 'text-primary opacity-100' : 'text-muted-foreground opacity-0 group-hover:opacity-100 focus:opacity-100'
+          className={`shrink-0 mr-2 h-9 w-9 rounded-md flex items-center justify-center touch-manipulation active:scale-90 transition-transform hover:bg-muted ${
+            isPinned
+              ? 'text-primary opacity-100'
+              : 'text-muted-foreground opacity-60 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 focus:opacity-100'
           }`}
         >
-          {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
+          <Pin className={`h-4 w-4 ${isPinned ? 'fill-current' : ''}`} />
         </button>
       </div>
     </div>

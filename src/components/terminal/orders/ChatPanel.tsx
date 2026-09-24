@@ -483,17 +483,30 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     return () => clearTimeout(t);
   }, [initialContentReady]);
 
-  // Auto-scroll on new current-order messages (only if user is at bottom)
+  // Auto-scroll only when a NEW message arrives (count grows) and the operator
+  // is already at the bottom. Polls/refetches that return the same messages as
+  // a new array must never yank the view back down.
+  const lastAutoCountRef = useRef(0);
   useEffect(() => {
     const container = scrollContainerRef.current;
-    if (initialPinRef.current && container) {
+    const count = currentOrderMessages.length;
+    const grew = count > lastAutoCountRef.current;
+    lastAutoCountRef.current = count;
+    if (!container) return;
+    if (initialPinRef.current) {
       container.scrollTop = container.scrollHeight;
       return;
     }
-    if (shouldAutoScrollRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (grew && shouldAutoScrollRef.current) {
+      container.scrollTop = container.scrollHeight;
     }
   }, [currentOrderMessages]);
+
+  // The moment the operator touches / wheels / drags the thread, hand control
+  // back to them: end the initial pin immediately.
+  const releasePin = useCallback(() => {
+    initialPinRef.current = false;
+  }, []);
 
   // Late-loading images grow the content above; stay at the bottom when the
   // operator was already there (or while the initial pin is active).
@@ -687,7 +700,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
 
       {/* Messages area */}
-      <div ref={scrollContainerRef} onScroll={handleScroll} onLoadCapture={handleContentLoad} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
+      <div ref={scrollContainerRef} onScroll={handleScroll} onLoadCapture={handleContentLoad} onTouchStart={releasePin} onWheel={releasePin} onPointerDown={releasePin} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-4 py-3">
           {/* Lazy history control — sits at the very top, so scrolling up loads more */}
           {historyDiscovering && (
             <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-muted-foreground">

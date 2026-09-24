@@ -1,5 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { deriveEmployeeStatus, useEmployeeStatusContext } from "@/lib/hrms/employeeStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
 import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
@@ -283,6 +284,9 @@ export default function EmployeeProfilePage() {
     },
     enabled: !!id,
   });
+
+  const { data: statusCtx } = useEmployeeStatusContext();
+  const derivedStatus = emp ? deriveEmployeeStatus(emp as any, { ...(statusCtx || {}), shiftId: (workInfo as any)?.shift_id }) : null;
 
   const { data: bankInfo } = useQuery({
     queryKey: ["hr_employee_bank", id],
@@ -1019,8 +1023,8 @@ export default function EmployeeProfilePage() {
                     <div className="py-2">
                       <p className="text-xs text-muted-foreground">Status</p>
                        <div className="mt-1 flex items-center gap-2 flex-wrap">
-                         <span className={`text-xs font-medium px-3 py-1 rounded-full ${emp.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"}`}>
-                           {emp.is_active ? "Active" : "Inactive"}
+                         <span className={`text-xs font-medium px-3 py-1 rounded-full ${derivedStatus?.className}`}>
+                           {derivedStatus?.fullLabel}
                          </span>
                          {emp.is_active && !emp.resignation_status && (
                            <button
@@ -1760,7 +1764,7 @@ export default function EmployeeProfilePage() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Status</p>
-                  <p className={`font-medium ${emp.is_active ? "text-success" : "text-destructive"}`}>{emp.is_active ? "Active" : "Inactive"}</p>
+                  <p className="font-medium text-foreground">{derivedStatus?.fullLabel}</p>
                 </div>
               </div>
             </div>

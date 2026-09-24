@@ -82,6 +82,7 @@ const ALL_TABLE_COLS = [
   { key: "shift", label: "Shift", sortable: true },
   { key: "work_type", label: "Work Type", sortable: true },
   { key: "type", label: "Employee Type", sortable: true },
+  { key: "status", label: "Status", sortable: false },
   { key: "actions", label: "Actions", sortable: false, alwaysVisible: true },
 ];
 
@@ -958,6 +959,13 @@ export default function EmployeeListPage() {
                     {isColVisible("type") && (
                       <td className="py-3 px-3">
                         {wi?.employee_type ? <span className="bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{employeeTypeLabel(wi.employee_type)}</span> : <span className="text-muted-foreground text-xs">None</span>}
+                      </td>
+                    )}
+                    {isColVisible("status") && (
+                      <td className="py-3 px-3 whitespace-nowrap">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${getStatus(emp).className}`}>
+                          {getStatus(emp).fullLabel}
+                        </span>
                       </td>
                     )}
 

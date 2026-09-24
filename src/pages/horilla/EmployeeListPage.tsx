@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { deriveEmployeeStatus, useEmployeeStatusContext, EMPLOYEE_STATUS_OPTIONS } from "@/lib/hrms/employeeStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
@@ -87,6 +88,7 @@ const ALL_TABLE_COLS = [
 // ─── Filter field options ───
 const FILTER_FIELDS = [
   { key: "is_active", label: "Is active", type: "select", options: [{ value: "true", label: "True" }, { value: "false", label: "False" }] },
+  { key: "status", label: "Status", type: "select", options: EMPLOYEE_STATUS_OPTIONS },
   { key: "department", label: "Department", type: "dynamic" },
   { key: "position", label: "Job Position", type: "dynamic" },
   { key: "shift", label: "Shift", type: "dynamic" },
@@ -195,6 +197,11 @@ export default function EmployeeListPage() {
   const getWorkInfo = useCallback((empId: string) => workInfos?.find((w) => w.employee_id === empId), [workInfos]);
   const getDeptName = useCallback((deptId: string | null) => departments?.find((d) => d.id === deptId)?.name || "None", [departments]);
   const getPositionTitle = useCallback((posId: string | null) => positions?.find((p) => p.id === posId)?.title || "None", [positions]);
+  const { data: statusCtx } = useEmployeeStatusContext();
+  const getStatus = useCallback(
+    (emp: any) => deriveEmployeeStatus(emp, { ...(statusCtx || {}), shiftId: workInfos?.find((w) => w.employee_id === emp.id)?.shift_id }),
+    [statusCtx, workInfos],
+  );
   const getShiftName = useCallback((shiftId: string | null) => shifts?.find((s) => s.id === shiftId)?.name || "None", [shifts]);
 
   // ─── Delete ───
@@ -277,6 +284,9 @@ export default function EmployeeListPage() {
             if (filter.value === "true" && !e.is_active) return false;
             if (filter.value === "false" && e.is_active) return false;
             break;
+          case "status":
+            if (getStatus(e).key !== filter.value) return false;
+            break;
           case "department":
             if (wi?.department_id !== filter.value) return false;
             break;
@@ -299,7 +309,7 @@ export default function EmployeeListPage() {
       }
       return true;
     });
-  }, [employees, workInfos, searchTerm, activeFilters, getWorkInfo]);
+  }, [employees, workInfos, searchTerm, activeFilters, getWorkInfo, getStatus]);
 
   // ─── Sorting ───
   const sorted = useMemo(() => {
@@ -408,7 +418,7 @@ export default function EmployeeListPage() {
         "Employee Type": employeeTypeLabel(wi?.employee_type),
         "Date of Joining": (wi as any)?.joining_date || (wi as any)?.date_joining || "",
         "Monthly CTC": monthlyCtc(emp),
-        "Status": emp.is_active ? "Active" : "Inactive",
+        "Status": getStatus(emp).fullLabel,
       };
     });
   };
@@ -1014,10 +1024,8 @@ export default function EmployeeListPage() {
                     />
                   </div>
                   <div className="absolute top-2 right-2">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                      emp.is_active ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
-                    }`}>
-                      {emp.is_active ? "Active" : "Inactive"}
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${getStatus(emp).className}`}>
+                      {getStatus(emp).fullLabel}
                     </span>
                   </div>
                   <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
@@ -1159,7 +1167,7 @@ export default function EmployeeListPage() {
       "Date of Joining": (wi as any)?.joining_date || "",
       "Monthly CTC": monthlyCtc(emp),
 
-      "Status": emp.is_active ? "Active" : "Inactive",
+      "Status": getStatus(emp).fullLabel,
     }];
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();

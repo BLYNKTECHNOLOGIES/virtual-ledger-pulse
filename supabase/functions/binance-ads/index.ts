@@ -2338,7 +2338,29 @@ serve(async (req) => {
         }
 
         const sendStartedAt = Date.now();
+        // Fast path: the always-on listener stores Binance's own echo of our
+        // message within ~1–2s. Checking our stored copy is a cheap DB read and
+        // is still Binance-originated evidence (it is the frame Binance pushed).
+        const verifyViaStore = async (maxMs: number) => {
+          if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) return false;
+          const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+          const deadline = Date.now() + maxMs;
+          while (Date.now() < deadline) {
+            const { data } = await sb
+              .from("binance_order_chat_messages")
+              .select("id")
+              .eq("order_number", orderNo)
+              .eq("sender_is_self", true)
+              .gte("binance_create_time", sendStartedAt - 5000)
+              .or(`message_text.eq.${JSON.stringify(msgContent)},image_url.eq.${JSON.stringify(msgContent)}`)
+              .limit(1);
+            if (data && data.length > 0) return true;
+            await new Promise((r) => setTimeout(r, 400));
+          }
+          return false;
+        };
         const verifyDelivery = async () => {
+          if (await verifyViaStore(3500)) return true;
           const verifyParams = new URLSearchParams({ orderNo, page: "1", rows: "50", sort: "desc" });
           const verifyUrl = `${BINANCE_PROXY_URL}/api/sapi/v1/c2c/chat/retrieveChatMessagesWithPagination?${verifyParams.toString()}`;
           for (let attempt = 0; attempt < 3; attempt++) {

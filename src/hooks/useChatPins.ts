@@ -25,7 +25,15 @@ export function useChatPins() {
 
   const togglePin = useCallback(
     async (key: string) => {
-      const isPinned = pinned.has(key);
+      const prev = queryClient.getQueryData<Set<string>>(['terminal-chat-pins']) ?? pinned;
+      const isPinned = prev.has(key);
+
+      // Optimistic: the row re-sorts immediately; the write happens behind it.
+      const next = new Set(prev);
+      if (isPinned) next.delete(key);
+      else next.add(key);
+      queryClient.setQueryData(['terminal-chat-pins'], next);
+
       try {
         if (isPinned) {
           const { error } = await supabase
@@ -34,17 +42,20 @@ export function useChatPins() {
             .eq('order_number', key);
           if (error) throw error;
         } else {
-          const { data: auth } = await supabase.auth.getUser();
-          const userId = auth?.user?.id;
+          // Session from the local cache — avoids a network round-trip before the write.
+          const { data: sess } = await supabase.auth.getSession();
+          const userId = sess?.session?.user?.id;
           if (!userId) throw new Error('Not signed in');
           const { error } = await supabase
             .from('terminal_chat_pins' as any)
             .insert({ order_number: key, user_id: userId } as any);
           if (error) throw error;
         }
-        await queryClient.invalidateQueries({ queryKey: ['terminal-chat-pins'] });
       } catch (err: any) {
+        // Roll back to the server truth on failure.
+        queryClient.setQueryData(['terminal-chat-pins'], prev);
         toast.error(err?.message || 'Could not update pin');
+        queryClient.invalidateQueries({ queryKey: ['terminal-chat-pins'] });
       }
     },
     [pinned, queryClient]

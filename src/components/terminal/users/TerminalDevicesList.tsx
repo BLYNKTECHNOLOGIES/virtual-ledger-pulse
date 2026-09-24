@@ -69,8 +69,63 @@ export function TerminalDevicesList() {
   });
 
 
+  const invites = useQuery({
+    queryKey: ['terminal-biometric-invites'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_terminal_biometric_invites');
+      if (error) throw error;
+      return (data || []).filter(
+        (i) => !i.consumed_at && !i.revoked_at && new Date(i.expires_at) > new Date(),
+      );
+    },
+  });
+
+  const cancelInvite = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.functions.invoke('terminal-biometric-invite', {
+        body: { action: 'revoke', invite_id: id },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success('Registration link cancelled');
+      qc.invalidateQueries({ queryKey: ['terminal-biometric-invites'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   return (
     <div className="space-y-4">
+      <Card className="border-border bg-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Pending registration links</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(invites.data || []).length === 0 ? (
+            <p className="py-3 text-center text-xs text-muted-foreground">
+              No pending links. Send one from the Users tab (Invite).
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(invites.data || []).map((i) => (
+                <div key={i.id} className="flex items-center justify-between rounded-md border border-border p-2 text-xs">
+                  <div className="space-y-0.5">
+                    <div className="font-medium text-foreground">{i.user_name || '—'}</div>
+                    <div className="text-muted-foreground">
+                      {i.trust_level === 'office' ? 'Office (full)' : 'Personal (view only)'} · {i.sent_to_email || 'not emailed'} · expires{' '}
+                      {new Date(i.expires_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
+                    disabled={cancelInvite.isPending} onClick={() => cancelInvite.mutate(i.id)}>
+                    Cancel
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-border bg-card">
         <CardHeader className="pb-3">

@@ -60,7 +60,7 @@ export async function registerBiometric(
   userId: string,
   username: string,
   deviceName?: string,
-  officeCode?: string,
+  inviteToken?: string,
 ) {
   // 1. Get challenge from server
   const challengeData = await callWebAuthn('challenge', {
@@ -106,7 +106,7 @@ export async function registerBiometric(
     public_key: bufferToBase64url(response.getPublicKey?.() || response.attestationObject),
     challenge: challengeData.challenge,
     device_name: deviceName || getDeviceName(),
-    office_code: officeCode?.trim() || undefined,
+    invite_token: inviteToken?.trim() || undefined,
   });
 
   return result as { success: boolean; credential_id: string; trust_level: 'office' | 'view_only'; trust_note?: string };

@@ -21,13 +21,14 @@ import {
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
-import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2, Fingerprint, Ruler } from "lucide-react";
+import { Search, UserPlus, Trash2, RefreshCw, Shield, Settings2, Fingerprint, Ruler, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { filterOutDeletedUsers } from "@/lib/deletedUser";
 import { toast } from "sonner";
 import { useTerminalAuth } from "@/hooks/useTerminalAuth";
 import { UserConfigDialog } from "./UserConfigDialog";
 import { BiometricManagementDialog } from "./BiometricManagementDialog";
+import { SendBiometricInviteDialog } from "./SendBiometricInviteDialog";
 
 interface TerminalRole {
   id: string;
@@ -80,6 +81,7 @@ export function TerminalUsersList() {
   const [configUsername, setConfigUsername] = useState("");
   const [configDisplayName, setConfigDisplayName] = useState("");
   const [bioUserId, setBioUserId] = useState<string | null>(null);
+  const [invite, setInvite] = useState<{ id: string; name: string } | null>(null);
   const [bioUsername, setBioUsername] = useState("");
   const [bioDisplayName, setBioDisplayName] = useState("");
 
@@ -480,6 +482,15 @@ export function TerminalUsersList() {
                             variant="ghost"
                             size="sm"
                             className="h-7 text-xs"
+                            title="Send biometric registration link"
+                            onClick={() => setInvite({ id: a.userId, name: displayName(a.firstName, a.lastName, a.username) })}
+                          >
+                            <Mail className="h-3 w-3 mr-1" /> Invite
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs"
                             onClick={() => {
                               setConfigUserId(a.userId);
                               setConfigUsername(a.username);
@@ -519,6 +530,15 @@ export function TerminalUsersList() {
           username={configUsername}
           displayName={configDisplayName}
           onSaved={fetchData}
+        />
+      )}
+
+      {invite && (
+        <SendBiometricInviteDialog
+          open={!!invite}
+          onOpenChange={(o) => { if (!o) setInvite(null); }}
+          userId={invite.id}
+          displayName={invite.name}
         />
       )}
 

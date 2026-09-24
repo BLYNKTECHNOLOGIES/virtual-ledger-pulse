@@ -72,6 +72,7 @@ const TerminalSettings = lazy(() => import('./pages/terminal/TerminalSettings'))
 const TerminalAssets = lazy(() => import('./pages/terminal/TerminalAssets'));
 const TerminalLogs = lazy(() => import('./pages/terminal/TerminalLogs'));
 const TerminalShortcuts = lazy(() => import('./pages/terminal/TerminalShortcuts'));
+const TerminalRegisterDevice = lazy(() => import('./pages/terminal/TerminalRegisterDevice'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const HorillaDashboard = lazy(() => import('./pages/horilla/HorillaDashboard'));
 const HRPoliciesPage = lazy(() => import('./pages/horilla/HRPoliciesPage'));
@@ -557,6 +558,16 @@ const router = createBrowserRouter([
       ),
     },
     // P2P Trading Terminal routes
+    {
+      path: "/terminal/register-device",
+      element: (
+        <QueryProvider>
+            <AuthCheck>
+              <TerminalRegisterDevice />
+            </AuthCheck>
+        </QueryProvider>
+      ),
+    },
     {
       path: "/terminal",
       element: (

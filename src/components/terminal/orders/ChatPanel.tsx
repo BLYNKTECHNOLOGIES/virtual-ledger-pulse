@@ -139,6 +139,18 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
 
   const { messages: wsMessages, sendMessage: wsSendMessage, sendImageMessage: wsSendImage, sendAdCardMessage: wsSendAdCard, retryMessage, clearQueuedMessage, queuedMessages } = useBinanceChatWebSocket(orderNumber, exchangeAccountId, handleDelivered);
   const { data: archivedMessages = [], isLoading: archivedLoading } = useArchivedBinanceChatMessages(orderNumber, exchangeAccountId);
+  // While a reply is in flight, re-read the stored transcript every second. The
+  // always-on listener stores our own echo within ~1–2s of Binance accepting it,
+  // so the bubble flips to delivered immediately instead of waiting for the
+  // slower server-side confirmation round-trip.
+  const hasInFlight = queuedMessages.some((q) => q.orderNo === orderNumber && (q.status === 'sending' || q.status === 'sent'));
+  useEffect(() => {
+    if (!hasInFlight) return;
+    const id = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ['archived-binance-chat-messages', orderNumber, exchangeAccountId ?? null] });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [hasInFlight, orderNumber, exchangeAccountId, queryClient]);
   const {
     historicalChats,
     isLoading: historyLoading,

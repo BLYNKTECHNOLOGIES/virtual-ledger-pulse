@@ -276,109 +276,11 @@ export function ResignationTab() {
   });
 
 
-  // Complete resignation — deactivate employee, auto-create F&F with calculated values, show acknowledgement
-  const completeResignation = useMutation({
-    mutationFn: async (employeeId: string) => {
-      const { data: empData } = await supabase
-        .from("hr_employees")
-        .select("first_name, last_name, badge_id, notice_period_end_date, last_working_day, resignation_date, separation_reason, total_salary")
-        .eq("id", employeeId)
-        .single();
-
-      const deletionDate = empData?.notice_period_end_date || empData?.last_working_day || new Date().toISOString().split('T')[0];
-
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-      const { error } = await (supabase as any)
-        .from("hr_employees")
-        .update({ 
-          resignation_status: "completed",
-          is_active: false,
-          account_deletion_date: deletionDate,
-          deletion_approved_by: currentUser?.id || null,
-        })
-        .eq("id", employeeId);
-      if (error) throw error;
-
-      // F&F settlement — always produced by the single F&F engine (RazorpayX-sourced
-      // final salary, no leave encashment / gratuity). No-op if one already exists.
-      let fnfSummary: any = null;
-      try {
-        const { id } = await createFnFDraft(employeeId, (empData?.last_working_day as string | undefined) || null);
-        const { data: fnfRow } = await (supabase as any)
-          .from("hr_fnf_settlements")
-          .select("pending_salary, loan_recovery, deposit_refund, penalty_deductions, net_payable")
-          .eq("id", id)
-          .maybeSingle();
-        fnfSummary = fnfRow || null;
-      } catch (e) {
-        console.warn("F&F auto-creation failed (non-fatal):", e);
-      }
-
-      // ERP login deactivation — the ERP ID must not survive the separation.
-      await deactivateErpAccount(employeeId);
-
-      // Razorpay dismissal — the Date of Dismissal is ALWAYS the employee's last
-      // working day. Only when no LWD is recorded do we fall back to the notice
-      // period end. Non-fatal: local separation is already committed.
-      const dismissalDate =
-        (empData?.last_working_day as string | undefined) ||
-        (empData?.notice_period_end_date as string | undefined) ||
-        null;
-      let dismissal: { ok: boolean; skipped?: boolean; manualRequired?: boolean; error?: string } | null = null;
-      if (!dismissalDate) {
-        dismissal = { ok: false, error: "No last working day on record — set it, then dismiss in RazorpayX." };
-      } else {
-        try {
-          dismissal = await dismissInRazorpay(employeeId, {
-            dateOfDismissal: dismissalDate,
-            reason: (empData?.separation_reason as string | undefined) || "Resignation",
-            triggeredFrom: "separation_flow",
-          });
-        } catch (e: any) {
-          dismissal = { ok: false, error: e?.message || "RazorpayX dismissal failed" };
-        }
-      }
-
-
-      // eSSL: remove the user from every biometric device so they can no longer
-      // punch attendance. Non-fatal: local separation is committed either way.
-      await deleteFromEssl(employeeId, { triggeredFrom: "resignation", silent: true });
-
-
-      return { ...empData, fnf: fnfSummary, dismissal, dismissalDate };
-
-    },
-    onSuccess: (empData: any) => {
-      toast.success("Resignation completed — employee deactivated");
-      const d = empData?.dismissal;
-      if (d && !d.ok && !d.skipped) {
-        toast.warning(d.error || "RazorpayX dismissal needs manual action.");
-      } else if (d?.ok && empData?.dismissalDate) {
-        toast.success(`Dismissed in RazorpayX with LWD ${new Date(empData.dismissalDate).toLocaleDateString()}`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
-      queryClient.invalidateQueries({ queryKey: ["active-employees-for-resignation"] });
-      setShowChecklistDialog(false);
-      setSelectedEmployee(null);
-
-      // Show acknowledgement summary (B1)
-      if (empData) {
-        setAcknowledgementData({
-          name: `${empData.first_name} ${empData.last_name}`,
-          badge: empData.badge_id,
-          resignationDate: empData.resignation_date,
-          lastWorkingDay: empData.last_working_day,
-          reason: empData.separation_reason,
-          checklistCompleted: `${completedCount}/${totalCount}`,
-          fnf: empData.fnf,
-        });
-        setShowAcknowledgement(true);
-      }
-    },
-    onError: (err: any) => toast.error(err.message),
-  });
+  // NOTE: there is deliberately no "complete resignation" shortcut here.
+  // Deactivating an employee dismisses them in RazorpayX, which closes their
+  // payroll record — so an employee stays ACTIVE until their F&F is marked paid.
+  // The only completion paths are finaliseSeparationNow (below), the payroll
+  // cockpit mark-paid step, and the nightly sweep (which holds unpaid F&F).
 
   // Withdraw resignation
   const withdrawResignation = useMutation({
@@ -1180,7 +1082,6 @@ export function ResignationTab() {
               if (type === 'approve') approveResignation.mutate(id);
               else if (type === 'reject') rejectResignation.mutate(id);
               else if (type === 'withdraw') withdrawResignation.mutate(id);
-              else if (type === 'complete') completeResignation.mutate(id);
               else if (type === 'finalise') finaliseSeparationNow.mutate(id);
               setConfirmAction(null);
             }}>Confirm</AlertDialogAction>

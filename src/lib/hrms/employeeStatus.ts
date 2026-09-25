@@ -41,19 +41,21 @@ export const EMPLOYEE_STATUS_OPTIONS = (Object.keys(LABEL) as EmployeeStatusKey[
 
 export function deriveEmployeeStatus(
   emp: { id: string; is_active?: boolean | null; resignation_status?: string | null; probation_end_date?: string | null },
-  ctx: { fnfByEmployee?: Map<string, string>; trainingShiftIds?: Set<string>; shiftId?: string | null },
+  ctx: { fnfByEmployee?: Map<string, string>; trainingShiftIds?: Set<string>; shiftId?: string | null; probationByEmployee?: Map<string, string | null> },
 ): DerivedEmployeeStatus {
   const today = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10); // IST
   let key: EmployeeStatusKey = "active";
   let fnf: "pending" | "completed" | undefined;
   const rs = String(emp.resignation_status || "").toLowerCase();
+  // hr_employees has no probation_end_date column — it comes from hr_probation_status_v via ctx.
+  const probationEnd = ctx.probationByEmployee?.get(emp.id) ?? emp.probation_end_date ?? null;
 
   if (emp.is_active === false) {
     key = "inactive";
     if (rs) fnf = ctx.fnfByEmployee?.get(emp.id) === "paid" ? "completed" : "pending";
   } else if (rs === "notice_period") key = "on_notice";
   else if (ctx.shiftId && ctx.trainingShiftIds?.has(ctx.shiftId)) key = "on_training";
-  else if (emp.probation_end_date && emp.probation_end_date >= today) key = "on_probation";
+  else if (probationEnd && probationEnd >= today) key = "on_probation";
 
   const label = LABEL[key];
   return {

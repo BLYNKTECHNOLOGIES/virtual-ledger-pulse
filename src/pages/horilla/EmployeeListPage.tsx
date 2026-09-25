@@ -199,9 +199,14 @@ export default function EmployeeListPage() {
   const getDeptName = useCallback((deptId: string | null) => departments?.find((d) => d.id === deptId)?.name || "None", [departments]);
   const getPositionTitle = useCallback((posId: string | null) => positions?.find((p) => p.id === posId)?.title || "None", [positions]);
   const { data: statusCtx } = useEmployeeStatusContext();
+  const probation = useProbationStatus();
+  const probationByEmployee = useMemo(
+    () => new Map<string, string | null>(probation.rows.map((r) => [r.employee_id, r.probation_end_date])),
+    [probation.rows],
+  );
   const getStatus = useCallback(
-    (emp: any) => deriveEmployeeStatus(emp, { ...(statusCtx || {}), shiftId: workInfos?.find((w) => w.employee_id === emp.id)?.shift_id }),
-    [statusCtx, workInfos],
+    (emp: any) => deriveEmployeeStatus(emp, { ...(statusCtx || {}), probationByEmployee, shiftId: workInfos?.find((w) => w.employee_id === emp.id)?.shift_id }),
+    [statusCtx, probationByEmployee, workInfos],
   );
   const getShiftName = useCallback((shiftId: string | null) => shifts?.find((s) => s.id === shiftId)?.name || "None", [shifts]);
 

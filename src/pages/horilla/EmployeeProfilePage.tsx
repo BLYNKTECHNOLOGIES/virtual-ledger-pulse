@@ -286,7 +286,12 @@ export default function EmployeeProfilePage() {
   });
 
   const { data: statusCtx } = useEmployeeStatusContext();
-  const derivedStatus = emp ? deriveEmployeeStatus(emp as any, { ...(statusCtx || {}), shiftId: (workInfo as any)?.shift_id }) : null;
+  const probation = useProbationStatus();
+  const probationByEmployee = useMemo(
+    () => new Map<string, string | null>(probation.rows.map((r) => [r.employee_id, r.probation_end_date])),
+    [probation.rows],
+  );
+  const derivedStatus = emp ? deriveEmployeeStatus(emp as any, { ...(statusCtx || {}), probationByEmployee, shiftId: (workInfo as any)?.shift_id }) : null;
 
   const { data: bankInfo } = useQuery({
     queryKey: ["hr_employee_bank", id],

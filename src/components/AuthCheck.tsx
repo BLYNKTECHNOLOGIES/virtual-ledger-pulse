@@ -48,11 +48,15 @@ export function AuthCheck({ children }: AuthCheckProps) {
         } catch { /* invalid session */ }
       }
       
-      navigate('/');
+      if (location.pathname === '/terminal/register-device') {
+        navigate(`/?next=${encodeURIComponent(location.pathname + location.search)}`);
+      } else {
+        navigate('/');
+      }
     };
 
     checkAuth();
-  }, [isLoading, navigate, user]);
+  }, [isLoading, navigate, user, location.pathname, location.search]);
 
   if (isLoading || isAuthenticated === null || standbyBlocked) {
     return (

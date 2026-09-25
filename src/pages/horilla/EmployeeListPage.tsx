@@ -3,6 +3,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deriveEmployeeStatus, useEmployeeStatusContext, EMPLOYEE_STATUS_OPTIONS } from "@/lib/hrms/employeeStatus";
+import { useProbationStatus } from "@/hooks/useProbationStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {

@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deriveEmployeeStatus, useEmployeeStatusContext } from "@/lib/hrms/employeeStatus";
+import { useProbationStatus } from "@/hooks/useProbationStatus";
 import { supabase } from "@/integrations/supabase/client";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
 import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";

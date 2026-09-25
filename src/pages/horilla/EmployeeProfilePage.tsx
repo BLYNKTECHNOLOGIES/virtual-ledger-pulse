@@ -16,6 +16,7 @@ import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
 import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
 import { CompensationHistory } from "@/components/hrms/CompensationHistory";
+import { TrainingCompletionCtcDialog } from "@/components/hrms/TrainingCompletionCtcDialog";
 import { RazorpayPayslipsSection } from "@/components/hrms/RazorpayPayslipsSection";
 import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
@@ -261,6 +262,7 @@ export default function EmployeeProfilePage() {
   const [workInfoForm, setWorkInfoForm] = useState<any>({});
   const [noteText, setNoteText] = useState("");
   const [showReviseSalary, setShowReviseSalary] = useState(false);
+  const [showTrainingCtc, setShowTrainingCtc] = useState(false);
 
   // ─── Core employee data ───
   const { data: emp } = useQuery({
@@ -1702,11 +1704,23 @@ export default function EmployeeProfilePage() {
           <div className="space-y-4">
             {/* Salary revision for this employee only — same dialog as the
                 Salary Revision page, with the employee fixed. */}
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => setShowTrainingCtc(true)}>
+                Training Completion CTC
+              </Button>
               <Button size="sm" onClick={() => setShowReviseSalary(true)}>
                 Salary Revision
               </Button>
             </div>
+            {emp && (
+              <TrainingCompletionCtcDialog
+                open={showTrainingCtc}
+                onOpenChange={setShowTrainingCtc}
+                employeeId={emp.id}
+                currentCtc={(emp as any).total_salary}
+                dateOfJoining={(emp as any).date_of_joining}
+              />
+            )}
 
             {/* Salary Summary Card */}
             <SalarySummaryCard totalSalary={emp?.total_salary} />

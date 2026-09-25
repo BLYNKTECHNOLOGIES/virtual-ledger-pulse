@@ -105,9 +105,9 @@ ${body.note ? `<p><i>Note from admin:</i> ${esc(body.note)}</p>` : ''}`;
     if (!mailRes.ok) {
       const t = await mailRes.text();
       console.error('mail failed', mailRes.status, t);
-      return json({ error: 'Invite created but the email could not be sent. Try Resend.', invite_id: row.invite_id }, 502);
+      return json({ success: true, email_failed: true, invite_id: row.invite_id, link, sent_to: email, expires_at: row.expires_at });
     }
-    return json({ success: true, invite_id: row.invite_id, sent_to: email, expires_at: row.expires_at });
+    return json({ success: true, invite_id: row.invite_id, sent_to: email, link, expires_at: row.expires_at });
   } catch (e) {
     console.error(e);
     return json({ error: (e as Error).message }, 500);

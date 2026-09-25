@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Building2, Eye, Loader2, Mail } from 'lucide-react';
+import { Building2, Copy, Eye, Loader2, Mail } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -23,6 +24,7 @@ export function SendBiometricInviteDialog({ open, onOpenChange, userId, displayN
   const [level, setLevel] = useState<'office' | 'view_only'>('view_only');
   const [note, setNote] = useState('');
   const [sending, setSending] = useState(false);
+  const [link, setLink] = useState<string | null>(null);
 
   const send = async () => {
     setSending(true);
@@ -38,9 +40,11 @@ export function SendBiometricInviteDialog({ open, onOpenChange, userId, displayN
         }
         throw new Error(typeof detail === 'string' ? detail : error?.message || 'Could not send the link');
       }
-      toast.success(`Registration link sent to ${(data as { sent_to: string }).sent_to}`);
+      const d = data as { sent_to: string; link?: string; email_failed?: boolean };
+      if (d.email_failed) toast.warning('Email could not be sent — copy the link below instead');
+      else toast.success(`Registration link sent to ${d.sent_to}`);
       qc.invalidateQueries({ queryKey: ['terminal-biometric-invites'] });
-      onOpenChange(false);
+      setLink(d.link ?? null);
       setNote('');
     } catch (e) {
       toast.error((e as Error).message);
@@ -50,7 +54,7 @@ export function SendBiometricInviteDialog({ open, onOpenChange, userId, displayN
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) setLink(null); onOpenChange(o); }}>
       <DialogContent className="sm:max-w-md bg-popover border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -83,10 +87,23 @@ export function SendBiometricInviteDialog({ open, onOpenChange, userId, displayN
           <Textarea id="invite-note" value={note} maxLength={300} onChange={(e) => setNote(e.target.value)} className="text-foreground" />
         </div>
 
+        {link && (
+          <div className="space-y-1 rounded-md border border-primary/40 bg-primary/5 p-3">
+            <Label>Copyable link — paste it on the device to register</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={link} className="text-xs text-foreground" onFocus={(e) => e.currentTarget.select()} />
+              <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(link); toast.success('Link copied'); }}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">Works once, for 24 hours. The employee must sign in with their own ERP account on that device. Don't share it with anyone else.</p>
+          </div>
+        )}
+
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => { setLink(null); onOpenChange(false); }}>{link ? 'Done' : 'Cancel'}</Button>
           <Button onClick={send} disabled={sending} className="gap-2">
-            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send link
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} {link ? 'Send new link' : 'Send link'}
           </Button>
         </DialogFooter>
       </DialogContent>

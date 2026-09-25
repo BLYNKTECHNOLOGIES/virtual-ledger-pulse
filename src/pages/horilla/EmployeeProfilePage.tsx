@@ -16,6 +16,7 @@ import { TagsAndSkillsTab } from "@/components/hrms/TagsAndSkillsTab";
 import { EmployeeSalaryStructure } from "@/components/hrms/EmployeeSalaryStructure";
 import { ReviseSalaryDialog } from "@/components/hrms/ReviseSalaryDialog";
 import { CompensationHistory } from "@/components/hrms/CompensationHistory";
+import { TrainingCompletionCtcDialog } from "@/components/hrms/TrainingCompletionCtcDialog";
 import { RazorpayPayslipsSection } from "@/components/hrms/RazorpayPayslipsSection";
 import { Button } from "@/components/ui/button";
 import NotificationPreferences from "@/components/hrms/NotificationPreferences";
@@ -261,6 +262,7 @@ export default function EmployeeProfilePage() {
   const [workInfoForm, setWorkInfoForm] = useState<any>({});
   const [noteText, setNoteText] = useState("");
   const [showReviseSalary, setShowReviseSalary] = useState(false);
+  const [showTrainingCtc, setShowTrainingCtc] = useState(false);
 
   // ─── Core employee data ───
   const { data: emp } = useQuery({

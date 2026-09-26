@@ -47,25 +47,36 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const [result, setResult] = useState<CachedEntry | null>(null);
   const [ready, setReady] = useState(false); // subtle dot when a prefetch is available
   const cache = useRef<Map<string, CachedEntry>>(new Map());
+  const latestKey = useRef(cacheKey);
+  latestKey.current = cacheKey;
+  const inFlight = useRef<Map<string, Promise<CachedEntry | null>>>(new Map());
 
   // Suggestions should not wait for the audit-log round trip before appearing.
-  const fetchAndCache = useCallback(async (): Promise<CachedEntry | null> => {
+  const fetchAndCache = useCallback((force = false): Promise<CachedEntry | null> => {
+    if (!force) {
+      const pending = inFlight.current.get(cacheKey);
+      if (pending) return pending;
+    }
     const input = buildInput();
-    const res = await fetchCopilotSuggestions(input);
-    if (!res.suggestions.length) return null;
-    const entry: CachedEntry = { ...res, logIds: [] };
-    cache.current.set(cacheKey, entry);
-    void logSuggestionsShown({
-      orderNumber: input.order?.number,
-      exchangeAccountId: input.exchangeAccountId,
-      operatorId: userId,
-      situation: res.situation,
-      suggestions: res.suggestions,
-      exemplarIds: res.exemplarIds,
-    }).then((logIds) => {
-      entry.logIds = logIds;
-    });
-    return entry;
+    const requestedKey = cacheKey;
+    const request = (async () => {
+      const res = await fetchCopilotSuggestions(input);
+      if (!res.suggestions.length) return null;
+      const entry: CachedEntry = { ...res, logIds: [] };
+      cache.current.set(requestedKey, entry);
+      void logSuggestionsShown({
+        orderNumber: input.order?.number,
+        exchangeAccountId: input.exchangeAccountId,
+        operatorId: userId,
+        situation: res.situation,
+        suggestions: res.suggestions,
+        exemplarIds: res.exemplarIds,
+      }).then((logIds) => { entry.logIds = logIds; });
+      return entry;
+    })();
+    inFlight.current.set(requestedKey, request);
+    void request.finally(() => { if (inFlight.current.get(requestedKey) === request) inFlight.current.delete(requestedKey); }).catch(() => {});
+    return request;
   }, [buildInput, cacheKey, userId]);
 
   const run = useCallback(async (force = false) => {
@@ -79,11 +90,13 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
     setOpen(true);
     setLoading(true);
     try {
-      const entry = await fetchAndCache();
+      const entry = await fetchAndCache(force);
+      if (latestKey.current !== cacheKey) return;
       if (!entry) { setFailed(true); setOpen(false); return; }
       setResult(entry);
       setReady(false);
     } catch (error) {
+      if (latestKey.current !== cacheKey) return;
       setFailed(true);
       setResult(null);
       console.warn('Copilot suggestion failed:', error);
@@ -102,7 +115,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       if (cache.current.has(cacheKey)) { setReady(true); return; }
       try {
         const entry = await fetchAndCache();
-        if (entry) setReady(true);
+        if (entry && latestKey.current === cacheKey) setReady(true);
       } catch (error) { console.warn('Copilot prefetch failed:', error); }
     }, 1500);
     return () => clearTimeout(t);

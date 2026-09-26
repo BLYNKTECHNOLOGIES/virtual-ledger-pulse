@@ -620,6 +620,11 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;
+  const copilotTranscriptKey = useMemo(() => currentOrderMessages
+    .filter((m) => m.senderType !== 'system' && m.text)
+    .slice(-40)
+    .map((m) => `${m.id}:${m.text}`)
+    .join('|'), [currentOrderMessages]);
 
   // Teach controls (trainers only): pin a golden reply / blacklist a phrase.
   const [blacklistTarget, setBlacklistTarget] = useState<UnifiedMessage | null>(null);
@@ -811,7 +816,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         />
         {copilotVisible && (
           <CopilotStrip
-            cacheKey={`${orderNumber}:${orderStatus ?? ''}:${currentOrderMessages.filter(m => m.senderType !== 'system' && m.text).map(m => `${m.id}:${m.text}`).join('|')}:${text.trim()}`}
+            cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}:${text.trim()}`}
             onInsert={(suggestion) => {
               setText(fillTemplate(suggestion, templateValues || {}));
               requestAnimationFrame(() => inputRef.current?.focus());

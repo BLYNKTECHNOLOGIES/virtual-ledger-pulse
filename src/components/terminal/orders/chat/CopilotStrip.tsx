@@ -50,6 +50,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const latestKey = useRef(cacheKey);
   latestKey.current = cacheKey;
   const inFlight = useRef<Map<string, Promise<CachedEntry | null>>>(new Map());
+  useEffect(() => { setReady(cache.current.has(cacheKey)); }, [cacheKey]);
 
   // Suggestions should not wait for the audit-log round trip before appearing.
   const fetchAndCache = useCallback((force = false): Promise<CachedEntry | null> => {

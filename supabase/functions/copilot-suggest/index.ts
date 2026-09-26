@@ -1,10 +1,9 @@
-// copilot-suggest — JWT-gated, 8s budget.
+// copilot-suggest — JWT-gated, current-order context only.
 // ALL order context arrives from the CLIENT. This function performs ZERO
-// database order lookups. It only: (1) gates on settings + operator allowlist,
-// (2) retrieves style exemplars, (3) makes ONE Lovable-AI call for suggestions.
+// database order lookups. It gates access, retrieves style exemplars, and calls Lovable AI.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { classifySituation, detectLanguage, embedCopilot, goalForStatus } from "../_shared/copilot.ts";
+import { classifySituation, detectLanguage, goalForStatus } from "../_shared/copilot.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +37,7 @@ function sim(a: string, b: string): number {
 
 const SYSTEM_PROMPT = `You are a P2P crypto trading desk chat copilot. You draft short reply options an operator can send to a counterparty on Binance P2P.
 
-You are given: the ORDER (from the client app), the CLIENT PROFILE, the last messages, and EXEMPLARS (real past replies from expert operators for this kind of situation).
+You are given: the ORDER (from the client app), the CLIENT PROFILE, current-order messages, an optional UNSENT DRAFT, and EXEMPLARS (real past replies from expert operators for this kind of situation).
 
 LAWS — non-negotiable:
 - Ground ONLY in the provided order, messages, profile, and exemplars. Never invent facts.
@@ -50,15 +49,14 @@ LAWS — non-negotiable:
 - NEVER move the conversation off-platform (no WhatsApp/Telegram/phone/email).
 - Suggestions must be mutually distinct in wording and intent.
 - Do not repeat what the operator already said.
+- When there is an unsent draft, refine or complete THAT draft instead of composing an unrelated reply. Never treat it as a sent message.
+- Interpret BUY as our purchase and SELL as our sale. Never imply a Binance payment, release, or verification occurred unless the order or chat confirms it.
 
 Return STRICT JSON only, no prose:
 {"situation":"<one of the situation classes>","suggestions":["...","..."]}`;
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -81,88 +79,44 @@ Deno.serve(async (req) => {
     if (!allow.includes(caller.id)) return json({ error: "Not permitted" }, 403);
 
     const body = await req.json().catch(() => ({}));
-    const order = body?.order || {};
-    const clientProfile = body?.clientProfile || {};
-    const messages: Array<{ isSelf: boolean; text: string; time?: string }> =
-      Array.isArray(body?.messages) ? body.messages.slice(-10) : [];
+    const order = body?.order && typeof body.order === "object" && !Array.isArray(body.order) ? body.order : {};
+    const clientProfile = body?.clientProfile && typeof body.clientProfile === "object" && !Array.isArray(body.clientProfile) ? body.clientProfile : {};
+    const messages: Array<{ isSelf: boolean; text: string }> = Array.isArray(body?.messages)
+      ? body.messages.slice(-40).filter((m: unknown) => m && typeof m === "object" && typeof (m as { text?: unknown }).text === "string")
+        .map((m: { isSelf?: unknown; text: string }) => ({ isSelf: m.isSelf === true, text: m.text.slice(0, 1000) }))
+      : [];
+    const draftText = typeof body?.draftText === "string" ? body.draftText.trim().slice(0, 1500) : "";
+    if (!order.number || typeof order.number !== "string" || order.number.length > 100) {
+      return json({ error: "A valid order is required" }, 400);
+    }
 
     const lastCounterparty = [...messages].reverse().find((m) => !m.isSelf && m.text);
     const situation = classifySituation(lastCounterparty?.text || messages[messages.length - 1]?.text);
     const side = order?.side ? String(order.side).toUpperCase() : null;
     const cpLang = detectLanguage(lastCounterparty?.text || "");
-    const exchangeAccountId: string | null = body?.exchangeAccountId || null;
-    const accountLabel: string | null = body?.accountLabel || null;
-    const counterpartyNickname: string | null = body?.counterpartyNickname || null;
+    const exchangeAccountId: string | null = typeof body?.exchangeAccountId === "string" ? body.exchangeAccountId : null;
+    const accountLabel: string | null = typeof body?.accountLabel === "string" ? body.accountLabel.slice(0, 100) : null;
     const goal = goalForStatus(order?.status);
 
-    // ---- Counterparty memory (item 4): 3 bounded, indexed queries, 150ms budget ----
-    // Indexed paths: binance_order_history(counter_part_nick_name), terminal_appeal_cases(counterparty_nickname).
-    // Median first-reply latency is intentionally SKIPPED (no index path for per-message latency).
-    let cpProfile = "";
-    if (counterpartyNickname) {
-      const since = new Date(Date.now() - 90 * 24 * 3600 * 1000).toISOString();
-      const withBudget = <T,>(p: Promise<T>, fb: T) =>
-        Promise.race([p, new Promise<T>((res) => setTimeout(() => res(fb), 150))]);
-      try {
-        const ohBase = () => admin.from("binance_order_history")
-          .select("order_number", { count: "exact", head: true })
-          .eq("counter_part_nick_name", counterpartyNickname)
-          .gte("create_time", since);
-        const totalQ = exchangeAccountId ? ohBase().eq("exchange_account_id", exchangeAccountId) : ohBase();
-        const compBase = () => admin.from("binance_order_history")
-          .select("order_number", { count: "exact", head: true })
-          .eq("counter_part_nick_name", counterpartyNickname)
-          .gte("create_time", since)
-          .in("order_status", ["COMPLETED", "completed", "4"]);
-        const compQ = exchangeAccountId ? compBase().eq("exchange_account_id", exchangeAccountId) : compBase();
-        const appealQ = admin.from("terminal_appeal_cases")
-          .select("id", { count: "exact", head: true })
-          .eq("counterparty_nickname", counterpartyNickname);
-        const [tot, comp, ap] = await Promise.all([
-          withBudget(totalQ as any, { count: null }),
-          withBudget(compQ as any, { count: null }),
-          withBudget(appealQ as any, { count: null }),
-        ]);
-        const total = (tot as any)?.count ?? 0;
-        const completed = (comp as any)?.count ?? 0;
-        const appeals = (ap as any)?.count ?? 0;
-        if (total > 0 || appeals > 0) {
-          const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
-          cpProfile = `Counterparty: ${total} orders (90d), ${pct}% clean, ${appeals} appeal${appeals === 1 ? "" : "s"}.`;
-        }
-      } catch { cpProfile = ""; }
-    }
-
-    // ---- Blacklist patterns (account-matched or global) ----
-    let blacklist: string[] = [];
-    try {
-      const { data: bl } = await admin.from("copilot_blacklist")
-        .select("pattern_text, exchange_account_id");
-      blacklist = (bl || [])
-        .filter((b: any) => !b.exchange_account_id || b.exchange_account_id === exchangeAccountId)
-        .map((b: any) => b.pattern_text).filter(Boolean);
-    } catch { blacklist = []; }
-
-    // Retrieve exemplars (embedding cosine when available; RPC falls back to
-    // recency when embeddings are null). Best-effort — never fatal.
-    const convoBlob = messages.map((m) => `${m.isSelf ? "Operations Associate" : "Counterparty"}: ${m.text}`).join("\n");
-    const qEmbed = await embedCopilot(convoBlob || situation);
-    const queryEmbedding = qEmbed ? `[${qEmbed.join(",")}]` : null;
-    const matchExemplars = async (accountId: string | null) => {
-      try {
-        const { data: ex } = await admin.rpc("match_copilot_exemplars", {
-          query_embedding: queryEmbedding,
-          p_situation_class: situation,
-          p_side: side,
-          match_count: 5,
-          p_exchange_account_id: accountId,
-        });
-        return ex || [];
-      } catch { return []; }
-    };
-    // Prefer same-account exemplars; fall back to all accounts when < 3 match.
-    let exemplars: any[] = exchangeAccountId ? await matchExemplars(exchangeAccountId) : [];
-    if (exemplars.length < 3) exemplars = await matchExemplars(null);
+    // No nickname-based lookup: a masked nickname may belong to unrelated people.
+    // Fetch matching style and the blacklist in parallel, without an embedding
+    // network call or an all-account fallback before generating the reply.
+    const accountId = typeof exchangeAccountId === "string" && /^[0-9a-f-]{36}$/i.test(exchangeAccountId)
+      ? exchangeAccountId : null;
+    const [blacklistResult, exemplarResult] = await Promise.all([
+      admin.from("copilot_blacklist").select("pattern_text, exchange_account_id"),
+      admin.rpc("match_copilot_exemplars", {
+        query_embedding: null,
+        p_situation_class: situation,
+        p_side: side,
+        match_count: 5,
+        p_exchange_account_id: accountId,
+      }),
+    ]);
+    const blacklist: string[] = (blacklistResult.data || [])
+      .filter((b: { exchange_account_id: string | null }) => !b.exchange_account_id || b.exchange_account_id === accountId)
+      .map((b: { pattern_text: string }) => b.pattern_text).filter(Boolean);
+    const exemplars = exemplarResult.data || [];
     const exemplarIds: string[] = exemplars.map((e: any) => e.id).filter(Boolean);
 
     const exemplarText = exemplars.length
@@ -171,7 +125,8 @@ Deno.serve(async (req) => {
 
     const userMsg = `ORDER: ${JSON.stringify(order)}
 CLIENT PROFILE: ${JSON.stringify(clientProfile)}
-${cpProfile ? cpProfile + "\n" : ""}COUNTERPARTY LANGUAGE: ${cpLang}
+UNSENT OPERATOR DRAFT (not delivered to counterparty): ${draftText || "(none)"}
+COUNTERPARTY LANGUAGE: ${cpLang}
 SITUATION: ${situation}
 Current goal: ${goal}
 
@@ -195,32 +150,21 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     ].filter(Boolean).join("\n");
     const systemContent = accountLines ? `${SYSTEM_PROMPT}\n\n${accountLines}` : SYSTEM_PROMPT;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        "Lovable-API-Key": key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: systemContent },
-          { role: "user", content: userMsg },
-        ],
-      }),
-    });
-
-    if (aiResp.status === 429) return json({ error: "Rate limited" }, 429);
-    if (aiResp.status === 402) return json({ error: "AI credits exhausted" }, 402);
-    if (!aiResp.ok) return json({ error: `AI error ${aiResp.status}` }, 502);
-
-    const aiData = await aiResp.json();
+    const { createResponsesCall } = await import("../_shared/copilot-responses.ts");
+    const call = createResponsesCall(req, {
+      baseURL: "https://ai.gateway.lovable.dev/v1",
+      apiKey: key,
+      model: "openai/gpt-6-astra",
+    }, [
+      { role: "system", content: systemContent },
+      { role: "user", content: userMsg },
+    ]);
+    const outputText = await call.result.text;
     let parsed: any = {};
-    try { parsed = JSON.parse(aiData?.choices?.[0]?.message?.content || "{}"); } catch { parsed = {}; }
+    try {
+      const clean = outputText.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+      parsed = JSON.parse(clean);
+    } catch { return json({ error: "AI returned an unreadable suggestion" }, 502); }
 
     let suggestions: string[] = Array.isArray(parsed?.suggestions)
       ? parsed.suggestions.filter((s: any) => typeof s === "string" && s.trim()).map((s: string) => s.trim().slice(0, 220))
@@ -242,9 +186,11 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
       exemplarIds,
     });
   } catch (e) {
-    const msg = (e as Error)?.name === "AbortError" ? "timeout" : String((e as Error).message || e);
-    return json({ error: msg }, msg === "timeout" ? 504 : 500);
-  } finally {
-    clearTimeout(timer);
+    if ((e as Error)?.name === "AbortError") return new Response(null, { status: 499, headers: corsHeaders });
+    const status = Number((e as { statusCode?: number; status?: number })?.statusCode || (e as { status?: number })?.status);
+    const safeStatus = [400, 401, 402, 403, 404, 429].includes(status) ? status : 500;
+    const message = (e as Error)?.message || "Copilot unavailable";
+    console.error("Copilot suggestion failed:", safeStatus, message);
+    return json({ error: message }, safeStatus);
   }
 });

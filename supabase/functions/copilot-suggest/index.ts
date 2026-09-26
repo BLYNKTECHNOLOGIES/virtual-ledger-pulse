@@ -81,7 +81,9 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const order = body?.order && typeof body.order === "object" && !Array.isArray(body.order) ? body.order : {};
-    const clientProfile = body?.clientProfile && typeof body.clientProfile === "object" && !Array.isArray(body.clientProfile) ? body.clientProfile : {};
+    // Only use current-order facts. Names and nickname-based history are not
+    // identity-safe here; the chat is already scoped to an order and account.
+    const clientProfile = {};
     const messages: Array<{ isSelf: boolean; text: string }> = Array.isArray(body?.messages)
       ? body.messages.slice(-40).filter((m: unknown) => m && typeof m === "object" && typeof (m as { text?: unknown }).text === "string")
         .map((m: { isSelf?: unknown; text: string }) => ({ isSelf: m.isSelf === true, text: m.text.slice(0, 1000) }))
@@ -93,11 +95,23 @@ Deno.serve(async (req) => {
 
     const lastCounterparty = [...messages].reverse().find((m) => !m.isSelf && m.text);
     const situation = classifySituation(lastCounterparty?.text || messages[messages.length - 1]?.text);
-    const side = order?.side ? String(order.side).toUpperCase() : null;
+    const side = order?.side ? String(order.side).toUpperCase().slice(0, 10) : null;
     const cpLang = detectLanguage(lastCounterparty?.text || "");
     const exchangeAccountId: string | null = typeof body?.exchangeAccountId === "string" ? body.exchangeAccountId : null;
     const accountLabel: string | null = typeof body?.accountLabel === "string" ? body.accountLabel.slice(0, 100) : null;
     const goal = goalForStatus(order?.status);
+    const safeOrder = {
+      number: order.number,
+      side,
+      status: typeof order.status === "string" ? order.status.slice(0, 40) : null,
+      orderType: typeof order.orderType === "string" ? order.orderType.slice(0, 40) : null,
+      asset: typeof order.asset === "string" ? order.asset.slice(0, 15) : null,
+      fiat: typeof order.fiat === "string" ? order.fiat.slice(0, 15) : null,
+      quantity: order.quantity ?? null,
+      amount: order.amount ?? null,
+      price: order.price ?? null,
+      paymentMethod: typeof order.paymentMethod === "string" ? order.paymentMethod.slice(0, 80) : null,
+    };
 
     // No nickname-based lookup: a masked nickname may belong to unrelated people.
     // Fetch matching style and the blacklist in parallel, without an embedding
@@ -127,7 +141,7 @@ Deno.serve(async (req) => {
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
       : "(no exemplars yet — rely on the laws and be concise/professional)";
 
-    const userMsg = `Return a JSON object with situation and suggestions. Keep each suggestion short.\nORDER: ${JSON.stringify(order)}
+    const userMsg = `Return a JSON object with situation and suggestions. Keep each suggestion short.\nORDER: ${JSON.stringify(safeOrder)}
 CLIENT PROFILE: ${JSON.stringify(clientProfile)}
 UNSENT OPERATOR DRAFT (not delivered to counterparty): ${draftText || "(none)"}
 COUNTERPARTY LANGUAGE: ${cpLang}

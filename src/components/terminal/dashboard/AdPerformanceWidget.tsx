@@ -66,16 +66,16 @@ export function AdPerformanceWidget() {
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Top Active Ads · Available Quantity</p>
                 <div className="space-y-1.5">
                   {topAds.map((ad) => (
-                    <div key={`${ad._exchangeAccountId || ''}-${ad.advNo}`} className="flex items-center justify-between gap-2 text-xs py-2 px-2 rounded bg-secondary/30 min-w-0">
+                    <div key={`${ad._exchangeAccountId || ''}-${ad.advNo}`} className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1 text-xs py-2 px-2 rounded bg-secondary/30 min-w-0">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                        <span className={`h-1.5 w-1.5 rounded-full ${ad.tradeType === 'BUY' ? 'bg-trade-buy' : 'bg-trade-sell'}`} />
-                        <span className="text-muted-foreground">{ad.tradeType}</span>
-                        <span className="text-foreground font-medium">{ad.asset}</span>
+                          <span className={`h-1.5 w-1.5 rounded-full ${ad.tradeType === 'BUY' ? 'bg-trade-buy' : 'bg-trade-sell'}`} />
+                          <span className="text-muted-foreground">{ad.tradeType}</span>
+                          <span className="text-foreground font-medium">{ad.asset}</span>
                         </div>
                         <div className="text-[10px] text-muted-foreground t-mono break-all">#{ad.advNo}</div>
                       </div>
-                      <div className="text-right shrink-0 t-mono">
+                      <div className="text-right min-w-0 break-all ml-auto t-mono">
                         <div className="text-foreground">{availableAmount(ad).toLocaleString('en-IN', { maximumFractionDigits: 8 })} {ad.asset}</div>
                         <div className="text-[10px] text-muted-foreground">₹{Number(ad.price).toLocaleString('en-IN')}</div>
                       </div>

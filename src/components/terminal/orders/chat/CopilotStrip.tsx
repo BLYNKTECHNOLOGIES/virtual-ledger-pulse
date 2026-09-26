@@ -47,29 +47,59 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const [result, setResult] = useState<CachedEntry | null>(null);
   const [ready, setReady] = useState(false); // subtle dot when a prefetch is available
   const cache = useRef<Map<string, CachedEntry>>(new Map());
+  const latestKey = useRef(cacheKey);
+  latestKey.current = cacheKey;
+  const inFlight = useRef<Map<string, Promise<CachedEntry | null>>>(new Map());
+  const requestId = useRef(0);
+  useEffect(() => {
+    requestId.current++;
+    setLoading(false);
+    setFailed(false);
+    setReady(cache.current.has(cacheKey));
+    setResult(cache.current.get(cacheKey) ?? null);
+  }, [cacheKey]);
+  useEffect(() => {
+    if (open && result && !cache.current.has(cacheKey)) {
+      setResult(null);
+      setOpen(false);
+    }
+  }, [cacheKey, open, result]);
 
-  // Fetch + cache + log 'shown'. Returns the cached entry (or null on empty/failure).
-  const fetchAndCache = useCallback(async (): Promise<CachedEntry | null> => {
+  // Suggestions should not wait for the audit-log round trip before appearing.
+  const fetchAndCache = useCallback((force = false): Promise<CachedEntry | null> => {
+    if (!force) {
+      const pending = inFlight.current.get(cacheKey);
+      if (pending) return pending;
+    }
     const input = buildInput();
-    const res = await fetchCopilotSuggestions(input);
-    if (!res.suggestions.length) return null;
-    const logIds = await logSuggestionsShown({
-      orderNumber: input.order?.number,
-      exchangeAccountId: input.exchangeAccountId,
-      operatorId: userId,
-      situation: res.situation,
-      suggestions: res.suggestions,
-      exemplarIds: res.exemplarIds,
-    });
-    const entry: CachedEntry = { ...res, logIds };
-    cache.current.set(cacheKey, entry);
-    return entry;
+    const requestedKey = cacheKey;
+    const request = (async () => {
+      const res = await fetchCopilotSuggestions(input);
+      if (!res.suggestions.length) return null;
+      const entry: CachedEntry = { ...res, logIds: [] };
+      cache.current.set(requestedKey, entry);
+      void logSuggestionsShown({
+        orderNumber: input.order?.number,
+        exchangeAccountId: input.exchangeAccountId,
+        operatorId: userId,
+        situation: res.situation,
+        suggestions: res.suggestions,
+        exemplarIds: res.exemplarIds,
+      }).then((logIds) => { entry.logIds = logIds; });
+      return entry;
+    })();
+    inFlight.current.set(requestedKey, request);
+    void request.finally(() => { if (inFlight.current.get(requestedKey) === request) inFlight.current.delete(requestedKey); }).catch(() => {});
+    return request;
   }, [buildInput, cacheKey, userId]);
 
   const run = useCallback(async (force = false) => {
+    const currentRequest = ++requestId.current;
     setFailed(false);
     if (!force && cache.current.has(cacheKey)) {
-      setResult(cache.current.get(cacheKey)!);
+      const cached = cache.current.get(cacheKey);
+      if (!cached) return;
+      setResult(cached);
       setReady(false);
       setOpen(true);
       return;
@@ -77,21 +107,24 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
     setOpen(true);
     setLoading(true);
     try {
-      const entry = await fetchAndCache();
+      const entry = await fetchAndCache(force);
+      if (latestKey.current !== cacheKey) return;
       if (!entry) { setFailed(true); setOpen(false); return; }
       setResult(entry);
       setReady(false);
-    } catch {
-      setFailed(true); // any error → collapse silently
-      setOpen(false);
+    } catch (error) {
+      if (latestKey.current !== cacheKey) return;
+      setFailed(true);
+      setResult(null);
+      console.warn('Copilot suggestion failed:', error);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, [cacheKey, fetchAndCache]);
 
   // Prefetch on a new counterparty message (debounced). Never when tab unfocused.
   useEffect(() => {
-    if (!prefetch) return;
+    if (!prefetch || buildInput().draftText) return;
     if (typeof document !== 'undefined' && document.hidden) return;
     if (cache.current.has(cacheKey)) { setReady(true); return; }
     const t = setTimeout(async () => {
@@ -99,10 +132,11 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       if (cache.current.has(cacheKey)) { setReady(true); return; }
       try {
         const entry = await fetchAndCache();
-        if (entry) setReady(true);
-      } catch { /* silent */ }
+        if (entry && latestKey.current === cacheKey) setReady(true);
+      } catch (error) { console.warn('Copilot prefetch failed:', error); }
     }, 1500);
     return () => clearTimeout(t);
+    // A draft changes the cache key; prefetch only when the operator has not started typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefetch, prefetchSignal, cacheKey]);
 
@@ -112,7 +146,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
     onInsert(text);
   };
 
-  // Error state: render nothing so only quick replies remain visible.
+  // Keep the control available for a manual retry.
   if (failed && !open) {
     return (
       <Button
@@ -149,7 +183,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       <div className="flex items-center gap-1.5 mb-1">
         <Sparkles className="h-3 w-3 text-primary shrink-0" />
         {loading ? (
-          <span className="text-[10px] text-foreground animate-pulse">Thinking…</span>
+          <span className="text-[10px] text-foreground animate-pulse">Drafting…</span>
         ) : (
           <span className="text-[10px] font-medium text-foreground">
             {SITUATION_LABELS[result?.situation || 'other'] || result?.situation}
@@ -176,7 +210,9 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
         </div>
       </div>
 
-      {loading ? (
+      {failed && !loading ? (
+        <p className="text-[11px] text-destructive">Could not load suggestions. Try again.</p>
+      ) : loading ? (
         <div className="space-y-1">
           <div className="h-5 rounded bg-muted/60 animate-pulse" />
           <div className="h-5 rounded bg-muted/40 animate-pulse w-4/5" />
@@ -184,14 +220,17 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {(result?.suggestions || []).map((s, i) => (
-            <button
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               key={i}
               onClick={() => handleClick(s, i)}
-              className="text-left text-[11px] leading-snug rounded-full bg-card border border-border text-card-foreground px-2.5 py-1.5 hover:border-primary/50 hover:bg-secondary/80 active:bg-secondary transition-colors max-w-full"
+              className="text-left text-[11px] leading-snug h-auto whitespace-normal rounded-md bg-card border-border text-card-foreground px-2.5 py-1.5 hover:border-primary/50 hover:bg-secondary/80 active:bg-secondary transition-colors max-w-full"
               title="Insert into input (review before sending)"
             >
               {s}
-            </button>
+            </Button>
           ))}
         </div>
 

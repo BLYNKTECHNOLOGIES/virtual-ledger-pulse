@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## Terminal Copilot current-order replies
+
+- [x] Include the unsent draft, bounded current-order chat, actual trade side, status, asset, quantity and payment details.
+- [x] Avoid nickname-based history and avoid sequential style/embedding waits; present suggestions without awaiting audit logging.
+- [ ] Verify deployed copilot against a signed-in real current-order chat and draft (blocked if external Supabase authentication unavailable).
+
 ## Terminal dashboard active ads
 
 - [x] Trace Binance list/detail visibility and the dashboard ranking.

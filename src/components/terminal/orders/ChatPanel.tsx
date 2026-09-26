@@ -104,6 +104,12 @@ interface Props {
   exchangeAccountId?: string | null;
   /** Current order status (numeric code or text) — drives copilot goal conditioning. */
   orderStatus?: string | null;
+  orderAsset?: string | null;
+  orderFiat?: string | null;
+  orderQuantity?: number | string | null;
+  orderPrice?: number | string | null;
+  orderType?: string | null;
+  paymentMethod?: string | null;
   /** Live order values used to fill quick-reply template tokens at insert time. */
   templateValues?: TemplateOrderValues;
 }
@@ -117,7 +123,7 @@ function normalizeChatTimestamp(value: unknown): number {
   return timestamp < 10_000_000_000 ? timestamp * 1000 : timestamp;
 }
 
-export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, templateValues }: Props) {
+export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpartyId, counterpartyNickname, tradeType, counterpartyVerifiedName, exchangeAccountId, orderStatus, orderAsset, orderFiat, orderQuantity, orderPrice, orderType, paymentMethod, templateValues }: Props) {
   // Sending and read state stay strictly attached to the opened order. Earlier
   // verified threads are rendered below as read-only, order-separated context.
   const orderNumber = openedOrderNumber;
@@ -590,22 +596,32 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       side: tradeType || null,
       status: orderStatus ?? null,
       amount: templateValues?.amount ?? null,
+      quantity: orderQuantity ?? null,
+      asset: orderAsset ?? null,
+      fiat: orderFiat ?? null,
+      price: orderPrice ?? null,
+      orderType: orderType ?? null,
+      paymentMethod: paymentMethod ?? null,
     },
-    clientProfile: {
-      name: counterpartyVerifiedName || counterpartyNickname || null,
-    },
+    clientProfile: {},
     messages: currentOrderMessages
       .filter((m) => m.senderType !== 'system' && m.text)
-      .slice(-10)
-      .map((m) => ({ isSelf: m.senderType === 'operator', text: m.text as string })),
+       .filter((m) => m.source !== 'local' || !m._deliveryStatus)
+      .slice(-40)
+      .map((m) => ({ isSelf: m.senderType === 'operator', text: (m.text as string).slice(0, 1000) })),
+    draftText: text.trim().slice(0, 1500) || null,
     exchangeAccountId: exchangeAccountId ?? null,
     accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
-    counterpartyNickname: counterpartyNickname || null,
-  }), [orderNumber, tradeType, orderStatus, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, exchangeAccountId, nameFor]);
+  }), [orderNumber, tradeType, orderStatus, orderAsset, orderFiat, orderQuantity, orderPrice, orderType, paymentMethod, templateValues, currentOrderMessages, text, exchangeAccountId, nameFor]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'
   ).length;
+  const copilotTranscriptKey = useMemo(() => currentOrderMessages
+    .filter((m) => m.senderType !== 'system' && m.text && (m.source !== 'local' || !m._deliveryStatus))
+    .slice(-40)
+    .map((m) => `${m.id}:${m.text}`)
+    .join('|'), [currentOrderMessages]);
 
   // Teach controls (trainers only): pin a golden reply / blacklist a phrase.
   const [blacklistTarget, setBlacklistTarget] = useState<UnifiedMessage | null>(null);
@@ -797,8 +813,11 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         />
         {copilotVisible && (
           <CopilotStrip
-            cacheKey={`${orderNumber}:${currentOrderMessages.length}`}
-            onInsert={handleQuickReply}
+            cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}:${text.trim()}`}
+            onInsert={(suggestion) => {
+              setText(fillTemplate(suggestion, templateValues || {}));
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
             buildInput={buildCopilotInput}
             prefetch={copilotPrefetch}
             prefetchSignal={counterpartyMsgCount}

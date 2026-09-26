@@ -105,19 +105,22 @@ Deno.serve(async (req) => {
       ? exchangeAccountId : null;
     const [blacklistResult, exemplarResult] = await Promise.all([
       admin.from("copilot_blacklist").select("pattern_text, exchange_account_id"),
-      admin.rpc("match_copilot_exemplars", {
+      accountId ? admin.rpc("match_copilot_exemplars", {
         query_embedding: null,
         p_situation_class: situation,
         p_side: side,
         match_count: 5,
         p_exchange_account_id: accountId,
-      }),
+      }) : admin.from("copilot_exemplars").select("id, language, reply_text")
+        .eq("situation_class", situation).is("exchange_account_id", null)
+        .order("created_at", { ascending: false }).limit(5),
     ]);
     const blacklist: string[] = (blacklistResult.data || [])
       .filter((b: { exchange_account_id: string | null }) => !b.exchange_account_id || b.exchange_account_id === accountId)
       .map((b: { pattern_text: string }) => b.pattern_text).filter(Boolean);
     const exemplars = exemplarResult.data || [];
     const exemplarIds: string[] = exemplars.map((e: any) => e.id).filter(Boolean);
+    const convoBlob = messages.map((m) => `${m.isSelf ? "Operations Associate" : "Counterparty"}: ${m.text}`).join("\n");
 
     const exemplarText = exemplars.length
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")

@@ -65,6 +65,7 @@ export interface CopilotSuggestInput {
     asset?: string | null;
     fiat?: string | null;
     amount?: number | string | null;
+    quantity?: number | string | null;
     price?: number | string | null;
     status?: string | null;
     timeRemaining?: string | number | null;

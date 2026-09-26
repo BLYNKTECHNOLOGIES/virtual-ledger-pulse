@@ -596,6 +596,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       side: tradeType || null,
       status: orderStatus ?? null,
       amount: templateValues?.amount ?? null,
+      quantity: orderQuantity ?? null,
       asset: orderAsset ?? null,
       fiat: orderFiat ?? null,
       price: orderPrice ?? null,
@@ -607,7 +608,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     },
     messages: currentOrderMessages
       .filter((m) => m.senderType !== 'system' && m.text)
-      .filter((m) => m.source !== 'local' || !m._deliveryStatus || m._deliveryStatus === 'sending')
+      .filter((m) => m.source !== 'local' || m._deliveryStatus === 'sending')
       .slice(-40)
       .map((m) => ({ isSelf: m.senderType === 'operator', text: (m.text as string).slice(0, 1000) })),
     draftText: text.trim().slice(0, 1500) || null,
@@ -811,7 +812,10 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         {copilotVisible && (
           <CopilotStrip
             cacheKey={`${orderNumber}:${orderStatus ?? ''}:${currentOrderMessages.filter(m => m.senderType !== 'system' && m.text).map(m => `${m.id}:${m.text}`).join('|')}:${text.trim()}`}
-            onInsert={handleQuickReply}
+            onInsert={(suggestion) => {
+              setText(fillTemplate(suggestion, templateValues || {}));
+              requestAnimationFrame(() => inputRef.current?.focus());
+            }}
             buildInput={buildCopilotInput}
             prefetch={copilotPrefetch}
             prefetchSignal={counterpartyMsgCount}

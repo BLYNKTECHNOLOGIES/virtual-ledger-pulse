@@ -83,7 +83,6 @@ Deno.serve(async (req) => {
     const order = body?.order && typeof body.order === "object" && !Array.isArray(body.order) ? body.order : {};
     // Only use current-order facts. Names and nickname-based history are not
     // identity-safe here; the chat is already scoped to an order and account.
-    const clientProfile = {};
     const messages: Array<{ isSelf: boolean; text: string }> = Array.isArray(body?.messages)
       ? body.messages.slice(-40).filter((m: unknown) => m && typeof m === "object" && typeof (m as { text?: unknown }).text === "string")
         .map((m: { isSelf?: unknown; text: string }) => ({ isSelf: m.isSelf === true, text: m.text.slice(0, 1000) }))
@@ -140,7 +139,6 @@ Deno.serve(async (req) => {
       : "(no exemplars yet — rely on the laws and be concise/professional)";
 
     const userMsg = `Return a JSON object with situation and suggestions. Keep each suggestion short.\nORDER: ${JSON.stringify(safeOrder)}
-CLIENT PROFILE: ${JSON.stringify(clientProfile)}
 UNSENT OPERATOR DRAFT (not delivered to counterparty): ${draftText || "(none)"}
 COUNTERPARTY LANGUAGE: ${cpLang}
 SITUATION: ${situation}

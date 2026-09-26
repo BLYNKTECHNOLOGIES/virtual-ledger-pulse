@@ -3,6 +3,7 @@
 // database order lookups. It gates access, retrieves style exemplars, and calls Lovable AI.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createResponsesCall } from "../_shared/copilot-responses.ts";
 import { classifySituation, detectLanguage, goalForStatus } from "../_shared/copilot.ts";
 
 const corsHeaders = {
@@ -126,7 +127,7 @@ Deno.serve(async (req) => {
       ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
       : "(no exemplars yet — rely on the laws and be concise/professional)";
 
-    const userMsg = `ORDER: ${JSON.stringify(order)}
+    const userMsg = `Return a JSON object with situation and suggestions. Keep each suggestion short.\nORDER: ${JSON.stringify(order)}
 CLIENT PROFILE: ${JSON.stringify(clientProfile)}
 UNSENT OPERATOR DRAFT (not delivered to counterparty): ${draftText || "(none)"}
 COUNTERPARTY LANGUAGE: ${cpLang}
@@ -153,7 +154,6 @@ Produce up to ${settings.suggestion_count} distinct suggestion(s) as strict json
     ].filter(Boolean).join("\n");
     const systemContent = accountLines ? `${SYSTEM_PROMPT}\n\n${accountLines}` : SYSTEM_PROMPT;
 
-    const { createResponsesCall } = await import("../_shared/copilot-responses.ts");
     const call = createResponsesCall(req, {
       baseURL: "https://ai.gateway.lovable.dev/v1",
       apiKey: key,

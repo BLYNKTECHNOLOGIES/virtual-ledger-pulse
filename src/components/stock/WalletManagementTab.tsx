@@ -893,6 +893,47 @@ export function WalletManagementTab() {
         </CardContent>
       </Card>
 
+      <AlertDialog open={!!closingWallet} onOpenChange={(o) => !o && setClosingWallet(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close wallet — {closingWallet?.wallet_name}</AlertDialogTitle>
+            <AlertDialogDescription>
+              The wallet will disappear from all selection lists and can't receive new entries. Old entries stay unchanged.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-md border border-border p-3 text-sm">
+              {closingBalances && closingBalances.length > 0 ? (
+                <>
+                  <p className="font-medium mb-1">These balances will be set to zero (moved to the Balance Adjustment Wallet):</p>
+                  {closingBalances.map((b: any) => (
+                    <div key={b.asset_code} className="flex justify-between font-mono text-foreground">
+                      <span>{b.asset_code}</span><span>{Number(b.balance).toFixed(8)}</span>
+                    </div>
+                  ))}
+                </>
+              ) : (
+                <p className="text-muted-foreground">No remaining balance.</p>
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="close-reason">Reason</Label>
+              <Textarea id="close-reason" className="text-foreground" value={closeReason} onChange={(e) => setCloseReason(e.target.value)} placeholder="e.g. Exchange account closed" />
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={!closeReason.trim() || closeWalletMutation.isPending}
+              onClick={() => closingWallet && closeWalletMutation.mutate({ id: closingWallet.id, reason: closeReason.trim() })}
+            >
+              {closeWalletMutation.isPending ? "Closing..." : "Close wallet"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Terminal Wallet Links - compact */}
       <WalletLinkingSection />
 

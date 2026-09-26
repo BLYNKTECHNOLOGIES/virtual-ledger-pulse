@@ -17,7 +17,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings, History, ArrowUpRight } from "lucide-react";
+import { Plus, Wallet, TrendingUp, TrendingDown, Copy, Trash2, RefreshCw, Upload, Pencil, Percent, Settings, History, ArrowUpRight, Lock, RotateCcw } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { isSuperAdminRoleName } from "@/lib/auth/roles";
+import { Textarea } from "@/components/ui/textarea";
 import { SharedStockAdjustmentDialog } from "./SharedStockAdjustmentDialog";
 import { ReverseTransactionDialog } from "./ReverseTransactionDialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
@@ -54,6 +57,8 @@ interface WalletType {
   updated_at: string;
   fee_percentage?: number;
   is_fee_enabled?: boolean;
+  closed_at?: string | null;
+  close_reason?: string | null;
 }
 
 interface WalletTransaction {
@@ -84,6 +89,51 @@ export function WalletManagementTab() {
   const [showAdjustmentDialog, setShowAdjustmentDialog] = useState(false);
   const [movementsWallet, setMovementsWallet] = useState<WalletType | null>(null);
   const [, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
+  const isSuperAdmin = !!user?.roles?.some(isSuperAdminRoleName);
+  const [showClosed, setShowClosed] = useState(false);
+  const [closingWallet, setClosingWallet] = useState<WalletType | null>(null);
+  const [closeReason, setCloseReason] = useState("");
+
+  const { data: closingBalances } = useQuery({
+    queryKey: ['wallet_close_balances', closingWallet?.id],
+    enabled: !!closingWallet,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('wallet_asset_balances')
+        .select('asset_code, balance')
+        .eq('wallet_id', closingWallet!.id);
+      if (error) throw error;
+      return (data || []).filter((b: any) => Math.abs(Number(b.balance)) > 0);
+    },
+  });
+
+  const invalidateWalletQueries = () => {
+    queryClient.invalidateQueries({ predicate: (q) => JSON.stringify(q.queryKey).toLowerCase().includes('wallet') });
+  };
+
+  const closeWalletMutation = useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
+      const { data, error } = await (supabase.rpc as any)('close_wallet', { p_wallet_id: id, p_reason: reason });
+      if (error) throw error;
+      return data as { zeroed_assets: number };
+    },
+    onSuccess: (data) => {
+      toast({ title: "Wallet closed", description: `${data?.zeroed_assets ?? 0} coin balance(s) moved to the Balance Adjustment Wallet.` });
+      setClosingWallet(null);
+      invalidateWalletQueries();
+    },
+    onError: (e: any) => toast({ title: "Could not close wallet", description: e.message, variant: "destructive" }),
+  });
+
+  const reopenWalletMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase.rpc as any)('reopen_wallet', { p_wallet_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast({ title: "Wallet reopened" }); invalidateWalletQueries(); },
+    onError: (e: any) => toast({ title: "Could not reopen wallet", description: e.message, variant: "destructive" }),
+  });
 
   // Per-user "Hide reversal noise" preference (defaults OFF for full audit view)
   const _userIdForPrefs = getCurUserIdForPrefs();
@@ -594,6 +644,9 @@ export function WalletManagementTab() {
     );
   };
 
+  const closedCount = wallets?.filter(w => w.closed_at).length || 0;
+  const visibleWallets = (wallets || []).filter(w => showClosed || !w.closed_at);
+
   // Exclude audit/contra-entry adjustment wallets from the headline total (kept visible in list below)
   const totalBalance = wallets?.reduce(
     (sum, wallet) =>
@@ -685,8 +738,14 @@ export function WalletManagementTab() {
 
       {/* Wallets Table */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Wallets</CardTitle>
+          <div className="flex items-center gap-2">
+            <Switch id="show-closed-wallets" checked={showClosed} onCheckedChange={setShowClosed} />
+            <Label htmlFor="show-closed-wallets" className="text-sm text-muted-foreground">
+              Show closed ({closedCount})
+            </Label>
+          </div>
         </CardHeader>
         <CardContent>
           {walletsLoading ? (
@@ -705,8 +764,8 @@ export function WalletManagementTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {wallets?.map((wallet) => (
-                  <TableRow key={wallet.id}>
+                {visibleWallets.map((wallet) => (
+                  <TableRow key={wallet.id} className={wallet.closed_at ? "opacity-60" : undefined}>
                     <TableCell className="font-medium">{wallet.wallet_name}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{wallet.chain_name || "N/A"}</Badge>
@@ -764,9 +823,21 @@ export function WalletManagementTab() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={wallet.is_active ? "default" : "secondary"}>
-                        {wallet.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                      {wallet.closed_at ? (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Badge variant="outline" className="border-destructive/30 text-destructive">Closed</Badge>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="text-xs">Closed {format(new Date(wallet.closed_at), "dd MMM yyyy, hh:mm a")}</p>
+                            {wallet.close_reason && <p className="text-xs">Reason: {wallet.close_reason}</p>}
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge variant={wallet.is_active ? "default" : "secondary"}>
+                          {wallet.is_active ? "Active" : "Inactive"}
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
@@ -779,14 +850,29 @@ export function WalletManagementTab() {
                         >
                           <History className="h-3 w-3" />
                         </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleEditWallet(wallet)}
-                          className="h-7 w-7 p-0"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
+                        {!wallet.closed_at && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleEditWallet(wallet)}
+                            className="h-7 w-7 p-0"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                        )}
+                        {isSuperAdmin && !isAdjustmentWallet(wallet.wallet_name) && (
+                          wallet.closed_at ? (
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" title="Reopen wallet"
+                              onClick={() => reopenWalletMutation.mutate(wallet.id)} disabled={reopenWalletMutation.isPending}>
+                              <RotateCcw className="h-3 w-3 mr-1" /> Reopen
+                            </Button>
+                          ) : (
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" title="Close wallet"
+                              onClick={() => { setClosingWallet(wallet); setCloseReason(""); }}>
+                              <Lock className="h-3 w-3" />
+                            </Button>
+                          )
+                        )}
                         <PermissionGate permissions={["stock_destructive"]} showFallback={false}>
                           <Button 
                             variant="ghost" 

@@ -68,6 +68,8 @@ export interface CopilotSuggestInput {
     price?: number | string | null;
     status?: string | null;
     timeRemaining?: string | number | null;
+    orderType?: string | null;
+    paymentMethod?: string | null;
   };
   clientProfile: {
     pastOrders?: number | null;
@@ -75,6 +77,7 @@ export interface CopilotSuggestInput {
     name?: string | null;
   };
   messages: Array<{ isSelf: boolean; text: string; time?: string }>;
+  draftText?: string | null;
   exchangeAccountId?: string | null;
   accountLabel?: string | null;
   counterpartyNickname?: string | null;

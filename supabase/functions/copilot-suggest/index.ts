@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
     const convoBlob = messages.map((m) => `${m.isSelf ? "Operations Associate" : "Counterparty"}: ${m.text}`).join("\n");
 
     const exemplarText = exemplars.length
-      ? exemplars.map((e, i) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
+      ? exemplars.map((e: { language?: string | null; reply_text: string }, i: number) => `EX${i + 1} [${e.language || "en"}]: ${e.reply_text}`).join("\n")
       : "(no exemplars yet — rely on the laws and be concise/professional)";
 
     const userMsg = `Return a JSON object with situation and suggestions. Keep each suggestion short.\nORDER: ${JSON.stringify(safeOrder)}

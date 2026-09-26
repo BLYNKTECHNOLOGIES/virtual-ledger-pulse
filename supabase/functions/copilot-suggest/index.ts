@@ -120,19 +120,18 @@ Deno.serve(async (req) => {
       ? exchangeAccountId : null;
     const [blacklistResult, exemplarResult] = await Promise.all([
       admin.from("copilot_blacklist").select("pattern_text, exchange_account_id"),
-      admin.from("copilot_exemplars").select("id, language, reply_text, side, exchange_account_id")
-        .eq("situation_class", situation)
-        .or(accountId ? `exchange_account_id.eq.${accountId},exchange_account_id.is.null` : "exchange_account_id.is.null")
-        .order("created_at", { ascending: false }).limit(20),
+      admin.rpc("match_copilot_exemplars", {
+        query_embedding: null,
+        p_situation_class: situation,
+        p_side: side,
+        match_count: 5,
+        p_exchange_account_id: accountId,
+      }),
     ]);
     const blacklist: string[] = (blacklistResult.data || [])
       .filter((b: { exchange_account_id: string | null }) => !b.exchange_account_id || b.exchange_account_id === accountId)
       .map((b: { pattern_text: string }) => b.pattern_text).filter(Boolean);
-    const exemplars = (exemplarResult.data || [])
-      .filter((e: { side: string | null }) => !e.side || e.side === side)
-      .sort((a: { exchange_account_id: string | null }, b: { exchange_account_id: string | null }) =>
-        Number(b.exchange_account_id === accountId) - Number(a.exchange_account_id === accountId))
-      .slice(0, 5);
+    const exemplars = exemplarResult.data || [];
     const exemplarIds: string[] = exemplars.map((e: any) => e.id).filter(Boolean);
     const convoBlob = messages.map((m) => `${m.isSelf ? "Operations Associate" : "Counterparty"}: ${m.text}`).join("\n");
 

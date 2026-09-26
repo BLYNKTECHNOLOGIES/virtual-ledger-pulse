@@ -603,9 +603,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
       orderType: orderType ?? null,
       paymentMethod: paymentMethod ?? null,
     },
-    clientProfile: {
-      name: counterpartyVerifiedName || counterpartyNickname || null,
-    },
+    clientProfile: {},
     messages: currentOrderMessages
       .filter((m) => m.senderType !== 'system' && m.text)
       .filter((m) => m.source !== 'local' || m._deliveryStatus === 'sending')
@@ -614,8 +612,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     draftText: text.trim().slice(0, 1500) || null,
     exchangeAccountId: exchangeAccountId ?? null,
     accountLabel: exchangeAccountId ? nameFor(exchangeAccountId) : null,
-    counterpartyNickname: counterpartyNickname || null,
-  }), [orderNumber, tradeType, orderStatus, orderAsset, orderFiat, orderQuantity, orderPrice, orderType, paymentMethod, templateValues, counterpartyVerifiedName, counterpartyNickname, currentOrderMessages, text, exchangeAccountId, nameFor]);
+  }), [orderNumber, tradeType, orderStatus, orderAsset, orderFiat, orderQuantity, orderPrice, orderType, paymentMethod, templateValues, currentOrderMessages, text, exchangeAccountId, nameFor]);
 
   const counterpartyMsgCount = currentOrderMessages.filter(
     (m) => m.senderType === 'counterparty'

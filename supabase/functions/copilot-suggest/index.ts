@@ -3,13 +3,9 @@
 // database order lookups. It gates access, retrieves style exemplars, and calls Lovable AI.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createResponsesCall } from "../_shared/copilot-responses.ts";
 import { classifySituation, detectLanguage, goalForStatus } from "../_shared/copilot.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {

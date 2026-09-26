@@ -50,7 +50,14 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const latestKey = useRef(cacheKey);
   latestKey.current = cacheKey;
   const inFlight = useRef<Map<string, Promise<CachedEntry | null>>>(new Map());
-  useEffect(() => { setReady(cache.current.has(cacheKey)); }, [cacheKey]);
+  const requestId = useRef(0);
+  useEffect(() => {
+    requestId.current++;
+    setLoading(false);
+    setFailed(false);
+    setReady(cache.current.has(cacheKey));
+    setResult(cache.current.get(cacheKey) ?? null);
+  }, [cacheKey]);
   useEffect(() => {
     if (open && result && !cache.current.has(cacheKey)) {
       setResult(null);
@@ -87,6 +94,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   }, [buildInput, cacheKey, userId]);
 
   const run = useCallback(async (force = false) => {
+    const currentRequest = ++requestId.current;
     setFailed(false);
     if (!force && cache.current.has(cacheKey)) {
       const cached = cache.current.get(cacheKey);
@@ -110,7 +118,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       setResult(null);
       console.warn('Copilot suggestion failed:', error);
     } finally {
-      setLoading(false);
+      if (currentRequest === requestId.current) setLoading(false);
     }
   }, [cacheKey, fetchAndCache]);
 

@@ -89,7 +89,9 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const run = useCallback(async (force = false) => {
     setFailed(false);
     if (!force && cache.current.has(cacheKey)) {
-      setResult(cache.current.get(cacheKey)!);
+      const cached = cache.current.get(cacheKey);
+      if (!cached) return;
+      setResult(cached);
       setReady(false);
       setOpen(true);
       return;
@@ -114,7 +116,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
 
   // Prefetch on a new counterparty message (debounced). Never when tab unfocused.
   useEffect(() => {
-    if (!prefetch) return;
+    if (!prefetch || buildInput().draftText) return;
     if (typeof document !== 'undefined' && document.hidden) return;
     if (cache.current.has(cacheKey)) { setReady(true); return; }
     const t = setTimeout(async () => {
@@ -126,6 +128,7 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
       } catch (error) { console.warn('Copilot prefetch failed:', error); }
     }, 1500);
     return () => clearTimeout(t);
+    // A draft changes the cache key; prefetch only when the operator has not started typing.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prefetch, prefetchSignal, cacheKey]);
 

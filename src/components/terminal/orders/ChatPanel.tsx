@@ -606,7 +606,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     clientProfile: {},
     messages: currentOrderMessages
       .filter((m) => m.senderType !== 'system' && m.text)
-      .filter((m) => m.source !== 'local' || m._deliveryStatus === 'sending')
+       .filter((m) => m.source !== 'local' || !m._deliveryStatus)
       .slice(-40)
       .map((m) => ({ isSelf: m.senderType === 'operator', text: (m.text as string).slice(0, 1000) })),
     draftText: text.trim().slice(0, 1500) || null,
@@ -618,7 +618,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
     (m) => m.senderType === 'counterparty'
   ).length;
   const copilotTranscriptKey = useMemo(() => currentOrderMessages
-    .filter((m) => m.senderType !== 'system' && m.text)
+    .filter((m) => m.senderType !== 'system' && m.text && (m.source !== 'local' || !m._deliveryStatus))
     .slice(-40)
     .map((m) => `${m.id}:${m.text}`)
     .join('|'), [currentOrderMessages]);

@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.is_super_admin_user(uuid) FROM PUBLIC, anon, authenticated;

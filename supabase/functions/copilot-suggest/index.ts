@@ -107,9 +107,9 @@ Deno.serve(async (req) => {
       orderType: typeof order.orderType === "string" ? order.orderType.slice(0, 40) : null,
       asset: typeof order.asset === "string" ? order.asset.slice(0, 15) : null,
       fiat: typeof order.fiat === "string" ? order.fiat.slice(0, 15) : null,
-      quantity: order.quantity ?? null,
-      amount: order.amount ?? null,
-      price: order.price ?? null,
+      quantity: typeof order.quantity === "number" || typeof order.quantity === "string" ? String(order.quantity).slice(0, 30) : null,
+      amount: typeof order.amount === "number" || typeof order.amount === "string" ? String(order.amount).slice(0, 30) : null,
+      price: typeof order.price === "number" || typeof order.price === "string" ? String(order.price).slice(0, 30) : null,
       paymentMethod: typeof order.paymentMethod === "string" ? order.paymentMethod.slice(0, 80) : null,
     };
 

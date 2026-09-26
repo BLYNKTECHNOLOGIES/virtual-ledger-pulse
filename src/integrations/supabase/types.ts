@@ -28135,6 +28135,9 @@ export type Database = {
       wallets: {
         Row: {
           chain_name: string | null
+          close_reason: string | null
+          closed_at: string | null
+          closed_by: string | null
           created_at: string
           current_balance: number
           fee_percentage: number | null
@@ -28150,6 +28153,9 @@ export type Database = {
         }
         Insert: {
           chain_name?: string | null
+          close_reason?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           current_balance?: number
           fee_percentage?: number | null
@@ -28165,6 +28171,9 @@ export type Database = {
         }
         Update: {
           chain_name?: string | null
+          close_reason?: string | null
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           current_balance?: number
           fee_percentage?: number | null
@@ -30617,6 +30626,10 @@ export type Database = {
       }
       cleanup_old_snapshots: { Args: never; Returns: undefined }
       cleanup_terminal_stale_data: { Args: never; Returns: undefined }
+      close_wallet: {
+        Args: { p_reason: string; p_wallet_id: string }
+        Returns: Json
+      }
       compact_ad_state_snapshots: { Args: never; Returns: undefined }
       compare_snapshots: {
         Args: { p_snapshot_id_new: string; p_snapshot_id_old: string }
@@ -33081,6 +33094,7 @@ export type Database = {
           }
       is_ledger_auditor: { Args: { _uid?: string }; Returns: boolean }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
+      is_super_admin_user: { Args: { _uid: string }; Returns: boolean }
       is_terminal_appeal_enabled: { Args: never; Returns: boolean }
       is_terminal_final_order_status: {
         Args: { p_status: string }
@@ -33417,6 +33431,7 @@ export type Database = {
         Args: { p_role_id: string; p_user_id: string }
         Returns: undefined
       }
+      reopen_wallet: { Args: { p_wallet_id: string }; Returns: undefined }
       request_terminal_appeal_from_small_payment: {
         Args: { p_case_id: string; p_reason?: string }
         Returns: string

@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## Terminal dashboard active ads
+
+- [x] Trace Binance list/detail visibility and the dashboard ranking.
+- [x] Rank verified public online ads by available quantity, include ad numbers and quantities, and fetch all pages.
+- [ ] Verify against signed-in live Binance ads (blocked: external Supabase sessions cannot be injected into automated browser checks).
+
 - [x] Trace seat, employee, staffing, pipeline, and hiring calculations.
 - [x] Reconcile operational capacity into staffing targets.
 - [x] Generate deduplicated pending approvals for uncovered shortages.

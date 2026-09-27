@@ -90,6 +90,8 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const run = useCallback(async (force = false) => {
     const currentRequest = ++requestId.current;
     setFailed(false);
+    // A typed draft changes what the reply should say — always regenerate for it.
+    if (buildInput().draftText) force = true;
     if (!force && cache.current.has(cacheKey)) {
       const cached = cache.current.get(cacheKey);
       if (!cached) return;

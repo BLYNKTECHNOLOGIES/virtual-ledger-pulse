@@ -813,7 +813,7 @@ export function ChatPanel({ orderId, orderNumber: openedOrderNumber, counterpart
         />
         {copilotVisible && (
           <CopilotStrip
-            cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}:${text.trim()}`}
+            cacheKey={`${orderNumber}:${orderStatus ?? ''}:${copilotTranscriptKey}`}
             onInsert={(suggestion) => {
               setText(fillTemplate(suggestion, templateValues || {}));
               requestAnimationFrame(() => inputRef.current?.focus());

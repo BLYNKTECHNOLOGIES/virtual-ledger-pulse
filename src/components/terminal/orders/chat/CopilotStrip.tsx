@@ -58,12 +58,6 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
     setReady(cache.current.has(cacheKey));
     setResult(cache.current.get(cacheKey) ?? null);
   }, [cacheKey]);
-  useEffect(() => {
-    if (open && result && !cache.current.has(cacheKey)) {
-      setResult(null);
-      setOpen(false);
-    }
-  }, [cacheKey, open, result]);
 
   // Suggestions should not wait for the audit-log round trip before appearing.
   const fetchAndCache = useCallback((force = false): Promise<CachedEntry | null> => {
@@ -96,6 +90,8 @@ export function CopilotStrip({ buildInput, onInsert, cacheKey, prefetch, prefetc
   const run = useCallback(async (force = false) => {
     const currentRequest = ++requestId.current;
     setFailed(false);
+    // A typed draft changes what the reply should say — always regenerate for it.
+    if (buildInput().draftText) force = true;
     if (!force && cache.current.has(cacheKey)) {
       const cached = cache.current.get(cacheKey);
       if (!cached) return;

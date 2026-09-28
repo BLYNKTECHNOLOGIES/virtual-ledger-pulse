@@ -18,7 +18,7 @@ interface Props {
 /** Gmail-style conversation list: avatar, senders, subject + snippet, time. */
 export function ThreadList({ threads, isLoading, selectedKey, onSelect, heightClass }: Props) {
   return (
-    <ScrollArea className={heightClass || "h-[calc(100vh-320px)] min-h-[320px]"}>
+    <ScrollArea className={`w-full min-w-0 ${heightClass || "h-[calc(100vh-320px)] min-h-[320px]"}`}>
       {isLoading ? (
         <div className="p-6 text-sm text-muted-foreground">Loading…</div>
       ) : threads.length === 0 ? (
@@ -36,14 +36,14 @@ export function ThreadList({ threads, isLoading, selectedKey, onSelect, heightCl
             <button
               key={t.key}
               onClick={() => onSelect(t)}
-              className={`w-full text-left px-3 py-2.5 border-b border-border transition-colors flex gap-3 items-start
+              className={`flex w-full min-w-0 items-start gap-3 border-b border-border px-3 py-2.5 text-left transition-colors
                 ${selectedKey === t.key ? "bg-accent" : unread ? "bg-primary/5 hover:bg-muted/60" : "hover:bg-muted/50"}`}
             >
               <MailAvatar label={primary} seed={t.latest.from_address || primary} />
 
               <span className="min-w-0 flex-1">
-                <span className="flex items-center justify-between gap-2">
-                  <span className={`truncate text-sm ${unread ? "font-semibold text-foreground" : "text-foreground/80"}`}>
+                <span className="flex min-w-0 items-center justify-between gap-2">
+                  <span className={`min-w-0 flex-1 truncate text-sm ${unread ? "font-semibold text-foreground" : "text-foreground/80"}`}>
                     {senders}
                   </span>
                   <span className="shrink-0 flex items-center gap-1.5">
@@ -57,7 +57,7 @@ export function ThreadList({ threads, isLoading, selectedKey, onSelect, heightCl
                 </span>
 
                 <span className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`truncate text-sm ${unread ? "font-semibold text-foreground" : "text-foreground/80"}`}>
+                  <span className={`min-w-0 truncate text-sm ${unread ? "font-semibold text-foreground" : "text-foreground/80"}`}>
                     {cleanSubject(t.subject)}
                   </span>
                   {t.messages.length > 1 && (

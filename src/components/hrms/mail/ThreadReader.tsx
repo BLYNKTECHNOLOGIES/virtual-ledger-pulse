@@ -271,7 +271,7 @@ export function ThreadReader({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex h-full min-w-0 flex-col">
       <div className="flex items-start gap-2 border-b border-border px-3 py-2.5">
         <Button size="icon" variant="ghost" className="h-8 w-8 md:hidden shrink-0" onClick={onBack} aria-label="Back to inbox">
           <ArrowLeft className="h-4 w-4" />
@@ -292,7 +292,7 @@ export function ThreadReader({
         </div>
       </div>
 
-      <ScrollArea className={heightClass || "h-[calc(100vh-360px)] min-h-[320px]"}>
+       <ScrollArea className={`w-full min-w-0 ${heightClass || "h-[calc(100vh-360px)] min-h-[320px]"}`}>
         <div className="space-y-2 p-3">
           {thread.messages.map((m, idx) => (
             <MessageCard

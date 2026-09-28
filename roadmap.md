@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## HR Mailbox mobile layout
+
+- [x] Keep mailbox tabs, search, and conversation rows inside phone width.
+- [x] Preserve desktop mailbox layout and mail actions.
+- [ ] Verify signed-in mailbox on a phone (blocked: external Supabase authentication unavailable to automated checks).
+
 ## Terminal Copilot current-order replies
 
 - [x] Include the unsent draft, bounded current-order chat, actual trade side, status, asset, quantity and payment details.

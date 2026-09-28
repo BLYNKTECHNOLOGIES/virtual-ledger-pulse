@@ -48,12 +48,12 @@ export default function MailboxPage() {
   const activeUnread = activeMailboxId ? unread?.byMailbox?.[activeMailboxId] ?? 0 : 0;
 
   return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
+    <div className="min-w-0 space-y-4 p-3 sm:p-4 md:p-6 page-mount">
       <PageHeader title="HR Mailbox" description="Send HR mail to employees and read replies in one place" />
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
         <Select value={activeMailboxId} onValueChange={setMailboxId}>
-          <SelectTrigger className="h-9 w-[300px] text-foreground">
+          <SelectTrigger className="h-9 w-full min-w-0 text-foreground sm:w-[300px]">
             <SelectValue placeholder="Select mailbox" />
           </SelectTrigger>
           <SelectContent>
@@ -61,8 +61,8 @@ export default function MailboxPage() {
               const n = unread?.byMailbox?.[mb.id] ?? 0;
               return (
                 <SelectItem key={mb.id} value={mb.id}>
-                  <span className="flex items-center gap-2">
-                    <span>{mb.label} — {mb.from_address}</span>
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate">{mb.label} — {mb.from_address}</span>
                     {n > 0 && <Badge variant="destructive" className="h-4 px-1.5 text-[10px]">{n}</Badge>}
                   </span>
                 </SelectItem>
@@ -98,15 +98,15 @@ export default function MailboxPage() {
         )}
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="inbox" className="gap-1">
+      <Tabs value={tab} onValueChange={setTab} className="min-w-0">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:inline-flex sm:w-auto sm:grid-cols-none">
+          <TabsTrigger value="inbox" className="min-w-0 gap-1 px-2 py-2 sm:px-3">
             <Inbox className="h-3.5 w-3.5" /> Inbox
             {activeUnread > 0 && <Badge variant="destructive" className="ml-1 h-4 px-1.5 text-[10px]">{activeUnread}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="compose" className="gap-1"><Send className="h-3.5 w-3.5" /> Compose</TabsTrigger>
-          <TabsTrigger value="sent" className="gap-1"><Mail className="h-3.5 w-3.5" /> Sent</TabsTrigger>
-          <TabsTrigger value="templates" className="gap-1"><FileText className="h-3.5 w-3.5" /> Templates</TabsTrigger>
+          <TabsTrigger value="compose" className="min-w-0 gap-1 px-2 py-2 sm:px-3"><Send className="h-3.5 w-3.5" /> Compose</TabsTrigger>
+          <TabsTrigger value="sent" className="min-w-0 gap-1 px-2 py-2 sm:px-3"><Mail className="h-3.5 w-3.5" /> Sent</TabsTrigger>
+          <TabsTrigger value="templates" className="min-w-0 gap-1 px-2 py-2 sm:px-3"><FileText className="h-3.5 w-3.5" /> Templates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="inbox"><InboxTab mailboxId={activeMailboxId} /></TabsContent>
@@ -174,9 +174,9 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[220px]">
+    <div className="min-w-0 space-y-3">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="relative w-full min-w-0 sm:w-auto sm:flex-1 sm:min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Search subject, sender, body..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 h-9 text-foreground" />
         </div>
@@ -203,7 +203,7 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
 
       {showFilters && (
         <Card>
-          <CardContent className="p-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <CardContent className="grid min-w-0 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-5">
             <div className="space-y-1">
               <Label className="text-xs">From</Label>
               <Input value={fromFilter} onChange={e => setFromFilter(e.target.value)} placeholder="name or email" className="h-9 text-foreground" />
@@ -253,8 +253,8 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
         <p className="text-xs text-destructive">Last sync error: {mailbox.imap_last_error}</p>
       )}
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,320px)_1fr] xl:grid-cols-[minmax(0,380px)_1fr]">
-        <Card className={selectedThread ? "hidden md:block" : ""}>
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-[minmax(0,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+        <Card className={`min-w-0 ${selectedThread ? "hidden md:block" : ""}`}>
           <CardContent className="p-0">
             <ThreadList
               threads={threads}
@@ -270,7 +270,7 @@ function InboxTab({ mailboxId }: { mailboxId?: string }) {
           </CardContent>
         </Card>
 
-        <Card className={selectedThread ? "" : "hidden md:block"}>
+        <Card className={`min-w-0 ${selectedThread ? "" : "hidden md:block"}`}>
           <CardContent className="p-0 h-[70vh] md:h-[560px]">
             {!selectedThread ? (
               <EmptyState icon={Mail} title="Select a conversation" description="Choose a conversation to read the full thread here." className="h-full" />
@@ -369,8 +369,8 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
   }
 
   return (
-    <div className="grid gap-3 lg:grid-cols-[minmax(0,360px)_1fr]">
-      <Card>
+    <div className="grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+      <Card className="min-w-0">
         <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Users className="h-4 w-4" /> Recipients ({recipientCount})</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <Select value={mode} onValueChange={(v: any) => setMode(v)}>
@@ -425,7 +425,7 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="min-w-0">
         <CardHeader className="pb-2"><CardTitle className="text-sm">Message</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           {templates.length > 0 && (
@@ -476,7 +476,7 @@ function ComposeTab({ mailboxId, onSent }: { mailboxId?: string; onSent: () => v
             )}
           </div>
 
-          <Button onClick={handleSend} disabled={send.isPending || uploading} className="gap-2">
+          <Button onClick={handleSend} disabled={send.isPending || uploading} className="w-full gap-2 sm:w-auto">
             {(send.isPending || uploading) ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             {uploading ? "Uploading…" : send.isPending ? "Sending…" : `Send to ${recipientCount} recipient(s)`}
           </Button>
@@ -493,7 +493,7 @@ function SentTab({ mailboxId }: { mailboxId?: string }) {
   const [open, setOpen] = useState<HrMailCampaign | null>(null);
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardContent className="p-0">
         {isLoading ? (
           <div className="p-6 text-sm text-muted-foreground">Loading…</div>
@@ -502,9 +502,9 @@ function SentTab({ mailboxId }: { mailboxId?: string }) {
         ) : (
           <div className="divide-y divide-border">
             {campaigns.map(c => (
-              <button key={c.id} onClick={() => setOpen(c)} className="w-full text-left px-4 py-3 hover:bg-muted/50">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-medium text-foreground truncate">{c.subject}</span>
+              <button key={c.id} onClick={() => setOpen(c)} className="w-full min-w-0 text-left px-4 py-3 hover:bg-muted/50">
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className="min-w-0 max-w-full truncate text-sm font-medium text-foreground">{c.subject}</span>
                   <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
                     {format(new Date(c.created_at), "dd MMM yyyy HH:mm")}
                   </span>
@@ -515,7 +515,7 @@ function SentTab({ mailboxId }: { mailboxId?: string }) {
                     <span className="inline-flex items-center gap-1 text-destructive"><AlertTriangle className="h-3 w-3" /> {c.failed_count} failed</span>
                   )}
                   <span>· {c.total_count} recipients</span>
-                  <span>· from {c.from_address}</span>
+                   <span className="min-w-0 break-all">· from {c.from_address}</span>
                   {c.sent_by_name && <span>· by {c.sent_by_name}</span>}
                 </div>
               </button>
@@ -534,7 +534,7 @@ function CampaignDialog({ campaign, onClose }: { campaign: HrMailCampaign | null
 
   return (
     <Dialog open={!!campaign} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
+       <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base">{campaign?.subject}</DialogTitle>
           <DialogDescription>
@@ -583,7 +583,7 @@ function TemplatesTab() {
   const [editing, setEditing] = useState<{ id?: string; name: string; subject: string; body_html: string } | null>(null);
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="pb-2 flex-row items-center justify-between">
         <CardTitle className="text-sm">Saved templates</CardTitle>
         <Button size="sm" variant="outline" onClick={() => setEditing({ name: "", subject: "", body_html: "" })}>

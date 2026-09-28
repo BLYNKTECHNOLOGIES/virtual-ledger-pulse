@@ -57,7 +57,38 @@ export function TrainingCompletionCtcDialog({ open, onOpenChange, employeeId, cu
 
   const trainingCtc = Number(existing?.status === "SCHEDULED" ? existing.previous_total : currentCtc) || 0;
   const alreadyApplied = existing?.status === "APPLIED";
-  const today = new Date().toISOString().slice(0, 10);
+  // Earliest selectable date = first day of the month after the latest
+  // payroll month that has been processed.
+  const { data: lastProcessed } = useQuery({
+    queryKey: ["hr_payroll_last_processed_month"],
+    enabled: open,
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("hr_payroll_month_meta")
+        .select("period_month")
+        .not("processed_on", "is", null)
+        .order("period_month", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return (data?.period_month as string) ?? null;
+    },
+  });
+  const minDate = useMemo(() => {
+    let m = "";
+    if (lastProcessed) {
+      const [y, mo] = lastProcessed.split("-").map(Number);
+      const ny = mo === 12 ? y + 1 : y;
+      const nm = mo === 12 ? 1 : mo + 1;
+      m = `${ny}-${String(nm).padStart(2, "0")}-01`;
+    }
+    if (dateOfJoining) {
+      const d = new Date(`${dateOfJoining}T00:00:00`);
+      d.setDate(d.getDate() + 1);
+      const j = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      if (!m || j > m) m = j;
+    }
+    return m;
+  }, [lastProcessed, dateOfJoining]);
 
   const preview = useMemo(() => {
     const c2 = Number(ctc);
@@ -81,7 +112,7 @@ export function TrainingCompletionCtcDialog({ open, onOpenChange, employeeId, cu
       if (!date) throw new Error("Training completion date is required");
       if (!postCtc || postCtc <= 0) throw new Error("Post-training CTC must be positive");
       if (dateOfJoining && date <= dateOfJoining) throw new Error("Completion date must be after the date of joining");
-      if (date < today) throw new Error("Completion date must be today or later — for a past date use Salary Revision");
+      if (minDate && date < minDate) throw new Error("That month's payroll is already processed — pick a date in an open payroll month");
       if (postCtc === trainingCtc) throw new Error("Post-training CTC must differ from the training CTC");
 
       const row = {
@@ -135,7 +166,8 @@ export function TrainingCompletionCtcDialog({ open, onOpenChange, employeeId, cu
             </div>
             <div>
               <Label>Training completion date</Label>
-              <Input type="date" value={date} min={today} onChange={(e) => setDate(e.target.value)} className="text-foreground" />
+              <Input type="date" value={date} min={minDate || undefined} onChange={(e) => setDate(e.target.value)} className="text-foreground" />
+              <p className="text-xs text-muted-foreground mt-1">Past dates are allowed back to the first month whose payroll isn't processed yet.</p>
             </div>
             <div>
               <Label>Post-training annual CTC</Label>

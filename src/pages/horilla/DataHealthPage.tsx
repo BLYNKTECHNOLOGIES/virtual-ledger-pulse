@@ -12,6 +12,7 @@ import {
   ChevronDown,
   MoreHorizontal,
   ArrowRight,
+  History,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,7 +38,6 @@ import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } fr
 import { RazorpayOrphanPanel } from "@/components/hrms/health/RazorpayOrphanPanel";
 import { ErpAccountHealthPanel } from "@/components/hrms/health/ErpAccountHealthPanel";
 import { RazorpayPushHistorySheet } from "@/components/hrms/health/RazorpayPushHistorySheet";
-import { History } from "lucide-react";
 
 import { PullFromRazorpayDialog, type PullTarget } from "@/components/hr/governance/PullFromRazorpayDialog";
 
@@ -615,11 +615,11 @@ export default function DataHealthPage() {
   }
 
   return (
-    <div className="w-full px-4 md:px-6 pb-6 space-y-4 page-mount">
+    <div className="w-full min-w-0 px-3 sm:px-4 md:px-6 pb-6 space-y-4 page-mount">
       {/* Command bar — identity, scan, counters and filters in one block */}
-      <header className="sticky top-0 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-background/90 backdrop-blur border-b border-border space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-xl md:text-2xl font-semibold text-foreground flex items-center gap-2">
+      <header className="sticky top-0 z-20 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 bg-background/95 backdrop-blur border-b border-border space-y-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
+          <h1 className="min-w-0 text-xl md:text-2xl font-semibold text-foreground flex flex-wrap items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-primary" />
             Data Health
             {empFilter && (
@@ -631,27 +631,27 @@ export default function DataHealthPage() {
               </button>
             )}
           </h1>
-          <div className="flex items-center gap-2">
-          <button
-            onClick={() => setHistoryOpen(true)}
-            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-          >
-            <History className="h-4 w-4" />
-            History
-          </button>
-          <button
-            onClick={runScan}
-            disabled={scanning}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Rescan now
-          </button>
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
+            <button
+              onClick={() => setHistoryOpen(true)}
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-muted sm:px-4"
+            >
+              <History className="h-4 w-4 shrink-0" />
+              History
+            </button>
+            <button
+              onClick={runScan}
+              disabled={scanning}
+              className="inline-flex min-w-0 items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50 sm:px-4"
+            >
+              {scanning ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <RefreshCw className="h-4 w-4 shrink-0" />}
+              Rescan now
+            </button>
           </div>
           <RazorpayPushHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
         </div>
 
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2">
           {counters.map((c) => {
             const content = (
               <>
@@ -664,12 +664,12 @@ export default function DataHealthPage() {
                 key={c.key}
                 onClick={c.onClick}
                 data-active={c.active}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 transition-colors hover:bg-muted data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10"
+                className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 transition-colors hover:bg-muted data-[active=true]:border-primary/50 data-[active=true]:bg-primary/10 sm:justify-start"
               >
                 {content}
               </button>
             ) : (
-              <span key={c.key} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1">
+              <span key={c.key} className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 sm:justify-start">
                 {content}
               </span>
             );
@@ -677,7 +677,7 @@ export default function DataHealthPage() {
 
           <span className="mx-1 hidden h-5 w-px bg-border md:inline-block" />
 
-          <label className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground cursor-pointer select-none hover:bg-muted">
+          <label className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-foreground cursor-pointer select-none hover:bg-muted sm:justify-start">
             <Checkbox
               checked={unexplainedOnly}
               onCheckedChange={(v) => toggleUnexplained(v === true)}
@@ -687,7 +687,7 @@ export default function DataHealthPage() {
           </label>
 
           <Select value={severity} onValueChange={setSeverity}>
-            <SelectTrigger className="h-8 w-[150px] text-xs text-foreground">
+            <SelectTrigger className="h-8 w-full text-xs text-foreground sm:w-[150px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -700,7 +700,7 @@ export default function DataHealthPage() {
           </Select>
 
           <Select value={systemPair} onValueChange={setSystemPair}>
-            <SelectTrigger className="h-8 w-[170px] text-xs text-foreground">
+            <SelectTrigger className="h-8 w-full text-xs text-foreground sm:w-[170px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -711,7 +711,7 @@ export default function DataHealthPage() {
             </SelectContent>
           </Select>
 
-          <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+          <span className="col-span-2 text-right text-xs text-muted-foreground tabular-nums sm:col-auto sm:ml-auto">
             showing {filtered.length}/{kpis.total}
           </span>
         </div>
@@ -719,7 +719,7 @@ export default function DataHealthPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
         {/* Worklist */}
-        <section className="rounded-xl border border-border bg-card overflow-hidden">
+        <section className="min-w-0 rounded-xl border border-border bg-card overflow-hidden">
           {isLoading ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
@@ -837,7 +837,7 @@ export default function DataHealthPage() {
                             )}
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-center gap-2 lg:flex lg:w-auto lg:shrink-0">
                             {dashboardOnly ? (
                               <>
                                 {canPull && (
@@ -854,7 +854,7 @@ export default function DataHealthPage() {
                                         razorpayValue: d.razorpay_value,
                                       })
                                     }
-                                    className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50 whitespace-nowrap"
+                                    className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md border border-border px-2 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50 sm:px-3 lg:py-1.5"
                                   >
                                     Pull ← Razorpay
                                   </button>
@@ -862,7 +862,7 @@ export default function DataHealthPage() {
                                 <button
                                   disabled={busy}
                                   onClick={() => verifyManualRazorpayUpdate(d)}
-                                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
+                                  className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md bg-primary px-2 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:px-3 lg:py-1.5"
                                 >
                                   {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                                   I updated in RazorpayX
@@ -884,7 +884,7 @@ export default function DataHealthPage() {
                                         razorpayValue: d.razorpay_value,
                                       })
                                     }
-                                    className="inline-flex items-center gap-1 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50 whitespace-nowrap"
+                                    className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md border border-border px-2 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50 sm:px-3 lg:py-1.5"
                                   >
                                     Pull ← Razorpay
                                   </button>
@@ -892,7 +892,7 @@ export default function DataHealthPage() {
                                 <button
                                   disabled={busy || !canPush}
                                   onClick={() => adoptHrms(d)}
-                                  className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 whitespace-nowrap"
+                                  className="inline-flex min-w-0 items-center justify-center gap-1 rounded-md bg-primary px-2 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 sm:px-3 lg:py-1.5"
                                 >
                                   {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                                   {esslRemoval ? "Dismiss in RazorpayX" : "Push → Razorpay"}

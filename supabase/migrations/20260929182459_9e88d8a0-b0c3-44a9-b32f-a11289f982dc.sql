@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.hr_settle_recoveries_on_payroll_processed() FROM PUBLIC, anon, authenticated;

@@ -144,6 +144,7 @@ export default function DataHealthPage() {
     params.get("unexplained") === "1",
   );
   const [scanning, setScanning] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [scanSignal, setScanSignal] = useState(0);
   const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
   const markResolving = (id: string) =>

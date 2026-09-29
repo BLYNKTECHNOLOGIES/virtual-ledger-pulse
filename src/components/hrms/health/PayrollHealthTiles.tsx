@@ -22,7 +22,7 @@ export function PayslipParityTile() {
 
   return (
     <Card className={good ? "border-success/40 bg-success/5" : "border-warning/40 bg-warning/5"}>
-      <CardContent className="p-4 flex items-start gap-3">
+      <CardContent className="p-3 sm:p-4 flex items-start gap-3">
         <div className={`p-2 rounded-lg ${good ? "bg-success/10" : "bg-warning/10"}`}>
           {good ? <CheckCircle2 className="h-5 w-5 text-success" /> : <FileText className="h-5 w-5 text-warning" />}
         </div>
@@ -60,7 +60,7 @@ export function EmailDispatchHealthTile() {
 
   return (
     <Card className={bad ? "border-destructive/40 bg-destructive/5" : ""}>
-      <CardContent className="p-4 flex items-start gap-3">
+      <CardContent className="p-3 sm:p-4 flex items-start gap-3">
         <div className={`p-2 rounded-lg ${bad ? "bg-destructive/10" : "bg-info/10"}`}>
           {bad ? <AlertTriangle className="h-5 w-5 text-destructive" /> : <Mail className="h-5 w-5 text-info" />}
         </div>
@@ -114,7 +114,7 @@ export function RosterCompletenessTile() {
 
   return (
     <Card className={good ? "border-success/40 bg-success/5" : "border-warning/40 bg-warning/5"}>
-      <CardContent className="p-4 flex items-start gap-3">
+      <CardContent className="p-3 sm:p-4 flex items-start gap-3">
         <div className={`p-2 rounded-lg ${good ? "bg-success/10" : "bg-warning/10"}`}>
           {good ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Users className="h-5 w-5 text-warning" />}
         </div>

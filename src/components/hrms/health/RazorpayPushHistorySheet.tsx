@@ -154,15 +154,15 @@ export function RazorpayPushHistorySheet({ open, onOpenChange }: { open: boolean
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl p-0 flex flex-col">
-        <SheetHeader className="px-4 pt-4 pb-2 border-b border-border">
-          <SheetTitle>RazorpayX push history</SheetTitle>
-          <SheetDescription>Everything HRMS has sent to RazorpayX, from any screen or scheduled job. Times in IST.</SheetDescription>
+      <SheetContent side="right" className="w-full max-w-none sm:max-w-3xl p-0 flex flex-col overflow-hidden">
+        <SheetHeader className="px-4 pr-12 pt-4 pb-3 border-b border-border text-left">
+          <SheetTitle className="text-base sm:text-lg">RazorpayX push history</SheetTitle>
+          <SheetDescription className="text-xs sm:text-sm">Everything HRMS has sent to RazorpayX, from any screen or scheduled job. Times in IST.</SheetDescription>
         </SheetHeader>
 
-        <div className="px-4 py-3 space-y-2 border-b border-border">
+        <div className="shrink-0 max-h-[48dvh] overflow-y-auto px-3 sm:px-4 py-3 space-y-2 border-b border-border">
           <Input placeholder="Search employee, change, error…" value={search} onChange={(e) => setSearch(e.target.value)} className="text-foreground" />
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             <Select value={range} onValueChange={setRange}>
               <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -212,16 +212,16 @@ export function RazorpayPushHistorySheet({ open, onOpenChange }: { open: boolean
               </SelectContent>
             </Select>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <span>{stats.total} pushes · <span className={stats.failed ? "text-destructive" : ""}>{stats.failed} failed</span></span>
-            <div className="flex gap-2">
-              <Button size="sm" variant="ghost" onClick={reset}>Clear filters</Button>
-              <Button size="sm" variant="outline" onClick={exportCsv} disabled={!filtered.length}><Download className="h-3.5 w-3.5 mr-1" />CSV</Button>
+            <div className="grid grid-cols-2 gap-2 sm:flex">
+              <Button size="sm" variant="ghost" className="w-full" onClick={reset}>Clear filters</Button>
+              <Button size="sm" variant="outline" className="w-full" onClick={exportCsv} disabled={!filtered.length}><Download className="h-3.5 w-3.5 mr-1" />CSV</Button>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-2">
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 sm:px-4 py-2">
           {q.isLoading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
           ) : q.error ? (
@@ -239,12 +239,12 @@ export function RazorpayPushHistorySheet({ open, onOpenChange }: { open: boolean
                     <button className="w-full text-left flex items-start gap-2" onClick={() => setExpanded(isOpen ? null : r.id)}>
                       {isOpen ? <ChevronDown className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />}
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{m?.label ?? r.action}</span>
-                          <Badge variant={good ? "secondary" : "destructive"} className="text-[10px]">{good ? "Success" : "Failed"}</Badge>
+                        <div className="flex min-w-0 items-start gap-2">
+                          <span className="min-w-0 flex-1 text-sm font-medium text-foreground">{m?.label ?? r.action}</span>
+                          <Badge variant={good ? "secondary" : "destructive"} className="shrink-0 text-[10px]">{good ? "Success" : "Failed"}</Badge>
                           {m && <span className="text-[10px] text-muted-foreground uppercase">{CAT_LABEL[m.cat]}</span>}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
+                        <div className="text-xs text-muted-foreground break-words">
                           {empName(r.hr_employee_id, r.razorpay_employee_id)} · {actorLabel(r.actor_user_id)} · {fmtIST(r.created_at)}
                         </div>
                         {!good && r.error_text && <div className="text-xs text-destructive line-clamp-2">{r.error_text}</div>}

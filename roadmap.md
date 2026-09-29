@@ -6,6 +6,12 @@
 - [x] Preserve desktop mailbox layout and mail actions.
 - [ ] Verify signed-in mailbox on a phone (blocked: external Supabase authentication unavailable to automated checks).
 
+## Data Health history and mobile layout
+
+- [x] Keep History visible and place History and Rescan in a stable phone action row.
+- [x] Reflow status counters, filters, discrepancy actions, health tiles, and history filters for phone width.
+- [ ] Verify the signed-in Data Health page and history list on a phone (blocked: external Supabase authentication unavailable to automated checks).
+
 ## Terminal Copilot current-order replies
 
 - [x] Include the unsent draft, bounded current-order chat, actual trade side, status, asset, quantity and payment details.

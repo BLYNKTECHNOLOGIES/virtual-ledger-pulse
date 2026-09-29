@@ -36,6 +36,8 @@ import { Link } from "react-router-dom";
 import { PayslipParityTile, EmailDispatchHealthTile, RosterCompletenessTile } from "@/components/hrms/health/PayrollHealthTiles";
 import { RazorpayOrphanPanel } from "@/components/hrms/health/RazorpayOrphanPanel";
 import { ErpAccountHealthPanel } from "@/components/hrms/health/ErpAccountHealthPanel";
+import { RazorpayPushHistorySheet } from "@/components/hrms/health/RazorpayPushHistorySheet";
+import { History } from "lucide-react";
 
 import { PullFromRazorpayDialog, type PullTarget } from "@/components/hr/governance/PullFromRazorpayDialog";
 
@@ -142,6 +144,7 @@ export default function DataHealthPage() {
     params.get("unexplained") === "1",
   );
   const [scanning, setScanning] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [scanSignal, setScanSignal] = useState(0);
   const [resolvingIds, setResolvingIds] = useState<Set<string>>(new Set());
   const markResolving = (id: string) =>
@@ -628,6 +631,14 @@ export default function DataHealthPage() {
               </button>
             )}
           </h1>
+          <div className="flex items-center gap-2">
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            <History className="h-4 w-4" />
+            History
+          </button>
           <button
             onClick={runScan}
             disabled={scanning}
@@ -636,6 +647,8 @@ export default function DataHealthPage() {
             {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Rescan now
           </button>
+          </div>
+          <RazorpayPushHistorySheet open={historyOpen} onOpenChange={setHistoryOpen} />
         </div>
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">

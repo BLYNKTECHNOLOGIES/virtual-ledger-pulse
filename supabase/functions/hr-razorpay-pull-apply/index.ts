@@ -96,8 +96,9 @@ function razorpayValueFor(field: string, snap: any, dismissed: boolean): string 
       const raw = sal?.annual_ctc ?? sal?.["annual-ctc"] ?? null;
       const n = typeof raw === "string" ? Number(raw.replace(/,/g, "")) : raw;
       if (typeof n === "number" && Number.isFinite(n) && n > 0) return String(Math.round(n));
-      const monthly = Number(sal?.monthly_gross ?? 0);
-      return monthly > 0 ? String(Math.round(monthly * 12)) : null;
+      // monthly_gross excludes employer PF/ESI counted inside CTC, so ×12 is
+      // NOT the CTC — never adopt it (caused the Sep 2026 CTC under-statement).
+      return null;
     }
     case "active_state": {
       if (dismissed) return "inactive";

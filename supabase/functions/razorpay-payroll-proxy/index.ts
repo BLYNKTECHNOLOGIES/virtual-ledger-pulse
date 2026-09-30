@@ -134,11 +134,55 @@ async function opfinView(employeeId: number, employeeType = "employee") {
 //
 // Candidate months, newest-first: current month → previous months, always
 // skipping the employee's joining month (prorated) and anything before it.
+// VERIFIED 2026-09-30 IST against pushed CTCs (Priya: pushed 4,42,200 →
+// view-payroll salary 34,455 = 36,850 × (1 − 6.5%)): `salary` is the monthly
+// GROSS after removing employer contributions counted inside CTC — employer PF
+// 13% of basic (basic = 50% of CTC ⇒ 6.5%) and, for ESI-covered staff,
+// employer ESI 3.25% of gross. gross = CTC/12 × (1 − pf) / (1 + esi).
+// PF/ESI applicability per person is not exposed by the API, so a CTC is only
+// accepted when a form reproduces a CTC HRMS already knows; else unresolved.
+function ctcFromMonthlyGross(gross: number, known: number[]): { annual: number | null; basis: string } {
+  const forms = [
+    { p: 0.065, e: 0.0325, basis: "gross+employer_pf+employer_esi" },
+    { p: 0.065, e: 0, basis: "gross+employer_pf" },
+    { p: 0, e: 0.0325, basis: "gross+employer_esi" },
+    { p: 0, e: 0, basis: "gross_equals_ctc" },
+  ];
+  const uniq = Array.from(new Set(known.filter((k) => Number.isFinite(k) && k > 0).map((k) => Math.round(k))));
+  for (const f of forms) {
+    const hit = uniq.find((k) => Math.abs(Math.round(((k / 12) * (1 - f.p)) / (1 + f.e)) - gross) <= 1);
+    if (hit) return { annual: hit, basis: f.basis };
+  }
+  return { annual: null, basis: "unresolved_no_matching_known_ctc" };
+}
+
+async function knownCtcsFor(svc: any, hrEmployeeId: string | null | undefined): Promise<number[]> {
+  if (!hrEmployeeId) return [];
+  const out: number[] = [];
+  try {
+    const [emp, onb, revs, pushes] = await Promise.all([
+      svc.from("hr_employees").select("total_salary").eq("id", hrEmployeeId).maybeSingle(),
+      svc.from("hr_employee_onboarding").select("ctc").eq("employee_id", hrEmployeeId),
+      svc.from("hr_salary_revisions").select("previous_total,new_total,status").eq("employee_id", hrEmployeeId),
+      svc.from("hr_razorpay_sync_log").select("field_diff_summary").eq("hr_employee_id", hrEmployeeId).eq("action", "push_salary"),
+    ]);
+    out.push(Number(emp?.data?.total_salary ?? 0));
+    for (const o of onb?.data ?? []) out.push(Number(o.ctc ?? 0));
+    for (const r of revs?.data ?? []) {
+      if (String(r.status ?? "").toUpperCase() !== "CANCELLED") out.push(Number(r.new_total ?? 0));
+      out.push(Number(r.previous_total ?? 0));
+    }
+    for (const p of pushes?.data ?? []) out.push(Number((p.field_diff_summary as any)?.erp_total ?? 0));
+  } catch { /* best effort */ }
+  return out.filter((n) => n > 0);
+}
+
 async function opfinSalary(
   employeeId: number,
   email?: string | null,
   executedMonths?: string[] | null,
   hireDate?: string | null,
+  knownCtcs?: number[] | null,
 ): Promise<{
   ok: boolean; annual_ctc: number | null; monthly_gross: number | null;
   components: any[]; raw: any; http_status: number; err: string | null; source_month?: string;
@@ -225,9 +269,11 @@ async function opfinSalary(
 
       const monthly = readNum(body, ["salary"]);
       if (monthly && monthly > 0) {
-        const annual = Math.round(monthly * 12);
-        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly=${monthly} annual=${annual}`);
-        return { ok: true, annual_ctc: annual, monthly_gross: monthly, components: [], raw: body, http_status: res.status, err: null, source_month: ym };
+        // `salary` is the monthly GROSS (CTC minus employer PF/ESI counted in
+        // CTC) — NOT CTC/12. Resolve the real CTC.
+        const resolved = ctcFromMonthlyGross(monthly, knownCtcs ?? []);
+        console.log(`[opfinSalary] emp=${employeeId} MATCH ${tag} monthly_gross=${monthly} annual_ctc=${resolved.annual} basis=${resolved.basis}`);
+        return { ok: true, annual_ctc: resolved.annual, monthly_gross: monthly, ctc_basis: resolved.basis, components: [], raw: body, http_status: res.status, err: null, source_month: ym } as any;
       }
 
       perAttempt.push(`no salary field @ ${tag} keys=${Object.keys(body).slice(0, 10).join(",")}`);
@@ -1743,11 +1789,14 @@ Deno.serve(async (req) => {
         }
         const rpEmail = (r.body as any)?.email || (r.body as any)?.work_email || null;
         const rpHire = (r.body as any)?.["date-of-hiring"] ?? (r.body as any)?.date_of_hiring ?? (r.body as any)?.["hiring-date"] ?? null;
-        const sal = await opfinSalary(rpId, rpEmail, Array.from(months), rpHire);
+        const { data: mapRow } = await svc.from("hr_razorpay_employee_map").select("hr_employee_id").eq("razorpay_employee_id", String(rpId)).maybeSingle();
+        const known = await knownCtcsFor(svc, (mapRow as any)?.hr_employee_id);
+        const sal: any = await opfinSalary(rpId, rpEmail, Array.from(months), rpHire, known);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,
             monthly_gross: sal.monthly_gross,
+            ctc_basis: sal.ctc_basis ?? null,
             components: sal.components,
           };
         } else {
@@ -2807,11 +2856,13 @@ Deno.serve(async (req) => {
         // Attach onto snapshot as __salary so projectors can read it. Silent on
         // failure (Razorpay returns nothing when salary structure isn't set).
         // GATED: only probes months with an executed RazorpayX payroll run.
-        const sal = await opfinSalary(eid, (r.body as any)?.email, executedMonthsSet, (r.body as any)?.["date-of-hiring"] ?? (r.body as any)?.date_of_hiring ?? (r.body as any)?.["hiring-date"] ?? null);
+        const knownCtcs = await knownCtcsFor(svc, (m as any).hr_employee_id);
+        const sal: any = await opfinSalary(eid, (r.body as any)?.email, executedMonthsSet, (r.body as any)?.["date-of-hiring"] ?? (r.body as any)?.date_of_hiring ?? (r.body as any)?.["hiring-date"] ?? null, knownCtcs);
         if (sal.ok) {
           (r.body as any).__salary = {
             annual_ctc: sal.annual_ctc,
             monthly_gross: sal.monthly_gross,
+            ctc_basis: sal.ctc_basis ?? null,
             components: sal.components,
           };
         } else {

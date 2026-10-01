@@ -58,3 +58,10 @@
 - [x] Keep SELL ads on the standard quantity field and remove response-only quantity fields from update requests.
 - [x] Deploy the corrected Binance Ads function and verify preview compilation.
 - [ ] Run a live authenticated BUY-ad update (blocked: this external Supabase session is not available to automated verification).
+
+## Safe F&F and final-payroll exit flow
+
+- [x] Separate internal access closure from RazorpayX dismissal.
+- [x] Infer the F&F payment reference from the verified payroll handoff.
+- [ ] Gate every RazorpayX dismissal on the final payroll month's processed date.
+- [ ] Verify Satyam remains RazorpayX-active while September payroll is unprocessed.

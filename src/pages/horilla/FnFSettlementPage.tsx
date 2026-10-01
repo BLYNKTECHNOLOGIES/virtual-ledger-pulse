@@ -193,21 +193,6 @@ export default function FnFSettlementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Retry the RazorpayX push for an approved settlement whose read-back failed.
-  const pushMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await (supabase as any).functions.invoke("hr-push-fnf", { body: { settlement_id: id } });
-      if (error) throw error;
-      if (data?.ok === false) throw new Error(data?.error || "Push did not verify on the RazorpayX read-back");
-      return data;
-    },
-    onSuccess: () => {
-      invalidateFnFEverywhere(qc);
-      toast.success("Pushed to RazorpayX and verified on the run");
-    },
-    onError: (e: any) => toast.error(e.message),
-  });
-
   // ── Delete a settlement and unwind everything it touched ──────────────────
   // hr_delete_fnf_settlement reopens reserved/closed deposits and error
   // recoveries (with a released ledger entry), reopens loans it closed,

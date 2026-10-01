@@ -190,8 +190,9 @@ Deno.serve(async (req) => {
   if (dueIds.length > 0) {
     const { data: fnfRows } = await svc
       .from("hr_fnf_settlements")
-      .select("employee_id, status, razorpay_push_status, payroll_month")
-      .in("employee_id", dueIds);
+      .select("employee_id, status, razorpay_push_status, payroll_month, created_at")
+      .in("employee_id", dueIds)
+      .order("created_at", { ascending: false });
     for (const r of fnfRows || []) {
       const list = fnfByEmployee.get(r.employee_id) || [];
       list.push(r);

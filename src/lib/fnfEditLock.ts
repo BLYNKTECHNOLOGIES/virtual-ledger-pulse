@@ -9,7 +9,7 @@
  */
 export type FnFEditLock = { locked: boolean; reason: string };
 
-const PUSHED_STATES = ["pushed", "pushing", "partially_pushed"];
+const PUSHED_STATES = ["queued", "pushed", "pushing", "partially_pushed"];
 
 export function fnfEditLock(settlement: any): FnFEditLock {
   const status = String(settlement?.status || "").toLowerCase();
@@ -19,7 +19,9 @@ export function fnfEditLock(settlement: any): FnFEditLock {
     return {
       locked: true,
       reason:
-        "Already pushed into the monthly payroll run in RazorpayX — remove the F&F lines there before editing.",
+        push === "queued"
+          ? "Already staged for the monthly payroll run — remove the staged inputs before editing."
+          : "Already pushed into the monthly payroll run in RazorpayX — remove the F&F lines there before editing.",
     };
   }
   if (status === "paid") {

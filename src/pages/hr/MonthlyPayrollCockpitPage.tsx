@@ -260,7 +260,7 @@ function DetailLine({ step }: { step: CockpitStep }) {
       const parts: string[] = [];
       if ((d.fnf_total ?? 0) > 0) parts.push(`${d.fnf_total} F&F ${plural(d.fnf_total, "settlement")} in this cycle`);
       if ((d.fnf_open ?? 0) > 0) parts.push(`${d.fnf_open} still unfinished`);
-      if ((d.fnf_approved_unpushed ?? 0) > 0) parts.push(`${d.fnf_approved_unpushed} approved but not pushed to RazorpayX`);
+      if ((d.fnf_approved_unpushed ?? 0) > 0) parts.push(`${d.fnf_approved_unpushed} approved and queued for Inputs`);
       if ((d.exits_without_fnf ?? 0) > 0) parts.push(`${d.exits_without_fnf} exit ${plural(d.exits_without_fnf, "employee")} with no settlement`);
       if (parts.length === 0) return <span>Nothing to settle this cycle.</span>;
       return <span>{parts.join(" · ")}.</span>;

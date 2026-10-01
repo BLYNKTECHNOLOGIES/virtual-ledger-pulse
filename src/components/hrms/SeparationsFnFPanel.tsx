@@ -270,8 +270,8 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Calculated / awaiting approval → approved, with the same safeguards and
-  // RazorpayX payroll push used by the canonical F&F page.
+  // Calculated / awaiting approval → approved. Approval stages the payroll
+  // inputs; the later Inputs Push step owns the RazorpayX write and read-back.
   const approveSettlement = useMutation({
     mutationFn: async (settlement: any) => {
       const decisions: DepositDecision[] = (settlement?.breakdown?.deposit_decisions || []).map(
@@ -304,7 +304,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
 
       const { data: pushResult, error: pushError } = await (supabase as any).functions.invoke(
         "hr-push-fnf",
-        { body: { settlement_id: settlement.id } },
+        { body: { settlement_id: settlement.id, stage_only: true } },
       );
       return { pushResult, pushError };
     },
@@ -312,12 +312,12 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       setConfirmSettlement(null);
       if (pushError || pushResult?.ok === false) {
         toast.error(
-          `Approved, but the RazorpayX push did not verify: ${pushResult?.error || ((pushResult?.results || []).filter((r: any) => !r.verified).map((r: any) => { try { return JSON.parse(r.error).message; } catch { return r.error; } }).join('; ') || pushError?.message) || "unknown error"}`,
+          `Approved, but the payroll input could not be staged: ${pushResult?.error || pushError?.message || "unknown error"}`,
         );
       } else if (pushResult?.nothing_to_push) {
-        toast.success("Approved — there is nothing to push to RazorpayX");
+        toast.success("F&F approved — no payroll input is needed");
       } else {
-        toast.success("Approved and verified on the RazorpayX payroll run");
+        toast.success("F&F approved — queued for the Inputs Push step");
       }
       invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_cockpit_month_state"] });
@@ -523,7 +523,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
           {[
             { label: "Scheduled F&F", value: cycleSettlements.length, tone: "" },
             { label: "Unfinished", value: openUnfinished, tone: "text-warning" },
-            { label: "Approved, not pushed", value: approvedUnpushed, tone: "text-warning" },
+            { label: "Queued for Inputs", value: approvedUnpushed, tone: "text-info" },
             { label: "Exits without F&F", value: exitsWithoutFnF.length, tone: "text-destructive" },
           ].map((m) => (
             <div key={m.label} className="rounded-lg border bg-muted/30 px-3 py-2">
@@ -538,7 +538,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
         </div>
       </div>
 
-      {(openUnfinished > 0 || approvedUnpushed > 0 || exitsWithoutFnF.length > 0) && (
+      {(openUnfinished > 0 || exitsWithoutFnF.length > 0) && (
         <Card className="border-warning/40 bg-warning/5">
           <CardContent className="p-3 text-xs space-y-1.5">
             {exitsWithoutFnF.length > 0 && (
@@ -553,13 +553,18 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                 {openUnfinished} settlement(s) still unfinished (draft / calculated / awaiting approval).
               </p>
             )}
-            {approvedUnpushed > 0 && (
-              <p className="flex gap-2">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
-                {approvedUnpushed} approved settlement(s) not yet pushed to RazorpayX — clear
-                them on the Inputs push step.
-              </p>
-            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {approvedUnpushed > 0 && (
+        <Card className="border-info/30 bg-info/5">
+          <CardContent className="p-3 text-xs flex gap-2">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-info" />
+            <p>
+              F&amp;F approval is complete for {approvedUnpushed} settlement(s). Their additions or deductions are
+              queued for the later Inputs Push step; this does not keep Separations incomplete.
+            </p>
           </CardContent>
         </Card>
       )}
@@ -662,11 +667,17 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                     <Badge variant="outline" className={statusTone(String(s.status))}>
                       {String(s.status).replace("_", " ")}
                     </Badge>
-                    {s.razorpay_push_status && (
-                      <Badge variant="outline" className="text-[10px] font-normal">
-                        RazorpayX {String(s.razorpay_push_status).replace(/_/g, " ")}
+                    {String(s.razorpay_push_status || "") === "pushed" ? (
+                      <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-[10px] font-normal">
+                        Verified on payroll run
                       </Badge>
-                    )}
+                    ) : String(s.razorpay_push_status || "") === "nothing_to_push" ? (
+                      <Badge variant="outline" className="text-[10px] font-normal">No payroll input needed</Badge>
+                    ) : String(s.status) === "approved" ? (
+                      <Badge variant="outline" className="border-info/30 bg-info/10 text-info text-[10px] font-normal">
+                        Queued for Inputs step
+                      </Badge>
+                    ) : null}
                     {EDITABLE_STATUSES.includes(String(s.status)) ? (
                       <>
                         <Button
@@ -749,7 +760,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm this F&amp;F settlement?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will mark the settlement for {confirmSettlement?.hr_employees?.first_name || "this employee"} as approved and send its verified payroll input to RazorpayX where applicable.
+              This approves the settlement for {confirmSettlement?.hr_employees?.first_name || "this employee"} and queues any addition or deduction for the later Inputs Push step.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -7,6 +7,7 @@
 // back on the live run (payroll:view-payroll read-back inside the proxy).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3.23.8";
 import { requireHrCaller } from "../_shared/require-hr-caller.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -37,6 +38,11 @@ async function callProxy(action: string, payload: unknown) {
   };
 }
 
+const BodySchema = z.object({
+  settlement_id: z.string().uuid(),
+  stage_only: z.boolean().optional().default(false),
+});
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -47,8 +53,11 @@ Deno.serve(async (req) => {
   const svc = createClient(SUPABASE_URL, SERVICE_ROLE);
 
   try {
-    const { settlement_id } = await req.json();
-    if (!settlement_id) return json({ ok: false, error: "settlement_id is required" }, 400);
+    const parsed = BodySchema.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return json({ ok: false, error: parsed.error.flatten().fieldErrors }, 400);
+    }
+    const { settlement_id, stage_only } = parsed.data;
 
     const { data: s, error } = await svc
       .from("hr_fnf_settlements")
@@ -57,7 +66,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (error) return json({ ok: false, error: error.message }, 500);
     if (!s) return json({ ok: false, error: "Settlement not found" }, 404);
-    if (s.razorpay_push_status === "pushed") {
+    if (!stage_only && s.razorpay_push_status === "pushed") {
       return json({ ok: true, already_pushed: true, pushed_at: s.razorpay_pushed_at });
     }
     if (!["approved", "paid"].includes(s.status)) {
@@ -87,6 +96,61 @@ Deno.serve(async (req) => {
       Number(b.notice_pay_recovery || 0) +
       Number(s.other_deductions || 0);
 
+    const lines = [
+      ...(additionTotal > 0 ? [{ line: "addition", amount: additionTotal }] : []),
+      ...(deductionTotal > 0 ? [{ line: "deduction", amount: deductionTotal }] : []),
+    ];
+
+    if (lines.length === 0) {
+      await svc.from("hr_fnf_settlements")
+        .update({
+          razorpay_push_status: "nothing_to_push",
+          razorpay_pushed_at: new Date().toISOString(),
+          push_failure_reason: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", s.id);
+      return json({ ok: true, nothing_to_push: true, month });
+    }
+
+    // Approval establishes the payroll input, but Step 3 must not execute a
+    // RazorpayX write. The later Inputs Push step owns that external action and
+    // its read-back verification.
+    const periodMonth = `${month}-01`;
+    const nowIso = new Date().toISOString();
+    if (stage_only) {
+      for (const line of lines) {
+        const isAddition = line.line === "addition";
+        const table = isAddition ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
+        const row: Record<string, unknown> = {
+          hr_employee_id: s.employee_id,
+          razorpay_employee_id: String(mapRow.razorpay_employee_id),
+          period_month: periodMonth,
+          label: isAddition ? "F&F settlement — dues" : "F&F settlement — recoveries",
+          amount: Math.round(line.amount * 100) / 100,
+          source: "fnf_settlement",
+          pushed_at: null,
+          readback_verified_at: null,
+          push_response: { settlement_id: s.id, staged_at: nowIso },
+          updated_at: nowIso,
+        };
+        if (isAddition) { row.addition_type = 0; row.taxable = true; }
+        const { error: stageError } = await svc
+          .from(table)
+          .upsert(row, { onConflict: "razorpay_employee_id,period_month,label" });
+        if (stageError) throw new Error(`Could not stage ${line.line}: ${stageError.message}`);
+      }
+      await svc.from("hr_fnf_settlements")
+        .update({
+          razorpay_push_status: "queued",
+          razorpay_pushed_at: null,
+          push_failure_reason: null,
+          updated_at: nowIso,
+        })
+        .eq("id", s.id);
+      return json({ ok: true, staged: true, month, lines });
+    }
+
     const results: any[] = [];
 
     if (additionTotal > 0) {
@@ -113,26 +177,12 @@ Deno.serve(async (req) => {
       results.push({ line: "deduction", amount: deductionTotal, ...r });
     }
 
-    if (results.length === 0) {
-      await svc.from("hr_fnf_settlements")
-        .update({
-          razorpay_push_status: "nothing_to_push",
-          razorpay_pushed_at: new Date().toISOString(),
-          push_failure_reason: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", s.id);
-      return json({ ok: true, nothing_to_push: true, month });
-    }
-
     const allVerified = results.every((r) => r.verified);
 
     // Mirror the pushed F&F lines into the monthly payroll input tables so the
     // Monthly Payroll Cockpit shows them for that cycle, clearly segregated as
     // F&F settlement lines. They are recorded as already pushed so the cockpit
     // never re-pushes them to RazorpayX.
-    const periodMonth = `${month}-01`;
-    const nowIso = new Date().toISOString();
     for (const r of results) {
       const isAddition = r.line === "addition";
       const table = isAddition ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";

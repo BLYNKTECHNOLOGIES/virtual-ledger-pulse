@@ -72,17 +72,26 @@ async function queueBiometricRemoval(svc: any, emp: any): Promise<{ ok: boolean;
     if (priorError) return { ok: false, detail: priorError.message };
     const queued = new Set((prior || []).map((row: any) => row.device_serial));
     let count = 0;
+    const failures: string[] = [];
     for (const device of devices) {
       if (!device.device_serial || queued.has(device.device_serial)) continue;
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/hr-essl-push`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
-        body: JSON.stringify({ hr_employee_id: emp.id, action: "delete", device_serial: device.device_serial, triggered_from: "auto_lwd_sweep" }),
-      });
-      const result = await response.json().catch(() => ({}));
-      if (!response.ok || !result.ok) return { ok: false, detail: result.error || `Device queue failed (HTTP ${response.status})` };
-      count++;
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/hr-essl-push`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+          body: JSON.stringify({ hr_employee_id: emp.id, action: "delete", device_serial: device.device_serial, triggered_from: "auto_lwd_sweep" }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) {
+          failures.push(`${device.device_serial}: ${result.error || `HTTP ${response.status}`}`);
+          continue;
+        }
+        count++;
+      } catch (error) {
+        failures.push(`${device.device_serial}: ${String(error)}`);
+      }
     }
+    if (failures.length) return { ok: false, detail: `${count} queued; retry ${failures.join("; ")}` };
     return { ok: true, detail: count ? `Queued on ${count} device(s)` : "Already queued on every device" };
   } catch (error) { return { ok: false, detail: String(error) }; }
 }
@@ -207,10 +216,9 @@ Deno.serve(async (req) => {
       (r) => String(r.status || "").toLowerCase() !== "cancelled",
     );
     if (rows.length === 0) return { row: null, reason: "No Full & Final settlement exists — create and settle it before RazorpayX dismissal." };
-    const settled = rows.find((r) => String(r.status).toLowerCase() === "paid");
-    if (!settled) {
-      const worst = rows[0];
-      return { row: null, reason: `Full & Final is still '${worst.status}' — settle it before RazorpayX dismissal.` };
+    const settled = rows[0];
+    if (String(settled.status).toLowerCase() !== "paid") {
+      return { row: null, reason: `Full & Final is still '${settled.status}' — settle it before RazorpayX dismissal.` };
     }
     if (!["pushed", "nothing_to_push"].includes(String(settled.razorpay_push_status || ""))) {
       return { row: null, reason: "Full & Final is marked paid but its RazorpayX input has not been verified — clear the push first." };
@@ -250,8 +258,14 @@ Deno.serve(async (req) => {
       continue;
     }
     const payrollMonth = settlement.row?.payroll_month || `${String(emp.last_working_day).slice(0, 7)}-01`;
+    const { data: mapping, error: mappingError } = await svc.from("hr_razorpay_employee_map")
+      .select("razorpay_employee_id").eq("hr_employee_id", emp.id).maybeSingle();
+    if (mappingError || !mapping?.razorpay_employee_id) {
+      results.push({ id: emp.id, name, ...access, action: "held_final_payroll_unpaid", reason: mappingError?.message || "No RazorpayX employee mapping" });
+      continue;
+    }
     const { data: payout, error: payoutError } = await svc.from("hr_razorpay_payout_records")
-      .select("id").eq("hr_employee_id", emp.id).eq("period_month", payrollMonth)
+      .select("id").eq("hr_employee_id", emp.id).eq("razorpay_employee_id", mapping.razorpay_employee_id).eq("period_month", payrollMonth)
       .in("payout_status", ["paid", "success", "processed"])
       .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
     if (payoutError || !payout) {

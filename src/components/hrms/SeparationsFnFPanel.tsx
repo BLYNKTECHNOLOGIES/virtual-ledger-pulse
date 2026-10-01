@@ -362,7 +362,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       };
     },
     onSuccess: (res) => {
-      setPayPrompt(null);
+      setPayPrompt(null); setPayRef("");
       toast.success(
         `Settled and separation completed for ${res.name}${res.erp?.deactivated ? " — ERP login disabled" : ""}.`,
       );

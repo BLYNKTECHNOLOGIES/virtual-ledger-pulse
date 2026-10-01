@@ -46,6 +46,9 @@ async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
     userId = data?.id || null;
   }
   if (!userId) return false;
+  const { data: userRow, error: lookupError } = await svc.from("users").select("status").eq("id", userId).maybeSingle();
+  if (lookupError || !userRow) return false;
+  if (userRow.status === "INACTIVE") return true;
   const { error } = await svc
     .from("users")
     .update({
@@ -242,7 +245,8 @@ Deno.serve(async (req) => {
     const payrollMonth = settlement.row?.payroll_month || `${String(emp.last_working_day).slice(0, 7)}-01`;
     const { data: payout, error: payoutError } = await svc.from("hr_razorpay_payout_records")
       .select("id").eq("hr_employee_id", emp.id).eq("period_month", payrollMonth)
-      .eq("payout_status", "paid").gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
+      .in("payout_status", ["paid", "success", "processed"])
+      .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
     if (payoutError || !payout) {
       results.push({
         id: emp.id,

@@ -698,16 +698,16 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                         }
                         title={
                           ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""))
-                            ? "Mark settled and close internal access; RazorpayX remains active until final payroll is processed"
+                            ? "Settle F&F; access follows the last working day, and RazorpayX waits for final salary payment"
                             : "Push the F&F lines to RazorpayX first"
                         }
                         onClick={() => setPayPrompt(s)}
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid &amp; close access
+                         <CheckCircle2 className="h-3.5 w-3.5" /> Mark F&amp;F paid
                       </Button>
                     ) : (
                       <span className="text-[11px] text-muted-foreground">
-                        Settled — awaiting final payroll before RazorpayX dismissal
+                         Settled — awaiting verified final salary before RazorpayX dismissal
                       </span>
                     )}
                   </div>

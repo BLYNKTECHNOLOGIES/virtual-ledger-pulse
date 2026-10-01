@@ -509,18 +509,26 @@ export async function dismissInRazorpay(
     .maybeSingle();
   if (settlementError) return { ok: false, error: settlementError.message };
   const payrollMonth = settlement?.payroll_month || `${opts.dateOfDismissal.slice(0, 7)}-01`;
-  const { data: monthMeta, error: monthError } = await (supabase as any)
-    .from("hr_payroll_month_meta")
-    .select("processed_on")
+  if (settlement?.status !== "paid" || !settlement?.payroll_month) {
+    return { ok: false, deferred: true, error: "F&F must be settled before RazorpayX dismissal." };
+  }
+  const { data: payout, error: payoutError } = await (supabase as any)
+    .from("hr_razorpay_payout_records")
+    .select("id")
+    .eq("hr_employee_id", hrEmployeeId)
     .eq("period_month", payrollMonth)
+    .in("payout_status", ["paid", "success", "processed"])
+    .gt("paid_amount", 0)
+    .not("paid_at", "is", null)
+    .limit(1)
     .maybeSingle();
-  if (monthError) return { ok: false, error: monthError.message };
-  if (!monthMeta?.processed_on) {
+  if (payoutError) return { ok: false, error: payoutError.message };
+  if (!payout) {
     return {
       ok: false,
       deferred: true,
       effectiveDate: payrollMonth,
-      error: `RazorpayX dismissal is deferred until the ${String(payrollMonth).slice(0, 7)} final payroll is processed.`,
+      error: `RazorpayX dismissal is deferred until this employee's ${String(payrollMonth).slice(0, 7)} final salary payout is verified.`,
     };
   }
 

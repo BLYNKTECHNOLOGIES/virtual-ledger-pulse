@@ -8197,6 +8197,49 @@ Deno.serve(async (req) => {
         if (!rpEid) return json(400, { ok: false, error: "Missing required dismissal field: employee-id" });
         const dateOfDismissal = String(data.dateOfDismissal || data["date-of-dismissal"] || "").trim();
         if (!dateOfDismissal) return json(400, { ok: false, error: "Missing required dismissal field: dateOfDismissal" });
+        // Enforce the exit gates here, not only in the UI or scheduled caller.
+        // A month-wide processed flag and a zero F&F do not prove this person's
+        // ordinary salary has been paid. Fail closed when payout data is absent.
+        const { data: dismissalMap, error: dismissalMapError } = await svc
+          .from("hr_razorpay_employee_map")
+          .select("hr_employee_id")
+          .eq("razorpay_employee_id", String(rpEid))
+          .maybeSingle();
+        if (dismissalMapError || !dismissalMap?.hr_employee_id) {
+          return json(403, { ok: false, code: "EXIT_NOT_VERIFIED", error: "Employee mapping is missing; RazorpayX dismissal is blocked." });
+        }
+        const { data: dismissalEmployee, error: dismissalEmployeeError } = await svc
+          .from("hr_employees")
+          .select("last_working_day, resignation_status")
+          .eq("id", dismissalMap.hr_employee_id).maybeSingle();
+        const istDate = new Date(Date.now() + 330 * 60_000).toISOString().slice(0, 10);
+        if (dismissalEmployeeError || !dismissalEmployee?.last_working_day ||
+            dismissalEmployee.last_working_day >= istDate ||
+            !["notice_period", "completed"].includes(String(dismissalEmployee.resignation_status))) {
+          return json(403, { ok: false, code: "EXIT_NOT_DUE", error: "Last working day has not passed or separation is not approved; RazorpayX dismissal is blocked." });
+        }
+        const { data: finalFnf, error: finalFnfError } = await svc
+          .from("hr_fnf_settlements")
+          .select("payroll_month, status, razorpay_push_status")
+          .eq("employee_id", dismissalMap.hr_employee_id)
+          .neq("status", "cancelled")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (finalFnfError || finalFnf?.status !== "paid" ||
+            !["pushed", "nothing_to_push"].includes(String(finalFnf?.razorpay_push_status))) {
+          return json(403, { ok: false, code: "FNF_NOT_SETTLED", error: "F&F has not been settled and verified; RazorpayX dismissal is blocked." });
+        }
+        const finalMonth = finalFnf.payroll_month || `${dismissalEmployee.last_working_day.slice(0, 7)}-01`;
+        const { data: finalPayout, error: finalPayoutError } = await svc
+          .from("hr_razorpay_payout_records")
+          .select("id")
+          .eq("hr_employee_id", dismissalMap.hr_employee_id)
+          .eq("razorpay_employee_id", String(rpEid))
+          .eq("period_month", finalMonth)
+          .in("payout_status", ["paid", "success", "processed"])
+          .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
+        if (finalPayoutError || !finalPayout) {
+          return json(403, { ok: false, code: "FINAL_SALARY_NOT_VERIFIED", error: "Employee-level final salary payout has not been verified; RazorpayX dismissal is blocked. Pull payouts after payroll processing." });
+        }
         if (!data.email) {
           try {
             const { data: mapRow } = await svc

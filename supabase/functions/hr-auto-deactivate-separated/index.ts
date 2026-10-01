@@ -1,11 +1,6 @@
-// Daily cron: once an employee's last working day has elapsed (IST), close their
-// internal access when F&F is paid. Keep RazorpayX active until the employee's
-// final payroll month is explicitly marked processed, then dismiss there.
-//
-// TWO GATES (money safety): F&F must be paid before internal access closes; the
-// final payroll month's hr_payroll_month_meta.processed_on must also be set
-// before RazorpayX people:dismiss is called. A zero-value F&F does not bypass
-// the second gate because nothing_to_push says nothing about ordinary salary.
+// Daily cron: after last working day (IST), close ERP and biometric access
+// independently of F&F. Never dismiss from RazorpayX until F&F is settled and
+// this employee's final salary payout is confirmed by the provider.
 //
 // Idempotent: successful dismissals are detected from the pushback audit log.
 
@@ -51,6 +46,9 @@ async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
     userId = data?.id || null;
   }
   if (!userId) return false;
+  const { data: userRow, error: lookupError } = await svc.from("users").select("status").eq("id", userId).maybeSingle();
+  if (lookupError || !userRow) return false;
+  if (userRow.status === "INACTIVE") return true;
   const { error } = await svc
     .from("users")
     .update({
@@ -60,6 +58,33 @@ async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
     })
     .eq("id", userId);
   return !error;
+}
+
+async function queueBiometricRemoval(svc: any, emp: any): Promise<{ ok: boolean; detail: string }> {
+  if (!emp.badge_id) return { ok: true, detail: "No biometric PIN" };
+  try {
+    const { data: devices, error: deviceError } = await svc.from("hr_biometric_devices").select("device_serial");
+    if (deviceError) return { ok: false, detail: deviceError.message };
+    if (!devices?.length) return { ok: true, detail: "No registered devices" };
+    const { data: prior, error: priorError } = await svc.from("hr_essl_pushback_log")
+      .select("device_serial").eq("hr_employee_id", emp.id).eq("kind", "delete")
+      .in("status", ["queued", "success"]);
+    if (priorError) return { ok: false, detail: priorError.message };
+    const queued = new Set((prior || []).map((row: any) => row.device_serial));
+    let count = 0;
+    for (const device of devices) {
+      if (!device.device_serial || queued.has(device.device_serial)) continue;
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/hr-essl-push`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+        body: JSON.stringify({ hr_employee_id: emp.id, action: "delete", device_serial: device.device_serial, triggered_from: "auto_lwd_sweep" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) return { ok: false, detail: result.error || `Device queue failed (HTTP ${response.status})` };
+      count++;
+    }
+    return { ok: true, detail: count ? `Queued on ${count} device(s)` : "Already queued on every device" };
+  } catch (error) { return { ok: false, detail: String(error) }; }
 }
 
 async function dismissInRazorpay(
@@ -165,20 +190,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  const payrollMonths = [...new Set(
-    [...fnfByEmployee.values()].flat().map((r: any) => r.payroll_month).filter(Boolean),
-  )];
-  const processedByMonth = new Map<string, string>();
-  if (payrollMonths.length > 0) {
-    const { data: monthRows } = await svc
-      .from("hr_payroll_month_meta")
-      .select("period_month, processed_on")
-      .in("period_month", payrollMonths);
-    for (const row of monthRows || []) {
-      if (row.processed_on) processedByMonth.set(row.period_month, row.processed_on);
-    }
-  }
-
   const dismissedIds = new Set<string>();
   if (dueIds.length > 0) {
     const { data: priorDismissals } = await svc
@@ -195,11 +206,11 @@ Deno.serve(async (req) => {
     const rows = (fnfByEmployee.get(empId) || []).filter(
       (r) => String(r.status || "").toLowerCase() !== "cancelled",
     );
-    if (rows.length === 0) return { row: null, reason: "No Full & Final settlement exists — create and settle it before closing access." };
+    if (rows.length === 0) return { row: null, reason: "No Full & Final settlement exists — create and settle it before RazorpayX dismissal." };
     const settled = rows.find((r) => String(r.status).toLowerCase() === "paid");
     if (!settled) {
       const worst = rows[0];
-      return { row: null, reason: `Full & Final is still '${worst.status}' — settle it before closing internal access.` };
+      return { row: null, reason: `Full & Final is still '${worst.status}' — settle it before RazorpayX dismissal.` };
     }
     if (!["pushed", "nothing_to_push"].includes(String(settled.razorpay_push_status || ""))) {
       return { row: null, reason: "Full & Final is marked paid but its RazorpayX input has not been verified — clear the push first." };
@@ -210,60 +221,57 @@ Deno.serve(async (req) => {
   const results: any[] = [];
   for (const emp of due || []) {
     const name = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
-    const settlement = settledFnf(emp.id);
-    if (settlement.reason) {
-      results.push({
-        id: emp.id,
-        name,
-        last_working_day: emp.last_working_day,
-        action: "held_fnf_unsettled",
-        reason: settlement.reason,
-      });
-      continue;
-    }
-    let erp = false;
-    if (emp.is_active) {
-      if (dryRun) {
-        results.push({ id: emp.id, name, last_working_day: emp.last_working_day, action: "would_close_internal_access" });
-      } else {
-        const { error: updErr } = await svc
-          .from("hr_employees")
-          .update({
-            is_active: false,
-            resignation_status: emp.resignation_status || "completed",
-            account_deletion_date: emp.last_working_day,
-          })
-          .eq("id", emp.id)
-          .eq("is_active", true);
-        if (updErr) {
-          results.push({ id: emp.id, name, error: updErr.message });
-          continue;
-        }
-        erp = await deactivateErpLogin(svc, emp);
+    // Do not touch a withdrawn or pending-approval separation merely because a
+    // tentative date passed. HR's approved notice/complete state is required.
+    if (!["notice_period", "completed"].includes(String(emp.resignation_status))) continue;
+    const access: any = { erp_login_disabled: false, biometric: "not_attempted" };
+    if (dryRun) {
+      access.action = "would_close_internal_access";
+    } else {
+      // Retry ERP on every sweep until it is inactive. Do not tie it to
+      // hr_employees.is_active: a previously closed HR row can retain a live ERP login.
+      const erp = await deactivateErpLogin(svc, emp);
+      access.erp_login_disabled = erp;
+      if (emp.is_active) {
+        const { error: updErr } = await svc.from("hr_employees")
+          .update({ is_active: false, resignation_status: "completed", account_deletion_date: emp.last_working_day })
+          .eq("id", emp.id).eq("is_active", true);
+        if (updErr) { results.push({ id: emp.id, name, action: "access_error", error: updErr.message }); continue; }
       }
+      // Reconcile each registered device independently: partial queue failures
+      // must not suppress retries for the remaining devices.
+      const bio = await queueBiometricRemoval(svc, emp);
+      access.biometric = bio.ok ? bio.detail : `retry_needed: ${bio.detail}`;
     }
 
+    const settlement = settledFnf(emp.id);
+    if (settlement.reason) {
+      results.push({ id: emp.id, name, last_working_day: emp.last_working_day, ...access, action: "held_fnf_unsettled", reason: settlement.reason });
+      continue;
+    }
     const payrollMonth = settlement.row?.payroll_month || `${String(emp.last_working_day).slice(0, 7)}-01`;
-    const processedOn = processedByMonth.get(payrollMonth);
-    if (!processedOn) {
+    const { data: payout, error: payoutError } = await svc.from("hr_razorpay_payout_records")
+      .select("id").eq("hr_employee_id", emp.id).eq("period_month", payrollMonth)
+      .in("payout_status", ["paid", "success", "processed"])
+      .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
+    if (payoutError || !payout) {
       results.push({
         id: emp.id,
         name,
         last_working_day: emp.last_working_day,
-        internal_access_closed: !dryRun,
-        erp_login_disabled: erp,
-        action: "held_final_payroll_unprocessed",
+        ...access,
+        action: "held_final_payroll_unpaid",
         payroll_month: payrollMonth,
-        reason: `RazorpayX remains active until ${String(payrollMonth).slice(0, 7)} payroll is marked processed.`,
+        reason: payoutError?.message || `RazorpayX remains active until this employee's ${String(payrollMonth).slice(0, 7)} salary payout is verified.`,
       });
       continue;
     }
     if (dismissedIds.has(emp.id)) {
-      results.push({ id: emp.id, name, action: "already_dismissed", payroll_month: payrollMonth, processed_on: processedOn });
+      results.push({ id: emp.id, name, ...access, action: "already_dismissed", payroll_month: payrollMonth });
       continue;
     }
     if (dryRun) {
-      results.push({ id: emp.id, name, action: "would_dismiss_in_razorpay", payroll_month: payrollMonth, processed_on: processedOn });
+      results.push({ id: emp.id, name, ...access, action: "would_dismiss_in_razorpay", payroll_month: payrollMonth });
       continue;
     }
 
@@ -273,14 +281,13 @@ Deno.serve(async (req) => {
       id: emp.id,
       name,
       last_working_day: emp.last_working_day,
-      internal_access_closed: true,
-      erp_login_disabled: erp,
+      ...access,
       razorpay: rzp.status,
       razorpay_error: rzp.ok ? undefined : rzp.message,
     });
   }
 
-  const held = results.filter((r) => ["held_fnf_unsettled", "held_final_payroll_unprocessed"].includes(r.action));
+  const held = results.filter((r) => ["held_fnf_unsettled", "held_final_payroll_unpaid"].includes(r.action));
   return json({
     ok: true,
     today,

@@ -61,7 +61,8 @@
 
 ## Safe F&F and final-payroll exit flow
 
-- [x] Separate internal access closure from RazorpayX dismissal.
+- [x] Automatically disable ERP login and queue biometric removal after the employee's last working day, regardless of F&F payment state; preserve HRMS and payroll records.
+- [x] Separate last-working-day access closure from F&F payment and RazorpayX dismissal.
 - [x] Infer the F&F payment reference from the verified payroll handoff.
-- [x] Gate every RazorpayX dismissal on the final payroll month's processed date.
+- [x] Gate every RazorpayX dismissal on settled F&F and employee-level final payroll proof, including direct proxy calls.
 - [ ] Verify Satyam remains RazorpayX-active while September payroll is unprocessed.

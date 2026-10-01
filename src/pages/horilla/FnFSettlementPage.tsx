@@ -104,8 +104,8 @@ export default function FnFSettlementPage() {
             `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
           );
         }
-        // Marking paid closes internal access, so the F&F lines must be verified
-        // first. Final salary completion is a separate RazorpayX dismissal gate.
+        // F&F lines must be verified first. Access closes after the last working
+        // day independently; salary payment is a separate dismissal gate.
         if (status === "paid" && !["pushed", "nothing_to_push"].includes(String(row?.razorpay_push_status || ""))) {
           throw new Error(
             "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
@@ -145,8 +145,7 @@ export default function FnFSettlementPage() {
         }
       }
 
-      // Paid closes internal access. RazorpayX stays active until the final
-      // payroll month is processed, then the automated sweep dismisses it.
+       // Paid settles F&F; access follows the last working day independently.
       if (status === "paid") {
         // Close every source record the settlement recovered/refunded.
         const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: id });
@@ -180,7 +179,7 @@ export default function FnFSettlementPage() {
       toast.success("Status updated");
       if (result) {
         toast.success(
-          `Internal access closed for ${result.name}${result.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX remains active until final payroll is processed.`,
+           `F&F settled for ${result.name}. Access follows the last working day; RazorpayX remains active until final payroll is paid.`,
         );
       }
     },
@@ -433,7 +432,7 @@ export default function FnFSettlementPage() {
           </DialogHeader>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              This closes the settlement and internal access for <strong>{payPrompt?.name}</strong>. RazorpayX remains active until the {payPrompt?.payrollMonth || "final"} payroll is processed, then dismissal is handled automatically.
+               This settles F&amp;F for <strong>{payPrompt?.name}</strong>. ERP and biometric access close after the last working day, independently of payment. RazorpayX remains active until final salary is paid.
             </p>
           </div>
           <DialogFooter>
@@ -450,7 +449,7 @@ export default function FnFSettlementPage() {
                 setPayPrompt(null);
               }}
             >
-              Mark paid &amp; close access
+               Mark F&amp;F paid
             </Button>
           </DialogFooter>
         </DialogContent>

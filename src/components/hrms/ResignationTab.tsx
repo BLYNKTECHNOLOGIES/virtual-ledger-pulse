@@ -272,9 +272,8 @@ export function ResignationTab() {
   });
 
 
-  // NOTE: there is deliberately no early completion shortcut. F&F payment may
-  // close internal access, but RazorpayX remains active until final payroll is
-  // processed. The nightly sweep enforces both gates independently.
+  // Access closes after LWD independently of F&F; RazorpayX stays active until
+  // settlement and the employee's final payroll payment are verified.
 
   // Withdraw resignation
   const withdrawResignation = useMutation({
@@ -383,8 +382,7 @@ export function ResignationTab() {
     return { ready: true, why: "F&F approved and verified on RazorpayX" };
   };
 
-  // Final step: mark the verified settlement paid and close internal access.
-  // RazorpayX stays active until the final payroll month is processed.
+  // Final settlement step. Access follows LWD, not this manual action.
   const finaliseSeparationNow = useMutation({
     mutationFn: async (employeeId: string) => {
       const s = fnfByEmployee?.[employeeId];
@@ -424,7 +422,7 @@ export function ResignationTab() {
       return finalizeSeparation(employeeId);
     },
     onSuccess: (fin: any) => {
-      toast.success(`Internal access closed for ${fin.name}${fin.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX remains active until final payroll is processed.`);
+      toast.success(`F&F settled for ${fin.name}. Access follows the last working day; RazorpayX remains active until final salary is paid.`);
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["resignation-fnf-map"] });
       queryClient.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
@@ -645,7 +643,7 @@ export function ResignationTab() {
                           onClick={() => setConfirmAction({
                             type: 'finalise',
                             id: emp.id,
-                            label: `Close internal access for ${emp.first_name} ${emp.last_name}? HRMS, ERP login and biometrics will be deactivated now. RazorpayX will remain active until the ${String(fnfByEmployee?.[emp.id]?.payroll_month || emp.last_working_day || "final").slice(0, 7)} payroll is processed, then dismissal will be sent automatically.`,
+                             label: `Mark the settlement complete for ${emp.first_name} ${emp.last_name}? ERP and biometric access follows the last working day independently. RazorpayX stays active until the final salary is paid.`,
                           })}
                         >
                           <LogOut className="h-4 w-4 mr-1" /> Complete separation
@@ -897,10 +895,10 @@ export function ResignationTab() {
           </div>
           <DialogFooter className="sm:justify-start">
             <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground w-full">
-              <p className="font-medium text-foreground mb-1">Internal access closes after F&amp;F is paid</p>
+              <p className="font-medium text-foreground mb-1">Access follows the last working day</p>
               <p>
-                Once F&amp;F is verified and marked <strong>paid</strong>, HRMS, ERP login and biometrics are deactivated.
-                RazorpayX stays active for the final salary and is dismissed automatically only after that payroll month is marked processed.
+                ERP login and biometric access close after the last working day, regardless of F&amp;F payment.
+                RazorpayX stays active until F&amp;F is settled and this employee’s final salary payout is verified.
               </p>
               {completedCount < totalCount && (
                 <p className="mt-1">Still open: {totalCount - completedCount} checklist item(s).</p>

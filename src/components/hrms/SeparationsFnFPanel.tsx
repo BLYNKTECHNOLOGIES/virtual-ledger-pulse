@@ -317,8 +317,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Approved → paid closes settlement sources and internal access. RazorpayX is
-  // deliberately kept active until the final payroll month is processed.
+  // F&F payment settles money; access follows LWD, not settlement status.
   const markPaid = useMutation({
     mutationFn: async (settlement: any) => {
       if (!["pushed", "nothing_to_push"].includes(String(settlement.razorpay_push_status || ""))) {
@@ -356,7 +355,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onSuccess: (res) => {
       setPayPrompt(null);
       toast.success(
-        `F&F settled and internal access closed for ${res.name}${res.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX stays active until final payroll is processed.`,
+        `F&F settled for ${res.name}. ERP and biometric access follows the last working day; RazorpayX stays active until final payroll is paid.`,
       );
       invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_separated_employees_cockpit"] });
@@ -554,7 +553,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                    Exit action pending — {dismissalHeld.length} leaver(s) past their last working day
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                   Finish F&amp;F to close internal access. RazorpayX dismissal remains separately held until final payroll is processed.
+                   ERP and biometric access close after the last working day regardless of F&amp;F. RazorpayX dismissal waits for F&amp;F and verified final salary.
                 </p>
                 {dismissalHeld.map(({ e, s }: any) => (
                   <p key={e.id} className="text-[11px] tabular-nums">
@@ -699,16 +698,16 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                         }
                         title={
                           ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""))
-                            ? "Mark settled and close internal access; RazorpayX remains active until final payroll is processed"
+                            ? "Settle F&F; access follows the last working day, and RazorpayX waits for final salary payment"
                             : "Push the F&F lines to RazorpayX first"
                         }
                         onClick={() => setPayPrompt(s)}
                       >
-                        <CheckCircle2 className="h-3.5 w-3.5" /> Mark paid &amp; close access
+                         <CheckCircle2 className="h-3.5 w-3.5" /> Mark F&amp;F paid
                       </Button>
                     ) : (
                       <span className="text-[11px] text-muted-foreground">
-                        Settled — awaiting final payroll before RazorpayX dismissal
+                         Settled — awaiting verified final salary before RazorpayX dismissal
                       </span>
                     )}
                   </div>
@@ -753,11 +752,11 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark F&amp;F paid and close internal access?</AlertDialogTitle>
+            <AlertDialogTitle>Mark F&amp;F paid?</AlertDialogTitle>
             <AlertDialogDescription>
-              This closes the loans, penalties and deposits the settlement covered, deactivates{" "}
-              {payPrompt?.hr_employees?.first_name || "the employee"} in HRMS, removes their ERP login and
-              biometrics. RazorpayX remains active so the final salary can still be processed; dismissal is sent automatically only after this payroll month is marked processed.
+              This settles the loans, penalties and deposits covered for {payPrompt?.hr_employees?.first_name || "the employee"}.
+              ERP login and biometrics are disabled after the last working day, whether F&amp;F is paid or not.
+              RazorpayX remains active until this employee’s final salary payout is verified.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -766,7 +765,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
               disabled={!payPrompt || markPaid.isPending}
               onClick={(event) => { event.preventDefault(); if (payPrompt) markPaid.mutate(payPrompt); }}
             >
-              {markPaid.isPending ? "Closing access…" : "Mark paid & close access"}
+              {markPaid.isPending ? "Settling…" : "Mark F&F paid"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

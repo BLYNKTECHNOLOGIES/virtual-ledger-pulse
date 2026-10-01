@@ -247,6 +247,22 @@ const FIELDS: FieldSpec[] = [
         }
       }
 
+      // RazorpayX returned a monthly gross but the proxy could not map it to a
+      // known CTC. Compare in gross space instead of reporting "(missing)":
+      // agree if HRMS CTC reproduces that gross under any employer PF/ESI
+      // form; otherwise surface the real RazorpayX gross so HR sees the gap.
+      const gross = Number(rzpSalary?.monthly_gross ?? NaN);
+      if (rzpCtc == null && Number.isFinite(gross) && gross > 0) {
+        if (hrmsCtc != null) {
+          const k = Number(hrmsCtc);
+          const forms = [[0.065, 0.0325], [0.065, 0], [0, 0.0325], [0, 0]];
+          if (forms.some(([p, e]) => Math.abs(Math.round(((k / 12) * (1 - p)) / (1 + e)) - gross) <= 1)) {
+            return { hrms: hrmsStr, razorpay: hrmsStr };
+          }
+        }
+        return { hrms: hrmsStr, razorpay: `monthly gross ${Math.round(gross)} (CTC not derivable)` };
+      }
+
       return {
         hrms: hrmsStr,
         razorpay: rzpCtc != null ? String(Math.round(Number(rzpCtc))) : null,

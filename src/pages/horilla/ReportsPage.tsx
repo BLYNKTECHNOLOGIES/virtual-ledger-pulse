@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { fetchAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,16 +78,17 @@ export default function ReportsPage() {
       .gte("period_month", dateFrom.slice(0, 8) + "01")
       .lte("period_month", dateTo)),
   });
-  // Attendance truth = v4 engine daily rollup.
+  // Attendance truth = canonical day view, shared with the calendars.
   const { data: attendance = [] } = useQuery({
-    queryKey: ["rpt_attendance_daily", dateFrom, dateTo],
+    queryKey: ["rpt_attendance_day_v", dateFrom, dateTo, employees.map(e => e.id).join(",")],
+    enabled: employees.length > 0,
     // Filter/period changes keep the previous rows on screen instead of
     // collapsing to a skeleton; the new data swaps in when it truly lands.
     placeholderData: keepPreviousData,
-    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
-      .from("hr_attendance_daily")
-      .select("employee_id, attendance_date, status, is_late, late_by_minutes, early_departure, total_hours, net_work_minutes")
-      .gte("attendance_date", dateFrom).lte("attendance_date", dateTo)),
+    queryFn: async () => (await fetchAttendanceDayRange(employees.map(e => e.id), dateFrom, dateTo))
+      .filter(d => d.evidence_backed)
+      .map(d => ({ ...d, attendance_date: d.date, late_by_minutes: d.late_minutes,
+        early_departure: d.early_minutes > 0, net_work_minutes: d.worked_minutes })),
   });
   // Same-length window immediately before the range, for period-over-period deltas.
   const prevWindow = useMemo(() => {
@@ -97,14 +99,13 @@ export default function ReportsPage() {
     return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
   }, [dateFrom, dateTo]);
   const { data: prevAttendance = [] } = useQuery({
-    queryKey: ["rpt_attendance_prev", prevWindow.from, prevWindow.to],
+    queryKey: ["rpt_attendance_prev_v", prevWindow.from, prevWindow.to, employees.map(e => e.id).join(",")],
+    enabled: employees.length > 0,
     // Filter/period changes keep the previous rows on screen instead of
     // collapsing to a skeleton; the new data swaps in when it truly lands.
     placeholderData: keepPreviousData,
-    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
-      .from("hr_attendance_daily")
-      .select("employee_id, status, is_late")
-      .gte("attendance_date", prevWindow.from).lte("attendance_date", prevWindow.to)),
+    queryFn: async () => (await fetchAttendanceDayRange(employees.map(e => e.id), prevWindow.from, prevWindow.to))
+      .filter(d => d.evidence_backed),
   });
 
   // ─── Lookups ───
@@ -711,7 +712,7 @@ export default function ReportsPage() {
                 <Bar dataKey="late" name="Late (of present)" fill="hsl(var(--primary))" />
               </BarChart></ResponsiveContainer>
             ) : <NoData reason="No attendance rows recorded in the selected range." />}
-            <Source>attendance engine daily rollup (hr_attendance_daily), bucketed by week starting Sunday</Source>
+            <Source>canonical attendance day view, bucketed by week starting Sunday</Source>
           </CardContent>
         </Card>
       </div>

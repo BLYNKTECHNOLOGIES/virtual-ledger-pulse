@@ -62,6 +62,16 @@ export interface AttendanceDay {
   leave_is_paid: boolean;
 }
 
+/** Non-hook reader for report and insight queries that share the canonical day RPC. */
+export async function fetchAttendanceDayRange(employeeIds: string[], from: string, to: string): Promise<AttendanceDay[]> {
+  if (!employeeIds.length || !from || !to) return [];
+  return fetchAllPaginated<AttendanceDay>(() =>
+    (supabase as any).rpc("hr_attendance_day_range", {
+      p_employee_ids: employeeIds, p_from: from, p_to: to,
+    }).order("employee_id", { ascending: true }).order("date", { ascending: true }),
+  );
+}
+
 /**
  * Status shown on a calendar tile, aligned with the payroll summary engine:
  * holidays and weekly offs read as such unless the employee actually worked,
@@ -105,16 +115,7 @@ export function useAttendanceDayRange(
       // A full month across the active roster can exceed PostgREST's 1,000-row
       // response cap. Fetch every ordered page so employees after that cutoff
       // do not appear to have an entirely blank calendar.
-      return fetchAllPaginated<AttendanceDay>(() =>
-        (supabase as any)
-          .rpc("hr_attendance_day_range", {
-            p_employee_ids: employeeIds,
-            p_from: from,
-            p_to: to,
-          })
-          .order("employee_id", { ascending: true })
-          .order("date", { ascending: true }),
-      );
+      return fetchAttendanceDayRange(employeeIds, from, to);
     },
   });
 }

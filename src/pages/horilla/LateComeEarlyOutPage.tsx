@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
+import { fetchAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
@@ -68,14 +69,7 @@ export default function LateComeEarlyOutPage() {
     queryKey: ["hr_late_early_day_times", monthFilter, incidentEmpIds.join(",")],
     enabled: incidentEmpIds.length > 0,
     queryFn: async () => {
-      const days = await fetchAllPaginated<any>(() =>
-        (supabase as any)
-          .from("hr_attendance_daily")
-          .select("employee_id, date, first_in, last_out")
-          .in("employee_id", incidentEmpIds)
-          .gte("date", monthStart)
-          .lte("date", monthEnd)
-      );
+      const days = await fetchAttendanceDayRange(incidentEmpIds, monthStart, monthEnd);
       const m: Record<string, { first_in: string | null; last_out: string | null }> = {};
       days.forEach((d: any) => { m[`${d.employee_id}|${d.date}`] = { first_in: d.first_in, last_out: d.last_out }; });
       return m;

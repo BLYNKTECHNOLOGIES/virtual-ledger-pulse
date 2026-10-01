@@ -13,6 +13,7 @@ import { AttendanceInsights, type DailyRow, type MaintainedRow } from "@/compone
 import { Button } from "@/components/ui/button";
 import { ViewToggle } from "@/components/hrms/ViewToggle";
 import { useViewMode } from "@/hooks/useViewMode";
+import { fetchAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
 
 
 type SummaryRow = {
@@ -172,20 +173,22 @@ export default function AttendanceSummaryPage() {
   });
 
   const { data: daily = [] } = useQuery({
-    queryKey: ["hr_attendance_daily_month", windows.start, windows.monthEnd],
+    queryKey: ["hr_attendance_day_v_month", windows.start, windows.monthEnd, (allEmployees as any[]).map(e => e.id).join(",")],
+    enabled: allEmployees.length > 0,
     // Filter/period changes keep the previous rows on screen instead of
     // collapsing to a skeleton; the new data swaps in when it truly lands.
     placeholderData: keepPreviousData,
-    queryFn: async () =>
-      (await fetchAllPaginated<DailyRow>(() =>
-        (supabase as any)
-          .from("hr_attendance_daily")
-          .select(
-            "employee_id, attendance_date, net_work_minutes, late_by_minutes, is_late, early_departure, punch_count, session_count, status, first_in, last_out, early_by_minutes, break_minutes, suppressed_count",
-          )
-          .gte("attendance_date", windows.start)
-          .lte("attendance_date", windows.monthEnd),
-      )) || [],
+    queryFn: async () => (await fetchAttendanceDayRange(
+      (allEmployees as any[]).map(e => e.id), windows.start, windows.monthEnd,
+    )).filter(d => d.evidence_backed).map((d): DailyRow => ({
+      employee_id: d.employee_id, attendance_date: d.date,
+      net_work_minutes: d.worked_minutes, late_by_minutes: d.late_minutes,
+      is_late: d.is_late, early_departure: d.early_minutes > 0,
+      punch_count: d.session_count, session_count: d.session_count,
+      status: d.status, first_in: d.first_in, last_out: d.last_out,
+      early_by_minutes: d.early_minutes, break_minutes: d.break_minutes,
+      suppressed_count: d.suppressed_count,
+    })),
   });
 
   // Contract-type staff are out of scope for attendance analytics everywhere on

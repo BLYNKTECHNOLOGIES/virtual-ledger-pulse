@@ -32132,6 +32132,7 @@ export type Database = {
         Args: { p_employee_id: string; p_target: number }
         Returns: number
       }
+      hr_call_lwd_access_sweep: { Args: never; Returns: number }
       hr_can_access_payroll_data: {
         Args: { _user_id: string }
         Returns: boolean

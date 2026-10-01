@@ -712,7 +712,7 @@ export default function ReportsPage() {
                 <Bar dataKey="late" name="Late (of present)" fill="hsl(var(--primary))" />
               </BarChart></ResponsiveContainer>
             ) : <NoData reason="No attendance rows recorded in the selected range." />}
-            <Source>attendance engine daily rollup (hr_attendance_daily), bucketed by week starting Sunday</Source>
+            <Source>canonical attendance day view, bucketed by week starting Sunday</Source>
           </CardContent>
         </Card>
       </div>

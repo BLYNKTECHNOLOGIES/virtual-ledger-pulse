@@ -60,19 +60,30 @@ async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
   return !error;
 }
 
-async function queueBiometricRemoval(emp: any): Promise<{ ok: boolean; detail: string }> {
+async function queueBiometricRemoval(svc: any, emp: any): Promise<{ ok: boolean; detail: string }> {
   if (!emp.badge_id) return { ok: true, detail: "No biometric PIN" };
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/hr-essl-push`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
-      body: JSON.stringify({ hr_employee_id: emp.id, action: "delete", triggered_from: "auto_lwd_sweep" }),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (result.ok || result.reason === "no_devices" || result.reason === "no_badge_id") {
-      return { ok: true, detail: result.reason || `Queued on ${result.queued_count} device(s)` };
+    const { data: devices, error: deviceError } = await svc.from("hr_biometric_devices").select("device_serial");
+    if (deviceError) return { ok: false, detail: deviceError.message };
+    if (!devices?.length) return { ok: true, detail: "No registered devices" };
+    const { data: prior, error: priorError } = await svc.from("hr_essl_pushback_log")
+      .select("device_serial").eq("hr_employee_id", emp.id).eq("kind", "delete")
+      .in("status", ["queued", "success"]);
+    if (priorError) return { ok: false, detail: priorError.message };
+    const queued = new Set((prior || []).map((row: any) => row.device_serial));
+    let count = 0;
+    for (const device of devices) {
+      if (!device.device_serial || queued.has(device.device_serial)) continue;
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/hr-essl-push`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+        body: JSON.stringify({ hr_employee_id: emp.id, action: "delete", device_serial: device.device_serial, triggered_from: "auto_lwd_sweep" }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok) return { ok: false, detail: result.error || `Device queue failed (HTTP ${response.status})` };
+      count++;
     }
-    return { ok: false, detail: result.error || `HTTP ${response.status}` };
+    return { ok: true, detail: count ? `Queued on ${count} device(s)` : "Already queued on every device" };
   } catch (error) { return { ok: false, detail: String(error) }; }
 }
 
@@ -227,14 +238,10 @@ Deno.serve(async (req) => {
           .eq("id", emp.id).eq("is_active", true);
         if (updErr) { results.push({ id: emp.id, name, action: "access_error", error: updErr.message }); continue; }
       }
-      // One command per device, retried only if no prior successful queue entry.
-      const { data: prior } = await svc.from("hr_essl_pushback_log")
-        .select("device_serial").eq("hr_employee_id", emp.id).eq("kind", "delete")
-        .in("status", ["queued", "success"]).eq("triggered_from", "auto_lwd_sweep");
-      if (!prior?.length) {
-        const bio = await queueBiometricRemoval(emp);
-        access.biometric = bio.ok ? bio.detail : `retry_needed: ${bio.detail}`;
-      } else access.biometric = "already_queued";
+      // Reconcile each registered device independently: partial queue failures
+      // must not suppress retries for the remaining devices.
+      const bio = await queueBiometricRemoval(svc, emp);
+      access.biometric = bio.ok ? bio.detail : `retry_needed: ${bio.detail}`;
     }
 
     const settlement = settledFnf(emp.id);

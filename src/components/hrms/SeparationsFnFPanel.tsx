@@ -553,7 +553,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
                    Exit action pending — {dismissalHeld.length} leaver(s) past their last working day
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                   Finish F&amp;F to close internal access. RazorpayX dismissal remains separately held until final payroll is processed.
+                   ERP and biometric access close after the last working day regardless of F&amp;F. RazorpayX dismissal waits for F&amp;F and verified final salary.
                 </p>
                 {dismissalHeld.map(({ e, s }: any) => (
                   <p key={e.id} className="text-[11px] tabular-nums">
@@ -752,11 +752,11 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Mark F&amp;F paid and close internal access?</AlertDialogTitle>
+            <AlertDialogTitle>Mark F&amp;F paid?</AlertDialogTitle>
             <AlertDialogDescription>
-              This closes the loans, penalties and deposits the settlement covered, deactivates{" "}
-              {payPrompt?.hr_employees?.first_name || "the employee"} in HRMS, removes their ERP login and
-              biometrics. RazorpayX remains active so the final salary can still be processed; dismissal is sent automatically only after this payroll month is marked processed.
+              This settles the loans, penalties and deposits covered for {payPrompt?.hr_employees?.first_name || "the employee"}.
+              ERP login and biometrics are disabled after the last working day, whether F&amp;F is paid or not.
+              RazorpayX remains active until this employee’s final salary payout is verified.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -765,7 +765,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
               disabled={!payPrompt || markPaid.isPending}
               onClick={(event) => { event.preventDefault(); if (payPrompt) markPaid.mutate(payPrompt); }}
             >
-              {markPaid.isPending ? "Closing access…" : "Mark paid & close access"}
+              {markPaid.isPending ? "Settling…" : "Mark F&F paid"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

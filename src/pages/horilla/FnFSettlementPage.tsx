@@ -140,7 +140,7 @@ export default function FnFSettlementPage() {
           body: { settlement_id: id },
         });
         if (pushErr || pushRes?.ok === false) {
-          toast.error(`Approved, but the RazorpayX push did not verify: ${pushRes?.error ?? ((pushRes?.results || []).filter((r: any) => !r.verified).map((r: any) => { try { return JSON.parse(r.error).message; } catch { return r.error; } }).join('; ') || pushErr?.message) ?? "unknown error"}`);
+          toast.error(`Approved, but the RazorpayX push did not verify: ${pushRes?.error || ((pushRes?.results || []).filter((r: any) => !r.verified).map((r: any) => { try { return JSON.parse(r.error).message; } catch { return r.error; } }).join('; ') || pushErr?.message) || "unknown error"}`);
         } else if (pushRes?.nothing_to_push) {
           toast.info("Approved — no additions or deductions to push to RazorpayX.");
         } else {

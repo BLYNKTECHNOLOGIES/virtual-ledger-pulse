@@ -63,5 +63,5 @@
 
 - [x] Separate internal access closure from RazorpayX dismissal.
 - [x] Infer the F&F payment reference from the verified payroll handoff.
-- [ ] Gate every RazorpayX dismissal on the final payroll month's processed date.
+- [x] Gate every RazorpayX dismissal on the final payroll month's processed date.
 - [ ] Verify Satyam remains RazorpayX-active while September payroll is unprocessed.

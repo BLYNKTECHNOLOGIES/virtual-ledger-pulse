@@ -201,10 +201,8 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     [live, cycle],
   );
 
-  // Dismissal governance. The nightly sweep only deactivates + dismisses an
-  // employee once their F&F is paid and pushed; anyone past their last working
-  // day with an unsettled F&F is held back, and any already-deactivated leaver
-  // whose F&F never reached 'paid' is a historic integrity flag.
+  // Dismissal governance. Internal access closes once F&F is paid; RazorpayX
+  // remains active until the final payroll month is marked processed.
   const settlementByEmployee = useMemo(() => {
     const m = new Map<string, any>();
     for (const s of live) if (!m.has(s.employee_id)) m.set(s.employee_id, s);
@@ -553,11 +551,10 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
             <Card className="border-warning/40 bg-warning/5">
               <CardContent className="p-3 space-y-1.5">
                 <p className="text-xs font-medium">
-                  Auto-dismissal held — {dismissalHeld.length} leaver(s) past their last working day
+                   Exit action pending — {dismissalHeld.length} leaver(s) past their last working day
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  They stay active in HRMS and RazorpayX on purpose: dismissing before the F&amp;F is paid
-                  would close their payroll record and block the final run. Finish the settlement here.
+                   Finish F&amp;F to close internal access. RazorpayX dismissal remains separately held until final payroll is processed.
                 </p>
                 {dismissalHeld.map(({ e, s }: any) => (
                   <p key={e.id} className="text-[11px] tabular-nums">

@@ -145,7 +145,7 @@ async function workingDaysFor(empId: string, monthStr: string): Promise<number> 
 export async function computeFnFDraft(empId: string, lwdIso: string | null): Promise<FnFDraft> {
   const periodMonth = lwdIso ? `${lwdIso.slice(0, 7)}-01` : null;
 
-  const [{ data: loans }, { data: penalties }, { data: empDeposits }, payslipRes, empRes] = await Promise.all([
+  const [{ data: loans }, { data: penalties }, { data: empDeposits }, payslipRes, empRes, finalMeta] = await Promise.all([
     (supabase as any)
       .from("hr_loans")
       .select("id, loan_type, advance_type, amount, emi_amount, outstanding_balance, status")
@@ -170,7 +170,19 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
           .maybeSingle()
       : Promise.resolve({ data: null }),
     (supabase as any).from("hr_employees").select("total_salary").eq("id", empId).maybeSingle(),
+    periodMonth
+      ? (supabase as any)
+          .from("hr_payroll_month_meta")
+          .select("processed_on")
+          .eq("period_month", periodMonth.slice(0, 7))
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  // Penalties belong to payroll. While the leaver's final (last-working-day
+  // month) payroll has not been processed, that payroll deducts them — so the
+  // F&F must not, or they are recovered twice. Only once that payroll is
+  // processed without them (F&F settled in a later cycle) do they move here.
+  const finalPayrollProcessed = !!(finalMeta as any)?.data?.processed_on;
 
   const activeLoans = (loans || []).filter((l: any) => Number(l.outstanding_balance || 0) > 0);
   const loanRecovery = activeLoans.reduce((sum: number, l: any) => sum + Number(l.outstanding_balance || 0), 0);
@@ -213,7 +225,9 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
     });
   }
 
-  const penaltyTotal = round2(penaltyRows.reduce((s, p) => s + p.amount, 0));
+  const allPenaltyTotal = round2(penaltyRows.reduce((s, p) => s + p.amount, 0));
+  const leftToPayroll = !finalPayrollProcessed && penaltyRows.length > 0 ? penaltyRows.splice(0) : [];
+  const penaltyTotal = leftToPayroll.length ? 0 : allPenaltyTotal;
 
   // ── Deposits: one editable decision per held record, nothing written off ──
   const decisions: DepositDecision[] = (empDeposits || []).map((d: any) => {
@@ -247,6 +261,9 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
   const calcNote = [
     withheldCount > 0
       ? `${withheldCount} deposit line${withheldCount > 1 ? "s are" : " is"} not being paid back in full — a written reason is mandatory on each.`
+      : "",
+    leftToPayroll.length
+      ? `${leftToPayroll.length} open penalt${leftToPayroll.length > 1 ? "ies" : "y"} (₹${allPenaltyTotal.toLocaleString("en-IN")}) left to the final ${periodMonth?.slice(0, 7)} payroll, not the F&F — they are deducted there.`
       : "",
     monthlyBase <= 0 && penaltyRows.some((p) => p.days > 0)
       ? "No RazorpayX salary on record for this employee — penalty days could not be priced; enter the penalty amount manually."

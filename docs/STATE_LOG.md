@@ -466,3 +466,5 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-09-24: Terminal biometric registration switched to admin-emailed invite links (office/full or personal/view-only, 24h, one device); office-code/IP/protection-mode guard fully removed.
 - 2026-09-27: Close Wallet (Super Admin) added — closed wallets zeroed via Balance Adjustment Wallet, hidden from pickers.
 - 2026-09-30 19:15 IST: CTC under-statement fixed — RazorpayX view-payroll 'salary' is monthly gross (CTC minus employer PF 6.5%/ESI 3.25%), was stored as CTC by nightly pull since 18 Sep. Deleted phantom lowering revisions + 33 unpushed Sept 'Part-Month CTC' arrears; restored total_salary/structures for ~30 employees. Proxy now resolves CTC only when it matches a known HRMS CTC.
+
+- 2026-10-01: F&F approval was separated from payroll execution — approval now stages idempotent addition/recovery rows and completes the Separations step; the Inputs Push step owns RazorpayX writes/read-back; zero-value settlements need no input; paid/finalise remains locked until verified. hr-push-fnf deployed.

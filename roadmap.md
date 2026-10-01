@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## F&F approval and payroll-input handoff
+
+- [x] Make Separations completion depend on F&F approval, not the later RazorpayX push.
+- [x] Stage approved F&F lines for the Inputs Push step without writing to RazorpayX.
+- [ ] Deploy and verify stage-only approval, Inputs retry, zero-value settlement, and cockpit status.
+
 ## HR Mailbox mobile layout
 
 - [x] Keep mailbox tabs, search, and conversation rows inside phone width.

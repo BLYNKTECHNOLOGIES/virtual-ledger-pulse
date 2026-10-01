@@ -133,18 +133,18 @@ export default function FnFSettlementPage() {
       }
 
 
-      // Approval is the moment the settlement enters payroll: F&F is the ONLY
-      // thing that schedules additions/deductions for a leaver.
+      // Approval stages the settlement's payroll lines. The Monthly Payroll
+      // Cockpit Inputs Push step owns the later RazorpayX write and verification.
       if (status === "approved") {
         const { data: pushRes, error: pushErr } = await (supabase as any).functions.invoke("hr-push-fnf", {
-          body: { settlement_id: id },
+          body: { settlement_id: id, stage_only: true },
         });
         if (pushErr || pushRes?.ok === false) {
-          toast.error(`Approved, but the RazorpayX push did not verify: ${pushRes?.error || ((pushRes?.results || []).filter((r: any) => !r.verified).map((r: any) => { try { return JSON.parse(r.error).message; } catch { return r.error; } }).join('; ') || pushErr?.message) || "unknown error"}`);
+          toast.error(`Approved, but the payroll input could not be staged: ${pushRes?.error || pushErr?.message || "unknown error"}`);
         } else if (pushRes?.nothing_to_push) {
-          toast.info("Approved — no additions or deductions to push to RazorpayX.");
+          toast.info("F&F approved — no payroll input is needed.");
         } else {
-          toast.success("Approved and pushed to the RazorpayX final payroll run (read-back verified).");
+          toast.success("F&F approved — queued for the Inputs Push step.");
         }
       }
 
@@ -190,21 +190,6 @@ export default function FnFSettlementPage() {
       }
     },
 
-    onError: (e: any) => toast.error(e.message),
-  });
-
-  // Retry the RazorpayX push for an approved settlement whose read-back failed.
-  const pushMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await (supabase as any).functions.invoke("hr-push-fnf", { body: { settlement_id: id } });
-      if (error) throw error;
-      if (data?.ok === false) throw new Error(data?.error || "Push did not verify on the RazorpayX read-back");
-      return data;
-    },
-    onSuccess: () => {
-      invalidateFnFEverywhere(qc);
-      toast.success("Pushed to RazorpayX and verified on the run");
-    },
     onError: (e: any) => toast.error(e.message),
   });
 
@@ -339,20 +324,16 @@ export default function FnFSettlementPage() {
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge(s.status)}`}>
                         {s.status.replace("_", " ")}
                       </span>
-                      {s.razorpay_push_status && s.razorpay_push_status !== "pushed" && (
-                        <span className="block mt-0.5 text-[10px] text-destructive" title={s.push_failure_reason || undefined}>
-                          RazorpayX push {s.razorpay_push_status}
-                        </span>
-                      )}
                       {s.razorpay_push_status === "pushed" && (
-                        <span className="block mt-0.5 text-[10px] text-success">Pushed to RazorpayX</span>
+                        <span className="block mt-0.5 text-[10px] text-success">Verified on payroll run</span>
+                      )}
+                      {s.razorpay_push_status === "nothing_to_push" && (
+                        <span className="block mt-0.5 text-[10px] text-muted-foreground">No payroll input needed</span>
+                      )}
+                      {s.status === "approved" && !["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || "")) && (
+                        <span className="block mt-0.5 text-[10px] text-info">Queued for Inputs step</span>
                       )}
                     </div>
-                    {s.status === "approved" && s.razorpay_push_status !== "pushed" && (
-                      <Button size="sm" variant="outline" className="h-8" disabled={pushMutation.isPending} onClick={() => pushMutation.mutate(s.id)}>
-                        Retry push
-                      </Button>
-                    )}
 
                     {(() => {
                       // Shared lock rule: a settlement stops being editable once
@@ -384,9 +365,7 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
                     {s.status === "approved" && (() => {
-                      const sourceConfirmed = ["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source);
-                      const nothingToPay = Number(s.net_payable ?? 0) === 0;
-                      const canMarkPaid = sourceConfirmed || nothingToPay;
+                      const canMarkPaid = ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""));
                       return (
                         <Button
                           size="sm"
@@ -394,10 +373,10 @@ export default function FnFSettlementPage() {
                           disabled={!canMarkPaid}
                           title={
                             canMarkPaid
-                              ? nothingToPay && !sourceConfirmed
-                                ? "Zero-value settlement — nothing to pay"
-                                : undefined
-                              : "Final-month salary is not confirmed from RazorpayX yet"
+                              ? s.razorpay_push_status === "nothing_to_push"
+                                ? "No F&F payroll input is required"
+                                : "F&F payroll input is verified on the run"
+                              : "Push and verify the F&F payroll input from the Inputs step first"
                           }
                           onClick={() => {
                             setPaymentRef("");

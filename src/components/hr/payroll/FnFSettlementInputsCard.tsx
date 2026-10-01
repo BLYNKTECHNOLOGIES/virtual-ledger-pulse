@@ -13,10 +13,9 @@ import { UserMinus, ChevronDown, ChevronRight, Loader2, Upload } from "lucide-re
 /**
  * Full & Final settlement lines for this payroll cycle.
  *
- * These rows are staged by hr-push-fnf when a settlement is approved, using the
- * payroll cycle month chosen on the settlement itself. They are already live on
- * the RazorpayX run, so they are shown read-only and kept out of the normal
- * staging list — F&F is the only thing that schedules payroll for a leaver.
+ * These rows are staged when a settlement is approved, using the payroll cycle
+ * month chosen on the settlement itself. This Inputs step owns the later
+ * RazorpayX write and read-back — F&F approval never performs that write.
  */
 export function FnFSettlementInputsCard({ period, kind }: { period: string; kind: "addition" | "deduction" }) {
   const table = kind === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
@@ -49,8 +48,8 @@ export function FnFSettlementInputsCard({ period, kind }: { period: string; kind
             F&amp;F settlement {kind === "addition" ? "additions (dues)" : "deductions (recoveries)"} — {period}
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-1">
-            Staged by the F&amp;F approval. Lines marked &quot;Not on the run&quot; have not reached RazorpayX yet —
-            push them from here. Expand a row for the breakdown.
+            Approved in Separations and handed off here. Lines marked &quot;Ready to push&quot; have not reached
+            RazorpayX yet. Expand a row for the breakdown.
           </p>
         </div>
         <div className="text-right">
@@ -179,7 +178,7 @@ function FnFRow({ row, kind }: { row: any; kind: "addition" | "deduction" }) {
             ) : row.pushed_at ? (
               <Badge className="bg-warning/10 text-warning">Pushed · unverified</Badge>
             ) : (
-              <Badge variant="outline">Not on the run</Badge>
+              <Badge variant="outline" className="border-info/30 bg-info/10 text-info">Ready to push</Badge>
             )}
             {!isPushed && (
               <Button

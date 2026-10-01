@@ -174,7 +174,7 @@ export async function computeFnFDraft(empId: string, lwdIso: string | null): Pro
       ? (supabase as any)
           .from("hr_payroll_month_meta")
           .select("processed_on")
-          .eq("period_month", periodMonth.slice(0, 7))
+          .eq("period_month", periodMonth)
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);

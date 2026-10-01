@@ -272,11 +272,9 @@ export function ResignationTab() {
   });
 
 
-  // NOTE: there is deliberately no "complete resignation" shortcut here.
-  // Deactivating an employee dismisses them in RazorpayX, which closes their
-  // payroll record — so an employee stays ACTIVE until their F&F is marked paid.
-  // The only completion paths are finaliseSeparationNow (below), the payroll
-  // cockpit mark-paid step, and the nightly sweep (which holds unpaid F&F).
+  // NOTE: there is deliberately no early completion shortcut. F&F payment may
+  // close internal access, but RazorpayX remains active until final payroll is
+  // processed. The nightly sweep enforces both gates independently.
 
   // Withdraw resignation
   const withdrawResignation = useMutation({
@@ -899,13 +897,10 @@ export function ResignationTab() {
           </div>
           <DialogFooter className="sm:justify-start">
             <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground w-full">
-              <p className="font-medium text-foreground mb-1">Separation completes itself after the F&amp;F is paid</p>
+              <p className="font-medium text-foreground mb-1">Internal access closes after F&amp;F is paid</p>
               <p>
-                The employee stays active here on purpose — dismissing them in RazorpayX now would block their final
-                payroll run. Once the F&amp;F settlement is pushed into its payroll cycle, verified on the RazorpayX
-                read-back and marked <strong>paid</strong> in Full &amp; Final Settlement, the resignation is completed
-                automatically: the employee is deactivated, the ERP login is disabled, biometrics are removed and the
-                RazorpayX dismissal is offered.
+                Once F&amp;F is verified and marked <strong>paid</strong>, HRMS, ERP login and biometrics are deactivated.
+                RazorpayX stays active for the final salary and is dismissed automatically only after that payroll month is marked processed.
               </p>
               {completedCount < totalCount && (
                 <p className="mt-1">Still open: {totalCount - completedCount} checklist item(s).</p>

@@ -104,8 +104,8 @@ export default function FnFSettlementPage() {
             `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
           );
         }
-        // Marking paid also completes the separation, so the payroll lines must be
-        // verified on the live RazorpayX run first.
+        // Marking paid closes internal access, so the F&F lines must be verified
+        // first. Final salary completion is a separate RazorpayX dismissal gate.
         if (status === "paid" && !["pushed", "nothing_to_push"].includes(String(row?.razorpay_push_status || ""))) {
           throw new Error(
             "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
@@ -180,7 +180,7 @@ export default function FnFSettlementPage() {
       toast.success("Status updated");
       if (result) {
         toast.success(
-          `Separation completed for ${result.name} — employee deactivated${result.erp?.deactivated ? ", ERP login disabled" : ""}.`,
+          `Internal access closed for ${result.name}${result.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX remains active until final payroll is processed.`,
         );
       }
     },

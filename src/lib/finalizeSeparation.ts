@@ -5,8 +5,8 @@ import { deleteFromEssl } from "@/lib/esslPushback";
 /**
  * Completes an employee's separation.
  *
- * This closes internal access after F&F payment. It never dismisses the employee
- * in RazorpayX: that remains active until the final payroll month is processed.
+ * This closes internal access only after the employee's last working day.
+ * F&F payment is independent; RazorpayX dismissal waits for final payroll.
  */
 export async function finalizeSeparation(
   employeeId: string,
@@ -18,6 +18,15 @@ export async function finalizeSeparation(
     .maybeSingle();
 
   const lwd: string | null = emp?.last_working_day || emp?.notice_period_end_date || null;
+  const todayIst = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  if (!lwd || lwd >= todayIst) {
+    return {
+      name: `${emp?.first_name ?? ""} ${emp?.last_name ?? ""}`.trim() || "employee",
+      lwd,
+      separationReason: (emp?.separation_reason as string | null) || null,
+      erp: { deactivated: false, reason: "Access remains available through the last working day" },
+    };
+  }
   const { data: { user: currentUser } } = await supabase.auth.getUser();
 
   const { error } = await (supabase as any)
@@ -37,7 +46,7 @@ export async function finalizeSeparation(
   try { erp = await deactivateErpAccount(employeeId); }
   catch (e: any) { erp = { deactivated: false, reason: e?.message || "ERP deactivation failed" }; }
 
-  try { await deleteFromEssl(employeeId, { triggeredFrom: "fnf_paid", silent: true }); }
+  try { await deleteFromEssl(employeeId, { triggeredFrom: "last_working_day", silent: true }); }
   catch { /* biometric removal is retried from the exit checklist */ }
 
   return {

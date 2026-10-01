@@ -317,8 +317,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Approved → paid closes settlement sources and internal access. RazorpayX is
-  // deliberately kept active until the final payroll month is processed.
+  // F&F payment settles money; access follows LWD, not settlement status.
   const markPaid = useMutation({
     mutationFn: async (settlement: any) => {
       if (!["pushed", "nothing_to_push"].includes(String(settlement.razorpay_push_status || ""))) {
@@ -356,7 +355,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
     onSuccess: (res) => {
       setPayPrompt(null);
       toast.success(
-        `F&F settled and internal access closed for ${res.name}${res.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX stays active until final payroll is processed.`,
+        `F&F settled for ${res.name}. ERP and biometric access follows the last working day; RazorpayX stays active until final payroll is paid.`,
       );
       invalidateFnFEverywhere(qc);
       qc.invalidateQueries({ queryKey: ["hr_separated_employees_cockpit"] });

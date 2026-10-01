@@ -26,6 +26,13 @@ export function installStorageLinkInterceptor() {
       const download = anchor.hasAttribute("download");
       const fileName = anchor.getAttribute("download") || ref.path.split("/").pop() || "download";
 
+      if (/multipart_manifests_*\/[^?]*\.manifest\.json/i.test(href)) {
+        void import("@/lib/storage-multipart").then((m) =>
+          download ? m.downloadStorageDocumentUrl(href, fileName, ref.bucket) : m.openStorageDocumentUrl(href, ref.bucket),
+        );
+        return;
+      }
+
       void resolveStorageUrl(href).then((signed) => {
         if (!signed) return;
         if (download) {

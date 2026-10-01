@@ -4,8 +4,10 @@ import { resolveStorageUrl } from "@/lib/storage-url";
 
 const MANIFEST_KIND = "supabase-multipart-file";
 
+// Upload writes `__multipart_manifests__/`, but path cleaning strips the
+// underscores, so stored URLs use `multipart_manifests/`. Accept both.
 export const isMultipartManifestUrl = (url?: string | null) =>
-  !!url && /\/__multipart_manifests__\/.*\.manifest\.json(?:\?|$)/i.test(url);
+  !!url && /\/_*multipart_manifests_*\/[^?]*\.manifest\.json(?:\?|$)/i.test(url);
 
 const getPublicStoragePath = (url: string, bucket: string) => {
   const marker = new RegExp(`/storage/v1/object/(?:public|sign|authenticated)/${bucket}/`);

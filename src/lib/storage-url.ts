@@ -68,6 +68,10 @@ export async function resolveStorageUrl(
 /** Open a stored document in a new tab, signing it first when needed. */
 export async function openStorageFile(url?: string | null, fallbackBucket?: string) {
   if (!url) return;
+  if (/multipart_manifests_*\/[^?]*\.manifest\.json/i.test(url)) {
+    const { openStorageDocumentUrl } = await import("@/lib/storage-multipart");
+    return openStorageDocumentUrl(url, fallbackBucket || "kyc-documents");
+  }
   const resolved = await resolveStorageUrl(url, fallbackBucket);
   if (resolved) window.open(resolved, "_blank", "noopener");
 }

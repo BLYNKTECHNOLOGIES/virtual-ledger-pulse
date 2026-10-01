@@ -5,10 +5,8 @@ import { deleteFromEssl } from "@/lib/esslPushback";
 /**
  * Completes an employee's separation.
  *
- * This is deliberately NOT triggered from the exit checklist any more: dismissing
- * an employee in RazorpayX blocks their final payroll run. Separation is therefore
- * only finalised once the F&F settlement has been pushed, read-back verified and
- * marked paid in the Monthly Payroll Cockpit cycle.
+ * This closes internal access after F&F payment. It never dismisses the employee
+ * in RazorpayX: that remains active until the final payroll month is processed.
  */
 export async function finalizeSeparation(
   employeeId: string,

@@ -495,7 +495,35 @@ export const pushEmploymentToRazorpay = (id: string, opts?: { triggeredFrom?: st
 export async function dismissInRazorpay(
   hrEmployeeId: string,
   opts: { dateOfDismissal: string; reason?: string | null; triggeredFrom?: string },
-): Promise<{ ok: boolean; scheduled?: boolean; effectiveDate?: string; skipped?: boolean; manualRequired?: boolean; error?: string; razorpay_employee_id?: string }> {
+): Promise<{ ok: boolean; scheduled?: boolean; effectiveDate?: string; skipped?: boolean; deferred?: boolean; manualRequired?: boolean; error?: string; razorpay_employee_id?: string }> {
+  // A paid/zero F&F proves only that the settlement itself is clear. It does not
+  // prove the employee's ordinary final-month salary has been processed. Keep
+  // this guard in the shared helper so Data Health and every UI caller are safe.
+  const { data: settlement, error: settlementError } = await (supabase as any)
+    .from("hr_fnf_settlements")
+    .select("payroll_month, last_working_day, status")
+    .eq("employee_id", hrEmployeeId)
+    .neq("status", "cancelled")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (settlementError) return { ok: false, error: settlementError.message };
+  const payrollMonth = settlement?.payroll_month || `${opts.dateOfDismissal.slice(0, 7)}-01`;
+  const { data: monthMeta, error: monthError } = await (supabase as any)
+    .from("hr_payroll_month_meta")
+    .select("processed_on")
+    .eq("period_month", payrollMonth)
+    .maybeSingle();
+  if (monthError) return { ok: false, error: monthError.message };
+  if (!monthMeta?.processed_on) {
+    return {
+      ok: false,
+      deferred: true,
+      effectiveDate: payrollMonth,
+      error: `RazorpayX dismissal is deferred until the ${String(payrollMonth).slice(0, 7)} final payroll is processed.`,
+    };
+  }
+
   const razorpayId = await resolveRazorpayEmployeeId(hrEmployeeId);
   if (!razorpayId) {
     await logPushback({

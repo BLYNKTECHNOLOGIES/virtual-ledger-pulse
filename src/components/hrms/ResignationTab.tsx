@@ -14,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { deleteFromEssl } from "@/lib/esslPushback";
 import { LogOut, Plus, Settings, CheckCircle2, Clock, XCircle, Pencil, Trash2, FileText, ArrowRight, Mail, ExternalLink } from "lucide-react";
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
@@ -273,11 +272,9 @@ export function ResignationTab() {
   });
 
 
-  // NOTE: there is deliberately no "complete resignation" shortcut here.
-  // Deactivating an employee dismisses them in RazorpayX, which closes their
-  // payroll record — so an employee stays ACTIVE until their F&F is marked paid.
-  // The only completion paths are finaliseSeparationNow (below), the payroll
-  // cockpit mark-paid step, and the nightly sweep (which holds unpaid F&F).
+  // NOTE: there is deliberately no early completion shortcut. F&F payment may
+  // close internal access, but RazorpayX remains active until final payroll is
+  // processed. The nightly sweep enforces both gates independently.
 
   // Withdraw resignation
   const withdrawResignation = useMutation({
@@ -357,8 +354,9 @@ export function ResignationTab() {
   const activeResignations = resigningEmployees?.filter(e => e.resignation_status === "notice_period") || [];
   const completedResignations = resigningEmployees?.filter(e => e.resignation_status === "completed") || [];
 
-  // Settlement state for everyone on notice, so the row can offer the final
-  // "Complete separation" step once the F&F is verified on RazorpayX.
+  // Settlement state for everyone on notice. Completing the local separation
+  // never dismisses the employee in RazorpayX; the automated sweep does that
+  // only after the final payroll month is marked processed.
   const activeIds = activeResignations.map(e => e.id);
   const { data: fnfByEmployee } = useQuery({
     queryKey: ["resignation-fnf-map", activeIds.join(",")],
@@ -385,8 +383,8 @@ export function ResignationTab() {
     return { ready: true, why: "F&F approved and verified on RazorpayX" };
   };
 
-  // Final step: mark the verified settlement paid, close its sources, complete the
-  // separation (deactivate + ERP + biometrics) and dismiss in RazorpayX.
+  // Final step: mark the verified settlement paid and close internal access.
+  // RazorpayX stays active until the final payroll month is processed.
   const finaliseSeparationNow = useMutation({
     mutationFn: async (employeeId: string) => {
       const s = fnfByEmployee?.[employeeId];
@@ -423,30 +421,10 @@ export function ResignationTab() {
         if (closeErr) toast.error(`Paid, but closing loans/deposits failed: ${closeErr.message}`);
       }
 
-      const fin = await finalizeSeparation(employeeId);
-      let dismissal: any = null;
-      if (fin.lwd) {
-        try {
-          dismissal = await dismissInRazorpay(employeeId, {
-            dateOfDismissal: fin.lwd,
-            reason: fin.separationReason || "F&F settled",
-            triggeredFrom: "fnf_paid",
-          });
-        } catch (e: any) {
-          dismissal = { ok: false, error: e?.message || "RazorpayX dismissal failed" };
-        }
-      } else {
-        dismissal = { ok: false, error: "No last working day on record — dismiss in RazorpayX manually." };
-      }
-      return { fin, dismissal };
+      return finalizeSeparation(employeeId);
     },
-    onSuccess: ({ fin, dismissal }: any) => {
-      toast.success(`Separation completed for ${fin.name}${fin.erp?.deactivated ? " — ERP login disabled" : ""}`);
-      if (dismissal?.scheduled) toast.success(`RazorpayX dismissal scheduled for ${new Date(`${dismissal.effectiveDate}T00:00:00`).toLocaleDateString("en-IN")}`);
-      else if (dismissal?.ok) toast.success("Dismissal propagated to RazorpayX");
-      else if (dismissal?.skipped) toast.info("Employee is not linked to RazorpayX — nothing to propagate.");
-      else if (dismissal?.manualRequired) toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account.");
-      else if (dismissal?.error) toast.warning(dismissal.error);
+    onSuccess: (fin: any) => {
+      toast.success(`Internal access closed for ${fin.name}${fin.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX remains active until final payroll is processed.`);
       queryClient.invalidateQueries({ queryKey: ["resignation-employees"] });
       queryClient.invalidateQueries({ queryKey: ["resignation-fnf-map"] });
       queryClient.invalidateQueries({ queryKey: ["hr_fnf_settlements"] });
@@ -667,7 +645,7 @@ export function ResignationTab() {
                           onClick={() => setConfirmAction({
                             type: 'finalise',
                             id: emp.id,
-                            label: `Complete the separation for ${emp.first_name} ${emp.last_name}? The settlement is marked paid, the employee is deactivated, the ERP login and biometrics are removed and the RazorpayX dismissal is sent with last working day ${emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN") : "—"}.`,
+                            label: `Close internal access for ${emp.first_name} ${emp.last_name}? HRMS, ERP login and biometrics will be deactivated now. RazorpayX will remain active until the ${String(fnfByEmployee?.[emp.id]?.payroll_month || emp.last_working_day || "final").slice(0, 7)} payroll is processed, then dismissal will be sent automatically.`,
                           })}
                         >
                           <LogOut className="h-4 w-4 mr-1" /> Complete separation
@@ -919,13 +897,10 @@ export function ResignationTab() {
           </div>
           <DialogFooter className="sm:justify-start">
             <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground w-full">
-              <p className="font-medium text-foreground mb-1">Separation completes itself after the F&amp;F is paid</p>
+              <p className="font-medium text-foreground mb-1">Internal access closes after F&amp;F is paid</p>
               <p>
-                The employee stays active here on purpose — dismissing them in RazorpayX now would block their final
-                payroll run. Once the F&amp;F settlement is pushed into its payroll cycle, verified on the RazorpayX
-                read-back and marked <strong>paid</strong> in Full &amp; Final Settlement, the resignation is completed
-                automatically: the employee is deactivated, the ERP login is disabled, biometrics are removed and the
-                RazorpayX dismissal is offered.
+                Once F&amp;F is verified and marked <strong>paid</strong>, HRMS, ERP login and biometrics are deactivated.
+                RazorpayX stays active for the final salary and is dismissed automatically only after that payroll month is marked processed.
               </p>
               {completedCount < totalCount && (
                 <p className="mt-1">Still open: {totalCount - completedCount} checklist item(s).</p>

@@ -1,18 +1,13 @@
-// Daily cron: once an employee's last working day has elapsed (IST), flip them
-// to inactive in HRMS, kill their ERP login, and dismiss them in RazorpayX with
-// that exact last working day.
+// Daily cron: once an employee's last working day has elapsed (IST), close their
+// internal access when F&F is paid. Keep RazorpayX active until the employee's
+// final payroll month is explicitly marked processed, then dismiss there.
 //
-// F&F GATE (money safety): dismissing someone in RazorpayX closes their payroll
-// record, so any Full & Final dues that were not pushed yet can never reach a
-// run. The sweep therefore HOLDS an employee whenever their F&F is not settled —
-// i.e. there is no settlement at all, or the settlement is not 'paid', or its
-// RazorpayX push has not landed. Held employees are reported back (and stay
-// visible on cockpit Step 3) so HR finishes the settlement first.
+// TWO GATES (money safety): F&F must be paid before internal access closes; the
+// final payroll month's hr_payroll_month_meta.processed_on must also be set
+// before RazorpayX people:dismiss is called. A zero-value F&F does not bypass
+// the second gate because nothing_to_push says nothing about ordinary salary.
 //
-// Idempotent: only touches employees still is_active = true with a
-// last_working_day strictly in the past. Razorpay dismissal is best-effort and
-// logged to hr_razorpay_pushback_log — a provider failure never blocks the
-// local separation.
+// Idempotent: successful dismissals are detected from the pushback audit log.
 
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -149,8 +144,7 @@ Deno.serve(async (req) => {
 
   const { data: due, error } = await svc
     .from("hr_employees")
-    .select("id, badge_id, first_name, last_name, email, user_id, last_working_day, resignation_status, separation_reason")
-    .eq("is_active", true)
+    .select("id, badge_id, first_name, last_name, email, user_id, last_working_day, resignation_status, separation_reason, is_active")
     .not("last_working_day", "is", null)
     .lt("last_working_day", today);
 
@@ -162,7 +156,7 @@ Deno.serve(async (req) => {
   if (dueIds.length > 0) {
     const { data: fnfRows } = await svc
       .from("hr_fnf_settlements")
-      .select("employee_id, status, razorpay_push_status")
+      .select("employee_id, status, razorpay_push_status, payroll_month")
       .in("employee_id", dueIds);
     for (const r of fnfRows || []) {
       const list = fnfByEmployee.get(r.employee_id) || [];
@@ -171,79 +165,128 @@ Deno.serve(async (req) => {
     }
   }
 
+  const payrollMonths = [...new Set(
+    [...fnfByEmployee.values()].flat().map((r: any) => r.payroll_month).filter(Boolean),
+  )];
+  const processedByMonth = new Map<string, string>();
+  if (payrollMonths.length > 0) {
+    const { data: monthRows } = await svc
+      .from("hr_payroll_month_meta")
+      .select("period_month, processed_on")
+      .in("period_month", payrollMonths);
+    for (const row of monthRows || []) {
+      if (row.processed_on) processedByMonth.set(row.period_month, row.processed_on);
+    }
+  }
+
+  const dismissedIds = new Set<string>();
+  if (dueIds.length > 0) {
+    const { data: priorDismissals } = await svc
+      .from("hr_razorpay_pushback_log")
+      .select("hr_employee_id")
+      .eq("action", "people_dismiss")
+      .eq("status", "success")
+      .in("hr_employee_id", dueIds);
+    for (const row of priorDismissals || []) dismissedIds.add(row.hr_employee_id);
+  }
+
   /** Why this employee may NOT be dismissed yet, or null when they are clear. */
-  function fnfHoldReason(empId: string): string | null {
+  function settledFnf(empId: string): { row: any | null; reason: string | null } {
     const rows = (fnfByEmployee.get(empId) || []).filter(
       (r) => String(r.status || "").toLowerCase() !== "cancelled",
     );
-    if (rows.length === 0) return "No Full & Final settlement exists — create and settle it before dismissal.";
+    if (rows.length === 0) return { row: null, reason: "No Full & Final settlement exists — create and settle it before closing access." };
     const settled = rows.find((r) => String(r.status).toLowerCase() === "paid");
     if (!settled) {
       const worst = rows[0];
-      return `Full & Final is still '${worst.status}' — dismissing now would close the RazorpayX payroll record before the dues are paid.`;
+      return { row: null, reason: `Full & Final is still '${worst.status}' — settle it before closing internal access.` };
     }
     if (!["pushed", "nothing_to_push"].includes(String(settled.razorpay_push_status || ""))) {
-      return "Full & Final is marked paid but its RazorpayX push has not landed — clear the push first.";
+      return { row: null, reason: "Full & Final is marked paid but its RazorpayX input has not been verified — clear the push first." };
     }
-    return null;
+    return { row: settled, reason: null };
   }
 
   const results: any[] = [];
   for (const emp of due || []) {
     const name = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
-    const hold = fnfHoldReason(emp.id);
-    if (hold) {
+    const settlement = settledFnf(emp.id);
+    if (settlement.reason) {
       results.push({
         id: emp.id,
         name,
         last_working_day: emp.last_working_day,
         action: "held_fnf_unsettled",
-        reason: hold,
+        reason: settlement.reason,
       });
       continue;
     }
+    let erp = false;
+    if (emp.is_active) {
+      if (dryRun) {
+        results.push({ id: emp.id, name, last_working_day: emp.last_working_day, action: "would_close_internal_access" });
+      } else {
+        const { error: updErr } = await svc
+          .from("hr_employees")
+          .update({
+            is_active: false,
+            resignation_status: emp.resignation_status || "completed",
+            account_deletion_date: emp.last_working_day,
+          })
+          .eq("id", emp.id)
+          .eq("is_active", true);
+        if (updErr) {
+          results.push({ id: emp.id, name, error: updErr.message });
+          continue;
+        }
+        erp = await deactivateErpLogin(svc, emp);
+      }
+    }
+
+    const payrollMonth = settlement.row?.payroll_month || `${String(emp.last_working_day).slice(0, 7)}-01`;
+    const processedOn = processedByMonth.get(payrollMonth);
+    if (!processedOn) {
+      results.push({
+        id: emp.id,
+        name,
+        last_working_day: emp.last_working_day,
+        internal_access_closed: !dryRun,
+        erp_login_disabled: erp,
+        action: "held_final_payroll_unprocessed",
+        payroll_month: payrollMonth,
+        reason: `RazorpayX remains active until ${String(payrollMonth).slice(0, 7)} payroll is marked processed.`,
+      });
+      continue;
+    }
+    if (dismissedIds.has(emp.id)) {
+      results.push({ id: emp.id, name, action: "already_dismissed", payroll_month: payrollMonth, processed_on: processedOn });
+      continue;
+    }
     if (dryRun) {
-      results.push({ id: emp.id, name, last_working_day: emp.last_working_day, action: "would_deactivate" });
+      results.push({ id: emp.id, name, action: "would_dismiss_in_razorpay", payroll_month: payrollMonth, processed_on: processedOn });
       continue;
     }
 
-
-    const { error: updErr } = await svc
-      .from("hr_employees")
-      .update({
-        is_active: false,
-        resignation_status: emp.resignation_status || "completed",
-        account_deletion_date: emp.last_working_day,
-      })
-      .eq("id", emp.id)
-      .eq("is_active", true);
-
-    if (updErr) {
-      results.push({ id: emp.id, name, error: updErr.message });
-      continue;
-    }
-
-    const erp = await deactivateErpLogin(svc, emp);
     const rzp = await dismissInRazorpay(svc, emp.id, emp.last_working_day);
 
     results.push({
       id: emp.id,
       name,
       last_working_day: emp.last_working_day,
-      deactivated: true,
+      internal_access_closed: true,
       erp_login_disabled: erp,
       razorpay: rzp.status,
       razorpay_error: rzp.ok ? undefined : rzp.message,
     });
   }
 
-  const held = results.filter((r) => r.action === "held_fnf_unsettled");
+  const held = results.filter((r) => ["held_fnf_unsettled", "held_final_payroll_unprocessed"].includes(r.action));
   return json({
     ok: true,
     today,
     scanned: due?.length || 0,
     dry_run: dryRun,
-    held_for_fnf: held.length,
+    held: held.length,
     results,
   });
 });

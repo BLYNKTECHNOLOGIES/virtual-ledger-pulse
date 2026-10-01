@@ -13,7 +13,6 @@ import { Calculator, Plus, IndianRupee, AlertTriangle, Trash2 } from "lucide-rea
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { CardSkeleton } from "@/components/ui/skeleton";
-import { dismissInRazorpay } from "@/lib/razorpayPushback";
 import { fnfEditLock, invalidateFnFEverywhere } from "@/lib/fnfEditLock";
 import { SourceTag } from "@/components/hr/payroll/SourceTag";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,14 +24,12 @@ import { finalizeSeparation } from "@/lib/finalizeSeparation";
 export default function FnFSettlementPage() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [payPrompt, setPayPrompt] = useState<{ id: string; name: string } | null>(null);
-  const [paymentRef, setPaymentRef] = useState("");
+  const [payPrompt, setPayPrompt] = useState<{ id: string; name: string; payrollMonth: string; pushStatus: string } | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   // One settlement per employee: the dialog is either creating a new one or
   // editing the existing (still-editable) settlement of that employee.
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [dismissPrompt, setDismissPrompt] = useState<{ id: string; employee_id: string; name: string; lwd: string; reason: string | null } | null>(null);
 
 
 
@@ -107,8 +104,8 @@ export default function FnFSettlementPage() {
             `Edit the settlement and write a reason for the amount being kept on: ${missing.map((m) => m.label).join(", ")}`,
           );
         }
-        // Marking paid also completes the separation, so the payroll lines must be
-        // verified on the live RazorpayX run first.
+        // Marking paid closes internal access, so the F&F lines must be verified
+        // first. Final salary completion is a separate RazorpayX dismissal gate.
         if (status === "paid" && !["pushed", "nothing_to_push"].includes(String(row?.razorpay_push_status || ""))) {
           throw new Error(
             "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
@@ -121,7 +118,7 @@ export default function FnFSettlementPage() {
       if (status === "approved") payload.approved_by = user?.username || user?.id || "hr";
       if (status === "paid") {
         payload.paid_at = new Date().toISOString();
-        payload.payment_reference = paymentReference;
+        payload.payment_reference = paymentReference || "Final payroll settlement";
       }
       const { error } = await (supabase as any).from("hr_fnf_settlements").update(payload).eq("id", id);
       if (error) throw error;
@@ -148,9 +145,8 @@ export default function FnFSettlementPage() {
         }
       }
 
-      // Paid = the F&F money is verified on the payroll run. This is the ONLY
-      // moment the separation is finalised (ERP login off, biometrics removed,
-      // employee deactivated) and the RazorpayX dismissal is offered.
+      // Paid closes internal access. RazorpayX stays active until the final
+      // payroll month is processed, then the automated sweep dismisses it.
       if (status === "paid") {
         // Close every source record the settlement recovered/refunded.
         const { error: closeErr } = await (supabase as any).rpc("hr_close_fnf_sources", { p_settlement_id: id });
@@ -184,9 +180,8 @@ export default function FnFSettlementPage() {
       toast.success("Status updated");
       if (result) {
         toast.success(
-          `Separation completed for ${result.name} — employee deactivated${result.erp?.deactivated ? ", ERP login disabled" : ""}.`,
+          `Internal access closed for ${result.name}${result.erp?.deactivated ? " — ERP login disabled" : ""}. RazorpayX remains active until final payroll is processed.`,
         );
-        setDismissPrompt({ id: result.settledId, employee_id: result.employee_id, name: result.name, lwd: result.lwd, reason: result.separationReason ?? null });
       }
     },
 
@@ -231,26 +226,6 @@ export default function FnFSettlementPage() {
     onError: (e: any) => toast.error(e.message),
   });
 
-
-  const [dismissing, setDismissing] = useState(false);
-  const confirmDismissInRazorpay = async () => {
-    if (!dismissPrompt) return;
-    setDismissing(true);
-    try {
-      const res = await dismissInRazorpay(dismissPrompt.employee_id, {
-        dateOfDismissal: dismissPrompt.lwd,
-        reason: dismissPrompt.reason || "F&F settled",
-        triggeredFrom: "fnf_paid",
-      });
-      if (res.scheduled) toast.success(`RazorpayX dismissal scheduled for ${new Date(`${res.effectiveDate}T00:00:00`).toLocaleDateString("en-IN")}`);
-      else if (res.ok) toast.success("Dismissal propagated to Razorpay");
-      else if (res.skipped) toast.info("Employee is not linked to Razorpay — nothing to propagate.");
-      else if (res.manualRequired) toast.warning("Dismiss manually in the RazorpayX dashboard — this employee never activated their RazorpayX account, so the dismiss API cannot resolve them. Logged in Data Health.");
-    } finally {
-      setDismissing(false);
-      setDismissPrompt(null);
-    }
-  };
 
 
   const statusBadge = (s: string) => {
@@ -379,10 +354,11 @@ export default function FnFSettlementPage() {
                               : "Push and verify the F&F payroll input from the Inputs step first"
                           }
                           onClick={() => {
-                            setPaymentRef("");
                             setPayPrompt({
                               id: s.id,
                               name: `${s.hr_employees?.first_name ?? ""} ${s.hr_employees?.last_name ?? ""}`.trim() || "employee",
+                              payrollMonth: String(s.payroll_month || s.last_working_day || "").slice(0, 7),
+                              pushStatus: String(s.razorpay_push_status || ""),
                             });
                           }}
                         >
@@ -457,23 +433,24 @@ export default function FnFSettlementPage() {
           </DialogHeader>
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
-              Record the bank/UTR reference for <strong>{payPrompt?.name}</strong>. A payment reference is mandatory before a settlement can be marked paid.
+              This closes the settlement and internal access for <strong>{payPrompt?.name}</strong>. RazorpayX remains active until the {payPrompt?.payrollMonth || "final"} payroll is processed, then dismissal is handled automatically.
             </p>
-            <Label>Payment Reference</Label>
-            <Input className="h-9" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} placeholder="UTR / transaction ID" />
           </div>
           <DialogFooter>
             <Button variant="outline" className="h-9" onClick={() => setPayPrompt(null)}>Cancel</Button>
             <Button
               className="h-9 bg-success hover:bg-success"
-              disabled={!paymentRef.trim() || updateStatusMutation.isPending}
+              disabled={updateStatusMutation.isPending}
               onClick={() => {
                 if (!payPrompt) return;
-                updateStatusMutation.mutate({ id: payPrompt.id, status: "paid", paymentReference: paymentRef.trim() });
+                const reference = payPrompt.pushStatus === "nothing_to_push"
+                  ? `No F&F payroll input — ${payPrompt.payrollMonth || "final payroll"}`
+                  : `RazorpayX payroll ${payPrompt.payrollMonth || "final cycle"} — F&F input verified`;
+                updateStatusMutation.mutate({ id: payPrompt.id, status: "paid", paymentReference: reference });
                 setPayPrompt(null);
               }}
             >
-              Confirm Paid
+              Mark paid &amp; close access
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -529,39 +506,6 @@ export default function FnFSettlementPage() {
       </AlertDialog>
 
 
-      <AlertDialog open={!!dismissPrompt} onOpenChange={(o) => { if (!o) setDismissPrompt(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Also mark dismissed in Razorpay?</AlertDialogTitle>
-            <AlertDialogDescription>
-              F&amp;F for <strong>{dismissPrompt?.name}</strong> is settled. Propagating the dismissal to Razorpay
-              (date of dismissal: <span className="tabular-nums">{dismissPrompt?.lwd}</span>) enables F&amp;F payroll on their side
-              and stops future payslips. This is destructive on the Razorpay side and requires the CONFIRM_DISMISS acknowledgement —
-              click <em>Dismiss in Razorpay</em> to send it, or <em>Skip</em> to keep this to the HRMS only.
-              If the employee is not linked to Razorpay, nothing will be sent.
-              {dismissPrompt?.reason ? (
-                <>
-                  <br />
-                  <br />
-                  Exit reason on record: <strong>{dismissPrompt.reason}</strong>. RazorpayX <em>people:dismiss</em> accepts only
-                  the email and date of dismissal, so the reason is stored in the HRMS dismissal audit log (Data Health) and must
-                  be typed in the RazorpayX dashboard if you need it there.
-                </>
-              ) : null}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={dismissing}>Skip</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={dismissing}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => { e.preventDefault(); confirmDismissInRazorpay(); }}
-            >
-              {dismissing ? "Sending…" : "Dismiss in Razorpay"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

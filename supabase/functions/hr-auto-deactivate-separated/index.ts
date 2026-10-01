@@ -42,7 +42,8 @@ async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
     userId = data?.id || null;
   }
   if (!userId && emp.email) {
-    const { data } = await svc.from("users").select("id").ilike("email", emp.email).maybeSingle();
+    // Exact match: a former employee's email must not be interpreted as an ILIKE pattern.
+    const { data } = await svc.from("users").select("id").eq("email", emp.email).maybeSingle();
     userId = data?.id || null;
   }
   if (!userId) return false;

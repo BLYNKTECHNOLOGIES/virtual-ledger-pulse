@@ -1,11 +1,6 @@
-// Daily cron: once an employee's last working day has elapsed (IST), close their
-// internal access when F&F is paid. Keep RazorpayX active until the employee's
-// final payroll month is explicitly marked processed, then dismiss there.
-//
-// TWO GATES (money safety): F&F must be paid before internal access closes; the
-// final payroll month's hr_payroll_month_meta.processed_on must also be set
-// before RazorpayX people:dismiss is called. A zero-value F&F does not bypass
-// the second gate because nothing_to_push says nothing about ordinary salary.
+// Daily cron: after last working day (IST), close ERP and biometric access
+// independently of F&F. Never dismiss from RazorpayX until F&F is settled and
+// this employee's final salary payout is confirmed by the provider.
 //
 // Idempotent: successful dismissals are detected from the pushback audit log.
 
@@ -60,6 +55,22 @@ async function deactivateErpLogin(svc: any, emp: any): Promise<boolean> {
     })
     .eq("id", userId);
   return !error;
+}
+
+async function queueBiometricRemoval(emp: any): Promise<{ ok: boolean; detail: string }> {
+  if (!emp.badge_id) return { ok: true, detail: "No biometric PIN" };
+  try {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/hr-essl-push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_ROLE}` },
+      body: JSON.stringify({ hr_employee_id: emp.id, action: "delete", triggered_from: "auto_lwd_sweep" }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (result.ok || result.reason === "no_devices" || result.reason === "no_badge_id") {
+      return { ok: true, detail: result.reason || `Queued on ${result.queued_count} device(s)` };
+    }
+    return { ok: false, detail: result.error || `HTTP ${response.status}` };
+  } catch (error) { return { ok: false, detail: String(error) }; }
 }
 
 async function dismissInRazorpay(
@@ -165,20 +176,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  const payrollMonths = [...new Set(
-    [...fnfByEmployee.values()].flat().map((r: any) => r.payroll_month).filter(Boolean),
-  )];
-  const processedByMonth = new Map<string, string>();
-  if (payrollMonths.length > 0) {
-    const { data: monthRows } = await svc
-      .from("hr_payroll_month_meta")
-      .select("period_month, processed_on")
-      .in("period_month", payrollMonths);
-    for (const row of monthRows || []) {
-      if (row.processed_on) processedByMonth.set(row.period_month, row.processed_on);
-    }
-  }
-
   const dismissedIds = new Set<string>();
   if (dueIds.length > 0) {
     const { data: priorDismissals } = await svc
@@ -195,11 +192,11 @@ Deno.serve(async (req) => {
     const rows = (fnfByEmployee.get(empId) || []).filter(
       (r) => String(r.status || "").toLowerCase() !== "cancelled",
     );
-    if (rows.length === 0) return { row: null, reason: "No Full & Final settlement exists — create and settle it before closing access." };
+    if (rows.length === 0) return { row: null, reason: "No Full & Final settlement exists — create and settle it before RazorpayX dismissal." };
     const settled = rows.find((r) => String(r.status).toLowerCase() === "paid");
     if (!settled) {
       const worst = rows[0];
-      return { row: null, reason: `Full & Final is still '${worst.status}' — settle it before closing internal access.` };
+      return { row: null, reason: `Full & Final is still '${worst.status}' — settle it before RazorpayX dismissal.` };
     }
     if (!["pushed", "nothing_to_push"].includes(String(settled.razorpay_push_status || ""))) {
       return { row: null, reason: "Full & Final is marked paid but its RazorpayX input has not been verified — clear the push first." };
@@ -210,60 +207,60 @@ Deno.serve(async (req) => {
   const results: any[] = [];
   for (const emp of due || []) {
     const name = `${emp.first_name || ""} ${emp.last_name || ""}`.trim();
-    const settlement = settledFnf(emp.id);
-    if (settlement.reason) {
-      results.push({
-        id: emp.id,
-        name,
-        last_working_day: emp.last_working_day,
-        action: "held_fnf_unsettled",
-        reason: settlement.reason,
-      });
-      continue;
-    }
-    let erp = false;
-    if (emp.is_active) {
-      if (dryRun) {
-        results.push({ id: emp.id, name, last_working_day: emp.last_working_day, action: "would_close_internal_access" });
-      } else {
-        const { error: updErr } = await svc
-          .from("hr_employees")
-          .update({
-            is_active: false,
-            resignation_status: emp.resignation_status || "completed",
-            account_deletion_date: emp.last_working_day,
-          })
-          .eq("id", emp.id)
-          .eq("is_active", true);
-        if (updErr) {
-          results.push({ id: emp.id, name, error: updErr.message });
-          continue;
-        }
-        erp = await deactivateErpLogin(svc, emp);
+    // Do not touch a withdrawn or pending-approval separation merely because a
+    // tentative date passed. HR's approved notice/complete state is required.
+    if (!["notice_period", "completed"].includes(String(emp.resignation_status))) continue;
+    const access: any = { erp_login_disabled: false, biometric: "not_attempted" };
+    if (dryRun) {
+      access.action = "would_close_internal_access";
+    } else {
+      // Retry ERP on every sweep until it is inactive. Do not tie it to
+      // hr_employees.is_active: a previously closed HR row can retain a live ERP login.
+      const erp = await deactivateErpLogin(svc, emp);
+      access.erp_login_disabled = erp;
+      if (emp.is_active) {
+        const { error: updErr } = await svc.from("hr_employees")
+          .update({ is_active: false, resignation_status: "completed", account_deletion_date: emp.last_working_day })
+          .eq("id", emp.id).eq("is_active", true);
+        if (updErr) { results.push({ id: emp.id, name, action: "access_error", error: updErr.message }); continue; }
       }
+      // One command per device, retried only if no prior successful queue entry.
+      const { data: prior } = await svc.from("hr_essl_pushback_log")
+        .select("device_serial").eq("hr_employee_id", emp.id).eq("kind", "delete")
+        .in("status", ["queued", "success"]).eq("triggered_from", "auto_lwd_sweep");
+      if (!prior?.length) {
+        const bio = await queueBiometricRemoval(emp);
+        access.biometric = bio.ok ? bio.detail : `retry_needed: ${bio.detail}`;
+      } else access.biometric = "already_queued";
     }
 
+    const settlement = settledFnf(emp.id);
+    if (settlement.reason) {
+      results.push({ id: emp.id, name, last_working_day: emp.last_working_day, ...access, action: "held_fnf_unsettled", reason: settlement.reason });
+      continue;
+    }
     const payrollMonth = settlement.row?.payroll_month || `${String(emp.last_working_day).slice(0, 7)}-01`;
-    const processedOn = processedByMonth.get(payrollMonth);
-    if (!processedOn) {
+    const { data: payout, error: payoutError } = await svc.from("hr_razorpay_payout_records")
+      .select("id").eq("hr_employee_id", emp.id).eq("period_month", payrollMonth)
+      .eq("payout_status", "paid").gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
+    if (payoutError || !payout) {
       results.push({
         id: emp.id,
         name,
         last_working_day: emp.last_working_day,
-        internal_access_closed: !dryRun,
-        erp_login_disabled: erp,
-        action: "held_final_payroll_unprocessed",
+        ...access,
+        action: "held_final_payroll_unpaid",
         payroll_month: payrollMonth,
-        reason: `RazorpayX remains active until ${String(payrollMonth).slice(0, 7)} payroll is marked processed.`,
+        reason: payoutError?.message || `RazorpayX remains active until this employee's ${String(payrollMonth).slice(0, 7)} salary payout is verified.`,
       });
       continue;
     }
     if (dismissedIds.has(emp.id)) {
-      results.push({ id: emp.id, name, action: "already_dismissed", payroll_month: payrollMonth, processed_on: processedOn });
+      results.push({ id: emp.id, name, ...access, action: "already_dismissed", payroll_month: payrollMonth });
       continue;
     }
     if (dryRun) {
-      results.push({ id: emp.id, name, action: "would_dismiss_in_razorpay", payroll_month: payrollMonth, processed_on: processedOn });
+      results.push({ id: emp.id, name, ...access, action: "would_dismiss_in_razorpay", payroll_month: payrollMonth });
       continue;
     }
 
@@ -273,14 +270,13 @@ Deno.serve(async (req) => {
       id: emp.id,
       name,
       last_working_day: emp.last_working_day,
-      internal_access_closed: true,
-      erp_login_disabled: erp,
+      ...access,
       razorpay: rzp.status,
       razorpay_error: rzp.ok ? undefined : rzp.message,
     });
   }
 
-  const held = results.filter((r) => ["held_fnf_unsettled", "held_final_payroll_unprocessed"].includes(r.action));
+  const held = results.filter((r) => ["held_fnf_unsettled", "held_final_payroll_unpaid"].includes(r.action));
   return json({
     ok: true,
     today,

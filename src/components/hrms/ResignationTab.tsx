@@ -895,10 +895,10 @@ export function ResignationTab() {
           </div>
           <DialogFooter className="sm:justify-start">
             <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground w-full">
-              <p className="font-medium text-foreground mb-1">Internal access closes after F&amp;F is paid</p>
+              <p className="font-medium text-foreground mb-1">Access follows the last working day</p>
               <p>
-                Once F&amp;F is verified and marked <strong>paid</strong>, HRMS, ERP login and biometrics are deactivated.
-                RazorpayX stays active for the final salary and is dismissed automatically only after that payroll month is marked processed.
+                ERP login and biometric access close after the last working day, regardless of F&amp;F payment.
+                RazorpayX stays active until F&amp;F is settled and this employee’s final salary payout is verified.
               </p>
               {completedCount < totalCount && (
                 <p className="mt-1">Still open: {totalCount - completedCount} checklist item(s).</p>

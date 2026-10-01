@@ -32430,6 +32430,16 @@ export type Database = {
         Args: { _leave_type_id: string }
         Returns: boolean
       }
+      hr_leave_alloc_in_scope: {
+        Args: {
+          p_end: string
+          p_quarter: number
+          p_start: string
+          p_type: string
+          p_year: number
+        }
+        Returns: boolean
+      }
       hr_leave_month_breakdown: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {

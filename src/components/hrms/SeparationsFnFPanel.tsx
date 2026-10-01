@@ -90,6 +90,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
   const [showInitiate, setShowInitiate] = useState(false);
   const [confirmSettlement, setConfirmSettlement] = useState<any | null>(null);
   const [payPrompt, setPayPrompt] = useState<any | null>(null);
+  const [payRef, setPayRef] = useState("");
   const [dismissPrompt, setDismissPrompt] = useState<
     { employee_id: string; name: string; lwd: string; reason: string | null } | null
   >(null);
@@ -335,9 +336,11 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
           "The F&F lines are not verified on the RazorpayX payroll run yet — retry the push before marking this paid.",
         );
       }
+      const reference = payRef.trim();
+      if (!reference) throw new Error("Enter the payment reference (RazorpayX payroll run / UTR) before marking this paid.");
       const { error } = await (supabase as any)
         .from("hr_fnf_settlements")
-        .update({ status: "paid", paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .update({ status: "paid", payment_reference: reference, paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
         .eq("id", settlement.id);
       if (error) throw error;
 
@@ -766,7 +769,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
 
       <AlertDialog
         open={Boolean(payPrompt)}
-        onOpenChange={(open) => { if (!open && !markPaid.isPending) setPayPrompt(null); }}
+        onOpenChange={(open) => { if (!open && !markPaid.isPending) { setPayPrompt(null); setPayRef(""); } }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -777,10 +780,21 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
               biometrics, and then offers the RazorpayX dismissal. Do this only once the money is on the run.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="fnf-pay-ref">Payment reference *</Label>
+            <Input
+              id="fnf-pay-ref"
+              className="text-foreground"
+              value={payRef}
+              onChange={(e) => setPayRef(e.target.value)}
+              placeholder="e.g. RazorpayX payroll Sep-2026 or UTR"
+              disabled={markPaid.isPending}
+            />
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={markPaid.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              disabled={!payPrompt || markPaid.isPending}
+              disabled={!payPrompt || !payRef.trim() || markPaid.isPending}
               onClick={(event) => { event.preventDefault(); if (payPrompt) markPaid.mutate(payPrompt); }}
             >
               {markPaid.isPending ? "Finalising…" : "Mark paid & finalise"}

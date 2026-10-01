@@ -311,7 +311,7 @@ export default function SeparationsFnFPanel({ month }: { month?: string }) {
       setConfirmSettlement(null);
       if (pushError || pushResult?.ok === false) {
         toast.error(
-          `Approved, but the RazorpayX push did not verify: ${pushResult?.error ?? pushError?.message ?? "unknown error"}`,
+          `Approved, but the RazorpayX push did not verify: ${pushResult?.error ?? (pushResult?.results || []).filter((r: any) => !r.verified).map((r: any) => { try { return JSON.parse(r.error).message; } catch { return r.error; } }).join('; ') || pushError?.message ?? "unknown error"}`,
         );
       } else if (pushResult?.nothing_to_push) {
         toast.success("Approved — there is nothing to push to RazorpayX");

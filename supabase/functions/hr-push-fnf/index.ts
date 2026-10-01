@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
     if (!stage_only && s.razorpay_push_status === "pushed") {
       return json({ ok: true, already_pushed: true, pushed_at: s.razorpay_pushed_at });
     }
-    if (!["approved", "paid"].includes(s.status)) {
+    if (s.status !== "approved") {
       return json({ ok: false, error: `Settlement must be approved before pushing (currently ${s.status})` }, 400);
     }
 

@@ -105,10 +105,22 @@ Deno.serve(async (req) => {
 
     const isAdmin = callerRoleNames.includes("admin") || callerRoleNames.includes("super admin") || callerRoleNames.includes("super_admin");
     if (!isAdmin) {
-      return new Response(JSON.stringify({ error: "Insufficient permissions. Admin access required." }), {
-        status: 403,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      // HR staff may create accounts from HRMS onboarding, but ONLY with the
+      // Standby role (profile access). Any other role still needs an admin.
+      let isHr = false;
+      const { data: hrFlag } = await adminClient.rpc("hr_is_hr_staff", { _user_id: callerId });
+      isHr = hrFlag === true;
+      let targetIsStandby = false;
+      if (isHr) {
+        const { data: tr } = await adminClient.from("roles").select("name").eq("id", roleId).maybeSingle();
+        targetIsStandby = String(tr?.name ?? "").trim().toLowerCase() === "standby";
+      }
+      if (!isHr || !targetIsStandby) {
+        return new Response(JSON.stringify({ error: "Insufficient permissions. Admin access required." }), {
+          status: 403,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
     }
 
     // ── Verify target role is NOT admin/super admin ──

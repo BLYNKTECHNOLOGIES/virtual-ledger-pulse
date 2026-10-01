@@ -365,9 +365,7 @@ export default function FnFSettlementPage() {
                       </Button>
                     )}
                     {s.status === "approved" && (() => {
-                      const sourceConfirmed = ["razorpay", "register_csv"].includes(s.breakdown?.pending_salary_source);
-                      const nothingToPay = Number(s.net_payable ?? 0) === 0;
-                      const canMarkPaid = sourceConfirmed || nothingToPay;
+                      const canMarkPaid = ["pushed", "nothing_to_push"].includes(String(s.razorpay_push_status || ""));
                       return (
                         <Button
                           size="sm"
@@ -375,10 +373,10 @@ export default function FnFSettlementPage() {
                           disabled={!canMarkPaid}
                           title={
                             canMarkPaid
-                              ? nothingToPay && !sourceConfirmed
-                                ? "Zero-value settlement — nothing to pay"
-                                : undefined
-                              : "Final-month salary is not confirmed from RazorpayX yet"
+                              ? s.razorpay_push_status === "nothing_to_push"
+                                ? "No F&F payroll input is required"
+                                : "F&F payroll input is verified on the run"
+                              : "Push and verify the F&F payroll input from the Inputs step first"
                           }
                           onClick={() => {
                             setPaymentRef("");

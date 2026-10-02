@@ -215,6 +215,7 @@ Deno.serve(async (req) => {
           });
         }
         settleCredits(existingAuto?.pushed_at ? split.encash_days : 0);
+        if (!existingAuto?.pushed_at) writeSettlement(0, 0);
         continue;
       }
 
@@ -274,21 +275,12 @@ Deno.serve(async (req) => {
           source: "auto_compoff",
           created_by: callerId,
         });
-        settlements.push({
-          employee_id: map.hr_employee_id,
-          period_month: periodStr,
-          days_earned: pool.days_earned,
-          days_taken: pool.days_taken,
-          days_offset_lop: split.offset_days,
-          days_encashed: split.encash_days,
-          per_day_rate: row.per_day_rate,
-          amount,
-          base_source: salary.source,
-        });
+        writeSettlement(split.encash_days, amount, row.per_day_rate, salary.source);
         settleCredits(split.encash_days);
       } else {
         // Nothing payable — the days stay open rather than being written off.
         settleCredits(0);
+        writeSettlement(0, 0);
       }
     }
 

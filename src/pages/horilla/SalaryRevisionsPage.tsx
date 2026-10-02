@@ -590,8 +590,28 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
               } else {
                 syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not sent" detail="Not sent to RazorpayX" />;
               }
+            } else if (isApplied && r.razorpay_push_state && r.razorpay_push_state !== "pushed") {
+              const st = r.razorpay_push_state as string;
+              const pam = r.push_after_month ? new Date(`${String(r.push_after_month).slice(0, 7)}-01T00:00:00Z`) : null;
+              const closeMonth = pam ? new Date(Date.UTC(pam.getUTCFullYear(), pam.getUTCMonth() - 1, 1)) : null;
+              const dayOne = r.effective_from && String(r.effective_from).slice(8, 10) === "01";
+              if (st === "held") {
+                syncBadge = (
+                  <StatusPill tone="info" icon={Clock}
+                    label={closeMonth ? `Auto-sends after ${format(dayOne ? pam! : closeMonth, "MMM")} ${dayOne ? "opens" : "payroll"}` : "Held"}
+                    detail={dayOne
+                      ? `Sent to RazorpayX automatically once ${pam ? format(pam, "MMMM yyyy") : ""} is the open payroll month.`
+                      : `RazorpayX keeps the old salary for ${closeMonth ? format(closeMonth, "MMMM") : "this month"}; the part-month extra pays the difference. The new salary is sent automatically when ${closeMonth ? format(closeMonth, "MMMM") : "that"} payroll is marked done.`} />
+                );
+              } else if (st === "queued") {
+                syncBadge = <StatusPill tone="info" icon={Loader2} label="Sending" detail="Being sent to RazorpayX" />;
+              } else if (st === "failed") {
+                syncBadge = <StatusPill tone="bad" icon={XCircle} label="Send failed" detail={r.razorpay_push_error || "RazorpayX rejected the automatic send"} />;
+              } else if (st === "superseded") {
+                syncBadge = <StatusPill tone="info" icon={CheckCircle2} label="Replaced" detail="A later change replaced this one before it was sent" />;
+              }
             } else if (isApplied) {
-              if (pushSyncedAfterRevision) {
+              if (pushSyncedAfterRevision || r.razorpay_push_state === "pushed") {
                 syncBadge = <StatusPill tone="ok" icon={CheckCircle2} label="Synced" detail="Synced to RazorpayX" />;
               } else if (pushFailedAfterRevision) {
                 syncBadge = (

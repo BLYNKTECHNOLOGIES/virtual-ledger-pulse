@@ -27,6 +27,8 @@ export default function WeeklyOffPage() {
   const [showAssign, setShowAssign] = useState(false);
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [bulkForm, setBulkForm] = useState({ pattern_id: "", employee_ids: [] as string[], search: "" });
+  const [assignSearch, setAssignSearch] = useState("");
+  const [patternSearch, setPatternSearch] = useState("");
   const [form, setForm] = useState({ name: "", weekly_offs: [0] as number[], is_alternating: false, alternate_week_offs: [] as number[], description: "", counts_holidays_as_working: false, excludes_leave_accrual: false, excludes_compoff: false });
   const [assignForm, setAssignForm] = useState({ employee_id: "", pattern_id: "" });
 
@@ -57,6 +59,20 @@ export default function WeeklyOffPage() {
         .order("created_at", { ascending: false });
       return data || [];
     },
+  });
+
+  const filteredAssignments = assignments.filter((a: any) => {
+    const q = assignSearch.trim().toLowerCase();
+    if (!q) return true;
+    const employee = `${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""} ${a.hr_employees?.badge_id || ""}`.toLowerCase();
+    const pattern = (a.hr_weekly_off_patterns?.name || "").toLowerCase();
+    return employee.includes(q) || pattern.includes(q);
+  });
+
+  const filteredPatterns = patterns.filter((p: any) => {
+    const q = patternSearch.trim().toLowerCase();
+    if (!q) return true;
+    return `${p.name || ""} ${p.description || ""}`.toLowerCase().includes(q);
   });
 
   const { data: employees = [] } = useQuery({
@@ -166,12 +182,21 @@ export default function WeeklyOffPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full overflow-x-auto justify-start sm:w-auto">
-          <TabsTrigger value="patterns">Patterns ({patterns.length})</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments ({assignments.length})</TabsTrigger>
+          <TabsTrigger value="patterns">Patterns ({filteredPatterns.length})</TabsTrigger>
+          <TabsTrigger value="assignments">Assignments ({filteredAssignments.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="patterns" className="space-y-3">
-          <div className="hrms-toolbar justify-end">
+          <div className="hrms-toolbar gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="h-9 pl-8"
+                placeholder="Search patterns..."
+                value={patternSearch}
+                onChange={e => setPatternSearch(e.target.value)}
+              />
+            </div>
             <Button className="h-9 w-full sm:w-auto" onClick={() => setShowAddPattern(true)}><Plus className="h-4 w-4 mr-1" /> New Pattern</Button>
           </div>
           {patterns.length === 0 ? (
@@ -181,9 +206,15 @@ export default function WeeklyOffPage() {
               description="Create a weekly-off pattern to get started."
               action={<Button className="h-9" onClick={() => setShowAddPattern(true)}><Plus className="h-4 w-4 mr-1" /> New Pattern</Button>}
             />
+          ) : filteredPatterns.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              title="No patterns match your search"
+              description="Try a different name or clear the search."
+            />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {patterns.map((p: any) => (
+              {filteredPatterns.map((p: any) => (
                 <Card key={p.id}>
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
@@ -224,7 +255,16 @@ export default function WeeklyOffPage() {
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-3">
-          <div className="hrms-toolbar justify-end gap-2 flex-wrap">
+          <div className="hrms-toolbar gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="h-9 pl-8"
+                placeholder="Search by employee name, badge or pattern..."
+                value={assignSearch}
+                onChange={e => setAssignSearch(e.target.value)}
+              />
+            </div>
             <Button variant="outline" className="h-9 w-full sm:w-auto" onClick={() => setShowBulkAssign(true)} disabled={patterns.length === 0}>
               <UsersRound className="h-4 w-4 mr-1" /> Bulk Assign
             </Button>
@@ -233,14 +273,14 @@ export default function WeeklyOffPage() {
             </Button>
           </div>
           <ResponsiveList
-            items={assignments}
+            items={filteredAssignments}
             columns={[
               { key: "employee", label: "Employee" },
               { key: "pattern", label: "Pattern" },
               { key: "actions", label: "", className: "w-[60px]" },
             ]}
             keyFor={(a: any) => a.id}
-            emptyState={<EmptyState icon={Users} title="No assignments yet" description="Assign a weekly-off pattern to an employee." />}
+            emptyState={assignSearch.trim() ? <EmptyState icon={Users} title="No assignments match your search" description="Try a different name, badge or pattern." /> : <EmptyState icon={Users} title="No assignments yet" description="Assign a weekly-off pattern to an employee." />}
             renderRow={(a: any) => (
               <>
                 <td className="px-3 py-3 text-sm">

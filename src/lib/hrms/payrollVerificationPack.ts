@@ -237,6 +237,26 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       .eq("is_current", true);
     for (const r of wo ?? []) if (r.hr_weekly_off_patterns?.counts_holidays_as_working) allWorkingIds.add(r.employee_id);
   }
+  // Watchdog entries the system closed on its own (paired a later punch as the
+  // punch-out) were never looked at by HR — the pairing may be a break punch.
+  // They count toward pay, so they must be surfaced for HR confirmation.
+  const autoClosedDates = new Map<string, string[]>();
+  {
+    const [y, m] = period.slice(0, 7).split("-").map(Number);
+    const pEnd = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+    const { data: ss } = await (supabase as any)
+      .from("hr_attendance_stale_sessions")
+      .select("employee_id, attendance_date, status, resolved_by")
+      .gte("attendance_date", period)
+      .lte("attendance_date", pEnd)
+      .eq("status", "auto_resolved_paired_out");
+    for (const r of ss ?? []) {
+      if (r.resolved_by) continue;
+      const list = autoClosedDates.get(r.employee_id) ?? [];
+      list.push(String(r.attendance_date).slice(8, 10));
+      autoClosedDates.set(r.employee_id, list);
+    }
+  }
   // "contract" here means owners/directors whose pay is fixed and never affected
   // by attendance — they are still paid through RazorpayX payroll.
   const isFixedPay = (t: any) => ["contract", "contractor", "contractual", "consultant"].includes(String(t ?? "").toLowerCase());

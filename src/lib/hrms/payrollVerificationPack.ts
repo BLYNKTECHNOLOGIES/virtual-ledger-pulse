@@ -404,7 +404,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const isDuplicateRecovery = (r: any) =>
     stagedRecoveryIds.has(String(r.id)) ||
     (!r.razorpay_pushed_at && stagedRecoveryKeys.has(`${r.employee_id}|${n2(r.amount)}`));
-  for (const row of (recoveries as any[]).filter((r) => !isDuplicateRecovery(r))) {
+  for (const row of (recoveries as any[]).filter((r) => !isDuplicateRecovery(r) && r.status !== "skipped")) {
     lines.push({
       badge: row.badge_id ?? empBadge(row.employee_id), name: row.employee_name ?? empName(row.employee_id),
       dir: "Deduction", cat: "Recovery instalment",
@@ -456,7 +456,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (!row.pushed_at) bump(stagedUnpushed, row.hr_employee_id, 1);
   }
   for (const row of (recoveries as any[])) {
-    if (isDuplicateRecovery(row)) continue; // already counted as a staged deduction
+    if (isDuplicateRecovery(row) || row.status === "skipped") continue; // already counted as a staged deduction
     bump(dedByEmp, row.employee_id, n2(row.amount));
   }
 

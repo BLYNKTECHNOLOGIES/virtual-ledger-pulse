@@ -32,20 +32,6 @@ export default function WeeklyOffPage() {
   const [form, setForm] = useState({ name: "", weekly_offs: [0] as number[], is_alternating: false, alternate_week_offs: [] as number[], description: "", counts_holidays_as_working: false, excludes_leave_accrual: false, excludes_compoff: false });
   const [assignForm, setAssignForm] = useState({ employee_id: "", pattern_id: "" });
 
-  const filteredAssignments = assignments.filter((a: any) => {
-    const q = assignSearch.trim().toLowerCase();
-    if (!q) return true;
-    const employee = `${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""} ${a.hr_employees?.badge_id || ""}`.toLowerCase();
-    const pattern = (a.hr_weekly_off_patterns?.name || "").toLowerCase();
-    return employee.includes(q) || pattern.includes(q);
-  });
-
-  const filteredPatterns = patterns.filter((p: any) => {
-    const q = patternSearch.trim().toLowerCase();
-    if (!q) return true;
-    return `${p.name || ""} ${p.description || ""}`.toLowerCase().includes(q);
-  });
-
   const patternWarning = (p: any) => {
     if (!p) return null;
     const bits: string[] = [];

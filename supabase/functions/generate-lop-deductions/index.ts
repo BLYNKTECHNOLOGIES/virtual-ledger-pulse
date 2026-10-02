@@ -249,8 +249,7 @@ Deno.serve(async (req) => {
         absent_days: Number(lop?.absent_days ?? 0),
         held_harmless_days: Number(lop?.held_harmless_days ?? 0),
         // Days before joining / after leaving are never "unverified" attendance.
-        unverified_days: Math.max(0, Math.min(
-          Number(lop?.unverified_days ?? 0),
+        unverified_days: Math.max(0, Number(((lop?.unverified_days ?? 0) - gapWorkingDays).toFixed(2))),
           monthWorkingDays > 0 ? monthWorkingDays - gapWorkingDays : Number(lop?.unverified_days ?? 0),
         )),
         leave_breakdown: bd?.leave_breakdown ?? [],

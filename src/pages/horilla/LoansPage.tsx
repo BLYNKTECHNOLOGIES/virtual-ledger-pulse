@@ -624,9 +624,9 @@ export default function LoansPage() {
                                 : r.status === "failed" ? "bg-destructive/10 text-destructive"
                                 : r.status === "pushed" ? "bg-info/10 text-info"
                                 : "bg-muted text-muted-foreground"}`}>
-                                {r.repayment_type === "manual" ? "manual · " : ""}{r.status || "scheduled"}
+                                {r.repayment_type === "manual" ? "manual · " : ""}{r.status === "skipped" ? "closed in F&F" : r.status || "scheduled"}
                               </span>
-                              {r.failure_reason && <span className="block text-[10px] text-destructive">{r.failure_reason}</span>}
+                              {r.failure_reason && <span className={`block text-[10px] ${r.status === "skipped" ? "text-muted-foreground" : "text-destructive"}`}>{r.failure_reason}</span>}
                             </td>
                             <td className="px-2 py-1.5 tabular-nums text-muted-foreground">
                               {r.balance_after != null ? `₹${Number(r.balance_after).toLocaleString("en-IN")}` : "—"}

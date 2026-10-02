@@ -18020,6 +18020,7 @@ export type Database = {
           employee_id: string
           id: string
           is_taxable: boolean
+          last_push_attempt_at: string | null
           new_basic: number | null
           new_total: number | null
           notes: string | null
@@ -18032,8 +18033,11 @@ export type Database = {
           payroll_input_kind: string | null
           previous_basic: number | null
           previous_total: number | null
+          push_after_month: string | null
+          push_attempts: number
           razorpay_push_error: string | null
           razorpay_push_response: Json | null
+          razorpay_push_state: string | null
           razorpay_pushed_at: string | null
           razorpay_verified_at: string | null
           register_confirmed_at: string | null
@@ -18055,6 +18059,7 @@ export type Database = {
           employee_id: string
           id?: string
           is_taxable?: boolean
+          last_push_attempt_at?: string | null
           new_basic?: number | null
           new_total?: number | null
           notes?: string | null
@@ -18067,8 +18072,11 @@ export type Database = {
           payroll_input_kind?: string | null
           previous_basic?: number | null
           previous_total?: number | null
+          push_after_month?: string | null
+          push_attempts?: number
           razorpay_push_error?: string | null
           razorpay_push_response?: Json | null
+          razorpay_push_state?: string | null
           razorpay_pushed_at?: string | null
           razorpay_verified_at?: string | null
           register_confirmed_at?: string | null
@@ -18090,6 +18098,7 @@ export type Database = {
           employee_id?: string
           id?: string
           is_taxable?: boolean
+          last_push_attempt_at?: string | null
           new_basic?: number | null
           new_total?: number | null
           notes?: string | null
@@ -18102,8 +18111,11 @@ export type Database = {
           payroll_input_kind?: string | null
           previous_basic?: number | null
           previous_total?: number | null
+          push_after_month?: string | null
+          push_attempts?: number
           razorpay_push_error?: string | null
           razorpay_push_response?: Json | null
+          razorpay_push_state?: string | null
           razorpay_pushed_at?: string | null
           razorpay_verified_at?: string | null
           register_confirmed_at?: string | null
@@ -32133,6 +32145,7 @@ export type Database = {
         Returns: number
       }
       hr_call_lwd_access_sweep: { Args: never; Returns: number }
+      hr_call_push_held_ctc: { Args: never; Returns: number }
       hr_can_access_payroll_data: {
         Args: { _user_id: string }
         Returns: boolean
@@ -32262,9 +32275,21 @@ export type Database = {
         Args: { p_effective: string; p_is_training: boolean; p_kind: string }
         Returns: string
       }
+      hr_ctc_push_after_month: { Args: { p_eff: string }; Returns: string }
+      hr_ctc_push_held: { Args: { p_employee_id: string }; Returns: Json }
       hr_ctc_revision_is_live: {
         Args: { p_revision_id: string }
         Returns: boolean
+      }
+      hr_ctc_revisions_due_for_push: {
+        Args: { p_revision_id?: string }
+        Returns: {
+          employee_id: string
+          new_total: number
+          push_after_month: string
+          razorpay_employee_id: string
+          revision_id: string
+        }[]
       }
       hr_ctc_transition_adjustment: {
         Args: { p_revision_id: string }
@@ -32408,6 +32433,10 @@ export type Database = {
         }[]
       }
       hr_is_contractor: { Args: { _employee_id: string }; Returns: boolean }
+      hr_is_ctc_revision_row: {
+        Args: { r: Database["public"]["Tables"]["hr_salary_revisions"]["Row"] }
+        Returns: boolean
+      }
       hr_is_holiday: { Args: { p_date: string }; Returns: boolean }
       hr_is_hr_admin: { Args: never; Returns: boolean }
       hr_is_hr_staff: { Args: { _user_id: string }; Returns: boolean }

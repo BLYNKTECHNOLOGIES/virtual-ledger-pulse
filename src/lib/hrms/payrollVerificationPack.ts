@@ -205,7 +205,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       fetchAllPaginated<any>(() =>
         (supabase as any)
           .from("hr_employees")
-          .select("id,badge_id,first_name,last_name,is_active,last_working_day,resignation_date")
+          .select("id,badge_id,first_name,last_name,is_active,last_working_day,resignation_date,total_salary")
           .order("id"),
       ),
       fetchAllPaginated<any>(() =>
@@ -297,6 +297,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     const clCheck = n2(n2(cl.opening) + n2(cl.credited) - n2(cl.used) - n2(cl.offset_lop) - n2(cl.closing));
     const checks: string[] = [];
     if (Math.abs(clCheck) > 0.01) checks.push("CL ledger mismatch");
+    if (n2(cl.closing) < -0.01) checks.push(`Casual leave overdrawn by ${Math.abs(n2(cl.closing))} day(s) — the excess must be loss of pay`);
     if (coClosing < -0.01)
       checks.push(
         `Comp-off over-consumed by ${Math.abs(coClosing)} day(s) — leave was set off against comp-off credits that are no longer valid (voided/expired). Reclassify those day(s) as casual leave or LOP.`,
@@ -566,13 +567,41 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     "Raw LOP days", "Absorbed by comp-off", "Absorbed by casual leave", "Chargeable LOP days",
     "Per-day rate (LOP engine)", "Divisor (calendar days)", "LOP amount (staged)", "LOP amount (current calculation)",
     "Monthly gross base", "Base source", "Total additions (incl. not yet staged)", "Total deductions (incl. not yet staged)",
-    "Expected net pay (gross + additions − deductions)",
+    "Expected net pay (pro-rated base + additions − deductions; part-month salary-change lines are already in the base)",
     "Flags",
   ];
 
   const summaryRows: any[][] = [];
   let flagged = 0;
-  for (const r of lopRows) {
+  // Every employee with money this cycle is listed — leavers and anyone the LOP
+  // roster skips (F&F leavers, part-month adjustments) included.
+  const rosterIds = new Set(lopRows.map((r) => r.hr_employee_id));
+  const extraIds = new Set<string>();
+  for (const id of [...addByEmp.keys(), ...dedByEmp.keys()]) if (!rosterIds.has(id)) extraIds.add(id);
+  const summaryInput: any[] = [
+    ...lopRows,
+    ...[...extraIds].map((id) => {
+      const e: any = emp.get(id) ?? {};
+      const w: any = wi.get(id) ?? {};
+      return {
+        hr_employee_id: id, name: empName(id), employee_type: w.employee_type,
+        monthly_base: e.total_salary ? Number(e.total_salary) / 12 : 0,
+        base_source_label: e.total_salary ? "RazorpayX annual CTC (not in LOP roster)" : "",
+        employment_from: w.joining_date, employment_to: e.last_working_day,
+        lop_days: 0, amount: 0, not_in_roster: true,
+      };
+    }),
+  ];
+  // Part-month salary-change lines are already inside the blended monthly base,
+  // because RazorpayX pays the old salary plus these lines. Counting both twice
+  // inflated the expected net.
+  const adjNet = new Map<string, number>();
+  const isAdj = (row: any) => ["training_ctc_adjustment", "ctc_transition_adjustment"].includes(String(row.source));
+  for (const row of additions) if (isAdj(row)) adjNet.set(row.hr_employee_id, n2((adjNet.get(row.hr_employee_id) ?? 0) + n2(row.amount)));
+  for (const row of deductions) if (isAdj(row)) adjNet.set(row.hr_employee_id, n2((adjNet.get(row.hr_employee_id) ?? 0) - n2(row.amount)));
+  const monthStart = period.slice(0, 10);
+  const monthEnd = `${period.slice(0, 7)}-${String(daysInMonth).padStart(2, "0")}`;
+  for (const r of summaryInput) {
     const w: any = wi.get(r.hr_employee_id) ?? {};
     const cor = coBy.get(r.hr_employee_id);
     const base = n2(r.monthly_base);
@@ -585,7 +614,14 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     const perDay = lopDays > 0 && engineLop > 0 ? n2(engineLop / lopDays) : base ? n2(base / daysInMonth) : 0;
     const add = n2((addByEmp.get(r.hr_employee_id) ?? 0));
     const ded = n2((dedByEmp.get(r.hr_employee_id) ?? 0));
-    const net = n2(base + add - ded);
+    // RazorpayX pro-rates joining / leaving months itself: pay only the employed days.
+    const from = String(r.employment_from ?? "").slice(0, 10);
+    const to = String(r.employment_to ?? "").slice(0, 10);
+    const s0 = from && from > monthStart ? from : monthStart;
+    const s1 = to && to < monthEnd ? to : monthEnd;
+    const employedDays = s1 < s0 ? 0 : Math.round((Date.parse(s1) - Date.parse(s0)) / 86400000) + 1;
+    const payableBase = n2((base * employedDays) / daysInMonth);
+    const net = n2(payableBase + add - ded - (adjNet.get(r.hr_employee_id) ?? 0));
     const map = mapped.get(r.hr_employee_id) as any;
 
     const flags: string[] = [];
@@ -602,6 +638,8 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
           : `Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`,
       );
 
+    if (employedDays < daysInMonth) flags.push(`Employed ${employedDays}/${daysInMonth} days — RazorpayX pro-rates the base`);
+    if (r.not_in_roster) flags.push("Not in the LOP roster (leaver / no attendance) — check final-month salary on RazorpayX");
     if (r.status === "skipped") flags.push(`LOP skipped: ${r.reason ?? "see Step 5"}`);
     if (cor?.status === "skipped") flags.push(`Comp-off skipped: ${cor.reason ?? "see Step 6"}`);
     if (flags.length) flagged++;

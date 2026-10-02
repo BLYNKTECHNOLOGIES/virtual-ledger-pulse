@@ -639,11 +639,20 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
           : `Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`,
       );
 
-    if (employedDays < daysInMonth) flags.push(`Employed ${employedDays}/${daysInMonth} days — RazorpayX pro-rates the base`);
+    const hasMoney = n2(addTotal) > 0 || n2(dedTotal) > 0;
+    const lwd = (emp.get(r.hr_employee_id) as any)?.last_working_day;
+    if (lwd && String(lwd).slice(0, 7) < period.slice(0, 7) && hasMoney)
+      flags.push(`Left on ${dmy(lwd)} (before this month) but has payable lines — confirm or remove`);
+    if (isContractType(r.employee_type ?? (wi.get(r.hr_employee_id) as any)?.employee_type) && hasMoney)
+      flags.push("Contract staff with payroll lines — confirm contract staff are paid through RazorpayX payroll");
     if (r.not_in_roster) flags.push("Not in the LOP roster (leaver / no attendance) — check final-month salary on RazorpayX");
     if (r.status === "skipped") flags.push(`LOP skipped: ${r.reason ?? "see Step 5"}`);
     if (cor?.status === "skipped") flags.push(`Comp-off skipped: ${cor.reason ?? "see Step 6"}`);
-    if (flags.length) flagged++;
+    // Informational notes (unpushed lines before the push step, RazorpayX
+    // pro-rating) are expected and do not make a row "needs review".
+    const isInfo = (f: string) => / staged line\(s\) not pushed$/.test(f);
+    if (employedDays < daysInMonth) flags.push(`Employed ${employedDays}/${daysInMonth} days — RazorpayX pro-rates the base`);
+    if (flags.some((f) => !isInfo(f) && !f.startsWith("Employed "))) flagged++;
 
     summaryRows.push([
       empBadge(r.hr_employee_id), r.name, deptName.get(w.department_id) ?? "", r.employee_type ?? w.employee_type ?? "",

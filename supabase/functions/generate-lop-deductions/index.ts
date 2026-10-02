@@ -183,7 +183,33 @@ Deno.serve(async (req) => {
       const rawLopDays = Number(lop?.lop_days ?? 0);
       const clPool = clByEmp.get(map.hr_employee_id) ?? { available: 0, booked: 0 };
       // Comp-off first, then casual leave — both applied automatically.
-      const split = absorbLop(pool.days_available, clPool.available, rawLopDays);
+      const split: any = absorbLop(pool.days_available, clPool.available, rawLopDays);
+
+      // Casual leave may NEVER go below zero (owner ruling 03-Oct-2026).
+      // If the month's ledger would close negative, the overdrawn days are
+      // charged as loss of pay: first by un-applying this run's CL set-off,
+      // then by charging any paid CL already taken beyond the balance.
+      let clOverdrawLop = 0;
+      {
+        const ledCl = bd?.leave_ledger?.cl;
+        if (ledCl) {
+          const clExtra0 = Math.max(0, split.cl_offset_days - (clPool.booked ?? 0));
+          const closingAfter = Number(ledCl.closing ?? 0) - clExtra0;
+          if (closingAfter < -0.001) {
+            let over = Number((-closingAfter).toFixed(2));
+            const undo = Math.min(over, clExtra0);
+            if (undo > 0) {
+              split.cl_offset_days = Number((split.cl_offset_days - undo).toFixed(2));
+              split.lop_after_offset = Number((split.lop_after_offset + undo).toFixed(2));
+              over = Number((over - undo).toFixed(2));
+            }
+            if (over > 0) {
+              clOverdrawLop = over;
+              split.lop_after_offset = Number((split.lop_after_offset + over).toFixed(2));
+            }
+          }
+        }
+      }
 
       const gap = gapByEmp.get(map.hr_employee_id);
       const monthWorkingDays = Number(gap?.month_working_days ?? 0);

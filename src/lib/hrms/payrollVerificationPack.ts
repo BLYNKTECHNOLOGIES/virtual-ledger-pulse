@@ -335,6 +335,9 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const categoryOf = (src: string | null | undefined, label: string): string => {
     const s = String(src ?? "").toLowerCase();
     const l = String(label ?? "").toLowerCase();
+    if (s === "fnf_settlement") return "F&F settlement";
+    if (s === "auto_recovery") return /deposit/.test(l) ? "Deposit / error recovery" : "Loan / advance recovery";
+    if (s === "training_ctc_adjustment" || s === "ctc_transition_adjustment") return "Training / part-month CTC adjustment";
     if (s === "auto_lop" || /lop|loss of pay/.test(l)) return "Loss of pay";
     if (s === "auto_compoff" || /comp[- ]?off/.test(l)) return "Comp-off encashment";
     if (/training|part[- ]month|ctc adjust/.test(l)) return "Training / part-month CTC adjustment";
@@ -418,8 +421,94 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
       ].filter(Boolean).join("; "),
     });
   }
-  // Deposits and F&F are intentionally not read from their own tables: whatever is
-  // payable this cycle is already a staged payroll input row above.
+  // ---- Money that WILL be processed but is not staged yet (pre-push completeness).
+  // Each source is added only when no staged row already carries it, so nothing
+  // is counted twice and nothing payable is missing from the sheet.
+  const notStaged = (extra: string) => `Calculated — not staged yet. ${extra}`.trim();
+  const unstagedByEmp = new Map<string, { add: number; ded: number }>();
+  const addUnstaged = (empId: string, dir: "Addition" | "Deduction", amt: number) => {
+    const cur = unstagedByEmp.get(empId) ?? { add: 0, ded: 0 };
+    if (dir === "Addition") cur.add = n2(cur.add + amt); else cur.ded = n2(cur.ded + amt);
+    unstagedByEmp.set(empId, cur);
+  };
+  const pushLine = (empId: string, dir: "Addition" | "Deduction", cat: string, label: string, amt: number, note: string) => {
+    if (!(amt > 0)) return;
+    lines.push({
+      badge: empBadge(empId), name: empName(empId), dir, cat, label, amt: n2(amt),
+      origin: "Automatic", prov: "Final", payable: true,
+      pushed: "No", pushedAt: "", verified: "Not staged", notes: notStaged(note),
+    });
+    addUnstaged(empId, dir, n2(amt));
+  };
+
+  for (const r of lopRows as any[]) {
+    if (!stagedLop.has(r.hr_employee_id) && n2(r.amount) > 0)
+      pushLine(r.hr_employee_id, "Deduction", "Loss of pay", `Loss of pay — ${n2(r.lop_days)} day(s)`, n2(r.amount), "Run Step 5 to stage it.");
+  }
+  for (const r of coRows as any[]) {
+    if (!stagedCo.has(r.hr_employee_id) && n2(r.amount) > 0)
+      pushLine(r.hr_employee_id, "Addition", "Comp-off encashment", `Comp-off encashment — ${n2(r.encash_days)} day(s)`, n2(r.amount), "Run the comp-off step to stage it.");
+  }
+
+  const [fnfRows, loanReps, loansAll] = await Promise.all([
+    fetchAllPaginated<any>(() =>
+      (supabase as any).from("hr_fnf_settlements")
+        .select("id,employee_id,net_payable,status,razorpay_push_status,payroll_month,last_working_day")
+        .in("status", ["approved", "draft", "pending", "pending_approval"]).order("id"),
+    ),
+    fetchAllPaginated<any>(() =>
+      (supabase as any).from("hr_loan_repayments")
+        .select("id,loan_id,employee_id,amount,period_month,installment_no,status,failure_reason")
+        .eq("period_month", period).in("status", ["scheduled", "failed"]).order("id"),
+    ),
+    fetchAllPaginated<any>(() =>
+      (supabase as any).from("hr_loans")
+        .select("id,employee_id,loan_type,amount,status,disbursement_mode,payroll_addition_month,payroll_addition_id").order("id"),
+    ),
+  ]);
+
+  // F&F: approved/draft settlements falling in this cycle with nothing staged.
+  const stagedFnfEmp = new Set(
+    [...additions, ...deductions].filter((r: any) => String(r.source) === "fnf_settlement").map((r: any) => r.hr_employee_id),
+  );
+  for (const f of fnfRows) {
+    const month = String(f.payroll_month ?? f.last_working_day ?? "").slice(0, 7);
+    if (month !== period.slice(0, 7) || stagedFnfEmp.has(f.employee_id)) continue;
+    if (f.razorpay_push_status === "nothing_to_push") continue;
+    const net = n2(f.net_payable);
+    if (Math.abs(net) < 0.01) continue;
+    pushLine(f.employee_id, net > 0 ? "Addition" : "Deduction", "F&F settlement",
+      `F&F settlement (${f.status})`, Math.abs(net), f.status === "approved" ? "Will be staged by the F&F push." : "F&F not approved yet — figure may change.");
+  }
+
+  // Loan / advance EMIs due this cycle that the daily job has not staged yet.
+  const loanBy = new Map(loansAll.map((l: any) => [l.id, l]));
+  const stagedLoanRefs = new Set(
+    (deductions as any[]).filter((d) => d.recovery_kind === "loan").map((d) => String(d.recovery_ref_id ?? "")),
+  );
+  for (const r of loanReps) {
+    const loan: any = loanBy.get(r.loan_id);
+    if (!loan || !["approved", "active"].includes(loan.status)) continue;
+    if (loan.disbursement_mode === "razorpay_advance") continue;
+    if (stagedLoanRefs.has(String(r.id))) continue;
+    const e: any = emp.get(r.employee_id);
+    if (e?.last_working_day && String(e.last_working_day).slice(0, 7) <= period.slice(0, 7)) continue; // F&F covers it
+    const isAdv = String(loan.loan_type ?? "").includes("advance");
+    pushLine(r.employee_id, "Deduction", "Loan / advance recovery",
+      `${isAdv ? "Salary advance recovery" : "Loan EMI"} — instalment ${r.installment_no ?? "?"}`,
+      n2(r.amount), r.failure_reason ? `Last attempt failed: ${r.failure_reason}` : "Daily recovery job will stage it.");
+  }
+
+  // Advances paid out through payroll this month and not yet staged as an addition.
+  for (const l of loansAll as any[]) {
+    if (String(l.payroll_addition_month ?? "").slice(0, 7) !== period.slice(0, 7) || l.payroll_addition_id) continue;
+    if (!["approved", "active"].includes(l.status)) continue;
+    pushLine(l.employee_id, "Addition", "Salary advance payout", "Salary advance paid through payroll", n2(l.amount), "Advance payout not staged yet.");
+  }
+
+  if (unstagedByEmp.size)
+    warnings.push(`${[...unstagedByEmp.values()].length} employee(s) have money that will be processed but is not staged yet — see 'Not staged' lines in Sheet 2.`);
+
 
 
   lines.sort((a, b) => (a.name || "").localeCompare(b.name || "") || a.dir.localeCompare(b.dir) || a.cat.localeCompare(b.cat));
@@ -434,6 +523,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const totalDed = n2(payable.filter((l) => l.dir === "Deduction").reduce((a, l) => a + l.amt, 0));
   const pushedCount = lines.filter((l) => l.pushed === "Yes").length;
   const notPushed = lines.filter((l) => l.pushed === "No").length;
+  const notStagedCount = lines.filter((l) => l.verified === "Not staged").length;
   const unverified = lines.filter((l) => l.pushed === "Yes" && l.verified !== "Verified" && l.verified !== "Pushed").length;
 
   moneyRows.push([]);
@@ -441,6 +531,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   moneyRows.push(["", "", "", "", "Total deductions", totalDed]);
   moneyRows.push(["", "", "", "", "Net effect (additions − deductions)", n2(totalAdd - totalDed)]);
   moneyRows.push(["", "", "", "", "Lines pushed / not pushed / pushed-but-unverified", `${pushedCount} / ${notPushed} / ${unverified}`]);
+  moneyRows.push(["", "", "", "", "Of the not-pushed lines, not even staged yet", String(notStagedCount)]);
 
   // --------------------------------------------- Sheet 3 — payroll summary
   const addByEmp = new Map<string, number>();
@@ -459,6 +550,11 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (isDuplicateRecovery(row) || row.status === "skipped") continue; // already counted as a staged deduction
     bump(dedByEmp, row.employee_id, n2(row.amount));
   }
+  for (const [id, v] of unstagedByEmp) {
+    if (v.add) bump(addByEmp, id, v.add);
+    if (v.ded) bump(dedByEmp, id, v.ded);
+    bump(stagedUnpushed, id, 1);
+  }
 
   const daysInMonth = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).getUTCDate();
 
@@ -469,7 +565,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     "Employment from", "Employment to",
     "Raw LOP days", "Absorbed by comp-off", "Absorbed by casual leave", "Chargeable LOP days",
     "Per-day rate (LOP engine)", "Divisor (calendar days)", "LOP amount (staged)", "LOP amount (current calculation)",
-    "Monthly gross base", "Base source", "Total additions (staged)", "Total deductions (staged)",
+    "Monthly gross base", "Base source", "Total additions (incl. not yet staged)", "Total deductions (incl. not yet staged)",
     "Expected net pay (gross + additions − deductions)",
     "Flags",
   ];

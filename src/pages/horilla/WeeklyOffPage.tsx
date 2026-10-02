@@ -187,7 +187,16 @@ export default function WeeklyOffPage() {
         </TabsList>
 
         <TabsContent value="patterns" className="space-y-3">
-          <div className="hrms-toolbar justify-end">
+          <div className="hrms-toolbar gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="h-9 pl-8"
+                placeholder="Search patterns..."
+                value={patternSearch}
+                onChange={e => setPatternSearch(e.target.value)}
+              />
+            </div>
             <Button className="h-9 w-full sm:w-auto" onClick={() => setShowAddPattern(true)}><Plus className="h-4 w-4 mr-1" /> New Pattern</Button>
           </div>
           {patterns.length === 0 ? (

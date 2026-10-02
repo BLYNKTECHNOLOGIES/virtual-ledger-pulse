@@ -32177,6 +32177,10 @@ export type Database = {
         }[]
       }
       hr_close_fnf_sources: { Args: { p_settlement_id: string }; Returns: Json }
+      hr_close_leaver_instalments: {
+        Args: { _employee_id: string; _reason: string }
+        Returns: Json
+      }
       hr_close_loan: {
         Args: { p_loan_id: string; p_mode?: string; p_reason?: string }
         Returns: undefined

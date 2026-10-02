@@ -66,3 +66,9 @@
 - [x] Infer the F&F payment reference from the verified payroll handoff.
 - [x] Gate every RazorpayX dismissal on settled F&F and employee-level final payroll proof, including direct proxy calls.
 - [ ] Verify Satyam remains RazorpayX-active while September payroll is unprocessed.
+## Salary revisions clarity
+
+- [ ] Group payroll-month revisions by employee and show one clear salary journey.
+- [ ] Remove redundant instructional text while preserving status and actions.
+- [ ] Verify grouped desktop and phone layouts without changing payroll behavior.
+

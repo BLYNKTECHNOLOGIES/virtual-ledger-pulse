@@ -8,3 +8,6 @@
 - Loss-of-pay day counting (hr_lop_days_window) uses each day's corrected outcome — HR's explicit day mark (manual_status) first, else the status recomputed from corrected punch times — never a blanket 'approved correction = full day', because a correction can legitimately result in a half day or absence.
 - Leave total_days is always recomputed in the database from the employee's working days (weekly offs and holidays excluded), because screens can't be trusted to count consistently.
 - Watchdog resolutions (manual hr_resolve_stale_session and automatic pairing) are refused on period-locked days and the entry stays open, because a locked period never recomputes and a 'resolved' entry would otherwise hide an unapplied result.
+- Leave approval funds a leave only from balance accrued on or before the leave's last day (hr_leave_take_from), because later credits weren't yet earned.
+- The comp-off payout step rewrites the month's settlement and credit marks on every run, even when the result is zero, because stale rows otherwise contradict the staged lines.
+- The verification pack flags watchdog days closed automatically (no HR resolver) as needs-review, because an auto-paired punch-out may be a break punch.

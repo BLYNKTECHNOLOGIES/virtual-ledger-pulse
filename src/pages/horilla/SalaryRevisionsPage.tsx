@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle, Trash2, GraduationCap } from "lucide-react";
+import { TrendingUp, TrendingDown, Search, Plus, X, Clock, AlertTriangle, Send, Loader2, CheckCircle2, XCircle, Trash2, GraduationCap, ChevronDown, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
@@ -22,6 +22,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 type StatusFilter = "APPLIED" | "SCHEDULED" | "CANCELLED" | "ALL";
@@ -71,6 +72,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteReason, setDeleteReason] = useState("");
   const [pushingIds, setPushingIds] = useState<Set<string>>(new Set());
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
 
 
   const { data: revisions = [], isLoading } = useQuery({
@@ -297,6 +299,24 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
   const monthLabel = month ? format(new Date(`${month.slice(0, 7)}-01T00:00:00Z`), "MMMM yyyy") : "";
 
+  const monthEmployeeGroups = useMemo(() => {
+    const groups = new Map<string, any[]>();
+    for (const revision of monthScoped) {
+      const key = revision.employee_id || revision.id;
+      const rows = groups.get(key) || [];
+      rows.push(revision);
+      groups.set(key, rows);
+    }
+    return Array.from(groups.entries()).map(([employeeId, rows]) => ({
+      employeeId,
+      rows: rows.sort((a, b) => {
+        const aDate = String(a.effective_from || a.payout_month || a.created_at || "");
+        const bDate = String(b.effective_from || b.payout_month || b.created_at || "");
+        return aDate.localeCompare(bDate) || String(a.created_at || "").localeCompare(String(b.created_at || ""));
+      }),
+    }));
+  }, [monthScoped]);
+
   const envelopeVerified = !!envelope?.push_salary_endpoint_verified;
   const payrollGateVerified = !!envelope?.push_payroll_endpoint_verified;
 
@@ -484,7 +504,7 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   }
 
 
-  const renderRevisionCard = (r: any) => {
+  const renderRevisionCard = (r: any, employeeChangeIndex?: number) => {
             const category = revisionCategory(r);
             const isPayrollInput = category === "ADDITION" || category === "DEDUCTION";
             // Record-only payouts are paid outside payroll — nothing is ever pushed.
@@ -739,18 +759,27 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
                   isCancelled && "opacity-50",
                 )}
               >
-                {/* Employee */}
-                <div className="min-w-0 flex items-baseline gap-1.5">
-                  <span className="font-medium text-foreground text-sm truncate">
-                    {r.hr_employees?.first_name} {r.hr_employees?.last_name}
-                  </span>
-                  {r.hr_employees?.badge_id && (
-                    <span className="text-[10px] text-muted-foreground shrink-0">#{r.hr_employees.badge_id}</span>
-                  )}
-                  {r.hr_employees?.is_active === false && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Inactive</span>
-                  )}
-                </div>
+                {/* Employee / sequence within an employee journey */}
+                {employeeChangeIndex ? (
+                  <div className="min-w-0 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-background tabular-nums">
+                      {employeeChangeIndex}
+                    </span>
+                    <span>Change {employeeChangeIndex}</span>
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex items-baseline gap-1.5">
+                    <span className="font-medium text-foreground text-sm truncate">
+                      {r.hr_employees?.first_name} {r.hr_employees?.last_name}
+                    </span>
+                    {r.hr_employees?.badge_id && (
+                      <span className="text-[10px] text-muted-foreground shrink-0">#{r.hr_employees.badge_id}</span>
+                    )}
+                    {r.hr_employees?.is_active === false && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">Inactive</span>
+                    )}
+                  </div>
+                )}
 
                 {/* Type */}
                 <div className="md:justify-self-start flex flex-wrap items-center gap-1">
@@ -854,6 +883,76 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
     </div>
   );
 
+  const renderEmployeeGroup = ({ employeeId, rows }: { employeeId: string; rows: any[] }) => {
+    const employee = rows[0]?.hr_employees;
+    const ctcRows = rows.filter((row) => {
+      const category = revisionCategory(row);
+      return category === "CTC" || category === "STATUTORY";
+    });
+    const additions = rows.filter((row) => revisionCategory(row) === "ADDITION");
+    const deductions = rows.filter((row) => revisionCategory(row) === "DEDUCTION");
+    const payouts = rows.filter((row) => revisionCategory(row) === "PAYOUT");
+    const openingCtc = ctcRows.length > 0 ? Number(ctcRows[0].previous_total || 0) : 0;
+    const closingCtc = ctcRows.length > 0 ? Number(ctcRows[ctcRows.length - 1].new_total || 0) : 0;
+    const additionTotal = additions.reduce((sum, row) => sum + Number(row.one_time_amount || 0), 0);
+    const deductionTotal = deductions.reduce((sum, row) => sum + Number(row.one_time_amount || 0), 0);
+    const payoutTotal = payouts.reduce((sum, row) => sum + Number(row.one_time_amount || 0), 0);
+    const isOpen = expandedEmployees.has(employeeId);
+    const money = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+    const summaryParts: string[] = [];
+    if (ctcRows.length > 0) {
+      summaryParts.push(
+        openingCtc === closingCtc && ctcRows.length > 1
+          ? `CTC returned to ${money(closingCtc)}`
+          : `CTC ${money(openingCtc)} → ${money(closingCtc)}`,
+      );
+    }
+    if (additions.length > 0) summaryParts.push(`${additions.length} addition${additions.length === 1 ? "" : "s"} +${money(additionTotal)}`);
+    if (deductions.length > 0) summaryParts.push(`${deductions.length} deduction${deductions.length === 1 ? "" : "s"} −${money(deductionTotal)}`);
+    if (payouts.length > 0) summaryParts.push(`${payouts.length} payout${payouts.length === 1 ? "" : "s"} +${money(payoutTotal)}`);
+
+    return (
+      <Collapsible
+        key={employeeId}
+        open={isOpen}
+        onOpenChange={(open) => setExpandedEmployees((current) => {
+          const next = new Set(current);
+          if (open) next.add(employeeId);
+          else next.delete(employeeId);
+          return next;
+        })}
+        className="border-b border-border/60 last:border-b-0"
+      >
+        <CollapsibleTrigger className="flex w-full items-start gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/40">
+          {isOpen ? <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="font-semibold text-foreground">
+                {employee?.first_name} {employee?.last_name}
+              </span>
+              {employee?.badge_id && <span className="text-xs text-muted-foreground">#{employee.badge_id}</span>}
+              {employee?.is_active === false && <Badge variant="outline" className="h-5 text-[10px]">Inactive</Badge>}
+              <Badge variant="secondary" className="ml-auto h-5 text-[10px]">
+                {rows.length} change{rows.length === 1 ? "" : "s"}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">{summaryParts.join(" · ")}</p>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="border-t bg-muted/10">
+          <div className="hidden md:grid grid-cols-[minmax(0,1.3fr)_96px_minmax(0,1.5fr)_96px_minmax(0,1.9fr)] gap-x-4 px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span>Sequence</span>
+            <span>Type</span>
+            <span>Change</span>
+            <span>Effective</span>
+            <span className="text-right">RazorpayX</span>
+          </div>
+          {rows.map((row, index) => renderRevisionCard(row, index + 1))}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={150}>
     <div className="p-4 md:p-6 space-y-4 page-mount">
@@ -899,28 +998,17 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
       {month && (
         <Card className="border-primary/30">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Effective in this payroll ({monthLabel})
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  CTC revisions effective inside {monthLabel} and one-time payouts targeted at this payroll month.
-                  Everything here must be pushed and verified in RazorpayX before LOP is calculated.
-                </p>
-              </div>
-              <Badge variant="outline" className="text-xs">{monthScoped.length} entr{monthScoped.length === 1 ? "y" : "ies"}</Badge>
+          <CardContent className="p-0">
+            <div className="flex items-center justify-between gap-2 border-b px-3 py-3">
+              <p className="text-sm font-semibold text-foreground">Changes affecting {monthLabel} payroll</p>
+              <Badge variant="outline" className="text-xs">
+                {monthEmployeeGroups.length} employee{monthEmployeeGroups.length === 1 ? "" : "s"} · {monthScoped.length} change{monthScoped.length === 1 ? "" : "s"}
+              </Badge>
             </div>
             {monthScoped.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No salary revision becomes effective in {monthLabel}. Nothing to reconcile for this step.
-              </p>
+              <p className="p-4 text-sm text-muted-foreground">No changes affect this payroll.</p>
             ) : (
-              <div className="rounded-md border">
-                <div className="pt-2">{listHeader}</div>
-                <div>{monthScoped.map((r: any) => renderRevisionCard(r))}</div>
-              </div>
+              <div>{monthEmployeeGroups.map(renderEmployeeGroup)}</div>
             )}
           </CardContent>
         </Card>

@@ -262,6 +262,12 @@ Deno.serve(async (req) => {
             led.cl.used = Number(((led.cl.used ?? 0) + clExtra).toFixed(2));
             led.cl.closing = Number(((led.cl.closing ?? 0) - clExtra).toFixed(2));
           }
+          if (led.cl && clOverdrawLop > 0) {
+            // Paid CL taken beyond the balance is reclassified as LOP.
+            led.cl.used = Number(((led.cl.used ?? 0) - clOverdrawLop).toFixed(2));
+            led.cl.overdrawn_as_lop = clOverdrawLop;
+          }
+          if (led.cl && (led.cl.closing ?? 0) < 0) led.cl.closing = 0;
           if (led.co && split.compoff_offset_days > 0) {
             led.co.offset_lop = split.compoff_offset_days;
             led.co.closing = Number(
@@ -279,6 +285,7 @@ Deno.serve(async (req) => {
         compoff_offset_days: split.compoff_offset_days,
         cl_available: clPool.available,
         cl_offset_days: split.cl_offset_days,
+        cl_overdrawn_lop_days: clOverdrawLop,
         absence_lop_days: split.lop_after_offset,
         proration_days: gapDays,
         not_employed_days: gapDays,

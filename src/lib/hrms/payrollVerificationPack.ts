@@ -228,6 +228,18 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const wi = new Map(workInfo.map((w: any) => [w.employee_id, w]));
   const emp = new Map(employees.map((e: any) => [e.id, e]));
   const mapped = new Map(rzpMap.map((m: any) => [m.hr_employee_id, m]));
+  // Patterns where every day is a working day have no weekly off / holiday to "work on".
+  const allWorkingIds = new Set<string>();
+  {
+    const { data: wo } = await (supabase as any)
+      .from("hr_employee_weekly_off")
+      .select("employee_id, is_current, hr_weekly_off_patterns(counts_holidays_as_working)")
+      .eq("is_current", true);
+    for (const r of wo ?? []) if (r.hr_weekly_off_patterns?.counts_holidays_as_working) allWorkingIds.add(r.employee_id);
+  }
+  // "contract" here means owners/directors whose pay is fixed and never affected
+  // by attendance — they are still paid through RazorpayX payroll.
+  const isFixedPay = (t: any) => ["contract", "contractor", "contractual", "consultant"].includes(String(t ?? "").toLowerCase());
 
   // Staged rows — the figures payroll will actually pay. The engines only supply
   // day-level detail; wherever both exist the staged row is the payroll truth and
@@ -605,7 +617,14 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   for (const r of summaryInput) {
     const w: any = wi.get(r.hr_employee_id) ?? {};
     const cor = coBy.get(r.hr_employee_id);
-    const base = n2(r.monthly_base);
+    const fixedPay = isFixedPay(r.employee_type ?? w.employee_type);
+    const empTotal = Number((emp.get(r.hr_employee_id) as any)?.total_salary ?? 0);
+    let base = n2(r.monthly_base);
+    if (!base && fixedPay && empTotal > 0) {
+      base = n2(empTotal / 12);
+      r.base_source_label = "HRMS annual CTC (fixed pay — attendance not applied)";
+    }
+    if (allWorkingIds.has(r.hr_employee_id)) r.worked_off_days = 0;
     const lopDays = n2(r.lop_days);
     const engineLop = n2(r.amount);
     const stagedLopRow = stagedLop.get(r.hr_employee_id);
@@ -643,8 +662,6 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     const lwd = (emp.get(r.hr_employee_id) as any)?.last_working_day;
     if (lwd && String(lwd).slice(0, 7) < period.slice(0, 7) && hasMoney)
       flags.push(`Left on ${dmy(lwd)} (before this month) but has payable lines — confirm or remove`);
-    if (["contract", "contractor", "contractual", "consultant"].includes(String(r.employee_type ?? w.employee_type ?? "").toLowerCase()) && hasMoney)
-      flags.push("Contract staff with payroll lines — confirm contract staff are paid through RazorpayX payroll");
     if (r.not_in_roster) flags.push("Not in the LOP roster (leaver / no attendance) — check final-month salary on RazorpayX");
     if (r.status === "skipped") flags.push(`LOP skipped: ${r.reason ?? "see Step 5"}`);
     if (cor?.status === "skipped") flags.push(`Comp-off skipped: ${cor.reason ?? "see Step 6"}`);

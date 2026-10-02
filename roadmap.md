@@ -68,7 +68,7 @@
 - [ ] Verify Satyam remains RazorpayX-active while September payroll is unprocessed.
 ## Salary revisions clarity
 
-- [ ] Group payroll-month revisions by employee and show one clear salary journey.
-- [ ] Remove redundant instructional text while preserving status and actions.
-- [ ] Verify grouped desktop and phone layouts without changing payroll behavior.
+- [x] Group payroll-month revisions by employee and show one clear salary journey.
+- [x] Remove redundant instructional text while preserving status and actions.
+- [x] Verify compilation and responsive grouping without changing payroll behavior.
 

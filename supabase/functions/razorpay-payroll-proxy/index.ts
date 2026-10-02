@@ -3899,6 +3899,23 @@ Deno.serve(async (req) => {
         const eid = Number(m.razorpay_employee_id);
         if (!Number.isFinite(eid) || eid < 1 || !m.hr_employee_id) { skipped++; continue; }
 
+        // Guard: a CTC change still held for an open payroll month must not reach
+        // RazorpayX — it would pay the whole open month at the new rate on top of
+        // the staged part-month arrears.
+        if (isWrite) {
+          const { data: heldInfo } = await svc.rpc("hr_ctc_push_held", { p_employee_id: m.hr_employee_id });
+          if ((heldInfo as any)?.held) {
+            skipped++;
+            rows.push({
+              razorpay_employee_id: m.razorpay_employee_id,
+              hr_employee_id: m.hr_employee_id,
+              status: "held_for_payroll",
+              error: `This salary change is held until the payroll month before ${(heldInfo as any).push_after_month} closes; it will be sent automatically.`,
+            });
+            continue;
+          }
+        }
+
         const erp = buildErpSalary(m.hr_employee_id);
         const hasBaseline = !!m.last_pull_snapshot && typeof m.last_pull_snapshot === "object";
         const rpSalary = normalizeSnapshot(m.last_pull_snapshot);

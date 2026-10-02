@@ -32501,6 +32501,15 @@ export type Database = {
         }
         Returns: number
       }
+      hr_leave_working_days: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_half: boolean
+          p_start: string
+        }
+        Returns: number
+      }
       hr_link_self_employee: { Args: never; Returns: string }
       hr_lop_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }

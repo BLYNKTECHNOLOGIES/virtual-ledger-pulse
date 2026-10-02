@@ -297,7 +297,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     const clCheck = n2(n2(cl.opening) + n2(cl.credited) - n2(cl.used) - n2(cl.offset_lop) - n2(cl.closing));
     const checks: string[] = [];
     if (Math.abs(clCheck) > 0.01) checks.push("CL ledger mismatch");
-    if (n2(cl.overdrawn_as_lop) > 0) checks.push(`Casual leave beyond balance: ${n2(cl.overdrawn_as_lop)} day(s) charged as loss of pay`);
+    if (n2((cl as any).overdrawn_as_lop) > 0) checks.push(`Casual leave beyond balance: ${n2((cl as any).overdrawn_as_lop)} day(s) charged as loss of pay`);
     if (n2(cl.closing) < -0.01) checks.push(`Casual leave below zero — re-run Step 5 so the excess is charged as loss of pay`);
     if (coClosing < -0.01)
       checks.push(

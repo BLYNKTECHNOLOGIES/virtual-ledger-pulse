@@ -335,6 +335,9 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const categoryOf = (src: string | null | undefined, label: string): string => {
     const s = String(src ?? "").toLowerCase();
     const l = String(label ?? "").toLowerCase();
+    if (s === "fnf_settlement") return "F&F settlement";
+    if (s === "auto_recovery") return /deposit/.test(l) ? "Deposit / error recovery" : "Loan / advance recovery";
+    if (s === "training_ctc_adjustment" || s === "ctc_transition_adjustment") return "Training / part-month CTC adjustment";
     if (s === "auto_lop" || /lop|loss of pay/.test(l)) return "Loss of pay";
     if (s === "auto_compoff" || /comp[- ]?off/.test(l)) return "Comp-off encashment";
     if (/training|part[- ]month|ctc adjust/.test(l)) return "Training / part-month CTC adjustment";
@@ -520,6 +523,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const totalDed = n2(payable.filter((l) => l.dir === "Deduction").reduce((a, l) => a + l.amt, 0));
   const pushedCount = lines.filter((l) => l.pushed === "Yes").length;
   const notPushed = lines.filter((l) => l.pushed === "No").length;
+  const notStagedCount = lines.filter((l) => l.verified === "Not staged").length;
   const unverified = lines.filter((l) => l.pushed === "Yes" && l.verified !== "Verified" && l.verified !== "Pushed").length;
 
   moneyRows.push([]);
@@ -527,6 +531,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   moneyRows.push(["", "", "", "", "Total deductions", totalDed]);
   moneyRows.push(["", "", "", "", "Net effect (additions − deductions)", n2(totalAdd - totalDed)]);
   moneyRows.push(["", "", "", "", "Lines pushed / not pushed / pushed-but-unverified", `${pushedCount} / ${notPushed} / ${unverified}`]);
+  moneyRows.push(["", "", "", "", "Of the not-pushed lines, not even staged yet", String(notStagedCount)]);
 
   // --------------------------------------------- Sheet 3 — payroll summary
   const addByEmp = new Map<string, number>();
@@ -544,6 +549,11 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   for (const row of (recoveries as any[])) {
     if (isDuplicateRecovery(row) || row.status === "skipped") continue; // already counted as a staged deduction
     bump(dedByEmp, row.employee_id, n2(row.amount));
+  }
+  for (const [id, v] of unstagedByEmp) {
+    if (v.add) bump(addByEmp, id, v.add);
+    if (v.ded) bump(dedByEmp, id, v.ded);
+    bump(stagedUnpushed, id, 1);
   }
 
   const daysInMonth = new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).getUTCDate();

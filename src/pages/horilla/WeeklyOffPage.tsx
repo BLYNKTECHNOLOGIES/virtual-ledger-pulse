@@ -255,7 +255,16 @@ export default function WeeklyOffPage() {
         </TabsContent>
 
         <TabsContent value="assignments" className="space-y-3">
-          <div className="hrms-toolbar justify-end gap-2 flex-wrap">
+          <div className="hrms-toolbar gap-2 flex-wrap">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                className="h-9 pl-8"
+                placeholder="Search by employee name, badge or pattern..."
+                value={assignSearch}
+                onChange={e => setAssignSearch(e.target.value)}
+              />
+            </div>
             <Button variant="outline" className="h-9 w-full sm:w-auto" onClick={() => setShowBulkAssign(true)} disabled={patterns.length === 0}>
               <UsersRound className="h-4 w-4 mr-1" /> Bulk Assign
             </Button>
@@ -264,14 +273,14 @@ export default function WeeklyOffPage() {
             </Button>
           </div>
           <ResponsiveList
-            items={assignments}
+            items={filteredAssignments}
             columns={[
               { key: "employee", label: "Employee" },
               { key: "pattern", label: "Pattern" },
               { key: "actions", label: "", className: "w-[60px]" },
             ]}
             keyFor={(a: any) => a.id}
-            emptyState={<EmptyState icon={Users} title="No assignments yet" description="Assign a weekly-off pattern to an employee." />}
+            emptyState={assignSearch.trim() ? <EmptyState icon={Users} title="No assignments match your search" description="Try a different name, badge or pattern." /> : <EmptyState icon={Users} title="No assignments yet" description="Assign a weekly-off pattern to an employee." />}
             renderRow={(a: any) => (
               <>
                 <td className="px-3 py-3 text-sm">

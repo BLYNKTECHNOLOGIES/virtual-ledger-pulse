@@ -251,15 +251,35 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
                         <div>New CTC: <span className="text-foreground">{inr(d.new_ctc)}</span> ({inr(d.monthly_new)}/mo)</div>
                         <div>Effective from: <span className="text-foreground">{d.effective_from}</span></div>
                         <div>Calendar days (divisor): <span className="text-foreground">{d.divisor}</span></div>
-                        <div>Days before change: <span className="text-foreground">{d.days_before}</span></div>
-                        <div>Loss of pay before change: <span className="text-foreground">{d.lop_before}</span></div>
-                        <div>Paid days recovered: <span className="text-foreground">{d.paid_days_before}</span></div>
+                        <div>Days at old salary (before change): <span className="text-foreground">{d.days_before}</span></div>
+                        <div>Days at new salary (from change): <span className="text-foreground">{d.days_after}</span></div>
+                        <div>Loss of pay before / after change: <span className="text-foreground">{d.lop_before ?? 0} / {d.lop_after ?? 0}</span></div>
                         <div>Employment window: <span className="text-foreground">{d.window_start} → {d.window_end}</span></div>
-                        <div className="sm:col-span-2 pt-1 border-t">
-                          CTC-level {r.kind === "deduction" ? "recovery" : "arrears"}:{" "}
-                          <span className="text-foreground font-medium">{inr(r.amount)}</span>{" "}
-                          — the take-home impact is smaller, because the CTC figure already contains
-                          employer PF/ESI. Statutory bases stay untouched: this is a post-gross line.
+                        <div className="sm:col-span-2 pt-2 border-t space-y-1">
+                          <div className="text-foreground font-medium">Why {inr(r.amount)}?</div>
+                          {r.calc?.mode === "recovery" ? (
+                            <div>
+                              RazorpayX pays the whole month at the new salary ({inr(d.monthly_new)}/mo), but the
+                              first {d.days_before} day(s) should be at the old salary ({inr(d.monthly_old)}/mo).
+                              So the extra paid for those days is recovered:
+                            </div>
+                          ) : (
+                            <div>
+                              RazorpayX pays the whole month at the old salary ({inr(d.monthly_old)}/mo), but from{" "}
+                              {d.effective_from} the {d.days_after} day(s) should be at the new salary ({inr(d.monthly_new)}/mo).
+                              So the difference for those days is paid as arrears:
+                            </div>
+                          )}
+                          <div className="font-mono text-foreground">
+                            ({inr(d.monthly_new)} − {inr(d.monthly_old)}) × {r.calc?.mode === "recovery" ? d.days_before : d.days_after} ÷ {d.divisor} days
+                            {" "}= {inr(r.amount)}
+                          </div>
+                          {d.monthly_old > 0 && d.monthly_new / d.monthly_old > 3 && (
+                            <div className="text-destructive">
+                              Check this: the new salary is more than 3× the old one. The old salary may have been
+                              recorded wrongly — confirm before pushing.
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

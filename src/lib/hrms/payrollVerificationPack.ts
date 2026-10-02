@@ -392,7 +392,19 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
   const stagedRecoveryIds = new Set(
     (deductions as any[]).map((d) => String(d.recovery_ref_id ?? "")).filter(Boolean),
   );
-  for (const row of (recoveries as any[]).filter((r) => !stagedRecoveryIds.has(String(r.id)))) {
+  // An unpushed (scheduled/failed) recovery whose money is already staged as an
+  // auto_recovery deduction for the same employee and amount — e.g. a deposit
+  // instalment staged from the deposit schedule, whose recovery copy then failed
+  // on the duplicate key — is the same money and must not be counted twice.
+  const stagedRecoveryKeys = new Set(
+    (deductions as any[])
+      .filter((d) => String(d.source) === "auto_recovery")
+      .map((d) => `${d.hr_employee_id}|${n2(d.amount)}`),
+  );
+  const isDuplicateRecovery = (r: any) =>
+    stagedRecoveryIds.has(String(r.id)) ||
+    (!r.razorpay_pushed_at && stagedRecoveryKeys.has(`${r.employee_id}|${n2(r.amount)}`));
+  for (const row of (recoveries as any[]).filter((r) => !isDuplicateRecovery(r))) {
     lines.push({
       badge: row.badge_id ?? empBadge(row.employee_id), name: row.employee_name ?? empName(row.employee_id),
       dir: "Deduction", cat: "Recovery instalment",

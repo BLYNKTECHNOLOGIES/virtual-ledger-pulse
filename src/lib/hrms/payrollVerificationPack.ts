@@ -692,7 +692,9 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     // pro-rating) are expected and do not make a row "needs review".
     const isInfo = (f: string) => / staged line\(s\) not pushed$/.test(f);
     if (employedDays < daysInMonth) flags.push(`Employed ${employedDays}/${daysInMonth} days — RazorpayX pro-rates the base`);
-    if (flags.some((f) => !isInfo(f) && !f.startsWith("Employed "))) flagged++;
+    // Someone not employed at all this month with no money (e.g. joins next month) needs no review.
+    const notEmployedNoMoney = employedDays === 0 && !hasMoney;
+    if (!notEmployedNoMoney && flags.some((f) => !isInfo(f) && !f.startsWith("Employed "))) flagged++;
 
     summaryRows.push([
       empBadge(r.hr_employee_id), r.name, deptName.get(w.department_id) ?? "", r.employee_type ?? w.employee_type ?? "",

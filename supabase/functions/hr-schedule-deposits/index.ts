@@ -143,6 +143,9 @@ Deno.serve(async (req) => {
 
     for (const inst of (due ?? []) as any[]) {
       if (isLeaverPeriod(inst.employee_id, inst.period_month)) {
+        await svc.from("hr_employee_deposit_schedule")
+          .update({ status: "skipped", failure_reason: "Employee leaving — recovered through F&F, not monthly salary" })
+          .eq("id", inst.id);
         results.push({ kind: "deposit", id: inst.id, skipped: "leaver — settled via F&F" });
         continue;
       }
@@ -202,6 +205,9 @@ Deno.serve(async (req) => {
 
     for (const r of (dueLoans ?? []) as any[]) {
       if (isLeaverPeriod(r.employee_id, r.period_month)) {
+        await svc.from("hr_loan_repayments")
+          .update({ status: "skipped", failure_reason: "Employee leaving — recovered through F&F, not monthly salary" })
+          .eq("id", r.id);
         results.push({ kind: "loan", id: r.id, skipped: "leaver — settled via F&F" });
         continue;
       }

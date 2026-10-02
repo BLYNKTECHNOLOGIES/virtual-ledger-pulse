@@ -668,6 +668,9 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (!map?.razorpay_employee_id) flags.push("No RazorpayX mapping");
     if (!base) flags.push("No salary base resolved");
     if (n2(r.unverified_days) > 0) flags.push(`${n2(r.unverified_days)} unverified attendance day(s)`);
+    const autoDays = autoClosedDates.get(r.hr_employee_id);
+    if (autoDays?.length)
+      flags.push(`Needs review: ${autoDays.length} watchdog day(s) closed automatically, not by HR (${autoDays.sort().join(", ")} ${period.slice(0, 7)}) — confirm the paired punch-out`);
     if (net < 0) flags.push("Negative net");
     if ((stagedUnpushed.get(r.hr_employee_id) ?? 0) > 0) flags.push(`${stagedUnpushed.get(r.hr_employee_id)} staged line(s) not pushed`);
     if (!stagedLopRow && engineLop > 0) flags.push("LOP calculated but not staged in Step 5");

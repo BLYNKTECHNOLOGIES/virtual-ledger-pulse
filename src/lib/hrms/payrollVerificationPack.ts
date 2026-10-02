@@ -639,11 +639,11 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
           : `Staged LOP ₹${stagedLopAmt} differs from current calculation ₹${engineLop}`,
       );
 
-    const hasMoney = n2(addTotal) > 0 || n2(dedTotal) > 0;
+    const hasMoney = add > 0 || ded > 0;
     const lwd = (emp.get(r.hr_employee_id) as any)?.last_working_day;
     if (lwd && String(lwd).slice(0, 7) < period.slice(0, 7) && hasMoney)
       flags.push(`Left on ${dmy(lwd)} (before this month) but has payable lines — confirm or remove`);
-    if (isContractType(r.employee_type ?? (wi.get(r.hr_employee_id) as any)?.employee_type) && hasMoney)
+    if (["contract", "contractor", "contractual", "consultant"].includes(String(r.employee_type ?? w.employee_type ?? "").toLowerCase()) && hasMoney)
       flags.push("Contract staff with payroll lines — confirm contract staff are paid through RazorpayX payroll");
     if (r.not_in_roster) flags.push("Not in the LOP roster (leaver / no attendance) — check final-month salary on RazorpayX");
     if (r.status === "skipped") flags.push(`LOP skipped: ${r.reason ?? "see Step 5"}`);

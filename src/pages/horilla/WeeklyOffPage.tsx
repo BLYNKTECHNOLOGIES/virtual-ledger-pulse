@@ -182,8 +182,8 @@ export default function WeeklyOffPage() {
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full overflow-x-auto justify-start sm:w-auto">
-          <TabsTrigger value="patterns">Patterns ({patterns.length})</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments ({assignments.length})</TabsTrigger>
+          <TabsTrigger value="patterns">Patterns ({filteredPatterns.length})</TabsTrigger>
+          <TabsTrigger value="assignments">Assignments ({filteredAssignments.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="patterns" className="space-y-3">

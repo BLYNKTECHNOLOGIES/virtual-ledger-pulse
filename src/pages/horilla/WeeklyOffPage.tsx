@@ -61,6 +61,20 @@ export default function WeeklyOffPage() {
     },
   });
 
+  const filteredAssignments = assignments.filter((a: any) => {
+    const q = assignSearch.trim().toLowerCase();
+    if (!q) return true;
+    const employee = `${a.hr_employees?.first_name || ""} ${a.hr_employees?.last_name || ""} ${a.hr_employees?.badge_id || ""}`.toLowerCase();
+    const pattern = (a.hr_weekly_off_patterns?.name || "").toLowerCase();
+    return employee.includes(q) || pattern.includes(q);
+  });
+
+  const filteredPatterns = patterns.filter((p: any) => {
+    const q = patternSearch.trim().toLowerCase();
+    if (!q) return true;
+    return `${p.name || ""} ${p.description || ""}`.toLowerCase().includes(q);
+  });
+
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
     queryFn: async () => {

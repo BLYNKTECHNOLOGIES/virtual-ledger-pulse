@@ -386,6 +386,24 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
   }
 
 
+  async function retryAutoPush(revisionId: string) {
+    setPushingIds(prev => new Set(prev).add(revisionId));
+    try {
+      const { data, error } = await supabase.functions.invoke("hr-push-held-ctc", { body: { revision_id: revisionId } });
+      const res = (data as any)?.results?.[0];
+      if (error || (data as any)?.ok === false || res?.status !== "pushed") {
+        toast.error("RazorpayX send failed", { description: String(res?.error || (data as any)?.error || error?.message || "Try again later").slice(0, 220) });
+      } else {
+        toast.success("Sent to RazorpayX");
+      }
+      await qc.invalidateQueries();
+    } finally {
+      setPushingIds(prev => { const n = new Set(prev); n.delete(revisionId); return n; });
+    }
+  }
+
+  // Legacy manual push — kept for non-CTC flows; CTC changes are now sent automatically.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async function pushOne(employeeId: string, revisionId: string, expectedTotal: number) {
     if (!Number.isFinite(expectedTotal) || expectedTotal <= 0) {
       toast.error("This entry has no CTC change — nothing to push to RazorpayX.");
@@ -590,8 +608,28 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
               } else {
                 syncBadge = <StatusPill tone="warn" icon={AlertTriangle} label="Not sent" detail="Not sent to RazorpayX" />;
               }
+            } else if (isApplied && r.razorpay_push_state && r.razorpay_push_state !== "pushed") {
+              const st = r.razorpay_push_state as string;
+              const pam = r.push_after_month ? new Date(`${String(r.push_after_month).slice(0, 7)}-01T00:00:00Z`) : null;
+              const closeMonth = pam ? new Date(Date.UTC(pam.getUTCFullYear(), pam.getUTCMonth() - 1, 1)) : null;
+              const dayOne = r.effective_from && String(r.effective_from).slice(8, 10) === "01";
+              if (st === "held") {
+                syncBadge = (
+                  <StatusPill tone="info" icon={Clock}
+                    label={closeMonth ? `Auto-sends after ${format(dayOne ? pam! : closeMonth, "MMM")} ${dayOne ? "opens" : "payroll"}` : "Held"}
+                    detail={dayOne
+                      ? `Sent to RazorpayX automatically once ${pam ? format(pam, "MMMM yyyy") : ""} is the open payroll month.`
+                      : `RazorpayX keeps the old salary for ${closeMonth ? format(closeMonth, "MMMM") : "this month"}; the part-month extra pays the difference. The new salary is sent automatically when ${closeMonth ? format(closeMonth, "MMMM") : "that"} payroll is marked done.`} />
+                );
+              } else if (st === "queued") {
+                syncBadge = <StatusPill tone="info" icon={Loader2} label="Sending" detail="Being sent to RazorpayX" />;
+              } else if (st === "failed") {
+                syncBadge = <StatusPill tone="bad" icon={XCircle} label="Send failed" detail={r.razorpay_push_error || "RazorpayX rejected the automatic send"} />;
+              } else if (st === "superseded") {
+                syncBadge = <StatusPill tone="info" icon={CheckCircle2} label="Replaced" detail="A later change replaced this one before it was sent" />;
+              }
             } else if (isApplied) {
-              if (pushSyncedAfterRevision) {
+              if (pushSyncedAfterRevision || r.razorpay_push_state === "pushed") {
                 syncBadge = <StatusPill tone="ok" icon={CheckCircle2} label="Synced" detail="Synced to RazorpayX" />;
               } else if (pushFailedAfterRevision) {
                 syncBadge = (
@@ -704,32 +742,15 @@ export default function SalaryRevisionsPage({ month }: { month?: string } = {}) 
 
             const pushBtn =
               isPayrollInput || isRecordOnlyPayout ? null
-              : heldForLaterMonth && isApplied && canManage && !pushSyncedAfterRevision ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled>
-                        <Clock className="h-3.5 w-3.5" />
-                        <span className="ml-1">Held</span>
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-xs text-xs">
-                    Effective {heldLabel}, but the {openPayrollMonth ? format(new Date(`${String(openPayrollMonth).slice(0,7)}-01T00:00:00Z`), "MMMM yyyy") : ""} payroll
-                    is still open. RazorpayX applies a CTC to the whole live month, so pushing this now would pay
-                    the open month at the new rate. It unlocks in the {heldLabel} payroll cycle — and needs no
-                    part-month adjustment then.
-                  </TooltipContent>
-                </Tooltip>
-              ) : isApplied && !isOneTime && canManage && !pushSyncedAfterRevision ? (
+              : isApplied && !isOneTime && canManage && r.razorpay_push_state === "failed" ? (
                 <Button
-                  size="sm" variant={pushFailedAfterRevision ? "default" : "outline"} className="h-7 px-2 text-xs"
-                  onClick={() => pushOne(r.employee_id, r.id, Number(r.new_total || 0))}
-                  disabled={pushing || !envelopeVerified}
-                  title={!envelopeVerified ? "Verify the salary envelope first" : "Push this CTC to RazorpayX"}
+                  size="sm" variant="default" className="h-7 px-2 text-xs"
+                  onClick={() => retryAutoPush(r.id)}
+                  disabled={pushing}
+                  title="Retry the automatic send to RazorpayX"
                 >
                   {pushing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  <span className="ml-1">{pushFailedAfterRevision ? "Retry" : "Push"}</span>
+                  <span className="ml-1">Retry</span>
                 </Button>
               ) : isApplied && isOneTime && canManage && (!r.razorpay_pushed_at || r.razorpay_push_error) ? (
                 <Button

@@ -96,7 +96,7 @@ export function CockpitToolSheet({
             {month ? ` · ${new Date(month + "T00:00:00Z").toLocaleString("en-IN", { month: "long", year: "numeric" })}` : ""}
           </p>
           <h2 className="text-sm font-semibold truncate">
-            {stepLabel ? `${stepLabel} — ${entry.title}` : entry.title}
+            {stepLabel || entry.title}
           </h2>
         </div>
         <Button variant="outline" size="sm" className="ml-auto gap-1.5 shrink-0" onClick={onClose}>

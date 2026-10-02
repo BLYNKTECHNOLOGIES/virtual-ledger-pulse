@@ -206,9 +206,15 @@ export default function WeeklyOffPage() {
               description="Create a weekly-off pattern to get started."
               action={<Button className="h-9" onClick={() => setShowAddPattern(true)}><Plus className="h-4 w-4 mr-1" /> New Pattern</Button>}
             />
+          ) : filteredPatterns.length === 0 ? (
+            <EmptyState
+              icon={CalendarDays}
+              title="No patterns match your search"
+              description="Try a different name or clear the search."
+            />
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {patterns.map((p: any) => (
+              {filteredPatterns.map((p: any) => (
                 <Card key={p.id}>
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-center justify-between">

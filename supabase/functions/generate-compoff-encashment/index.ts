@@ -150,12 +150,30 @@ Deno.serve(async (req) => {
       // Comp-off spent cancelling LOP is settled unconditionally. Days meant to
       // be encashed are only settled once a payout row actually exists for the
       // employee — otherwise a skipped employee would lose the days unpaid.
+      // Always sent (even 0/0): the RPC first resets this month's earlier marks,
+      // so a re-run whose result dropped to zero clears stale offset/encash marks
+      // instead of leaving credits flagged from a previous run.
       const settleCredits = (encashDays: number) => {
-        if (split.offset_days > 0 || encashDays > 0) {
-          creditSettlements.push({
+        creditSettlements.push({
+          employee_id: map.hr_employee_id,
+          offset_days: split.offset_days,
+          encash_days: encashDays,
+        });
+      };
+      // The month's settlement summary is rewritten on every run (not only when
+      // something is payable) so it can never disagree with the staged lines.
+      const writeSettlement = (encashDays: number, amount: number, perDay = 0, source: string | null = null) => {
+        if (pool.days_earned > 0 || pool.days_taken > 0 || pool.days_available > 0 || split.offset_days > 0) {
+          settlements.push({
             employee_id: map.hr_employee_id,
-            offset_days: split.offset_days,
-            encash_days: encashDays,
+            period_month: periodStr,
+            days_earned: pool.days_earned,
+            days_taken: pool.days_taken,
+            days_offset_lop: split.offset_days,
+            days_encashed: encashDays,
+            per_day_rate: perDay,
+            amount,
+            base_source: source,
           });
         }
       };

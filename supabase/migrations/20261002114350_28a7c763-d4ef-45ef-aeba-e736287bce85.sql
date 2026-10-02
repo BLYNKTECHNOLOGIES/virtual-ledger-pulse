@@ -1,0 +1,2 @@
+DROP TRIGGER IF EXISTS align_structures_after_razorpay_pull ON public.hr_razorpay_employee_map;
+COMMENT ON FUNCTION public.trg_align_structures_after_razorpay_pull() IS 'RETIRED 2026-10-02: RazorpayX CTC differences must surface as hr_drift_alerts (annual_ctc) on Data Health, never auto-overwrite HRMS.';

@@ -776,7 +776,7 @@ export default function MonthlyPayrollCockpitPage() {
                             </a>
                           </Button>
                         )}
-                        {step.step_key === "run_on_razorpay" && (
+                        {(step.step_key === "run_on_razorpay" || step.step_key === "inputs_push") && (
                           <Button
                             variant="outline"
                             className="h-10 w-full justify-between gap-1.5"

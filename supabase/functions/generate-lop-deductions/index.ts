@@ -63,15 +63,23 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Roster — active employees mapped to RazorpayX (only those are pushable).
+    // Roster — employees mapped to RazorpayX (only those are pushable): active
+    // staff PLUS leavers whose last working day falls in or after this month,
+    // because their final-month salary still runs through this payroll and
+    // absences in that month must be charged as loss of pay.
     const { data: maps, error: mapErr } = await supabase
       .from("hr_razorpay_employee_map")
-      .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
+      .select("razorpay_employee_id, hr_employee_id, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active, last_working_day)")
       .not("hr_employee_id", "is", null)
       .not("razorpay_employee_id", "is", null);
     if (mapErr) throw mapErr;
 
-    let roster = (maps ?? []).filter((r: any) => r.hr_employees && r.hr_employees.is_active !== false);
+    let roster = (maps ?? []).filter((r: any) => {
+      const e = r.hr_employees;
+      if (!e) return false;
+      if (e.is_active !== false) return true;
+      return !!e.last_working_day && String(e.last_working_day).slice(0, 10) >= periodStr;
+    });
     if (filterIds) roster = roster.filter((r: any) => filterIds.includes(r.hr_employee_id));
     if (!roster.length) {
       return json({ period, dry_run: dryRun, rows: [], summary: { employees: 0, with_lop: 0, staged: 0, removed: 0, skipped: 0 } });
@@ -240,7 +248,11 @@ Deno.serve(async (req) => {
         half_days: Number(lop?.half_days ?? 0),
         absent_days: Number(lop?.absent_days ?? 0),
         held_harmless_days: Number(lop?.held_harmless_days ?? 0),
-        unverified_days: Number(lop?.unverified_days ?? 0),
+        // Days before joining / after leaving are never "unverified" attendance.
+        unverified_days: Math.max(0, Math.min(
+          Number(lop?.unverified_days ?? 0),
+          monthWorkingDays > 0 ? monthWorkingDays - gapWorkingDays : Number(lop?.unverified_days ?? 0),
+        )),
         leave_breakdown: bd?.leave_breakdown ?? [],
         leave_paid_total: Number(bd?.paid_leave_total ?? 0),
         leave_unpaid_total: Number(bd?.unpaid_leave_total ?? 0),
@@ -258,13 +270,17 @@ Deno.serve(async (req) => {
           const led = bd?.leave_ledger ? JSON.parse(JSON.stringify(bd.leave_ledger)) : null;
           if (!led) return null;
           const clExtra = Math.max(0, split.cl_offset_days - (clPool.booked ?? 0));
-          if (led.cl && clExtra > 0) {
-            led.cl.used = Number(((led.cl.used ?? 0) + clExtra).toFixed(2));
+          if (led.cl) {
+            // "used" from the RPC includes this month's already-booked automatic
+            // absorption; split it out so "taken (paid)" and "used against LOP"
+            // are separate columns: opening + credited − taken − offset = closing.
             led.cl.closing = Number(((led.cl.closing ?? 0) - clExtra).toFixed(2));
+            led.cl.used = Number(Math.max(0, (led.cl.used ?? 0) + clExtra - split.cl_offset_days).toFixed(2));
+            led.cl.offset_lop = Number(split.cl_offset_days.toFixed(2));
           }
           if (led.cl && clOverdrawLop > 0) {
             // Paid CL taken beyond the balance is reclassified as LOP.
-            led.cl.used = Number(((led.cl.used ?? 0) - clOverdrawLop).toFixed(2));
+            led.cl.used = Number(Math.max(0, (led.cl.used ?? 0) - clOverdrawLop).toFixed(2));
             led.cl.overdrawn_as_lop = clOverdrawLop;
           }
           if (led.cl && (led.cl.closing ?? 0) < 0) led.cl.closing = 0;

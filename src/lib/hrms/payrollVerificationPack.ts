@@ -456,7 +456,7 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (!row.pushed_at) bump(stagedUnpushed, row.hr_employee_id, 1);
   }
   for (const row of (recoveries as any[])) {
-    if (stagedRecoveryIds.has(String(row.id))) continue; // already counted as a staged deduction
+    if (isDuplicateRecovery(row)) continue; // already counted as a staged deduction
     bump(dedByEmp, row.employee_id, n2(row.amount));
   }
 

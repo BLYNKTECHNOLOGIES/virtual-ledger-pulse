@@ -668,6 +668,9 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     if (!map?.razorpay_employee_id) flags.push("No RazorpayX mapping");
     if (!base) flags.push("No salary base resolved");
     if (n2(r.unverified_days) > 0) flags.push(`${n2(r.unverified_days)} unverified attendance day(s)`);
+    const autoDays = autoClosedDates.get(r.hr_employee_id);
+    if (autoDays?.length)
+      flags.push(`Needs review: ${autoDays.length} watchdog day(s) closed automatically, not by HR (${autoDays.sort().join(", ")} ${period.slice(0, 7)}) — confirm the paired punch-out`);
     if (net < 0) flags.push("Negative net");
     if ((stagedUnpushed.get(r.hr_employee_id) ?? 0) > 0) flags.push(`${stagedUnpushed.get(r.hr_employee_id)} staged line(s) not pushed`);
     if (!stagedLopRow && engineLop > 0) flags.push("LOP calculated but not staged in Step 5");
@@ -689,7 +692,9 @@ export async function buildVerificationPack(period: string): Promise<Verificatio
     // pro-rating) are expected and do not make a row "needs review".
     const isInfo = (f: string) => / staged line\(s\) not pushed$/.test(f);
     if (employedDays < daysInMonth) flags.push(`Employed ${employedDays}/${daysInMonth} days — RazorpayX pro-rates the base`);
-    if (flags.some((f) => !isInfo(f) && !f.startsWith("Employed "))) flagged++;
+    // Someone not employed at all this month with no money (e.g. joins next month) needs no review.
+    const notEmployedNoMoney = employedDays === 0 && !hasMoney;
+    if (!notEmployedNoMoney && flags.some((f) => !isInfo(f) && !f.startsWith("Employed "))) flagged++;
 
     summaryRows.push([
       empBadge(r.hr_employee_id), r.name, deptName.get(w.department_id) ?? "", r.employee_type ?? w.employee_type ?? "",

@@ -20,7 +20,7 @@ import {
   startOfDay,
 } from 'date-fns';
 import { useComplianceSettings, isWeeklyOff } from '@/hooks/hrms/useComplianceSettings';
-import { useAttendanceDayRange, type AttendanceDay } from '@/hooks/hrms/useAttendanceDay';
+import { useAttendanceDayRange, resolveDayStatus, type AttendanceDay } from '@/hooks/hrms/useAttendanceDay';
 import { cn } from '@/lib/utils';
 
 interface Props {

@@ -217,12 +217,14 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
         const late = (row.late_minutes ?? 0) > 0;
         const early = (row.early_minutes ?? 0) > 0;
         timing = late && early ? 'both' : late ? 'late' : early ? 'early' : null;
-        switch (row.status) {
+        // Same resolution HR's calendar uses, so both always show the same day.
+        switch (resolveDayStatus(row)) {
           case 'present':      key = 'present'; break;
           case 'half_day':     key = 'half_day'; break;
           case 'absent':       key = 'absent'; break;
           case 'on_leave':     key = 'on_leave'; break;
           case 'week_off':     key = 'week_off'; break;
+          case 'holiday':      key = 'holiday'; meta = { ...meta, name: holiday }; break;
           case 'incomplete':   key = 'incomplete'; break;
           case 'in_progress':  key = 'in_progress'; break;
           case 'no_punch':     key = upcoming ? 'upcoming' : 'no_punch'; break;
@@ -230,7 +232,7 @@ export default function MyAttendanceCalendar({ employeeId }: Props) {
         }
       }
       if (!key && holiday) { key = 'holiday'; meta = { name: holiday }; }
-      if (!key && isWeeklyOff(d, compliance)) key = 'week_off';
+      if (!key && !row && isWeeklyOff(d, compliance)) key = 'week_off';
       if (!key) key = upcoming ? 'upcoming' : 'no_punch';
 
       out[iso] = { key, meta, label: holiday, row, timing };

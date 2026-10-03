@@ -32478,6 +32478,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      hr_leave_available: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_exclude_request?: string
+          p_leave_type_id: string
+          p_start: string
+        }
+        Returns: number
+      }
       hr_leave_month_breakdown: {
         Args: { p_employee_ids: string[]; p_period_month: string }
         Returns: {
@@ -32638,6 +32648,15 @@ export type Database = {
           p_start: string
         }
         Returns: undefined
+      }
+      hr_my_leave_available: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_leave_type_id: string
+          p_start: string
+        }
+        Returns: number
       }
       hr_my_payslips: {
         Args: never

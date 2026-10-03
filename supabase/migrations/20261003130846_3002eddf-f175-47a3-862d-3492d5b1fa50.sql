@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.hr_attendance_day_range(uuid[], date, date) TO authenticated, service_role;

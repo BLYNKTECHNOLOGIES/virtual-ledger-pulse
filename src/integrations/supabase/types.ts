@@ -32514,6 +32514,10 @@ export type Database = {
         }
         Returns: number
       }
+      hr_legacy_write_is_hr_mark: {
+        Args: { p_old: string; p_op: string; p_status: string }
+        Returns: boolean
+      }
       hr_link_self_employee: { Args: never; Returns: string }
       hr_lop_days: {
         Args: { p_employee_ids: string[]; p_period_month: string }

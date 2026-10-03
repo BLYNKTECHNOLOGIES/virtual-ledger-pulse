@@ -13,3 +13,4 @@
 - The verification pack flags watchdog days closed automatically (no HR resolver) as needs-review, because an auto-paired punch-out may be a break punch.
 - A day inside approved leave keeps the status the device or HR gives it, and leave is refunded only for the worked part (hr_reconcile_worked_leave_days, re-evaluated on every run), because device punches and HR day marks are the attendance source of truth.
 - Leave accrual (run_leave_accrual) skips anyone whose last working day is before the accrual month's end, because a mid-month leaver earns no leave for the leaving month.
+- The attendance calendar's day table (hr_attendance_daily, device-written then HR-overridable) is the only attendance truth; the older hr_attendance list is a trigger-kept mirror, and HR marks written to it are routed into the calendar as HR day marks, because every screen and payroll must show the same day.

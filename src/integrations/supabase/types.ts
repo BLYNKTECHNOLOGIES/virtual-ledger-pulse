@@ -32144,6 +32144,10 @@ export type Database = {
         Args: { p_employee_id: string; p_target: number }
         Returns: number
       }
+      hr_calendar_to_legacy_status: {
+        Args: { p_status: string }
+        Returns: string
+      }
       hr_call_lwd_access_sweep: { Args: never; Returns: number }
       hr_call_push_held_ctc: { Args: never; Returns: number }
       hr_can_access_payroll_data: {
@@ -32615,6 +32619,10 @@ export type Database = {
       hr_match_employee_by_normalized_name: {
         Args: { p_name: string }
         Returns: string
+      }
+      hr_mirror_calendar_day: {
+        Args: { p_date: string; p_employee_id: string }
+        Returns: undefined
       }
       hr_move_leave_balance: {
         Args: {

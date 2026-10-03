@@ -8648,7 +8648,7 @@ Deno.serve(async (req) => {
               if (action === "payroll_add_deduction") {
                 return { label: e.label, expected: e.amount, found: echoedDeductionTotal, ok: aggregateDeductionMatch };
               }
-              const hit = flat.find((f) => f.label.trim().toLowerCase() === e.label.trim().toLowerCase());
+              const hit = flat.find((f) => f.label.trim() === e.label.trim()) ?? flat.find((f) => f.label.trim().toLowerCase() === e.label.trim().toLowerCase());
               const okAmt = !!hit && (Math.abs(hit.amount - e.amount) < 1 || Math.abs(hit.amount - e.amount * 100) < 1);
               return { label: e.label, expected: e.amount, found: hit ? hit.amount : null, ok: okAmt };
             });

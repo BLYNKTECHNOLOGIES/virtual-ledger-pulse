@@ -487,3 +487,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-03: Reverted Uday #44 Aug retro edit (19–23 Aug back to 3 CL + 1 comp-off, fully paid); Sept CL opens at -1, 15 Sep credit brings it to 0. Owner rule: no retro edits to paid months.
 - 2026-10-03: Employee profile calendar + summary aligned to HRMS; old list now mirrors calendar times/late/early minutes; month summary self-gated for non-HR.
 - 2026-10-03: Post-exit CTC arrears blocked (Lokesh ₹500 Sep line removed); Sept full audit v11 issued.
+- 2026-10-03: Step 6 additions switched to approved RazorpayX names only (catalogue of 26 additions/7 deductions/5 arrears); 46 unpushed Sep lines auto-mapped (comp-off→Overtime, training CTC difference→Ad Hoc). Not yet push-tested.

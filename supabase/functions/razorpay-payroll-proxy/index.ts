@@ -8433,6 +8433,9 @@ Deno.serve(async (req) => {
         const variants: Array<[string, any]> = [];
         if (email) variants.push(["email_label_amount", { email: String(email).trim(), "payroll-month": data["payroll-month"], additions: minimal, remarks: data.remarks }]);
         variants.push(["employee_id_label_amount", { "employee-id": data["employee-id"], "payroll-month": data["payroll-month"], additions: minimal, remarks: data.remarks }]);
+        variants.push(["employee_id_no_remarks", { "employee-id": data["employee-id"], "employee-type": "employee", "payroll-month": data["payroll-month"], additions: minimal }]);
+        const firstErr = errText;
+        const retryErrors: Record<string, unknown> = {};
         for (const [tag, vdata] of variants) {
           try {
             const r = await fetch(`${BASE}/${spec.urlPath}`, {
@@ -8445,8 +8448,32 @@ Deno.serve(async (req) => {
             const e2 = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
             console.log(`[add-additions retry] variant=${tag} status=${r.status} err=${e2 ? JSON.stringify(e2).slice(0, 200) : "none"}`);
             if (r.ok && !e2) { httpStatus = r.status; bodyOut = b; errText = null; additionsVariant = tag; break; }
-            errText = `${errText} | retry ${tag}: ${typeof e2 === "string" ? e2 : JSON.stringify(e2)}`;
-          } catch (e) { errText = `${errText} | retry ${tag}: NETWORK ${(e as Error).message}`; }
+            retryErrors[tag] = e2;
+          } catch (e) { retryErrors[tag] = `NETWORK ${(e as Error).message}`; }
+        }
+        if (errText) {
+          // Diagnostic: capture what RazorpayX currently holds for this
+          // employee/month so the rejected component can be identified.
+          let viewSnap: unknown = null;
+          try {
+            const r = await fetch(`${BASE}/payroll`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ auth: authBlock(), request: { type: "payroll", "sub-type": "view-payroll" }, data: { "employee-id": data["employee-id"], "employee-type": "employee", "payroll-month": data["payroll-month"] } }),
+            });
+            const raw = await r.text();
+            try { viewSnap = JSON.parse(raw); } catch { viewSnap = raw.slice(0, 1500); }
+          } catch (e) { viewSnap = `NETWORK ${(e as Error).message}`; }
+          await logSync(svc, {
+            action: "payroll_view_payroll" as any,
+            http_status: 0,
+            razorpay_employee_id: String(data["employee-id"]),
+            hr_employee_id: null,
+            field_diff_summary: { diagnostic: "add_additions_components_not_found", sent: minimal, retry_errors: retryErrors, view_payroll: viewSnap },
+            error_text: null,
+            actor_user_id: authed.userId,
+          });
+          errText = `${firstErr} (RazorpayX also refused the simplified retries; details recorded for review)`;
         }
       }
 

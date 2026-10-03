@@ -172,6 +172,13 @@ export function AutoRecoveriesCard({ period }: Props) {
           icon: <AlertTriangle className="h-3 w-3" />,
           tip: r.failure_reason || "Push failed — will retry",
         };
+      case "skipped":
+        return {
+          tone: "default",
+          label: "Cancelled",
+          icon: <Ban className="h-3 w-3" />,
+          tip: r.failure_reason || "Not recovered",
+        };
       case "cancelled":
         return {
           tone: "default",

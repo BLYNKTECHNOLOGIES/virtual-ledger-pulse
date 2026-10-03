@@ -129,24 +129,44 @@ export default function PayrollInputsPage() {
   const gateOpen = !!settings?.push_payroll_endpoint_verified;
 
   // Employee roster — only mapped RazorpayX employees are pushable.
-  const { data: employees = [] } = useQuery({
+  // A leaver stays pickable until their final salary is processed: their last
+  // working day falls in (or after) the selected payroll month, or their F&F
+  // settlement is not yet paid. Resignation is not "complete" before that.
+  const { data: rawEmployees = [] } = useQuery({
     queryKey: ["hr_mapped_employees_for_inputs"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("hr_razorpay_employee_map")
-        .select("razorpay_employee_id, hr_employee_id, last_pull_snapshot, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
-        .not("hr_employee_id", "is", null)
-        .not("razorpay_employee_id", "is", null);
-      if (error) throw error;
-      return (data || [])
-        .filter((r: any) => r.hr_employees && r.hr_employees.is_active !== false)
+      const [mapRes, fnfRes] = await Promise.all([
+        (supabase as any)
+          .from("hr_razorpay_employee_map")
+          .select("razorpay_employee_id, hr_employee_id, last_pull_snapshot, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active, last_working_day)")
+          .not("hr_employee_id", "is", null)
+          .not("razorpay_employee_id", "is", null),
+        (supabase as any).from("hr_fnf_settlements").select("employee_id, status, paid_at"),
+      ]);
+      if (mapRes.error) throw mapRes.error;
+      const unpaidFnf = new Set<string>(
+        ((fnfRes.data as any[]) || [])
+          .filter((f) => !f.paid_at && !["paid", "cancelled", "rejected"].includes(String(f.status || "").toLowerCase()))
+          .map((f) => f.employee_id),
+      );
+      return (mapRes.data || [])
+        .filter((r: any) => r.hr_employees)
+        .map((r: any) => ({ ...r, __unpaid_fnf: unpaidFnf.has(r.hr_employee_id) }))
         // Employee pickers are always alphabetical by full name.
         .sort((a: any, b: any) =>
           `${a.hr_employees?.first_name ?? ""} ${a.hr_employees?.last_name ?? ""}`.trim()
             .localeCompare(`${b.hr_employees?.first_name ?? ""} ${b.hr_employees?.last_name ?? ""}`.trim(), "en", { sensitivity: "base" }));
-
     },
   });
+  const employees = useMemo(() => {
+    const monthStart = `${period}-01`;
+    return (rawEmployees as any[]).filter((r) => {
+      const e = r.hr_employees;
+      if (e.is_active !== false) return true;
+      if (r.__unpaid_fnf) return true;
+      return !!e.last_working_day && String(e.last_working_day) >= monthStart;
+    }).map((r) => ({ ...r, __leaver: r.hr_employees.is_active === false }));
+  }, [rawEmployees, period]);
   // Name lookup for staged rows must include leavers: a person who left this
   // month still has final-month lines (LOP, F&F) that need their name shown.
   // Pickers keep using the active-only `employees` list above.
@@ -1291,6 +1311,7 @@ export default function PayrollInputsPage() {
                         {`${r.hr_employees?.first_name?.[0] ?? ""}${r.hr_employees?.last_name?.[0] ?? ""}`.toUpperCase() || "–"}
                       </span>
                       <span className={dnpAt ? "text-muted-foreground" : "font-medium"}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      {r.__leaver && <Badge variant="muted">Left · final salary pending</Badge>}
                       {inactive && <Badge variant="muted">Inactive in RazorpayX</Badge>}
                       {dnpAt && <Badge variant="muted">Do-Not-Pay applied · {new Date(dnpAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Badge>}
                     </div>

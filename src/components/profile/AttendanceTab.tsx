@@ -38,6 +38,19 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
     enabled: !!employeeId,
   });
 
+  const { data: hrSummary } = useQuery({
+    queryKey: ['hr_attendance_month_summary_self', employeeId, selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('hr_attendance_month_summary', {
+        p_employee_ids: [employeeId],
+        p_period_month: monthStart,
+      });
+      if (error) throw error;
+      return (data || [])[0] ?? null;
+    },
+    enabled: !!employeeId,
+  });
+
   // Daily attendance records for the month
   const { data: dailyRecords = [], isLoading } = useQuery({
     queryKey: ['hr_attendance_daily', employeeId, selectedMonth],
@@ -108,8 +121,9 @@ export default function AttendanceTab({ employeeId }: AttendanceTabProps) {
 
   const s = monthlySummary;
   const workedHrs = Number(s?.total_worked_hours || 0);
-  const presentDays = Number(s?.present_days || 0);
-  const absentDays = Number(s?.absent_days || 0);
+  // Same figures HR sees on the HRMS Attendance Summary (one shared calculation).
+  const presentDays = Number(hrSummary?.present_days ?? 0);
+  const absentDays = Number(hrSummary?.absent_days ?? 0);
   const lateCount = Number(s?.late_count || 0);
   const earlyCount = Number(s?.early_out_count || 0);
   const totalLateMins = Number(s?.total_late_minutes || 0);

@@ -86,6 +86,12 @@ export function resolveDayStatus(day?: AttendanceDay | null): AttendanceDayStatu
     if (day.is_week_off) return "week_off";
     // Loss of Pay leave is unpaid: it reads as Absent, never as Leave.
     if (day.on_approved_leave) return day.leave_is_paid ? "on_leave" : "absent";
+    // A past working day with no punches is Loss of Pay in payroll, so the
+    // calendar must say Absent (e.g. a company holiday for all-days staff).
+    if (s === "no_data" && day.is_working_day) {
+      const todayIst = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+      if (String(day.date) < todayIst) return "absent";
+    }
   }
   return s;
 }

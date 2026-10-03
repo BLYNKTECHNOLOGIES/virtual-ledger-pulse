@@ -484,3 +484,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-03: Worked-on-leave fix — 15 half-day-leave days were wrongly refunded and counted as LOP (Priya raw LOP 10→3.5, Sabeel, Lavany, Khushbu, Shivangi, Urvashi); Urvashi 24 Sep now present; Uday Aug CL overdraw corrected (1 Aug day unpaid, ₹500 not yet recovered).
 - 2026-10-03: D4 applied — Archita (#3) and Satyam (#55) 15 Sep CL/SL credits removed; D12 blended rate and D13 (no holidays for all-days staff) confirmed as current behaviour.
 - 2026-10-03: Owner ruling — calendar view is attendance truth. Old attendance list re-synced from calendar (≈126 stale days incl. 62 'absent' on leave days fixed) and now auto-mirrors; HR marks from old screens flow into the calendar.
+- 2026-10-03: Reverted Uday #44 Aug retro edit (19–23 Aug back to 3 CL + 1 comp-off, fully paid); Sept CL opens at -1, 15 Sep credit brings it to 0. Owner rule: no retro edits to paid months.

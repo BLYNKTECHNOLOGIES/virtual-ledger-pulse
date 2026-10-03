@@ -15053,6 +15053,7 @@ export type Database = {
           amount: number
           created_at: string
           created_by: string | null
+          description: string | null
           finalized_at: string | null
           hr_employee_id: string | null
           id: string
@@ -15062,6 +15063,7 @@ export type Database = {
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
+          razorpay_label: string | null
           readback_diff: Json | null
           readback_verified_at: string | null
           source: string | null
@@ -15074,6 +15076,7 @@ export type Database = {
           amount: number
           created_at?: string
           created_by?: string | null
+          description?: string | null
           finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
@@ -15083,6 +15086,7 @@ export type Database = {
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
+          razorpay_label?: string | null
           readback_diff?: Json | null
           readback_verified_at?: string | null
           source?: string | null
@@ -15095,6 +15099,7 @@ export type Database = {
           amount?: number
           created_at?: string
           created_by?: string | null
+          description?: string | null
           finalized_at?: string | null
           hr_employee_id?: string | null
           id?: string
@@ -15104,6 +15109,7 @@ export type Database = {
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
+          razorpay_label?: string | null
           readback_diff?: Json | null
           readback_verified_at?: string | null
           source?: string | null
@@ -15921,6 +15927,45 @@ export type Database = {
           min_monthly_gross?: number
           monthly_amount?: number
           state?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hr_razorpay_component_catalog: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          label: string
+          notes: string | null
+          sort_order: number
+          source: string
+          tds_mode: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind: string
+          label: string
+          notes?: string | null
+          sort_order?: number
+          source?: string
+          tds_mode?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          label?: string
+          notes?: string | null
+          sort_order?: number
+          source?: string
+          tds_mode?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -33038,6 +33083,10 @@ export type Database = {
           vpf_mode: string
           vpf_value: number
         }[]
+      }
+      hr_suggest_razorpay_label: {
+        Args: { p_label: string; p_source?: string }
+        Returns: string
       }
       hr_sync_compoff_allocation: {
         Args: { p_employee_id: string }

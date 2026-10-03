@@ -113,6 +113,7 @@ export default function LeaveRequestsPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!form.leave_type_id) throw new Error("Choose a leave type before submitting");
       const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date, form.employee_id);
       const emp = (employees as any[]).find((e) => e.id === form.employee_id);
       const employeeName = `${emp?.first_name || ""} ${emp?.last_name || ""}`.trim() || "Employee";
@@ -121,7 +122,7 @@ export default function LeaveRequestsPage() {
 
       const { data: created, error } = await (supabase as any).from("hr_leave_requests").insert({
         employee_id: form.employee_id,
-        leave_type_id: form.leave_type_id || null,
+        leave_type_id: form.leave_type_id,
         start_date: form.start_date,
         end_date: endDate,
         reason: form.reason || null,
@@ -350,7 +351,7 @@ export default function LeaveRequestsPage() {
         footer={
           <>
             <Button variant="outline" onClick={() => setShowAdd(false)} className="h-9">Cancel</Button>
-            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.employee_id || !form.start_date || (!form.is_half_day && !form.end_date) || (form.routing === "hr" && !form.leave_type_id)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending || !form.employee_id || !form.leave_type_id || !form.start_date || (!form.is_half_day && !form.end_date)} className="bg-[#E8604C] hover:bg-[#d4553f] h-9">
               {form.routing === "hr" ? "Approve now" : "Send to manager"}
             </Button>
           </>

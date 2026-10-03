@@ -113,6 +113,7 @@ export default function LeaveRequestsPage() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
+      if (!form.leave_type_id) throw new Error("Choose a leave type before submitting");
       const days = form.is_half_day ? 0.5 : countWorkingDays(form.start_date, form.end_date, form.employee_id);
       const emp = (employees as any[]).find((e) => e.id === form.employee_id);
       const employeeName = `${emp?.first_name || ""} ${emp?.last_name || ""}`.trim() || "Employee";

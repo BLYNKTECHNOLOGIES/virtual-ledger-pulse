@@ -147,11 +147,26 @@ export default function PayrollInputsPage() {
 
     },
   });
+  // Name lookup for staged rows must include leavers: a person who left this
+  // month still has final-month lines (LOP, F&F) that need their name shown.
+  // Pickers keep using the active-only `employees` list above.
+  const { data: allMapped = [] } = useQuery({
+    queryKey: ["hr_all_mapped_employees_for_labels"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from("hr_razorpay_employee_map")
+        .select("razorpay_employee_id, hr_employee_id, last_pull_snapshot, hr_employees:hr_employee_id(id, first_name, last_name, badge_id, is_active)")
+        .not("hr_employee_id", "is", null);
+      if (error) throw error;
+      return data || [];
+    },
+  });
   const empById = useMemo(() => {
     const m = new Map<string, any>();
+    for (const r of allMapped as any[]) if (r.hr_employees) m.set(r.hr_employee_id, r);
     for (const r of employees as any[]) if (r.hr_employees) m.set(r.hr_employee_id, r);
     return m;
-  }, [employees]);
+  }, [employees, allMapped]);
 
   const table = tab === "addition" ? "hr_payroll_input_additions" : "hr_payroll_input_deductions";
   // period_month is a Postgres date and is stored as the first day of the month.

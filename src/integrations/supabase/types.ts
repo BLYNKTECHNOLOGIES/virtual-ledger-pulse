@@ -29811,49 +29811,49 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "ess_milestones_v"
             referencedColumns: ["employee_id"]
           },
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "ess_profile_v"
             referencedColumns: ["employee_id"]
           },
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employee_completeness"
             referencedColumns: ["employee_id"]
           },
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_employees"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_payroll_lop_drift"
             referencedColumns: ["employee_id"]
           },
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_probation_status_v"
             referencedColumns: ["employee_id"]
           },
           {
-            foreignKeyName: "hr_attendance_employee_id_fkey"
+            foreignKeyName: "hr_attendance_daily_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "hr_razorpay_payroll_freshness"

@@ -26,13 +26,15 @@ interface Props {
 /**
  * ESS — Employee raises a leave request from the ERP profile.
  * Routes to the reporting manager first, then HR (two-stage approval).
- * HR assigns the leave type at final approval; balances cascade automatically.
+ * The employee picks the leave type; paid types need the full earned balance
+ * (enforced again in the database). Loss of Pay days show as Absent.
  */
 export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenChange, hideTrigger }: Props) {
   const qc = useQueryClient();
   const [internalOpen, setInternalOpen] = useState(false);
   const open = openProp ?? internalOpen;
   const setOpen = onOpenChange ?? setInternalOpen;
+  const [leaveTypeId, setLeaveTypeId] = useState('');
   const [form, setForm] = useState({
     start_date: '',
     end_date: '',
@@ -76,17 +78,46 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
     return n;
   }, [form.start_date, form.end_date, form.is_half_day, offDays]);
 
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ['ess_leave_types'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('hr_leave_types').select('id, name, code, is_paid')
+        .eq('is_active', true).in('code', ['CL', 'CO', 'SL', 'LOP']).order('name');
+      return (data || []) as { id: string; name: string; code: string; is_paid: boolean }[];
+    },
+  });
+  const selectedType = leaveTypes.find((t) => t.id === leaveTypeId);
+  const isLop = !!selectedType && (selectedType.code === 'LOP' || !selectedType.is_paid);
+  const endDate = form.is_half_day ? form.start_date : form.end_date || form.start_date;
+
+  const { data: available, isFetching: balLoading } = useQuery({
+    queryKey: ['ess_leave_available', employeeId, leaveTypeId, form.start_date, endDate],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('hr_my_leave_available', {
+        p_employee_id: employeeId, p_leave_type_id: leaveTypeId, p_start: form.start_date, p_end: endDate,
+      });
+      if (error) throw error;
+      return Number(data ?? 0);
+    },
+    enabled: !!employeeId && !!leaveTypeId && !isLop && !!form.start_date,
+  });
+  const shortBalance = !isLop && available !== undefined && workingDays > available;
+
   const submit = useMutation({
     mutationFn: async () => {
+      if (!leaveTypeId) throw new Error('Choose a leave type');
       if (!form.start_date) throw new Error('Start date is required');
       if (!form.reason.trim()) throw new Error('Please add a reason');
-      const end = form.is_half_day ? form.start_date : form.end_date || form.start_date;
+      const end = endDate;
       if (workingDays <= 0) throw new Error('Selected dates contain no working days');
+      if (shortBalance) throw new Error(`You have only ${available} day(s) of ${selectedType?.name} available. Apply for that many, and the rest as Loss of Pay.`);
 
       const { data, error } = await (supabase as any)
         .from('hr_leave_requests')
         .insert({
           employee_id: employeeId,
+          leave_type_id: leaveTypeId,
           start_date: form.start_date,
           end_date: end,
           total_days: workingDays,
@@ -116,7 +147,7 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
         eventType: 'leave_requested',
         requestId: data.id,
         employeeName: me ? `${me.first_name || ''} ${me.last_name || ''}`.trim() : 'Employee',
-        leaveType: 'To be assigned by HR',
+        leaveType: selectedType?.name || 'Leave',
         startDate: form.start_date,
         endDate: end,
         totalDays: workingDays,
@@ -132,6 +163,7 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
         start_date: '', end_date: '', is_half_day: false,
         half_day_period: 'morning', reason: '', contact_during_leave: '',
       });
+      setLeaveTypeId('');
       setOpen(false);
       qc.invalidateQueries({ queryKey: ['ess_hub_leaves', employeeId] });
       qc.invalidateQueries({ queryKey: ['hr_leave_requests', employeeId] });
@@ -154,6 +186,15 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
         </DialogHeader>
 
         <div className="space-y-3">
+          <div>
+            <Label>Leave type *</Label>
+            <Select value={leaveTypeId} onValueChange={setLeaveTypeId}>
+              <SelectTrigger className="text-foreground w-full"><SelectValue placeholder="Choose leave type" /></SelectTrigger>
+              <SelectContent>
+                {leaveTypes.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="flex items-center gap-2">
             <Checkbox
               id="ess-half-day"
@@ -222,14 +263,26 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
 
           <p className="text-xs text-foreground">
             Working days requested: <strong>{workingDays || '—'}</strong>
+            {selectedType && !isLop && form.start_date && (
+              <> · {selectedType.name} available: <strong>{balLoading ? '…' : available ?? '—'}</strong></>
+            )}
           </p>
+          {isLop && (
+            <p className="text-xs text-muted-foreground">These days are unpaid and will show as Absent on your calendar.</p>
+          )}
+          {shortBalance && (
+            <p className="text-xs text-destructive">
+              You have only {available} day(s) of {selectedType?.name} available but selected {workingDays} working day(s).
+              Apply for {available} day(s) as {selectedType?.name} and the rest as Loss of Pay, or change your dates.
+            </p>
+          )}
         </div>
 
         <DialogFooter className="gap-2">
           <Button variant="outline" className="w-full sm:w-auto" onClick={() => setOpen(false)}>Close</Button>
           <Button
             className="w-full sm:w-auto"
-            disabled={submit.isPending || !form.start_date || !form.reason.trim() || workingDays <= 0}
+            disabled={submit.isPending || !leaveTypeId || shortBalance || balLoading || !form.start_date || !form.reason.trim() || workingDays <= 0}
             onClick={() => submit.mutate()}
           >
             {submit.isPending ? 'Submitting…' : 'Submit request'}

@@ -8411,13 +8411,52 @@ Deno.serve(async (req) => {
         errText = `NETWORK: ${(e as Error).message}`;
       } finally { clearTimeout(t); }
 
+      // ── add-additions "Some addition components are not found" recovery ──
+      // Our envelope carried extra per-line keys (name/type/taxable). When the
+      // tenant resolves those against its configured earning components, it
+      // rejects the whole call. Retry with the exact documented Postman
+      // contract: { email, payroll-month, additions:[{label,amount}], remarks }.
+      let additionsVariant: string | null = null;
+      if (action === "payroll_add_additions" && errText && /components?\s+(are\s+)?not\s+found/i.test(errText)) {
+        const minimal = (Array.isArray(data.additions) ? data.additions : []).map((a: any) => ({ label: String(a.label ?? a.name), amount: Number(a.amount) }));
+        let email = "";
+        try {
+          const { data: mapRow } = await svc.from("hr_razorpay_employee_map")
+            .select("hr_employee_id, last_pull_snapshot").eq("razorpay_employee_id", String(data["employee-id"])).maybeSingle();
+          const snap: any = mapRow?.last_pull_snapshot || {};
+          email = snap.email || snap.work_email || snap["work-email"] || "";
+          if (!email && mapRow?.hr_employee_id) {
+            const { data: emp } = await svc.from("hr_employees").select("email").eq("id", mapRow.hr_employee_id).maybeSingle();
+            email = emp?.email || "";
+          }
+        } catch { /* fall through to employee-id variant */ }
+        const variants: Array<[string, any]> = [];
+        if (email) variants.push(["email_label_amount", { email: String(email).trim(), "payroll-month": data["payroll-month"], additions: minimal, remarks: data.remarks }]);
+        variants.push(["employee_id_label_amount", { "employee-id": data["employee-id"], "payroll-month": data["payroll-month"], additions: minimal, remarks: data.remarks }]);
+        for (const [tag, vdata] of variants) {
+          try {
+            const r = await fetch(`${BASE}/${spec.urlPath}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Accept: "application/json" },
+              body: JSON.stringify({ auth: authBlock(), request: { type: spec.bodyType, "sub-type": spec.sub_type }, data: vdata }),
+            });
+            const raw = await r.text();
+            let b: any = null; try { b = JSON.parse(raw); } catch { b = { raw: raw.slice(0, 800) }; }
+            const e2 = b && typeof b === "object" ? (b.error ?? b.message ?? null) : null;
+            console.log(`[add-additions retry] variant=${tag} status=${r.status} err=${e2 ? JSON.stringify(e2).slice(0, 200) : "none"}`);
+            if (r.ok && !e2) { httpStatus = r.status; bodyOut = b; errText = null; additionsVariant = tag; break; }
+            errText = `${errText} | retry ${tag}: ${typeof e2 === "string" ? e2 : JSON.stringify(e2)}`;
+          } catch (e) { errText = `${errText} | retry ${tag}: NETWORK ${(e as Error).message}`; }
+        }
+      }
+
       const rpEid = payrollEmployeeId;
       await logSync(svc, {
         action: spec.logAs as any,
         http_status: httpStatus,
         razorpay_employee_id: rpEid,
         hr_employee_id: null,
-        field_diff_summary: { url: `/${spec.urlPath}`, body_type: spec.bodyType, sub_type: spec.sub_type, data_keys: Object.keys(data).slice(0, 20), payroll_month: data["payroll-month"] ?? null, do_not_pay: action === "payroll_do_not_pay" ? doNotPayExpected : undefined },
+        field_diff_summary: { url: `/${spec.urlPath}`, body_type: spec.bodyType, sub_type: spec.sub_type, data_keys: Object.keys(data).slice(0, 20), payroll_month: data["payroll-month"] ?? null, do_not_pay: action === "payroll_do_not_pay" ? doNotPayExpected : undefined, additions_variant: additionsVariant ?? undefined },
         error_text: errText,
         actor_user_id: authed.userId,
       });

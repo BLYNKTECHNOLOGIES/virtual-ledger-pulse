@@ -32649,6 +32649,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      hr_my_leave_available: {
+        Args: {
+          p_employee_id: string
+          p_end: string
+          p_leave_type_id: string
+          p_start: string
+        }
+        Returns: number
+      }
       hr_my_payslips: {
         Args: never
         Returns: {

@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.hr_block_waived_recovery_lines() FROM public, anon, authenticated;

@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { additionTypeSlug } from "@/lib/hrms/additionType";
+import { CancelRecoveryDialog, type CancelTarget } from "./CancelRecoveryDialog";
 
 type Props = { period: string }; // YYYY-MM
 
@@ -34,6 +35,7 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
   const qc = useQueryClient();
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState<any | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ["training_ctc_adjustments", periodDate],
@@ -238,9 +240,20 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
                               </Button>
                             )}
                             <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive"
+                                    title="Remove for this run only — it may be staged again"
                                     onClick={() => dismiss.mutate(r)}>
                               Dismiss
                             </Button>
+                            {r.source_revision_id && (
+                              <Button size="sm" variant="outline" className="h-7 text-xs text-destructive"
+                                      title="Cancel permanently — never staged again"
+                                      onClick={() => setCancelTarget({
+                                        kind: "ctc_revision", refId: r.source_revision_id,
+                                        title: `${r.employee?.name ?? "Employee"} — ${r.kind === "deduction" ? "Recovery" : "Arrears"} ${inr(r.amount)}`,
+                                      })}>
+                                Cancel recovery
+                              </Button>
+                            )}
                           </>
                         )}
                       </div>
@@ -314,6 +327,7 @@ export function TrainingCtcAdjustmentsCard({ period }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <CancelRecoveryDialog target={cancelTarget} onClose={() => setCancelTarget(null)} />
     </Card>
   );
 }

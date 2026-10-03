@@ -420,6 +420,29 @@ export default function PayrollInputsPage() {
   const pushOne = (row: any) => pushGroup([row]);
 
   // Net vs Gross target for a staged deduction (editable until it is pushed).
+  // Exact, case-sensitive RazorpayX addition names HR may push under.
+  const { data: rzpAdditionNames = [] } = useQuery({
+    queryKey: ["hr_razorpay_component_catalog", "addition"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).from("hr_razorpay_component_catalog")
+        .select("label").eq("kind", "addition").eq("is_active", true).order("label");
+      if (error) throw error;
+      return (data || []).map((d: any) => String(d.label)) as string[];
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  const setRzpLabel = useMutation({
+    mutationFn: async ({ id, label }: { id: string; label: string }) => {
+      const { error } = await (supabase as any).from("hr_payroll_input_additions")
+        .update({ razorpay_label: label }).eq("id", id).is("pushed_at", null);
+      if (error) throw error;
+      return label;
+    },
+    onSuccess: (l) => { qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] }); toast.success(`Will push to RazorpayX as "${l}"`); },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const setDeductTarget = useMutation({
     mutationFn: async ({ id, target }: { id: string; target: "net" | "gross" }) => {
       const { data: live, error: rErr } = await (supabase as any)
@@ -1033,6 +1056,28 @@ export default function PayrollInputsPage() {
                       </td>
                       <td className="px-3 py-2">
                         {r.label}
+                        {tab === "addition" && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">RazorpayX name:</span>
+                            {r.pushed_at ? (
+                              <Badge variant="outline" className="text-[10px] font-normal">{r.razorpay_label || r.label}</Badge>
+                            ) : (
+                              <Select
+                                value={r.razorpay_label || undefined}
+                                onValueChange={(v) => setRzpLabel.mutate({ id: r.id, label: v })}
+                              >
+                                <SelectTrigger className={`h-6 w-[220px] text-[11px] text-foreground ${r.razorpay_label ? "" : "border-destructive text-destructive"}`}>
+                                  <SelectValue placeholder="Pick a RazorpayX name" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {rzpAdditionNames.map((n) => (
+                                    <SelectItem key={n} value={n} className="text-xs">{n}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          </div>
+                        )}
                         {tab === "deduction" && (
                           <div className="mt-1">
                             {r.pushed_at ? (

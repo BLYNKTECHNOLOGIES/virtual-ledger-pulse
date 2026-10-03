@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { CancelRecoveryDialog, type CancelTarget } from "./CancelRecoveryDialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,7 @@ export function AutoRecoveriesCard({ period }: Props) {
   }, [stagedRows]);
 
   const qc = useQueryClient();
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
 
   // "Awaiting HR push" rows whose deduction hasn't been staged yet (the
@@ -353,6 +355,20 @@ export function AutoRecoveriesCard({ period }: Props) {
                               </TooltipContent>
                             </Tooltip>
                           )}
+                          {["scheduled", "failed"].includes(r.status) && !staged?.pushed_at && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-[11px] text-destructive"
+                              title="Cancel this recovery so it is not deducted now or later"
+                              onClick={() => setCancelTarget({
+                                kind: r.source_kind, refId: r.id,
+                                title: `${r.employee_name || "—"} — ${r.label} ${r.installment_no}${r.total_installments ? `/${r.total_installments}` : ""} (${inr(r.amount)})`,
+                              })}
+                            >
+                              <Ban className="h-3 w-3 mr-1" />Cancel
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -363,6 +379,7 @@ export function AutoRecoveriesCard({ period }: Props) {
           </table>
         </CardContent>
       </Card>
+      <CancelRecoveryDialog target={cancelTarget} onClose={() => setCancelTarget(null)} />
     </TooltipProvider>
   );
 }

@@ -289,13 +289,28 @@ Deno.serve(async (req) => {
     let removed = 0;
 
     if (!dryRun) {
-      if (toUpsert.length) {
+      // Existing auto lines are UPDATED BY ID (the label embeds the day count,
+      // so a changed day count must not be treated as a new line — doing so
+      // re-inserted the old id and hit hr_payroll_input_additions_pkey).
+      // Only genuinely new lines are inserted.
+      const updates = toUpsert.filter((r) => r.id);
+      const inserts = toUpsert.filter((r) => !r.id);
+      for (const u of updates) {
+        const { id, ...patch } = u;
+        const { error: uErr } = await supabase
+          .from("hr_payroll_input_additions")
+          .update(patch)
+          .eq("id", id)
+          .is("pushed_at", null);
+        if (uErr) throw uErr;
+      }
+      if (inserts.length) {
         const { error: upErr } = await supabase
           .from("hr_payroll_input_additions")
-          .upsert(toUpsert, { onConflict: "razorpay_employee_id,period_month,label", ignoreDuplicates: false });
+          .upsert(inserts, { onConflict: "razorpay_employee_id,period_month,label", ignoreDuplicates: false });
         if (upErr) throw upErr;
-        staged = toUpsert.length;
       }
+      staged = toUpsert.length;
       if (toDelete.length) {
         const { error: delErr } = await supabase
           .from("hr_payroll_input_additions")

@@ -587,7 +587,7 @@ export default function PayrollInputsPage() {
       setRebuildProgress({ completed: 0, total: empIds.length, current: "Starting…" });
 
       const rebuildEmployee = async (empId: string) => {
-        const mapped = (employees as any[]).find((r) => String(r.razorpay_employee_id) === empId);
+        const mapped = (allMapped as any[]).find((r) => String(r.razorpay_employee_id) === empId);
         const employeeName = `${mapped?.hr_employees?.first_name || ""} ${mapped?.hr_employees?.last_name || ""}`.trim() || `Employee ${empId}`;
         setRebuildProgress((p) => ({ ...p, current: employeeName }));
         try {

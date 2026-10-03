@@ -486,3 +486,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-03: Owner ruling — calendar view is attendance truth. Old attendance list re-synced from calendar (≈126 stale days incl. 62 'absent' on leave days fixed) and now auto-mirrors; HR marks from old screens flow into the calendar.
 - 2026-10-03: Reverted Uday #44 Aug retro edit (19–23 Aug back to 3 CL + 1 comp-off, fully paid); Sept CL opens at -1, 15 Sep credit brings it to 0. Owner rule: no retro edits to paid months.
 - 2026-10-03: Employee profile calendar + summary aligned to HRMS; old list now mirrors calendar times/late/early minutes; month summary self-gated for non-HR.
+- 2026-10-03: Post-exit CTC arrears blocked (Lokesh ₹500 Sep line removed); Sept full audit v11 issued.

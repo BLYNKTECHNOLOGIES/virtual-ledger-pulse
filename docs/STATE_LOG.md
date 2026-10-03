@@ -482,3 +482,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-03: Owner-approved one-off — September watchdog resolutions applied to locked Sept attendance days (10 days, flag applied_from_watchdog_under_lock). From now on, resolving a watchdog entry on a locked period is refused and the entry stays open.
 - 2026-10-03: Owner rulings — D18 yes (later-in-month comp-off covers earlier leave); D17 Devansh (#30) 12 Sep marked half day (manual_status).
 - 2026-10-03: Worked-on-leave fix — 15 half-day-leave days were wrongly refunded and counted as LOP (Priya raw LOP 10→3.5, Sabeel, Lavany, Khushbu, Shivangi, Urvashi); Urvashi 24 Sep now present; Uday Aug CL overdraw corrected (1 Aug day unpaid, ₹500 not yet recovered).
+- 2026-10-03: D4 applied — Archita (#3) and Satyam (#55) 15 Sep CL/SL credits removed; D12 blended rate and D13 (no holidays for all-days staff) confirmed as current behaviour.

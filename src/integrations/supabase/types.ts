@@ -17580,6 +17580,33 @@ export type Database = {
           },
         ]
       }
+      hr_recovery_waivers: {
+        Row: {
+          id: string
+          reason: string
+          ref_id: string
+          source_kind: string
+          waived_at: string
+          waived_by: string | null
+        }
+        Insert: {
+          id?: string
+          reason: string
+          ref_id: string
+          source_kind: string
+          waived_at?: string
+          waived_by?: string | null
+        }
+        Update: {
+          id?: string
+          reason?: string
+          ref_id?: string
+          source_kind?: string
+          waived_at?: string
+          waived_by?: string | null
+        }
+        Relationships: []
+      }
       hr_recruitment_managers: {
         Row: {
           created_at: string
@@ -32157,6 +32184,15 @@ export type Database = {
       hr_can_manage_payroll_config: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      hr_cancel_recovery: {
+        Args: {
+          p_kind: string
+          p_reason: string
+          p_ref: string
+          p_scope: string
+        }
+        Returns: Json
       }
       hr_cl_available: {
         Args: { p_employee_ids: string[]; p_period_month: string }

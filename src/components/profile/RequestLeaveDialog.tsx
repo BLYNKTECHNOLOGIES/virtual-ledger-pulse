@@ -76,17 +76,46 @@ export default function RequestLeaveDialog({ employeeId, open: openProp, onOpenC
     return n;
   }, [form.start_date, form.end_date, form.is_half_day, offDays]);
 
+  const { data: leaveTypes = [] } = useQuery({
+    queryKey: ['ess_leave_types'],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from('hr_leave_types').select('id, name, code, is_paid')
+        .eq('is_active', true).in('code', ['CL', 'CO', 'SL', 'LOP']).order('name');
+      return (data || []) as { id: string; name: string; code: string; is_paid: boolean }[];
+    },
+  });
+  const selectedType = leaveTypes.find((t) => t.id === leaveTypeId);
+  const isLop = !!selectedType && (selectedType.code === 'LOP' || !selectedType.is_paid);
+  const endDate = form.is_half_day ? form.start_date : form.end_date || form.start_date;
+
+  const { data: available, isFetching: balLoading } = useQuery({
+    queryKey: ['ess_leave_available', employeeId, leaveTypeId, form.start_date, endDate],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc('hr_my_leave_available', {
+        p_employee_id: employeeId, p_leave_type_id: leaveTypeId, p_start: form.start_date, p_end: endDate,
+      });
+      if (error) throw error;
+      return Number(data ?? 0);
+    },
+    enabled: !!employeeId && !!leaveTypeId && !isLop && !!form.start_date,
+  });
+  const shortBalance = !isLop && available !== undefined && workingDays > available;
+
   const submit = useMutation({
     mutationFn: async () => {
+      if (!leaveTypeId) throw new Error('Choose a leave type');
       if (!form.start_date) throw new Error('Start date is required');
       if (!form.reason.trim()) throw new Error('Please add a reason');
-      const end = form.is_half_day ? form.start_date : form.end_date || form.start_date;
+      const end = endDate;
       if (workingDays <= 0) throw new Error('Selected dates contain no working days');
+      if (shortBalance) throw new Error(`You have only ${available} day(s) of ${selectedType?.name} available. Apply for that many, and the rest as Loss of Pay.`);
 
       const { data, error } = await (supabase as any)
         .from('hr_leave_requests')
         .insert({
           employee_id: employeeId,
+          leave_type_id: leaveTypeId,
           start_date: form.start_date,
           end_date: end,
           total_days: workingDays,

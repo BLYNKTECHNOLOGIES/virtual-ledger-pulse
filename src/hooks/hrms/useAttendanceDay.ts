@@ -84,9 +84,10 @@ export function resolveDayStatus(day?: AttendanceDay | null): AttendanceDayStatu
   if (!worked) {
     if (day.is_holiday) return "holiday";
     if (day.is_week_off) return "week_off";
-    if (day.on_approved_leave) return "on_leave";
+    // Loss of Pay leave is unpaid: it reads as Absent, never as Leave.
+    if (day.on_approved_leave) return day.leave_is_paid ? "on_leave" : "absent";
   }
-  return s === "no_data" && day.on_approved_leave ? "on_leave" : s;
+  return s;
 }
 
 /** Does this day count towards attendance/LOP maths? Mirrors hr_lop_days. */

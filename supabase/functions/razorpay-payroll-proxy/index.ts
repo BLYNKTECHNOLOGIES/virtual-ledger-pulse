@@ -8042,22 +8042,77 @@ Deno.serve(async (req) => {
             data.deductions = merged;
           } catch (_) { /* merge is best-effort; the incoming envelope still applies */ }
         }
+
+        // ── Approved RazorpayX names only (catalogue mode) ─────────────────
+        // RazorpayX currently refuses any addition whose name was not created
+        // earlier on its dashboard. Every addition is therefore sent under an
+        // exact (case-sensitive) name from hr_razorpay_component_catalog; our
+        // own wording travels in `remarks`. Lines sharing a name for the same
+        // employee/month are summed — Opfin upserts by name, so a separate push
+        // would otherwise overwrite the earlier line.
+        let additionDescriptions: string[] = [];
+        if (action === "payroll_add_additions" && !allowZero) {
+          const rpEid = String(data["employee-id"]);
+          const monthStart = `${String(data["payroll-month"]).slice(0, 7)}-01`;
+          const ids: string[] = (directPayload?.readback_ids || []).map(String).filter(Boolean);
+          const { data: cat } = await svc.from("hr_razorpay_component_catalog")
+            .select("label").eq("kind", "addition").eq("is_active", true);
+          const approved = new Set((cat || []).map((c: any) => String(c.label)));
+          const lines: Array<{ name: string; amount: number; desc: string }> = [];
+          if (ids.length) {
+            const { data: rows } = await svc.from("hr_payroll_input_additions")
+              .select("id,label,amount,razorpay_label,description").in("id", ids);
+            for (const r of rows || []) {
+              if (!r.razorpay_label || !approved.has(String(r.razorpay_label))) {
+                return json(400, { ok: false, code: "RZP_LABEL_NOT_APPROVED", error: `"${r.label}" has no approved RazorpayX name. Pick one from the RazorpayX list before pushing.` });
+              }
+              lines.push({ name: String(r.razorpay_label), amount: Number(r.amount), desc: String(r.description || r.label || "") });
+            }
+          } else {
+            const incoming = Array.isArray(data.additions) ? data.additions
+              : (data.additions && typeof data.additions === "object")
+                ? Object.entries(data.additions).map(([k, v]: [string, any]) => (v && typeof v === "object" ? { label: v.name ?? k, amount: v.amount } : { label: k, amount: v }))
+                : [];
+            for (const it of incoming as any[]) {
+              const raw = String(it?.razorpay_label ?? it?.label ?? it?.name ?? "").trim();
+              let name: string | null = approved.has(raw) ? raw : null;
+              if (!name) {
+                const { data: sug } = await svc.rpc("hr_suggest_razorpay_label", { p_label: raw, p_source: null });
+                name = sug && approved.has(String(sug)) ? String(sug) : null;
+              }
+              if (!name) {
+                return json(400, { ok: false, code: "RZP_LABEL_NOT_APPROVED", error: `"${raw}" is not on the approved RazorpayX list and no matching name was found. Use one of the existing RazorpayX names.` });
+              }
+              lines.push({ name, amount: Number(it?.amount), desc: String(it?.description || raw) });
+            }
+          }
+          // Merge already-pushed lines for this employee/month that share a name.
+          const names = new Set(lines.map((l) => l.name));
+          if (names.size) {
+            const { data: pushed } = await svc.from("hr_payroll_input_additions")
+              .select("id,razorpay_label,amount,description,label")
+              .eq("razorpay_employee_id", rpEid).eq("period_month", monthStart)
+              .not("pushed_at", "is", null).in("razorpay_label", [...names]);
+            for (const p of pushed || []) {
+              if (ids.includes(String(p.id))) continue;
+              lines.push({ name: String(p.razorpay_label), amount: Number(p.amount), desc: String(p.description || p.label || "") });
+            }
+          }
+          data.additions = lines.map((l) => ({ label: l.name, amount: l.amount }));
+          additionDescriptions = lines.map((l) => `${l.desc} Rs ${Math.round(l.amount)}`);
+        }
+
         const { map, expect } = normalizePayrollModifications(data[kind], kind as any, allowZero);
 
         if (Object.keys(map).length === 0) missing.push(kind);
         if (missing.length > 0) return json(400, { ok: false, error: `Missing required payroll ${kind} field(s): ${missing.join(", ")}` });
         if (action === "payroll_add_additions") {
-          // Opfin shows the addition's own label on the payslip, so make it a
-          // clean, ASCII, human-readable reason ("Comp-off encashment 2 day(s)")
-          // instead of the raw internal string. `remarks` carries the itemised
-          // summary for the receipt/audit trail.
-          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => {
-            const clean = shortAdditionLabel(label);
-            return { ...v, name: clean, label: clean };
-          });
-          // Keep the read-back expectation aligned with what we actually sent.
-          for (const e of expect) e.label = shortAdditionLabel(e.label);
-          data.remarks = buildAdditionRemarks(expect);
+          // Documented Opfin contract: additions = [{ label, amount }]. The name
+          // is the exact approved RazorpayX name; descriptions ride in remarks.
+          data[kind] = Object.entries(map).map(([label, v]: [string, any]) => ({ label, amount: Number(v.amount) }));
+          data.remarks = additionDescriptions.length
+            ? (asciiRemark(additionDescriptions.join("; ")).slice(0, 250) || "Payroll addition")
+            : buildAdditionRemarks(expect);
         } else {
 
           // ── Net vs Gross: OUT OF RAZORPAYX API SCOPE ──────────────────────

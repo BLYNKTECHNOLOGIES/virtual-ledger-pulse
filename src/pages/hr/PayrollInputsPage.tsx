@@ -1311,6 +1311,7 @@ export default function PayrollInputsPage() {
                         {`${r.hr_employees?.first_name?.[0] ?? ""}${r.hr_employees?.last_name?.[0] ?? ""}`.toUpperCase() || "–"}
                       </span>
                       <span className={dnpAt ? "text-muted-foreground" : "font-medium"}>{`${r.hr_employees?.first_name || ""} ${r.hr_employees?.last_name || ""}`.trim()} {r.hr_employees?.badge_id ? `· ${r.hr_employees.badge_id}` : ""}</span>
+                      {r.__leaver && <Badge variant="muted">Left · final salary pending</Badge>}
                       {inactive && <Badge variant="muted">Inactive in RazorpayX</Badge>}
                       {dnpAt && <Badge variant="muted">Do-Not-Pay applied · {new Date(dnpAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</Badge>}
                     </div>

@@ -1,6 +1,8 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import '@fontsource-variable/space-grotesk'
+import '@fontsource-variable/dm-sans'
 import { installStorageLinkInterceptor } from '@/lib/storage-link-interceptor'
 
 installStorageLinkInterceptor();

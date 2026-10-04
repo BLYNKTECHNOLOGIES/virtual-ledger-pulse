@@ -291,19 +291,27 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
       if (v != null && v !== 0) extras.push({ label: h, amount: v });
     });
     row.reg_extra_earnings = extras;
-    if (row.reg_gross_salary != null) {
-      const sum =
-        EARNING_KEYS.reduce((a, k) => a + (Number(row[k] ?? 0) || 0), 0) +
-        extras.reduce((a, e) => a + (e.amount > 0 ? e.amount : 0), 0);
-      row.gross_tieout_diff = Math.round((sum - row.reg_gross_salary) * 100) / 100;
+    // Positional tie-outs, format-agnostic: earnings are every numeric column
+    // between "ESI Number" and "Gross Salary"; deductions are every numeric
+    // column between "Gross Salary" and "Net Pay". This survives RazorpayX
+    // renaming heads or adding new ones (Security Deposit, Gross pay
+    // deduction, Gratuity, Already-Paid columns, …).
+    const sumRange = (from: number, to: number) => {
+      let s = 0;
+      for (let i = from + 1; i < to; i++) { const v = toNum(raw[i] ?? ""); if (v != null) s += v; }
+      return s;
+    };
+    if (row.reg_gross_salary != null && iEsiNum >= 0 && iGross > iEsiNum) {
+      const earn = sumRange(iEsiNum, iGross);
+      // Old registers fold employer PF/ESI into Gross; the new format does not.
+      const er = (Number(row.reg_employer_pf_contr ?? 0) || 0) + (Number(row.reg_employer_esi_contr ?? 0) || 0);
+      const dExcl = earn - row.reg_gross_salary;
+      const dIncl = earn + er - row.reg_gross_salary;
+      row.gross_tieout_diff = Math.round((Math.abs(dExcl) <= Math.abs(dIncl) ? dExcl : dIncl) * 100) / 100;
     }
-    // Net tie-out: RazorpayX gross is CTC-inclusive, so Net = Gross − every
-    // deduction incl. employer PF/ESI (which sit inside gross) and any negative
-    // One-time Payment recovery. Employer LWF sits OUTSIDE gross and is excluded.
-    if (row.reg_gross_salary != null && row.reg_net_pay != null) {
-      const ded = DEDUCTION_KEYS.reduce((a, k) => a + Math.abs(Number(row[k] ?? 0) || 0), 0) +
-        Math.max(-(Number(row.reg_one_time_payments ?? 0) || 0), 0);
-      row.net_tieout_diff = Math.round((row.reg_gross_salary - ded - row.reg_net_pay) * 100) / 100;
+    if (row.reg_gross_salary != null && row.reg_net_pay != null && iGross >= 0 && iNet > iGross) {
+      const ded = sumRange(iGross, iNet); // deductions are negative in the file
+      row.net_tieout_diff = Math.round((row.reg_gross_salary + ded - row.reg_net_pay) * 100) / 100;
     }
   });
 

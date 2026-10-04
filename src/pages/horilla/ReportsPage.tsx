@@ -110,7 +110,7 @@ export default function ReportsPage() {
   // attendance, payroll cost, attrition, exports) per owner instruction. The
   // dropped ids travel with the roster so payslip rows — which are fetched
   // independently — are filtered by the very same rule.
-  const { employees, excludedEmployeeIds } = useMemo(
+  const { kept: employees, excludedIds: excludedEmployeeIds } = useMemo(
     () => splitOwnerStats(allEmployees as any[]),
     [allEmployees],
   );

@@ -323,8 +323,16 @@ Deno.serve(async (req) => {
           Math.max(num(p.reg_esi_er), num(p.reg_employer_esi_contr)) +
           num(p.reg_lwf_er)
         : 0
+      // Older registers fold employer PF/ESI into Gross; newer ones don't.
+      // Only carve employer cost out when the row's Gross actually contains it,
+      // i.e. Gross − employer − Net still covers the employee's own statutory.
+      const eeStatutory = hasReg ? num(p.reg_pf_ee) + num(p.reg_esi_ee) + num(p.reg_pt) : 0
+      const regGrossRaw = Number(p.reg_gross_salary) || 0
+      const regNetRaw = Number(p.reg_net_pay) || 0
+      const grossIncludesEr = hasReg && employer_contrib > 0 &&
+        (regGrossRaw - employer_contrib - regNetRaw) >= eeStatutory - TIE_OUT_TOLERANCE
       const gross = hasReg
-        ? Number(p.reg_gross_salary) - employer_contrib
+        ? regGrossRaw - (grossIncludesEr ? employer_contrib : 0)
         : Number(p.gross_earnings) || 0
       const net = Number(hasReg ? p.reg_net_pay : p.net_pay) || 0
       // One-time payouts are added to gross and reversed in the same run because
@@ -453,7 +461,11 @@ Deno.serve(async (req) => {
       //      this person in the disbursed run (the PDF pack is generated only
       //      for employees actually paid in that month's run)
       let not_processed_reason: string | null = null
-      if (p.do_not_pay) not_processed_reason = 'Marked do-not-pay in RazorpayX'
+      // RazorpayX's view-payroll returns do-not-pay=true for everyone once a
+      // month is executed/closed, so the flag only withholds when there is no
+      // imported Salary Register row proving this person was paid.
+      const paidPerRegister = hasReg && Number(p.reg_net_pay) > 0 && !p.reg_has_left
+      if (p.do_not_pay && !paidPerRegister) not_processed_reason = 'Marked do-not-pay in RazorpayX'
       else if (p.reg_has_left) not_processed_reason = 'Employee has left / relieved'
       // An employee who separated mid-month is still paid for the days worked in
       // that month, so "inactive today" alone must not withhold their payslip.

@@ -1391,6 +1391,68 @@ Deno.serve(async (req) => {
       return json(200, { ok: true, base_url_active: BASE, is_sandbox: BASE !== BASE_DEFAULT });
     }
 
+    // ---------- bulk_sheet_readback ----------
+    // Lines uploaded through RazorpayX's bulk Excel never pass through our push
+    // calls, so they get the same proof a normal push gets: read each person's
+    // live run (view-payroll) and stamp readback_verified_at only when the run's
+    // addition total and deduction total equal everything HRMS has pushed.
+    if (action === "bulk_sheet_readback") {
+      const pm = String(payload?.period_month || "").slice(0, 7);
+      if (!/^\d{4}-\d{2}$/.test(pm)) return json(400, { error: "period_month must be YYYY-MM" });
+      const period = `${pm}-01`;
+      const [{ data: adds }, { data: deds }, { data: maps }] = await Promise.all([
+        svc.from("hr_payroll_input_additions").select("id,hr_employee_id,razorpay_employee_id,amount,pushed_at,push_channel,readback_verified_at").eq("period_month", period).not("pushed_at", "is", null),
+        svc.from("hr_payroll_input_deductions").select("id,hr_employee_id,razorpay_employee_id,amount,pushed_at,push_channel,readback_verified_at").eq("period_month", period).not("pushed_at", "is", null),
+        svc.from("hr_razorpay_employee_map").select("hr_employee_id,razorpay_employee_id,last_pull_snapshot"),
+      ]);
+      const mapBy = new Map((maps ?? []).map((m: any) => [m.hr_employee_id, m]));
+      const people = new Map<string, { adds: any[]; deds: any[] }>();
+      for (const r of adds ?? []) { const p = people.get(r.hr_employee_id) ?? { adds: [], deds: [] }; p.adds.push(r); people.set(r.hr_employee_id, p); }
+      for (const r of deds ?? []) { const p = people.get(r.hr_employee_id) ?? { adds: [], deds: [] }; p.deds.push(r); people.set(r.hr_employee_id, p); }
+      const results: any[] = [];
+      const sumOf = (v: any): number => {
+        if (v == null) return 0;
+        if (typeof v === "number" || typeof v === "string") return Number(v) || 0;
+        const items = Array.isArray(v) ? v : Object.values(v);
+        return items.reduce((s: number, x: any) => s + (x && typeof x === "object" ? Number(x.amount ?? x.value ?? 0) : Number(x) || 0), 0);
+      };
+      for (const [hrId, p] of people) {
+        const pending = [...p.adds, ...p.deds].some((r) => r.push_channel === "bulk_sheet" && !r.readback_verified_at);
+        if (!pending) continue;
+        const m: any = mapBy.get(hrId);
+        const rpId = m?.razorpay_employee_id ?? p.adds[0]?.razorpay_employee_id ?? p.deds[0]?.razorpay_employee_id;
+        const email = String(m?.last_pull_snapshot?.email ?? "").trim();
+        const res = await fetch(`${BASE}/payroll`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify({ auth: authBlock(), request: { type: "payroll", "sub-type": "view-payroll" },
+            data: email ? { email, "payroll-month": pm } : { "employee-id": Number(rpId), "payroll-month": pm, "employee-type": "employee" } }),
+        }).catch(() => null);
+        const body: any = res ? await res.json().catch(() => null) : null;
+        const err = !res || !res.ok ? "RazorpayX could not be read" : (body?.error || (body?.code === 0 && body?.message) || null);
+        const expAdd = Math.round(p.adds.reduce((s, r) => s + Number(r.amount || 0), 0));
+        const expDed = Math.round(p.deds.reduce((s, r) => s + Number(r.amount || 0), 0));
+        const runAdd = Math.round(sumOf(body?.additions ?? body?.addition));
+        const runDedRaw = body?.["deduction-amount"] ?? null;
+        const runDed = Math.round(runDedRaw != null ? Number(runDedRaw) : sumOf(body?.deductions ?? body?.deduction));
+        const addOk = !p.adds.length || Math.abs(runAdd - expAdd) < 1;
+        const dedOk = !p.deds.length || Math.abs(runDed - expDed) < 1;
+        const receipt = { endpoint: "payroll:view-payroll", channel: "bulk_sheet", payroll_month: pm, read_ok: !err,
+          expected_additions: expAdd, run_additions: runAdd, expected_deductions: expDed, run_deductions: runDed,
+          found_additions: body?.additions ?? null, found_deductions: body?.deductions ?? null, error: err };
+        const now = new Date().toISOString();
+        const bulkAdds = p.adds.filter((r) => r.push_channel === "bulk_sheet").map((r) => r.id);
+        const bulkDeds = p.deds.filter((r) => r.push_channel === "bulk_sheet").map((r) => r.id);
+        if (bulkAdds.length) await svc.from("hr_payroll_input_additions").update({ readback_verified_at: !err && addOk ? now : null, readback_diff: receipt }).in("id", bulkAdds);
+        if (bulkDeds.length) await svc.from("hr_payroll_input_deductions").update({ readback_verified_at: !err && dedOk ? now : null, readback_diff: receipt }).in("id", bulkDeds);
+        results.push({ hr_employee_id: hrId, razorpay_employee_id: rpId, ok: !err && addOk && dedOk, ...receipt });
+      }
+      await logSync(svc, { action: "payroll_view_payroll" as any, http_status: 200, razorpay_employee_id: null, hr_employee_id: null,
+        field_diff_summary: { kind: "bulk_sheet_readback", period_month: pm, people: results.length, verified: results.filter((r) => r.ok).length },
+        error_text: null, actor_user_id: authed.userId });
+      return json(200, { ok: true, period_month: pm, checked: results.length, verified: results.filter((r) => r.ok).length, results });
+    }
+
     // ---------- probe_v2_bulk_upload (read-only capability probe) ----------
     if (action === "probe_v2_bulk_upload") {
       if (!KEY_ID || !KEY_SECRET) return json(500, { error: "missing creds" });

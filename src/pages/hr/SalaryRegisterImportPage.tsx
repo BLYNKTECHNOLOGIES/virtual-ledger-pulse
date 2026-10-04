@@ -175,7 +175,7 @@ export function parseRows(text: string): { header: string[]; rows: ParsedRow[]; 
   };
   // Optional heads: RazorpayX only emits these when the company uses them.
   const OPTIONAL_COLS = new Set([
-    "LWF(EE)", "LWF(ER)", "Overtime", "Refund Of Security Deposit",
+    "LWF(EE)", "LWF(ER)", "ESI(ER)", "PF(ER)", "Overtime", "Refund Of Security Deposit",
     "Performance Linked Incentive", "DA", "LTA", "Personal Phone Number",
     "Personal Email Address", "Relieving Date", "One-time Payments",
   ]);

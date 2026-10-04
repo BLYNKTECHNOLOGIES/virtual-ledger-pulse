@@ -1435,8 +1435,23 @@ Deno.serve(async (req) => {
         const runAdd = Math.round(sumOf(body?.additions ?? body?.addition));
         const runDedRaw = body?.["deduction-amount"] ?? null;
         const runDed = Math.round(runDedRaw != null ? Number(runDedRaw) : sumOf(body?.deductions ?? body?.deduction));
-        const addOk = !p.adds.length || Math.abs(runAdd - expAdd) < 1;
-        const dedOk = !p.deds.length || Math.abs(runDed - expDed) < 1;
+        // RazorpayX runs can also hold items HR entered there directly (its own loan EMIs,
+        // "already paid" reimbursements). HRMS lines are proven present when some set of the
+        // run's items adds up exactly to what HRMS sent; the rest are reported as extras.
+        const amounts = (v: any): number[] => (v == null || typeof v !== "object" ? [] : (Array.isArray(v) ? v : Object.values(v)))
+          .map((x: any) => Math.round(Number(x && typeof x === "object" ? (x.amount ?? x.value ?? 0) : x) || 0)).filter((n) => n > 0);
+        const subsetHits = (items: number[], target: number) => {
+          if (items.length > 18) return false;
+          for (let mask = 0; mask < (1 << items.length); mask++) {
+            let t = 0; for (let i = 0; i < items.length; i++) if (mask & (1 << i)) t += items[i];
+            if (Math.abs(t - target) < 1) return true;
+          }
+          return false;
+        };
+        const addItems = amounts(body?.additions ?? body?.addition);
+        const dedItems = amounts(body?.deductions ?? body?.deduction);
+        const addOk = !p.adds.length || Math.abs(runAdd - expAdd) < 1 || subsetHits(addItems, expAdd);
+        const dedOk = !p.deds.length || Math.abs(runDed - expDed) < 1 || subsetHits(dedItems, expDed);
         const receipt = { endpoint: "payroll:view-payroll", channel: "bulk_sheet", payroll_month: pm, read_ok: !err,
           expected_additions: expAdd, run_additions: runAdd, expected_deductions: expDed, run_deductions: runDed,
           found_additions: body?.additions ?? null, found_deductions: body?.deductions ?? null, error: err };

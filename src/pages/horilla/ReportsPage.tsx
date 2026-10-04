@@ -1,886 +1,196 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { fetchAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
 import { splitOwnerStats } from "@/lib/ownerStatsExclusion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
-} from "recharts";
-import { Users, CalendarDays, Wallet, Clock, Download, TrendingUp, UserMinus, AlertTriangle } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, CircleDollarSign, Download, Info, Landmark, Minus, Users, Wallet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
+import { SectionHeader } from "@/components/hrms/primitives/SectionHeader";
 import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollBreakdownDialog";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-const COLORS = [
-  "hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))",
-  "hsl(var(--info))", "hsl(var(--accent-foreground))", "hsl(var(--muted-foreground))", "hsl(var(--secondary-foreground))",
-];
+const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--info))", "hsl(var(--muted-foreground))"];
+const PAID_LEAVE_STATUSES = new Set(["approved", "manager_approved"]);
+const PENDING_LEAVE_STATUSES = new Set(["requested", "pending"]);
+const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString("en-IN")}`;
+const pct = (n: number) => `${Number.isFinite(n) ? n.toFixed(1) : "0.0"}%`;
+const monthLabel = (iso: string) => new Date(`${iso.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+const currentMonth = () => { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`; };
+const lastDayOfMonth = (month: string) => { const [year, number] = month.split("-").map(Number); return `${month}-${String(new Date(year, number, 0).getDate()).padStart(2, "0")}`; };
+const shiftMonth = (month: string, offset: number) => { const [year, number] = month.split("-").map(Number); const date = new Date(year, number - 1 + offset, 1); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`; };
+const signedPct = (value: number | null) => value == null ? "No comparison" : `${value >= 0 ? "+" : ""}${value.toFixed(1)}% vs previous`;
 
-const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
-const monthLabel = (iso: string) =>
-  new Date(`${iso.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
+type PayrollMonth = { key: string; month: string; gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number; paidIds: Set<string>; withRegister: number; esiCovered: number };
 
-const currentMonth = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-};
+function MetricCard({ label, value, helper, icon: Icon, tone = "primary" }: { label: string; value: ReactNode; helper: ReactNode; icon: typeof Users; tone?: "primary" | "success" | "warning" | "destructive" }) {
+  const tones = { primary: "bg-primary/10 text-primary", success: "bg-success/10 text-success", warning: "bg-warning/10 text-warning", destructive: "bg-destructive/10 text-destructive" };
+  return <Card><CardContent className="flex h-full flex-col justify-between gap-4 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><p className="text-xs font-semibold text-muted-foreground">{label}</p><span className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${tones[tone]}`}><Icon className="h-4 w-4" /></span></div><p className="text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">{value}</p><div className="text-xs leading-snug text-muted-foreground">{helper}</div></CardContent></Card>;
+}
 
+function Delta({ value, invert = false }: { value: number | null; invert?: boolean }) {
+  if (value == null || Math.abs(value) < 0.05) return <span className="inline-flex items-center gap-1"><Minus className="h-3 w-3" />{value == null ? "No comparison" : "No change"}</span>;
+  const good = invert ? value < 0 : value > 0;
+  const Icon = value > 0 ? ArrowUpRight : ArrowDownRight;
+  return <span className={`inline-flex items-center gap-1 font-medium ${good ? "text-success" : "text-destructive"}`}><Icon className="h-3 w-3" />{signedPct(value)}</span>;
+}
 
-const lastDayOfMonth = (month: string) => {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const day = new Date(year, monthNumber, 0).getDate();
-  return `${month}-${String(day).padStart(2, "0")}`;
-};
+function InsightItem({ label, value, note, tone = "default" }: { label: string; value: ReactNode; note: string; tone?: "default" | "warning" | "danger" }) {
+  return <div className="min-w-0 border-l-2 border-border pl-3"><p className="text-[11px] font-semibold text-muted-foreground">{label}</p><p className={`mt-0.5 text-sm font-semibold tabular-nums ${tone === "danger" ? "text-destructive" : tone === "warning" ? "text-warning" : "text-foreground"}`}>{value}</p><p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{note}</p></div>;
+}
 
-const shiftMonth = (month: string, offset: number) => {
-  const [year, monthNumber] = month.split("-").map(Number);
-  const shifted = new Date(year, monthNumber - 1 + offset, 1);
-  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}`;
-};
-
-/** Small provenance footnote so every number on this page is traceable. */
-const Source = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-[10px] text-muted-foreground mt-2">Source: {children}</p>
-);
+function RankedBar({ label, value, max, suffix, detail }: { label: string; value: number; max: number; suffix?: string; detail?: string }) {
+  return <div className="space-y-1.5"><div className="flex items-center justify-between gap-3 text-xs"><span className="min-w-0 truncate font-medium text-foreground">{label}</span><span className="shrink-0 tabular-nums text-muted-foreground">{value.toLocaleString("en-IN")}{suffix}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${max ? Math.max(2, value / max * 100) : 0}%` }} /></div>{detail && <p className="text-[10px] text-muted-foreground">{detail}</p>}</div>;
+}
 
 export default function ReportsPage() {
   const [periodMode, setPeriodMode] = useState<"month" | "range">("month");
-  const [monthFrom, setMonthFrom] = useState(() => currentMonth());
-  const [monthTo, setMonthTo] = useState(() => currentMonth());
+  const [monthFrom, setMonthFrom] = useState(currentMonth);
+  const [monthTo, setMonthTo] = useState(currentMonth);
+  const [defaultsApplied, setDefaultsApplied] = useState(false);
+  const [drillMonth, setDrillMonth] = useState<string | null>(null);
   const dateFrom = `${monthFrom}-01`;
   const dateTo = lastDayOfMonth(periodMode === "month" ? monthFrom : monthTo);
-  const [drillMonth, setDrillMonth] = useState<string | null>(null);
-  const [attentionOpen, setAttentionOpen] = useState(false);
 
-  // Default view = the last month for which payroll has actually been
-  // processed (latest month present in the RazorpayX payslip mirror).
-  const [periodDefaultsApplied, setPeriodDefaultsApplied] = useState(false);
-  const { data: latestProcessedMonth } = useQuery({
-    queryKey: ["rpt_latest_processed_month"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("hr_payslips_v")
-        .select("period_month")
-        .order("period_month", { ascending: false })
-        .limit(1);
-      return (data?.[0]?.period_month as string | undefined)?.slice(0, 7) ?? null;
-    },
-    staleTime: 60_000,
-  });
-  useEffect(() => {
-    // Apply once, and never override a selector the user has already touched.
-    if (periodDefaultsApplied || !latestProcessedMonth) return;
-    setPeriodDefaultsApplied(true);
-    setPeriodMode("month");
-    setMonthFrom(latestProcessedMonth);
-    setMonthTo(latestProcessedMonth);
-  }, [periodDefaultsApplied, latestProcessedMonth]);
-
-  const selectSingleMonth = (month: string) => {
-    setMonthFrom(month);
-    setMonthTo(month);
-  };
-
-  const selectRangeStart = (month: string) => {
-    setMonthFrom(month);
-    if (month > monthTo) setMonthTo(month);
-  };
-
-  const selectRangeEnd = (month: string) => {
-    setMonthTo(month);
-    if (month < monthFrom) setMonthFrom(month);
-  };
-
-  // ─── Sources of truth ───
-  // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).
-  const { data: allEmployees = [] } = useQuery({
-    queryKey: ["rpt_employees"],
-    queryFn: async () => await fetchAllPaginated<any>(() =>
-      supabase.from("hr_employees").select("id, badge_id, first_name, last_name, is_active, created_at, total_salary, resignation_date, last_working_day")),
-  });
-  // Owners/directors are excluded from every statistic on this page (headcount,
-  // attendance, payroll cost, attrition, exports) per owner instruction. The
-  // dropped ids travel with the roster so payslip rows — which are fetched
-  // independently — are filtered by the very same rule.
-  const { kept: employees, excludedIds: excludedEmployeeIds } = useMemo(
-    () => splitOwnerStats(allEmployees as any[]),
-    [allEmployees],
-  );
-  const { data: workInfos = [] } = useQuery({
-    queryKey: ["rpt_work_infos"],
-    queryFn: async () => await fetchAllPaginated<any>(() =>
-      supabase.from("hr_employee_work_info").select("employee_id, employee_type, department_id, joining_date, job_position_id")),
-  });
-  const { data: departments = [] } = useQuery({
-    queryKey: ["rpt_departments"],
-    queryFn: async () => { const { data } = await supabase.from("departments").select("id, name"); return data || []; },
-  });
-  const { data: leaveRequests = [] } = useQuery({
-    queryKey: ["rpt_leaves"],
-    queryFn: async () => await fetchAllPaginated<any>(() =>
-      supabase.from("hr_leave_requests").select("id, employee_id, status, total_days, leave_type_id, start_date, created_at")),
-  });
-  const { data: leaveTypes = [] } = useQuery({
-    queryKey: ["rpt_leave_types"],
-    queryFn: async () => { const { data } = await supabase.from("hr_leave_types").select("id, name"); return data || []; },
-  });
-  // Payroll truth = RazorpayX-mirrored payslips (hr_payslips_v), NOT hr_payroll_runs (empty).
-  const { data: payslips = [] } = useQuery({
-    queryKey: ["rpt_payslips", dateFrom, dateTo],
-    // Filter/period changes keep the previous rows on screen instead of
-    // collapsing to a skeleton; the new data swaps in when it truly lands.
-    placeholderData: keepPreviousData,
-    queryFn: async () => await fetchAllPaginated<any>(() => (supabase as any)
-      .from("hr_payslips_v")
-      .select("employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib, register_source")
-      .gte("period_month", dateFrom.slice(0, 8) + "01")
-      .lte("period_month", dateTo)),
-  });
-  // Attendance truth = canonical day view, shared with the calendars.
-  const { data: attendance = [] } = useQuery({
-    queryKey: ["rpt_attendance_day_v", dateFrom, dateTo, employees.map(e => e.id).join(",")],
-    enabled: employees.length > 0,
-    // Filter/period changes keep the previous rows on screen instead of
-    // collapsing to a skeleton; the new data swaps in when it truly lands.
-    placeholderData: keepPreviousData,
-    queryFn: async () => (await fetchAttendanceDayRange(employees.map(e => e.id), dateFrom, dateTo))
-      .filter(d => d.evidence_backed)
-      .map(d => ({ ...d, attendance_date: d.date, late_by_minutes: d.late_minutes,
-        early_departure: d.early_minutes > 0, net_work_minutes: d.worked_minutes })),
-  });
-  // Same-length window immediately before the range, for period-over-period deltas.
   const prevWindow = useMemo(() => {
-    const [fromYear, fromMonthNumber] = monthFrom.split("-").map(Number);
-    const [toYear, toMonthNumber] = (periodMode === "month" ? monthFrom : monthTo).split("-").map(Number);
-    const monthCount = Math.max(1, (toYear - fromYear) * 12 + toMonthNumber - fromMonthNumber + 1);
-    const previousToMonth = shiftMonth(monthFrom, -1);
-    const previousFromMonth = shiftMonth(monthFrom, -monthCount);
-    return { from: `${previousFromMonth}-01`, to: lastDayOfMonth(previousToMonth) };
-  }, [periodMode, monthFrom, monthTo]);
-  const { data: prevAttendance = [] } = useQuery({
-    queryKey: ["rpt_attendance_prev_v", prevWindow.from, prevWindow.to, employees.map(e => e.id).join(",")],
-    enabled: employees.length > 0,
-    // Filter/period changes keep the previous rows on screen instead of
-    // collapsing to a skeleton; the new data swaps in when it truly lands.
-    placeholderData: keepPreviousData,
-    queryFn: async () => (await fetchAttendanceDayRange(employees.map(e => e.id), prevWindow.from, prevWindow.to))
-      .filter(d => d.evidence_backed),
-  });
+    const [fy, fm] = monthFrom.split("-").map(Number);
+    const [ty, tm] = (periodMode === "month" ? monthFrom : monthTo).split("-").map(Number);
+    const count = Math.max(1, (ty - fy) * 12 + tm - fm + 1);
+    const toMonth = shiftMonth(monthFrom, -1);
+    const fromMonth = shiftMonth(monthFrom, -count);
+    return { from: `${fromMonth}-01`, to: lastDayOfMonth(toMonth) };
+  }, [monthFrom, monthTo, periodMode]);
 
-  // ─── Lookups ───
+  const { data: latestProcessedMonth } = useQuery({ queryKey: ["rpt_latest_processed_month"], queryFn: async () => { const { data } = await supabase.from("hr_payslips_v").select("period_month").order("period_month", { ascending: false }).limit(1); return (data?.[0]?.period_month as string | undefined)?.slice(0, 7) ?? null; }, staleTime: 60_000 });
+  useEffect(() => { if (defaultsApplied || !latestProcessedMonth) return; setDefaultsApplied(true); setPeriodMode("month"); setMonthFrom(latestProcessedMonth); setMonthTo(latestProcessedMonth); }, [defaultsApplied, latestProcessedMonth]);
+
+  const { data: allEmployees = [] } = useQuery({ queryKey: ["rpt_employees"], queryFn: () => fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, badge_id, first_name, last_name, is_active, total_salary, resignation_date, last_working_day")) });
+  const { kept: employees, excludedIds: excludedEmployeeIds } = useMemo(() => splitOwnerStats(allEmployees), [allEmployees]);
+  const employeeIds = useMemo(() => employees.map((employee: any) => employee.id), [employees]);
+  const employeeKey = employeeIds.join(",");
+  const { data: workInfos = [] } = useQuery({ queryKey: ["rpt_work_infos"], queryFn: () => fetchAllPaginated<any>(() => supabase.from("hr_employee_work_info").select("employee_id, employee_type, department_id, joining_date, job_position_id")) });
+  const { data: departments = [] } = useQuery({ queryKey: ["rpt_departments"], queryFn: async () => { const { data } = await supabase.from("departments").select("id, name"); return data || []; } });
+  const { data: leaveRequests = [] } = useQuery({ queryKey: ["rpt_leaves"], queryFn: () => fetchAllPaginated<any>(() => supabase.from("hr_leave_requests").select("id, employee_id, status, total_days, leave_type_id, start_date, end_date, created_at")) });
+  const { data: leaveTypes = [] } = useQuery({ queryKey: ["rpt_leave_types"], queryFn: async () => { const { data } = await supabase.from("hr_leave_types").select("id, name"); return data || []; } });
+
+  const payrollSelect = "employee_id, period_month, gross, regular_gross, net, total_deductions, tds_amount, pf_amount, esi_amount, professional_tax, employer_contrib, register_source";
+  const { data: payslips = [] } = useQuery({ queryKey: ["rpt_payslips", dateFrom, dateTo], placeholderData: keepPreviousData, queryFn: () => fetchAllPaginated<any>(() => (supabase as any).from("hr_payslips_v").select(payrollSelect).gte("period_month", dateFrom).lte("period_month", dateTo)) });
+  const { data: previousPayslips = [] } = useQuery({ queryKey: ["rpt_payslips_previous", prevWindow.from, prevWindow.to], placeholderData: keepPreviousData, queryFn: () => fetchAllPaginated<any>(() => (supabase as any).from("hr_payslips_v").select(payrollSelect).gte("period_month", prevWindow.from).lte("period_month", prevWindow.to)) });
+  const { data: attendance = [] } = useQuery({ queryKey: ["rpt_availability", dateFrom, dateTo, employeeKey], enabled: employeeIds.length > 0, placeholderData: keepPreviousData, queryFn: async () => (await fetchAttendanceDayRange(employeeIds, dateFrom, dateTo)).filter(day => day.evidence_backed) });
+  const { data: prevAttendance = [] } = useQuery({ queryKey: ["rpt_availability_previous", prevWindow.from, prevWindow.to, employeeKey], enabled: employeeIds.length > 0, placeholderData: keepPreviousData, queryFn: async () => (await fetchAttendanceDayRange(employeeIds, prevWindow.from, prevWindow.to)).filter(day => day.evidence_backed) });
+
   const empById = useMemo(() => new Map(employees.map((e: any) => [e.id, e])), [employees]);
   const wiByEmp = useMemo(() => new Map(workInfos.map((w: any) => [w.employee_id, w])), [workInfos]);
   const deptById = useMemo(() => new Map(departments.map((d: any) => [d.id, d.name])), [departments]);
-  const empName = (id: string) => {
-    const e: any = empById.get(id);
-    return e ? `${e.first_name || ""} ${e.last_name || ""}`.trim() || e.badge_id || id : id;
+  const empName = (id: string) => { const employee: any = empById.get(id); return employee ? `${employee.first_name || ""} ${employee.last_name || ""}`.trim() || employee.badge_id || id : id; };
+  const deptOf = (id: string) => deptById.get(wiByEmp.get(id)?.department_id) || "Unassigned";
+  const exitDateOf = (employee: any) => employee.last_working_day || employee.resignation_date || null;
+  const inRange = (date?: string | null) => !!date && date.slice(0, 10) >= dateFrom && date.slice(0, 10) <= dateTo;
+
+  const filteredPayroll = useMemo(() => payslips.filter((p: any) => !excludedEmployeeIds.has(p.employee_id)), [payslips, excludedEmployeeIds]);
+  const filteredPreviousPayroll = useMemo(() => previousPayslips.filter((p: any) => !excludedEmployeeIds.has(p.employee_id)), [previousPayslips, excludedEmployeeIds]);
+  const aggregatePayroll = (rows: any[]): PayrollMonth[] => {
+    const months: Record<string, PayrollMonth> = {};
+    rows.forEach((p: any) => { const key = String(p.period_month).slice(0, 7); const row = months[key] || (months[key] = { key, month: monthLabel(key), gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0, paidIds: new Set(), withRegister: 0, esiCovered: 0 }); row.gross += Number(p.gross || 0); row.net += Number(p.net || 0); row.deductions += Math.abs(Number(p.total_deductions || 0)); row.tds += Math.abs(Number(p.tds_amount || 0)); row.pf += Math.abs(Number(p.pf_amount || 0)); row.esi += Math.abs(Number(p.esi_amount || 0)); row.pt += Math.abs(Number(p.professional_tax || 0)); row.er += Number(p.employer_contrib || 0); row.count++; row.paidIds.add(p.employee_id); if (p.register_source) row.withRegister++; if (Math.abs(Number(p.esi_amount || 0)) > 0) row.esiCovered++; });
+    return Object.values(months).sort((a, b) => a.key.localeCompare(b.key));
   };
-  const deptOf = (empId: string) => deptById.get(wiByEmp.get(empId)?.department_id) || "Unassigned";
+  const payrollMonths = useMemo(() => aggregatePayroll(filteredPayroll), [filteredPayroll]);
+  const previousPayrollMonths = useMemo(() => aggregatePayroll(filteredPreviousPayroll), [filteredPreviousPayroll]);
+  const sumPayroll = (rows: PayrollMonth[]) => rows.reduce((sum, row) => ({ gross: sum.gross + row.gross, net: sum.net + row.net, deductions: sum.deductions + row.deductions, er: sum.er + row.er, pf: sum.pf + row.pf, esi: sum.esi + row.esi, pt: sum.pt + row.pt, tds: sum.tds + row.tds }), { gross: 0, net: 0, deductions: 0, er: 0, pf: 0, esi: 0, pt: 0, tds: 0 });
+  const payroll = useMemo(() => sumPayroll(payrollMonths), [payrollMonths]);
+  const previousPayroll = useMemo(() => sumPayroll(previousPayrollMonths), [previousPayrollMonths]);
+  const employerCost = payroll.gross + payroll.er;
+  const previousEmployerCost = previousPayroll.gross + previousPayroll.er;
+  const payrollDelta = previousEmployerCost ? (employerCost - previousEmployerCost) / previousEmployerCost * 100 : null;
+  const paidEmployees = useMemo(() => new Set(filteredPayroll.map((row: any) => row.employee_id)).size, [filteredPayroll]);
+  const costPerPaidEmployee = paidEmployees ? employerCost / paidEmployees : 0;
+  const registerRows = payrollMonths.reduce((sum, row) => sum + row.withRegister, 0);
+  const registerCoverage = filteredPayroll.length ? registerRows / filteredPayroll.length * 100 : 0;
 
-  const inRange = (d?: string | null) => !!d && d.slice(0, 10) >= dateFrom && d.slice(0, 10) <= dateTo;
-  const exitDateOf = (e: any) => e.last_working_day || e.resignation_date || null;
-
-  // ─── Roster / headcount ───
-  const activeCount = employees.filter((e: any) => e.is_active).length;
+  const openingHeadcount = useMemo(() => employees.filter((e: any) => { const joined = wiByEmp.get(e.id)?.joining_date; const exit = exitDateOf(e); return joined && joined < dateFrom && (!exit || exit >= dateFrom); }).length, [employees, wiByEmp, dateFrom]);
+  const joinsInRange = useMemo(() => workInfos.filter((w: any) => empById.has(w.employee_id) && inRange(w.joining_date)), [workInfos, empById, dateFrom, dateTo]);
   const exitsInRange = useMemo(() => employees.filter((e: any) => inRange(exitDateOf(e))), [employees, dateFrom, dateTo]);
+  const closingHeadcount = openingHeadcount + joinsInRange.length - exitsInRange.length;
+  const activeCount = employees.filter((employee: any) => employee.is_active).length;
+  const averageHeadcount = Math.max(0, (openingHeadcount + closingHeadcount) / 2);
+  const monthSpan = Math.max(1, ((Number((periodMode === "month" ? monthFrom : monthTo).slice(0, 4)) - Number(monthFrom.slice(0, 4))) * 12) + Number((periodMode === "month" ? monthFrom : monthTo).slice(5, 7)) - Number(monthFrom.slice(5, 7)) + 1);
+  const attritionRate = averageHeadcount ? exitsInRange.length / averageHeadcount * (12 / monthSpan) * 100 : 0;
 
-  const newHires = useMemo(() => {
-    const m: Record<string, number> = {};
-    workInfos.forEach((w: any) => { if (inRange(w.joining_date)) { const k = w.joining_date.slice(0, 7); m[k] = (m[k] || 0) + 1; } });
-    return Object.entries(m).sort().map(([k, count]) => ({ month: monthLabel(k), count }));
-  }, [workInfos, dateFrom, dateTo]);
+  const availability = (rows: any[]) => { let present = 0, half = 0, absent = 0, incomplete = 0, minutes = 0, worked = 0; rows.forEach((row: any) => { if (row.status === "present") present++; else if (row.status === "half_day") half++; else if (row.status === "absent") absent++; else if (row.status === "incomplete") incomplete++; const value = Number(row.worked_minutes || 0); if (value > 0) { minutes += value; worked++; } }); const marked = present + half + absent + incomplete; const equivalentWorked = present + half * 0.5 + incomplete * 0.5; return { marked, rate: marked ? equivalentWorked / marked * 100 : 0, lost: marked - equivalentWorked, averageHours: worked ? minutes / worked / 60 : 0 }; };
+  const availabilityNow = useMemo(() => availability(attendance), [attendance]);
+  const availabilityPrevious = useMemo(() => availability(prevAttendance), [prevAttendance]);
+  const availabilityDelta = availabilityPrevious.marked ? availabilityNow.rate - availabilityPrevious.rate : null;
 
-  const headcountTrend = useMemo(() => {
-    if (!employees.length) return [];
-    // Baseline: everyone who joined before the range and had not exited before it.
-    let running = employees.filter((e: any) => {
-      const j = wiByEmp.get(e.id)?.joining_date;
-      const x = exitDateOf(e);
-      return j && j < dateFrom && (!x || x >= dateFrom);
-    }).length;
-    const events: Record<string, number> = {};
-    workInfos.forEach((w: any) => { if (inRange(w.joining_date)) { const k = w.joining_date.slice(0, 7); events[k] = (events[k] || 0) + 1; } });
-    employees.forEach((e: any) => { const x = exitDateOf(e); if (inRange(x)) { const k = x.slice(0, 7); events[k] = (events[k] || 0) - 1; } });
-    return Object.keys(events).sort().map((k) => { running += events[k]; return { month: monthLabel(k), total: running }; });
-  }, [employees, workInfos, wiByEmp, dateFrom, dateTo]);
+  const selectedLeaves = useMemo(() => leaveRequests.filter((leave: any) => {
+    if (excludedEmployeeIds.has(leave.employee_id)) return false;
+    const start = String(leave.start_date || leave.created_at || "").slice(0, 10);
+    const end = String(leave.end_date || leave.start_date || leave.created_at || "").slice(0, 10);
+    return start <= dateTo && end >= dateFrom;
+  }), [leaveRequests, excludedEmployeeIds, dateFrom, dateTo]);
+  const approvedLeaves = useMemo(() => selectedLeaves.filter((leave: any) => PAID_LEAVE_STATUSES.has(String(leave.status || "").toLowerCase())), [selectedLeaves]);
+  const pendingLeaves = useMemo(() => selectedLeaves.filter((leave: any) => PENDING_LEAVE_STATUSES.has(String(leave.status || "").toLowerCase()) && String(leave.status || "").toLowerCase() !== "approved"), [selectedLeaves]);
+  const approvedLeaveDays = approvedLeaves.reduce((sum: number, leave: any) => sum + Number(leave.total_days || 0), 0);
+  const leaveDaysPerEmployee = activeCount ? approvedLeaveDays / activeCount : 0;
+  const leaveTypeName = (id: string) => leaveTypes.find((type: any) => type.id === id)?.name || "Unassigned";
+  const leaveByType = useMemo(() => { const map: Record<string, number> = {}; approvedLeaves.forEach((leave: any) => { const label = leaveTypeName(leave.leave_type_id); map[label] = (map[label] || 0) + Number(leave.total_days || 0); }); return Object.entries(map).map(([name, days]) => ({ name, days })).sort((a, b) => b.days - a.days); }, [approvedLeaves, leaveTypes]);
+  const leaveByDepartment = useMemo(() => { const map: Record<string, number> = {}; approvedLeaves.forEach((leave: any) => { const name = deptOf(leave.employee_id); map[name] = (map[name] || 0) + Number(leave.total_days || 0); }); return Object.entries(map).map(([name, days]) => ({ name, days })).sort((a, b) => b.days - a.days); }, [approvedLeaves, wiByEmp, deptById]);
 
-  const deptHeadcount = useMemo(() => {
-    const m: Record<string, number> = {};
-    employees.filter((e: any) => e.is_active).forEach((e: any) => { const n = deptOf(e.id); m[n] = (m[n] || 0) + 1; });
-    return Object.entries(m).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [employees, wiByEmp, deptById]);
+  const departmentInsights = useMemo(() => { const map: Record<string, { name: string; active: number; gross: number; paidIds: Set<string> }> = {}; employees.filter((e: any) => e.is_active).forEach((e: any) => { const name = deptOf(e.id); const row = map[name] || (map[name] = { name, active: 0, gross: 0, paidIds: new Set() }); row.active++; }); filteredPayroll.forEach((p: any) => { const name = deptOf(p.employee_id); const row = map[name] || (map[name] = { name, active: 0, gross: 0, paidIds: new Set() }); row.gross += Number(p.gross || 0); row.paidIds.add(p.employee_id); }); return Object.values(map).map(row => ({ ...row, paid: row.paidIds.size, costPerPaid: row.paidIds.size ? row.gross / row.paidIds.size : 0, headcountShare: activeCount ? row.active / activeCount * 100 : 0, payrollShare: payroll.gross ? row.gross / payroll.gross * 100 : 0 })).sort((a, b) => b.gross - a.gross); }, [employees, filteredPayroll, activeCount, payroll.gross, wiByEmp, deptById]);
+  const employeeTypes = useMemo(() => { const map: Record<string, number> = {}; workInfos.forEach((info: any) => { if (!empById.get(info.employee_id)?.is_active) return; const name = info.employee_type || "Unspecified"; map[name] = (map[name] || 0) + 1; }); return Object.entries(map).map(([name, count]) => ({ name, count, share: activeCount ? count / activeCount * 100 : 0 })).sort((a, b) => b.count - a.count); }, [workInfos, empById, activeCount]);
+  const missingJoiningDates = employees.filter((employee: any) => !wiByEmp.get(employee.id)?.joining_date).length;
+  const unmappedDepartments = employees.filter((employee: any) => employee.is_active && !wiByEmp.get(employee.id)?.department_id).length;
+  const maxDepartmentGross = Math.max(0, ...departmentInsights.map(row => row.gross));
+  const maxLeaveDays = Math.max(0, ...leaveByDepartment.map(row => row.days));
 
-  const typeData = useMemo(() => {
-    const c: Record<string, number> = {};
-    workInfos.forEach((w: any) => {
-      if (!empById.get(w.employee_id)?.is_active) return;
-      const t = w.employee_type || "Unspecified"; c[t] = (c[t] || 0) + 1;
-    });
-    return Object.entries(c).map(([name, value]) => ({ name, value }));
-  }, [workInfos, empById]);
+  const reportLabel = periodMode === "month" ? new Date(`${monthFrom}-01T00:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" }) : `${monthLabel(monthFrom)} – ${monthLabel(monthTo)}`;
+  const payrollChart = payrollMonths.map(row => ({ ...row, employerCost: row.gross + row.er }));
 
-  // ─── Payroll (RazorpayX mirror) ───
-  // Owner payslips are filtered out here, so payroll cost, months processed,
-  // statutory totals, the trend chart and both payroll exports all skip them.
-  const payrollRows = useMemo(
-    () => payslips.filter((p: any) => !excludedEmployeeIds.has(p.employee_id)),
-    [payslips, excludedEmployeeIds],
-  );
-  const payrollMonths = useMemo(() => {
-    const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number; withRegister: number; esiCovered: number }> = {};
-    payrollRows.forEach((p: any) => {
-      const k = String(p.period_month).slice(0, 7);
-      const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0, withRegister: 0, esiCovered: 0 });
-      r.gross += Number(p.gross || 0); r.net += Number(p.net || 0);
-      r.deductions += Math.abs(Number(p.total_deductions || 0));
-      r.tds += Math.abs(Number(p.tds_amount || 0)); r.pf += Math.abs(Number(p.pf_amount || 0));
-      r.esi += Math.abs(Number(p.esi_amount || 0)); r.pt += Math.abs(Number(p.professional_tax || 0));
-      r.er += Number(p.employer_contrib || 0); r.count += 1;
-      if (p.register_source) r.withRegister += 1;
-      if (Math.abs(Number(p.esi_amount || 0)) > 0) r.esiCovered += 1;
-    });
-    return Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ key: k, month: monthLabel(k), ...v }));
-  }, [payrollRows]);
-
-  const totalPayrollCost = payrollMonths.reduce((s, r) => s + r.gross, 0);
-  const avgMonthlyCost = payrollMonths.length ? totalPayrollCost / payrollMonths.length : 0;
-  const statutory = payrollMonths.reduce(
-    (s, r) => ({ pf: s.pf + r.pf, esi: s.esi + r.esi, pt: s.pt + r.pt, tds: s.tds + r.tds, er: s.er + r.er }),
-    { pf: 0, esi: 0, pt: 0, tds: 0, er: 0 },
-  );
-
-  // Statutory figures are only as complete as the imported salary registers.
-  // Dashboard-only payslips carry no PF/ESI/PT breakdown, so surface the gap instead of understating silently.
-  const statutoryCoverage = useMemo(() => {
-    const total = payrollMonths.reduce((s, r) => s + r.count, 0);
-    const withReg = payrollMonths.reduce((s, r) => s + r.withRegister, 0);
-    const esiCovered = payrollMonths.reduce((s, r) => s + r.esiCovered, 0);
-    const missingMonths = payrollMonths.filter((r) => r.withRegister === 0).map((r) => r.month);
-    const partialMonths = payrollMonths.filter((r) => r.withRegister > 0 && r.withRegister < r.count).map((r) => `${r.month} (${r.count - r.withRegister} missing)`);
-    return { total, withReg, esiCovered, missingMonths, partialMonths };
-  }, [payrollMonths]);
-
-
-  // ─── Attendance (v4 daily rollup) — rate-based KPIs, the way HRIS suites report it ───
-  const attStats = useMemo(() => {
-    let present = 0, halfDay = 0, absent = 0, late = 0, noData = 0, incomplete = 0;
-    let lateMinutes = 0, earlyOuts = 0, workedMinutes = 0, workedDays = 0;
-    attendance.forEach((a: any) => {
-      if (a.is_late) { late++; lateMinutes += Number(a.late_by_minutes || 0); }
-      if (a.early_departure) earlyOuts++;
-      const mins = a.net_work_minutes != null ? Number(a.net_work_minutes) : Number(a.total_hours || 0) * 60;
-      if (mins > 0) { workedMinutes += mins; workedDays++; }
-      switch (a.status) {
-        case "present": present++; break;
-        case "half_day": halfDay++; break;
-        case "absent": absent++; break;
-        case "incomplete": incomplete++; break;
-        default: noData++;
-      }
-    });
-    const considered = present + halfDay + absent + incomplete;
-    const workedRows = present + halfDay + incomplete;
-    const pct = considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0;
-    const absenteeism = considered ? ((absent + halfDay * 0.5) / considered) * 100 : 0;
-    const punctuality = workedRows ? ((workedRows - late) / workedRows) * 100 : 0;
-    const avgHours = workedDays ? workedMinutes / workedDays / 60 : 0;
-    const avgLateMin = late ? lateMinutes / late : 0;
-    const earlyOutRate = workedRows ? (earlyOuts / workedRows) * 100 : 0;
-    return { present, halfDay, absent, late, noData, incomplete, considered, pct, absenteeism, punctuality, avgHours, avgLateMin, earlyOutRate, workedRows };
-  }, [attendance]);
-
-  const prevAttStats = useMemo(() => {
-    let present = 0, halfDay = 0, absent = 0, incomplete = 0, late = 0;
-    prevAttendance.forEach((a: any) => {
-      if (a.is_late) late++;
-      if (a.status === "present") present++;
-      else if (a.status === "half_day") halfDay++;
-      else if (a.status === "absent") absent++;
-      else if (a.status === "incomplete") incomplete++;
-    });
-    const considered = present + halfDay + absent + incomplete;
-    const workedRows = present + halfDay + incomplete;
-    return {
-      considered,
-      pct: considered ? ((present + halfDay * 0.5 + incomplete * 0.5) / considered) * 100 : 0,
-      absenteeism: considered ? ((absent + halfDay * 0.5) / considered) * 100 : 0,
-      punctuality: workedRows ? ((workedRows - late) / workedRows) * 100 : 0,
-    };
-  }, [prevAttendance]);
-
-  // Who actually needs a conversation — chronic absence / chronic lateness in this window.
-  const attentionList = useMemo(() => {
-    const m: Record<string, { marked: number; lost: number; late: number }> = {};
-    attendance.forEach((a: any) => {
-      if (!["present", "half_day", "absent", "incomplete"].includes(a.status)) return;
-      const r = m[a.employee_id] || (m[a.employee_id] = { marked: 0, lost: 0, late: 0 });
-      r.marked++;
-      if (a.status === "absent") r.lost += 1;
-      else if (a.status === "half_day") r.lost += 0.5;
-      if (a.is_late) r.late++;
-    });
-    return Object.entries(m)
-      .filter(([, r]) => r.marked >= 5 && (r.lost / r.marked >= 0.1 || r.late / r.marked >= 0.3))
-      .map(([id, r]) => ({ id, absentPct: (r.lost / r.marked) * 100, latePct: (r.late / r.marked) * 100, lost: r.lost, late: r.late }))
-      .sort((a, b) => (b.absentPct + b.latePct) - (a.absentPct + a.latePct));
-  }, [attendance]);
-
-  const attendanceInsights = useMemo(() => {
-    const absenceLed = attentionList.filter((r) => r.absentPct >= r.latePct).length;
-    const latenessLed = attentionList.length - absenceLed;
-    const totalDaysLost = attStats.absent + attStats.halfDay * 0.5;
-    return { absenceLed, latenessLed, totalDaysLost };
-  }, [attentionList, attStats.absent, attStats.halfDay]);
-
-  const reportRangeLabel = useMemo(() => {
-    const formatMonth = (value: string) => new Date(`${value.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", {
-      month: "short",
-      year: "numeric",
-    });
-    return periodMode === "month"
-      ? formatMonth(dateFrom)
-      : `${formatMonth(dateFrom)} – ${formatMonth(dateTo)}`;
-  }, [periodMode, dateFrom, dateTo]);
-
-
-  const attendanceTrend = useMemo(() => {
-    const wm: Record<string, { present: number; absent: number; late: number; half: number }> = {};
-    attendance.forEach((a: any) => {
-      const d = new Date(`${a.attendance_date}T00:00:00`);
-      const ws = new Date(d); ws.setDate(d.getDate() - d.getDay());
-      const k = ws.toISOString().slice(0, 10);
-      const r = wm[k] || (wm[k] = { present: 0, absent: 0, late: 0, half: 0 });
-      if (a.status === "present") r.present++;
-      else if (a.status === "absent") r.absent++;
-      else if (a.status === "half_day") r.half++;
-      if (a.is_late) r.late++;
-    });
-    return Object.entries(wm).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ week: k.slice(5), ...v }));
-  }, [attendance]);
-
-  // ─── Leave ───
-  const filteredLeaves = useMemo(
-    () => leaveRequests.filter((l: any) => inRange(l.start_date || l.created_at?.slice(0, 10))),
-    [leaveRequests, dateFrom, dateTo],
-  );
-  const leaveByType = useMemo(
-    () => leaveTypes.map((lt: any) => ({ name: lt.name, value: filteredLeaves.filter((r: any) => r.leave_type_id === lt.id).length })).filter((d: any) => d.value > 0),
-    [leaveTypes, filteredLeaves],
-  );
-  const deptLeaveData = useMemo(() => {
-    const dm: Record<string, number> = {};
-    filteredLeaves.forEach((l: any) => { const n = deptOf(l.employee_id); dm[n] = (dm[n] || 0) + Number(l.total_days || 1); });
-    return Object.entries(dm).map(([name, days]) => ({ name, days })).sort((a, b) => b.days - a.days).slice(0, 8);
-  }, [filteredLeaves, wiByEmp, deptById]);
-
-  const attritionRate = activeCount + exitsInRange.length
-    ? (exitsInRange.length / (activeCount + exitsInRange.length)) * 100 : 0;
-
-  // ─── Export ───
   const handleExport = (type: string) => {
-    let rows: any[] = []; let sheetName = "Report";
-    if (type === "employees") {
-      sheetName = "Employees";
-      rows = employees.map((e: any) => ({
-        "Badge ID": e.badge_id, Name: empName(e.id), Department: deptOf(e.id),
-        "Employee Type": wiByEmp.get(e.id)?.employee_type || "", "Joining Date": wiByEmp.get(e.id)?.joining_date || "",
-        Active: e.is_active ? "Yes" : "No", "Exit Date": exitDateOf(e) || "", CTC: Number(e.total_salary || 0),
-      }));
-    } else if (type === "leaves") {
-      sheetName = "Leaves";
-      rows = filteredLeaves.map((l: any) => ({
-        Employee: empName(l.employee_id), Department: deptOf(l.employee_id),
-        Type: leaveTypes.find((t: any) => t.id === l.leave_type_id)?.name || "", Status: l.status,
-        Days: l.total_days, "Start Date": l.start_date,
-      }));
-    } else if (type === "payroll_monthly") {
-      sheetName = "Payroll Monthly";
-      rows = payrollMonths.map((r) => ({
-        Month: r.month, Payslips: r.count, Gross: r.gross, Deductions: r.deductions, Net: r.net,
-        TDS: r.tds, PF: r.pf, ESI: r.esi, PT: r.pt, "Employer Contribution": r.er,
-      }));
-    } else if (type === "payroll_detail") {
-      sheetName = "Payslips";
-      rows = payrollRows.map((p: any) => ({
-        Month: String(p.period_month).slice(0, 7), "Badge ID": empById.get(p.employee_id)?.badge_id || "",
-        Employee: empName(p.employee_id), Department: deptOf(p.employee_id),
-        Gross: Number(p.gross || 0), "Regular Gross": Number(p.regular_gross || 0),
-        Deductions: Math.abs(Number(p.total_deductions || 0)), Net: Number(p.net || 0),
-        TDS: Math.abs(Number(p.tds_amount || 0)), PF: Math.abs(Number(p.pf_amount || 0)),
-        ESI: Math.abs(Number(p.esi_amount || 0)), PT: Math.abs(Number(p.professional_tax || 0)),
-      }));
-    } else if (type === "attendance") {
-      sheetName = "Attendance";
-      rows = attendance.map((a: any) => ({
-        Date: a.attendance_date, "Badge ID": empById.get(a.employee_id)?.badge_id || "",
-        Employee: empName(a.employee_id), Department: deptOf(a.employee_id),
-        Status: a.status, Late: a.is_late ? "Yes" : "No", Hours: a.total_hours ?? "",
-      }));
-    }
-    if (!rows.length) rows = [{ Note: "No data in the selected date range" }];
-    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    const periodFileLabel = periodMode === "month" ? monthFrom : `${monthFrom}_to_${monthTo}`;
-    XLSX.writeFile(wb, `${sheetName.toLowerCase().replace(/\s+/g, "_")}_${periodFileLabel}.xlsx`);
+    let rows: any[] = []; let name = "Report";
+    if (type === "employees") { name = "Employees"; rows = employees.map((e: any) => ({ "Badge ID": e.badge_id, Name: empName(e.id), Department: deptOf(e.id), "Employee Type": wiByEmp.get(e.id)?.employee_type || "", "Joining Date": wiByEmp.get(e.id)?.joining_date || "", Active: e.is_active ? "Yes" : "No", "Exit Date": exitDateOf(e) || "", CTC: Number(e.total_salary || 0) })); }
+    if (type === "leaves") { name = "Leaves"; rows = selectedLeaves.map((l: any) => ({ Employee: empName(l.employee_id), Department: deptOf(l.employee_id), Type: leaveTypeName(l.leave_type_id), Status: l.status, Days: Number(l.total_days || 0), "Start Date": l.start_date, "End Date": l.end_date })); }
+    if (type === "payroll_monthly") { name = "Payroll Monthly"; rows = payrollMonths.map(row => ({ Month: row.month, "Paid Employees": row.paidIds.size, "Gross Payroll": row.gross, "Employer Contribution": row.er, "Employer Payroll Cost": row.gross + row.er, Deductions: row.deductions, "Net Paid": row.net, TDS: row.tds, PF: row.pf, ESI: row.esi, PT: row.pt })); }
+    if (type === "payroll_detail") { name = "Payslips"; rows = filteredPayroll.map((p: any) => ({ Month: String(p.period_month).slice(0, 7), "Badge ID": empById.get(p.employee_id)?.badge_id || "", Employee: empName(p.employee_id), Department: deptOf(p.employee_id), "Gross Payroll": Number(p.gross || 0), "Employer Contribution": Number(p.employer_contrib || 0), "Employer Payroll Cost": Number(p.gross || 0) + Number(p.employer_contrib || 0), Deductions: Math.abs(Number(p.total_deductions || 0)), "Net Paid": Number(p.net || 0), TDS: Math.abs(Number(p.tds_amount || 0)), PF: Math.abs(Number(p.pf_amount || 0)), ESI: Math.abs(Number(p.esi_amount || 0)), PT: Math.abs(Number(p.professional_tax || 0)) })); }
+    if (type === "attendance") { name = "Availability"; rows = attendance.map((a: any) => ({ Date: a.date, "Badge ID": empById.get(a.employee_id)?.badge_id || "", Employee: empName(a.employee_id), Department: deptOf(a.employee_id), Status: a.status, "Worked Minutes": Number(a.worked_minutes || 0) })); }
+    if (!rows.length) rows = [{ Note: "No data in the selected period" }];
+    const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, XLSX.utils.json_to_sheet(rows), name); XLSX.writeFile(book, `${name.toLowerCase().replace(/\s+/g, "_")}_${periodMode === "month" ? monthFrom : `${monthFrom}_to_${monthTo}`}.xlsx`);
   };
 
-  const NoData = ({ reason }: { reason?: string }) => (
-    <div className="text-center py-8">
-      <p className="text-sm text-muted-foreground">No data available</p>
-      {reason && <p className="text-xs text-muted-foreground/70 mt-1">{reason}</p>}
-    </div>
-  );
+  const noData = (reason: string) => <div className="py-10 text-center"><p className="text-sm font-medium text-foreground">No data available</p><p className="mt-1 text-xs text-muted-foreground">{reason}</p></div>;
 
-  const kpis = [
-    { label: "Total Employees", value: employees.length, icon: Users, fg: "text-primary", bg: "bg-primary/10" },
-    { label: "Active", value: activeCount, icon: Users, fg: "text-success", bg: "bg-success/10" },
-    { label: "Exited (range)", value: exitsInRange.length, icon: UserMinus, fg: "text-destructive", bg: "bg-destructive/10" },
-    { label: "Leave Requests", value: filteredLeaves.length, icon: CalendarDays, fg: "text-warning", bg: "bg-warning/10" },
-    { label: "Months Processed", value: payrollMonths.length, icon: Wallet, fg: "text-primary", bg: "bg-primary/10" },
-    { label: "Total Payroll Cost", value: inr(totalPayrollCost), icon: TrendingUp, fg: "text-info", bg: "bg-info/10" },
-    { label: "Avg Monthly Cost", value: inr(avgMonthlyCost), icon: Clock, fg: "text-info", bg: "bg-info/10" },
-    { label: "Attrition (range)", value: `${attritionRate.toFixed(1)}%`, icon: UserMinus, fg: "text-destructive", bg: "bg-destructive/10" },
-  ];
+  return <TooltipProvider><div className="page-mount space-y-7 p-4 md:p-6">
+    <PageHeader title="Reports & Analytics" description={`Decision-ready workforce review · ${reportLabel}`} actions={<div className="flex flex-wrap items-center gap-2"><div className="flex h-9 items-center rounded-lg border border-border bg-muted/40 p-0.5" aria-label="Report period type"><Button size="sm" variant={periodMode === "month" ? "secondary" : "ghost"} className="h-7 px-2.5 text-xs" onClick={() => { setPeriodMode("month"); setMonthTo(monthFrom); }}>Month</Button><Button size="sm" variant={periodMode === "range" ? "secondary" : "ghost"} className="h-7 px-2.5 text-xs" onClick={() => setPeriodMode("range")}>Month range</Button></div><input type="month" value={monthFrom} max={currentMonth()} onChange={event => { if (!event.target.value) return; setMonthFrom(event.target.value); if (periodMode === "month" || event.target.value > monthTo) setMonthTo(event.target.value); }} aria-label={periodMode === "month" ? "Report month" : "Report start month"} className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground" />{periodMode === "range" && <><span className="text-sm text-muted-foreground">to</span><input type="month" value={monthTo} min={monthFrom} max={currentMonth()} onChange={event => event.target.value && setMonthTo(event.target.value)} aria-label="Report end month" className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground" /></>}<DropdownMenu><DropdownMenuTrigger asChild><Button variant="outline" size="sm" className="h-9"><Download className="mr-1.5 h-4 w-4" />Export</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel className="text-xs">Selected period</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onClick={() => handleExport("employees")}>Employees</DropdownMenuItem><DropdownMenuItem onClick={() => handleExport("payroll_monthly")}>Payroll monthly</DropdownMenuItem><DropdownMenuItem onClick={() => handleExport("payroll_detail")}>Payslips per employee</DropdownMenuItem><DropdownMenuItem onClick={() => handleExport("attendance")}>Availability daily</DropdownMenuItem><DropdownMenuItem onClick={() => handleExport("leaves")}>Leave requests</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>} />
 
-  return (
-    <div className="p-4 md:p-6 space-y-4 page-mount">
-      <PageHeader
-        title="Reports & Analytics"
-        description="HR insights with month filters and export"
-        actions={
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex h-9 items-center rounded-lg border border-border bg-muted/40 p-0.5" aria-label="Report period type">
-              <Button
-                type="button"
-                size="sm"
-                variant={periodMode === "month" ? "secondary" : "ghost"}
-                className="h-7 px-2.5 text-xs"
-                onClick={() => {
-                  setPeriodMode("month");
-                  setMonthTo(monthFrom);
-                }}
-              >
-                Month
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={periodMode === "range" ? "secondary" : "ghost"}
-                className="h-7 px-2.5 text-xs"
-                onClick={() => setPeriodMode("range")}
-              >
-                Month range
-              </Button>
-            </div>
-            <input
-              type="month"
-              value={monthFrom}
-              max={currentMonth()}
-              onChange={e => {
-                if (!e.target.value) return;
-                periodMode === "month" ? selectSingleMonth(e.target.value) : selectRangeStart(e.target.value);
-              }}
-              aria-label={periodMode === "month" ? "Report month" : "Report start month"}
-              className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-            />
-            {periodMode === "range" && (
-              <>
-                <span className="text-sm text-muted-foreground">to</span>
-                <input
-                  type="month"
-                  value={monthTo}
-                  min={monthFrom}
-                  max={currentMonth()}
-                  onChange={e => {
-                    if (e.target.value) selectRangeEnd(e.target.value);
-                  }}
-                  aria-label="Report end month"
-                  className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                />
-              </>
-            )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-9"><Download className="h-4 w-4 mr-1" /> Export</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="z-50 bg-popover">
-                <DropdownMenuLabel className="text-xs">Export (selected range)</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => handleExport("employees")}>Employees</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("payroll_monthly")}>Payroll (monthly)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("payroll_detail")}>Payslips (per employee)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("attendance")}>Attendance (daily)</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleExport("leaves")}>Leaves</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        }
-      />
+    <section className="space-y-3"><SectionHeader eyebrow="Executive summary" title="Business position" helper="The four measures most useful for a monthly workforce review." /><div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"><MetricCard label="Employer payroll cost" value={payrollMonths.length ? inr(employerCost) : "—"} helper={<>{payrollMonths.length ? <><Delta value={payrollDelta} /><span className="mt-1 block">Gross plus employer contributions</span></> : "No processed payroll in this period"}</>} icon={CircleDollarSign} /><MetricCard label="Cost per paid employee" value={paidEmployees ? inr(costPerPaidEmployee) : "—"} helper={`${paidEmployees.toLocaleString("en-IN")} distinct employees with payslips`} icon={Wallet} /><MetricCard label="Closing headcount" value={closingHeadcount.toLocaleString("en-IN")} helper={`${openingHeadcount} opening · ${joinsInRange.length} joined · ${exitsInRange.length} exited`} icon={Users} tone={closingHeadcount >= openingHeadcount ? "success" : "warning"} /><MetricCard label="Workforce availability" value={availabilityNow.marked ? pct(availabilityNow.rate) : "—"} helper={<>{availabilityNow.marked ? <><Delta value={availabilityDelta} /><span className="mt-1 block">Evidence-backed marked workdays</span></> : "No attendance evidence in this period"}</>} icon={Activity} tone={availabilityNow.rate >= 90 ? "success" : "warning"} /></div>
+      <Card><CardContent className="grid gap-4 p-4 sm:grid-cols-2 xl:grid-cols-4"><InsightItem label="PAYROLL MOVEMENT" value={payrollDelta == null ? "Comparison unavailable" : signedPct(payrollDelta)} note={`${inr(payroll.gross)} gross payroll`} tone={payrollDelta != null && payrollDelta > 5 ? "warning" : "default"} /><InsightItem label="WORKFORCE MOVEMENT" value={`${joinsInRange.length - exitsInRange.length >= 0 ? "+" : ""}${joinsInRange.length - exitsInRange.length} net`} note={`${joinsInRange.length} joined · ${exitsInRange.length} exited · ${pct(attritionRate)} annualised attrition`} /><InsightItem label="LEAVE DECISIONS" value={`${pendingLeaves.length} pending`} note={`${approvedLeaveDays.toLocaleString("en-IN")} approved leave days`} tone={pendingLeaves.length ? "warning" : "default"} /><InsightItem label="SOURCE COVERAGE" value={filteredPayroll.length ? `${registerCoverage.toFixed(0)}% payroll register` : "No payroll rows"} note={registerCoverage < 100 && filteredPayroll.length ? `${filteredPayroll.length - registerRows} payslips lack register detail` : "Statutory detail fully covered"} tone={registerCoverage < 100 && filteredPayroll.length ? "danger" : "default"} /></CardContent></Card>
+    </section>
 
+    <section className="space-y-3"><SectionHeader eyebrow="Payroll" title="Cost and distribution" helper="RazorpayX-mirrored payroll, separated into gross, employee deductions, employer contributions and net paid." />
+      <div className="grid gap-4 xl:grid-cols-[1.45fr_0.75fr]"><Card><CardHeader className="pb-2"><div className="flex items-center justify-between gap-3"><CardTitle className="text-sm">Monthly employer cost</CardTitle><p className="text-[11px] text-muted-foreground">Select a month to inspect employees</p></div></CardHeader><CardContent>{payrollChart.length ? <ResponsiveContainer width="100%" height={260}><ComposedChart data={payrollChart} onClick={(state: any) => { const key = state?.activePayload?.[0]?.payload?.key; if (key) setDrillMonth(key); }} style={{ cursor: "pointer" }}><CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={value => `${Math.round(value / 1000)}K`} /><Tooltip formatter={(value: any) => inr(Number(value))} /><Bar dataKey="gross" name="Gross payroll" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} /><Bar dataKey="er" name="Employer contribution" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} /><Line type="monotone" dataKey="net" name="Net paid" stroke="hsl(var(--success))" strokeWidth={2} dot={{ r: 3 }} /></ComposedChart></ResponsiveContainer> : noData("No payslips exist for the selected period.")}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Payroll bridge</CardTitle></CardHeader><CardContent className="space-y-4">{payrollMonths.length ? <>{[{ label: "Gross payroll", value: payroll.gross, tone: "bg-primary" }, { label: "Employee deductions", value: payroll.deductions, tone: "bg-destructive" }, { label: "Net paid", value: payroll.net, tone: "bg-success" }, { label: "Employer contributions", value: payroll.er, tone: "bg-warning" }].map(item => <div key={item.label}><div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="text-muted-foreground">{item.label}</span><span className="font-semibold tabular-nums text-foreground">{inr(item.value)}</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${item.tone}`} style={{ width: `${payroll.gross ? Math.max(2, Math.min(100, item.value / payroll.gross * 100)) : 0}%` }} /></div></div>)}<div className="border-t border-border pt-3"><div className="flex justify-between gap-3"><span className="text-xs font-semibold text-foreground">Employer payroll cost</span><span className="text-base font-bold tabular-nums text-foreground">{inr(employerCost)}</span></div><p className="mt-1 text-[11px] text-muted-foreground">Gross payroll + employer contributions</p></div></> : noData("No payroll bridge is available.")}</CardContent></Card></div>
+      <div className="grid gap-4 xl:grid-cols-[1.35fr_0.85fr]"><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Department payroll mix</CardTitle></CardHeader><CardContent>{departmentInsights.some(row => row.gross > 0) ? <div className="overflow-x-auto"><table className="w-full min-w-[620px] text-xs"><thead><tr className="border-b border-border text-left text-muted-foreground"><th className="pb-2 font-medium">Department</th><th className="pb-2 text-right font-medium">Paid</th><th className="pb-2 text-right font-medium">Gross</th><th className="pb-2 text-right font-medium">Cost / paid employee</th><th className="pb-2 text-right font-medium">Payroll share</th></tr></thead><tbody>{departmentInsights.filter(row => row.gross > 0).map(row => <tr key={row.name} className="border-b border-border/60 last:border-0"><td className="py-2.5 font-medium text-foreground">{row.name}</td><td className="py-2.5 text-right tabular-nums">{row.paid}</td><td className="py-2.5 text-right font-medium tabular-nums">{inr(row.gross)}</td><td className="py-2.5 text-right tabular-nums text-muted-foreground">{inr(row.costPerPaid)}</td><td className="py-2.5 text-right tabular-nums">{pct(row.payrollShare)}</td></tr>)}</tbody></table></div> : noData("No departmental payroll is available.")}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Statutory and tax detail</CardTitle></CardHeader><CardContent className="space-y-3">{payrollMonths.length ? <>{[["Provident Fund (EE)", payroll.pf], ["ESI (EE)", payroll.esi], ["Professional Tax", payroll.pt], ["TDS", payroll.tds], ["Employer contribution", payroll.er]].map(([label, value]) => <div key={String(label)} className="flex items-center justify-between gap-3 border-b border-border/60 pb-2 last:border-0"><span className="text-xs text-muted-foreground">{label}</span><span className="text-sm font-semibold tabular-nums text-foreground">{inr(Number(value))}</span></div>)}{registerCoverage < 100 && <div className="flex gap-2 rounded-lg border border-warning/30 bg-warning/5 p-3 text-[11px] leading-relaxed text-muted-foreground"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-warning" /><span>Only {registerRows} of {filteredPayroll.length} payslips have imported register detail. Statutory totals may be understated.</span></div>}</> : noData("No statutory detail is available.")}</CardContent></Card></div>
+    </section>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8 gap-3">
-        {kpis.map(s => (
-          <Card key={s.label}><CardContent className="p-3 flex items-center gap-2">
-            <div className={`p-1.5 rounded-lg ${s.bg}`}><s.icon className={`h-4 w-4 ${s.fg}`} /></div>
-            <div className="min-w-0"><p className="text-base font-bold text-foreground tabular-nums truncate">{s.value}</p><p className="text-[10px] text-muted-foreground">{s.label}</p></div>
-          </CardContent></Card>
-        ))}
-      </div>
+    <section className="space-y-3"><SectionHeader eyebrow="Workforce" title="Movement and structure" helper="Actual joining and exit dates explain how the workforce changed and where cost is concentrated." />
+      <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]"><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Headcount movement</CardTitle></CardHeader><CardContent><div className="grid grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] items-center gap-2 text-center"><div><p className="text-2xl font-semibold tabular-nums">{openingHeadcount}</p><p className="text-[10px] text-muted-foreground">Opening</p></div><ArrowRight className="h-4 w-4 text-muted-foreground" /><div><p className="text-2xl font-semibold tabular-nums text-success">+{joinsInRange.length}</p><p className="text-[10px] text-muted-foreground">Joined</p></div><ArrowRight className="h-4 w-4 text-muted-foreground" /><div><p className="text-2xl font-semibold tabular-nums text-destructive">−{exitsInRange.length}</p><p className="text-[10px] text-muted-foreground">Exited</p></div><ArrowRight className="h-4 w-4 text-muted-foreground" /><div><p className="text-2xl font-semibold tabular-nums">{closingHeadcount}</p><p className="text-[10px] text-muted-foreground">Closing</p></div></div><div className="mt-5 grid grid-cols-2 gap-3 border-t border-border pt-4"><InsightItem label="ACTIVE TODAY" value={activeCount} note="Current roster snapshot" /><InsightItem label="ANNUALISED ATTRITION" value={pct(attritionRate)} note="Exits ÷ average headcount" tone={attritionRate > 20 ? "warning" : "default"} /></div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Department concentration</CardTitle></CardHeader><CardContent className="space-y-3">{departmentInsights.length ? departmentInsights.map(row => <RankedBar key={row.name} label={row.name} value={row.gross} max={maxDepartmentGross} detail={`${row.active} active · ${pct(row.headcountShare)} of headcount · ${pct(row.payrollShare)} of gross payroll`} />) : noData("No department mapping is available.")}</CardContent></Card></div>
+      <div className="grid gap-4 md:grid-cols-2"><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Employment mix</CardTitle></CardHeader><CardContent className="space-y-3">{employeeTypes.map((row, index) => <div key={row.name} className="flex items-center gap-3"><span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} /><span className="min-w-0 flex-1 truncate text-xs font-medium capitalize text-foreground">{row.name}</span><span className="text-xs tabular-nums text-muted-foreground">{row.count} · {pct(row.share)}</span></div>)}</CardContent></Card><Card><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm">Data readiness<UiTooltip><TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground" /></TooltipTrigger><TooltipContent>Missing workforce fields reduce historical accuracy.</TooltipContent></UiTooltip></CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-3"><InsightItem label="MISSING JOINING DATE" value={missingJoiningDates} note="Excluded from historical headcount" tone={missingJoiningDates ? "warning" : "default"} /><InsightItem label="UNMAPPED DEPARTMENT" value={unmappedDepartments} note="Shown as Unassigned" tone={unmappedDepartments ? "warning" : "default"} /></CardContent></Card></div>
+    </section>
 
-      {/* Attendance health strip */}
-      <Card className="overflow-hidden">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <CardTitle className="text-base font-semibold">Attendance Health</CardTitle>
-            <p className="text-xs text-muted-foreground">{reportRangeLabel}</p>
-          </div>
-        </CardHeader>
-        <CardContent className="px-4 pb-0 sm:px-6">
-          {attendance.length ? (
-            <>
-              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                {[
-                  {
-                    l: "Attendance", v: `${attStats.pct.toFixed(1)}%`,
-                    d: prevAttStats.considered ? attStats.pct - prevAttStats.pct : null, good: "up" as const,
-                    sub: "Scheduled days worked", tone: "success" as const,
-                  },
-                  {
-                    l: "Absenteeism", v: `${attStats.absenteeism.toFixed(1)}%`,
-                    d: prevAttStats.considered ? attStats.absenteeism - prevAttStats.absenteeism : null, good: "down" as const,
-                    sub: `${attendanceInsights.totalDaysLost.toLocaleString("en-IN")} days lost`, tone: "destructive" as const,
-                  },
-                  {
-                    l: "Punctuality", v: `${attStats.punctuality.toFixed(1)}%`,
-                    d: prevAttStats.considered ? attStats.punctuality - prevAttStats.punctuality : null, good: "up" as const,
-                    sub: attStats.late ? `${attStats.late.toLocaleString("en-IN")} late arrivals · ${Math.round(attStats.avgLateMin)} min avg` : "No late arrivals", tone: "warning" as const,
-                  },
-                  {
-                    l: "Workday", v: `${attStats.avgHours.toFixed(1)} h`,
-                    d: null, good: "up" as const,
-                    sub: `${attStats.earlyOutRate.toFixed(0)}% of worked days ended early`, tone: "info" as const,
-                  },
-                ].map(x => {
-                  const improving = x.d == null ? null : (x.good === "up" ? x.d > 0 : x.d < 0);
-                  const toneClasses = {
-                    success: "border-success/25 bg-success/5",
-                    destructive: "border-destructive/25 bg-destructive/5",
-                    warning: "border-warning/25 bg-warning/5",
-                    info: "border-info/25 bg-info/5",
-                  };
-                  const dotClasses = {
-                    success: "bg-success",
-                    destructive: "bg-destructive",
-                    warning: "bg-warning",
-                    info: "bg-info",
-                  };
-                  return (
-                    <div key={x.l} className={`rounded-xl border p-3.5 ${toneClasses[x.tone]}`}>
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-[11px] font-semibold text-foreground">{x.l}</p>
-                        <span className={`h-2 w-2 rounded-full ${dotClasses[x.tone]}`} aria-hidden="true" />
-                      </div>
-                      <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-                        <p className="t-mono text-xl font-bold tabular-nums text-foreground">{x.v}</p>
-                        {x.d != null && Math.abs(x.d) >= 0.1 && (
-                          <span className={`text-[10px] font-semibold tabular-nums ${improving ? "text-success" : "text-destructive"}`}>
-                            {x.d > 0 ? "+" : ""}{x.d.toFixed(1)} pt
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1 text-[10px] leading-snug text-muted-foreground">{x.sub}</p>
-                    </div>
-                  );
-                })}
-              </div>
-              {attentionList.length > 0 && (
-                <div className="-mx-4 mt-5 rounded-t-3xl bg-foreground px-4 py-5 text-background sm:-mx-6 sm:px-6">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-warning" />
-                        <p className="text-sm font-semibold">Needs attention</p>
-                      </div>
-                      <p className="mt-1 text-[11px] text-background/65">
-                        {attentionList.length} employees flagged · {attendanceInsights.absenceLed} absence-led · {attendanceInsights.latenessLed} lateness-led
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-destructive px-2 py-1 text-[10px] font-semibold text-destructive-foreground">
-                      {attentionList.length} reviews
-                    </span>
-                  </div>
+    <section className="space-y-3"><SectionHeader eyebrow="Leave & availability" title="Capacity impact" helper="Approved leave days and evidence-backed workforce availability, without duplicating attendance exception analysis." />
+      <div className="grid gap-4 xl:grid-cols-3"><Card><CardHeader className="pb-2"><CardTitle className="text-sm">Leave position</CardTitle></CardHeader><CardContent className="grid grid-cols-2 gap-4"><InsightItem label="APPROVED DAYS" value={approvedLeaveDays.toLocaleString("en-IN")} note={`${leaveDaysPerEmployee.toFixed(1)} days per active employee`} /><InsightItem label="PENDING DECISIONS" value={pendingLeaves.length} note="Requested or manager-approved" tone={pendingLeaves.length ? "warning" : "default"} /><div className="col-span-2 border-t border-border pt-3"><p className="mb-2 text-[11px] font-semibold text-muted-foreground">APPROVED DAYS BY TYPE</p>{leaveByType.length ? <div className="space-y-2">{leaveByType.map(row => <div key={row.name} className="flex justify-between gap-3 text-xs"><span className="text-foreground">{row.name}</span><span className="font-semibold tabular-nums">{row.days.toLocaleString("en-IN")}</span></div>)}</div> : <p className="text-xs text-muted-foreground">No approved leave in this period.</p>}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Leave impact by department</CardTitle></CardHeader><CardContent className="space-y-3">{leaveByDepartment.length ? leaveByDepartment.map(row => <RankedBar key={row.name} label={row.name} value={row.days} max={maxLeaveDays} suffix=" days" />) : noData("No approved leave days in this period.")}</CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Workforce availability</CardTitle></CardHeader><CardContent className="space-y-4"><div><p className="text-3xl font-semibold tabular-nums text-foreground">{availabilityNow.marked ? pct(availabilityNow.rate) : "—"}</p><div className="mt-1 text-xs text-muted-foreground"><Delta value={availabilityDelta} /></div></div><div className="grid grid-cols-2 gap-3 border-t border-border pt-4"><InsightItem label="EQUIVALENT DAYS LOST" value={availabilityNow.lost.toLocaleString("en-IN")} note="Across marked workdays" /><InsightItem label="AVERAGE WORKDAY" value={`${availabilityNow.averageHours.toFixed(1)} h`} note="Evidence-backed worked days" /></div><p className="text-[11px] leading-relaxed text-muted-foreground">Employee-level late, early and absence analysis remains in Attendance Summary.</p></CardContent></Card></div>
+    </section>
 
-                  <div className="divide-y divide-background/15">
-                    {attentionList.slice(0, 5).map((a, index) => {
-                      const primaryIssue = a.absentPct >= a.latePct
-                        ? `${a.lost.toLocaleString("en-IN")} days lost`
-                        : `${a.late.toLocaleString("en-IN")} late arrivals`;
-                      return (
-                        <div key={a.id} className="flex items-center gap-3 py-2.5">
-                          <span className="t-mono w-5 shrink-0 text-xs text-background/50">{index + 1}</span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-xs font-semibold">{empName(a.id)}</p>
-                            <p className="mt-0.5 text-[10px] text-background/65">Primary issue: {primaryIssue}</p>
-                          </div>
-                          <div className="shrink-0 text-right t-mono text-[10px]">
-                            <p>{a.absentPct.toFixed(0)}% lost</p>
-                            <p className="text-background/65">{a.latePct.toFixed(0)}% late</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+    <Card className="border-dashed"><CardContent className="flex items-start gap-3 p-4"><Landmark className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" /><div><p className="text-xs font-semibold text-foreground">Methodology</p><p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">Payroll uses the RazorpayX payslip mirror. Employer payroll cost equals gross payroll plus employer contributions. Headcount uses actual joining and exit dates. Leave utilisation includes approved and manager-approved days only. Availability uses evidence-backed canonical attendance days. Owners/directors are excluded from every figure, drill-down and export.</p></div></CardContent></Card>
 
-                  {attentionList.length > 5 && (
-                    <button
-                      type="button"
-                      onClick={() => setAttentionOpen(true)}
-                      className="mt-3 w-full rounded-lg border border-background/25 py-2 text-center text-[11px] font-medium text-background/80 transition-colors hover:bg-background/10"
-                    >
-                      {attentionList.length - 5} more employees need review
-                    </button>
-                  )}
-                </div>
-              )}
-            </>
-          ) : <NoData reason="No attendance rows recorded in the selected range." />}
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Headcount Trend</CardTitle></CardHeader>
-          <CardContent>
-            {headcountTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><AreaChart data={headcountTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
-                <Area type="monotone" dataKey="total" name="Headcount" fill="hsl(var(--primary))" fillOpacity={0.15} stroke="hsl(var(--primary))" strokeWidth={2} />
-              </AreaChart></ResponsiveContainer>
-            ) : <NoData reason="No joinings or exits recorded in the selected range." />}
-            <Source>joining dates (work info) minus exits (resignation / last working day)</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">New Hires</CardTitle></CardHeader>
-          <CardContent>
-            {newHires.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><BarChart data={newHires}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
-                <Bar dataKey="count" name="Joined" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-              </BarChart></ResponsiveContainer>
-            ) : <NoData reason="No employee joined within the selected range." />}
-            <Source>hr_employee_work_info.joining_date (actual hiring date, not record import date)</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Payroll Cost Trend</CardTitle></CardHeader>
-          <CardContent>
-            {payrollMonths.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><LineChart
-                data={payrollMonths}
-                style={{ cursor: "pointer" }}
-                onClick={(st: any) => {
-                  const k = st?.activePayload?.[0]?.payload?.key || payrollMonths[st?.activeTooltipIndex]?.key;
-                  if (k) setDrillMonth(k);
-                }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="month" fontSize={11} /><YAxis fontSize={11} tickFormatter={(v) => `${Math.round(v / 1000)}K`} />
-                <Tooltip formatter={(v: any) => inr(Number(v))} />
-                <Line type="monotone" dataKey="gross" name="Gross" stroke="hsl(var(--primary))" strokeWidth={2} />
-                <Line type="monotone" dataKey="net" name="Net" stroke="hsl(var(--info))" strokeWidth={2} />
-                <Line type="monotone" dataKey="deductions" name="Deductions" stroke="hsl(var(--success))" strokeWidth={1.5} strokeDasharray="5 5" />
-              </LineChart></ResponsiveContainer>
-            ) : <NoData reason="No payslips exist for the selected months." />}
-            <Source>RazorpayX payslip mirror (hr_payslips_v), grouped by pay period · click any month for the employee-by-employee breakdown</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Statutory & Tax Cost</CardTitle></CardHeader>
-          <CardContent>
-            {payrollMonths.length > 0 ? (
-              <>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { l: "Provident Fund (EE)", v: statutory.pf, s: undefined as string | undefined },
-                    { l: "ESI (EE)", v: statutory.esi, s: `${statutoryCoverage.esiCovered} of ${statutoryCoverage.total} payslips ESI-covered` },
-                    { l: "Professional Tax", v: statutory.pt, s: undefined },
-                    { l: "TDS", v: statutory.tds, s: undefined },
-                    { l: "Employer Contribution", v: statutory.er, s: undefined },
-                    { l: "Total Net Paid", v: payrollMonths.reduce((s, r) => s + r.net, 0), s: undefined },
-                  ].map(x => (
-                    <div key={x.l} className="rounded-lg border border-border p-2.5">
-                      <p className="text-base font-bold tabular-nums text-foreground">{inr(x.v)}</p>
-                      <p className="text-[11px] text-muted-foreground">{x.l}</p>
-                      {x.s && <p className="mt-0.5 text-[10px] text-muted-foreground/80">{x.s}</p>}
-                    </div>
-                  ))}
-                </div>
-                {(statutoryCoverage.missingMonths.length > 0 || statutoryCoverage.partialMonths.length > 0) && (
-                  <div className="mt-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-[11px] leading-relaxed text-amber-700 dark:text-amber-300">
-                    <p className="font-semibold">Statutory totals are under-stated for this range</p>
-                    <p className="mt-1">
-                      Only {statutoryCoverage.withReg} of {statutoryCoverage.total} payslips have an imported salary register. Dashboard-only payslips carry no PF / ESI / PT breakdown, so their statutory amounts count as zero here.
-                    </p>
-                    {statutoryCoverage.missingMonths.length > 0 && (
-                      <p className="mt-1">No register imported: {statutoryCoverage.missingMonths.join(", ")}</p>
-                    )}
-                    {statutoryCoverage.partialMonths.length > 0 && (
-                      <p className="mt-1">Partially imported: {statutoryCoverage.partialMonths.join(", ")}</p>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : <NoData reason="No payslips exist for the selected months." />}
-            <Source>RazorpayX payslip mirror (hr_payslips_v) for the selected range · statutory heads come only from imported salary registers</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Department-wise Headcount</CardTitle></CardHeader>
-          <CardContent>
-            {deptHeadcount.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><BarChart data={deptHeadcount} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis type="number" fontSize={11} allowDecimals={false} /><YAxis dataKey="name" type="category" fontSize={10} width={110} /><Tooltip />
-                <Bar dataKey="value" name="Active employees" fill="#3B82F6" radius={[0, 4, 4, 0]} />
-              </BarChart></ResponsiveContainer>
-            ) : <NoData />}
-            <Source>active employees mapped through work info departments</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Employee Types</CardTitle></CardHeader>
-          <CardContent>
-            {typeData.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="50%" height={200}><PieChart>
-                  <Pie data={typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
-                    {typeData.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie><Tooltip />
-                </PieChart></ResponsiveContainer>
-                <div className="space-y-1.5">
-                  {typeData.map((d: any, i: number) => (
-                    <div key={d.name} className="flex items-center gap-2 text-sm">
-                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="text-muted-foreground text-xs capitalize">{d.name}</span>
-                      <span className="font-semibold text-xs tabular-nums">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : <NoData />}
-            <Source>work info employee type (active employees only)</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Leave by Type</CardTitle></CardHeader>
-          <CardContent>
-            {leaveByType.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="50%" height={200}><PieChart>
-                  <Pie data={leaveByType} cx="50%" cy="50%" innerRadius={40} outerRadius={70} dataKey="value" stroke="none">
-                    {leaveByType.map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie><Tooltip />
-                </PieChart></ResponsiveContainer>
-                <div className="space-y-1.5">
-                  {leaveByType.map((d: any, i: number) => (
-                    <div key={d.name} className="flex items-center gap-2 text-sm">
-                      <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                      <span className="text-muted-foreground text-xs">{d.name}</span>
-                      <span className="font-semibold text-xs tabular-nums">{d.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : <NoData reason="No leave requests were raised in the selected range." />}
-            <Source>hr_leave_requests</Source>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Department-wise Leave Days</CardTitle></CardHeader>
-          <CardContent>
-            {deptLeaveData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><BarChart data={deptLeaveData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis type="number" fontSize={11} /><YAxis dataKey="name" type="category" fontSize={10} width={110} /><Tooltip />
-                <Bar dataKey="days" name="Leave days" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} />
-              </BarChart></ResponsiveContainer>
-            ) : <NoData reason="No leave requests were raised in the selected range." />}
-            <Source>hr_leave_requests joined to work info departments</Source>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-1"><CardTitle className="text-sm font-semibold">Attendance Trend (Weekly)</CardTitle></CardHeader>
-          <CardContent>
-            {attendanceTrend.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}><BarChart data={attendanceTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" /><XAxis dataKey="week" fontSize={11} /><YAxis fontSize={11} allowDecimals={false} /><Tooltip />
-                <Bar dataKey="present" name="Present" fill="hsl(var(--success))" stackId="a" />
-                <Bar dataKey="half" name="Half day" fill="hsl(var(--warning))" stackId="a" />
-                <Bar dataKey="absent" name="Absent" fill="hsl(var(--destructive))" stackId="a" />
-                <Bar dataKey="late" name="Late (of present)" fill="hsl(var(--primary))" />
-              </BarChart></ResponsiveContainer>
-            ) : <NoData reason="No attendance rows recorded in the selected range." />}
-            <Source>canonical attendance day view, bucketed by week starting Sunday</Source>
-          </CardContent>
-        </Card>
-      </div>
-
-      <MonthlyPayrollBreakdownDialog
-        monthKey={drillMonth}
-        monthLabel={drillMonth ? monthLabel(drillMonth) : ""}
-        onClose={() => setDrillMonth(null)}
-        empName={empName}
-        deptOf={deptOf}
-        excludeEmployeeIds={excludedEmployeeIds}
-        empBadge={(id) => (empById.get(id) as any)?.badge_id || "—"}
-      />
-
-      <Dialog open={attentionOpen} onOpenChange={setAttentionOpen}>
-        <DialogContent className="flex max-h-[85vh] max-w-2xl flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle className="text-base">Employees needing review</DialogTitle>
-            <DialogDescription>
-              {attentionList.length} flagged · {attendanceInsights.absenceLed} absence-led · {attendanceInsights.latenessLed} lateness-led · {reportRangeLabel}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 divide-y divide-border overflow-y-auto pr-1">
-            {attentionList.map((a, index) => {
-              const primaryIssue = a.absentPct >= a.latePct
-                ? `${a.lost.toLocaleString("en-IN")} days lost`
-                : `${a.late.toLocaleString("en-IN")} late arrivals`;
-              return (
-                <div key={a.id} className="flex items-center gap-3 py-2.5">
-                  <span className="t-mono w-6 shrink-0 text-xs text-muted-foreground">{index + 1}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-foreground">{empName(a.id)}</p>
-                    <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {deptOf(a.id)} · Primary issue: {primaryIssue}
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-right t-mono text-[11px] text-foreground">
-                    <p>{a.absentPct.toFixed(0)}% lost</p>
-                    <p className="text-muted-foreground">{a.latePct.toFixed(0)}% late</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+    <MonthlyPayrollBreakdownDialog monthKey={drillMonth} monthLabel={drillMonth ? monthLabel(drillMonth) : ""} onClose={() => setDrillMonth(null)} empName={empName} deptOf={deptOf} excludeEmployeeIds={excludedEmployeeIds} empBadge={id => (empById.get(id) as any)?.badge_id || "—"} />
+  </div></TooltipProvider>;
 }

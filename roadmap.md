@@ -72,3 +72,10 @@
 - [x] Remove redundant instructional text while preserving status and actions.
 - [x] Verify compilation and responsive grouping without changing payroll behavior.
 
+## Reports & Analytics decision-ready redesign
+
+- [x] Replace the KPI/chart wall with executive, payroll, workforce, and leave/capacity sections.
+- [x] Add employer-cost, paid-employee, prior-period, department-cost, movement, approved-leave-day, and availability calculations.
+- [x] Remove duplicate employee-level attendance exception analysis.
+- [x] Verify direct database totals, owner exclusions, TypeScript, and preview build.
+- [ ] Verify signed-in desktop/mobile layout, selectors, drill-down, and exports (blocked: external Supabase authentication is unavailable to automated browser checks).

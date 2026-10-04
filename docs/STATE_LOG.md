@@ -491,3 +491,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-04: Satyam Shukla F&F ₹6,962.54 (Sep 2026) marked paid manually via RazorpayX (owner-paid); push status nothing_to_push, never to be staged; resignation auto-completed.
 - 2026-10-04: Mid-month CTC revisions now auto-push to RazorpayX on Step 7 done; September's 6 post-training revisions (17 Sep) pushed.
 - 2026-10-04: Owner closed stale-session watchdog for Naman Saxena (18 Sep 2026) directly as resolved_voided — day is period-locked, no attendance change applied. Zero open stale sessions remain.
+- 2026-10-04: Owners (Abhishek Singh Tomar, Shubham Singh, Sitara Singh) now excluded from payroll cost too — Reports & Analytics payslip aggregation, month drill-down and both payroll exports, plus the HRMS statistics tab monthly payroll cost; rule centralised in src/lib/ownerStatsExclusion.ts.

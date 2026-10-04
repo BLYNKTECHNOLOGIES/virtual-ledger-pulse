@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.hr_tg_cockpit_step7_settle_fnf() FROM PUBLIC, anon, authenticated;

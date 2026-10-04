@@ -33051,6 +33051,7 @@ export type Database = {
         Returns: undefined
       }
       hr_settle_deposit_period: { Args: { p_period: string }; Returns: number }
+      hr_settle_fnf_via_payroll: { Args: { _month: string }; Returns: number }
       hr_settle_loan_installment: {
         Args: { p_repayment_id: string }
         Returns: undefined

@@ -167,6 +167,11 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     "Working Days": ["Paid Days", "Payable Days"],
     "Employer PF Contr.": ["Employer PF Contribution", "Employer PF Contr"],
     "Employer ESI Contr.": ["Employer ESI Contribution", "Employer ESI Contr"],
+    // New-format register renames the salary heads in full.
+    "Basic Salary": ["Basic"],
+    "HRA": ["House Rent Allowance"],
+    "SA": ["Special Allowance"],
+    "LTA": ["Leave & Travel Allowance", "Leave and Travel Allowance"],
   };
   // Optional heads: RazorpayX only emits these when the company uses them.
   const OPTIONAL_COLS = new Set([
@@ -268,16 +273,9 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
 
   // Second pass: capture unmapped numeric heads and verify each row's earnings tie to Gross.
   const iGross = idx("Gross Salary");
+  const iNet = idx("Net Pay");
+  const iEsiNum = idx("ESI Number");
   const dataRows = grid.slice(1).filter(r => (r[iEmp] ?? "").trim());
-  const EARNING_KEYS: (keyof ParsedRow)[] = [
-    "reg_basic", "reg_da", "reg_hra", "reg_sa", "reg_lta",
-    "reg_employer_esi_contr", "reg_employer_pf_contr",
-    "reg_overtime", "reg_performance_incentive", "reg_refund_security_deposit",
-  ];
-  const DEDUCTION_KEYS: (keyof ParsedRow)[] = [
-    "reg_pf_ee", "reg_pf_er", "reg_esi_ee", "reg_esi_er", "reg_lwf_ee",
-    "reg_pt", "reg_tds", "reg_advance_salary", "reg_loan_emi",
-  ];
 
   // Defensive guard: even if RazorpayX renames a header (so our mapping misses it),
   // identity/metadata columns must never be treated as pay heads. Anything that looks

@@ -141,7 +141,7 @@ interface ParsedRow {
   reg_hire_date: string | null;
 }
 
-function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?: string; missingCols?: string[] } {
+export function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?: string; missingCols?: string[] } {
   const grid = parseCsv(text);
   if (grid.length < 2) return { header: [], rows: [], error: "CSV appears empty" };
   const header = grid[0].map(h => h.trim());
@@ -167,10 +167,15 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     "Working Days": ["Paid Days", "Payable Days"],
     "Employer PF Contr.": ["Employer PF Contribution", "Employer PF Contr"],
     "Employer ESI Contr.": ["Employer ESI Contribution", "Employer ESI Contr"],
+    // New-format register renames the salary heads in full.
+    "Basic Salary": ["Basic"],
+    "HRA": ["House Rent Allowance"],
+    "SA": ["Special Allowance"],
+    "LTA": ["Leave & Travel Allowance", "Leave and Travel Allowance"],
   };
   // Optional heads: RazorpayX only emits these when the company uses them.
   const OPTIONAL_COLS = new Set([
-    "LWF(EE)", "LWF(ER)", "Overtime", "Refund Of Security Deposit",
+    "LWF(EE)", "LWF(ER)", "ESI(ER)", "PF(ER)", "Overtime", "Refund Of Security Deposit",
     "Performance Linked Incentive", "DA", "LTA", "Personal Phone Number",
     "Personal Email Address", "Relieving Date", "One-time Payments",
   ]);
@@ -268,16 +273,9 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
 
   // Second pass: capture unmapped numeric heads and verify each row's earnings tie to Gross.
   const iGross = idx("Gross Salary");
+  const iNet = idx("Net Pay");
+  const iEsiNum = idx("ESI Number");
   const dataRows = grid.slice(1).filter(r => (r[iEmp] ?? "").trim());
-  const EARNING_KEYS: (keyof ParsedRow)[] = [
-    "reg_basic", "reg_da", "reg_hra", "reg_sa", "reg_lta",
-    "reg_employer_esi_contr", "reg_employer_pf_contr",
-    "reg_overtime", "reg_performance_incentive", "reg_refund_security_deposit",
-  ];
-  const DEDUCTION_KEYS: (keyof ParsedRow)[] = [
-    "reg_pf_ee", "reg_pf_er", "reg_esi_ee", "reg_esi_er", "reg_lwf_ee",
-    "reg_pt", "reg_tds", "reg_advance_salary", "reg_loan_emi",
-  ];
 
   // Defensive guard: even if RazorpayX renames a header (so our mapping misses it),
   // identity/metadata columns must never be treated as pay heads. Anything that looks
@@ -293,19 +291,27 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
       if (v != null && v !== 0) extras.push({ label: h, amount: v });
     });
     row.reg_extra_earnings = extras;
-    if (row.reg_gross_salary != null) {
-      const sum =
-        EARNING_KEYS.reduce((a, k) => a + (Number(row[k] ?? 0) || 0), 0) +
-        extras.reduce((a, e) => a + (e.amount > 0 ? e.amount : 0), 0);
-      row.gross_tieout_diff = Math.round((sum - row.reg_gross_salary) * 100) / 100;
+    // Positional tie-outs, format-agnostic: earnings are every numeric column
+    // between "ESI Number" and "Gross Salary"; deductions are every numeric
+    // column between "Gross Salary" and "Net Pay". This survives RazorpayX
+    // renaming heads or adding new ones (Security Deposit, Gross pay
+    // deduction, Gratuity, Already-Paid columns, …).
+    const sumRange = (from: number, to: number) => {
+      let s = 0;
+      for (let i = from + 1; i < to; i++) { const v = toNum(raw[i] ?? ""); if (v != null) s += v; }
+      return s;
+    };
+    if (row.reg_gross_salary != null && iEsiNum >= 0 && iGross > iEsiNum) {
+      const earn = sumRange(iEsiNum, iGross);
+      // Old registers fold employer PF/ESI into Gross; the new format does not.
+      const er = (Number(row.reg_employer_pf_contr ?? 0) || 0) + (Number(row.reg_employer_esi_contr ?? 0) || 0);
+      const dExcl = earn - row.reg_gross_salary;
+      const dIncl = earn + er - row.reg_gross_salary;
+      row.gross_tieout_diff = Math.round((Math.abs(dExcl) <= Math.abs(dIncl) ? dExcl : dIncl) * 100) / 100;
     }
-    // Net tie-out: RazorpayX gross is CTC-inclusive, so Net = Gross − every
-    // deduction incl. employer PF/ESI (which sit inside gross) and any negative
-    // One-time Payment recovery. Employer LWF sits OUTSIDE gross and is excluded.
-    if (row.reg_gross_salary != null && row.reg_net_pay != null) {
-      const ded = DEDUCTION_KEYS.reduce((a, k) => a + Math.abs(Number(row[k] ?? 0) || 0), 0) +
-        Math.max(-(Number(row.reg_one_time_payments ?? 0) || 0), 0);
-      row.net_tieout_diff = Math.round((row.reg_gross_salary - ded - row.reg_net_pay) * 100) / 100;
+    if (row.reg_gross_salary != null && row.reg_net_pay != null && iGross >= 0 && iNet > iGross) {
+      const ded = sumRange(iGross, iNet); // deductions are negative in the file
+      row.net_tieout_diff = Math.round((row.reg_gross_salary + ded - row.reg_net_pay) * 100) / 100;
     }
   });
 

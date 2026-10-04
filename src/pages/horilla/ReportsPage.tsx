@@ -32,12 +32,6 @@ const currentMonth = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 };
 
-const monthOffset = (offset: number) => {
-  const now = new Date();
-  now.setDate(1);
-  now.setMonth(now.getMonth() + offset);
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-};
 
 const lastDayOfMonth = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);

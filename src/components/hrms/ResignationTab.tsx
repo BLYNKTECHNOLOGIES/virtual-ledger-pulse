@@ -353,6 +353,46 @@ export function ResignationTab() {
   const activeResignations = resigningEmployees?.filter(e => e.resignation_status === "notice_period") || [];
   const completedResignations = resigningEmployees?.filter(e => e.resignation_status === "completed") || [];
 
+  // RazorpayX-side stage for completed separations: dismissed / dismissing / awaiting final salary.
+  const completedIds = completedResignations.map(e => e.id);
+  const { data: exitStage } = useQuery({
+    queryKey: ["resignation-exit-stage", completedIds.join(",")],
+    enabled: completedIds.length > 0,
+    queryFn: async () => {
+      const sb = supabase as any;
+      const [fnf, logs, steps] = await Promise.all([
+        sb.from("hr_fnf_settlements").select("employee_id, payroll_month").in("employee_id", completedIds).eq("status", "paid"),
+        sb.from("hr_razorpay_pushback_log").select("hr_employee_id, status, error_message, created_at").eq("action", "people_dismiss").in("hr_employee_id", completedIds).order("created_at", { ascending: false }),
+        sb.from("hr_payroll_cockpit_state").select("period_month").eq("step_no", 7).eq("status", "done"),
+      ]);
+      const fnfMonth: Record<string, string> = {};
+      (fnf.data || []).forEach((r: any) => { if (r.payroll_month) fnfMonth[r.employee_id] = String(r.payroll_month).slice(0, 7); });
+      const dismissed = new Set<string>();
+      const lastFail: Record<string, string> = {};
+      (logs.data || []).forEach((r: any) => {
+        if (r.status === "success") dismissed.add(r.hr_employee_id);
+        else if (!(r.hr_employee_id in lastFail)) lastFail[r.hr_employee_id] = r.error_message || "failed";
+      });
+      const step7Done = new Set<string>((steps.data || []).map((r: any) => String(r.period_month).slice(0, 7)));
+      return { fnfMonth, dismissed, lastFail, step7Done };
+    },
+  });
+
+  const exitStageFor = (emp: any): { label: string; cls: string; detail?: string } => {
+    if (!exitStage) return { label: "Checking…", cls: "text-muted-foreground" };
+    if (exitStage.dismissed.has(emp.id)) return { label: "Dismissed in RazorpayX", cls: "border-success/40 text-success" };
+    const lwdMonth = emp.last_working_day ? String(emp.last_working_day).slice(0, 7) : "";
+    const fm = exitStage.fnfMonth[emp.id] || "";
+    const month = fm > lwdMonth ? fm : lwdMonth;
+    if (month && !exitStage.step7Done.has(month)) {
+      const name = new Date(`${month}-01T00:00:00`).toLocaleString("en-IN", { month: "long" });
+      return { label: `Awaiting ${name} salary`, cls: "border-warning/40 text-warning", detail: "RazorpayX dismissal happens after this month's payroll is processed (Step 7)." };
+    }
+    const fail = exitStage.lastFail[emp.id];
+    if (fail) return { label: "Dismissal failed in RazorpayX", cls: "border-destructive/40 text-destructive", detail: fail };
+    return { label: "Dismissing in RazorpayX", cls: "border-primary/40 text-primary", detail: "Runs in the nightly sweep." };
+  };
+
   // Settlement state for everyone on notice. Completing the local separation
   // never dismisses the employee in RazorpayX; the automated sweep does that
   // only after the final payroll month is marked processed.
@@ -664,6 +704,7 @@ export function ResignationTab() {
         </TabsContent>
 
         <TabsContent value="completed">
+          <p className="text-xs text-muted-foreground mb-2">Completed means the separation and final settlement are done. The tag on the right shows the RazorpayX side.</p>
           {completedResignations.length === 0 ? (
             <Card><CardContent className="py-8 text-center text-muted-foreground">No completed resignations</CardContent></Card>
           ) : (
@@ -682,6 +723,10 @@ export function ResignationTab() {
                           Last day: {emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}
                         </div>
                       </div>
+                      {(() => {
+                        const s = exitStageFor(emp);
+                        return <Badge variant="outline" className={s.cls} title={s.detail}>{s.label}</Badge>;
+                      })()}
                     </div>
                   </CardContent>
                 </Card>

@@ -225,7 +225,19 @@ function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?:
     reg_pt: toDed(r[colT("PT")] ?? ""),
     reg_tds: toDed(r[colT("TDS")] ?? ""),
     reg_advance_salary: toDed(r[colT("Advance Salary")] ?? ""),
-    reg_loan_emi: toDed(r[colT("Loan Emi")] ?? ""),
+    // RazorpayX now emits BOTH "Loan Emi" (its own loan schedule) and
+    // "Loan Repayment" (bulk-sheet uploads) as separate columns; both are
+    // loan deductions, so sum them. "Loan Repayment" is an alias of
+    // "Loan Emi", so the direct-name hit wins and the alias column would
+    // otherwise fall through to the custom-heads pass.
+    reg_loan_emi: (() => {
+      const a = toDed(r[colT("Loan Emi")] ?? "");
+      const iRep = idx("Loan Repayment");
+      if (iRep >= 0) mapped.add(iRep);
+      const b = iRep >= 0 ? toDed(r[iRep] ?? "") : null;
+      if (a == null && b == null) return null;
+      return (a ?? 0) + (b ?? 0);
+    })(),
     reg_one_time_payments: toNum(r[colT("One-time Payments")] ?? ""),
     reg_net_pay: toNum(r[colT("Net Pay")] ?? ""),
     reg_has_left: (() => {

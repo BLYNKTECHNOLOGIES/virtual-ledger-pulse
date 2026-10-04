@@ -141,7 +141,7 @@ interface ParsedRow {
   reg_hire_date: string | null;
 }
 
-function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?: string; missingCols?: string[] } {
+export function parseRows(text: string): { header: string[]; rows: ParsedRow[]; error?: string; missingCols?: string[] } {
   const grid = parseCsv(text);
   if (grid.length < 2) return { header: [], rows: [], error: "CSV appears empty" };
   const header = grid[0].map(h => h.trim());

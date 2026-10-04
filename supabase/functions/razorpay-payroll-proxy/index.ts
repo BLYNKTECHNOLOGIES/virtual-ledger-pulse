@@ -5876,21 +5876,33 @@ Deno.serve(async (req) => {
             if (em.includes("@")) return { email: em, rpId: String(m.razorpay_employee_id), hrId: m.hr_employee_id, reason: "payload.pilot_rp_id" };
           }
         }
-        // Auto-pick: highest numeric rpId with a real email.
+        // Auto-pick: highest numeric rpId with a real email. Employees who
+        // left before the probed period are skipped — RazorpayX answers
+        // "Unable to locate the user" for them, which falsely reads as
+        // "month not executed" and blocks the whole pull.
         const { data: maps } = await svc.from("hr_razorpay_employee_map")
           .select("hr_employee_id,razorpay_employee_id");
         const withHr = (maps || []).filter((m: any) => !!m.hr_employee_id);
         if (!withHr.length) return { email: null, rpId: null, hrId: null, reason: "no_map_rows" };
         const hrIds = withHr.map((m: any) => m.hr_employee_id);
-        const { data: emps } = await svc.from("hr_employees").select("id,email").in("id", hrIds);
+        const { data: emps } = await svc.from("hr_employees").select("id,email,last_working_day").in("id", hrIds);
         const emailByHr = new Map<string, string>();
+        const lwdByHr = new Map<string, string | null>();
         for (const e of (emps || []) as any[]) {
           const em = String(e.email || "").trim().toLowerCase();
           if (em.includes("@")) emailByHr.set(e.id, em);
+          lwdByHr.set(e.id, e.last_working_day ? String(e.last_working_day).slice(0, 10) : null);
         }
+        // Cutoff: first day of the probed period (payload.period_from /
+        // period_month), else the first day of the current month.
+        const periodHint = String(payload?.period_from || payload?.period_month || "").trim();
+        const cutoff = /^\d{4}-\d{2}/.test(periodHint)
+          ? `${periodHint.slice(0, 7)}-01`
+          : new Date().toISOString().slice(0, 8) + "01";
         const candidates = withHr
-          .map((m: any) => ({ rp: String(m.razorpay_employee_id), hrId: m.hr_employee_id, email: emailByHr.get(m.hr_employee_id) || "" }))
+          .map((m: any) => ({ rp: String(m.razorpay_employee_id), hrId: m.hr_employee_id, email: emailByHr.get(m.hr_employee_id) || "", lwd: lwdByHr.get(m.hr_employee_id) || null }))
           .filter((c: any) => c.email)
+          .filter((c: any) => !c.lwd || c.lwd >= cutoff)
           .sort((a: any, b: any) => (Number(b.rp) || 0) - (Number(a.rp) || 0));
         if (!candidates.length) return { email: null, rpId: null, hrId: null, reason: "no_pilot_with_email" };
         const top = candidates[0];

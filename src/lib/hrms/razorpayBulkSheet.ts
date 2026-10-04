@@ -65,7 +65,7 @@ export type BulkSheet = {
   rows: BulkRow[];
   blocked: BulkBlock[];
   alreadyPushed: { name: string; what: string; amount: number }[];
-  totals: { additions: number; deductions: number; lopDays: number };
+  totals: { additions: number; deductions: number; lopDeduction: number };
 };
 
 export async function buildBulkSheet(period: string): Promise<BulkSheet> {
@@ -84,25 +84,27 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   const alreadyPushed: BulkSheet["alreadyPushed"] = [];
   const grouped = new Map<string, BulkRow>();
 
-  const add = (r: any, table: "add" | "ded", component: string | null, isLop: boolean) => {
+  const add = (r: any, table: "add" | "ded", component: string | null) => {
     const what = r.label ?? "";
     if (r.pushed_at) { alreadyPushed.push({ name: nm(r.hr_employee_id), what, amount: n2(r.amount) }); return; }
     const rid = r.razorpay_employee_id ?? rzp.get(r.hr_employee_id);
     if (!rid) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "Not linked to a RazorpayX employee ID" });
     if (!component) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "No allowed RazorpayX name — pick one in Step 6" });
-    if (isLop ? !(n2(r.lop_days) > 0) : !(n2(r.amount) > 0)) return blocked.push({ name: nm(r.hr_employee_id), what, reason: isLop ? "Loss of Pay days missing" : "Amount is zero or below" });
+    if (!(n2(r.amount) > 0)) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "Calculated deduction amount is zero or below" });
     const key = `${r.hr_employee_id}|${component}`;
     const e: any = emp.get(r.hr_employee_id);
-    const g = grouped.get(key) ?? { empId: r.hr_employee_id, badge: String(rid), email: e?.email ?? "", name: nm(r.hr_employee_id), component, days: isLop ? 0 : null, amount: isLop ? null : 0, sourceIds: [] };
-    if (isLop) g.days = n2((g.days ?? 0) + n2(r.lop_days)); else g.amount = n2((g.amount ?? 0) + n2(r.amount));
+    const g = grouped.get(key) ?? { empId: r.hr_employee_id, badge: String(rid), email: e?.email ?? "", name: nm(r.hr_employee_id), component, days: null, amount: 0, sourceIds: [] };
+    g.amount = n2((g.amount ?? 0) + n2(r.amount));
     g.sourceIds.push({ table, id: r.id });
     grouped.set(key, g);
   };
 
-  for (const r of adds) { const c = defaultAdditionName(r); add(r, "add", c ? `${c} | Addition` : null, false); }
+  for (const r of adds) { const c = defaultAdditionName(r); add(r, "add", c ? `${c} | Addition` : null); }
   for (const r of deds) {
-    if (String(r.source) === "auto_lop") add(r, "ded", "Loss of Pay", true);
-    else { const c = defaultDeductionName(r); add(r, "ded", c ? `${c} | Deduction` : null, false); }
+    // The owner requires LOP as its already-calculated rupee deduction, not as
+    // days. RazorpayX's exact allowed deduction label for this is Gross pay deduction.
+    if (String(r.source) === "auto_lop") add(r, "ded", "Gross pay deduction | Deduction");
+    else { const c = defaultDeductionName(r); add(r, "ded", c ? `${c} | Deduction` : null); }
   }
 
   // Anything the verification pack says is due but not yet staged must be staged first.
@@ -125,11 +127,11 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   const totals = {
     additions: n2(rows.filter((r) => r.component.endsWith("| Addition")).reduce((s, r) => s + (r.amount ?? 0), 0)),
     deductions: n2(rows.filter((r) => r.component.endsWith("| Deduction")).reduce((s, r) => s + (r.amount ?? 0), 0)),
-    lopDays: n2(rows.reduce((s, r) => s + (r.days ?? 0), 0)),
+    lopDeduction: n2(rows.filter((r) => r.component === "Gross pay deduction | Deduction").reduce((s, r) => s + (r.amount ?? 0), 0)),
   };
 
   // Cross-check: every staged, unpushed money line counted in the pack is in the sheet.
-  const packUnpushed = n2(adds.concat(deds).filter((r: any) => !r.pushed_at && String(r.source) !== "auto_lop").reduce((s: number, r: any) => s + n2(r.amount), 0));
+  const packUnpushed = n2(adds.concat(deds).filter((r: any) => !r.pushed_at).reduce((s: number, r: any) => s + n2(r.amount), 0));
   const blockedAmt = 0; // blocked lines are reported separately
   if (!blocked.length && Math.abs(packUnpushed - blockedAmt - (totals.additions + totals.deductions)) > 0.01)
     blocked.push({ name: "—", what: "Totals check", reason: `Sheet totals ₹${n2(totals.additions + totals.deductions)} differ from unpushed Step 6 lines ₹${packUnpushed}` });

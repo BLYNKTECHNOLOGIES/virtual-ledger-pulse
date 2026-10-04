@@ -374,11 +374,11 @@ Deno.serve(async (req) => {
     {
       const { data: dnpRows, error: dnpErr } = await supabase
         .from("hr_razorpay_payslip_records")
-        .select("hr_employee_id, do_not_pay")
+        .select("hr_employee_id, do_not_pay, reg_net_pay, reg_has_left")
         .eq("period_month", periodStr)
         .eq("do_not_pay", true);
       if (dnpErr) console.error("do_not_pay fetch err", dnpErr);
-      for (const r of dnpRows ?? []) if (r.hr_employee_id) doNotPayEmp.add(r.hr_employee_id);
+      for (const r of dnpRows ?? []) if (r.hr_employee_id && !(Number((r as any).reg_net_pay) > 0 && !(r as any).reg_has_left)) doNotPayEmp.add(r.hr_employee_id); // RazorpayX returns do-not-pay=true for everyone once a month is executed; the imported register proves who was paid
     }
 
     // RazorpayX comparison side, prefetched once for the whole period.

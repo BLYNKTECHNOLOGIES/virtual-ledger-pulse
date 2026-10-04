@@ -210,8 +210,8 @@ Deno.serve(async (req) => {
     const doNotPay = new Set<string>();
     {
       const { data: dnp } = await supabase.from("hr_razorpay_payslip_records")
-        .select("hr_employee_id, do_not_pay").eq("period_month", periodStr).eq("do_not_pay", true);
-      for (const r of (dnp ?? []) as any[]) if (r.hr_employee_id) doNotPay.add(r.hr_employee_id);
+        .select("hr_employee_id, do_not_pay, reg_net_pay, reg_has_left").eq("period_month", periodStr).eq("do_not_pay", true);
+      for (const r of (dnp ?? []) as any[]) if (r.hr_employee_id && !(Number((r as any).reg_net_pay) > 0 && !(r as any).reg_has_left)) doNotPay.add(r.hr_employee_id); // RazorpayX returns do-not-pay=true for everyone once a month is executed; the imported register proves who was paid
     }
 
     // YTD TDS paid this FY (for the remaining-months projection).

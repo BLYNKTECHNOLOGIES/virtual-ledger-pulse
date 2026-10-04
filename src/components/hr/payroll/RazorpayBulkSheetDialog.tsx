@@ -79,6 +79,9 @@ export function RazorpayBulkSheetDialog({ open, onOpenChange, period }: { open: 
         </div>
 
         <DialogFooter className="shrink-0 flex-wrap gap-2 sm:space-x-0 [&>button]:min-w-0">
+          <Button variant="outline" onClick={() => finalize.mutate()} disabled={finalize.isPending || mark.isPending} title="Re-read every bulk-uploaded line from the live RazorpayX run and settle recoveries">
+            {finalize.isPending ? "Checking RazorpayX…" : "Verify uploaded lines on RazorpayX"}
+          </Button>
           <Button variant="outline" onClick={() => build.mutate()} disabled={build.isPending}>
             <RefreshCw className={`h-4 w-4 mr-1.5 ${build.isPending ? "animate-spin" : ""}`} /> {sheet ? "Refresh" : "Prepare sheet"}
           </Button>

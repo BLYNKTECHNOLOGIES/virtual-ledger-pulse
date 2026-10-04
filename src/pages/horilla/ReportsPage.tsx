@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
@@ -32,12 +32,6 @@ const currentMonth = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 };
 
-const monthOffset = (offset: number) => {
-  const now = new Date();
-  now.setDate(1);
-  now.setMonth(now.getMonth() + offset);
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-};
 
 const lastDayOfMonth = (month: string) => {
   const [year, monthNumber] = month.split("-").map(Number);
@@ -57,13 +51,37 @@ const Source = ({ children }: { children: React.ReactNode }) => (
 );
 
 export default function ReportsPage() {
-  const [periodMode, setPeriodMode] = useState<"month" | "range">("range");
-  const [monthFrom, setMonthFrom] = useState(() => monthOffset(-6));
+  const [periodMode, setPeriodMode] = useState<"month" | "range">("month");
+  const [monthFrom, setMonthFrom] = useState(() => currentMonth());
   const [monthTo, setMonthTo] = useState(() => currentMonth());
   const dateFrom = `${monthFrom}-01`;
   const dateTo = lastDayOfMonth(periodMode === "month" ? monthFrom : monthTo);
   const [drillMonth, setDrillMonth] = useState<string | null>(null);
   const [attentionOpen, setAttentionOpen] = useState(false);
+
+  // Default view = the last month for which payroll has actually been
+  // processed (latest month present in the RazorpayX payslip mirror).
+  const [periodDefaultsApplied, setPeriodDefaultsApplied] = useState(false);
+  const { data: latestProcessedMonth } = useQuery({
+    queryKey: ["rpt_latest_processed_month"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("hr_payslips_v")
+        .select("period_month")
+        .order("period_month", { ascending: false })
+        .limit(1);
+      return (data?.[0]?.period_month as string | undefined)?.slice(0, 7) ?? null;
+    },
+    staleTime: 60_000,
+  });
+  useEffect(() => {
+    // Apply once, and never override a selector the user has already touched.
+    if (periodDefaultsApplied || !latestProcessedMonth) return;
+    setPeriodDefaultsApplied(true);
+    setPeriodMode("month");
+    setMonthFrom(latestProcessedMonth);
+    setMonthTo(latestProcessedMonth);
+  }, [periodDefaultsApplied, latestProcessedMonth]);
 
   const selectSingleMonth = (month: string) => {
     setMonthFrom(month);

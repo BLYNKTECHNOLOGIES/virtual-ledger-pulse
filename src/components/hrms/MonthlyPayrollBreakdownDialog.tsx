@@ -94,13 +94,15 @@ export function MonthlyPayrollBreakdownDialog({ monthKey, monthLabel, onClose, e
       }))),
   });
 
-  const enriched = useMemo(() => rows.map((r: any) => ({
-    ...r,
-    _name: empName(r.employee_id),
-    _badge: empBadge(r.employee_id),
-    _dept: r.reg_department || deptOf(r.employee_id),
-    _designation: r.reg_designation || "—",
-  })), [rows, empName, deptOf, empBadge]);
+  const enriched = useMemo(() => rows
+    .filter((r: any) => !excludeEmployeeIds?.has(r.employee_id))
+    .map((r: any) => ({
+      ...r,
+      _name: empName(r.employee_id),
+      _badge: empBadge(r.employee_id),
+      _dept: r.reg_department || deptOf(r.employee_id),
+      _designation: r.reg_designation || "—",
+    })), [rows, empName, deptOf, empBadge, excludeEmployeeIds]);
 
   const depts = useMemo(
     () => Array.from(new Set(enriched.map((r: any) => r._dept))).sort(),

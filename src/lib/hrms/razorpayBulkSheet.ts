@@ -162,7 +162,12 @@ export function downloadBulkSheet(sheet: BulkSheet) {
   XLSX.writeFile(wb, `Bulk-Addition-Deduction-01-${m}-${y}.xlsx`);
 }
 
-/** Record that these lines were uploaded through the RazorpayX bulk sheet. */
+/**
+ * Record that these lines were uploaded through the RazorpayX bulk sheet, then
+ * run every follow-up a normal Step 6 push runs: recovery ledgers
+ * (deposit / error recovery / loan EMI), F&F push status, and the RazorpayX
+ * run read-back that stamps "Verified on run".
+ */
 export async function markBulkUploaded(sheet: BulkSheet) {
   const now = new Date().toISOString();
   const ids = sheet.rows.flatMap((r) => r.sourceIds);
@@ -170,11 +175,38 @@ export async function markBulkUploaded(sheet: BulkSheet) {
   const dedIds = ids.filter((i) => i.table === "ded").map((i) => i.id);
   const upd = { pushed_at: now, push_channel: "bulk_sheet", push_response: { channel: "bulk_sheet" } };
   if (addIds.length) { const { error } = await (supabase as any).from("hr_payroll_input_additions").update(upd).in("id", addIds).is("pushed_at", null); if (error) throw error; }
-  if (dedIds.length) {
-    const { error } = await (supabase as any).from("hr_payroll_input_deductions").update(upd).in("id", dedIds).is("pushed_at", null); if (error) throw error;
-    const { data: d } = await (supabase as any).from("hr_payroll_input_deductions").select("recovery_ref_id,recovery_kind").in("id", dedIds);
-    const loanIds = (d ?? []).filter((x: any) => x.recovery_kind === "loan" && x.recovery_ref_id).map((x: any) => x.recovery_ref_id);
-    if (loanIds.length) await (supabase as any).from("hr_loan_repayments").update({ status: "pushed", razorpay_pushed_at: now }).in("id", loanIds).eq("status", "scheduled");
-  }
+  if (dedIds.length) { const { error } = await (supabase as any).from("hr_payroll_input_deductions").update(upd).in("id", dedIds).is("pushed_at", null); if (error) throw error; }
   return addIds.length + dedIds.length;
+}
+
+/**
+ * Follow-ups for every bulk-uploaded line of the month (idempotent — safe to
+ * re-run). Mirrors PayrollInputsPage.pushGroup + hr-push-fnf side effects.
+ */
+export async function finalizeBulkUpload(period: string) {
+  const issues: string[] = [];
+  const { data: deds } = await (supabase as any).from("hr_payroll_input_deductions")
+    .select("id,recovery_kind,recovery_ref_id").eq("period_month", period).eq("push_channel", "bulk_sheet");
+  for (const r of deds ?? []) {
+    if (!r.recovery_kind || !r.recovery_ref_id) continue;
+    const { error } = r.recovery_kind === "loan"
+      ? await (supabase as any).rpc("hr_apply_loan_push", { p_repayment_id: r.recovery_ref_id, p_razorpay_input_id: null })
+      : await (supabase as any).rpc("hr_apply_deposit_collection", { p_schedule_id: r.recovery_ref_id, p_razorpay_input_id: null });
+    if (error) issues.push(`Recovery ledger: ${error.message}`);
+  }
+  const { data: fnfAdds } = await (supabase as any).from("hr_payroll_input_additions")
+    .select("hr_employee_id").eq("period_month", period).eq("push_channel", "bulk_sheet").eq("source", "fnf_settlement");
+  const fnfEmps = [...new Set((fnfAdds ?? []).map((r: any) => r.hr_employee_id))];
+  if (fnfEmps.length) {
+    const { error } = await (supabase as any).from("hr_fnf_settlements")
+      .update({ razorpay_push_status: "pushed", razorpay_pushed_at: new Date().toISOString(), push_failure_reason: null })
+      .in("employee_id", fnfEmps).eq("payroll_month", period).in("status", ["approved", "finalized", "paid"]).neq("razorpay_push_status", "pushed");
+    if (error) issues.push(`F&F status: ${error.message}`);
+  }
+  const { data: rb, error: rbErr } = await supabase.functions.invoke("razorpay-payroll-proxy", {
+    body: { action: "bulk_sheet_readback", period_month: period.slice(0, 7) },
+  });
+  if (rbErr) issues.push(`Read-back: ${rbErr.message}`);
+  const failed = ((rb as any)?.results ?? []).filter((r: any) => !r.ok);
+  return { checked: (rb as any)?.checked ?? 0, verified: (rb as any)?.verified ?? 0, failed, issues };
 }

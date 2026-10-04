@@ -532,11 +532,10 @@ export async function dismissInRazorpay(
     const [{ data: step7 }, { data: slip }] = await Promise.all([
       (supabase as any).from("hr_payroll_cockpit_state").select("status")
         .eq("period_month", payrollMonth).eq("step_no", 7).eq("status", "done").limit(1).maybeSingle(),
-      (supabase as any).from("hr_payslips").select("id")
-        .eq("employee_id", hrEmployeeId).gte("period_month", payrollMonth)
-        .lt("period_month", `${payrollMonth.slice(0, 8)}28`).gt("net_salary", 0).limit(1).maybeSingle(),
+      (supabase as any).from("hr_razorpay_payslip_records").select("reg_net_pay, net_pay")
+        .eq("hr_employee_id", hrEmployeeId).eq("period_month", payrollMonth).limit(1).maybeSingle(),
     ]);
-    finalSalaryProven = !!step7 && !!slip;
+    finalSalaryProven = !!step7 && Number(slip?.reg_net_pay ?? slip?.net_pay ?? 0) > 0;
   }
   if (!finalSalaryProven) {
     return {

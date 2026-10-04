@@ -11,7 +11,10 @@ export function RazorpayBulkSheetDialog({ open, onOpenChange, period }: { open: 
   const qc = useQueryClient();
   const build = useMutation({ mutationFn: () => buildBulkSheet(period), onSuccess: setSheet, onError: (e: any) => toast.error(e.message || "Could not build the sheet") });
   const mark = useMutation({
-    mutationFn: () => markBulkUploaded(sheet!),
+    mutationFn: () => {
+      if (!sheet) throw new Error("Prepare the sheet before marking it as uploaded");
+      return markBulkUploaded(sheet);
+    },
     onSuccess: (n) => { toast.success(`${n} line(s) marked as sent via bulk sheet`); qc.invalidateQueries(); setSheet(null); },
     onError: (e: any) => toast.error(e.message || "Could not mark as uploaded"),
   });
@@ -19,39 +22,40 @@ export function RazorpayBulkSheetDialog({ open, onOpenChange, period }: { open: 
 
   return (
     <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setSheet(null); }}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><FileSpreadsheet className="h-4 w-4 text-primary" /> RazorpayX bulk addition/deduction sheet</DialogTitle>
+      <DialogContent className="flex max-h-[calc(100dvh-1rem)] min-w-0 flex-col gap-3 overflow-hidden md:!w-[min(48rem,calc(100vw-2rem))] md:!max-w-none">
+        <DialogHeader className="min-w-0 shrink-0 pr-7">
+          <DialogTitle className="flex min-w-0 items-start gap-2 leading-snug"><FileSpreadsheet className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> <span className="min-w-0">RazorpayX bulk addition/deduction sheet</span></DialogTitle>
           <DialogDescription>Every unpushed Step 6 line in RazorpayX's own upload format, using only your RazorpayX names. Upload it on the RazorpayX dashboard.</DialogDescription>
         </DialogHeader>
 
-        {!sheet ? (
-          <div className="rounded-md border bg-muted/30 px-3 py-6 text-center text-sm text-muted-foreground">
-            {build.isPending ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Collecting Step 6 lines…</span> : "Prepare the sheet to preview it."}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+          {!sheet ? (
+            <div className="rounded-md border bg-muted/30 px-3 py-6 text-center text-sm text-muted-foreground">
+              {build.isPending ? <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Collecting Step 6 lines…</span> : "Prepare the sheet to preview it."}
+            </div>
+          ) : (
+          <div className="min-w-0 space-y-3">
+            <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
               {[["Rows", sheet.rows.length], ["Additions ₹", sheet.totals.additions], ["Deductions ₹", sheet.totals.deductions], ["LOP days", sheet.totals.lopDays]].map(([l, v]) => (
-                <div key={String(l)} className="rounded-md border bg-muted/30 px-3 py-2">
-                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{l}</div>
-                  <div className="text-lg font-semibold t-mono">{String(v)}</div>
+                <div key={String(l)} className="min-w-0 rounded-md border bg-muted/30 px-3 py-2">
+                  <div className="break-words text-[11px] uppercase tracking-wide text-muted-foreground">{l}</div>
+                  <div className="break-all text-lg font-semibold t-mono">{String(v)}</div>
                 </div>
               ))}
             </div>
             {blocked && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
+              <div className="min-w-0 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-destructive"><AlertTriangle className="h-3.5 w-3.5" /> Fix these before downloading</div>
-                <ul className="mt-1 space-y-0.5 text-xs text-foreground">{sheet.blocked.map((b, i) => <li key={i}><b>{b.name}</b> — {b.what}: {b.reason}</li>)}</ul>
+                <ul className="mt-1 space-y-1 text-xs text-foreground">{sheet.blocked.map((b, i) => <li key={i} className="break-words"><b>{b.name}</b> — {b.what}: {b.reason}</li>)}</ul>
               </div>
             )}
-            <div className="rounded-md border divide-y text-xs">
+            <div className="min-w-0 divide-y rounded-md border text-xs">
               {sheet.rows.map((r, i) => (
-                <div key={i} className="flex gap-2 px-3 py-1.5">
-                  <span className="t-mono w-8 text-muted-foreground">{r.badge}</span>
-                  <span className="flex-1 truncate">{r.name}</span>
-                  <span className="truncate">{r.component}</span>
-                  <span className="t-mono w-20 text-right">{r.days != null ? `${r.days} d` : `₹${r.amount}`}</span>
+                <div key={i} className="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)_minmax(6rem,1.35fr)_4.5rem] items-center gap-2 px-3 py-1.5">
+                  <span className="truncate t-mono text-muted-foreground">{r.badge}</span>
+                  <span className="min-w-0 truncate">{r.name}</span>
+                  <span className="min-w-0 truncate text-right sm:text-left" title={r.component}>{r.component}</span>
+                  <span className="truncate text-right t-mono">{r.days != null ? `${r.days} d` : `₹${r.amount}`}</span>
                 </div>
               ))}
             </div>
@@ -62,9 +66,10 @@ export function RazorpayBulkSheetDialog({ open, onOpenChange, period }: { open: 
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="shrink-0 flex-wrap gap-2 sm:space-x-0 [&>button]:min-w-0">
           <Button variant="outline" onClick={() => build.mutate()} disabled={build.isPending}>
             <RefreshCw className={`h-4 w-4 mr-1.5 ${build.isPending ? "animate-spin" : ""}`} /> {sheet ? "Refresh" : "Prepare sheet"}
           </Button>

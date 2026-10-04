@@ -259,18 +259,34 @@ Deno.serve(async (req) => {
       results.push({ id: emp.id, name, last_working_day: emp.last_working_day, ...access, action: "held_fnf_unsettled", reason: settlement.reason });
       continue;
     }
-    const payrollMonth = settlement.row?.payroll_month || `${String(emp.last_working_day).slice(0, 7)}-01`;
+    // The final SALARY month is the last-working-day month, even when the F&F
+    // amount rode an earlier run (e.g. LWD 3 Oct, F&F paid in September).
+    const lwdMonth = `${String(emp.last_working_day).slice(0, 7)}-01`;
+    const fnfMonth = settlement.row?.payroll_month ? `${String(settlement.row.payroll_month).slice(0, 7)}-01` : lwdMonth;
+    const payrollMonth = fnfMonth > lwdMonth ? fnfMonth : lwdMonth;
     const { data: mapping, error: mappingError } = await svc.from("hr_razorpay_employee_map")
       .select("razorpay_employee_id").eq("hr_employee_id", emp.id).maybeSingle();
     if (mappingError || !mapping?.razorpay_employee_id) {
       results.push({ id: emp.id, name, ...access, action: "held_final_payroll_unpaid", reason: mappingError?.message || "No RazorpayX employee mapping" });
       continue;
     }
-    const { data: payout, error: payoutError } = await svc.from("hr_razorpay_payout_records")
+    // Proof the final salary was paid: a verified payout row, OR HR confirmed
+    // "Run payroll on RazorpayX" (cockpit Step 7) for that month AND the
+    // person is in that month's imported register / payslips with pay > 0.
+    // RazorpayX exposes no payout API, so the payout table alone never fills.
+    const { data: payout } = await svc.from("hr_razorpay_payout_records")
       .select("id").eq("hr_employee_id", emp.id).eq("razorpay_employee_id", mapping.razorpay_employee_id).eq("period_month", payrollMonth)
       .in("payout_status", ["paid", "success", "processed"])
       .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
-    if (payoutError || !payout) {
+    let paidProof = !!payout;
+    if (!paidProof) {
+      const [{ data: step7 }, { data: slip }] = await Promise.all([
+        svc.from("hr_payroll_cockpit_state").select("status").eq("period_month", payrollMonth).eq("step_no", 7).eq("status", "done").maybeSingle(),
+        svc.from("hr_razorpay_payslip_records").select("reg_net_pay, net_pay").eq("hr_employee_id", emp.id).eq("period_month", payrollMonth).maybeSingle(),
+      ]);
+      paidProof = !!step7 && !!slip && (Number(slip.reg_net_pay) > 0 || Number(slip.net_pay) > 0);
+    }
+    if (!paidProof) {
       results.push({
         id: emp.id,
         name,
@@ -278,7 +294,7 @@ Deno.serve(async (req) => {
         ...access,
         action: "held_final_payroll_unpaid",
         payroll_month: payrollMonth,
-        reason: payoutError?.message || `RazorpayX remains active until this employee's ${String(payrollMonth).slice(0, 7)} salary payout is verified.`,
+        reason: `RazorpayX remains active until the ${payrollMonth.slice(0, 7)} payroll is confirmed run (cockpit Step 7) and this employee's paid payslip for that month is imported.`,
       });
       continue;
     }

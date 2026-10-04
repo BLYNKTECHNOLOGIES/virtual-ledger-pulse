@@ -8494,7 +8494,7 @@ Deno.serve(async (req) => {
           actor_user_id: authed.userId,
         });
         const names = sentNames.map((n) => `'${n.label}'`).join(", ");
-        errText = `RZP_COMPONENT_NOT_IN_LIBRARY: RazorpayX did not recognise the name ${names}. It must match a Component name in RazorpayX → Settings → Salary Component Library.`;
+        errText = `RazorpayX did not recognise the name ${names}. It must match a Component name in RazorpayX → Settings → Salary Component Library.`;
       }
 
       const rpEid = payrollEmployeeId;

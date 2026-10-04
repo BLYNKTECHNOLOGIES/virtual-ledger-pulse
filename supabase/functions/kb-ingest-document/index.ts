@@ -19,7 +19,12 @@ async function extractTextFromFile(
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
 
-  const b64 = btoa(String.fromCharCode(...fileBytes));
+  // Chunked conversion — spreading a whole file into fromCharCode overflows the call stack.
+  let bin = "";
+  for (let i = 0; i < fileBytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...fileBytes.subarray(i, i + 0x8000));
+  }
+  const b64 = btoa(bin);
   const dataUrl = `data:${mimeType};base64,${b64}`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

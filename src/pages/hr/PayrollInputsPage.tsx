@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { DEDUCTION_COMPONENT_NAMES } from "@/lib/hrms/razorpayBulkSheet";
 import { useFormDraftPersistence } from "@/hooks/useFormDraftPersistence";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -434,7 +435,7 @@ export default function PayrollInputsPage() {
 
   const setRzpLabel = useMutation({
     mutationFn: async ({ id, label }: { id: string; label: string }) => {
-      const { error } = await (supabase as any).from("hr_payroll_input_additions")
+      const { error } = await (supabase as any).from(table)
         .update({ razorpay_label: label }).eq("id", id).is("pushed_at", null);
       if (error) throw error;
       return label;
@@ -1056,6 +1057,21 @@ export default function PayrollInputsPage() {
                       </td>
                       <td className="px-3 py-2">
                         {r.label}
+                        {tab === "deduction" && !r.pushed_at && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground">RazorpayX name:</span>
+                            <Select value={r.razorpay_label || undefined} onValueChange={(v) => setRzpLabel.mutate({ id: r.id, label: v })}>
+                              <SelectTrigger className="h-6 w-[220px] text-[11px] text-foreground">
+                                <SelectValue placeholder="Auto (from label)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {DEDUCTION_COMPONENT_NAMES.map((n) => (
+                                  <SelectItem key={n} value={n} className="text-xs">{n}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                         {tab === "addition" && (
                           <div className="mt-1 flex items-center gap-1.5">
                             <span className="text-[10px] text-muted-foreground">RazorpayX name:</span>

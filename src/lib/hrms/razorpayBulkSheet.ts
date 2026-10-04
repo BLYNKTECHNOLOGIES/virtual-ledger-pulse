@@ -49,6 +49,7 @@ function defaultDeductionName(r: any): string | null {
   if (r.razorpay_label && DED_NAMES.has(r.razorpay_label)) return r.razorpay_label;
   const l = String(r.label ?? "").toLowerCase();
   const k = String(r.recovery_kind ?? "").toLowerCase();
+  if (/\blop\b|loss of pay|loss-of-pay|absent/.test(l)) return "Gross pay deduction";
   if (/advance/.test(l) || k === "advance") return "Advance Salary";
   if (/deposit/.test(l) || k === "deposit") return "Security Deposit";
   if (/wrong|error/.test(l) || k === "error") return "Wrong Payment Recovery";

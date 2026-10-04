@@ -8391,17 +8391,26 @@ Deno.serve(async (req) => {
             !["pushed", "nothing_to_push"].includes(String(finalFnf?.razorpay_push_status))) {
           return json(403, { ok: false, code: "FNF_NOT_SETTLED", error: "F&F has not been settled and verified; RazorpayX dismissal is blocked." });
         }
-        const finalMonth = finalFnf.payroll_month || `${dismissalEmployee.last_working_day.slice(0, 7)}-01`;
-        const { data: finalPayout, error: finalPayoutError } = await svc
-          .from("hr_razorpay_payout_records")
-          .select("id")
-          .eq("hr_employee_id", dismissalMap.hr_employee_id)
-          .eq("razorpay_employee_id", String(rpEid))
-          .eq("period_month", finalMonth)
-          .in("payout_status", ["paid", "success", "processed"])
-          .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle();
-        if (finalPayoutError || !finalPayout) {
-          return json(403, { ok: false, code: "FINAL_SALARY_NOT_VERIFIED", error: "Employee-level final salary payout has not been verified; RazorpayX dismissal is blocked. Pull payouts after payroll processing." });
+        // Final salary month = later of LWD month and F&F payroll month.
+        const lwdMonth = `${dismissalEmployee.last_working_day.slice(0, 7)}-01`;
+        const fnfMonth = finalFnf.payroll_month ? `${String(finalFnf.payroll_month).slice(0, 7)}-01` : lwdMonth;
+        const finalMonth = fnfMonth > lwdMonth ? fnfMonth : lwdMonth;
+        // Proof A: explicit payout record. Proof B (RazorpayX has no payout API):
+        // cockpit Step 7 done for that month + imported payslip with pay > 0.
+        const [{ data: finalPayout }, { data: step7Done }, { data: finalSlip }] = await Promise.all([
+          svc.from("hr_razorpay_payout_records").select("id")
+            .eq("hr_employee_id", dismissalMap.hr_employee_id)
+            .eq("period_month", finalMonth)
+            .in("payout_status", ["paid", "success", "processed"])
+            .gt("paid_amount", 0).not("paid_at", "is", null).limit(1).maybeSingle(),
+          svc.from("hr_payroll_cockpit_state").select("status")
+            .eq("period_month", finalMonth).eq("step_no", 7).eq("status", "done").maybeSingle(),
+          svc.from("hr_razorpay_payslip_records").select("reg_net_pay, net_pay")
+            .eq("hr_employee_id", dismissalMap.hr_employee_id).eq("period_month", finalMonth).maybeSingle(),
+        ]);
+        const slipPaid = !!finalSlip && (Number(finalSlip.reg_net_pay) > 0 || Number(finalSlip.net_pay) > 0);
+        if (!finalPayout && !(step7Done && slipPaid)) {
+          return json(403, { ok: false, code: "FINAL_SALARY_NOT_VERIFIED", error: `Final salary for ${finalMonth.slice(0, 7)} is not confirmed yet (needs payroll Step 7 done and that month's payslip imported with pay above zero). RazorpayX dismissal is blocked until then.` });
         }
         if (!data.email) {
           try {

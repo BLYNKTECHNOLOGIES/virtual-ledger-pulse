@@ -15060,6 +15060,7 @@ export type Database = {
           label: string
           period_month: string
           provisional: boolean
+          push_channel: string | null
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
@@ -15083,6 +15084,7 @@ export type Database = {
           label: string
           period_month: string
           provisional?: boolean
+          push_channel?: string | null
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
@@ -15106,6 +15108,7 @@ export type Database = {
           label?: string
           period_month?: string
           provisional?: boolean
+          push_channel?: string | null
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
@@ -15182,9 +15185,11 @@ export type Database = {
           lop_days: number | null
           period_month: string
           provisional: boolean
+          push_channel: string | null
           push_response: Json | null
           pushed_at: string | null
           razorpay_employee_id: string
+          razorpay_label: string | null
           readback_diff: Json | null
           readback_verified_at: string | null
           recovery_kind: string | null
@@ -15205,9 +15210,11 @@ export type Database = {
           lop_days?: number | null
           period_month: string
           provisional?: boolean
+          push_channel?: string | null
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id: string
+          razorpay_label?: string | null
           readback_diff?: Json | null
           readback_verified_at?: string | null
           recovery_kind?: string | null
@@ -15228,9 +15235,11 @@ export type Database = {
           lop_days?: number | null
           period_month?: string
           provisional?: boolean
+          push_channel?: string | null
           push_response?: Json | null
           pushed_at?: string | null
           razorpay_employee_id?: string
+          razorpay_label?: string | null
           readback_diff?: Json | null
           readback_verified_at?: string | null
           recovery_kind?: string | null

@@ -25,6 +25,7 @@ import {
   Bot,
 } from "lucide-react";
 import { VerificationPackDialog } from "@/components/hr/payroll/VerificationPackDialog";
+import { RazorpayBulkSheetDialog } from "@/components/hr/payroll/RazorpayBulkSheetDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -357,6 +358,7 @@ export default function MonthlyPayrollCockpitPage() {
   const [tool, setTool] = useState<CockpitToolKey | null>(null);
   const [toolStep, setToolStep] = useState<{ no: number; label: string } | null>(null);
   const [packOpen, setPackOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
 
 
@@ -785,6 +787,11 @@ export default function MonthlyPayrollCockpitPage() {
                             Download verification pack <FileSpreadsheet className="h-3.5 w-3.5" />
                           </Button>
                         )}
+                        {step.step_key === "inputs_push" && (
+                          <Button variant="outline" className="h-10 w-full justify-between gap-1.5" onClick={() => setBulkOpen(true)}>
+                            Download RazorpayX bulk sheet <FileSpreadsheet className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
 
                         {canAck && step.ack_status !== "done" && !closed && (
                           <Button
@@ -937,6 +944,7 @@ export default function MonthlyPayrollCockpitPage() {
       />
 
       <VerificationPackDialog open={packOpen} onOpenChange={setPackOpen} period={month} />
+      <RazorpayBulkSheetDialog open={bulkOpen} onOpenChange={setBulkOpen} period={month} />
 
     </div>
   );

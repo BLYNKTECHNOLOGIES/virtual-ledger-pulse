@@ -27,19 +27,52 @@ const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 const monthLabel = (iso: string) =>
   new Date(`${iso.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
 
+const currentMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const monthOffset = (offset: number) => {
+  const now = new Date();
+  now.setDate(1);
+  now.setMonth(now.getMonth() + offset);
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const lastDayOfMonth = (month: string) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const day = new Date(year, monthNumber, 0).getDate();
+  return `${month}-${String(day).padStart(2, "0")}`;
+};
+
 /** Small provenance footnote so every number on this page is traceable. */
 const Source = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[10px] text-muted-foreground mt-2">Source: {children}</p>
 );
 
 export default function ReportsPage() {
-  const [dateFrom, setDateFrom] = useState(() => {
-    const d = new Date(); d.setMonth(d.getMonth() - 6);
-    return d.toISOString().slice(0, 10);
-  });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [periodMode, setPeriodMode] = useState<"month" | "range">("range");
+  const [monthFrom, setMonthFrom] = useState(() => monthOffset(-6));
+  const [monthTo, setMonthTo] = useState(() => currentMonth());
+  const dateFrom = `${monthFrom}-01`;
+  const dateTo = lastDayOfMonth(periodMode === "month" ? monthFrom : monthTo);
   const [drillMonth, setDrillMonth] = useState<string | null>(null);
   const [attentionOpen, setAttentionOpen] = useState(false);
+
+  const selectSingleMonth = (month: string) => {
+    setMonthFrom(month);
+    setMonthTo(month);
+  };
+
+  const selectRangeStart = (month: string) => {
+    setMonthFrom(month);
+    if (month > monthTo) setMonthTo(month);
+  };
+
+  const selectRangeEnd = (month: string) => {
+    setMonthTo(month);
+    if (month < monthFrom) setMonthFrom(month);
+  };
 
   // ─── Sources of truth ───
   // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).
@@ -268,13 +301,14 @@ export default function ReportsPage() {
   }, [attentionList, attStats.absent, attStats.halfDay]);
 
   const reportRangeLabel = useMemo(() => {
-    const formatDate = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
-      day: "numeric",
+    const formatMonth = (value: string) => new Date(`${value.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", {
       month: "short",
       year: "numeric",
     });
-    return `${formatDate(dateFrom)} – ${formatDate(dateTo)}`;
-  }, [dateFrom, dateTo]);
+    return periodMode === "month"
+      ? formatMonth(dateFrom)
+      : `${formatMonth(dateFrom)} – ${formatMonth(dateTo)}`;
+  }, [periodMode, dateFrom, dateTo]);
 
 
   const attendanceTrend = useMemo(() => {
@@ -379,12 +413,54 @@ export default function ReportsPage() {
     <div className="p-4 md:p-6 space-y-4 page-mount">
       <PageHeader
         title="Reports & Analytics"
-        description="HR insights with date filters and export"
+        description="HR insights with month filters and export"
         actions={
           <div className="flex items-center gap-2 flex-wrap">
-            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 h-9 bg-background text-foreground" />
-            <span className="text-muted-foreground text-sm">to</span>
-            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 h-9 bg-background text-foreground" />
+            <div className="flex h-9 items-center rounded-lg border border-border bg-muted/40 p-0.5" aria-label="Report period type">
+              <Button
+                type="button"
+                size="sm"
+                variant={periodMode === "month" ? "secondary" : "ghost"}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => {
+                  setPeriodMode("month");
+                  setMonthTo(monthFrom);
+                }}
+              >
+                Month
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={periodMode === "range" ? "secondary" : "ghost"}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setPeriodMode("range")}
+              >
+                Month range
+              </Button>
+            </div>
+            <input
+              type="month"
+              value={monthFrom}
+              max={currentMonth()}
+              onChange={e => periodMode === "month" ? selectSingleMonth(e.target.value) : selectRangeStart(e.target.value)}
+              aria-label={periodMode === "month" ? "Report month" : "Report start month"}
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+            />
+            {periodMode === "range" && (
+              <>
+                <span className="text-sm text-muted-foreground">to</span>
+                <input
+                  type="month"
+                  value={monthTo}
+                  min={monthFrom}
+                  max={currentMonth()}
+                  onChange={e => selectRangeEnd(e.target.value)}
+                  aria-label="Report end month"
+                  className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
+                />
+              </>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9"><Download className="h-4 w-4 mr-1" /> Export</Button>

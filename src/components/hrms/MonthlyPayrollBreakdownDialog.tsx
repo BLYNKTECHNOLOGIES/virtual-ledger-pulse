@@ -64,9 +64,15 @@ interface Props {
   empName: (id: string) => string;
   deptOf: (id: string) => string;
   empBadge: (id: string) => string;
+  /**
+   * Employee ids left out of this breakdown (owners/directors). The report page
+   * passes its owner-exclusion set so the drill-down totals match the payroll
+   * cost card above it; when absent nothing is filtered.
+   */
+  excludeEmployeeIds?: Set<string>;
 }
 
-export function MonthlyPayrollBreakdownDialog({ monthKey, monthLabel, onClose, empName, deptOf, empBadge }: Props) {
+export function MonthlyPayrollBreakdownDialog({ monthKey, monthLabel, onClose, empName, deptOf, empBadge, excludeEmployeeIds }: Props) {
   const [search, setSearch] = useState("");
   const [dept, setDept] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");

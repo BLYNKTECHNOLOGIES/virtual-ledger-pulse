@@ -248,7 +248,7 @@ export default function ReportsPage() {
       if (Math.abs(Number(p.esi_amount || 0)) > 0) r.esiCovered += 1;
     });
     return Object.entries(m).sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => ({ key: k, month: monthLabel(k), ...v }));
-  }, [payslips]);
+  }, [payrollRows]);
 
   const totalPayrollCost = payrollMonths.reduce((s, r) => s + r.gross, 0);
   const avgMonthlyCost = payrollMonths.length ? totalPayrollCost / payrollMonths.length : 0;
@@ -845,6 +845,7 @@ export default function ReportsPage() {
         onClose={() => setDrillMonth(null)}
         empName={empName}
         deptOf={deptOf}
+        excludeEmployeeIds={excludedEmployeeIds}
         empBadge={(id) => (empById.get(id) as any)?.badge_id || "—"}
       />
 

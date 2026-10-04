@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { fetchAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
+import { splitOwnerStats } from "@/lib/ownerStatsExclusion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -100,17 +101,19 @@ export default function ReportsPage() {
 
   // ─── Sources of truth ───
   // Roster: hr_employees + hr_employee_work_info (joining_date lives on work info).
-  const { data: employees = [] } = useQuery({
+  const { data: allEmployees = [] } = useQuery({
     queryKey: ["rpt_employees"],
     queryFn: async () => await fetchAllPaginated<any>(() =>
       supabase.from("hr_employees").select("id, badge_id, first_name, last_name, is_active, created_at, total_salary, resignation_date, last_working_day")),
-    // Owners/directors are excluded from every statistic on this page (headcount,
-    // attendance, payroll cost, attrition, exports) per owner instruction.
-    select: (rows: any[]) => rows.filter((e) => {
-      const full = `${e.first_name || ""} ${e.last_name || ""}`.trim().toLowerCase().replace(/\s+/g, " ");
-      return !["abhishek singh tomar", "shubham singh", "sitara singh"].includes(full);
-    }),
   });
+  // Owners/directors are excluded from every statistic on this page (headcount,
+  // attendance, payroll cost, attrition, exports) per owner instruction. The
+  // dropped ids travel with the roster so payslip rows — which are fetched
+  // independently — are filtered by the very same rule.
+  const { employees, excludedEmployeeIds } = useMemo(
+    () => splitOwnerStats(allEmployees as any[]),
+    [allEmployees],
+  );
   const { data: workInfos = [] } = useQuery({
     queryKey: ["rpt_work_infos"],
     queryFn: async () => await fetchAllPaginated<any>(() =>
@@ -225,9 +228,15 @@ export default function ReportsPage() {
   }, [workInfos, empById]);
 
   // ─── Payroll (RazorpayX mirror) ───
+  // Owner payslips are filtered out here, so payroll cost, months processed,
+  // statutory totals, the trend chart and both payroll exports all skip them.
+  const payrollRows = useMemo(
+    () => payslips.filter((p: any) => !excludedEmployeeIds.has(p.employee_id)),
+    [payslips, excludedEmployeeIds],
+  );
   const payrollMonths = useMemo(() => {
     const m: Record<string, { gross: number; net: number; deductions: number; tds: number; pf: number; esi: number; pt: number; er: number; count: number; withRegister: number; esiCovered: number }> = {};
-    payslips.forEach((p: any) => {
+    payrollRows.forEach((p: any) => {
       const k = String(p.period_month).slice(0, 7);
       const r = m[k] || (m[k] = { gross: 0, net: 0, deductions: 0, tds: 0, pf: 0, esi: 0, pt: 0, er: 0, count: 0, withRegister: 0, esiCovered: 0 });
       r.gross += Number(p.gross || 0); r.net += Number(p.net || 0);
@@ -400,7 +409,7 @@ export default function ReportsPage() {
       }));
     } else if (type === "payroll_detail") {
       sheetName = "Payslips";
-      rows = payslips.map((p: any) => ({
+      rows = payrollRows.map((p: any) => ({
         Month: String(p.period_month).slice(0, 7), "Badge ID": empById.get(p.employee_id)?.badge_id || "",
         Employee: empName(p.employee_id), Department: deptOf(p.employee_id),
         Gross: Number(p.gross || 0), "Regular Gross": Number(p.regular_gross || 0),

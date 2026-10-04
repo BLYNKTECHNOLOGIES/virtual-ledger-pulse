@@ -9,7 +9,7 @@ export type DetailSpec = {
   title: string;
   description?: string;
   stats?: { label: string; value: ReactNode; tone?: "default" | "success" | "warning" | "danger" }[];
-  columns?: { label: string; numeric?: boolean; format?: (value: number) => string }[];
+  columns?: { label: string; numeric?: boolean; total?: boolean; format?: (value: number) => string }[];
   rows?: DetailCell[][];
   footer?: ReactNode;
 };
@@ -44,7 +44,7 @@ export function DetailDialog({ spec, onClose }: { spec: DetailSpec | null; onClo
     return list;
   }, [spec, query, sort]);
   const columns = spec?.columns || [];
-  const totals = columns.map((column, index) => column.numeric ? rows.reduce((sum, row) => sum + (typeof row[index] === "number" ? (row[index] as number) : 0), 0) : null);
+  const totals = columns.map((column, index) => column.numeric && column.total !== false ? rows.reduce((sum, row) => sum + (typeof row[index] === "number" ? (row[index] as number) : 0), 0) : null);
   const fmt = (index: number, value: DetailCell) => typeof value === "number" ? (columns[index]?.format ? columns[index].format!(value) : value.toLocaleString("en-IN", { maximumFractionDigits: 1 })) : value;
 
   return <Dialog open={!!spec} onOpenChange={open => { if (!open) { onClose(); setQuery(""); setSort(null); } }}>

@@ -48,7 +48,6 @@ interface NavExtra { label: string; path: string; icon: LucideIcon; keywords: st
 const EXTRA_ERP_NAV: NavExtra[] = [
   { label: "RA Dashboard", path: "/ra-dashboard", icon: UsersRound, keywords: "relationship assistant" },
   { label: "Leads", path: "/leads", icon: UserPlus, keywords: "prospects" },
-  { label: "Reconciliation", path: "/reconciliation", icon: Scale, keywords: "recon shift" },
   { label: "Profit & Loss", path: "/profit-loss", icon: TrendingUp, keywords: "pnl p&l gross profit" },
   { label: "Ad Manager", path: "/ad-manager", icon: Megaphone, keywords: "ads p2p binance" },
   { label: "Utility Hub", path: "/utility", icon: Wrench, keywords: "tools" },

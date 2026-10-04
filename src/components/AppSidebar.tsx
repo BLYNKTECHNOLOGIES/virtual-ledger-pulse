@@ -16,21 +16,9 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
-import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-
-// Reconciliation cockpit item (gated by reconciliation function, not a permission string)
-const reconciliationItem: SidebarGroupItem = {
-  id: "reconciliation",
-  title: "Reconciliation",
-  url: "/reconciliation",
-  icon: ShieldCheck,
-  color: "text-destructive",
-  bgColor: "bg-destructive/10",
-  permissions: [],
-};
 
 const reportSettingsItem: SidebarGroupItem = {
   id: "report-formats",
@@ -270,7 +258,6 @@ export function AppSidebar() {
   const { applySidebarOrder, saveSidebarOrder, isSaving } = useSidebarPreferences();
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
-  const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
   const { isAdmin, user } = useAuth();
   const isCollapsed = state === "collapsed";
 
@@ -300,10 +287,6 @@ export function AppSidebar() {
       }
     });
 
-    // Reconciliation cockpit — gated by the reconciliation function/role
-    if (!isLoading && (isAdmin || hasReconAccess)) {
-      entries.push({ type: 'item', data: reconciliationItem });
-    }
 
     if (!isLoading && canAccess(reportSettingsItem.permissions)) {
       entries.push({ type: 'item', data: reportSettingsItem });
@@ -324,7 +307,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission, hasReconAccess, isAdmin]);
+  }, [isLoading, hasAnyPermission, isAdmin]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

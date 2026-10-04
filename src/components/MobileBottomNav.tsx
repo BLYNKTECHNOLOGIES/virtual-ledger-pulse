@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
-import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 
 
 interface MobileNavItem {
@@ -51,13 +50,6 @@ const moreNavItems: MobileNavItem[] = [
   { title: "Shortcuts", url: "/shortcuts", icon: Keyboard, permissions: [], alwaysVisible: true },
 ];
 
-/** Reconciliation is gated by a system function, not a plain permission string. */
-const reconciliationNavItem: MobileNavItem = {
-  title: "Reconciliation",
-  url: "/reconciliation",
-  icon: ShieldCheck,
-  permissions: [],
-};
 
 
 export function MobileBottomNav() {
@@ -65,7 +57,6 @@ export function MobileBottomNav() {
   const [isOpen, setIsOpen] = useState(false);
   const { hasAnyPermission, isLoading } = usePermissions();
   const { isAdmin } = useAuth();
-  const { hasAccess: canReconcile } = useErpReconciliationAccess();
 
 
   const isTerminalActive = location.pathname.startsWith("/terminal");
@@ -80,10 +71,9 @@ export function MobileBottomNav() {
   const visibleMoreNavItems = useMemo(
     () => {
       const items = moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions));
-      if (canReconcile) items.push(reconciliationNavItem);
       return items;
     },
-    [hasAnyPermission, isAdmin, canReconcile]
+    [hasAnyPermission, isAdmin]
   );
 
 

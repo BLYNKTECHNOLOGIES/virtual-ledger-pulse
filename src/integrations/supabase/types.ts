@@ -23080,51 +23080,6 @@ export type Database = {
         }
         Relationships: []
       }
-      reconciliation_exception_state: {
-        Row: {
-          acknowledged_at: string | null
-          acknowledged_by: string | null
-          acknowledged_by_name: string | null
-          created_at: string
-          exception_ref: string
-          exception_type: string
-          id: string
-          resolution_reason: string | null
-          resolved_at: string | null
-          resolved_by: string | null
-          resolved_by_name: string | null
-          updated_at: string
-        }
-        Insert: {
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          acknowledged_by_name?: string | null
-          created_at?: string
-          exception_ref: string
-          exception_type: string
-          id?: string
-          resolution_reason?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          resolved_by_name?: string | null
-          updated_at?: string
-        }
-        Update: {
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          acknowledged_by_name?: string | null
-          created_at?: string
-          exception_ref?: string
-          exception_type?: string
-          id?: string
-          resolution_reason?: string | null
-          resolved_at?: string | null
-          resolved_by?: string | null
-          resolved_by_name?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       rekyc_requests: {
         Row: {
           aadhar_back_url: string | null

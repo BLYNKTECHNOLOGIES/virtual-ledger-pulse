@@ -32373,6 +32373,7 @@ export type Database = {
         Args: { p_effective: string; p_is_training: boolean; p_kind: string }
         Returns: string
       }
+      hr_ctc_month_released: { Args: { _push_after: string }; Returns: boolean }
       hr_ctc_push_after_month: { Args: { p_eff: string }; Returns: string }
       hr_ctc_push_held: { Args: { p_employee_id: string }; Returns: Json }
       hr_ctc_revision_is_live: {

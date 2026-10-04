@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { isOwnerStatExcluded } from "@/lib/ownerStatsExclusion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -205,8 +206,10 @@ export function StatisticsTab() {
           .select('id, first_name, last_name, is_active, total_salary, created_at, email, hr_employee_work_info!hr_employee_work_info_employee_id_fkey(department_id, job_role, departments(name))')
           .order('id', { ascending: true }));
       
-      // Map to compatible format
-      const employees = hrEmployees?.map(e => ({
+      // Map to compatible format. Owners/directors are left out of every
+      // statistic on this tab (headcount, department mix, monthly payroll cost)
+      // so the numbers match Reports & Analytics.
+      const employees = hrEmployees?.filter(e => !isOwnerStatExcluded(e)).map(e => ({
         id: e.id,
         name: `${e.first_name} ${e.last_name || ''}`.trim(),
         department: (e.hr_employee_work_info as any)?.[0]?.departments?.name || 'N/A',

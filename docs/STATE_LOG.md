@@ -489,3 +489,4 @@ Binance `card` messages carrying an ad payload (origin ADV_SHARE_ONLINEADCARD) a
 - 2026-10-03: Post-exit CTC arrears blocked (Lokesh ₹500 Sep line removed); Sept full audit v11 issued.
 - 2026-10-03: Step 6 additions switched to approved RazorpayX names only (catalogue of 26 additions/7 deductions/5 arrears); 46 unpushed Sep lines auto-mapped (comp-off→Overtime, training CTC difference→Ad Hoc). Not yet push-tested.
 - 2026-10-04: Satyam Shukla F&F ₹6,962.54 (Sep 2026) marked paid manually via RazorpayX (owner-paid); push status nothing_to_push, never to be staged; resignation auto-completed.
+- 2026-10-04: Mid-month CTC revisions now auto-push to RazorpayX on Step 7 done; September's 6 post-training revisions (17 Sep) pushed.

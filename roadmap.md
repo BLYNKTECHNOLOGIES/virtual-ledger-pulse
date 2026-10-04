@@ -77,4 +77,5 @@
 - [x] Replace the KPI/chart wall with executive, payroll, workforce, and leave/capacity sections.
 - [x] Add employer-cost, paid-employee, prior-period, department-cost, movement, approved-leave-day, and availability calculations.
 - [x] Remove duplicate employee-level attendance exception analysis.
-- [ ] Verify direct database totals, preview build, desktop/mobile layout, selectors, drill-down, and exports.
+- [x] Verify direct database totals, owner exclusions, TypeScript, and preview build.
+- [ ] Verify signed-in desktop/mobile layout, selectors, drill-down, and exports (blocked: external Supabase authentication is unavailable to automated browser checks).

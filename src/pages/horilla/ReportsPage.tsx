@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, BriefcaseBusiness, CalendarDays, CircleDollarSign, Download, Info, Landmark, Minus, TrendingUp, UserMinus, UserPlus, Users, Wallet } from "lucide-react";
+import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Activity, AlertCircle, ArrowDownRight, ArrowRight, ArrowUpRight, CircleDollarSign, Download, Info, Landmark, Minus, Users, Wallet } from "lucide-react";
 import * as XLSX from "xlsx";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { SectionHeader } from "@/components/hrms/primitives/SectionHeader";
@@ -17,7 +17,7 @@ import { MonthlyPayrollBreakdownDialog } from "@/components/hrms/MonthlyPayrollB
 
 const COLORS = ["hsl(var(--primary))", "hsl(var(--success))", "hsl(var(--warning))", "hsl(var(--destructive))", "hsl(var(--info))", "hsl(var(--muted-foreground))"];
 const PAID_LEAVE_STATUSES = new Set(["approved", "manager_approved"]);
-const PENDING_LEAVE_STATUSES = new Set(["requested", "pending", "manager_approved"]);
+const PENDING_LEAVE_STATUSES = new Set(["requested", "pending"]);
 const inr = (n: number) => `₹${Math.round(n || 0).toLocaleString("en-IN")}`;
 const pct = (n: number) => `${Number.isFinite(n) ? n.toFixed(1) : "0.0"}%`;
 const monthLabel = (iso: string) => new Date(`${iso.slice(0, 7)}-01T00:00:00`).toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
@@ -126,7 +126,12 @@ export default function ReportsPage() {
   const availabilityPrevious = useMemo(() => availability(prevAttendance), [prevAttendance]);
   const availabilityDelta = availabilityPrevious.marked ? availabilityNow.rate - availabilityPrevious.rate : null;
 
-  const selectedLeaves = useMemo(() => leaveRequests.filter((leave: any) => !excludedEmployeeIds.has(leave.employee_id) && inRange(leave.start_date || leave.created_at?.slice(0, 10))), [leaveRequests, excludedEmployeeIds, dateFrom, dateTo]);
+  const selectedLeaves = useMemo(() => leaveRequests.filter((leave: any) => {
+    if (excludedEmployeeIds.has(leave.employee_id)) return false;
+    const start = String(leave.start_date || leave.created_at || "").slice(0, 10);
+    const end = String(leave.end_date || leave.start_date || leave.created_at || "").slice(0, 10);
+    return start <= dateTo && end >= dateFrom;
+  }), [leaveRequests, excludedEmployeeIds, dateFrom, dateTo]);
   const approvedLeaves = useMemo(() => selectedLeaves.filter((leave: any) => PAID_LEAVE_STATUSES.has(String(leave.status || "").toLowerCase())), [selectedLeaves]);
   const pendingLeaves = useMemo(() => selectedLeaves.filter((leave: any) => PENDING_LEAVE_STATUSES.has(String(leave.status || "").toLowerCase()) && String(leave.status || "").toLowerCase() !== "approved"), [selectedLeaves]);
   const approvedLeaveDays = approvedLeaves.reduce((sum: number, leave: any) => sum + Number(leave.total_days || 0), 0);

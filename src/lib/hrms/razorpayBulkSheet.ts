@@ -111,6 +111,43 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
     else { const c = defaultDeductionName(r); add(r, "ded", c ? `${c} | Deduction` : null); }
   }
 
+  // RazorpayX's add-deduction API stores its amount in the same single "Gross pay
+  // deduction" slot that a bulk-sheet "Gross pay deduction" row REPLACES on upload.
+  // So for anyone getting a Gross pay deduction row here, earlier API-pushed
+  // deductions (loan EMIs pushed directly, or deduction lines pushed via the API)
+  // would be wiped — re-include them as their own named rows. (Sushil's ₹6,944,
+  // Sep 2026, was lost this way.) Rows without sourceIds are never re-marked.
+  const lopEmps = new Set([...grouped.values()].filter((g) => g.component === "Gross pay deduction | Deduction").map((g) => g.empId));
+  let reinjected = 0;
+  if (lopEmps.size) {
+    const { data: loanRows } = await (supabase as any).from("hr_loan_repayments")
+      .select("id,amount,installment_no,razorpay_pushed_at,hr_loans!inner(employee_id,loan_type)")
+      .eq("period_month", period).not("razorpay_pushed_at", "is", null).in("status", ["pushed", "paid"]);
+    const apiLines: { empId: string; amount: number; component: string; what: string }[] = [];
+    const loanIdsInDeds = new Set(deds.filter((d: any) => d.recovery_kind === "loan").map((d: any) => d.recovery_ref_id));
+    for (const l of loanRows ?? []) {
+      if (loanIdsInDeds.has(l.id)) continue;
+      const adv = /advance/i.test(String(l.hr_loans?.loan_type ?? ""));
+      apiLines.push({ empId: l.hr_loans.employee_id, amount: n2(l.amount), component: adv ? "Advance Salary | Deduction" : "Loan Repayment | Deduction", what: `Loan instalment ${l.installment_no}` });
+    }
+    for (const d of deds) if (d.pushed_at && d.push_channel !== "bulk_sheet" && String(d.source) !== "auto_lop") {
+      const c = defaultDeductionName(d) ?? "Recovery";
+      apiLines.push({ empId: d.hr_employee_id, amount: n2(d.amount), component: `${c} | Deduction`, what: d.label ?? "" });
+    }
+    for (const a of apiLines) {
+      if (!lopEmps.has(a.empId) || !(a.amount > 0)) continue;
+      const rid = rzp.get(a.empId); const email = rzpEmail.get(a.empId) ?? "";
+      if (!rid || !email) { blocked.push({ name: nm(a.empId), what: a.what, reason: "Already API-pushed but would be wiped by this sheet's Gross pay deduction — RazorpayX link/email missing" }); continue; }
+      const key = `${a.empId}|${a.component}`;
+      const g = grouped.get(key) ?? { empId: a.empId, badge: String(rid), email, name: nm(a.empId), component: a.component, days: null, amount: 0, sourceIds: [] };
+      g.amount = n2((g.amount ?? 0) + a.amount);
+      grouped.set(key, g);
+      reinjected = n2(reinjected + a.amount);
+      const i = alreadyPushed.findIndex((p) => p.name === nm(a.empId) && p.amount === a.amount);
+      if (i >= 0) alreadyPushed.splice(i, 1);
+    }
+  }
+
   // Anything the verification pack says is due but not yet staged must be staged first.
   const moneySheet = pack.sheets[1];
   for (const row of moneySheet.rows as any[][]) {
@@ -136,7 +173,7 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
 
   // Cross-check: every staged, unpushed money line counted in the pack is in the sheet.
   const packUnpushed = n2(adds.concat(deds).filter((r: any) => !r.pushed_at).reduce((s: number, r: any) => s + n2(r.amount), 0));
-  const blockedAmt = 0; // blocked lines are reported separately
+  const blockedAmt = -reinjected; // re-included API-pushed lines are on the sheet but not "unpushed"
   if (!blocked.length && Math.abs(packUnpushed - blockedAmt - (totals.additions + totals.deductions)) > 0.01)
     blocked.push({ name: "—", what: "Totals check", reason: `Sheet totals ₹${n2(totals.additions + totals.deductions)} differ from unpushed Step 6 lines ₹${packUnpushed}` });
 

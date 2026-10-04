@@ -16,7 +16,6 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useToast } from "@/hooks/use-toast";
 import { useSidebarEdit } from "@/contexts/SidebarEditContext";
-import { useErpReconciliationAccess } from "@/hooks/useErpReconciliationAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { expandPermissions } from "@/lib/permissions/catalog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -259,7 +258,6 @@ export function AppSidebar() {
   const { applySidebarOrder, saveSidebarOrder, isSaving } = useSidebarPreferences();
   const { toast } = useToast();
   const { isDragMode } = useSidebarEdit();
-  const { hasAccess: hasReconAccess } = useErpReconciliationAccess();
   const { isAdmin, user } = useAuth();
   const isCollapsed = state === "collapsed";
 
@@ -309,7 +307,7 @@ export function AppSidebar() {
     });
     
     return entries;
-  }, [isLoading, hasAnyPermission, hasReconAccess, isAdmin]);
+  }, [isLoading, hasAnyPermission, isAdmin]);
 
   // Apply saved order to entries
   const savedOrderedEntries = useMemo(() => {

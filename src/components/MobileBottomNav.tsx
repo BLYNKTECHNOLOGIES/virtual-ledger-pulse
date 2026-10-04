@@ -51,13 +51,6 @@ const moreNavItems: MobileNavItem[] = [
   { title: "Shortcuts", url: "/shortcuts", icon: Keyboard, permissions: [], alwaysVisible: true },
 ];
 
-/** Reconciliation is gated by a system function, not a plain permission string. */
-const reconciliationNavItem: MobileNavItem = {
-  title: "Reconciliation",
-  url: "/reconciliation",
-  icon: ShieldCheck,
-  permissions: [],
-};
 
 
 export function MobileBottomNav() {
@@ -80,7 +73,6 @@ export function MobileBottomNav() {
   const visibleMoreNavItems = useMemo(
     () => {
       const items = moreNavItems.filter((item) => item.alwaysVisible || canAccess(item.permissions));
-      if (canReconcile) items.push(reconciliationNavItem);
       return items;
     },
     [hasAnyPermission, isAdmin, canReconcile]

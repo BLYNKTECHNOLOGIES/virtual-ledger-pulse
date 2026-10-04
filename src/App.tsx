@@ -33,7 +33,6 @@ const PaymentScreenshotGenerator = lazy(() => import('./pages/PaymentScreenshotG
 const UtilityHub = lazy(() => import('./pages/UtilityHub'));
 const Tasks = lazy(() => import('./pages/Tasks'));
 const ErpEntryManager = lazy(() => import('./pages/ErpEntryManager'));
-const Reconciliation = lazy(() => import('./pages/Reconciliation'));
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 const RaciPage = lazy(() => import('./pages/RaciPage'));
 const OnboardingApplyPage = lazy(() => import('./pages/public/OnboardingApplyPage'));
@@ -505,20 +504,6 @@ const router = createBrowserRouter([
         </QueryProvider>
       ),
      },
-    {
-      path: "/reconciliation",
-      element: (
-        <QueryProvider>
-            <AuthCheck>
-              <Layout>
-                <PermissionGate permissions={["reconciliation_view", "shift_reconciliation_create", "shift_reconciliation_approve"]}>
-                <Reconciliation />
-              </PermissionGate>
-              </Layout>
-            </AuthCheck>
-        </QueryProvider>
-      ),
-    },
     {
       path: "/risk-management",
       element: (

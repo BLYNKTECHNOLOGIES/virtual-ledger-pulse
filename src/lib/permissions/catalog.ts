@@ -132,7 +132,6 @@ export const PERMISSION_MODULES: Record<string, PermissionModuleDef> = {
     label: 'Reconciliation',
     section: 'Finance',
     permissions: [
-      { id: 'reconciliation_view', name: 'View', description: 'Open the shift reconciliation cockpit', tier: 'view', routes: ['/reconciliation'] },
       { id: 'shift_reconciliation_create', name: 'Create', description: 'Submit shift reconciliation records', tier: 'special' },
       { id: 'shift_reconciliation_approve', name: 'Approve', description: 'Approve or reject shift reconciliation (maker-checker)', tier: 'approve' },
     ],
@@ -406,8 +405,6 @@ export const PERMISSION_ALIASES: Record<string, string[]> = {
   erp_entry_manage: ['erp_entry_view'],
   // Deprecated ERP grant — legacy roles holding it get standby sign-in only.
   terminal_manage: ['terminal_view'],
-  shift_reconciliation_create: ['reconciliation_view'],
-  shift_reconciliation_approve: ['reconciliation_view'],
 };
 
 /**
@@ -471,7 +468,6 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
         'financials_view',
         'financials_manage',
         'statistics_view',
-        'reconciliation_view',
       ]),
   },
   {

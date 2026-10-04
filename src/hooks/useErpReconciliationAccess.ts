@@ -17,7 +17,6 @@ export function useErpReconciliationAccess() {
   // Granular permissions are an equally valid grant alongside the legacy
   // erp_reconciliation system function.
   const permissionGrant = hasAnyPermission([
-    'reconciliation_view',
     'shift_reconciliation_create',
     'shift_reconciliation_approve',
   ]);

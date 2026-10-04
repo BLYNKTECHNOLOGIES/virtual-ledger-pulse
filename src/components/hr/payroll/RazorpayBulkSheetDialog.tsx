@@ -36,7 +36,7 @@ export function RazorpayBulkSheetDialog({ open, onOpenChange, period }: { open: 
           ) : (
           <div className="min-w-0 space-y-3">
             <div className="grid min-w-0 grid-cols-2 gap-2 lg:grid-cols-4">
-              {[["Rows", sheet.rows.length], ["Additions ₹", sheet.totals.additions], ["Deductions ₹", sheet.totals.deductions], ["LOP days", sheet.totals.lopDays]].map(([l, v]) => (
+              {[["Rows", sheet.rows.length], ["Additions ₹", sheet.totals.additions], ["Deductions ₹", sheet.totals.deductions], ["LOP deduction ₹", sheet.totals.lopDeduction]].map(([l, v]) => (
                 <div key={String(l)} className="min-w-0 rounded-md border bg-muted/30 px-3 py-2">
                   <div className="break-words text-[11px] uppercase tracking-wide text-muted-foreground">{l}</div>
                   <div className="break-all text-lg font-semibold t-mono">{String(v)}</div>

@@ -73,11 +73,13 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
     fetchAllPaginated<any>(() => (supabase as any).from("hr_payroll_input_additions").select("*").eq("period_month", period).order("id")),
     fetchAllPaginated<any>(() => (supabase as any).from("hr_payroll_input_deductions").select("*").eq("period_month", period).order("id")),
     fetchAllPaginated<any>(() => (supabase as any).from("hr_employees").select("id,badge_id,first_name,last_name,email").order("id")),
-    fetchAllPaginated<any>(() => (supabase as any).from("hr_razorpay_employee_map").select("hr_employee_id,razorpay_employee_id").order("hr_employee_id")),
+    fetchAllPaginated<any>(() => (supabase as any).from("hr_razorpay_employee_map").select("hr_employee_id,razorpay_employee_id,last_pull_snapshot").order("hr_employee_id")),
     buildVerificationPack(period),
   ]);
   const emp = new Map(emps.map((e: any) => [e.id, e]));
   const rzp = new Map(map.map((m: any) => [m.hr_employee_id, m.razorpay_employee_id]));
+  // RazorpayX matches bulk rows by the email IT holds, not HRMS's — use the last pulled RazorpayX email.
+  const rzpEmail = new Map(map.map((m: any) => [m.hr_employee_id, String(m.last_pull_snapshot?.email ?? "").trim()]));
   const nm = (id: string) => { const e: any = emp.get(id); return e ? `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim() : id; };
 
   const blocked: BulkBlock[] = [];
@@ -91,9 +93,10 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
     if (!rid) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "Not linked to a RazorpayX employee ID" });
     if (!component) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "No allowed RazorpayX name — pick one in Step 6" });
     if (!(n2(r.amount) > 0)) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "Calculated deduction amount is zero or below" });
+    const email = rzpEmail.get(r.hr_employee_id) ?? "";
+    if (!email) return blocked.push({ name: nm(r.hr_employee_id), what, reason: "RazorpayX email unknown — pull this employee from RazorpayX first" });
     const key = `${r.hr_employee_id}|${component}`;
-    const e: any = emp.get(r.hr_employee_id);
-    const g = grouped.get(key) ?? { empId: r.hr_employee_id, badge: String(rid), email: e?.email ?? "", name: nm(r.hr_employee_id), component, days: null, amount: 0, sourceIds: [] };
+    const g = grouped.get(key) ?? { empId: r.hr_employee_id, badge: String(rid), email, name: nm(r.hr_employee_id), component, days: null, amount: 0, sourceIds: [] };
     g.amount = n2((g.amount ?? 0) + n2(r.amount));
     g.sourceIds.push({ table, id: r.id });
     grouped.set(key, g);

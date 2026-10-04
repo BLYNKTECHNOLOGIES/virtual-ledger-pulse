@@ -45,6 +45,12 @@ const lastDayOfMonth = (month: string) => {
   return `${month}-${String(day).padStart(2, "0")}`;
 };
 
+const shiftMonth = (month: string, offset: number) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const shifted = new Date(year, monthNumber - 1 + offset, 1);
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}`;
+};
+
 /** Small provenance footnote so every number on this page is traceable. */
 const Source = ({ children }: { children: React.ReactNode }) => (
   <p className="text-[10px] text-muted-foreground mt-2">Source: {children}</p>
@@ -125,12 +131,13 @@ export default function ReportsPage() {
   });
   // Same-length window immediately before the range, for period-over-period deltas.
   const prevWindow = useMemo(() => {
-    const from = new Date(`${dateFrom}T00:00:00`), to = new Date(`${dateTo}T00:00:00`);
-    const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
-    const pTo = new Date(from); pTo.setDate(from.getDate() - 1);
-    const pFrom = new Date(pTo); pFrom.setDate(pTo.getDate() - (days - 1));
-    return { from: pFrom.toISOString().slice(0, 10), to: pTo.toISOString().slice(0, 10) };
-  }, [dateFrom, dateTo]);
+    const [fromYear, fromMonthNumber] = monthFrom.split("-").map(Number);
+    const [toYear, toMonthNumber] = (periodMode === "month" ? monthFrom : monthTo).split("-").map(Number);
+    const monthCount = Math.max(1, (toYear - fromYear) * 12 + toMonthNumber - fromMonthNumber + 1);
+    const previousToMonth = shiftMonth(monthFrom, -1);
+    const previousFromMonth = shiftMonth(monthFrom, -monthCount);
+    return { from: `${previousFromMonth}-01`, to: lastDayOfMonth(previousToMonth) };
+  }, [periodMode, monthFrom, monthTo]);
   const { data: prevAttendance = [] } = useQuery({
     queryKey: ["rpt_attendance_prev_v", prevWindow.from, prevWindow.to, employees.map(e => e.id).join(",")],
     enabled: employees.length > 0,
@@ -388,7 +395,8 @@ export default function ReportsPage() {
     if (!rows.length) rows = [{ Note: "No data in the selected date range" }];
     const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, `${sheetName.toLowerCase().replace(/\s+/g, "_")}_${dateFrom}_to_${dateTo}.xlsx`);
+    const periodFileLabel = periodMode === "month" ? monthFrom : `${monthFrom}_to_${monthTo}`;
+    XLSX.writeFile(wb, `${sheetName.toLowerCase().replace(/\s+/g, "_")}_${periodFileLabel}.xlsx`);
   };
 
   const NoData = ({ reason }: { reason?: string }) => (
@@ -443,7 +451,10 @@ export default function ReportsPage() {
               type="month"
               value={monthFrom}
               max={currentMonth()}
-              onChange={e => periodMode === "month" ? selectSingleMonth(e.target.value) : selectRangeStart(e.target.value)}
+              onChange={e => {
+                if (!e.target.value) return;
+                periodMode === "month" ? selectSingleMonth(e.target.value) : selectRangeStart(e.target.value);
+              }}
               aria-label={periodMode === "month" ? "Report month" : "Report start month"}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
             />
@@ -455,7 +466,9 @@ export default function ReportsPage() {
                   value={monthTo}
                   min={monthFrom}
                   max={currentMonth()}
-                  onChange={e => selectRangeEnd(e.target.value)}
+                  onChange={e => {
+                    if (e.target.value) selectRangeEnd(e.target.value);
+                  }}
                   aria-label="Report end month"
                   className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
                 />

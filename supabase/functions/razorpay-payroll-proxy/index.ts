@@ -1447,7 +1447,7 @@ Deno.serve(async (req) => {
         if (bulkDeds.length) await svc.from("hr_payroll_input_deductions").update({ readback_verified_at: !err && dedOk ? now : null, readback_diff: receipt }).in("id", bulkDeds);
         results.push({ hr_employee_id: hrId, razorpay_employee_id: rpId, ok: !err && addOk && dedOk, ...receipt });
       }
-      await logSync(svc, { action: "payroll_view" as any, http_status: 200, razorpay_employee_id: null, hr_employee_id: null,
+      await logSync(svc, { action: "payroll_view_payroll" as any, http_status: 200, razorpay_employee_id: null, hr_employee_id: null,
         field_diff_summary: { kind: "bulk_sheet_readback", period_month: pm, people: results.length, verified: results.filter((r) => r.ok).length },
         error_text: null, actor_user_id: authed.userId });
       return json(200, { ok: true, period_month: pm, checked: results.length, verified: results.filter((r) => r.ok).length, results });

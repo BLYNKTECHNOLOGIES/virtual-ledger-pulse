@@ -86,6 +86,12 @@ export default function ReportsPage() {
     queryKey: ["rpt_employees"],
     queryFn: async () => await fetchAllPaginated<any>(() =>
       supabase.from("hr_employees").select("id, badge_id, first_name, last_name, is_active, created_at, total_salary, resignation_date, last_working_day")),
+    // Owners/directors are excluded from every statistic on this page (headcount,
+    // attendance, payroll cost, attrition, exports) per owner instruction.
+    select: (rows: any[]) => rows.filter((e) => {
+      const full = `${e.first_name || ""} ${e.last_name || ""}`.trim().toLowerCase().replace(/\s+/g, " ");
+      return !["abhishek singh tomar", "shubham singh", "sitara singh"].includes(full);
+    }),
   });
   const { data: workInfos = [] } = useQuery({
     queryKey: ["rpt_work_infos"],

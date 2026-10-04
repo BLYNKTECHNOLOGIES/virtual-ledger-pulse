@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.hr_ctc_month_released(date) FROM authenticated;

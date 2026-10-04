@@ -508,10 +508,13 @@ export async function dismissInRazorpay(
     .limit(1)
     .maybeSingle();
   if (settlementError) return { ok: false, error: settlementError.message };
-  const payrollMonth = settlement?.payroll_month || `${opts.dateOfDismissal.slice(0, 7)}-01`;
-  if (settlement?.status !== "paid" || !settlement?.payroll_month) {
+  if (settlement?.status !== "paid") {
     return { ok: false, deferred: true, error: "F&F must be settled before RazorpayX dismissal." };
   }
+  // Final-salary month = later of LWD month and F&F payroll month.
+  const lwdMonth = `${String(settlement?.last_working_day || opts.dateOfDismissal).slice(0, 7)}-01`;
+  const fnfMonth = settlement?.payroll_month ? `${String(settlement.payroll_month).slice(0, 7)}-01` : lwdMonth;
+  const payrollMonth = fnfMonth > lwdMonth ? fnfMonth : lwdMonth;
   const { data: payout, error: payoutError } = await (supabase as any)
     .from("hr_razorpay_payout_records")
     .select("id")
@@ -523,7 +526,19 @@ export async function dismissInRazorpay(
     .limit(1)
     .maybeSingle();
   if (payoutError) return { ok: false, error: payoutError.message };
-  if (!payout) {
+  let finalSalaryProven = !!payout;
+  if (!finalSalaryProven) {
+    // Same proof the nightly sweep accepts: Step 7 done + imported payslip with pay > 0.
+    const [{ data: step7 }, { data: slip }] = await Promise.all([
+      (supabase as any).from("hr_payroll_cockpit_state").select("status")
+        .eq("period_month", payrollMonth).eq("step_no", 7).eq("status", "done").limit(1).maybeSingle(),
+      (supabase as any).from("hr_payslips").select("id")
+        .eq("employee_id", hrEmployeeId).gte("period_month", payrollMonth)
+        .lt("period_month", `${payrollMonth.slice(0, 8)}28`).gt("net_salary", 0).limit(1).maybeSingle(),
+    ]);
+    finalSalaryProven = !!step7 && !!slip;
+  }
+  if (!finalSalaryProven) {
     return {
       ok: false,
       deferred: true,

@@ -430,6 +430,8 @@ export default function DataHealthPage() {
           toast.success(`${FIELD_LABEL[drift.field] || drift.field} verified in RazorpayX`);
         }
 
+      } else {
+        toast.error(res?.error || "RazorpayX did not accept this change.");
       }
     } catch (e: any) {
       toast.error(`Push verification failed: ${e?.message || e}`);

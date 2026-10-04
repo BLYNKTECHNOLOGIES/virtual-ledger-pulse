@@ -4,18 +4,27 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Loader2, Download, RefreshCw, AlertTriangle, CheckCircle2, FileSpreadsheet } from "lucide-react";
-import { buildBulkSheet, downloadBulkSheet, markBulkUploaded, type BulkSheet } from "@/lib/hrms/razorpayBulkSheet";
+import { buildBulkSheet, downloadBulkSheet, markBulkUploaded, finalizeBulkUpload, type BulkSheet } from "@/lib/hrms/razorpayBulkSheet";
 
 export function RazorpayBulkSheetDialog({ open, onOpenChange, period }: { open: boolean; onOpenChange: (o: boolean) => void; period: string }) {
   const [sheet, setSheet] = useState<BulkSheet | null>(null);
   const qc = useQueryClient();
   const build = useMutation({ mutationFn: () => buildBulkSheet(period), onSuccess: setSheet, onError: (e: any) => toast.error(e.message || "Could not build the sheet") });
+  const report = (r: Awaited<ReturnType<typeof finalizeBulkUpload>>) => {
+    qc.invalidateQueries();
+    if (r.issues.length) toast.error(r.issues.join(" · "));
+    if (r.failed.length) toast.warning(`${r.verified}/${r.checked} people verified on the RazorpayX run. Not matching yet: ${r.failed.map((f: any) => `#${f.razorpay_employee_id} (expected +₹${f.expected_additions}/−₹${f.expected_deductions}, run +₹${f.run_additions}/−₹${f.run_deductions}${f.error ? `, ${f.error}` : ""})`).join("; ")}`, { duration: 20000 });
+    else toast.success(`All ${r.checked} people verified on the RazorpayX run`);
+  };
+  const finalize = useMutation({ mutationFn: () => finalizeBulkUpload(period), onSuccess: report, onError: (e: any) => toast.error(e.message || "Could not verify") });
   const mark = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!sheet) throw new Error("Prepare the sheet before marking it as uploaded");
-      return markBulkUploaded(sheet);
+      const n = await markBulkUploaded(sheet);
+      toast.success(`${n} line(s) marked as sent via bulk sheet — verifying on RazorpayX…`);
+      return finalizeBulkUpload(period);
     },
-    onSuccess: (n) => { toast.success(`${n} line(s) marked as sent via bulk sheet`); qc.invalidateQueries(); setSheet(null); },
+    onSuccess: (r) => { report(r); setSheet(null); },
     onError: (e: any) => toast.error(e.message || "Could not mark as uploaded"),
   });
   const blocked = (sheet?.blocked.length ?? 0) > 0;

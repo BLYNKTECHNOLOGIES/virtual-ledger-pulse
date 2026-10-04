@@ -1416,9 +1416,8 @@ Deno.serve(async (req) => {
         const items = Array.isArray(v) ? v : Object.values(v);
         return items.reduce((s: number, x: any) => s + (x && typeof x === "object" ? Number(x.amount ?? x.value ?? 0) : Number(x) || 0), 0);
       };
-      for (const [hrId, p] of people) {
-        const pending = [...p.adds, ...p.deds].some((r) => r.push_channel === "bulk_sheet" && !r.readback_verified_at);
-        if (!pending) continue;
+      const todo = [...people].filter(([, p]) => [...p.adds, ...p.deds].some((r) => r.push_channel === "bulk_sheet" && !r.readback_verified_at));
+      const checkOne = async ([hrId, p]: [string, { adds: any[]; deds: any[] }]) => {
         const m: any = mapBy.get(hrId);
         const rpId = m?.razorpay_employee_id ?? p.adds[0]?.razorpay_employee_id ?? p.deds[0]?.razorpay_employee_id;
         const email = String(m?.last_pull_snapshot?.email ?? "").trim();
@@ -1427,9 +1426,10 @@ Deno.serve(async (req) => {
           headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({ auth: authBlock(), request: { type: "payroll", "sub-type": "view-payroll" },
             data: email ? { email, "payroll-month": pm } : { "employee-id": Number(rpId), "payroll-month": pm, "employee-type": "employee" } }),
+          signal: AbortSignal.timeout(12000),
         }).catch(() => null);
         const body: any = res ? await res.json().catch(() => null) : null;
-        const err = !res || !res.ok ? "RazorpayX could not be read" : (body?.error || (body?.code === 0 && body?.message) || null);
+        const err = !res || !res.ok ? "RazorpayX did not answer in time" : (body?.error || (body?.code === 0 && body?.message) || null);
         const expAdd = Math.round(p.adds.reduce((s, r) => s + Number(r.amount || 0), 0));
         const expDed = Math.round(p.deds.reduce((s, r) => s + Number(r.amount || 0), 0));
         const runAdd = Math.round(sumOf(body?.additions ?? body?.addition));
@@ -1446,7 +1446,9 @@ Deno.serve(async (req) => {
         if (bulkAdds.length) await svc.from("hr_payroll_input_additions").update({ readback_verified_at: !err && addOk ? now : null, readback_diff: receipt }).in("id", bulkAdds);
         if (bulkDeds.length) await svc.from("hr_payroll_input_deductions").update({ readback_verified_at: !err && dedOk ? now : null, readback_diff: receipt }).in("id", bulkDeds);
         results.push({ hr_employee_id: hrId, razorpay_employee_id: rpId, ok: !err && addOk && dedOk, ...receipt });
-      }
+      };
+      // Bounded parallel read-back so the whole check finishes well inside the function time limit.
+      for (let i = 0; i < todo.length; i += 8) await Promise.all(todo.slice(i, i + 8).map(checkOne));
       await logSync(svc, { action: "payroll_view_payroll" as any, http_status: 200, razorpay_employee_id: null, hr_employee_id: null,
         field_diff_summary: { kind: "bulk_sheet_readback", period_month: pm, people: results.length, verified: results.filter((r) => r.ok).length },
         error_text: null, actor_user_id: authed.userId });

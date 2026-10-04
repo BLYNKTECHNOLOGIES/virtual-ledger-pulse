@@ -108,7 +108,17 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   // Anything the verification pack says is due but not yet staged must be staged first.
   const moneySheet = pack.sheets[1];
   for (const row of moneySheet.rows as any[][]) {
-    if (row[11] === "Not staged" && row[1]) blocked.push({ name: String(row[1]), what: String(row[4]), reason: `Not staged in Step 6 yet (₹${row[5]}) — stage it so it can go in the sheet` });
+    if (row[11] === "Not staged" && row[1]) {
+      const what = String(row[4]);
+      const isDraftFnf = /F&F settlement \(draft\)/i.test(what);
+      blocked.push({
+        name: String(row[1]),
+        what,
+        reason: isDraftFnf
+          ? `Draft and not approved (₹${row[5]}) — submit and confirm the F&F first; approval stages it in Step 6`
+          : `Not staged in Step 6 yet (₹${row[5]}) — stage it so it can go in the sheet`,
+      });
+    }
   }
 
   const rows = [...grouped.values()].sort((a, b) => a.name.localeCompare(b.name) || a.component.localeCompare(b.component));

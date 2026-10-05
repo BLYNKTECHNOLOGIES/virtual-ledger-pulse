@@ -1,8 +1,5 @@
 # Project architecture decisions
 
-- Terminal Copilot suggestions use the opened order's client-side status, fields, draft and bounded current-order transcript; no nickname-based history or extra Binance lookups, because masked identities can collide and live suggestions must not wait on unrelated records.
-- Copilot AI generation uses the server-side Lovable Gateway Responses stream and request-local run ID; streaming removes the former eight-second abort while keeping credentials out of the browser.
-- Keep Copilot style exemplars and blacklist reads parallel and nonblocking audit logging outside the suggestion display path, because style and analytics must not delay an operator's reply.
 - F&F approval stages payroll inputs only; RazorpayX writes and read-back verification belong to the cockpit Inputs Push step, so separation review and payroll execution remain distinct.
 - The daily IST last-working-day sweep disables ERP login and queues biometric removal regardless of F&F; RazorpayX dismissal needs a paid F&F (auto-marked paid when cockpit Step 7 is confirmed for the run that carried it) plus final-salary proof for the later of the LWD/F&F month (payout row, or Step 7 done + imported payslip with pay > 0), because RazorpayX exposes no payout API.
 - Loss-of-pay day counting (hr_lop_days_window) uses each day's corrected outcome — HR's explicit day mark (manual_status) first, else the status recomputed from corrected punch times — never a blanket 'approved correction = full day', because a correction can legitimately result in a half day or absence.

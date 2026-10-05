@@ -230,16 +230,20 @@ export function parseRows(text: string): { header: string[]; rows: ParsedRow[]; 
     reg_pt: toDed(r[colT("PT")] ?? ""),
     reg_tds: toDed(r[colT("TDS")] ?? ""),
     reg_advance_salary: toDed(r[colT("Advance Salary")] ?? ""),
-    // RazorpayX now emits BOTH "Loan Emi" (its own loan schedule) and
-    // "Loan Repayment" (bulk-sheet uploads) as separate columns; both are
-    // loan deductions, so sum them. "Loan Repayment" is an alias of
-    // "Loan Emi", so the direct-name hit wins and the alias column would
-    // otherwise fall through to the custom-heads pass.
+    // RazorpayX emits "Loan Emi" (its own loan schedule) and "Loan Repayment"
+    // (bulk-sheet uploads) as separate columns; both are loan deductions, so sum
+    // them. "Loan Repayment" is also an alias of "Loan Emi", so a register that
+    // carries only the repayment column resolves BOTH lookups to that one column
+    // — adding them unconditionally would double the deduction (and break the
+    // net-pay tie-out built on it). Sum the second column only when it is a
+    // genuinely different column; either way it stays marked mapped so it can
+    // never fall through to the custom-heads pass.
     reg_loan_emi: (() => {
-      const a = toDed(r[colT("Loan Emi")] ?? "");
+      const iLoan = colT("Loan Emi");
+      const a = toDed(r[iLoan] ?? "");
       const iRep = idx("Loan Repayment");
       if (iRep >= 0) mapped.add(iRep);
-      const b = iRep >= 0 ? toDed(r[iRep] ?? "") : null;
+      const b = iRep >= 0 && iRep !== iLoan ? toDed(r[iRep] ?? "") : null;
       if (a == null && b == null) return null;
       return (a ?? 0) + (b ?? 0);
     })(),

@@ -1,0 +1,2 @@
+ALTER TABLE public.bank_accounts DROP CONSTRAINT bank_accounts_status_check;
+ALTER TABLE public.bank_accounts ADD CONSTRAINT bank_accounts_status_check CHECK (status = ANY (ARRAY['ACTIVE','INACTIVE','PENDING_APPROVAL','DORMANT']));

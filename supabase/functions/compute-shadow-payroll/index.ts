@@ -38,13 +38,16 @@ const corsHeaders = {
 };
 
 // ---- inline statutory helpers (mirror of src/lib/hrms/statutoryCalculator.ts) ----
+// Statutory PF wage ceiling: ₹15,000 until Aug 2026, ₹25,000 from Sep 2026
+// (RazorpayX applied the new ceiling on the Sep run — Honey ₹2,550 = 12% × 21,250).
+let PF_CEILING = 15000;
 function pfWageBase(basic: number, da: number, s: any, basisOverride?: string): number {
   const raw = s?.pf_wages_basic_only === false ? (basic || 0) + (da || 0) : (basic || 0);
   // Per-employee basis wins: 'actual' = uncapped Basic, 'capped' = ₹15 000 ceiling.
   if (basisOverride === "actual") return raw;
-  if (basisOverride === "capped") return Math.min(raw, 15000);
-  if (!s) return Math.min(raw, 15000);
-  return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
+  if (basisOverride === "capped") return Math.min(raw, PF_CEILING);
+  if (!s) return Math.min(raw, PF_CEILING);
+  return s.pf_wage_cap_15000 ? Math.min(raw, PF_CEILING) : raw;
 }
 function computeEpf(
   basic: number,
@@ -75,18 +78,20 @@ function computeEsi(fullGross: number, regularGross: number, s: any, enrolled: b
     base,
   };
 }
+const PT_STATE_ALIASES: Record<string, string> = { "madhya pradesh": "MP", mp: "MP" };
 function computePt(base: number, stateCode: string, slabs: any[], enrolled: boolean, periodMonth: Date): number {
-  if (!enrolled || !slabs?.length || !stateCode) return 0;
-  const stateSlabs = slabs.filter((sl) => sl.state_code === stateCode);
+  // hr_pt_slabs columns: state, min_monthly_gross, max_monthly_gross, monthly_amount,
+  // march_amount. (The old reader used non-existent columns, so PT was always 0.)
+  const st = PT_STATE_ALIASES[String(stateCode ?? "").trim().toLowerCase()] ?? String(stateCode ?? "").trim();
+  if (!enrolled || !slabs?.length || !st) return 0;
+  const stateSlabs = slabs.filter((sl) => sl.is_active !== false && String(sl.state) === st);
   if (!stateSlabs.length) return 0;
   const match = stateSlabs.find(
-    (sl) => base >= sl.slab_min && (sl.slab_max === null || base <= sl.slab_max),
-  );
+    (sl) => base > Number(sl.min_monthly_gross ?? 0) && (sl.max_monthly_gross == null || base <= Number(sl.max_monthly_gross)),
+  ) ?? stateSlabs.find((sl) => base >= Number(sl.min_monthly_gross ?? 0) && (sl.max_monthly_gross == null || base <= Number(sl.max_monthly_gross)));
   if (!match) return 0;
-  if (match.special_month && (periodMonth.getMonth() + 1) === match.special_month && match.special_amount) {
-    return match.special_amount;
-  }
-  return match.monthly_amount;
+  if (periodMonth.getUTCMonth() === 2 && match.march_amount != null) return Number(match.march_amount);
+  return Number(match.monthly_amount ?? 0);
 }
 
 // FY26-27 TDS projection (owner directive):
@@ -163,6 +168,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
 
     const periodStr: string = body.period_month;
+    PF_CEILING = String(periodStr) >= "2026-09-01" ? 25000 : 15000;
     if (!periodStr || !/^\d{4}-\d{2}-\d{2}$/.test(periodStr)) {
       return new Response(JSON.stringify({ error: "period_month (YYYY-MM-01) required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -195,14 +201,14 @@ Deno.serve(async (req) => {
     }
 
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date");
+      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date, last_working_day");
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: allEmployees, error: empErr } = await empQ;
     if (empErr) throw empErr;
     const employees = (allEmployees ?? []).filter((e: any) =>
       e.is_active === true ||
       paidThisPeriod.has(e.id) ||
-      (e.termination_date && String(e.termination_date) >= periodStr)
+      ((e.last_working_day ?? e.termination_date) && String(e.last_working_day ?? e.termination_date) >= periodStr)
     );
 
 
@@ -453,7 +459,11 @@ Deno.serve(async (req) => {
 
       // Salary snapshot — resolved through the SHARED ladder so the auto-LOP
       // generator and this engine can never disagree on the monthly base.
-      const salaryBase = await resolveMonthlyGross(supabase, emp.id, periodStr, monthEndStr);
+      // RazorpayX holds a mid-month CTC revision until Step 7 and pays the WHOLE
+      // month on the opening CTC; the difference arrives as a staged addition
+      // (Salary Arrears / Ad Hoc). Mirroring that means opening CTC here — a
+      // blended base plus the addition counted the difference twice (Sep 2026).
+      const salaryBase = await resolveMonthlyGross(supabase, emp.id, periodStr, monthEndStr, { openingOnly: true });
       if (salaryBase.error) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: salaryBase.error });
         continue;
@@ -475,7 +485,7 @@ Deno.serve(async (req) => {
         return isNaN(t.getTime()) ? null : t;
       };
       const hireD = dayNum(rz?.reg_hire_date) ?? dayNum(joiningByEmp.get(emp.id));
-      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : dayNum(emp.termination_date);
+      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : dayNum(emp.last_working_day ?? emp.termination_date);
 
       const winStartDay = hireD && hireD > period && hireD <= monthEnd ? hireD.getUTCDate() : 1;
       const winEndDay = relD && relD >= period && relD < monthEnd ? relD.getUTCDate() : totalDays;
@@ -620,9 +630,17 @@ Deno.serve(async (req) => {
       // Per-employee statutory enrollment.
       // Priority: effective-dated statutory profile → hr_employees cache → global toggle.
       const prof = statutoryProfiles.get(emp.id);
-      const pfEnrolled = prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
-      const esiEnrolled = prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
-      const ptEnrolled = prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
+      // When the imported register exists, what RazorpayX actually deducted is
+      // the enrollment truth (Sep 2026: Vikas/Amit/Shivendra flagged off in HRMS
+      // but PF-deducted by RazorpayX; Ram/Devansh the reverse). HRMS flag is the
+      // fallback only; the disagreement is still reported as enrollment_mismatch.
+      const regTruth = rzBasis === "register_csv";
+      const regPf = regTruth && rz?.pf_amount != null ? Number(rz.pf_amount) >= 1 : null;
+      const regEsi = regTruth && rz?.esi_amount != null ? Number(rz.esi_amount) >= 1 : null;
+      const pfEnrolled = regPf ?? prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
+      const esiEnrolled = regEsi ?? prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
+      const regPt = regTruth && rz?.professional_tax != null ? Number(rz.professional_tax) >= 1 : null;
+      const ptEnrolled = regPt ?? prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
       const pfBasis = prof?.pf_wage_basis ?? undefined;
       const vpfMode = prof?.vpf_mode ?? "none";
       const vpfValue = Number(prof?.vpf_value ?? 0);
@@ -638,14 +656,19 @@ Deno.serve(async (req) => {
       const addNegative = Math.max(0, -additions); // treated as a net-side recovery
       const ctcPost = regularPost;
 
+      // PF wages = Basic of the (post-LOP) CTC split, NOT Basic of the carved
+      // gross — RazorpayX's Basic is 50% of CTC (Sep 2026: ₹7,500 basic on a
+      // ₹15,000 CTC → PF ₹900, while carved-gross basic gave ₹820).
       let grossEarnings = ctcPost;
-      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
+      // RazorpayX books LOP and part-month cuts as a separate gross-pay deduction,
+      // so its Basic (and PF) stays on the full-month CTC split.
+      const pfBasic = regTruth ? Math.round(monthlyGross * (pct.basic / 100)) : basic;
+      const epf = computeEpf(pfBasic, 0, settings, pfEnrolled, pfOpts);
       let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       for (let i = 0; i < 4; i++) {
         const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
         if (next === grossEarnings) break;
         grossEarnings = next;
-        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
         esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       }
       const vpfAmount = Math.min(epf.vpf, Math.max(0, grossEarnings - epf.employee)); // never push net below zero
@@ -657,7 +680,10 @@ Deno.serve(async (req) => {
       const gLta = Math.round(grossEarnings * (pct.lta / 100));
       const gSpecial = grossEarnings - gBasic - gHra - gLta;
 
-      const pt = computePt(grossEarnings, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
+      // PT slab is read on the monthly CTC (annual income / 12), state from the
+      // employee, else RazorpayX's PT location, else the company's state (MP).
+      const ptState = emp.state || "MP";
+      const pt = computePt(monthlyGross, ptState, ptSlabs ?? [], ptEnrolled, period);
 
 
       // TDS — projected on PRE-LOP annual base (owner directive P2).
@@ -687,7 +713,13 @@ Deno.serve(async (req) => {
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
       const earningsTotal = grossEarnings + addPositive;
-      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative + Math.round(stagedRecoveryTotal);
+      // Loans/advances run from RazorpayX's own loan module never reach Step 6
+      // staging (Sep 2026: Sushil ₹6,945, Shubham ₹45,000). When the register
+      // shows more than HRMS staged, the shortfall is still a real deduction.
+      const regLoanGap = regTruth ? Math.max(0, Number(rz?.loan_emi ?? 0) - hrmsLoanEmi) : 0;
+      const regAdvGap = regTruth ? Math.max(0, Number(rz?.advance_salary ?? 0) - hrmsAdvanceRec) : 0;
+      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative
+        + Math.round(stagedRecoveryTotal) + Math.round(regLoanGap + regAdvGap);
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
@@ -721,8 +753,8 @@ Deno.serve(async (req) => {
           enrollmentMismatch.push({ head, hrms: "enrolled", razorpay_amount: 0 });
         }
       };
-      mismatchCheck("pf", pfEnrolled, rzPfCmp);
-      mismatchCheck("esi", esiEnrolled, rzEsiCmp);
+      mismatchCheck("pf", !!(prof?.pf_enabled ?? emp.pf_enabled), rzPfCmp);
+      mismatchCheck("esi", !!(prof?.esi_enabled ?? emp.esi_enabled), rzEsiCmp);
       mismatchCheck("pt", ptEnrolled, rzPtCmp);
 
       // LOP applied locally but absent on the Razorpay side (their gross sits

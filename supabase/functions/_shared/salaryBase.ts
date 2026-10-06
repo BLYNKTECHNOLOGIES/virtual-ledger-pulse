@@ -65,10 +65,11 @@ async function revisionWeightedMonthly(
   periodStr: string,
   monthEndStr: string,
   latestMonthly: number,
+  openingOnly = false,
 ): Promise<{ monthly: number; note?: string } | null> {
   const { data: revs, error } = await supabase
     .from("hr_salary_revisions")
-    .select("previous_total, new_total, effective_from, status")
+    .select("previous_total, new_total, effective_from, status, razorpay_pushed_at")
     .eq("employee_id", employeeId)
     .not("new_total", "is", null)
     .order("effective_from", { ascending: true });
@@ -92,15 +93,26 @@ async function revisionWeightedMonthly(
   // falling back to the "previous_total" of the next revision to come — that is
   // exactly the salary this month was paid on.
   const before = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) <= monthStart);
-  const inMonth = applied.filter((r) => {
+  // openingOnly (shadow mirror): a revision RazorpayX only received AFTER the
+  // month closed was held (Step 7 rule) — RazorpayX paid the whole month on the
+  // opening CTC, so it must not blend. Revisions RazorpayX already had (pushed
+  // in-month or entered on its dashboard) still blend.
+  const heldPastMonth = (r: any) =>
+    openingOnly && r.razorpay_pushed_at && new Date(r.razorpay_pushed_at) > new Date(`${monthEndStr}T23:59:59Z`);
+  const inMonthAll = applied.filter((r) => {
     const d = new Date(`${r.effective_from}T00:00:00Z`);
     return d > monthStart && d <= monthEnd;
   });
+  const inMonth = inMonthAll.filter((r) => !heldPastMonth(r));
   const future = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) > monthEnd);
 
-  const openingAnnual = before.length
-    ? Number(before[before.length - 1].new_total ?? 0)
-    : Number(inMonth[0]?.previous_total ?? future[0]?.previous_total ?? 0);
+  // An in-month revision's previous_total IS the salary paid on day 1 — it
+  // beats any older 'before' row (which may be a stale onboarding entry).
+  const openingAnnual = inMonthAll.length && Number(inMonthAll[0]?.previous_total ?? 0) > 0
+    ? Number(inMonthAll[0].previous_total)
+    : before.length
+      ? Number(before[before.length - 1].new_total ?? 0)
+      : Number(future[0]?.previous_total ?? 0);
   if (!(openingAnnual > 0)) return null;
 
 
@@ -143,6 +155,7 @@ export async function resolveMonthlyGross(
   employeeId: string,
   periodStr: string, // YYYY-MM-01
   monthEndStr: string, // YYYY-MM-DD (last day of period)
+  opts: { openingOnly?: boolean } = {},
 ): Promise<SalaryBaseResult> {
   // 1. AUTHORITY: RazorpayX annual CTC cached on the employee record.
   const { data: empRow } = await supabase
@@ -181,6 +194,7 @@ export async function resolveMonthlyGross(
       periodStr,
       monthEndStr,
       razorpayMonthly,
+      !!opts.openingOnly,
     );
     if (inForce && inForce.monthly > 0) {
       monthlyGross = inForce.monthly;

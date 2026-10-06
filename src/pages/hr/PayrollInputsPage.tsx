@@ -873,34 +873,25 @@ export default function PayrollInputsPage() {
                 </div>
                 {tab === "addition" ? (
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Type</Label>
-                    <Select value={form.addition_type} onValueChange={(v) => setForm({ ...form, addition_type: v })}>
-                      <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                    <Label className="text-xs text-muted-foreground">Component (RazorpayX library)</Label>
+                    <Select
+                      value={form.component}
+                      onValueChange={(v) => {
+                        const t = componentTypeFor(v);
+                        setForm({ ...form, component: v, label: v, addition_type: t.slug, taxable: t.taxable });
+                      }}
+                    >
+                      <SelectTrigger className="text-foreground"><SelectValue placeholder="Pick a component…" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bonus">Bonus</SelectItem>
-                        <SelectItem value="arrears">Arrears</SelectItem>
-                        <SelectItem value="reimbursement">Reimbursement</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {rzpAdditionNames.map((n) => (
+                          <SelectItem key={n} value={n}>{n}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    {form.addition_type === "bonus" && enabledBonusTypes.length > 0 && (
-                      <div className="pt-1">
-                        <Label className="text-[10px] text-muted-foreground">Bonus subtype (mirrors Razorpay)</Label>
-                        <Select
-                          value=""
-                          onValueChange={(v) => {
-                            const bt = enabledBonusTypes.find(b => b.key === v);
-                            if (bt) setForm(prev => ({ ...prev, label: bt.label }));
-                          }}
-                        >
-                          <SelectTrigger className="text-foreground h-8 text-xs"><SelectValue placeholder="Pick from catalogue…" /></SelectTrigger>
-                          <SelectContent>
-                            {enabledBonusTypes.map(b => (
-                              <SelectItem key={b.key} value={b.key}>{b.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {form.component && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Pushes as {additionTypeSlug(additionTypeCode(form.addition_type))} · {form.taxable ? "taxable" : "non-taxable"}
+                      </p>
                     )}
                   </div>
                 ) : <div />}

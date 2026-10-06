@@ -26,23 +26,17 @@ import { TrainingCtcAdjustmentsCard } from "@/components/hr/payroll/TrainingCtcA
 
 import { OtherPayrollInputsCard } from "@/components/hr/payroll/OtherPayrollInputsCard";
 import { FnFSettlementInputsCard } from "@/components/hr/payroll/FnFSettlementInputsCard";
-import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
-// Razorpay's fixed bonus catalogue (Payroll Settings → Bonus Types) — the only
-// subtypes Razorpay accepts for a Bonus addition.
-const RAZORPAY_BONUS_TYPES = [
-  { key: "joining", label: "Joining Bonus" },
-  { key: "retention", label: "Retention Bonus" },
-  { key: "work_anniversary", label: "Work Anniversary Bonus" },
-  { key: "end_of_year", label: "End of year Bonus" },
-  { key: "retirement", label: "Retirement Bonus" },
-  { key: "profit_sharing", label: "Profit-Sharing Bonus" },
-  { key: "diwali", label: "Diwali Bonus" },
-  { key: "sign_on", label: "Sign-On Bonus" },
-  { key: "performance", label: "Performance Bonus" },
-  { key: "overtime", label: "Overtime" },
-];
+// Derive RazorpayX's API type code + tax flag from a Component Library
+// addition name, so HR only ever picks real library components and the
+// envelope details stay correct behind the scenes.
+function componentTypeFor(name: string): { slug: string; taxable: boolean } {
+  const n = name.toLowerCase();
+  if (/reimbursement/.test(n)) return { slug: "reimbursement", taxable: false };
+  if (/arrear/.test(n)) return { slug: "arrears", taxable: true };
+  return { slug: "bonus", taxable: true };
+}
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
 const currentPeriod = () => {
@@ -79,7 +73,7 @@ export default function PayrollInputsPage() {
   const lopFocus = searchParams.get("focus") === "lop";
   const [period, setPeriod] = useState(paramPeriod && /^\d{4}-\d{2}$/.test(paramPeriod) ? paramPeriod : currentPeriod());
   const [tab, setTab] = useState<Kind>(lopFocus ? "deduction" : ((paramTab as Kind) ?? "addition"));
-  const [form, setForm] = useState({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
+  const [form, setForm] = useState({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", component: "", addition_type: "bonus", taxable: true });
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);
@@ -109,15 +103,6 @@ export default function PayrollInputsPage() {
     { isEmpty: (v: any) => !v?.hr_employee_id && !v?.amount && (!v?.label || (lopFocus && v.label === "Loss of Pay")) },
   );
 
-  // Razorpay supports a FIXED catalogue of exactly 10 bonus types — the
-  // subtype picker must offer these and nothing else. The settings mirror
-  // supplies enabled flags; types missing from the mirror default to enabled
-  // (Razorpay's own defaults) so the list is always the complete catalogue.
-  const { data: complianceSettings } = useComplianceSettings();
-  const enabledBonusTypes = useMemo(() => {
-    const mirror = new Map((complianceSettings?.bonus_types ?? []).map(b => [b.key, b.enabled]));
-    return RAZORPAY_BONUS_TYPES.map(b => ({ ...b, enabled: mirror.get(b.key) ?? true })).filter(b => b.enabled);
-  }, [complianceSettings]);
 
   // Envelope gate — payroll writes require push_payroll_endpoint_verified on razorpay settings.
   const { data: settings } = useQuery({
@@ -309,7 +294,7 @@ export default function PayrollInputsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
       clearFormDraftState();
-      setForm({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
+      setForm({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", component: "", addition_type: "bonus", taxable: true });
       toast.success("Staged. Push to RazorpayX when ready.");
     },
     onError: (e: any) => toast.error(e.message),
@@ -877,7 +862,7 @@ export default function PayrollInputsPage() {
                 </div>
                 <div className="md:col-span-2 space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{lopFocus ? "Label" : "Payslip label"}</Label>
-                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
+                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Set by the component picker" : "Advance recovery"} disabled={lopFocus || (tab === "addition" && !!form.component)} className={(lopFocus || (tab === "addition" && !!form.component)) ? "text-foreground" : undefined} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Amount</Label>
@@ -888,34 +873,25 @@ export default function PayrollInputsPage() {
                 </div>
                 {tab === "addition" ? (
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Type</Label>
-                    <Select value={form.addition_type} onValueChange={(v) => setForm({ ...form, addition_type: v })}>
-                      <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                    <Label className="text-xs text-muted-foreground">Component (RazorpayX library)</Label>
+                    <Select
+                      value={form.component}
+                      onValueChange={(v) => {
+                        const t = componentTypeFor(v);
+                        setForm({ ...form, component: v, label: v, addition_type: t.slug, taxable: t.taxable });
+                      }}
+                    >
+                      <SelectTrigger className="text-foreground"><SelectValue placeholder="Pick a component…" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="bonus">Bonus</SelectItem>
-                        <SelectItem value="arrears">Arrears</SelectItem>
-                        <SelectItem value="reimbursement">Reimbursement</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
+                        {rzpAdditionNames.map((n) => (
+                          <SelectItem key={n} value={n}>{n}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    {form.addition_type === "bonus" && enabledBonusTypes.length > 0 && (
-                      <div className="pt-1">
-                        <Label className="text-[10px] text-muted-foreground">Bonus subtype (mirrors Razorpay)</Label>
-                        <Select
-                          value=""
-                          onValueChange={(v) => {
-                            const bt = enabledBonusTypes.find(b => b.key === v);
-                            if (bt) setForm(prev => ({ ...prev, label: bt.label }));
-                          }}
-                        >
-                          <SelectTrigger className="text-foreground h-8 text-xs"><SelectValue placeholder="Pick from catalogue…" /></SelectTrigger>
-                          <SelectContent>
-                            {enabledBonusTypes.map(b => (
-                              <SelectItem key={b.key} value={b.key}>{b.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {form.component && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Pushes as {additionTypeSlug(additionTypeCode(form.addition_type))} · {form.taxable ? "taxable" : "non-taxable"}
+                      </p>
                     )}
                   </div>
                 ) : <div />}

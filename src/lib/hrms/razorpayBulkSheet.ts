@@ -9,23 +9,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { buildVerificationPack } from "@/lib/hrms/payrollVerificationPack";
 
-/** The exact component list from the owner's RazorpayX template (case-sensitive). */
-export const RZP_BULK_COMPONENTS = [
-  "Loss of Pay",
-  "Correction | Addition", "Reimbursement | Addition", "Employee Engagement | Addition", "Bonus | Addition",
-  "Recovery refund | Addition", "loan amount deduction | Addition", "Service charges | Addition",
-  "Performance Bonus | Addition", "Comp-off encashment 3 day(s) | Addition", "Performance bonus | Addition",
-  "Comp-off encashment 2 day(s) | Addition", "Comp-off encashment 4 day(s) | Addition", "Ad Hoc | Addition",
-  "Overtime | Addition", "Performance Bonus aug | Addition", "Performance Linked Incentive | Addition",
-  "OVERTIME | Addition", "F&F settlement - dues | Addition", "Comp-off encashment 0.5 day(s) | Addition",
-  "Legal fees | Addition", "Legal fees pay | Addition", "Legal fees repay | Addition", "Fees | Addition",
-  "Legal Fees reimburse | Addition", "JULY | Addition", "Correction — correction for july | Addition",
-  "Advance Salary | Deduction", "Gross pay deduction | Deduction", "KPI Loss | Deduction",
-  "Loan Repayment | Deduction", "Recovery | Deduction", "Security Deposit | Deduction", "Wrong Payment Recovery | Deduction",
+/** Exact Component Library names (case-sensitive), created by the owner 2026-10-06. */
+const LIB_ADDITIONS = [
+  "Comp-off Encashment", "Salary Arrears", "F&F Settlement Dues", "Leave Encashment", "Salary Advance Payout",
+  "Security Deposit Refund", "Recovery Refund", "Performance Bonus", "Performance Linked Incentive", "Overtime",
+  "Joining Bonus", "Retention Bonus", "Referral Bonus", "Festival Bonus", "Employee of the Month Award",
+  "Night Shift Allowance", "Special Allowance Ad Hoc", "Correction", "Reimbursement", "Travel Reimbursement",
+  "Mobile Internet Reimbursement", "ESIC Reimbursement", "Legal Fees Reimbursement", "Employee Engagement",
 ] as const;
+const LIB_DEDUCTIONS = [
+  "Loss of Pay", "Loan Repayment", "Advance Salary Recovery", "Security Deposit", "Wrong Payment Recovery",
+  "F&F Recovery", "Salary Arrears Recovery", "Notice Period Recovery", "Asset Damage Recovery", "KPI Loss",
+  "Penalty", "Canteen Deduction", "Correction Recovery",
+] as const;
+export const LOP_COMPONENT = "Loss of Pay | Deduction";
+export const RZP_BULK_COMPONENTS = [
+  ...LIB_ADDITIONS.map((n) => `${n} | Addition`),
+  ...LIB_DEDUCTIONS.map((n) => `${n} | Deduction`),
+];
 
-const ADD_NAMES = new Set(RZP_BULK_COMPONENTS.filter((c) => c.endsWith("| Addition")).map((c) => c.replace(/ \| Addition$/, "")));
-const DED_NAMES = new Set(RZP_BULK_COMPONENTS.filter((c) => c.endsWith("| Deduction")).map((c) => c.replace(/ \| Deduction$/, "")));
+const ADD_NAMES = new Set<string>(LIB_ADDITIONS);
+const DED_NAMES = new Set<string>(LIB_DEDUCTIONS);
 export const DEDUCTION_COMPONENT_NAMES = [...DED_NAMES];
 
 const n2 = (v: unknown) => Math.round(Number(v ?? 0) * 100) / 100;
@@ -34,14 +38,22 @@ function defaultAdditionName(r: any): string | null {
   if (r.razorpay_label && ADD_NAMES.has(r.razorpay_label)) return r.razorpay_label;
   const s = String(r.source ?? "").toLowerCase();
   const l = String(r.label ?? "").toLowerCase();
-  if (s === "auto_compoff" || /comp[- ]?off/.test(l)) return "Overtime";
-  if (s === "fnf_settlement" || /f&f|full and final/.test(l)) return "F&F settlement - dues";
-  if (s === "training_ctc_adjustment" || s === "ctc_transition_adjustment" || /training|part[- ]month|arrear/.test(l)) return "Ad Hoc";
+  if (s === "auto_compoff" || /comp[- ]?off/.test(l)) return "Comp-off Encashment";
+  if (s === "fnf_settlement" || /f&f|full and final|fnf/.test(l)) return "F&F Settlement Dues";
+  if (/leave encash/.test(l)) return "Leave Encashment";
+  if (s === "training_ctc_adjustment" || s === "ctc_transition_adjustment" || /training|part[- ]month|arrear/.test(l)) return "Salary Arrears";
+  if (/esic/.test(l) && /reimburs/.test(l)) return "ESIC Reimbursement";
+  if (/legal/.test(l)) return "Legal Fees Reimbursement";
+  if (/travel|conveyance/.test(l)) return "Travel Reimbursement";
+  if (/mobile|internet/.test(l)) return "Mobile Internet Reimbursement";
+  if (/reimburs/.test(l)) return "Reimbursement";
+  if (/deposit/.test(l)) return "Security Deposit Refund";
+  if (/refund/.test(l)) return "Recovery Refund";
+  if (/loan|advance/.test(l)) return "Salary Advance Payout";
   if (/incentive|pli/.test(l)) return "Performance Linked Incentive";
-  if (/refund|deposit/.test(l)) return "Recovery refund";
-  if (/reimburse/.test(l)) return "Reimbursement";
+  if (/overtime/.test(l)) return "Overtime";
   if (/correction/.test(l)) return "Correction";
-  if (/bonus/.test(l)) return "Bonus";
+  if (/bonus/.test(l)) return "Performance Bonus";
   return null;
 }
 
@@ -49,13 +61,20 @@ function defaultDeductionName(r: any): string | null {
   if (r.razorpay_label && DED_NAMES.has(r.razorpay_label)) return r.razorpay_label;
   const l = String(r.label ?? "").toLowerCase();
   const k = String(r.recovery_kind ?? "").toLowerCase();
-  if (/\blop\b|loss of pay|loss-of-pay|absent/.test(l)) return "Gross pay deduction";
-  if (/advance/.test(l) || k === "advance") return "Advance Salary";
+  const s = String(r.source ?? "").toLowerCase();
+  if (/\blop\b|loss of pay|loss-of-pay|absent/.test(l) || s === "auto_lop") return "Loss of Pay";
+  if (/notice/.test(l)) return "Notice Period Recovery";
+  if (/f&f|fnf|full and final/.test(l) || s === "fnf_settlement") return "F&F Recovery";
+  if (/advance/.test(l) || k === "advance") return "Advance Salary Recovery";
   if (/deposit/.test(l) || k === "deposit") return "Security Deposit";
   if (/wrong|error/.test(l) || k === "error") return "Wrong Payment Recovery";
   if (/loan|emi/.test(l) || k === "loan") return "Loan Repayment";
+  if (/asset|damage/.test(l)) return "Asset Damage Recovery";
   if (/kpi/.test(l)) return "KPI Loss";
-  if (/recover/.test(l) || String(r.source) === "ctc_transition_adjustment") return "Recovery";
+  if (/penalt|late|fine/.test(l) || s.includes("penalt")) return "Penalty";
+  if (/canteen|meal/.test(l)) return "Canteen Deduction";
+  if (/arrear|training|ctc/.test(l) || s === "ctc_transition_adjustment") return "Salary Arrears Recovery";
+  if (/correction|recover/.test(l)) return "Correction Recovery";
   return null;
 }
 

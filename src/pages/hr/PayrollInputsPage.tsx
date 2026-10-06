@@ -103,15 +103,6 @@ export default function PayrollInputsPage() {
     { isEmpty: (v: any) => !v?.hr_employee_id && !v?.amount && (!v?.label || (lopFocus && v.label === "Loss of Pay")) },
   );
 
-  // Razorpay supports a FIXED catalogue of exactly 10 bonus types — the
-  // subtype picker must offer these and nothing else. The settings mirror
-  // supplies enabled flags; types missing from the mirror default to enabled
-  // (Razorpay's own defaults) so the list is always the complete catalogue.
-  const { data: complianceSettings } = useComplianceSettings();
-  const enabledBonusTypes = useMemo(() => {
-    const mirror = new Map((complianceSettings?.bonus_types ?? []).map(b => [b.key, b.enabled]));
-    return RAZORPAY_BONUS_TYPES.map(b => ({ ...b, enabled: mirror.get(b.key) ?? true })).filter(b => b.enabled);
-  }, [complianceSettings]);
 
   // Envelope gate — payroll writes require push_payroll_endpoint_verified on razorpay settings.
   const { data: settings } = useQuery({
@@ -303,7 +294,7 @@ export default function PayrollInputsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payroll_inputs", table, period] });
       clearFormDraftState();
-      setForm({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
+      setForm({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", component: "", addition_type: "bonus", taxable: true });
       toast.success("Staged. Push to RazorpayX when ready.");
     },
     onError: (e: any) => toast.error(e.message),

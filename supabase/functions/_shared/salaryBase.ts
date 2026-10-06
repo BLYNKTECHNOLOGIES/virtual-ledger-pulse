@@ -65,6 +65,7 @@ async function revisionWeightedMonthly(
   periodStr: string,
   monthEndStr: string,
   latestMonthly: number,
+  openingOnly = false,
 ): Promise<{ monthly: number; note?: string } | null> {
   const { data: revs, error } = await supabase
     .from("hr_salary_revisions")
@@ -98,13 +99,17 @@ async function revisionWeightedMonthly(
   });
   const future = applied.filter((r) => new Date(`${r.effective_from}T00:00:00Z`) > monthEnd);
 
-  const openingAnnual = before.length
-    ? Number(before[before.length - 1].new_total ?? 0)
-    : Number(inMonth[0]?.previous_total ?? future[0]?.previous_total ?? 0);
+  // An in-month revision's previous_total IS the salary paid on day 1 — it
+  // beats any older 'before' row (which may be a stale onboarding entry).
+  const openingAnnual = inMonth.length && Number(inMonth[0]?.previous_total ?? 0) > 0
+    ? Number(inMonth[0].previous_total)
+    : before.length
+      ? Number(before[before.length - 1].new_total ?? 0)
+      : Number(future[0]?.previous_total ?? 0);
   if (!(openingAnnual > 0)) return null;
 
 
-  if (!inMonth.length) {
+  if (!inMonth.length || openingOnly) {
     const monthly = Math.round(openingAnnual / 12);
     if (!(monthly > 0)) return null;
     return {
@@ -143,6 +148,7 @@ export async function resolveMonthlyGross(
   employeeId: string,
   periodStr: string, // YYYY-MM-01
   monthEndStr: string, // YYYY-MM-DD (last day of period)
+  opts: { openingOnly?: boolean } = {},
 ): Promise<SalaryBaseResult> {
   // 1. AUTHORITY: RazorpayX annual CTC cached on the employee record.
   const { data: empRow } = await supabase
@@ -181,6 +187,7 @@ export async function resolveMonthlyGross(
       periodStr,
       monthEndStr,
       razorpayMonthly,
+      !!opts.openingOnly,
     );
     if (inForce && inForce.monthly > 0) {
       monthlyGross = inForce.monthly;

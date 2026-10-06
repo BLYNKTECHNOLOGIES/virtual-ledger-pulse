@@ -453,7 +453,11 @@ Deno.serve(async (req) => {
 
       // Salary snapshot — resolved through the SHARED ladder so the auto-LOP
       // generator and this engine can never disagree on the monthly base.
-      const salaryBase = await resolveMonthlyGross(supabase, emp.id, periodStr, monthEndStr);
+      // RazorpayX holds a mid-month CTC revision until Step 7 and pays the WHOLE
+      // month on the opening CTC; the difference arrives as a staged addition
+      // (Salary Arrears / Ad Hoc). Mirroring that means opening CTC here — a
+      // blended base plus the addition counted the difference twice (Sep 2026).
+      const salaryBase = await resolveMonthlyGross(supabase, emp.id, periodStr, monthEndStr, { openingOnly: true });
       if (salaryBase.error) {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: salaryBase.error });
         continue;
@@ -620,8 +624,15 @@ Deno.serve(async (req) => {
       // Per-employee statutory enrollment.
       // Priority: effective-dated statutory profile → hr_employees cache → global toggle.
       const prof = statutoryProfiles.get(emp.id);
-      const pfEnrolled = prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
-      const esiEnrolled = prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
+      // When the imported register exists, what RazorpayX actually deducted is
+      // the enrollment truth (Sep 2026: Vikas/Amit/Shivendra flagged off in HRMS
+      // but PF-deducted by RazorpayX; Ram/Devansh the reverse). HRMS flag is the
+      // fallback only; the disagreement is still reported as enrollment_mismatch.
+      const regTruth = rzBasis === "register_csv";
+      const regPf = regTruth && rz?.pf_amount != null ? Number(rz.pf_amount) >= 1 : null;
+      const regEsi = regTruth && rz?.esi_amount != null ? Number(rz.esi_amount) >= 1 : null;
+      const pfEnrolled = regPf ?? prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
+      const esiEnrolled = regEsi ?? prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
       const ptEnrolled = prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
       const pfBasis = prof?.pf_wage_basis ?? undefined;
       const vpfMode = prof?.vpf_mode ?? "none";

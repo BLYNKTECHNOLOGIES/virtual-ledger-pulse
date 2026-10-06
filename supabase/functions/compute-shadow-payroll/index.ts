@@ -698,7 +698,13 @@ Deno.serve(async (req) => {
       const tds = monthsRemaining > 0 ? Math.round(Math.max(0, annualTax - ytdTdsPaid) / monthsRemaining) : 0;
 
       const earningsTotal = grossEarnings + addPositive;
-      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative + Math.round(stagedRecoveryTotal);
+      // Loans/advances run from RazorpayX's own loan module never reach Step 6
+      // staging (Sep 2026: Sushil ₹6,945, Shubham ₹45,000). When the register
+      // shows more than HRMS staged, the shortfall is still a real deduction.
+      const regLoanGap = regTruth ? Math.max(0, Number(rz?.loan_emi ?? 0) - hrmsLoanEmi) : 0;
+      const regAdvGap = regTruth ? Math.max(0, Number(rz?.advance_salary ?? 0) - hrmsAdvanceRec) : 0;
+      const deductions = epf.employee + vpfAmount + esi.employee + pt + tds + addNegative
+        + Math.round(stagedRecoveryTotal) + Math.round(regLoanGap + regAdvGap);
       const net = earningsTotal - deductions;
       const employerCost = epf.employer_earnings_side + esi.employer;
 
@@ -732,8 +738,8 @@ Deno.serve(async (req) => {
           enrollmentMismatch.push({ head, hrms: "enrolled", razorpay_amount: 0 });
         }
       };
-      mismatchCheck("pf", pfEnrolled, rzPfCmp);
-      mismatchCheck("esi", esiEnrolled, rzEsiCmp);
+      mismatchCheck("pf", !!(prof?.pf_enabled ?? emp.pf_enabled), rzPfCmp);
+      mismatchCheck("esi", !!(prof?.esi_enabled ?? emp.esi_enabled), rzEsiCmp);
       mismatchCheck("pt", ptEnrolled, rzPtCmp);
 
       // LOP applied locally but absent on the Razorpay side (their gross sits

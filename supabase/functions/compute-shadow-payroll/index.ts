@@ -538,7 +538,7 @@ Deno.serve(async (req) => {
       // it out was what made Razorpay's identical figures look like drift.
       const { data: deds, error: dedsErr } = await supabase
         .from("hr_payroll_input_deductions")
-        .select("amount, label, source, recovery_kind, lop_days")
+        .select("amount, label, source, recovery_kind, lop_days, recovery_ref_id")
         .eq("hr_employee_id", emp.id)
         .eq("period_month", periodStr);
       if (dedsErr) {
@@ -575,7 +575,7 @@ Deno.serve(async (req) => {
       // to RazorpayX as a dashboard "Gross pay deduction") are still real.
       const stagedRefIds = new Set(dedRows.map((r) => String(r.recovery_ref_id ?? "")).filter(Boolean));
       const [{ data: loanInst }, { data: depInst }] = await Promise.all([
-        supabase.from("hr_loan_repayments").select("id, amount, status, hr_loans!inner(loan_type)")
+        supabase.from("hr_loan_repayments").select("id, amount, status, loan_id")
           .eq("employee_id", emp.id).eq("period_month", periodStr).in("status", ["paid", "pushed"]),
         supabase.from("hr_employee_deposit_schedule").select("id, amount, status")
           .eq("employee_id", emp.id).eq("period_month", periodStr).in("status", ["paid", "pushed", "collected"]),

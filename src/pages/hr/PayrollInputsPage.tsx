@@ -26,23 +26,17 @@ import { TrainingCtcAdjustmentsCard } from "@/components/hr/payroll/TrainingCtcA
 
 import { OtherPayrollInputsCard } from "@/components/hr/payroll/OtherPayrollInputsCard";
 import { FnFSettlementInputsCard } from "@/components/hr/payroll/FnFSettlementInputsCard";
-import { useComplianceSettings } from "@/hooks/hrms/useComplianceSettings";
 import { additionTypeCode, additionTypeSlug } from "@/lib/hrms/additionType";
 
-// Razorpay's fixed bonus catalogue (Payroll Settings → Bonus Types) — the only
-// subtypes Razorpay accepts for a Bonus addition.
-const RAZORPAY_BONUS_TYPES = [
-  { key: "joining", label: "Joining Bonus" },
-  { key: "retention", label: "Retention Bonus" },
-  { key: "work_anniversary", label: "Work Anniversary Bonus" },
-  { key: "end_of_year", label: "End of year Bonus" },
-  { key: "retirement", label: "Retirement Bonus" },
-  { key: "profit_sharing", label: "Profit-Sharing Bonus" },
-  { key: "diwali", label: "Diwali Bonus" },
-  { key: "sign_on", label: "Sign-On Bonus" },
-  { key: "performance", label: "Performance Bonus" },
-  { key: "overtime", label: "Overtime" },
-];
+// Derive RazorpayX's API type code + tax flag from a Component Library
+// addition name, so HR only ever picks real library components and the
+// envelope details stay correct behind the scenes.
+function componentTypeFor(name: string): { slug: string; taxable: boolean } {
+  const n = name.toLowerCase();
+  if (/reimbursement/.test(n)) return { slug: "reimbursement", taxable: false };
+  if (/arrear/.test(n)) return { slug: "arrears", taxable: true };
+  return { slug: "bonus", taxable: true };
+}
 
 // Period helpers — Razorpay uses YYYY-MM strings for the payroll month.
 const currentPeriod = () => {
@@ -79,7 +73,7 @@ export default function PayrollInputsPage() {
   const lopFocus = searchParams.get("focus") === "lop";
   const [period, setPeriod] = useState(paramPeriod && /^\d{4}-\d{2}$/.test(paramPeriod) ? paramPeriod : currentPeriod());
   const [tab, setTab] = useState<Kind>(lopFocus ? "deduction" : ((paramTab as Kind) ?? "addition"));
-  const [form, setForm] = useState({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", addition_type: "bonus", taxable: true });
+  const [form, setForm] = useState({ hr_employee_id: "", label: lopFocus ? "Loss of Pay" : "", amount: "", component: "", addition_type: "bonus", taxable: true });
   const [pushConfirm, setPushConfirm] = useState<any>(null);
   const [dnpConfirm, setDnpConfirm] = useState<any>(null);
   const [resetConfirm, setResetConfirm] = useState<any>(null);

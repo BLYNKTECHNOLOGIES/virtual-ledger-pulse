@@ -38,13 +38,16 @@ const corsHeaders = {
 };
 
 // ---- inline statutory helpers (mirror of src/lib/hrms/statutoryCalculator.ts) ----
+// Statutory PF wage ceiling: ₹15,000 until Aug 2026, ₹25,000 from Sep 2026
+// (RazorpayX applied the new ceiling on the Sep run — Honey ₹2,550 = 12% × 21,250).
+let PF_CEILING = 15000;
 function pfWageBase(basic: number, da: number, s: any, basisOverride?: string): number {
   const raw = s?.pf_wages_basic_only === false ? (basic || 0) + (da || 0) : (basic || 0);
   // Per-employee basis wins: 'actual' = uncapped Basic, 'capped' = ₹15 000 ceiling.
   if (basisOverride === "actual") return raw;
-  if (basisOverride === "capped") return Math.min(raw, 15000);
-  if (!s) return Math.min(raw, 15000);
-  return s.pf_wage_cap_15000 ? Math.min(raw, 15000) : raw;
+  if (basisOverride === "capped") return Math.min(raw, PF_CEILING);
+  if (!s) return Math.min(raw, PF_CEILING);
+  return s.pf_wage_cap_15000 ? Math.min(raw, PF_CEILING) : raw;
 }
 function computeEpf(
   basic: number,
@@ -163,6 +166,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
 
     const periodStr: string = body.period_month;
+    PF_CEILING = String(periodStr) >= "2026-09-01" ? 25000 : 15000;
     if (!periodStr || !/^\d{4}-\d{2}-\d{2}$/.test(periodStr)) {
       return new Response(JSON.stringify({ error: "period_month (YYYY-MM-01) required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -195,14 +199,14 @@ Deno.serve(async (req) => {
     }
 
     let empQ: any = supabase.from("hr_employees")
-      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date");
+      .select("id, first_name, last_name, badge_id, state, is_active, filing_status_id, pf_enabled, esi_enabled, pt_enabled, custom_structure_pct, statutory_flags_source, termination_date, last_working_day");
     if (employeeIds?.length) empQ = empQ.in("id", employeeIds);
     const { data: allEmployees, error: empErr } = await empQ;
     if (empErr) throw empErr;
     const employees = (allEmployees ?? []).filter((e: any) =>
       e.is_active === true ||
       paidThisPeriod.has(e.id) ||
-      (e.termination_date && String(e.termination_date) >= periodStr)
+      ((e.last_working_day ?? e.termination_date) && String(e.last_working_day ?? e.termination_date) >= periodStr)
     );
 
 
@@ -479,7 +483,7 @@ Deno.serve(async (req) => {
         return isNaN(t.getTime()) ? null : t;
       };
       const hireD = dayNum(rz?.reg_hire_date) ?? dayNum(joiningByEmp.get(emp.id));
-      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : dayNum(emp.termination_date);
+      const relD = rz?.has_left ? dayNum(rz?.relieving_date) : dayNum(emp.last_working_day ?? emp.termination_date);
 
       const winStartDay = hireD && hireD > period && hireD <= monthEnd ? hireD.getUTCDate() : 1;
       const winEndDay = relD && relD >= period && relD < monthEnd ? relD.getUTCDate() : totalDays;
@@ -649,14 +653,16 @@ Deno.serve(async (req) => {
       const addNegative = Math.max(0, -additions); // treated as a net-side recovery
       const ctcPost = regularPost;
 
+      // PF wages = Basic of the (post-LOP) CTC split, NOT Basic of the carved
+      // gross — RazorpayX's Basic is 50% of CTC (Sep 2026: ₹7,500 basic on a
+      // ₹15,000 CTC → PF ₹900, while carved-gross basic gave ₹820).
       let grossEarnings = ctcPost;
-      let epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
+      const epf = computeEpf(basic, 0, settings, pfEnrolled, pfOpts);
       let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       for (let i = 0; i < 4; i++) {
         const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
         if (next === grossEarnings) break;
         grossEarnings = next;
-        epf = computeEpf(Math.round(grossEarnings * (pct.basic / 100)), 0, settings, pfEnrolled, pfOpts);
         esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       }
       const vpfAmount = Math.min(epf.vpf, Math.max(0, grossEarnings - epf.employee)); // never push net below zero

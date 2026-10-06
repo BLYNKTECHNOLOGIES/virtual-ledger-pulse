@@ -78,18 +78,20 @@ function computeEsi(fullGross: number, regularGross: number, s: any, enrolled: b
     base,
   };
 }
+const PT_STATE_ALIASES: Record<string, string> = { "madhya pradesh": "MP", mp: "MP" };
 function computePt(base: number, stateCode: string, slabs: any[], enrolled: boolean, periodMonth: Date): number {
-  if (!enrolled || !slabs?.length || !stateCode) return 0;
-  const stateSlabs = slabs.filter((sl) => sl.state_code === stateCode);
+  // hr_pt_slabs columns: state, min_monthly_gross, max_monthly_gross, monthly_amount,
+  // march_amount. (The old reader used non-existent columns, so PT was always 0.)
+  const st = PT_STATE_ALIASES[String(stateCode ?? "").trim().toLowerCase()] ?? String(stateCode ?? "").trim();
+  if (!enrolled || !slabs?.length || !st) return 0;
+  const stateSlabs = slabs.filter((sl) => sl.is_active !== false && String(sl.state) === st);
   if (!stateSlabs.length) return 0;
   const match = stateSlabs.find(
-    (sl) => base >= sl.slab_min && (sl.slab_max === null || base <= sl.slab_max),
-  );
+    (sl) => base > Number(sl.min_monthly_gross ?? 0) && (sl.max_monthly_gross == null || base <= Number(sl.max_monthly_gross)),
+  ) ?? stateSlabs.find((sl) => base >= Number(sl.min_monthly_gross ?? 0) && (sl.max_monthly_gross == null || base <= Number(sl.max_monthly_gross)));
   if (!match) return 0;
-  if (match.special_month && (periodMonth.getMonth() + 1) === match.special_month && match.special_amount) {
-    return match.special_amount;
-  }
-  return match.monthly_amount;
+  if (periodMonth.getUTCMonth() === 2 && match.march_amount != null) return Number(match.march_amount);
+  return Number(match.monthly_amount ?? 0);
 }
 
 // FY26-27 TDS projection (owner directive):
@@ -637,7 +639,8 @@ Deno.serve(async (req) => {
       const regEsi = regTruth && rz?.esi_amount != null ? Number(rz.esi_amount) >= 1 : null;
       const pfEnrolled = regPf ?? prof?.pf_enabled ?? emp.pf_enabled ?? settings?.compliance_files_pf ?? false;
       const esiEnrolled = regEsi ?? prof?.esi_enabled ?? emp.esi_enabled ?? settings?.compliance_files_esi ?? false;
-      const ptEnrolled = prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
+      const regPt = regTruth && rz?.professional_tax != null ? Number(rz.professional_tax) >= 1 : null;
+      const ptEnrolled = regPt ?? prof?.pt_enabled ?? emp.pt_enabled ?? settings?.compliance_files_pt ?? false;
       const pfBasis = prof?.pf_wage_basis ?? undefined;
       const vpfMode = prof?.vpf_mode ?? "none";
       const vpfValue = Number(prof?.vpf_value ?? 0);
@@ -657,7 +660,10 @@ Deno.serve(async (req) => {
       // gross — RazorpayX's Basic is 50% of CTC (Sep 2026: ₹7,500 basic on a
       // ₹15,000 CTC → PF ₹900, while carved-gross basic gave ₹820).
       let grossEarnings = ctcPost;
-      const epf = computeEpf(basic, 0, settings, pfEnrolled, pfOpts);
+      // RazorpayX books LOP and part-month cuts as a separate gross-pay deduction,
+      // so its Basic (and PF) stays on the full-month CTC split.
+      const pfBasic = regTruth ? Math.round(monthlyGross * (pct.basic / 100)) : basic;
+      const epf = computeEpf(pfBasic, 0, settings, pfEnrolled, pfOpts);
       let esi = computeEsi(grossEarnings + addPositive, grossEarnings, settings, esiEnrolled);
       for (let i = 0; i < 4; i++) {
         const next = Math.max(0, ctcPost - epf.employer_earnings_side - esi.employer);
@@ -674,7 +680,10 @@ Deno.serve(async (req) => {
       const gLta = Math.round(grossEarnings * (pct.lta / 100));
       const gSpecial = grossEarnings - gBasic - gHra - gLta;
 
-      const pt = computePt(grossEarnings, emp.state ?? "", ptSlabs ?? [], ptEnrolled, period);
+      // PT slab is read on the monthly CTC (annual income / 12), state from the
+      // employee, else RazorpayX's PT location, else the company's state (MP).
+      const ptState = emp.state || rz?.pt_location || "MP";
+      const pt = computePt(monthlyGross, ptState, ptSlabs ?? [], ptEnrolled, period);
 
 
       // TDS — projected on PRE-LOP annual base (owner directive P2).

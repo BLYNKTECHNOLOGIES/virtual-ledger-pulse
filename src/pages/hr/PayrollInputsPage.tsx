@@ -862,7 +862,7 @@ export default function PayrollInputsPage() {
                 </div>
                 <div className="md:col-span-2 space-y-1.5">
                   <Label className="text-xs text-muted-foreground">{lopFocus ? "Label" : "Payslip label"}</Label>
-                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Performance bonus" : "Advance recovery"} disabled={lopFocus} className={lopFocus ? "text-foreground" : undefined} />
+                  <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder={tab === "addition" ? "Set by the component picker" : "Advance recovery"} disabled={lopFocus || (tab === "addition" && !!form.component)} className={(lopFocus || (tab === "addition" && !!form.component)) ? "text-foreground" : undefined} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Amount</Label>

@@ -682,7 +682,7 @@ Deno.serve(async (req) => {
 
       // PT slab is read on the monthly CTC (annual income / 12), state from the
       // employee, else RazorpayX's PT location, else the company's state (MP).
-      const ptState = emp.state || rz?.pt_location || "MP";
+      const ptState = emp.state || "MP";
       const pt = computePt(monthlyGross, ptState, ptSlabs ?? [], ptEnrolled, period);
 
 

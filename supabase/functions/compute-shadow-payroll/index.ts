@@ -580,10 +580,17 @@ Deno.serve(async (req) => {
         supabase.from("hr_employee_deposit_schedule").select("id, amount, status")
           .eq("employee_id", emp.id).eq("period_month", periodStr).in("status", ["paid", "pushed", "collected"]),
       ]);
+      const unstagedLoans = ((loanInst ?? []) as any[]).filter((r) => !stagedRefIds.has(String(r.id)));
+      const loanTypeById = new Map<string, string>();
+      if (unstagedLoans.length) {
+        const { data: lt } = await supabase.from("hr_loans").select("id, loan_type, advance_type")
+          .in("id", [...new Set(unstagedLoans.map((r) => r.loan_id))]);
+        for (const l of (lt ?? []) as any[]) loanTypeById.set(String(l.id), `${l.loan_type ?? ""} ${l.advance_type ?? ""}`);
+      }
       const unstaged: any[] = [
-        ...((loanInst ?? []) as any[]).filter((r) => !stagedRefIds.has(String(r.id))).map((r) => ({
+        ...unstagedLoans.map((r) => ({
           amount: r.amount,
-          recovery_kind: /advance/i.test(String(r.hr_loans?.loan_type ?? "")) ? "advance" : "loan",
+          recovery_kind: /advance/i.test(loanTypeById.get(String(r.loan_id)) ?? "") ? "advance" : "loan",
           label: "HRMS instalment (not staged in Step 6)",
         })),
         ...((depInst ?? []) as any[]).filter((r) => !stagedRefIds.has(String(r.id))).map((r) => ({
@@ -641,6 +648,7 @@ Deno.serve(async (req) => {
         training_ctc_adjustment: Math.round(hrmsTrainingAdj),
         other_recovery: Math.round(hrmsOtherRec),
         recovery_total: Math.round(stagedRecoveryTotal),
+        unstaged_recovery: Math.round(unstagedRecoveryTotal),
         additions: {
           bonus_incentive: Math.round(hrmsBonus),
           overtime: Math.round(hrmsOvertime),

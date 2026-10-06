@@ -557,18 +557,47 @@ Deno.serve(async (req) => {
       // Net-side staged recoveries, named by kind so the variance bridge can
       // pair each one with its Razorpay register head instead of calling it drift.
       const netDed = dedRows.filter((r) => !isKpi(r) && !isStagedLop(r));
-      const sumWhere = (fn: (r: any) => boolean) => netDed.filter(fn).reduce((s, r) => s + amt(r), 0);
-      const hrmsLoanEmi = sumWhere((r) => r.recovery_kind === "loan" || /loan emi/i.test(String(r.label ?? "")));
-      const hrmsDeposit = sumWhere((r) => r.recovery_kind === "deposit" || /security deposit/i.test(String(r.label ?? "")));
-      const hrmsAdvanceRec = sumWhere((r) => r.recovery_kind === "advance" || /advance/i.test(String(r.label ?? "")));
-      const hrmsTrainingAdj = sumWhere((r) => String(r.source ?? "") === "training_ctc_adjustment");
-      const hrmsOtherRec = sumWhere(
-        (r) =>
-          !(r.recovery_kind === "loan" || /loan emi/i.test(String(r.label ?? ""))) &&
-          !(r.recovery_kind === "deposit" || /security deposit/i.test(String(r.label ?? ""))) &&
-          !(r.recovery_kind === "advance" || /advance/i.test(String(r.label ?? ""))) &&
-          String(r.source ?? "") !== "training_ctc_adjustment",
-      );
+      // Each staged row lands in exactly ONE bucket (Sep 2026: Virendra's
+      // "Salary advance recovery" carried recovery_kind 'loan' AND an
+      // "advance" label, so it was deducted twice). Advance wins over loan
+      // because hr_loans advances are stored with recovery_kind 'loan'.
+      const kindOf = (r: any): "advance" | "loan" | "deposit" | "training" | "other" => {
+        const l = String(r.label ?? "");
+        const k = String(r.recovery_kind ?? "");
+        if (String(r.source ?? "") === "training_ctc_adjustment") return "training";
+        if (k === "advance" || /advance/i.test(l)) return "advance";
+        if (k === "deposit" || /security deposit|error recovery/i.test(l)) return "deposit";
+        if (k === "loan" || /loan emi|loan repayment/i.test(l)) return "loan";
+        return "other";
+      };
+      // Recovery instalments HRMS itself marks paid/pushed for this month but
+      // that have no Step 6 row (Sep 2026: Amit's Loan EMI inst 3 ₹4,000 went
+      // to RazorpayX as a dashboard "Gross pay deduction") are still real.
+      const stagedRefIds = new Set(dedRows.map((r) => String(r.recovery_ref_id ?? "")).filter(Boolean));
+      const [{ data: loanInst }, { data: depInst }] = await Promise.all([
+        supabase.from("hr_loan_repayments").select("id, amount, status, hr_loans!inner(loan_type)")
+          .eq("employee_id", emp.id).eq("period_month", periodStr).in("status", ["paid", "pushed"]),
+        supabase.from("hr_employee_deposit_schedule").select("id, amount, status")
+          .eq("employee_id", emp.id).eq("period_month", periodStr).in("status", ["paid", "pushed", "collected"]),
+      ]);
+      const unstaged: any[] = [
+        ...((loanInst ?? []) as any[]).filter((r) => !stagedRefIds.has(String(r.id))).map((r) => ({
+          amount: r.amount,
+          recovery_kind: /advance/i.test(String(r.hr_loans?.loan_type ?? "")) ? "advance" : "loan",
+          label: "HRMS instalment (not staged in Step 6)",
+        })),
+        ...((depInst ?? []) as any[]).filter((r) => !stagedRefIds.has(String(r.id))).map((r) => ({
+          amount: r.amount, recovery_kind: "deposit", label: "HRMS instalment (not staged in Step 6)",
+        })),
+      ];
+      const allRec = [...netDed, ...unstaged];
+      const sumKind = (k: string) => allRec.filter((r) => kindOf(r) === k).reduce((s, r) => s + amt(r), 0);
+      const hrmsLoanEmi = sumKind("loan");
+      const hrmsDeposit = sumKind("deposit");
+      const hrmsAdvanceRec = sumKind("advance");
+      const hrmsTrainingAdj = sumKind("training");
+      const hrmsOtherRec = sumKind("other");
+      const unstagedRecoveryTotal = unstaged.reduce((s, r) => s + amt(r), 0);
       const stagedRecoveryTotal = hrmsLoanEmi + hrmsDeposit + hrmsAdvanceRec + hrmsTrainingAdj + hrmsOtherRec;
 
       const totalReduction = lopAmount + kpiLossAmount;

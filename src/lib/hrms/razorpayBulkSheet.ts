@@ -126,7 +126,7 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   for (const r of deds) {
     // The owner requires LOP as its already-calculated rupee deduction, not as
     // days. RazorpayX's exact allowed deduction label for this is Gross pay deduction.
-    if (String(r.source) === "auto_lop") add(r, "ded", "Gross pay deduction | Deduction");
+    if (String(r.source) === "auto_lop") add(r, "ded", LOP_COMPONENT);
     else { const c = defaultDeductionName(r); add(r, "ded", c ? `${c} | Deduction` : null); }
   }
 
@@ -136,7 +136,7 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   // deductions (loan EMIs pushed directly, or deduction lines pushed via the API)
   // would be wiped — re-include them as their own named rows. (Sushil's ₹6,944,
   // Sep 2026, was lost this way.) Rows without sourceIds are never re-marked.
-  const lopEmps = new Set([...grouped.values()].filter((g) => g.component === "Gross pay deduction | Deduction").map((g) => g.empId));
+  const lopEmps = new Set([...grouped.values()].filter((g) => g.component === LOP_COMPONENT).map((g) => g.empId));
   let reinjected = 0;
   if (lopEmps.size) {
     const { data: loanRows } = await (supabase as any).from("hr_loan_repayments")
@@ -187,7 +187,7 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   const totals = {
     additions: n2(rows.filter((r) => r.component.endsWith("| Addition")).reduce((s, r) => s + (r.amount ?? 0), 0)),
     deductions: n2(rows.filter((r) => r.component.endsWith("| Deduction")).reduce((s, r) => s + (r.amount ?? 0), 0)),
-    lopDeduction: n2(rows.filter((r) => r.component === "Gross pay deduction | Deduction").reduce((s, r) => s + (r.amount ?? 0), 0)),
+    lopDeduction: n2(rows.filter((r) => r.component === LOP_COMPONENT).reduce((s, r) => s + (r.amount ?? 0), 0)),
   };
 
   // Cross-check: every staged, unpushed money line counted in the pack is in the sheet.

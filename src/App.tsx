@@ -169,6 +169,14 @@ const hrmsGate = (permissions: string[], element: React.ReactNode) => (
 );
 
 
+// Full-page (document-level) redirect: forces the browser to navigate to the
+// target URL as a fresh request so static files like /ncm.pdf are served by
+// the host, not intercepted by the SPA router.
+const FullPageRedirect = ({ to }: { to: string }) => {
+  useEffect(() => { window.location.replace(to); }, [to]);
+  return null;
+};
+
 const router = createBrowserRouter([
   // Login — the only public route
   {

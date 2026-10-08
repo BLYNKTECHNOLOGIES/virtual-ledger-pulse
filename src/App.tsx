@@ -184,10 +184,14 @@ const router = createBrowserRouter([
     path: "/.lovable/oauth/consent",
     element: <OAuthConsent />,
   },
-  // Public document: cyber-crime representation PDF served at /ncm
+  // Public document: cyber-crime representation PDF served at /ncm.
+  // Must be a FULL-PAGE redirect (window.location), not <Navigate>: a client-side
+  // redirect would route to the SPA's catch-all 404 instead of fetching the PDF.
   {
     path: "/ncm",
-    element: <Navigate to="/ncm.pdf" replace />,
+    element: (
+      <FullPageRedirect to="/ncm.pdf" />
+    ),
   },
   // ERP System Routes - All protected with authentication
   {

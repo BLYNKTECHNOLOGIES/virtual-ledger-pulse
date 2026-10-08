@@ -184,6 +184,11 @@ const router = createBrowserRouter([
     path: "/.lovable/oauth/consent",
     element: <OAuthConsent />,
   },
+  // Public document: cyber-crime representation PDF served at /ncm
+  {
+    path: "/ncm",
+    element: <Navigate to="/ncm.pdf" replace />,
+  },
   // ERP System Routes - All protected with authentication
   {
     path: "/dashboard",

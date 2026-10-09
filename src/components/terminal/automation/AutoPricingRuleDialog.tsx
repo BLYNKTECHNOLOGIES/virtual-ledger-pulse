@@ -99,6 +99,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
   const [competitorZone, setCompetitorZone] = useState('p2p');
   const [competitorMode, setCompetitorMode] = useState('nickname');
   const [competitorBadges, setCompetitorBadges] = useState<string[]>(['Block', 'Shield']);
+  const [badgeMatch, setBadgeMatch] = useState<'any'|'all'>('any');
   const [excludeMerchants, setExcludeMerchants] = useState('');
 
   const [onlyOnline, setOnlyOnline] = useState(false);
@@ -330,6 +331,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       setCompetitorMode((editingRule as any).competitor_mode || 'nickname');
       setRawNumeric({});
       setCompetitorBadges((editingRule as any).competitor_badges || ['Block', 'Shield']);
+      setBadgeMatch((editingRule as any).competitor_badge_match === 'all' ? 'all' : 'any');
       setCompetitorIdentities((editingRule as any).competitor_identities || []);
       setMinVipLevel((editingRule as any).min_vip_level !== null && (editingRule as any).min_vip_level !== undefined ? String((editingRule as any).min_vip_level) : '');
       setEnforceZoneMatch((editingRule as any).enforce_zone_match !== false);
@@ -356,7 +358,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
 
       setPriorityMerchants(['']);
       setCompetitorZone('p2p'); setCompetitorMode('nickname');
-      setCompetitorBadges(['Block', 'Shield']); setExcludeMerchants('');
+      setCompetitorBadges(['Block', 'Shield']); setBadgeMatch('any'); setExcludeMerchants('');
 
       setOnlyOnline(false); setPauseNoMerchant(false); setLadderOnConflict(false);
       setOffsetDirection('UNDERCUT');
@@ -471,6 +473,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
       competitor_zone: competitorZone,
       competitor_mode: competitorMode,
       competitor_badges: competitorMode === 'top_badged' ? competitorBadges : [],
+      competitor_badge_match: competitorMode === 'top_badged' && badgeMatch === 'all' ? 'all' : 'any',
       exclude_merchants: excludeMerchants.split(',').map(s => s.trim()).filter(Boolean),
 
       ad_numbers: allAdNumbers,
@@ -596,7 +599,7 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
             {/* Section 2: Priority Merchants */}
             <AccordionItem value="merchants">
               <AccordionTrigger className="text-sm font-semibold">
-                Competitor Target ({competitorZone === 'block' ? 'Block zone' : 'P2P zone'} · {competitorMode === 'top_badged' ? `top ${competitorBadges.join('/') || 'any'}` : `${priorityMerchants.filter(m => m.trim()).length} merchants`})
+                Competitor Target ({competitorZone === 'block' ? 'Block zone' : 'P2P zone'} · {competitorMode === 'top_badged' ? `top ${competitorBadges.join(badgeMatch === 'all' ? ' + ' : '/') || 'any'}` : `${priorityMerchants.filter(m => m.trim()).length} merchants`})
               </AccordionTrigger>
               <AccordionContent className="space-y-4 px-1 pb-2">
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -657,6 +660,18 @@ export function AutoPricingRuleDialog({ open, onOpenChange, editingRule }: AutoP
                         </label>
                       ))}
                     </div>
+                    {competitorBadges.length > 1 && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Badge matching</Label>
+                        <Select value={badgeMatch} onValueChange={(v) => setBadgeMatch(v === 'all' ? 'all' : 'any')}>
+                          <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Any selected badge (Block OR Shield)</SelectItem>
+                            <SelectItem value="all">All selected badges (Block AND Shield)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-1.5">

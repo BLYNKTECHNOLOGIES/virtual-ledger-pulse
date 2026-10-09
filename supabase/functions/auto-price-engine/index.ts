@@ -550,7 +550,9 @@ async function processAsset(
       if (!passesMerchantGates(item)) return false;
       if (wanted.length === 0) return true;
       const badges = advertiserBadges(item).map((b) => b.toLowerCase());
-      return wanted.some((w) => badges.includes(w));
+      return rule.competitor_badge_match === "all"
+        ? wanted.every((w) => badges.includes(w))
+        : wanted.some((w) => badges.includes(w));
     });
     if (found) {
       matchedMerchant = (found.advertiser?.nickName || "").trim();

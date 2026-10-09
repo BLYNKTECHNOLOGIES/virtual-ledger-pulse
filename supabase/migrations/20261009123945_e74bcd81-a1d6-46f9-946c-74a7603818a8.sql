@@ -1,0 +1,1 @@
+ALTER TABLE public.ad_pricing_rules ADD COLUMN IF NOT EXISTS competitor_badge_match text NOT NULL DEFAULT 'any' CHECK (competitor_badge_match IN ('any','all'));

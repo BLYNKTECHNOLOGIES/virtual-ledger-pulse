@@ -376,6 +376,7 @@ export type Database = {
           assets: string[] | null
           auto_pause_after_deviations: number | null
           check_interval_seconds: number | null
+          competitor_badge_match: string
           competitor_badges: string[]
           competitor_identities: string[]
           competitor_mode: string
@@ -430,6 +431,7 @@ export type Database = {
           assets?: string[] | null
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
+          competitor_badge_match?: string
           competitor_badges?: string[]
           competitor_identities?: string[]
           competitor_mode?: string
@@ -484,6 +486,7 @@ export type Database = {
           assets?: string[] | null
           auto_pause_after_deviations?: number | null
           check_interval_seconds?: number | null
+          competitor_badge_match?: string
           competitor_badges?: string[]
           competitor_identities?: string[]
           competitor_mode?: string

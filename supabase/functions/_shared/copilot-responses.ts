@@ -20,9 +20,16 @@ export function createResponsesCall(
     fetch: runIdFetch.fetch,
   });
   const reasoning = config.model !== "openai/chat-latest";
+  const system = messages
+    .filter((m) => m.role === "system")
+    .map((m) => (typeof m.content === "string" ? m.content : ""))
+    .filter(Boolean)
+    .join("\n\n");
+  const rest = messages.filter((m) => m.role !== "system");
   const result = streamText({
     model: provider.responses(config.model),
-    messages,
+    ...(system ? { instructions: system } : {}),
+    messages: rest,
     abortSignal: request.signal,
     providerOptions: {
       openai: {

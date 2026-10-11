@@ -155,6 +155,7 @@ const StagesPage = lazy(() => import('./pages/horilla/StagesPage'));
 const SkillZonePage = lazy(() => import('./pages/horilla/SkillZonePage'));
 const RecruitmentSurveyPage = lazy(() => import('./pages/horilla/RecruitmentSurveyPage'));
 const RejectedCandidatesPage = lazy(() => import('./pages/horilla/RejectedCandidatesPage'));
+const AtsWorkspace = lazy(() => import('./pages/ats/AtsWorkspace'));
 const HRLogsPage = lazy(() => import('./pages/horilla/HRLogsPage'));
 const MailboxPage = lazy(() => import('./pages/horilla/MailboxPage'));
 const AttendancePunchesPage = lazy(() => import('./pages/horilla/AttendancePunchesPage'));
@@ -923,6 +924,7 @@ const router = createBrowserRouter([
         { path: "recruitment/skill-zones", element: hrmsGate(["hrms_view", "hrms_manage"], <SkillZonePage />) },
         { path: "recruitment/surveys", element: hrmsGate(["hrms_view", "hrms_manage"], <RecruitmentSurveyPage />) },
         { path: "recruitment/rejected", element: hrmsGate(["hrms_view", "hrms_manage"], <RejectedCandidatesPage />) },
+        { path: "ats/*", element: hrmsGate(["hrms_view", "hrms_manage"], <AtsWorkspace />) },
         { path: "workforce-planning", element: hrmsGate(["hrms_view", "hrms_manage"], <WorkforceOverviewPage />) },
         { path: "workforce-planning/overview", element: <Navigate to="/hrms/workforce-planning" replace /> },
         { path: "workforce-planning/staffing-plan", element: hrmsGate(["hrms_view", "hrms_manage"], <StaffingPlanPage />) },

@@ -24,6 +24,7 @@ import {
   ClipboardCheck,
   FileSpreadsheet,
   Target,
+  UserSearch,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefetchHrmsRoute } from "@/lib/hrmsPrefetch";
@@ -102,6 +103,21 @@ const navGroups: NavGroup[] = [
           { label: "Stages", path: "/hrms/recruitment/stages" },
           { label: "Skill Zones", path: "/hrms/recruitment/skill-zones" },
           { label: "Surveys", path: "/hrms/recruitment/surveys" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "ATS",
+    items: [
+      {
+        label: "ATS",
+        icon: UserSearch,
+        path: "/hrms/ats",
+        children: [
+          { label: "Overview", path: "/hrms/ats" },
+          { label: "Jobs", path: "/hrms/ats/jobs" },
+          { label: "Settings", path: "/hrms/ats/settings" },
         ],
       },
     ],

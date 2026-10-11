@@ -1,0 +1,142 @@
+import { useState, type KeyboardEvent, type ReactNode } from "react";
+import { CheckCircle2, Circle, PauseCircle, XCircle, X, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/shared/ErrorState";
+
+const JOB_STATUS: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
+  open: { label: "Open", icon: CheckCircle2, cls: "text-success" },
+  draft: { label: "Draft", icon: Circle, cls: "text-muted-foreground" },
+  paused: { label: "Paused", icon: PauseCircle, cls: "text-warning" },
+  closed: { label: "Closed", icon: XCircle, cls: "text-muted-foreground" },
+};
+
+export function JobStatusBadge({ status }: { status: string }) {
+  const s = JOB_STATUS[status] ?? JOB_STATUS.draft;
+  const Icon = s.icon;
+  return (
+    <Badge variant="outline" className="gap-1 font-medium whitespace-nowrap">
+      <Icon className={cn("h-3 w-3 shrink-0", s.cls)} aria-hidden />
+      {s.label}
+    </Badge>
+  );
+}
+
+export function BarList({ rows, emptyText }: { rows: { key: string; label: string; count: number }[]; emptyText: string }) {
+  const max = Math.max(1, ...rows.map((r) => r.count));
+  if (!rows.length || rows.every((r) => r.count === 0)) {
+    return <p className="py-6 text-center text-sm text-muted-foreground">{emptyText}</p>;
+  }
+  return (
+    <ul className="space-y-2.5">
+      {rows.map((r) => (
+        <li key={r.key} className="grid grid-cols-[minmax(0,7.5rem)_1fr_2.5rem] items-center gap-3 text-sm">
+          <span className="truncate text-muted-foreground" title={r.label}>{r.label}</span>
+          <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(r.count / max) * 100}%` }} />
+          </div>
+          <span className="text-right font-medium tabular-nums">{r.count}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function SectionCard({ title, children, action, className }: { title: ReactNode; children: ReactNode; action?: ReactNode; className?: string }) {
+  return (
+    <section className={cn("rounded-xl border border-border bg-card p-4", className)}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+export function RowsSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+    </div>
+  );
+}
+
+export function QueryError({ error, onRetry }: { error: unknown; onRetry: () => void }) {
+  return <ErrorState title="Couldn't load this" description="Please try again." error={error} onRetry={onRetry} />;
+}
+
+export function ChipInput({ value, onChange, placeholder }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const t = draft.trim();
+    if (t && !value.some((v) => v.toLowerCase() === t.toLowerCase())) onChange([...value, t]);
+    setDraft("");
+  };
+  const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); add(); }
+    else if (e.key === "Backspace" && !draft && value.length) onChange(value.slice(0, -1));
+  };
+  return (
+    <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-md border border-input bg-background px-2 py-1.5 focus-within:ring-2 focus-within:ring-ring">
+      {value.map((v) => (
+        <Badge key={v} variant="secondary" className="gap-1">
+          {v}
+          <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(value.filter((x) => x !== v))} className="rounded focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      ))}
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={onKey}
+        onBlur={add}
+        placeholder={value.length ? "" : placeholder}
+        className="min-w-[8rem] flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+}
+
+export function MultiSelect({ options, value, onChange, placeholder }: { options: { id: string; label: string }[]; value: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+  const [q, setQ] = useState("");
+  const selected = options.filter((o) => value.includes(o.id));
+  const shown = options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-auto min-h-10 w-full justify-between font-normal text-foreground">
+          <span className="truncate text-left">{selected.length ? selected.map((s) => s.label).join(", ") : <span className="text-muted-foreground">{placeholder}</span>}</span>
+          <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-2" align="start">
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="mb-2 h-8 text-foreground" />
+        <div className="max-h-56 overflow-y-auto">
+          {shown.length === 0 && <p className="p-2 text-sm text-muted-foreground">Nothing found.</p>}
+          {shown.map((o) => {
+            const on = value.includes(o.id);
+            return (
+              <button
+                type="button"
+                key={o.id}
+                onClick={() => onChange(on ? value.filter((x) => x !== o.id) : [...value, o.id])}
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+              >
+                <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border border-primary", on && "bg-primary text-primary-foreground")}>
+                  {on && <Check className="h-3 w-3" />}
+                </span>
+                <span className="truncate">{o.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}

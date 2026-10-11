@@ -191,8 +191,8 @@ export function useAtsMutation<TVars>(
 const jobKeys = (id?: string): QueryKey[] =>
   [atsKeys.jobs, atsKeys.jobSummary, ...(id ? [atsKeys.job(id), atsKeys.jobEvents(id)] : [])];
 
-export const createJob = async (v: AtsJobInsert) =>
-  unwrap(await supabase.from("ats_jobs").insert(v).select("*").single()) as AtsJob;
+export const createJob = async (v: Omit<AtsJobInsert, "slug">) =>
+  unwrap(await supabase.from("ats_jobs").insert({ ...v, slug: "" }).select("*").single()) as AtsJob;
 export const updateJob = async ({ id, patch }: { id: string; patch: AtsJobUpdate }) =>
   unwrap(await supabase.from("ats_jobs").update(patch).eq("id", id).select("*").single()) as AtsJob;
 export const deleteJob = async (id: string) => {

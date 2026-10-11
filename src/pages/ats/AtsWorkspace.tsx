@@ -1,0 +1,70 @@
+import { useCallback, useMemo, useState } from "react";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Plus } from "lucide-react";
+import { PageHeader } from "@/components/shared/PageHeader";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { AtsContext } from "@/components/ats/AtsContext";
+import { JobEditor } from "@/components/ats/JobEditor";
+import type { AtsJob } from "@/lib/ats/api";
+import AtsOverviewPage from "./AtsOverviewPage";
+import AtsJobsPage from "./AtsJobsPage";
+import AtsJobDetailPage from "./AtsJobDetailPage";
+import AtsSettingsPage from "./AtsSettingsPage";
+
+const TABS = [
+  { label: "Overview", to: "/hrms/ats", match: (p: string) => p === "/hrms/ats" || p === "/hrms/ats/" },
+  { label: "Jobs", to: "/hrms/ats/jobs", match: (p: string) => p.startsWith("/hrms/ats/jobs") },
+  { label: "Settings", to: "/hrms/ats/settings", match: (p: string) => p.startsWith("/hrms/ats/settings") },
+];
+
+export default function AtsWorkspace() {
+  const { pathname } = useLocation();
+  const [editor, setEditor] = useState<{ open: boolean; job: AtsJob | null }>({ open: false, job: null });
+  const openJobEditor = useCallback((job?: AtsJob | null) => setEditor({ open: true, job: job ?? null }), []);
+  const ctx = useMemo(() => ({ openJobEditor }), [openJobEditor]);
+  const showNewJob = TABS[0].match(pathname) || pathname === "/hrms/ats/jobs" || pathname === "/hrms/ats/jobs/";
+
+  return (
+    <AtsContext.Provider value={ctx}>
+      <div className="page-mount space-y-5 p-2 sm:p-3 md:p-0">
+        <PageHeader
+          title="ATS"
+          description="Track applicants from first contact to joining."
+          actions={showNewJob ? (
+            <Button onClick={() => openJobEditor(null)} className="gap-1.5"><Plus className="h-4 w-4" /> New job</Button>
+          ) : undefined}
+        />
+        <nav aria-label="ATS sections" className="max-w-full overflow-x-auto">
+          <div className="inline-flex h-10 items-center rounded-md bg-muted p-1 text-muted-foreground">
+            {TABS.map((t) => {
+              const active = t.match(pathname);
+              return (
+                <NavLink
+                  key={t.to}
+                  to={t.to}
+                  end
+                  className={cn(
+                    "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background",
+                    active ? "bg-background text-foreground shadow-sm" : "hover:text-foreground",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {t.label}
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
+        <Routes>
+          <Route index element={<AtsOverviewPage />} />
+          <Route path="jobs" element={<AtsJobsPage />} />
+          <Route path="jobs/:jobId" element={<AtsJobDetailPage />} />
+          <Route path="settings" element={<AtsSettingsPage />} />
+          <Route path="*" element={<Navigate to="/hrms/ats" replace />} />
+        </Routes>
+      </div>
+      <JobEditor open={editor.open} job={editor.job} onClose={() => setEditor((s) => ({ ...s, open: false }))} />
+    </AtsContext.Provider>
+  );
+}

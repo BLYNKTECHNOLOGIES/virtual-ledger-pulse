@@ -1,0 +1,119 @@
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Briefcase, Inbox, Eye, Hourglass, UserCheck, UserX, Plus } from "lucide-react";
+import { StatCard } from "@/components/hrms/primitives/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatGridSkeleton } from "@/components/shared/skeletons";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { BarList, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
+import { useAts } from "@/components/ats/AtsContext";
+import { useAtsJobSummary, useAtsJobs, useAtsOverview } from "@/lib/ats/api";
+import { fmtDate, todayIST } from "@/lib/ats/format";
+import { cn } from "@/lib/utils";
+
+export default function AtsOverviewPage() {
+  const navigate = useNavigate();
+  const { openJobEditor } = useAts();
+  const ov = useAtsOverview();
+  const jobs = useAtsJobs();
+  const summary = useAtsJobSummary();
+  const today = todayIST();
+
+  const openJobs = useMemo(() => (jobs.data ?? []).filter((j) => j.status === "open"), [jobs.data]);
+
+  if (jobs.isSuccess && jobs.data.length === 0) {
+    return (
+      <EmptyState
+        icon={Briefcase}
+        title="No jobs yet"
+        description="Create a job to start collecting and tracking applicants."
+        action={<Button onClick={() => openJobEditor(null)} className="gap-1.5"><Plus className="h-4 w-4" /> New job</Button>}
+        className="rounded-xl border border-dashed border-border"
+      />
+    );
+  }
+
+  const o = ov.data;
+  return (
+    <div className="space-y-5">
+      {ov.isLoading ? (
+        <StatGridSkeleton count={6} className="grid-cols-2 sm:grid-cols-3 xl:grid-cols-6" />
+      ) : ov.isError ? (
+        <QueryError error={ov.error} onRetry={() => ov.refetch()} />
+      ) : o ? (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <StatCard label="Open jobs" value={o.open_jobs} helper={`${o.open_seats} seats`} icon={Briefcase} tone="primary" />
+          <StatCard label="New applications" value={o.applications_7d} helper={`${o.applications_30d} in 30 days`} icon={Inbox} />
+          <StatCard label="Awaiting review" value={o.unreviewed} icon={Eye} />
+          <StatCard label="Idle" value={o.idle} helper={`no movement in ${o.idle_days}+ days`} icon={Hourglass} />
+          <StatCard label="Hired this month" value={o.hired_this_month} icon={UserCheck} />
+          <StatCard label="Rejected this month" value={o.rejected_this_month} icon={UserX} />
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <SectionCard title="Pipeline by stage">
+          {ov.isLoading ? <RowsSkeleton rows={6} /> : (
+            <BarList
+              emptyText="No one is in the pipeline yet."
+              rows={[...(o?.stage_counts ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((s) => ({ key: s.stage_id, label: s.name, count: s.count }))}
+            />
+          )}
+        </SectionCard>
+        <SectionCard title="Where applicants come from (30 days)">
+          {ov.isLoading ? <RowsSkeleton rows={6} /> : (
+            <BarList
+              emptyText="No applications in the last 30 days."
+              rows={(o?.source_counts_30d ?? []).map((s, i) => ({ key: s.source_id ?? `unknown-${i}`, label: s.name, count: s.count }))}
+            />
+          )}
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Open jobs">
+        {jobs.isLoading || summary.isLoading ? <RowsSkeleton rows={4} /> : jobs.isError ? (
+          <QueryError error={jobs.error} onRetry={() => jobs.refetch()} />
+        ) : openJobs.length === 0 ? (
+          <EmptyState icon={Briefcase} title="No open jobs" description="Open a draft job to start receiving applicants." className="py-8" />
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Job</TableHead>
+                  <TableHead className="text-right">Openings</TableHead>
+                  <TableHead className="text-right">In pipeline</TableHead>
+                  <TableHead className="text-right">Awaiting review</TableHead>
+                  <TableHead className="text-right">New this week</TableHead>
+                  <TableHead>Target date</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {openJobs.map((j) => {
+                  const s = summary.data?.get(j.id);
+                  const overdue = !!j.target_close_date && j.target_close_date < today;
+                  return (
+                    <TableRow key={j.id} className="cursor-pointer" tabIndex={0}
+                      onClick={() => navigate(`/hrms/ats/jobs/${j.id}`)}
+                      onKeyDown={(e) => e.key === "Enter" && navigate(`/hrms/ats/jobs/${j.id}`)}>
+                      <TableCell>
+                        <div className="font-medium text-foreground">{j.title}</div>
+                        <div className="t-mono text-xs text-muted-foreground">{j.job_code}</div>
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{j.openings}</TableCell>
+                      <TableCell className="text-right tabular-nums">{(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{s?.unreviewed_count ?? 0}</TableCell>
+                      <TableCell className="text-right tabular-nums">{s?.new_7d ?? 0}</TableCell>
+                      <TableCell className={cn("whitespace-nowrap", overdue && "text-destructive font-medium")}>{fmtDate(j.target_close_date)}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </SectionCard>
+    </div>
+  );
+}

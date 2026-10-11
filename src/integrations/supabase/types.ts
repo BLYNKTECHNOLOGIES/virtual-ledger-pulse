@@ -756,6 +756,873 @@ export type Database = {
         }
         Relationships: []
       }
+      ats_applications: {
+        Row: {
+          answers: Json
+          applied_at: string
+          applied_via: string
+          candidate_id: string
+          cover_letter: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          external_ref: string | null
+          hired_at: string | null
+          id: string
+          job_id: string | null
+          owner_name: string | null
+          owner_user_id: string | null
+          position_text: string | null
+          rating_avg: number | null
+          rating_count: number
+          reject_reason_id: string | null
+          reviewed_at: string | null
+          source_detail: string | null
+          source_id: string | null
+          stage_entered_at: string
+          stage_id: string
+          status: string
+          status_changed_at: string | null
+          status_changed_by: string | null
+          status_changed_by_name: string | null
+          status_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          answers?: Json
+          applied_at?: string
+          applied_via?: string
+          candidate_id: string
+          cover_letter?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          external_ref?: string | null
+          hired_at?: string | null
+          id?: string
+          job_id?: string | null
+          owner_name?: string | null
+          owner_user_id?: string | null
+          position_text?: string | null
+          rating_avg?: number | null
+          rating_count?: number
+          reject_reason_id?: string | null
+          reviewed_at?: string | null
+          source_detail?: string | null
+          source_id?: string | null
+          stage_entered_at?: string
+          stage_id: string
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_changed_by_name?: string | null
+          status_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answers?: Json
+          applied_at?: string
+          applied_via?: string
+          candidate_id?: string
+          cover_letter?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          external_ref?: string | null
+          hired_at?: string | null
+          id?: string
+          job_id?: string | null
+          owner_name?: string | null
+          owner_user_id?: string | null
+          position_text?: string | null
+          rating_avg?: number | null
+          rating_count?: number
+          reject_reason_id?: string | null
+          reviewed_at?: string | null
+          source_detail?: string | null
+          source_id?: string | null
+          stage_entered_at?: string
+          stage_id?: string
+          status?: string
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          status_changed_by_name?: string | null
+          status_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_reject_reason_id_fkey"
+            columns: ["reject_reason_id"]
+            isOneToOne: false
+            referencedRelation: "ats_reject_reasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "ats_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "ats_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_candidates: {
+        Row: {
+          alt_phone: string | null
+          anonymized_at: string | null
+          city: string | null
+          consent_at: string | null
+          consent_version: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          ctc_note: string | null
+          current_company: string | null
+          current_ctc_monthly: number | null
+          current_title: string | null
+          education: string | null
+          email: string | null
+          email_norm: string | null
+          expected_ctc_monthly: number | null
+          full_name: string
+          id: string
+          keep_for_future: boolean
+          languages: string[]
+          last_activity_at: string
+          linkedin_url: string | null
+          merged_into_id: string | null
+          notice_period_days: number | null
+          owner_name: string | null
+          owner_user_id: string | null
+          phone: string | null
+          phone_norm: string | null
+          portfolio_url: string | null
+          ref_no: string
+          referred_by_employee_id: string | null
+          search_text: string | null
+          shift_preferences: string[]
+          skills: string[]
+          source_detail: string | null
+          source_id: string | null
+          state: string | null
+          summary: string | null
+          tags: string[]
+          total_experience_years: number | null
+          updated_at: string
+        }
+        Insert: {
+          alt_phone?: string | null
+          anonymized_at?: string | null
+          city?: string | null
+          consent_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          ctc_note?: string | null
+          current_company?: string | null
+          current_ctc_monthly?: number | null
+          current_title?: string | null
+          education?: string | null
+          email?: string | null
+          email_norm?: string | null
+          expected_ctc_monthly?: number | null
+          full_name: string
+          id?: string
+          keep_for_future?: boolean
+          languages?: string[]
+          last_activity_at?: string
+          linkedin_url?: string | null
+          merged_into_id?: string | null
+          notice_period_days?: number | null
+          owner_name?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          phone_norm?: string | null
+          portfolio_url?: string | null
+          ref_no?: string
+          referred_by_employee_id?: string | null
+          search_text?: string | null
+          shift_preferences?: string[]
+          skills?: string[]
+          source_detail?: string | null
+          source_id?: string | null
+          state?: string | null
+          summary?: string | null
+          tags?: string[]
+          total_experience_years?: number | null
+          updated_at?: string
+        }
+        Update: {
+          alt_phone?: string | null
+          anonymized_at?: string | null
+          city?: string | null
+          consent_at?: string | null
+          consent_version?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          ctc_note?: string | null
+          current_company?: string | null
+          current_ctc_monthly?: number | null
+          current_title?: string | null
+          education?: string | null
+          email?: string | null
+          email_norm?: string | null
+          expected_ctc_monthly?: number | null
+          full_name?: string
+          id?: string
+          keep_for_future?: boolean
+          languages?: string[]
+          last_activity_at?: string
+          linkedin_url?: string | null
+          merged_into_id?: string | null
+          notice_period_days?: number | null
+          owner_name?: string | null
+          owner_user_id?: string | null
+          phone?: string | null
+          phone_norm?: string | null
+          portfolio_url?: string | null
+          ref_no?: string
+          referred_by_employee_id?: string | null
+          search_text?: string | null
+          shift_preferences?: string[]
+          skills?: string[]
+          source_detail?: string | null
+          source_id?: string | null
+          state?: string | null
+          summary?: string | null
+          tags?: string[]
+          total_experience_years?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_candidates_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_referred_by_employee_id_fkey"
+            columns: ["referred_by_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "ats_candidates_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "ats_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_events: {
+        Row: {
+          actor_name: string | null
+          actor_user_id: string | null
+          application_id: string | null
+          candidate_id: string | null
+          created_at: string
+          data: Json
+          event_type: string
+          id: number
+          job_id: string | null
+          summary: string | null
+        }
+        Insert: {
+          actor_name?: string | null
+          actor_user_id?: string | null
+          application_id?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          data?: Json
+          event_type: string
+          id?: never
+          job_id?: string | null
+          summary?: string | null
+        }
+        Update: {
+          actor_name?: string | null
+          actor_user_id?: string | null
+          application_id?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          data?: Json
+          event_type?: string
+          id?: never
+          job_id?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_events_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_files: {
+        Row: {
+          application_id: string | null
+          candidate_id: string
+          created_at: string
+          extracted_text: string | null
+          file_name: string
+          id: string
+          is_primary: boolean
+          kind: string
+          mime_type: string | null
+          preview_path: string | null
+          sha256: string | null
+          size_bytes: number | null
+          source: string
+          storage_path: string
+          uploaded_by: string | null
+          uploaded_by_name: string | null
+        }
+        Insert: {
+          application_id?: string | null
+          candidate_id: string
+          created_at?: string
+          extracted_text?: string | null
+          file_name: string
+          id?: string
+          is_primary?: boolean
+          kind?: string
+          mime_type?: string | null
+          preview_path?: string | null
+          sha256?: string | null
+          size_bytes?: number | null
+          source?: string
+          storage_path: string
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+        }
+        Update: {
+          application_id?: string | null
+          candidate_id?: string
+          created_at?: string
+          extracted_text?: string | null
+          file_name?: string
+          id?: string
+          is_primary?: boolean
+          kind?: string
+          mime_type?: string | null
+          preview_path?: string | null
+          sha256?: string | null
+          size_bytes?: number | null
+          source?: string
+          storage_path?: string
+          uploaded_by?: string | null
+          uploaded_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_files_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_files_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_jobs: {
+        Row: {
+          aliases: string[]
+          benefits: string | null
+          closed_at: string | null
+          closed_reason: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          department_id: string | null
+          description: string | null
+          employment_type: string
+          experience_max_years: number | null
+          experience_min_years: number | null
+          hiring_manager_employee_id: string | null
+          id: string
+          is_published: boolean
+          job_code: string
+          location: string | null
+          opened_at: string | null
+          openings: number
+          owner_name: string | null
+          owner_user_id: string | null
+          position_id: string | null
+          requirements: string | null
+          requisition_id: string | null
+          salary_max: number | null
+          salary_min: number | null
+          salary_period: string
+          shift_ids: string[]
+          show_salary: boolean
+          slug: string
+          status: string
+          summary: string | null
+          target_close_date: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          benefits?: string | null
+          closed_at?: string | null
+          closed_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          department_id?: string | null
+          description?: string | null
+          employment_type?: string
+          experience_max_years?: number | null
+          experience_min_years?: number | null
+          hiring_manager_employee_id?: string | null
+          id?: string
+          is_published?: boolean
+          job_code?: string
+          location?: string | null
+          opened_at?: string | null
+          openings?: number
+          owner_name?: string | null
+          owner_user_id?: string | null
+          position_id?: string | null
+          requirements?: string | null
+          requisition_id?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          salary_period?: string
+          shift_ids?: string[]
+          show_salary?: boolean
+          slug: string
+          status?: string
+          summary?: string | null
+          target_close_date?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          benefits?: string | null
+          closed_at?: string | null
+          closed_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          department_id?: string | null
+          description?: string | null
+          employment_type?: string
+          experience_max_years?: number | null
+          experience_min_years?: number | null
+          hiring_manager_employee_id?: string | null
+          id?: string
+          is_published?: boolean
+          job_code?: string
+          location?: string | null
+          opened_at?: string | null
+          openings?: number
+          owner_name?: string | null
+          owner_user_id?: string | null
+          position_id?: string | null
+          requirements?: string | null
+          requisition_id?: string | null
+          salary_max?: number | null
+          salary_min?: number | null
+          salary_period?: string
+          shift_ids?: string[]
+          show_salary?: boolean
+          slug?: string
+          status?: string
+          summary?: string | null
+          target_close_date?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_jobs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_hiring_manager_employee_id_fkey"
+            columns: ["hiring_manager_employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_requisition_id_fkey"
+            columns: ["requisition_id"]
+            isOneToOne: false
+            referencedRelation: "hr_hiring_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_notes: {
+        Row: {
+          application_id: string | null
+          author_name: string | null
+          author_user_id: string | null
+          body: string
+          candidate_id: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          author_name?: string | null
+          author_user_id?: string | null
+          body: string
+          candidate_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          author_name?: string | null
+          author_user_id?: string | null
+          body?: string
+          candidate_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_notes_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_ratings: {
+        Row: {
+          application_id: string
+          comment: string | null
+          created_at: string
+          id: string
+          rater_name: string | null
+          rater_user_id: string
+          score: number
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rater_name?: string | null
+          rater_user_id?: string
+          score: number
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rater_name?: string | null
+          rater_user_id?: string
+          score?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_ratings_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_reject_reasons: {
+        Row: {
+          applies_to: string
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          label: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          applies_to?: string
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          applies_to?: string
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ats_settings: {
+        Row: {
+          default_location: string
+          id: boolean
+          idle_alert_days: number
+          retention_months: number
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          default_location?: string
+          id?: boolean
+          idle_alert_days?: number
+          retention_months?: number
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          default_location?: string
+          id?: boolean
+          idle_alert_days?: number
+          retention_months?: number
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: []
+      }
+      ats_sources: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ats_stages: {
+        Row: {
+          code: string
+          created_at: string
+          id: string
+          is_active: boolean
+          is_system: boolean
+          kind: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          kind?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          kind?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bank_accounts: {
         Row: {
           account_name: string
@@ -30441,6 +31308,11 @@ export type Database = {
         Args: { p_assigned_by?: string; p_role_id: string; p_user_id: string }
         Returns: undefined
       }
+      ats_actor_name: { Args: { p_uid?: string }; Returns: string }
+      ats_normalize_phone: { Args: { p: string }; Returns: string }
+      ats_slugify: { Args: { p: string }; Returns: string }
+      ats_text_array: { Args: { p: Json }; Returns: string[] }
+      ats_try_numeric: { Args: { p: string }; Returns: number }
       audit_client_nickname_merges: {
         Args: never
         Returns: {

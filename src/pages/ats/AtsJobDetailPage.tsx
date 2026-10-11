@@ -1,0 +1,254 @@
+import { useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { JobStatusBadge, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
+import { useAts } from "@/components/ats/AtsContext";
+import {
+  deleteJob, jobKeys, updateJob, useAtsJob, useAtsJobEvents, useAtsJobSummary, useAtsMutation, useAtsStages,
+  useDepartmentsLookup, useEmployeesLookup, useRequirementsLookup, useShiftsLookup,
+} from "@/lib/ats/api";
+import { employmentLabel, fieldLabels, fmtDate, fmtDateTime, fmtExperience, fmtPay, fmtRelative } from "@/lib/ats/format";
+
+const CLOSE_REASONS = ["Filled", "Cancelled", "On hold / budget", "Other"];
+const EVENT_ICON: Record<string, typeof Activity> = {
+  job_created: PlusCircle, job_updated: Pencil, job_status_changed: RefreshCw, job_published: Globe, job_unpublished: EyeOff,
+};
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm text-foreground">{children}</dd>
+    </div>
+  );
+}
+
+export default function AtsJobDetailPage() {
+  const { jobId } = useParams();
+  const navigate = useNavigate();
+  const { openJobEditor } = useAts();
+  const job = useAtsJob(jobId);
+  const summary = useAtsJobSummary();
+  const stages = useAtsStages();
+  const events = useAtsJobEvents(jobId);
+  const depts = useDepartmentsLookup();
+  const shifts = useShiftsLookup();
+  const emps = useEmployeesLookup();
+  const reqs = useRequirementsLookup();
+  const [closeOpen, setCloseOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  const [delOpen, setDelOpen] = useState(false);
+
+  const setStatus = useAtsMutation(
+    (v: { status: string; closed_reason?: string | null }) => updateJob({ id: jobId!, patch: v }),
+    {
+      invalidate: () => jobKeys(jobId),
+      success: (v) => ({ open: "Job is open", paused: "Job paused", closed: "Job closed" } as Record<string, string>)[v.status] ?? "Saved",
+      onSuccess: () => { setCloseOpen(false); setReason(""); setNote(""); },
+    },
+  );
+  const del = useAtsMutation(() => deleteJob(jobId!), {
+    invalidate: () => jobKeys(jobId),
+    success: "Job deleted",
+    inUse: "This job has applications. Close it instead of deleting.",
+    onSuccess: () => navigate("/hrms/ats/jobs"),
+  });
+
+  const j = job.data;
+  const s = jobId ? summary.data?.get(jobId) : undefined;
+  const stageStrip = useMemo(
+    () => (stages.data ?? []).filter((st) => st.is_active).map((st) => ({ id: st.id, name: st.name, count: s?.stage_counts?.[st.code] ?? 0 })),
+    [stages.data, s],
+  );
+
+  if (job.isLoading) return <RowsSkeleton rows={6} />;
+  if (job.isError) return <QueryError error={job.error} onRetry={() => job.refetch()} />;
+  if (!j) {
+    return <EmptyState icon={Briefcase} title="Job not found" description="It may have been deleted."
+      action={<Button variant="outline" asChild><Link to="/hrms/ats/jobs">Back to jobs</Link></Button>} />;
+  }
+
+  const dept = depts.data?.find((d) => d.id === j.department_id)?.label;
+  const shiftLabels = (j.shift_ids ?? []).map((id) => shifts.data?.find((x) => x.id === id)?.label).filter(Boolean).join(", ");
+  const manager = emps.data?.find((e) => e.id === j.hiring_manager_employee_id)?.label;
+  const reqNo = j.requisition_id ? (reqs.data?.find((r: any) => r.id === j.requisition_id)?.requirement_no ?? "Linked") : null;
+  const total = s?.total_applications ?? 0;
+  const busy = setStatus.isPending;
+
+  const submitClose = () => {
+    if (!reason) return;
+    setStatus.mutate({ status: "closed", closed_reason: note.trim() ? `${reason} – ${note.trim()}` : reason });
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="space-y-3">
+        <Link to="/hrms/ats/jobs" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded">
+          <ArrowLeft className="h-4 w-4" /> Jobs
+        </Link>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-xl font-semibold text-foreground break-words">{j.title}</h2>
+              <JobStatusBadge status={j.status} />
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="t-mono">{j.job_code}</span>
+              {dept && <> · {dept}</>}
+              {j.location && <> · {j.location}</>}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {j.status === "draft" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Open job</Button>}
+            {j.status === "open" && <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ status: "paused" })} className="gap-1.5"><Pause className="h-4 w-4" /> Pause</Button>}
+            {j.status === "paused" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Resume</Button>}
+            {(j.status === "open" || j.status === "paused") && <Button size="sm" variant="outline" disabled={busy} onClick={() => setCloseOpen(true)} className="gap-1.5"><XCircle className="h-4 w-4" /> Close</Button>}
+            {j.status === "closed" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Reopen</Button>}
+            <Button size="sm" variant="outline" onClick={() => openJobEditor(j)} className="gap-1.5"><Pencil className="h-4 w-4" /> Edit</Button>
+            {summary.isSuccess && total === 0 && (
+              <Button size="sm" variant="ghost" onClick={() => setDelOpen(true)} className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview">
+        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap sm:w-auto">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="activity">Activity</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-4">
+          <SectionCard title="Pipeline">
+            {stageStrip.length === 0 ? <p className="text-sm text-muted-foreground">No stages configured.</p> : (
+              <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                {stageStrip.map((st) => (
+                  <div key={st.id} className="rounded-lg border border-border bg-muted/30 p-2 text-center">
+                    <div className="truncate text-xs text-muted-foreground" title={st.name}>{st.name}</div>
+                    <div className="text-lg font-semibold tabular-nums text-foreground">{st.count}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">Candidates for this job will appear here in the next update.</p>
+          </SectionCard>
+
+          <SectionCard title="Key facts">
+            <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <Fact label="Openings">{j.openings}</Fact>
+              <Fact label="Employment type">{employmentLabel(j.employment_type)}</Fact>
+              <Fact label="Shifts">{shiftLabels || "Any"}</Fact>
+              <Fact label="Pay">{fmtPay(j.salary_min, j.salary_max, j.salary_period)}</Fact>
+              <Fact label="Experience">{fmtExperience(j.experience_min_years, j.experience_max_years)}</Fact>
+              <Fact label="Hiring manager">{manager ?? "—"}</Fact>
+              <Fact label="Target date">{fmtDate(j.target_close_date)}</Fact>
+              <Fact label="Hiring requirement">{reqNo ? <span className="t-mono">{reqNo}</span> : "—"}</Fact>
+              <Fact label="Created">{j.created_by_name ?? "—"} · {fmtDateTime(j.created_at)}</Fact>
+              <Fact label="Opened">{fmtDateTime(j.opened_at)}</Fact>
+              {j.status === "closed" && <Fact label="Closed">{fmtDateTime(j.closed_at)}{j.closed_reason ? ` · ${j.closed_reason}` : ""}</Fact>}
+            </dl>
+          </SectionCard>
+
+          {(["summary", "description", "requirements", "benefits"] as const).map((k) =>
+            j[k] ? (
+              <SectionCard key={k} title={k[0].toUpperCase() + k.slice(1)}>
+                <p className="whitespace-pre-wrap text-sm text-foreground">{j[k]}</p>
+              </SectionCard>
+            ) : null,
+          )}
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <SectionCard title="Activity">
+            {events.isLoading ? <RowsSkeleton rows={5} /> : events.isError ? (
+              <QueryError error={events.error} onRetry={() => events.refetch()} />
+            ) : (events.data ?? []).length === 0 ? (
+              <EmptyState icon={Activity} title="No activity yet" description="Changes to this job will be listed here." className="py-8" />
+            ) : (
+              <ul className="divide-y divide-border">
+                {events.data!.map((ev) => {
+                  const Icon = EVENT_ICON[ev.event_type] ?? Activity;
+                  const fields = ev.event_type === "job_updated" ? fieldLabels((ev.data as any)?.fields) : "";
+                  return (
+                    <li key={ev.id} className="flex items-start gap-3 py-2.5">
+                      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                        <Icon className="h-3.5 w-3.5" aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-foreground break-words">{fields ? `Updated: ${fields}` : ev.summary}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {ev.actor_name ?? "System"} ·{" "}
+                          <Tooltip>
+                            <TooltipTrigger asChild><span className="cursor-default underline decoration-dotted underline-offset-2">{fmtRelative(ev.created_at)}</span></TooltipTrigger>
+                            <TooltipContent>{fmtDateTime(ev.created_at)}</TooltipContent>
+                          </Tooltip>
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
+
+      <ResponsiveDialog
+        open={closeOpen}
+        onOpenChange={setCloseOpen}
+        title="Close job"
+        description="Closed jobs stop accepting applicants. You can reopen later."
+        footer={<>
+          <Button variant="ghost" onClick={() => setCloseOpen(false)}>Cancel</Button>
+          <Button type="submit" form="ats-close-form" disabled={!reason || busy}>Close job</Button>
+        </>}
+      >
+        <form id="ats-close-form" onSubmit={(e) => { e.preventDefault(); submitClose(); }} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Reason</Label>
+            <RadioGroup value={reason} onValueChange={setReason} className="grid grid-cols-2 gap-2">
+              {CLOSE_REASONS.map((r) => (
+                <Label key={r} htmlFor={`cr-${r}`} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 font-normal">
+                  <RadioGroupItem id={`cr-${r}`} value={r} /> {r}
+                </Label>
+              ))}
+            </RadioGroup>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ats-close-note">Note (optional)</Label>
+            <Textarea id="ats-close-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-foreground"
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitClose(); } }} />
+          </div>
+        </form>
+      </ResponsiveDialog>
+
+      <AlertDialog open={delOpen} onOpenChange={setDelOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+            <AlertDialogDescription>“{j.title}” and its activity history will be removed. This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => del.mutate(undefined as never)}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

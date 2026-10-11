@@ -12,7 +12,6 @@ export type AtsSource = Tables<"ats_sources">;
 export type AtsReason = Tables<"ats_reject_reasons">;
 export type AtsSettings = Tables<"ats_settings">;
 export type AtsEvent = Tables<"ats_events">;
-export type AtsJobSummary = Tables<{ schema: "public" }, "ats_job_summary"> extends never ? never : Record<string, any>;
 
 export interface AtsOverview {
   open_jobs: number; open_seats: number; draft_jobs: number; paused_jobs: number;

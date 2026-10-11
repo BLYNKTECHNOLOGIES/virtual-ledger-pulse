@@ -862,6 +862,13 @@ export type Database = {
             foreignKeyName: "ats_applications_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
+            referencedRelation: "ats_job_summary"
+            referencedColumns: ["job_id"]
+          },
+          {
+            foreignKeyName: "ats_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
             referencedRelation: "ats_jobs"
             referencedColumns: ["id"]
           },
@@ -1126,6 +1133,13 @@ export type Database = {
             foreignKeyName: "ats_events_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_events_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
             referencedRelation: "ats_applications"
             referencedColumns: ["id"]
           },
@@ -1135,6 +1149,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "ats_candidates"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_events_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_job_summary"
+            referencedColumns: ["job_id"]
           },
           {
             foreignKeyName: "ats_events_job_id_fkey"
@@ -1201,6 +1222,13 @@ export type Database = {
           uploaded_by_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "ats_files_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
           {
             foreignKeyName: "ats_files_application_id_fkey"
             columns: ["application_id"]
@@ -1438,6 +1466,13 @@ export type Database = {
             foreignKeyName: "ats_notes_application_id_fkey"
             columns: ["application_id"]
             isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
             referencedRelation: "ats_applications"
             referencedColumns: ["id"]
           },
@@ -1482,6 +1517,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "ats_ratings_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
           {
             foreignKeyName: "ats_ratings_application_id_fkey"
             columns: ["application_id"]
@@ -29109,6 +29151,124 @@ export type Database = {
       }
     }
     Views: {
+      ats_application_overview: {
+        Row: {
+          anonymized_at: string | null
+          application_id: string | null
+          applied_at: string | null
+          applied_via: string | null
+          candidate_application_count: number | null
+          candidate_id: string | null
+          city: string | null
+          current_company: string | null
+          current_title: string | null
+          days_in_stage: number | null
+          department_id: string | null
+          email: string | null
+          expected_ctc_monthly: number | null
+          full_name: string | null
+          has_resume: boolean | null
+          hired_at: string | null
+          job_code: string | null
+          job_id: string | null
+          job_status: string | null
+          job_title: string | null
+          keep_for_future: boolean | null
+          last_activity_at: string | null
+          notice_period_days: number | null
+          phone: string | null
+          position_text: string | null
+          rating_avg: number | null
+          rating_count: number | null
+          ref_no: string | null
+          reject_reason_id: string | null
+          reject_reason_label: string | null
+          reviewed_at: string | null
+          shift_preferences: string[] | null
+          skills: string[] | null
+          source_detail: string | null
+          source_id: string | null
+          source_name: string | null
+          stage_code: string | null
+          stage_entered_at: string | null
+          stage_id: string | null
+          stage_kind: string | null
+          stage_name: string | null
+          stage_order: number | null
+          status: string | null
+          status_changed_at: string | null
+          status_note: string | null
+          total_experience_years: number | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_job_summary"
+            referencedColumns: ["job_id"]
+          },
+          {
+            foreignKeyName: "ats_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_reject_reason_id_fkey"
+            columns: ["reject_reason_id"]
+            isOneToOne: false
+            referencedRelation: "ats_reject_reasons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "ats_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_applications_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "ats_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_jobs_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_job_summary: {
+        Row: {
+          active_count: number | null
+          hired_count: number | null
+          job_id: string | null
+          last_applied_at: string | null
+          new_7d: number | null
+          on_hold_count: number | null
+          rejected_count: number | null
+          stage_counts: Json | null
+          total_applications: number | null
+          unreviewed_count: number | null
+          withdrawn_count: number | null
+        }
+        Relationships: []
+      }
       bank_account_compliance_v: {
         Row: {
           account_name: string | null
@@ -29995,13 +30155,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["counter_subsidiary_id"]
-            isOneToOne: false
-            referencedRelation: "fin_entity_master_v"
-            referencedColumns: ["subsidiary_id"]
-          },
-          {
-            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["subsidiary_id"]
             isOneToOne: false
             referencedRelation: "fin_entity_master_v"
@@ -30010,13 +30163,20 @@ export type Database = {
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
             columns: ["counter_subsidiary_id"]
+            isOneToOne: false
+            referencedRelation: "fin_entity_master_v"
+            referencedColumns: ["subsidiary_id"]
+          },
+          {
+            foreignKeyName: "bank_accounts_subsidiary_id_fkey"
+            columns: ["subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "bank_accounts_subsidiary_id_fkey"
-            columns: ["subsidiary_id"]
+            columns: ["counter_subsidiary_id"]
             isOneToOne: false
             referencedRelation: "subsidiaries"
             referencedColumns: ["id"]
@@ -31309,7 +31469,55 @@ export type Database = {
         Returns: undefined
       }
       ats_actor_name: { Args: { p_uid?: string }; Returns: string }
+      ats_create_application: {
+        Args: {
+          p_answers?: Json
+          p_applied_at?: string
+          p_applied_via?: string
+          p_candidate: Json
+          p_cover_letter?: string
+          p_existing_candidate_id?: string
+          p_external_ref?: string
+          p_job_id?: string
+          p_position_text?: string
+          p_source_detail?: string
+          p_source_id?: string
+        }
+        Returns: Json
+      }
+      ats_find_duplicates: {
+        Args: { p_email?: string; p_exclude?: string; p_phone?: string }
+        Returns: {
+          application_count: number
+          candidate_id: string
+          email: string
+          full_name: string
+          last_applied_at: string
+          last_status: string
+          matched_on: string
+          phone: string
+          ref_no: string
+        }[]
+      }
+      ats_mark_reviewed: {
+        Args: { p_application_id: string }
+        Returns: undefined
+      }
+      ats_move_stage: {
+        Args: { p_application_id: string; p_note?: string; p_stage_id: string }
+        Returns: undefined
+      }
       ats_normalize_phone: { Args: { p: string }; Returns: string }
+      ats_overview_stats: { Args: never; Returns: Json }
+      ats_set_status: {
+        Args: {
+          p_application_id: string
+          p_note?: string
+          p_reason_id?: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       ats_slugify: { Args: { p: string }; Returns: string }
       ats_text_array: { Args: { p: Json }; Returns: string[] }
       ats_try_numeric: { Args: { p: string }; Returns: number }

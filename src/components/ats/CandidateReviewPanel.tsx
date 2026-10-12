@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Keyboard, MoreVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -82,6 +85,11 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const [statusDlg, setStatusDlg] = useState<null | "rejected" | "withdrawn">(null);
   const [stageDlg, setStageDlg] = useState<null | { id: string; name: string }>(null);
   const [changeJob, setChangeJob] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
+  const shortcutRef = useRef<{ a?: () => void; h?: () => void; r?: () => void }>({});
 
   const app: AtsAppRow | undefined = useMemo(() => {
     const list = apps.data ?? [];
@@ -132,6 +140,23 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     }
   };
 
+  // E. keyboard shortcuts (ignored while typing or when a dialog/menu is open)
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement;
+      if (t.closest("input,textarea,select,[contenteditable=true],[role=dialog],[role=alertdialog],[role=menu],[role=listbox]")) return;
+      if (document.querySelector("[role=dialog],[role=alertdialog]")) return;
+      const k = e.key.toLowerCase();
+      if (e.key === "?") { e.preventDefault(); setKeysOpen(true); return; }
+      if (k === "n") { e.preventDefault(); noteRef.current?.focus(); return; }
+      const fn = k === "a" ? shortcutRef.current.a : k === "h" ? shortcutRef.current.h : k === "r" ? shortcutRef.current.r : undefined;
+      if (fn) { e.preventDefault(); fn(); }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
   if (cand.isLoading || apps.isLoading) return <div className={cn("p-4", className)}><RowsSkeleton rows={8} /></div>;
   if (cand.isError) return <div className={cn("p-4", className)}><QueryError error={cand.error} onRetry={() => cand.refetch()} /></div>;
   if (!cand.data) return <EmptyState icon={UserPlus} title="This record no longer exists." className={className} />;
@@ -150,6 +175,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const setStatus = (status: string, msg: string, reasonId?: string, note?: string, after?: () => void) =>
     run(() => supabase.rpc("ats_set_status", { p_application_id: app!.application_id!, p_status: status, p_reason_id: reasonId ?? null, p_note: note || null }), msg, after);
 
+  shortcutRef.current = {
+    a: next && !stageLocked ? () => moveTo(next.id, next.name) : undefined,
+    h: app && !closed && !hired && !busy ? () => (app.status === "on_hold" ? setStatus("active", "Application resumed") : setStatus("on_hold", "Put on hold")) : undefined,
+    r: app && !closed && !hired && !busy ? () => setStatusDlg("rejected") : undefined,
+  };
+
   const header = (
     <div className="space-y-3 border-b border-border p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -162,6 +193,14 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
           {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
           <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setKeysOpen(true)}><Keyboard className="mr-2 h-4 w-4" /> Keyboard shortcuts (?)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete candidate…</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {(apps.data?.length ?? 0) > 1 && (
@@ -208,7 +247,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       )}
       <div className="flex flex-wrap gap-2">
         {next && (
-          <Button size="sm" disabled={stageLocked} className="gap-1.5" onClick={() => moveTo(next.id, next.name)}>
+          <Button size="sm" disabled={stageLocked} className="gap-1.5" title="Shortcut: A" onClick={() => moveTo(next.id, next.name)}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
             {activeStages[curIdx]?.code === "new" ? `Shortlist → ${next.name}` : `Move to ${next.name}`}
           </Button>
@@ -228,12 +267,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           </DropdownMenuContent>
         </DropdownMenu>
         {!closed && !hired && (app.status === "on_hold" ? (
-          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("active", "Application resumed")}><Play className="h-4 w-4" /> Resume</Button>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" title="Shortcut: H" onClick={() => setStatus("active", "Application resumed")}><Play className="h-4 w-4" /> Resume</Button>
         ) : (
-          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("on_hold", "Put on hold")}><Pause className="h-4 w-4" /> Hold</Button>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" title="Shortcut: H" onClick={() => setStatus("on_hold", "Put on hold")}><Pause className="h-4 w-4" /> Hold</Button>
         ))}
         {!closed && !hired && <>
-          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setStatusDlg("rejected")}><XCircle className="h-4 w-4" /> Reject</Button>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 text-destructive hover:text-destructive" title="Shortcut: R" onClick={() => setStatusDlg("rejected")}><XCircle className="h-4 w-4" /> Reject</Button>
           <Button size="sm" variant="ghost" disabled={busy} className="gap-1.5" onClick={() => setStatusDlg("withdrawn")}><LogOut className="h-4 w-4" /> Withdrawn</Button>
         </>}
       </div>
@@ -279,7 +318,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       {facts}
       {app?.applied_via === "careers_form" && <FormAnswers appId={app.application_id!} />}
       {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
-      <NotesCard candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
+      <NotesCard ref={noteRef} candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
       <FilesCard files={files.data ?? []} onUpload={() => setUploadOpen(true)} candidateId={candidateId} />
     </>
   );
@@ -311,6 +350,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); moveTo(s.id, s.name, note); }} />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} candidateId={candidateId} appId={app?.application_id ?? null}
         onDone={(f) => { setSelFile(f.kind === "resume" || !selFile ? f.id : selFile); }} />
+      <DeleteCandidateDialog open={delOpen} onOpenChange={setDelOpen} candidateId={candidateId} name={c.full_name} refNo={c.ref_no}
+        onDeleted={() => { qc.invalidateQueries({ queryKey: candKeys.all }); qc.invalidateQueries({ queryKey: atsKeys.overview }); qc.invalidateQueries({ queryKey: atsKeys.jobSummary }); navigate("/hrms/ats/candidates"); }} />
+      <ShortcutsDialog open={keysOpen} onOpenChange={setKeysOpen} />
       {app && <ChangeJobDialog open={changeJob} onOpenChange={setChangeJob} app={app} />}
       <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} candidate={c} />
     </div>
@@ -459,7 +501,7 @@ function RatingsCard({ appId, me }: { appId: string; me: string | null }) {
   );
 }
 
-function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: string | null; me: string | null }) {
+const NotesCard = forwardRef<HTMLTextAreaElement, { candidateId: string; appId: string | null; me: string | null }>(function NotesCard({ candidateId, appId, me }, noteRef) {
   const qc = useQueryClient();
   const notes = useCandidateNotes(candidateId);
   const [body, setBody] = useState("");
@@ -483,7 +525,7 @@ function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: str
   };
   return (
     <SectionCard title="Notes">
-      <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a note…" className="text-foreground"
+      <Textarea ref={noteRef} rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a note…" className="text-foreground"
         onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); add(); } }} />
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">Ctrl/⌘ + Enter to save</span>
@@ -527,7 +569,7 @@ function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: str
       </AlertDialog>
     </SectionCard>
   );
-}
+});
 
 function ActivityCard({ candidateId }: { candidateId: string }) {
   const ev = useCandidateEvents(candidateId);
@@ -665,6 +707,83 @@ function UploadDialog({ open, onClose, candidateId, appId, onDone }: { open: boo
         </div>
         <FileDropZone file={file} onFile={setFile} disabled={busy} />
       </div>
+    </ResponsiveDialog>
+  );
+}
+
+function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const rows: [string, string][] = [
+    ["A", "Move to the next stage"], ["H", "Hold or resume"], ["R", "Reject…"], ["N", "Write a note"],
+    ["J / ↓", "Next candidate"], ["K / ↑", "Previous candidate"], ["?", "Show these shortcuts"],
+  ];
+  return (
+    <ResponsiveDialog open={open} onOpenChange={onOpenChange} title="Keyboard shortcuts" footer={<Button onClick={() => onOpenChange(false)}>Close</Button>}>
+      <ul className="divide-y divide-border text-sm">
+        {rows.map(([k, l]) => (
+          <li key={k} className="flex items-center justify-between py-1.5">
+            <span className="text-foreground">{l}</span>
+            <kbd className="t-mono rounded border border-border bg-muted px-1.5 py-0.5 text-xs text-foreground">{k}</kbd>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs text-muted-foreground">Shortcuts work when you are not typing in a field. J/K work in Review mode.</p>
+    </ResponsiveDialog>
+  );
+}
+
+function DeleteCandidateDialog({ open, onOpenChange, candidateId, name, refNo, onDeleted }: {
+  open: boolean; onOpenChange: (o: boolean) => void; candidateId: string; name: string; refNo: string; onDeleted: () => void;
+}) {
+  const [typed, setTyped] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) setTyped(""); }, [open]);
+  const ok = typed === name;
+  const run = async () => {
+    if (!ok || busy) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.from("ats_candidates").delete().eq("id", candidateId).select("id");
+      if (error) throw error;
+      if (!data || data.length === 0) { toast.error("Only HR admins can delete candidates."); return; }
+      // Row is gone; now clean up stored files (list, then remove in batches of 100).
+      const prefix = `candidates/${candidateId}`;
+      let failed = false;
+      try {
+        const paths: string[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const { data: list, error: le } = await supabase.storage.from(ATS_BUCKET).list(prefix, { limit: 1000, offset });
+          if (le) throw le;
+          paths.push(...(list ?? []).filter((o) => o.id).map((o) => `${prefix}/${o.name}`));
+          if (!list || list.length < 1000) break;
+        }
+        for (let i = 0; i < paths.length; i += 100) {
+          const { error: re } = await supabase.storage.from(ATS_BUCKET).remove(paths.slice(i, i + 100));
+          if (re) failed = true;
+        }
+      } catch { failed = true; }
+      if (failed) toast.warning("Candidate deleted, but some files could not be removed.");
+      else toast.success("Candidate deleted");
+      onOpenChange(false);
+      onDeleted();
+    } catch (e) {
+      toast.error(atsErrorMessage(e));
+    } finally { setBusy(false); }
+  };
+  return (
+    <ResponsiveDialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)} title="Delete candidate permanently"
+      footer={<>
+        <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
+        <Button variant="destructive" disabled={!ok || busy} onClick={run}>{busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Delete permanently</Button>
+      </>}>
+      <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(); }}>
+        <p className="text-sm text-foreground">
+          This permanently deletes {name} (<span className="t-mono">{refNo}</span>), all their applications, notes, ratings, files and history. This can't be undone.
+        </p>
+        <div className="space-y-1.5">
+          <Label htmlFor="ats-del-confirm">Type <span className="font-medium">{name}</span> to confirm</Label>
+          <Input id="ats-del-confirm" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" className="text-foreground" />
+        </div>
+      </form>
     </ResponsiveDialog>
   );
 }

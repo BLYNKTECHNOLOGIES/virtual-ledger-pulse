@@ -1,3 +1,4 @@
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { fmtDate } from "@/lib/ats/format";
@@ -5,8 +6,14 @@ import type { AtsAppRow } from "@/lib/ats/candidates";
 import { AppStatusBadge, ResumeIcon, Stars, UnreviewedDot, fmtMonthly, fmtYears, isUnreviewed } from "./CandidateBits";
 
 export function CandidateTable({
-  rows, idleDays, onOpen, hideJob,
-}: { rows: AtsAppRow[]; idleDays: number; onOpen: (r: AtsAppRow) => void; hideJob?: boolean }) {
+  rows, idleDays, onOpen, hideJob, selected, onToggle, onToggleAll,
+}: {
+  rows: AtsAppRow[]; idleDays: number; onOpen: (r: AtsAppRow) => void; hideJob?: boolean;
+  selected?: Set<string>; onToggle?: (r: AtsAppRow) => void; onToggleAll?: (on: boolean) => void;
+}) {
+  const sel = !!selected && !!onToggle;
+  const pageAll = sel && rows.length > 0 && rows.every((r) => selected!.has(r.application_id!));
+  const pageSome = sel && rows.some((r) => selected!.has(r.application_id!));
   const idle = (r: AtsAppRow) => r.status === "active" && (r.days_in_stage ?? 0) >= idleDays;
   return (
     <>
@@ -14,8 +21,10 @@ export function CandidateTable({
       <ul className="space-y-2 md:hidden">
         {rows.map((r) => (
           <li key={r.application_id}>
+            <div className="flex items-start gap-2">
+            {sel && <Checkbox className="mt-3.5" checked={selected!.has(r.application_id!)} onCheckedChange={() => onToggle!(r)} aria-label={`Select ${r.full_name}`} />}
             <button type="button" onClick={() => onOpen(r)}
-              className="w-full rounded-lg border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              className="min-w-0 flex-1 rounded-lg border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <div className="flex items-center gap-2">
                 <UnreviewedDot show={isUnreviewed(r)} />
                 <span className="min-w-0 flex-1 truncate font-medium text-foreground">{r.full_name}</span>
@@ -31,6 +40,7 @@ export function CandidateTable({
                 <Stars value={r.rating_avg} count={r.rating_count} />
               </div>
             </button>
+            </div>
           </li>
         ))}
       </ul>
@@ -38,6 +48,7 @@ export function CandidateTable({
         <Table>
           <TableHeader>
             <TableRow>
+              {sel && <TableHead className="w-10"><Checkbox checked={pageAll ? true : pageSome ? "indeterminate" : false} onCheckedChange={(v) => onToggleAll?.(v === true)} aria-label="Select this page" /></TableHead>}
               <TableHead>Candidate</TableHead>
               {!hideJob && <TableHead>Job</TableHead>}
               <TableHead>Stage</TableHead>
@@ -54,6 +65,7 @@ export function CandidateTable({
             {rows.map((r) => (
               <TableRow key={r.application_id} tabIndex={0} className="cursor-pointer"
                 onClick={() => onOpen(r)} onKeyDown={(e) => e.key === "Enter" && onOpen(r)}>
+                {sel && <TableCell onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><Checkbox checked={selected!.has(r.application_id!)} onCheckedChange={() => onToggle!(r)} aria-label={`Select ${r.full_name}`} /></TableCell>}
                 <TableCell>
                   <div className="flex items-center gap-1.5">
                     <UnreviewedDot show={isUnreviewed(r)} />

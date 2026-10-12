@@ -1,4 +1,8 @@
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Info } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Briefcase, Inbox, Eye, Hourglass, UserCheck, UserX, Plus } from "lucide-react";
 import { StatCard } from "@/components/hrms/primitives/StatCard";
@@ -21,6 +25,11 @@ export default function AtsOverviewPage() {
   const summary = useAtsJobSummary();
   const recent = useRecentApplications();
   const today = todayIST();
+  const integ = useQuery({
+    queryKey: ["ats", "integration-status"],
+    queryFn: async () => { const { data, error } = await supabase.rpc("ats_integration_status"); if (error) throw error; return data as any; },
+  });
+  const unsorted = Number(integ.data?.unmatched_active ?? 0);
 
   const openJobs = useMemo(() => (jobs.data ?? []).filter((j) => j.status === "open"), [jobs.data]);
 
@@ -39,6 +48,13 @@ export default function AtsOverviewPage() {
   const o = ov.data;
   return (
     <div className="space-y-5">
+      {unsorted > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground" role="status">
+          <Info className="h-4 w-4 text-primary" aria-hidden />
+          {unsorted} careers-page application{unsorted === 1 ? " has" : "s have"} no matching job.
+          <Link to="/hrms/ats/candidates?job=general" className="font-medium text-primary hover:underline">Sort them</Link>
+        </div>
+      )}
       {ov.isLoading ? (
         <StatGridSkeleton count={6} className="grid-cols-2 sm:grid-cols-3 xl:grid-cols-6" />
       ) : ov.isError ? (

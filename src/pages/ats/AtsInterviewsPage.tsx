@@ -83,7 +83,7 @@ export default function AtsInterviewsPage() {
       let g = out[out.length - 1];
       if (!g || g.day !== day) {
         const dl = ivDayLabel(r.starts_at);
-        const label = dl === "Today" || dl === "Tomorrow" ? `${dl} · ${ivDateText(new Date(r.starts_at))}` : ivDateText(new Date(r.starts_at));
+        const label = dl === "Tomorrow" ? `${dl} · ${ivDateText(new Date(r.starts_at))}` : ivDateText(new Date(r.starts_at));
         g = { day, label, rows: [] }; out.push(g);
       }
       g.rows.push(r);

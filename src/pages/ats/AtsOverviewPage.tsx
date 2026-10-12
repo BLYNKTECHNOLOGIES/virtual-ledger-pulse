@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Briefcase, Inbox, Eye, Hourglass, UserCheck, UserX, Plus, Mail, CalendarClock, ClipboardCheck, CheckCircle2, Users, UserPlus } from "lucide-react";
+ import { Briefcase, Inbox, Eye, Hourglass, UserCheck, UserX, Plus, Mail, CalendarClock, ClipboardCheck, CheckCircle2, Users, UserPlus, AlertTriangle } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,6 +48,13 @@ export default function AtsOverviewPage() {
   ].filter((row) => row.count > 0);
   const attentionLoading = ov.isLoading || integ.isLoading || ivCounts.isLoading || mailSt.isLoading || sourcesQ.isLoading;
   const attentionFailed = ov.isError || integ.isError || ivCounts.isError || mailSt.isError || sourcesQ.isError;
+  const failedChecks = [
+    { query: ov, what: "applications waiting for review" },
+    { query: integ, what: "careers-page applications" },
+    { query: ivCounts, what: "interviews" },
+    { query: mailSt, what: "candidate replies" },
+  ].filter(({ query }) => query.isError);
+  const attentionLoaded = ov.isSuccess && integ.isSuccess && ivCounts.isSuccess && mailSt.isSuccess && sourcesQ.isSuccess;
   const stages = [...(o?.stage_counts ?? [])].sort((a, b) => a.sort_order - b.sort_order);
   const middleBars = ["bg-primary/40", "bg-primary/55 bg-primary/[0.55]", "bg-primary/70", "bg-primary/85 bg-primary/[0.85]", "bg-primary"];
 
@@ -58,14 +65,19 @@ export default function AtsOverviewPage() {
         <Button onClick={() => openJobEditor(null)} className="gap-1.5"><Plus className="h-4 w-4" aria-hidden /> New job</Button>
       </SectionCard>}
       <SectionCard title="Needs attention">
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-border" role="status" aria-live="polite">
           {attention.map((row) => <div key={row.button} className="flex !flex-nowrap items-center gap-3 py-2.5">
             <span className={cn("inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", row.warning ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary")}><row.icon className="h-4 w-4" aria-hidden /></span>
             <p className="min-w-0 flex-1 text-sm text-foreground"><span className="font-semibold tabular-nums">{row.count}</span> {row.text(row.count)}</p>
             <Button variant="outline" size="sm" asChild className="shrink-0"><Link to={row.to}>{row.button}</Link></Button>
           </div>)}
+          {failedChecks.map(({ query, what }) => <div key={what} className="flex !flex-nowrap items-center gap-3 py-2.5">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning"><AlertTriangle className="h-4 w-4" aria-hidden /></span>
+            <p className="min-w-0 flex-1 text-sm text-foreground">Couldn't check {what}.</p>
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => query.refetch()}>Try again</Button>
+          </div>)}
           {attentionLoading && <div className="space-y-2 py-2.5">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div>}
-          {!attentionLoading && !attentionFailed && !attention.length && <div className="flex !flex-nowrap items-center gap-3 py-2.5">
+          {attentionLoaded && !attentionLoading && !attentionFailed && !attention.length && <div className="flex !flex-nowrap items-center gap-3 py-2.5">
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success"><CheckCircle2 className="h-4 w-4" aria-hidden /></span>
             <p className="text-sm text-foreground">Nothing needs your attention right now.</p>
           </div>}
@@ -74,7 +86,7 @@ export default function AtsOverviewPage() {
       <MetricStrip>
         {ov.isLoading ? Array.from({ length: 6 }, (_, i) => <MetricCell key={i}><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-8 w-12" /><div className="mt-0.5 h-4" /></MetricCell>) : ov.isError ? <div className="col-span-full bg-card p-4"><QueryError error={ov.error} onRetry={() => ov.refetch()} /></div> : o ? <>
           <MetricCell label="Open jobs" value={o.open_jobs} helper={`${o.open_seats} seat${Number(o.open_seats) === 1 ? "" : "s"}`} icon={Briefcase} />
-          <MetricCell label="Applied this week" value={o.applications_7d} helper={`${o.applications_30d} in the last 30 days`} icon={Inbox} />
+          <MetricCell label="Applied in the last 7 days" value={o.applications_7d} helper={`${o.applications_30d} in the last 30 days`} icon={Inbox} />
           <MetricCell label="Awaiting review" value={o.unreviewed} helper="Not opened yet" icon={Eye} onClick={() => navigate("/hrms/ats/candidates?unreviewed=1")} />
           <MetricCell label="Idle" value={o.idle} helper={`No movement in ${o.idle_days}+ days`} icon={Hourglass} onClick={() => navigate("/hrms/ats/candidates?idle=1")} />
           <MetricCell label="Hired this month" value={o.hired_this_month} icon={UserCheck} valueClassName={Number(o.hired_this_month) > 0 ? "text-success" : undefined} />

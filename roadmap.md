@@ -1,5 +1,9 @@
 # Workforce capacity integrity
 
+## ATS UI refresh U5
+- [ ] Apply only F1–F9 presentation review fixes.
+- [ ] Verify requested representative-data screenshots and preview health; append exact state-log entry.
+
 ## ATS UI refresh U2
 - [x] Candidates list, board, candidate page, forms (sample-data checks)
 - [ ] Signed-in live check (blocked: no automated sign-in for this project)

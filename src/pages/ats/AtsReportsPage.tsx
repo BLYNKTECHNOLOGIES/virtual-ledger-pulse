@@ -147,7 +147,7 @@ function Body({ data, loading, params }: { data?: AtsReport; loading: boolean; p
       ) : (
         <MetricStrip className="sm:grid-cols-2 xl:grid-cols-4">
           <MetricCell label={<L t="Applications" tip="Applications made in the period (IST)." />} value={s.applications} helper="applied in the period" />
-          <MetricCell label={<L t="Reviewed" tip="Of those, how many HR has opened." />} value={s.reviewed} helper={`${pct(s.reviewed, s.applications)} of applications`} />
+          <MetricCell label={<L t="Reviewed" tip="Of those, how many HR has opened or acted on." />} value={s.reviewed} helper={`${pct(s.reviewed, s.applications)} of applications`} />
           <MetricCell label={<L t="Reached interview" tip="Of those, how many got to the Interview stage or later." />} value={s.reached_interview} helper={`${pct(s.reached_interview, s.applications)} of applications`} />
           <MetricCell label={<L t="Hired" tip="Of those, how many were hired." />} value={s.hired} valueClassName="text-success" helper={`${pct(s.hired, s.applications)} hire rate`} />
           <MetricCell label={<L t="Time to hire" tip="Median days from applying to being hired." />} value={fmtDays(s.median_days_to_hire)} helper="median, from applying to hired" />
@@ -233,7 +233,7 @@ function Body({ data, loading, params }: { data?: AtsReport; loading: boolean; p
           )}
         </SectionCard>
 
-        <SectionCard title="Why candidates left" description="Rejection and withdrawal reasons in this period.">
+        <SectionCard title="Why candidates left" description="Why this period's applicants left, whenever it happened.">
           {!data ? sk : (
             <BarList
               rows={data.reasons.map((r) => ({ key: `${r.reason_id ?? "none"}:${r.status}`, label: r.label + (r.status === "withdrawn" ? " (withdrew)" : ""), count: r.count }))}
@@ -244,7 +244,7 @@ function Body({ data, loading, params }: { data?: AtsReport; loading: boolean; p
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-2">
-        <SectionCard title="Interviews" description="Interviews held or scheduled in this period.">
+        <SectionCard title="Interviews" description="Interviews taking place in this period.">
           {!data ? sk : (() => {
             const iv = data.interviews;
             const act = (n: number) => (n > 0 ? <Link className="text-warning hover:underline" to="/hrms/ats/interviews?view=action">{n}</Link> : n);

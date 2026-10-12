@@ -79,8 +79,8 @@ export function ivDayLabel(v: string): string {
 export function fmtUntil(v: string): string {
   const m = Math.round((new Date(v).getTime() - Date.now()) / 60000);
   if (m <= 0) return fmtRelative(v);
-  if (m < 60) return `in ${m} min`;
-  if (m < 24 * 60) return `in ${Math.round(m / 60)} h`;
+  if (m < 60) return `in ${m} ${m === 1 ? "minute" : "minutes"}`;
+  if (m < 24 * 60) return `in ${Math.round(m / 60)} ${Math.round(m / 60) === 1 ? "hour" : "hours"}`;
   const d = Math.round(m / 1440);
   return `in ${d} ${d === 1 ? "day" : "days"}`;
 }

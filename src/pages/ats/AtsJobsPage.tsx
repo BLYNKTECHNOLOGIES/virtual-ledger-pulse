@@ -109,7 +109,7 @@ export default function AtsJobsPage() {
                     className="w-full rounded-xl border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <div className="min-w-0">
                       <div className="break-words font-medium text-foreground">{j.title}</div>
-                      <div className="t-mono text-xs text-muted-foreground">{j.job_code}</div>
+                      <div className="t-mono text-xs text-muted-foreground">{j.job_code} · {deptName(j.department_id)}</div>
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5"><JobStatusBadge status={j.status} />{j.is_published && <CareersPill />}</div>
                     <div className="mt-3 grid grid-cols-3 gap-2">

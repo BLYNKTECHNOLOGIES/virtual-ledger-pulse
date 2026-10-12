@@ -18,6 +18,7 @@ import {
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
+import { CareersSettingsSection } from "@/components/ats/CareersSettingsSection";
 import {
   type AtsReason, type AtsStage, atsKeys, useAtsMutation, useAtsReasons, useAtsSettings, useAtsSources, useAtsStages,
 } from "@/lib/ats/api";
@@ -376,12 +377,14 @@ export default function AtsSettingsPage() {
           <TabsTrigger value="stages">Stages</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
           <TabsTrigger value="reasons">Rejection reasons</TabsTrigger>
+          <TabsTrigger value="careers">Careers page</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="stages"><StagesSection /></TabsContent>
       <TabsContent value="sources"><SourcesSection /></TabsContent>
       <TabsContent value="reasons"><ReasonsSection /></TabsContent>
+      <TabsContent value="careers"><CareersSettingsSection /></TabsContent>
       <TabsContent value="general"><GeneralSection /></TabsContent>
     </Tabs>
   );

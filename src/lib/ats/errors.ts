@@ -10,6 +10,7 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_REASON_REQUIRED", "Choose a reason."],
   ["ATS_REASON_MISMATCH", "That reason doesn't fit this action."],
   ["ATS_STAGE_NOT_FOUND", "That stage is no longer active."],
+  ["ATS_ADMIN_ONLY", "Only HR admins can generate the connection key."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
@@ -20,6 +21,7 @@ export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
   if (e.code === "23505") {
     if (all.includes("ats_candidates_email_uq")) return "Another candidate already uses this email";
     if (all.includes("ats_candidates_phone_uq")) return "Another candidate already uses this phone number";
+    if (all.includes("ats_applications_candidate_job_uq")) return "This candidate already has an application for that job.";
     return "That name is already in use.";
   }
   if (e.code === "23503") return inUseMessage ?? "This record is still in use.";

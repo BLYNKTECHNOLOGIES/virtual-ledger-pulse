@@ -38,6 +38,7 @@ import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
 import { AppStatusBadge, Stars, fmtMonthly, fmtYears } from "./CandidateBits";
 import { ResumeViewer, pickDefaultFile } from "./ResumeViewer";
 import { EditProfileSheet } from "./EditProfileSheet";
+import { ChangeJobDialog } from "./ChangeJobDialog";
 
 interface Props {
   candidateId: string;
@@ -80,6 +81,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const [busy, setBusy] = useState(false);
   const [statusDlg, setStatusDlg] = useState<null | "rejected" | "withdrawn">(null);
   const [stageDlg, setStageDlg] = useState<null | { id: string; name: string }>(null);
+  const [changeJob, setChangeJob] = useState(false);
 
   const app: AtsAppRow | undefined = useMemo(() => {
     const list = apps.data ?? [];
@@ -221,6 +223,8 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
             {activeStages.filter((s) => s.id !== app.stage_id).map((s) => (
               <DropdownMenuItem key={s.id} onSelect={() => setStageDlg({ id: s.id, name: s.name })}>{s.name}</DropdownMenuItem>
             ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setChangeJob(true)}>Change job…</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         {!closed && !hired && (app.status === "on_hold" ? (
@@ -242,6 +246,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     <SectionCard title="Profile">
       <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Fact label="Applied">{app ? `${fmtDate(app.applied_at)} · ${app.source_name ?? "—"}${app.source_detail ? ` (${app.source_detail})` : ""}` : null}</Fact>
+        {app && app.position_text && (!app.job_id || (app.job_title ?? "").trim().toLowerCase() !== app.position_text.trim().toLowerCase()) && (
+          <div className="sm:col-span-2"><Fact label="Applied for (as typed)">{app.position_text}</Fact></div>
+        )}
         <Fact label="Experience">{c.total_experience_years != null ? fmtYears(c.total_experience_years) : null}</Fact>
         <Fact label="Current role">{[c.current_title, c.current_company].filter(Boolean).join(" at ")}</Fact>
         <Fact label="Current CTC">{c.current_ctc_monthly != null ? fmtMonthly(c.current_ctc_monthly) : null}</Fact>
@@ -270,6 +277,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     <>
       {decision}
       {facts}
+      {app?.applied_via === "careers_form" && <FormAnswers appId={app.application_id!} />}
       {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
       <NotesCard candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
       <FilesCard files={files.data ?? []} onUpload={() => setUploadOpen(true)} candidateId={candidateId} />
@@ -303,8 +311,32 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); moveTo(s.id, s.name, note); }} />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} candidateId={candidateId} appId={app?.application_id ?? null}
         onDone={(f) => { setSelFile(f.kind === "resume" || !selFile ? f.id : selFile); }} />
+      {app && <ChangeJobDialog open={changeJob} onOpenChange={setChangeJob} app={app} />}
       <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} candidate={c} />
     </div>
+  );
+}
+
+function FormAnswers({ appId }: { appId: string }) {
+  const [a, setA] = useState<Record<string, any> | null>(null);
+  useEffect(() => {
+    let alive = true;
+    supabase.from("ats_applications").select("answers").eq("id", appId).maybeSingle()
+      .then(({ data }) => { if (alive) setA((data?.answers as Record<string, any>) ?? {}); });
+    return () => { alive = false; };
+  }, [appId]);
+  const rows: [string, string][] = [
+    ["Experience", "experience_text"], ["Expected CTC per year", "expected_ctc_text"],
+    ["Notice period", "notice_period_text"], ["Skills", "skills_text"],
+  ];
+  const shown = a ? rows.filter(([, k]) => a[k]) : [];
+  if (!shown.length) return null;
+  return (
+    <SectionCard title="From the application form">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {shown.map(([label, k]) => <Fact key={k} label={label}><span className="whitespace-pre-wrap">{String(a![k])}</span></Fact>)}
+      </dl>
+    </SectionCard>
   );
 }
 

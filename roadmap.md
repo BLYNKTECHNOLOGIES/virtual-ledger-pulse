@@ -1,5 +1,9 @@
 # Workforce capacity integrity
 
+## ATS UI refresh U2
+- [x] Candidates list, board, candidate page, forms (sample-data checks)
+- [ ] Signed-in live check (blocked: no automated sign-in for this project)
+
 ## ATS UI refresh U1
 
 - [x] Refresh ATS shell, shared visuals and Overview without changing data or actions.

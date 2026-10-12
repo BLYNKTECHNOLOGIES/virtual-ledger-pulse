@@ -226,3 +226,40 @@ export function loadNavCtx(): NavCtx | null {
 
 export const candidateHref = (r: { candidate_id: string | null; application_id: string | null }) =>
   `/hrms/ats/candidates/${r.candidate_id}?app=${r.application_id}`;
+
+/** Fetch rows matching filters in pages of 500 (for select-all / export / board). */
+export async function fetchMatchingRows(
+  f: CandidateFilters, idleDays: number, limit: number, onProgress?: (n: number, total: number) => void, select = "*",
+): Promise<{ rows: AtsAppRow[]; total: number }> {
+  const out: AtsAppRow[] = [];
+  let total = 0;
+  for (let from = 0; from < limit; from += 500) {
+    let qb = supabase.from("ats_application_overview").select(select, { count: from === 0 ? "exact" : undefined });
+    qb = applyFilters(qb, f, idleDays);
+    const { data, error, count } = await qb.range(from, Math.min(limit, from + 500) - 1);
+    if (error) throw error;
+    if (from === 0) total = count ?? 0;
+    out.push(...((data ?? []) as unknown as AtsAppRow[]));
+    onProgress?.(out.length, Math.min(total, limit));
+    if (!data || data.length < 500 || out.length >= total) break;
+  }
+  return { rows: out, total };
+}
+
+/** Board: active/on-hold (+ hired optional) applications for one job, up to 500. */
+export const useBoardRows = (jobId: string | undefined, showHired: boolean) =>
+  useQuery({
+    queryKey: ["ats", "cand", "board", jobId ?? "", showHired],
+    enabled: !!jobId,
+    queryFn: async () => {
+      const statuses = showHired ? ["active", "on_hold", "hired"] : ["active", "on_hold"];
+      let qb = supabase.from("ats_application_overview").select("*", { count: "exact" }).in("status", statuses);
+      qb = jobId === "general" ? qb.is("job_id", null) : qb.eq("job_id", jobId!);
+      const { data, error, count } = await qb.order("stage_entered_at", { ascending: true }).order("application_id").range(0, 499);
+      if (error) throw error;
+      let cq = supabase.from("ats_applications").select("id", { count: "exact", head: true }).in("status", ["rejected", "withdrawn"]);
+      cq = jobId === "general" ? cq.is("job_id", null) : cq.eq("job_id", jobId!);
+      const closed = await cq;
+      return { rows: (data ?? []) as AtsAppRow[], total: count ?? 0, closed: closed.count ?? 0 };
+    },
+  });

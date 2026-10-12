@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { JobStatusBadge, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
 import { CandidateTable } from "@/components/ats/CandidateTable";
+import { CareersJobCard } from "@/components/ats/CareersJobCard";
 import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
 import { useAtsSettings } from "@/lib/ats/api";
 import {
@@ -154,6 +155,8 @@ export default function AtsJobDetailPage() {
               </div>
             )}
           </SectionCard>
+
+          <CareersJobCard job={j} />
 
           <SectionCard title="Key facts">
             <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Badge } from "@/components/ui/badge";
 import { JobStatusBadge, QueryError, RowsSkeleton } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
 import { useAtsJobSummary, useAtsJobs, useDepartmentsLookup } from "@/lib/ats/api";
@@ -106,7 +107,7 @@ export default function AtsJobsPage() {
                         <div className="truncate font-medium text-foreground">{j.title}</div>
                         <div className="t-mono text-xs text-muted-foreground">{j.job_code} · {deptName(j.department_id)}</div>
                       </div>
-                      <JobStatusBadge status={j.status} />
+                      <span className="inline-flex flex-wrap items-center gap-1"><JobStatusBadge status={j.status} />{j.is_published && <Badge variant="secondary" className="whitespace-nowrap font-normal">On careers page</Badge>}</span>
                     </div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
                       <span>Applicants <b className="text-foreground tabular-nums">{s?.total_applications ?? 0}</b>{(s?.new_7d ?? 0) > 0 && <span className="text-primary"> +{s!.new_7d}</span>}</span>
@@ -151,7 +152,7 @@ export default function AtsJobsPage() {
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)}</TableCell>
                       <TableCell className="text-right tabular-nums">{s?.hired_count ?? 0} / {j.openings}</TableCell>
-                      <TableCell><JobStatusBadge status={j.status} /></TableCell>
+                      <TableCell><span className="inline-flex flex-wrap items-center gap-1"><JobStatusBadge status={j.status} />{j.is_published && <Badge variant="secondary" className="whitespace-nowrap font-normal">On careers page</Badge>}</span></TableCell>
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{fmtDateTime(j.updated_at)}</TableCell>
                     </TableRow>
                   );

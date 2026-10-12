@@ -1,7 +1,8 @@
 import { UnreadMailMark } from "@/components/ats/UnreadMailMark";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Plus, Search, Table2, Users, FilterX, KanbanSquare, Download } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, Columns2, Plus, Search, Table2, Users, FilterX, KanbanSquare, Download, Info, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { BulkBar } from "@/components/ats/BulkBar";
 import { PipelineBoard } from "@/components/ats/PipelineBoard";
@@ -176,6 +177,8 @@ export default function AtsCandidatesPage() {
     return n + (general.data ?? 0);
   }, [summary.data, general.data, f.status]);
 
+  const countsLoading = summary.isLoading || general.isLoading;
+  const jobLabel = (title: string, n: number) => countsLoading ? title : `${title} (${n})`;
   const railItem = (key: string | null, label: string, count: number | null) => {
     const active = (f.job ?? null) === key;
     return (
@@ -184,13 +187,14 @@ export default function AtsCandidatesPage() {
           active ? "bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
         aria-current={active ? "true" : undefined}>
         <span className="truncate" title={label}>{label}</span>
-        {count != null && <span className="shrink-0 text-xs tabular-nums">{count}</span>}
+        {countsLoading ? <Skeleton className="h-4 w-6 shrink-0" /> : count != null && <span className={cn("inline-flex h-5 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-medium tabular-nums", active ? "bg-card text-foreground" : "bg-muted text-muted-foreground")}>{count}</span>}
       </button>
     );
   };
 
   const rail = (
     <nav aria-label="Jobs" className="space-y-0.5">
+      <div className="px-2.5 pb-1 text-xs font-medium text-muted-foreground">Jobs</div>
       {railItem(null, "All jobs", allCount)}
       {railJobs.map((j) => railItem(j.id, j.title, countFor(summary.data?.get(j.id), f.status)))}
       {railItem("general", "General applications", general.data ?? 0)}
@@ -214,43 +218,99 @@ export default function AtsCandidatesPage() {
     </Select>
   );
 
-  const filters = (
-    <div className="flex flex-wrap items-center gap-2">
-      <div className="relative w-full sm:w-64">
-        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email, phone or ref" className="h-9 pl-8 text-foreground" aria-label="Search candidates" />
+  const jobSelect = (cls: string) => (
+    <Select value={f.job ?? "__all"} onValueChange={(v) => update({ job: v === "__all" ? null : v, sel: null })}>
+      <SelectTrigger className={cn("h-9 text-foreground", cls)} aria-label="Job"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__all">{jobLabel("All jobs", allCount)}</SelectItem>
+        {[...railJobs, ...closedJobs].map((j) => <SelectItem key={j.id} value={j.id}>{jobLabel(j.title, countFor(summary.data?.get(j.id), f.status))}</SelectItem>)}
+        <SelectItem value="general">{jobLabel("General applications", general.data ?? 0)}</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+  const isBoard = effectiveMode === "board";
+  const isReview = effectiveMode === "review";
+  const sortLabel = SORT_OPTS.find((o) => o.v === f.sort)?.l ?? "Newest applied";
+
+  const viewSwitch = (
+    <div className="inline-flex rounded-md border border-border p-0.5" role="group" aria-label="View">
+      <Button size="sm" variant={mode === "table" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("table")} aria-pressed={mode === "table"}><Table2 className="h-4 w-4" /> Table</Button>
+      {!isMobile && <Button size="sm" variant={mode === "review" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("review")} aria-pressed={mode === "review"}><Columns2 className="h-4 w-4" /> Review</Button>}
+      <Button size="sm" variant={mode === "board" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("board")} aria-pressed={mode === "board"}><KanbanSquare className="h-4 w-4" /> Board</Button>
+    </div>
+  );
+
+  const chip = (on: boolean, label: string, title: string, onClick: () => void) => (
+    <button type="button" aria-pressed={on} title={title} onClick={onClick}
+      className={cn("inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        on ? "border-primary/40 bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground")}>
+      {on && <Check className="h-3.5 w-3.5 text-primary" aria-hidden />}{label}
+    </button>
+  );
+
+  const active: { key: string; label: string }[] = [];
+  if (f.status !== "active") active.push({ key: "status", label: `Status: ${STATUS_OPTS.find((o) => o.v === f.status)?.l ?? f.status}` });
+  if (f.stage) active.push({ key: "stage", label: `Stage: ${stages.data?.find((s) => s.id === f.stage)?.name ?? "…"}` });
+  if (f.source) active.push({ key: "source", label: `Source: ${sources.data?.find((s) => s.id === f.source)?.name ?? "…"}` });
+  if (f.applied !== "all") active.push({ key: "applied", label: APPLIED_OPTS.find((o) => o.v === f.applied)?.l ?? f.applied });
+  if (f.unreviewed) active.push({ key: "unreviewed", label: "Unreviewed" });
+  if (f.idle) active.push({ key: "idle", label: "Idle" });
+  if (f.q) active.push({ key: "q", label: `Search "${f.q}"` });
+  const removeFilter = (key: string) => { if (key === "q") setQ(""); update({ [key]: null, sel: null }); };
+  const clearAll = () => { setQ(""); update({ status: null, stage: null, source: null, applied: null, unreviewed: null, idle: null, q: null, sel: null }); };
+
+  const filters = isBoard ? (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {(isMobile || true) && <div className={cn(!isMobile && "lg:hidden")}>{jobSelect(isMobile ? "w-full" : "w-64")}</div>}
+        <div className="ml-auto">{viewSwitch}</div>
       </div>
-      {isMobile && (
-        <Select value={f.job ?? "__all"} onValueChange={(v) => update({ job: v === "__all" ? null : v, sel: null })}>
-          <SelectTrigger className="h-9 w-full text-foreground" aria-label="Job"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all">All jobs ({allCount})</SelectItem>
-            {[...railJobs, ...closedJobs].map((j) => <SelectItem key={j.id} value={j.id}>{j.title} ({countFor(summary.data?.get(j.id), f.status)})</SelectItem>)}
-            <SelectItem value="general">General applications ({general.data ?? 0})</SelectItem>
-          </SelectContent>
-        </Select>
-      )}
-      {sel_(f.status, (v) => update({ status: v === "active" ? null : v, sel: null }), STATUS_OPTS, "Status", "w-[8.5rem]")}
-      {sel_(f.stage ?? "__any", (v) => update({ stage: v === "__any" ? null : v, sel: null }),
-        [{ v: "__any", l: "Any stage" }, ...(stages.data ?? []).filter((s) => s.is_active).map((s) => ({ v: s.id, l: s.name }))], "Stage")}
-      {sel_(f.source ?? "__any", (v) => update({ source: v === "__any" ? null : v, sel: null }),
-        [{ v: "__any", l: "Any source" }, ...(sources.data ?? []).map((s) => ({ v: s.id, l: s.name }))], "Source")}
-      {sel_(f.applied, (v) => update({ applied: v === "all" ? null : v, sel: null }), APPLIED_OPTS, "Applied")}
-      {sel_(f.sort, (v) => update({ sort: v === "newest" ? null : v }), SORT_OPTS, "Sort")}
-      <label className="flex h-9 items-center gap-2 rounded-md border border-border px-2.5 text-sm text-foreground">
-        <Switch checked={!!f.unreviewed} onCheckedChange={(v) => update({ unreviewed: v ? "1" : null, sel: null })} /> Unreviewed
-      </label>
-      <label className="flex h-9 items-center gap-2 rounded-md border border-border px-2.5 text-sm text-foreground">
-        <Switch checked={!!f.idle} onCheckedChange={(v) => update({ idle: v ? "1" : null, sel: null })} /> Idle
-      </label>
-      <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={exporting} onClick={() => runExport()}><Download className="h-4 w-4" /> Export</Button>
-      {(
-        <div className="ml-auto inline-flex rounded-md border border-border p-0.5" role="group" aria-label="View">
-          <Button size="sm" variant={mode === "table" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("table")} aria-pressed={mode === "table"}><Table2 className="h-4 w-4" /> Table</Button>
-          {!isMobile && <Button size="sm" variant={mode === "review" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("review")} aria-pressed={mode === "review"}><Columns2 className="h-4 w-4" /> Review</Button>}
-          <Button size="sm" variant={mode === "board" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("board")} aria-pressed={mode === "board"}><KanbanSquare className="h-4 w-4" /> Board</Button>
+      <p className="text-xs text-muted-foreground">The board shows every active and on-hold candidate for this job. Drag a card to move it, or use its ⋯ menu.</p>
+    </div>
+  ) : (
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        {(isMobile || isReview) && <div className={cn(isMobile ? "w-full" : "")}>{jobSelect(isMobile ? "w-full" : "w-56")}</div>}
+        {!isMobile && !isReview && <div className="lg:hidden">{jobSelect("w-64")}</div>}
+        <div className="relative w-full sm:w-72">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Name, email, phone or ref" className="h-9 pl-8 text-foreground" aria-label="Search candidates" />
         </div>
-      )}
+        {sel_(f.status, (v) => update({ status: v === "active" ? null : v, sel: null }), STATUS_OPTS, "Status", "w-[8.5rem]")}
+        {sel_(f.stage ?? "__any", (v) => update({ stage: v === "__any" ? null : v, sel: null }),
+          [{ v: "__any", l: "Any stage" }, ...(stages.data ?? []).filter((s) => s.is_active).map((s) => ({ v: s.id, l: s.name }))], "Stage")}
+        {sel_(f.source ?? "__any", (v) => update({ source: v === "__any" ? null : v, sel: null }),
+          [{ v: "__any", l: "Any source" }, ...(sources.data ?? []).map((s) => ({ v: s.id, l: s.name }))], "Source")}
+        {sel_(f.applied, (v) => update({ applied: v === "all" ? null : v, sel: null }), APPLIED_OPTS, "Applied")}
+        <Select value={f.sort} onValueChange={(v) => update({ sort: v === "newest" ? null : v })}>
+          <SelectTrigger className="h-9 w-[12rem] text-foreground" aria-label="Sort">
+            <span className="truncate"><span className="text-muted-foreground">Sort: </span>{sortLabel}</span>
+          </SelectTrigger>
+          <SelectContent>{SORT_OPTS.map((o) => <SelectItem key={o.v} value={o.v}>{o.l}</SelectItem>)}</SelectContent>
+        </Select>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={exporting} onClick={() => runExport()}><Download className="h-4 w-4" /> Export</Button>
+          {viewSwitch}
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Quick filters</span>
+        {chip(!!f.unreviewed, "Unreviewed", "Applications nobody has opened yet", () => update({ unreviewed: f.unreviewed ? null : "1", sel: null }))}
+        {chip(!!f.idle, "Idle", `Active applications with no movement for ${idleDays}+ days`, () => update({ idle: f.idle ? null : "1", sel: null }))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {list.isLoading ? <Skeleton className="h-4 w-24" /> : <span className="text-sm tabular-nums text-muted-foreground">{total} candidate{total === 1 ? "" : "s"}</span>}
+        {active.map((a) => (
+          <span key={a.key} className="inline-flex h-7 items-center gap-1 rounded-full bg-muted pl-2.5 pr-1 text-xs text-foreground">
+            {a.label}
+            <button type="button" aria-label={`Remove ${a.label} filter`} onClick={() => removeFilter(a.key)}
+              className="inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <X className="h-3 w-3" aria-hidden />
+            </button>
+          </span>
+        ))}
+        {active.length > 0 && <Button size="sm" variant="link" className="h-auto p-0 text-xs" onClick={clearAll}>Clear all</Button>}
+      </div>
     </div>
   );
 
@@ -283,7 +343,8 @@ export default function AtsCandidatesPage() {
     const allPageSelected = rows.length > 0 && rows.every((r) => selected.has(r.application_id!));
     body = <>
       {allPageSelected && total > rows.length && selected.size < Math.min(total, 1000) && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-sm text-foreground">
+          <Info className="h-4 w-4 shrink-0 text-primary" aria-hidden />
           {selected.size} selected.
           <Button size="sm" variant="link" className="h-auto p-0" disabled={selectingAll} onClick={selectAllMatching}>
             Select all {Math.min(total, 1000)} matching these filters{total > 1000 ? " (first 1,000)" : ""}
@@ -310,7 +371,7 @@ export default function AtsCandidatesPage() {
                     className={cn("w-full border-b border-border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       on ? "bg-primary/10" : "hover:bg-muted/60")}>
                     <div className="flex items-center gap-1.5"><UnreviewedDot show={isUnreviewed(r)} /><span className="truncate text-sm font-medium text-foreground">{r.full_name}</span><UnreadMailMark candidateId={r.candidate_id} /></div>
-                    <div className="truncate text-xs text-muted-foreground">{r.job_title ?? "General"} · {r.stage_name}</div>
+                    <div className="truncate text-xs text-muted-foreground">{r.job_title ?? "General application"} · {r.stage_name}</div>
                     <div className="text-xs text-muted-foreground">{fmtDate(r.applied_at)}</div>
                   </button>
                 </li>
@@ -335,20 +396,10 @@ export default function AtsCandidatesPage() {
   }
 
   return (
-    <div className={cn("grid gap-4", !isMobile && "lg:grid-cols-[14rem_1fr]")}>
-      {!isMobile && <aside className="hidden lg:block"><div className="sticky top-2 rounded-xl border border-border bg-card p-2">{rail}</div></aside>}
+    <div className={cn("grid gap-4", !isMobile && !isReview && "lg:grid-cols-[14rem_1fr]")}>
+      {!isMobile && !isReview && <aside className="hidden lg:block"><div className="sticky top-2 rounded-xl border border-border bg-card p-2">{rail}</div></aside>}
       <div className="min-w-0 space-y-3">
         {filters}
-        {!isMobile && <div className="lg:hidden">{/* tablet: compact job select */}
-          <Select value={f.job ?? "__all"} onValueChange={(v) => update({ job: v === "__all" ? null : v, sel: null })}>
-            <SelectTrigger className="h-9 w-64 text-foreground" aria-label="Job"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all">All jobs ({allCount})</SelectItem>
-              {[...railJobs, ...closedJobs].map((j) => <SelectItem key={j.id} value={j.id}>{j.title} ({countFor(summary.data?.get(j.id), f.status)})</SelectItem>)}
-              <SelectItem value="general">General applications ({general.data ?? 0})</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>}
         {body}
         {effectiveMode === "table" && selected.size > 0 && <BulkBar rows={[...selected.values()]} onClear={() => setSelected(new Map())} onExport={() => runExport([...selected.values()])} exporting={exporting} />}
       </div>

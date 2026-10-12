@@ -1,28 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { CalendarClock, CalendarPlus, MoreVertical } from "lucide-react";
+import { CalendarClock, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { atsKeys } from "@/lib/ats/api";
-import { candKeys, type AtsAppRow, type AtsCandidate } from "@/lib/ats/candidates";
-import { interviewErrorMessage } from "@/lib/ats/errors";
+import { type AtsAppRow, type AtsCandidate } from "@/lib/ats/candidates";
 import { fmtDate, fmtDateTime } from "@/lib/ats/format";
 import { useMailStatus } from "@/lib/ats/mail";
 import {
-  activePanel, durationText, fmtUntil, interviewValues, ivDateText, ivKeys, ivState, ivTimeText, ivWhen, minutesBetween,
-  missingFeedback, recLabel, setInterviewStatus, useAppInterviews, type InterviewRow, type IvMode, type IvTarget,
+  activePanel, fmtUntil, ivState, ivWhen, missingFeedback, recLabel, useAppInterviews, type IvTarget,
 } from "@/lib/ats/interviews";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
 import { InterviewStatusBadge, PanelChips, ResponseChip, Tip, WhereLine } from "./InterviewBits";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
-import { NotifyInterviewDialog } from "./NotifyInterviewDialog";
-import { CancelInterviewDialog } from "./CancelInterviewDialog";
-import { InterviewFeedbackDialog } from "./InterviewFeedbackDialog";
+import { InterviewActions } from "./InterviewActions";
 
 function Clamp({ text, lines, prefix }: { text: string; lines: 2 | 3; prefix?: string }) {
   const [open, setOpen] = useState(false);
@@ -37,16 +27,13 @@ function Clamp({ text, lines, prefix }: { text: string; lines: 2 | 3; prefix?: s
   );
 }
 
-type Dlg = null | { kind: "schedule"; iv?: InterviewRow | null; copy?: InterviewRow | null } | { kind: "notify" | "cancel" | "feedback"; iv: InterviewRow };
 
 export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow; candidate: AtsCandidate; openSignal?: number }) {
-  const qc = useQueryClient();
   const list = useAppInterviews(app.application_id);
   const mail = useMailStatus();
   const mailOn = !!mail.data?.enabled;
-  const [dlg, setDlg] = useState<Dlg>(null);
+  const [newOpen, setNewOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
   const first = (candidate.full_name ?? "").trim().split(/\s+/)[0] || "the candidate";
   const canSchedule = app.status === "active" || app.status === "on_hold";
 
@@ -58,7 +45,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
 
   const lastSignal = useRef(openSignal ?? 0);
   useEffect(() => {
-    if (openSignal && openSignal > 0 && openSignal !== lastSignal.current && canSchedule) setDlg({ kind: "schedule" });
+    if (openSignal && openSignal > 0 && openSignal !== lastSignal.current && canSchedule) setNewOpen(true);
     lastSignal.current = openSignal ?? 0;
   }, [openSignal, canSchedule]);
 
@@ -72,42 +59,9 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
   }, [list.data]);
   const shown = showAll ? sorted : sorted.slice(0, 4);
 
-  const refresh = () => { for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k }); };
-
-  const setStatus = async (iv: InterviewRow, status: "completed" | "no_show" | "scheduled") => {
-    if (busyId) return;
-    setBusyId(iv.id);
-    try {
-      await setInterviewStatus(iv.id, status);
-      if (status === "completed") toast.success("Marked as completed", { action: { label: "Add feedback", onClick: () => setDlg({ kind: "feedback", iv }) } });
-      else toast.success(status === "no_show" ? "Marked as did not attend" : "Marked as scheduled again");
-      refresh();
-    } catch (e) {
-      toast.error(interviewErrorMessage(e));
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const copyDetails = (iv: InterviewRow) => {
-    const s = new Date(iv.starts_at);
-    const v = interviewValues({
-      fullName: target.fullName, refNo: target.refNo, jobTitle: target.jobTitle, phone: target.phone, title: iv.title,
-      mode: iv.mode as IvMode, startsAt: iv.starts_at, minutes: minutesBetween(iv.starts_at, iv.ends_at),
-      location: iv.location, meetingUrl: iv.meeting_url, candidateNote: iv.candidate_note,
-    });
-    const lines = [
-      `Interview: ${iv.title} for ${v.job_title}`,
-      `When: ${ivDateText(s)}, ${ivTimeText(s)} (${durationText(minutesBetween(iv.starts_at, iv.ends_at))})`,
-      v.interview_where,
-      ...(iv.candidate_note?.trim() ? [iv.candidate_note.trim()] : []),
-    ];
-    navigator.clipboard.writeText(lines.join("\n")).then(() => toast.success("Copied"), () => toast.error("Couldn't copy"));
-  };
-
   const scheduleTip = app.status === "hired" ? "This candidate is hired." : "Reopen this application to schedule an interview.";
   const scheduleBtn = (
-    <Button size="sm" variant="outline" className="h-8 gap-1" disabled={!canSchedule} onClick={() => setDlg({ kind: "schedule" })}>
+    <Button size="sm" variant="outline" className="h-8 gap-1" disabled={!canSchedule} onClick={() => setNewOpen(true)}>
       <CalendarPlus className="h-3.5 w-3.5" /> Schedule
     </Button>
   );
@@ -124,7 +78,6 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
               const members = activePanel(iv);
               const withFb = members.filter((m) => m.feedback_at);
               const missing = missingFeedback(iv);
-              const busy = busyId === iv.id;
               return (
                 <li key={iv.id} className="space-y-1.5 rounded-lg border border-border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -160,34 +113,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                   {st === "completed" && missing.length > 0 && <p className="text-sm text-warning">Feedback missing from {missing.map((m) => m.name).join(", ")}</p>}
                   {iv.status === "scheduled" && appClosed && <p className="text-sm text-warning">This application is closed. Cancel this interview if it won't happen.</p>}
 
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                    {st === "upcoming" && <Button size="sm" variant="outline" className="h-7" disabled={busy} onClick={() => setDlg({ kind: "schedule", iv })}>Change</Button>}
-                    {(st === "now" || st === "awaiting") && <>
-                      <Button size="sm" variant="outline" className="h-7" disabled={busy} onClick={() => setStatus(iv, "completed")}>Completed</Button>
-                      <Button size="sm" variant="outline" className="h-7" disabled={busy} onClick={() => setStatus(iv, "no_show")}>Did not attend</Button>
-                    </>}
-                    {st === "completed" && (
-                      <Button size="sm" variant="outline" className="h-7" disabled={busy} onClick={() => setDlg({ kind: "feedback", iv })}>
-                        {members.length > 0 && missing.length === 0 ? "Edit feedback" : "Add feedback"}
-                      </Button>
-                    )}
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Interview actions" disabled={busy}><MoreVertical className="h-4 w-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {(st === "now" || st === "awaiting") && <DropdownMenuItem onSelect={() => setDlg({ kind: "schedule", iv })}>Change</DropdownMenuItem>}
-                        {(st === "upcoming" || st === "now") && mailOn && <DropdownMenuItem onSelect={() => setDlg({ kind: "notify", iv })}>Send invitations…</DropdownMenuItem>}
-                        {(st === "completed" || st === "no_show") && <DropdownMenuItem onSelect={() => setStatus(iv, "scheduled")}>Undo: mark as scheduled</DropdownMenuItem>}
-                        {(st === "no_show" || st === "cancelled") && <DropdownMenuItem disabled={!canSchedule} onSelect={() => setDlg({ kind: "schedule", copy: iv })}>Schedule again</DropdownMenuItem>}
-                        {st !== "no_show" && st !== "cancelled" && <DropdownMenuItem onSelect={() => copyDetails(iv)}>Copy details</DropdownMenuItem>}
-                        {(st === "upcoming" || st === "now" || st === "awaiting") && <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDlg({ kind: "cancel", iv })}>Cancel interview…</DropdownMenuItem>
-                        </>}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  <InterviewActions iv={iv} target={target} mailOn={mailOn} canSchedule={canSchedule} />
                 </li>
               );
             })}
@@ -197,12 +123,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
           </ul>
         )}
 
-      <ScheduleInterviewDialog open={dlg?.kind === "schedule"} onOpenChange={(o) => { if (!o) setDlg(null); }} target={target}
-        interview={dlg?.kind === "schedule" ? dlg.iv ?? null : null} copyFrom={dlg?.kind === "schedule" ? dlg.copy ?? null : null} />
-      {dlg?.kind === "notify" && <NotifyInterviewDialog open onOpenChange={(o) => { if (!o) setDlg(null); }} iv={dlg.iv} target={target} />}
-      {dlg?.kind === "cancel" && <CancelInterviewDialog open onOpenChange={(o) => { if (!o) setDlg(null); }} iv={dlg.iv} target={target} />}
-      {dlg?.kind === "feedback" && <InterviewFeedbackDialog open onOpenChange={(o) => { if (!o) setDlg(null); }}
-        iv={(list.data ?? []).find((x) => x.id === dlg.iv.id) ?? dlg.iv} />}
+      <ScheduleInterviewDialog open={newOpen} onOpenChange={setNewOpen} target={target} />
     </SectionCard>
   );
 }

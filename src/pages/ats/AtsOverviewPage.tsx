@@ -1,5 +1,6 @@
 import { useMailStatus } from "@/lib/ats/mail";
-import { Mail } from "lucide-react";
+import { Mail, CalendarClock } from "lucide-react";
+import { useInterviewCounts } from "@/lib/ats/interviews";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ export default function AtsOverviewPage() {
     queryFn: async () => { const { data, error } = await supabase.rpc("ats_integration_status"); if (error) throw error; return data as any; },
   });
   const mailSt = useMailStatus();
+  const ivCounts = useInterviewCounts();
   const unsorted = Number(integ.data?.unmatched_active ?? 0);
 
   const openJobs = useMemo(() => (jobs.data ?? []).filter((j) => j.status === "open"), [jobs.data]);
@@ -63,6 +65,18 @@ export default function AtsOverviewPage() {
           <Mail className="h-4 w-4 text-primary" aria-hidden />
           {mailSt.data.unread} unread candidate replies.
           <Link to="/hrms/ats/inbox" className="font-medium text-primary hover:underline">Open inbox</Link>
+        </div>
+      )}
+      {((ivCounts.data?.today ?? 0) > 0 || (ivCounts.data?.action ?? 0) > 0) && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground" role="status">
+          <CalendarClock className="h-4 w-4 text-primary" aria-hidden />
+          {ivCounts.data!.today} interview{ivCounts.data!.today === 1 ? "" : "s"} today.
+          <Link to="/hrms/ats/interviews?view=today" className="font-medium text-primary hover:underline">View</Link>
+          {ivCounts.data!.action > 0 && <>
+            <span className="text-muted-foreground">·</span>
+            {ivCounts.data!.action} need{ivCounts.data!.action === 1 ? "s" : ""} an update or feedback.
+            <Link to="/hrms/ats/interviews?view=action" className="font-medium text-primary hover:underline">Review</Link>
+          </>}
         </div>
       )}
       {ov.isLoading ? (

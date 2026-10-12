@@ -33,8 +33,9 @@ import { candKeys, type AtsCandidate, type AtsFile } from "@/lib/ats/candidates"
 import {
   MailError, PLACEHOLDER_RE, canRetry, findOlderEmails, deleteMessage, mailErrorMessage, mailKeys, markMessageUnread, markThreadRead,
   purposeLabel, renderTemplate, retryCandidateEmail, sendCandidateEmail, splitQuoted, useEmailTemplates,
-  useMailStatus, useMailThread, type AtsMessage, type MailAttachmentInfo,
+  useMailStatus, useMailThread, usesInterviewFields, type AtsMessage, type MailAttachmentInfo,
 } from "@/lib/ats/mail";
+import { CalendarDays } from "lucide-react";
 import { QueryError, RowsSkeleton } from "./AtsBits";
 import { useCheckNow } from "./EmailSettingsSection";
 
@@ -276,6 +277,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged }: { m: AtsMessage; f
         </div>
         <div className="mt-1 flex flex-wrap gap-1">
           {m.purpose && m.purpose !== "general" && <Badge variant="secondary" className="font-normal">{purposeLabel(m.purpose)}</Badge>}
+          {m.calendar_ics && <Badge variant="outline" className="gap-1 font-normal"><CalendarDays className="h-3 w-3" /> Calendar invite</Badge>}
           {!out && m.is_automatic && <Badge variant="outline" className="font-normal">Automatic reply</Badge>}
         </div>
         <p className="mt-1 break-words text-sm font-semibold text-foreground">{m.subject || "(no subject)"}</p>
@@ -454,7 +456,7 @@ function Composer({ candidate, appId, files, thread, onClose, onDone }: {
         <span className="min-w-0 flex-1 truncate text-foreground">{candidate.email}</span>
         <Select value="" onValueChange={pickTemplate}>
           <SelectTrigger className="h-8 w-[200px] text-foreground"><SelectValue placeholder="Use a template…" /></SelectTrigger>
-          <SelectContent>{(templates.data ?? []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+          <SelectContent>{(templates.data ?? []).filter((t) => !usesInterviewFields(t)).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
       <Input placeholder="Subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" aria-label="Subject" />

@@ -40,7 +40,7 @@ export function NotifyInterviewDialog({ open, onOpenChange, iv, target }: { open
 
   useEffect(() => {
     if (!open) { inited.current = false; return; }
-    if (inited.current || emails.isLoading || !list.length) return;
+    if (inited.current || emails.isLoading || templates.isLoading) return;
     inited.current = true;
     clientId.current = crypto.randomUUID();
     setCand(!latest && !!target.email);

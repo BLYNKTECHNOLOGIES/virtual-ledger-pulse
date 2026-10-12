@@ -331,7 +331,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
             </Select>
           </div>
           {!isNaN(endMs) && <p className="text-xs text-muted-foreground">Ends {ivClock(new Date(endMs))} IST · {ivDateText(new Date(startMs))}</p>}
-          {isPast && <p className="text-xs text-warning">This time has passed. The interview will be recorded and no emails will be sent.</p>}
+          {isPast && !endFuture && <p className="text-xs text-warning">This time has passed. The interview will be recorded and no emails will be sent.</p>}
         </div>
 
         {/* How */}

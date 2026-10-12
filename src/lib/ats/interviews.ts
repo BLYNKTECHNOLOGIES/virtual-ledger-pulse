@@ -277,3 +277,65 @@ export async function findConflicts(a: { startsAt: string; endsAt: string; candi
   }
   return out;
 }
+
+/* ---------- Interviews tab ---------- */
+export type IvView = "upcoming" | "today" | "action" | "past" | "cancelled";
+export type InterviewListRow = InterviewRow & {
+  ats_candidates: { full_name: string | null; ref_no: string | null; email: string | null; phone: string | null } | null;
+  ats_applications: { id: string; status: string; position_text: string | null; ats_jobs: { id: string; title: string } | null } | null;
+};
+const LIST_SELECT = "*, ats_interview_panel(*), ats_candidates(full_name,ref_no,email,phone), ats_applications(id,status,position_text,ats_jobs(id,title))";
+const todayRange = () => {
+  const start = new Date(istToIso(todayIST(), "00:00"));
+  return { start: start.toISOString(), end: new Date(start.getTime() + 86_400_000).toISOString() };
+};
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+
+export const useInterviewList = (view: IvView) =>
+  useQuery({
+    queryKey: ["ats", "iv", "list", view],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      let q = supabase.from("ats_interviews").select(LIST_SELECT);
+      if (view === "upcoming") q = q.eq("status", "scheduled").gte("ends_at", now).order("starts_at", { ascending: true });
+      else if (view === "today") { const t = todayRange(); q = q.gte("starts_at", t.start).lt("starts_at", t.end).neq("status", "cancelled").order("starts_at", { ascending: true }); }
+      else if (view === "action") q = q.or(`and(status.eq.scheduled,ends_at.lt.${now}),and(status.eq.completed,starts_at.gte.${daysAgo(60)})`).order("starts_at", { ascending: false });
+      else if (view === "past") q = q.in("status", ["completed", "no_show"]).gte("starts_at", daysAgo(90)).order("starts_at", { ascending: false });
+      else q = q.eq("status", "cancelled").gte("starts_at", daysAgo(90)).order("starts_at", { ascending: false });
+      const { data, error } = await q.limit(500);
+      if (error) throw error;
+      let rows = (data ?? []) as unknown as InterviewListRow[];
+      if (view === "action") {
+        const t = Date.now();
+        rows = rows.filter((r) => (r.status === "scheduled" && new Date(r.ends_at).getTime() < t) || (r.status === "completed" && missingFeedback(r).length > 0));
+      }
+      return rows;
+    },
+  });
+
+export const useInterviewCounts = () =>
+  useQuery({
+    queryKey: ["ats", "iv", "counts"],
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      const t = todayRange();
+      const [a, b, c] = await Promise.all([
+        supabase.from("ats_interviews").select("id", { count: "exact", head: true }).gte("starts_at", t.start).lt("starts_at", t.end).neq("status", "cancelled"),
+        supabase.from("ats_interviews").select("id", { count: "exact", head: true }).eq("status", "scheduled").lt("ends_at", now),
+        supabase.from("ats_interviews").select("id, ats_interview_panel(removed_at,feedback_at)").eq("status", "completed").gte("starts_at", daysAgo(60)).limit(500),
+      ]);
+      for (const r of [a, b, c]) if (r.error) throw r.error;
+      const missing = ((c.data ?? []) as any[]).filter((r) => (r.ats_interview_panel ?? []).some((m: any) => !m.removed_at && !m.feedback_at)).length;
+      return { today: a.count ?? 0, action: (b.count ?? 0) + missing };
+    },
+  });
+
+/** IvTarget for an Interviews-tab row. */
+export const listRowTarget = (r: InterviewListRow): IvTarget => ({
+  applicationId: r.application_id, candidateId: r.candidate_id,
+  fullName: r.ats_candidates?.full_name ?? "", email: r.ats_candidates?.email ?? null, phone: r.ats_candidates?.phone ?? null,
+  refNo: r.ats_candidates?.ref_no ?? null,
+  jobTitle: r.ats_applications?.ats_jobs?.title ?? r.ats_applications?.position_text ?? null,
+});

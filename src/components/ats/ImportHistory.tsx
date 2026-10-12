@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { atsKeys } from "@/lib/ats/api";
+import { atsKeys, useIsHrAdmin } from "@/lib/ats/api";
 import { candKeys } from "@/lib/ats/candidates";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDateTime } from "@/lib/ats/format";
@@ -63,6 +63,7 @@ const canUndo = (r: ImportListRow) =>
   r.status !== "undone" && Date.now() - new Date(r.created_at).getTime() < UNDO_DAYS * 86_400_000;
 
 export function ImportHistory() {
+  const isAdmin = useIsHrAdmin();
   const q = useImports();
   const isMobile = useIsMobile();
   const [viewing, setViewing] = useState<ImportListRow | null>(null);
@@ -72,7 +73,7 @@ export function ImportHistory() {
   const actions = (r: ImportListRow) => (
     <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="outline" onClick={() => setViewing(r)}>View rows</Button>
-      {canUndo(r) && <Button size="sm" variant="outline" className="text-destructive" onClick={() => setUndoing(r)}>Undo import</Button>}
+      {isAdmin && canUndo(r) && <Button size="sm" variant="outline" className="text-destructive" onClick={() => setUndoing(r)}>Undo import</Button>}
     </div>
   );
 

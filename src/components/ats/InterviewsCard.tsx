@@ -3,6 +3,7 @@ import { CalendarClock, CalendarPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { type AtsAppRow, type AtsCandidate } from "@/lib/ats/candidates";
 import { fmtDate, fmtDateTime } from "@/lib/ats/format";
 import { useMailStatus } from "@/lib/ats/mail";
@@ -10,7 +11,7 @@ import {
   activePanel, fmtUntil, ivState, ivWhen, missingFeedback, recLabel, useAppInterviews, type IvTarget,
 } from "@/lib/ats/interviews";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
-import { InterviewStatusBadge, PanelChips, ResponseChip, Tip, WhereLine } from "./InterviewBits";
+import { InterviewStatusBadge, ivAccentClass, PanelChips, ResponseChip, Tip, WhereLine } from "./InterviewBits";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
 import { InterviewActions } from "./InterviewActions";
 
@@ -71,7 +72,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
     <SectionCard title={<>Interviews{sorted.length > 1 && <span className="ml-1.5 text-muted-foreground">({sorted.length})</span>}</>}
       action={canSchedule ? scheduleBtn : <Tip text={scheduleTip}><span tabIndex={0}>{scheduleBtn}</span></Tip>}>
       {list.isLoading ? <RowsSkeleton rows={2} /> : list.isError ? <QueryError error={list.error} onRetry={() => list.refetch()} /> :
-        !sorted.length ? <p className="text-sm text-muted-foreground">No interviews yet.</p> : (
+        !sorted.length ? <EmptyState icon={CalendarClock} title="No interviews yet." className="py-6" /> : (
           <ul className="space-y-2">
             {shown.map((iv) => {
               const st = ivState(iv);
@@ -79,7 +80,8 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
               const withFb = members.filter((m) => m.feedback_at);
               const missing = missingFeedback(iv);
               return (
-                <li key={iv.id} className="space-y-1.5 rounded-lg border border-border p-3">
+                <li key={iv.id} className="relative space-y-1.5 overflow-hidden rounded-lg border border-border bg-card p-3 pl-4">
+                  <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${ivAccentClass(iv)}`} />
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="font-medium text-foreground">{iv.title}</span>
                     <InterviewStatusBadge iv={iv} />
@@ -102,7 +104,7 @@ export function InterviewsCard({ app, candidate, openSignal }: { app: AtsAppRow;
                     <p className="text-sm text-muted-foreground">Cancelled by {iv.cancelled_by_name ?? "—"} on {fmtDate(iv.cancelled_at)}{iv.cancel_reason ? ` · ${iv.cancel_reason}` : ""}</p>
                   )}
                   {st === "completed" && withFb.map((m) => (
-                    <div key={m.id} className="space-y-0.5 rounded-md bg-muted/40 p-2">
+                    <div key={m.id} className="space-y-0.5 rounded-md bg-muted/50 p-2.5">
                       <p className="text-sm font-medium text-foreground">
                         {m.name}{[recLabel(m.recommendation), m.score ? `${m.score}/5` : null].filter(Boolean).length ? ": " : ""}
                         {[recLabel(m.recommendation), m.score ? `${m.score}/5` : null].filter(Boolean).join(" · ")}

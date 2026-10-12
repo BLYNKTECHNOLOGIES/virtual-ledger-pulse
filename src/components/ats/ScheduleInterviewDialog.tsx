@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -230,8 +231,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
         attachResume: wantPanel && attachResume,
       });
       const names = new Map<string, string>();
-      const { data: rows } = await import("@/integrations/supabase/client").then(({ supabase }) =>
-        supabase.from("ats_interview_panel").select("id,name").eq("interview_id", r.id));
+      const { data: rows } = await supabase.from("ats_interview_panel").select("id,name").eq("interview_id", r.id);
       for (const m of rows ?? []) names.set(m.id, m.name);
       summarizeNotify(res, { base: baseText(r), firstName: first, action: editing ? "update" : "invite", names });
       refresh();

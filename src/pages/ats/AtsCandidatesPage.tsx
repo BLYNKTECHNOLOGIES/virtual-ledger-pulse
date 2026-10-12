@@ -262,7 +262,7 @@ export default function AtsCandidatesPage() {
   const filters = isBoard ? (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        {(isMobile || true) && <div className={cn(!isMobile && "lg:hidden")}>{jobSelect(isMobile ? "w-full" : "w-64")}</div>}
+        <div className={cn(!isMobile && "lg:hidden")}>{jobSelect(isMobile ? "w-full" : "w-64")}</div>
         <div className="ml-auto">{viewSwitch}</div>
       </div>
       <p className="text-xs text-muted-foreground">The board shows every active and on-hold candidate for this job. Drag a card to move it, or use its ⋯ menu.</p>

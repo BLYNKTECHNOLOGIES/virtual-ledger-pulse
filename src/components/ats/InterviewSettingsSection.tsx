@@ -64,6 +64,7 @@ export function InterviewSettingsSection() {
     <SectionCard title="Interviews">
       <div className="grid max-w-xl grid-cols-1 gap-4">
         <div className="space-y-1.5">
+          {!address.trim() && <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-foreground">Add the office address so in-person interviews fill it in automatically.</p>}
           <Label htmlFor="ats-iv-addr">Office address for in-person interviews</Label>
           <Textarea id="ats-iv-addr" rows={2} maxLength={300} value={address} onChange={(e) => setAddress(e.target.value)} className="text-foreground" />
           <p className="text-xs text-muted-foreground">Filled in automatically when you schedule an in-person interview.</p>

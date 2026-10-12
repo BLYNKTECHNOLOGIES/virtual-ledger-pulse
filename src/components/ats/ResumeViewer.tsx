@@ -221,7 +221,7 @@ export function ResumeViewer({
               <Button size="sm" className="gap-1.5" onClick={download}><Download className="h-4 w-4" /> Download</Button>
             </div>} />
         ) : k === "doc" || k === "other" ? (
-          <EmptyState icon={FileText} title="Preview isn't available for .doc files" description="Download the file to open it in Word."
+          <EmptyState icon={FileText} title="Preview isn't available for this file type. Download it to open."
             action={<Button size="sm" className="gap-1.5" onClick={download}><Download className="h-4 w-4" /> Download</Button>} />
         ) : !url ? (
           <div className="flex h-40 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>

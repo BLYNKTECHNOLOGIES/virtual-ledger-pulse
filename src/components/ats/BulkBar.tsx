@@ -17,6 +17,8 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { atsKeys, useAtsReasons, useAtsStages } from "@/lib/ats/api";
 import { runBulk, type BulkAction, type BulkResult } from "@/lib/ats/bulk";
 import { candKeys, candidateHref, type AtsAppRow } from "@/lib/ats/candidates";
+import { useEmailTemplates, useMailStatus } from "@/lib/ats/mail";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const verb = (a: BulkAction) => (a.kind === "move" ? "moved" : a.kind === "hold" ? "put on hold" : "rejected");
 const title = (a: BulkAction) => (a.kind === "move" ? `Move to ${a.stageName}` : a.kind === "hold" ? "Put on hold" : "Reject");
@@ -33,18 +35,30 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
   const [result, setResult] = useState<{ action: BulkAction; res: BulkResult } | null>(null);
   const signal = useRef({ cancelled: false });
   const running = !!progress;
-  useEffect(() => { if (rejectOpen) { setRid(""); setNote(""); } }, [rejectOpen]);
+  const mailSt = useMailStatus();
+  const mailOn = !!mailSt.data?.enabled;
+  const templates = useEmailTemplates();
+  const rejTpls = (templates.data ?? []).filter((t) => t.purpose === "rejection");
+  const [emailEach, setEmailEach] = useState(false);
+  const [tplId, setTplId] = useState("");
+  useEffect(() => {
+    if (!rejectOpen) return;
+    setRid(""); setNote(""); setEmailEach(!!mailSt.data?.reject_default);
+    setTplId((rejTpls.find((t) => t.code === "rejection") ?? rejTpls[0])?.id ?? "");
+  }, [rejectOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const start = async (action: BulkAction) => {
     setPending(null);
     signal.current = { cancelled: false };
     setProgress({ n: 0, total: rows.length });
-    const res = await runBulk(action, rows, { signal: signal.current, onProgress: (n, total) => setProgress({ n, total }), concurrency: 4 });
+    const emailTemplateId = action.kind === "reject" && mailOn && emailEach ? (tplId || null) : null;
+    const res = await runBulk(action, rows, { signal: signal.current, onProgress: (n, total) => setProgress({ n, total }), concurrency: 4, emailTemplateId });
     setProgress(null);
     setResult({ action, res });
     qc.invalidateQueries({ queryKey: candKeys.all });
     qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
     qc.invalidateQueries({ queryKey: atsKeys.overview });
+    qc.invalidateQueries({ queryKey: ["ats", "mail"] });
   };
 
   const activeStages = (stages.data ?? []).filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order);
@@ -92,7 +106,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
         description="The same reason is applied to every selected application."
         footer={<>
           <Button variant="ghost" onClick={() => setRejectOpen(false)}>Cancel</Button>
-          <Button variant="destructive" type="submit" form="ats-bulk-reject" disabled={!rid}>Reject {rows.length}</Button>
+          <Button variant="destructive" type="submit" form="ats-bulk-reject" disabled={!rid || (mailOn && emailEach && !tplId)}>Reject {rows.length}</Button>
         </>}>
         <form id="ats-bulk-reject" className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (!rid) return; setRejectOpen(false); start({ kind: "reject", reasonId: rid, note: note.trim() }); }}>
           <div className="space-y-1.5">
@@ -106,6 +120,17 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
             <Label htmlFor="ats-bulk-note">Note (optional)</Label>
             <Textarea id="ats-bulk-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-foreground" />
           </div>
+          {mailOn && (
+            <div className="space-y-2 rounded-lg border border-border p-3">
+              <label className="flex items-center gap-2 text-sm text-foreground"><Checkbox checked={emailEach} onCheckedChange={(v) => setEmailEach(!!v)} /> Email each candidate</label>
+              {emailEach && (
+                <Select value={tplId} onValueChange={setTplId}>
+                  <SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a template" /></SelectTrigger>
+                  <SelectContent>{rejTpls.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
         </form>
       </ResponsiveDialog>
 
@@ -118,6 +143,21 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
               {result.res.failed.length > 0 && `, ${result.res.failed.length} failed`}
               {result.res.cancelled && " · cancelled before finishing"}
             </p>
+            {result.res.email && (
+              <>
+                <p className="text-foreground">{result.res.email.sent} emails sent · {result.res.email.noEmail} without an email address · {result.res.email.notSent.length} not sent</p>
+                {result.res.email.notSent.length > 0 && (
+                  <ul className="max-h-40 divide-y divide-border overflow-y-auto rounded-lg border border-border">
+                    {result.res.email.notSent.map(({ row, reason }) => (
+                      <li key={`m-${row.application_id}`} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                        <Link to={candidateHref(row)} className="truncate text-primary hover:underline">{row.full_name} <span className="t-mono text-xs text-muted-foreground">{row.ref_no}</span></Link>
+                        <span className="shrink-0 text-xs text-muted-foreground">{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
             {[...result.res.skipped, ...result.res.failed].length > 0 && (
               <ul className="max-h-64 divide-y divide-border overflow-y-auto rounded-lg border border-border">
                 {[...result.res.failed, ...result.res.skipped].map(({ row, reason }) => (

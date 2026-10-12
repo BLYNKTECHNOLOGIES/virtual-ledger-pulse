@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, CheckCircle2, ChevronDown, Circle, Copy, MailX, MapPin, Phone, RefreshCw, Video } from "lucide-react";
+import { AlertCircle, AlertTriangle, CalendarClock, CheckCircle2, UserX, XCircle, ChevronDown, Circle, Copy, MailX, MapPin, Phone, RefreshCw, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "./AtsUi";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,21 +30,25 @@ export function Tip({ text, children }: { text: ReactNode; children: ReactNode }
 export function InterviewStatusBadge({ iv }: { iv: Pick<AtsInterview, "status" | "starts_at" | "ends_at"> }) {
   const st = ivState(iv);
   const isToday = istInputs(iv.starts_at).date === todayIST();
-  const base = "whitespace-nowrap font-medium";
   switch (st) {
     case "upcoming":
       return (
         <span className="inline-flex items-center gap-1">
-          <Badge variant="outline" className={cn(base, "border-primary/50 text-primary")}>Scheduled</Badge>
-          {isToday && <Badge variant="secondary" className={base}>Today</Badge>}
+          <StatusPill tone="primary" icon={CalendarClock}>Scheduled</StatusPill>
+          {isToday && <StatusPill tone="neutral">Today</StatusPill>}
         </span>
       );
-    case "now": return <Badge className={cn(base, "bg-success text-success-foreground hover:bg-success")}>Now</Badge>;
-    case "awaiting": return <Badge variant="outline" className={cn(base, "border-warning/60 bg-warning/10 text-warning")}>How did it go?</Badge>;
-    case "completed": return <Badge variant="outline" className={cn(base, "border-success/50 bg-success/10 text-success")}>Completed</Badge>;
-    case "no_show": return <Badge variant="outline" className={cn(base, "border-warning/60 bg-warning/10 text-warning")}>Did not attend</Badge>;
-    default: return <Badge variant="outline" className={cn(base, "text-muted-foreground")}>Cancelled</Badge>;
+    case "now": return <StatusPill tone="success"><span className="inline-flex items-center gap-1.5"><span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-success motion-reduce:animate-none" />Now</span></StatusPill>;
+    case "awaiting": return <StatusPill tone="warning" icon={AlertCircle}>Needs an update</StatusPill>;
+    case "completed": return <StatusPill tone="success" icon={CheckCircle2}>Completed</StatusPill>;
+    case "no_show": return <StatusPill tone="warning" icon={UserX}>Did not attend</StatusPill>;
+    default: return <StatusPill tone="neutral" icon={XCircle}>Cancelled</StatusPill>;
   }
+}
+
+/** 3px left accent bar colour by interview state. */
+export function ivAccentClass(iv: Pick<AtsInterview, "status" | "starts_at" | "ends_at">) {
+  return ({ upcoming: "bg-primary", now: "bg-success", awaiting: "bg-warning", completed: "bg-success/50", no_show: "bg-warning/60" } as Record<string, string>)[ivState(iv)] ?? "bg-muted-foreground/40";
 }
 
 export function PanelChips({ iv, mailOn }: { iv: InterviewRow; mailOn: boolean }) {
@@ -62,7 +66,7 @@ export function PanelChips({ iv, mailOn }: { iv: InterviewRow; mailOn: boolean }
         else if (s === "no_email") { icon = <MailX className="h-3 w-3 text-muted-foreground" />; tip = "No work email, so no calendar invite"; }
         else if (mailOn) { icon = <Circle className="h-3 w-3 text-muted-foreground" />; tip = "No calendar invite sent yet"; }
         const chip = (
-          <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-xs text-foreground">
+          <span className="inline-flex h-6 items-center gap-1 rounded-full bg-muted px-2 text-xs text-foreground ring-1 ring-inset ring-border">
             {m.name}{icon}
           </span>
         );
@@ -75,12 +79,12 @@ export function PanelChips({ iv, mailOn }: { iv: InterviewRow; mailOn: boolean }
 export function ResponseChip({ iv }: { iv: Pick<AtsInterview, "candidate_response" | "candidate_response_at"> }) {
   const r = iv.candidate_response;
   if (!r) return null;
-  const [label, cls] = r === "accepted" ? ["Candidate accepted", "border-success/50 bg-success/10 text-success"]
-    : r === "declined" ? ["Candidate declined", "border-destructive/50 bg-destructive/10 text-destructive"]
-    : ["Candidate said maybe", "border-warning/60 bg-warning/10 text-warning"];
+  const [label, tone] = r === "accepted" ? ["Candidate accepted", "success" as const]
+    : r === "declined" ? ["Candidate declined", "destructive" as const]
+    : ["Candidate said maybe", "warning" as const];
   return (
     <Tip text={fmtDateTime(iv.candidate_response_at)}>
-      <Badge variant="outline" tabIndex={0} className={cn("font-medium", cls)}>{label}</Badge>
+      <span tabIndex={0} className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><StatusPill tone={tone}>{label}</StatusPill></span>
     </Tip>
   );
 }

@@ -1091,6 +1091,60 @@ export type Database = {
           },
         ]
       }
+      ats_email_templates: {
+        Row: {
+          body: string
+          code: string
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          is_active: boolean
+          is_system: boolean
+          name: string
+          purpose: string
+          sort_order: number
+          subject: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          body: string
+          code: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name: string
+          purpose?: string
+          sort_order?: number
+          subject: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          body?: string
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          is_active?: boolean
+          is_system?: boolean
+          name?: string
+          purpose?: string
+          sort_order?: number
+          subject?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: []
+      }
       ats_events: {
         Row: {
           actor_name: string | null
@@ -1472,6 +1526,184 @@ export type Database = {
           },
         ]
       }
+      ats_mail_state: {
+        Row: {
+          last_error: string | null
+          last_error_at: string | null
+          last_ok_at: string | null
+          last_run_at: string | null
+          last_stats: Json
+          last_uid: number
+          lease_owner: string | null
+          lease_until: string | null
+          mailbox_id: string
+          started_at: string | null
+          uid_validity: number | null
+          updated_at: string
+        }
+        Insert: {
+          last_error?: string | null
+          last_error_at?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string | null
+          last_stats?: Json
+          last_uid?: number
+          lease_owner?: string | null
+          lease_until?: string | null
+          mailbox_id: string
+          started_at?: string | null
+          uid_validity?: number | null
+          updated_at?: string
+        }
+        Update: {
+          last_error?: string | null
+          last_error_at?: string | null
+          last_ok_at?: string | null
+          last_run_at?: string | null
+          last_stats?: Json
+          last_uid?: number
+          lease_owner?: string | null
+          lease_until?: string | null
+          mailbox_id?: string
+          started_at?: string | null
+          uid_validity?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ats_messages: {
+        Row: {
+          application_id: string | null
+          attachments: Json
+          attempts: number
+          body_html: string | null
+          body_text: string | null
+          candidate_id: string
+          cc_addresses: string[]
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          direction: string
+          error: string | null
+          from_address: string | null
+          from_name: string | null
+          id: string
+          imap_uid: number | null
+          in_reply_to: string | null
+          is_automatic: boolean
+          mailbox_id: string | null
+          message_id: string | null
+          next_attempt_at: string | null
+          purpose: string | null
+          read_at: string | null
+          read_by: string | null
+          read_by_name: string | null
+          received_at: string | null
+          references_header: string | null
+          sent_at: string | null
+          snippet: string | null
+          status: string
+          subject: string | null
+          template_code: string | null
+          to_addresses: string[]
+          updated_at: string
+        }
+        Insert: {
+          application_id?: string | null
+          attachments?: Json
+          attempts?: number
+          body_html?: string | null
+          body_text?: string | null
+          candidate_id: string
+          cc_addresses?: string[]
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          direction: string
+          error?: string | null
+          from_address?: string | null
+          from_name?: string | null
+          id?: string
+          imap_uid?: number | null
+          in_reply_to?: string | null
+          is_automatic?: boolean
+          mailbox_id?: string | null
+          message_id?: string | null
+          next_attempt_at?: string | null
+          purpose?: string | null
+          read_at?: string | null
+          read_by?: string | null
+          read_by_name?: string | null
+          received_at?: string | null
+          references_header?: string | null
+          sent_at?: string | null
+          snippet?: string | null
+          status: string
+          subject?: string | null
+          template_code?: string | null
+          to_addresses?: string[]
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string | null
+          attachments?: Json
+          attempts?: number
+          body_html?: string | null
+          body_text?: string | null
+          candidate_id?: string
+          cc_addresses?: string[]
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          direction?: string
+          error?: string | null
+          from_address?: string | null
+          from_name?: string | null
+          id?: string
+          imap_uid?: number | null
+          in_reply_to?: string | null
+          is_automatic?: boolean
+          mailbox_id?: string | null
+          message_id?: string | null
+          next_attempt_at?: string | null
+          purpose?: string | null
+          read_at?: string | null
+          read_by?: string | null
+          read_by_name?: string | null
+          received_at?: string | null
+          references_header?: string | null
+          sent_at?: string | null
+          snippet?: string | null
+          status?: string
+          subject?: string | null
+          template_code?: string | null
+          to_addresses?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_messages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_messages_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_messages_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ats_notes: {
         Row: {
           application_id: string | null
@@ -1614,6 +1846,11 @@ export type Database = {
           default_location: string
           id: boolean
           idle_alert_days: number
+          mail_ack_enabled: boolean
+          mail_backfill_days: number
+          mail_enabled: boolean
+          mail_mailbox_id: string | null
+          mail_reject_default: boolean
           retention_months: number
           updated_at: string
           updated_by: string | null
@@ -1624,6 +1861,11 @@ export type Database = {
           default_location?: string
           id?: boolean
           idle_alert_days?: number
+          mail_ack_enabled?: boolean
+          mail_backfill_days?: number
+          mail_enabled?: boolean
+          mail_mailbox_id?: string | null
+          mail_reject_default?: boolean
           retention_months?: number
           updated_at?: string
           updated_by?: string | null
@@ -1634,6 +1876,11 @@ export type Database = {
           default_location?: string
           id?: boolean
           idle_alert_days?: number
+          mail_ack_enabled?: boolean
+          mail_backfill_days?: number
+          mail_enabled?: boolean
+          mail_mailbox_id?: string | null
+          mail_reject_default?: boolean
           retention_months?: number
           updated_at?: string
           updated_by?: string | null
@@ -31546,6 +31793,20 @@ export type Database = {
       }
       ats_intake_application: { Args: { p: Json }; Returns: Json }
       ats_integration_status: { Args: never; Returns: Json }
+      ats_mail_claim: {
+        Args: { p_mailbox_id: string; p_owner: string; p_seconds?: number }
+        Returns: Json
+      }
+      ats_mail_status: { Args: never; Returns: Json }
+      ats_mail_store_inbound: { Args: { p: Json }; Returns: Json }
+      ats_mark_message_unread: {
+        Args: { p_message_id: string }
+        Returns: boolean
+      }
+      ats_mark_messages_read: {
+        Args: { p_candidate_id: string }
+        Returns: number
+      }
       ats_mark_reviewed: {
         Args: { p_application_id: string }
         Returns: undefined
@@ -31561,6 +31822,14 @@ export type Database = {
       ats_norm_title: { Args: { p: string }; Returns: string }
       ats_normalize_phone: { Args: { p: string }; Returns: string }
       ats_overview_stats: { Args: never; Returns: Json }
+      ats_render_template: {
+        Args: {
+          p_application_id?: string
+          p_candidate_id?: string
+          p_template_id: string
+        }
+        Returns: Json
+      }
       ats_rotate_intake_key: { Args: never; Returns: string }
       ats_set_status: {
         Args: {

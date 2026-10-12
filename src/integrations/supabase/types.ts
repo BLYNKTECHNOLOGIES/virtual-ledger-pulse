@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
@@ -31822,6 +31822,10 @@ export type Database = {
       ats_norm_title: { Args: { p: string }; Returns: string }
       ats_normalize_phone: { Args: { p: string }; Returns: string }
       ats_overview_stats: { Args: never; Returns: Json }
+      ats_queue_acknowledgement: {
+        Args: { p_application_id: string }
+        Returns: string
+      }
       ats_render_template: {
         Args: {
           p_application_id?: string

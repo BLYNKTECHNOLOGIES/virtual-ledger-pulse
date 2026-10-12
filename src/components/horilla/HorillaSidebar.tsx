@@ -367,7 +367,13 @@ export function HorillaSidebar({
 
   const isChildActive = (path: string) => {
     const [pathname, query] = path.split("?");
-    if ((pendingPath ?? location.pathname) !== pathname) return false;
+    const current = pendingPath ?? location.pathname;
+    if (pathname === "/hrms/ats") return current === pathname;
+    if (pathname.startsWith("/hrms/ats/")) {
+      if (pathname === "/hrms/ats/candidates" && current.startsWith("/hrms/ats/import")) return true;
+      return current.startsWith(pathname);
+    }
+    if (current !== pathname) return false;
     if (!query) return !location.search;
     return location.search === `?${query}`;
   };

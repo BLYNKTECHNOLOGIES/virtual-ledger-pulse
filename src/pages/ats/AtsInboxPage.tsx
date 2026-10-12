@@ -78,7 +78,6 @@ export default function AtsInboxPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-base font-semibold text-foreground">Candidate emails</h2>
           {st.data?.enabled && <p className="text-xs text-muted-foreground" title={fmtDateTime(st.data.sync?.last_ok_at)}>Last checked {st.data.sync?.last_ok_at ? fmtRelative(st.data.sync.last_ok_at) : "never"}</p>}
         </div>
         {st.data?.enabled && (

@@ -90,10 +90,6 @@ export default function AtsInterviewsPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-semibold text-foreground">Interviews</h2>
-        <p className="text-sm text-muted-foreground">All times are IST.</p>
-      </div>
       <Tabs value={view} onValueChange={(v) => set("view", v, "upcoming")}>
         <div className="max-w-full overflow-x-auto">
           <TabsList className="flex-nowrap">

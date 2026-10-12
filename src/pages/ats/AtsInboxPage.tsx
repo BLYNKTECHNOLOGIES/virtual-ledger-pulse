@@ -18,7 +18,9 @@ import {
 } from "@/lib/ats/mail";
 import { QueryError, RowsSkeleton } from "@/components/ats/AtsBits";
 import { useCheckNow } from "@/components/ats/EmailSettingsSection";
+import { CandidateAvatar, CountPill, StatusPill } from "@/components/ats/AtsUi";
 
+const EMPTY: Record<string, string> = { unread: "No unread replies.", all: "No replies yet.", undelivered: "Every email was delivered.", queued: "Nothing is waiting to send." };
 type View = "unread" | "all" | "undelivered" | "queued";
 const PAGE = 50;
 const SELECT =
@@ -97,7 +99,7 @@ export default function AtsInboxPage() {
             <div className="max-w-full overflow-x-auto">
               <Tabs value={v} onValueChange={(x) => setView(x as View)}>
                 <TabsList className="flex-nowrap">
-                  <TabsTrigger value="unread">Unread{unread ? ` (${unread})` : ""}</TabsTrigger>
+                  <TabsTrigger value="unread">Unread{unread > 0 && <CountPill n={unread} className="ml-1.5 bg-primary text-primary-foreground" />}</TabsTrigger>
                   <TabsTrigger value="all">All replies</TabsTrigger>
                   <TabsTrigger value="undelivered">Not delivered</TabsTrigger>
                   <TabsTrigger value="queued">Waiting to send</TabsTrigger>
@@ -110,13 +112,13 @@ export default function AtsInboxPage() {
             </div>
           </div>
           {q.isLoading ? <RowsSkeleton rows={6} /> : q.isError ? <QueryError error={q.error} onRetry={() => q.refetch()} /> :
-            !rows.length ? <p className="py-10 text-center text-sm text-muted-foreground">Nothing here.</p> : (
+            !rows.length ? <EmptyState icon={Mail} title={EMPTY[v]} className="rounded-xl border border-border bg-card" /> : (
             <ul className={cn(v === "queued" && "opacity-90", "divide-y divide-border rounded-xl border border-border bg-card")}>
               {rows.map((r) => <InboxItem key={r.id} r={r} view={v} />)}
             </ul>
           )}
           {q.hasNextPage && (
-            <div className="flex justify-center"><Button variant="outline" size="sm" disabled={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>Load more</Button></div>
+            <Button variant="outline" className="w-full" disabled={q.isFetchingNextPage} onClick={() => q.fetchNextPage()}>Load more</Button>
           )}
         </>
       )}
@@ -130,6 +132,7 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
   const [busy, setBusy] = useState(false);
+  const unreadRow = r.direction === "inbound" && !r.read_at;
   const when = r.received_at ?? r.sent_at ?? r.created_at;
   const job = r.ats_applications?.ats_jobs?.title ?? (r.application_id ? r.ats_applications?.position_text : null) ?? "General";
   const attCount = Array.isArray(r.attachments) ? r.attachments.length : 0;
@@ -151,12 +154,14 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
     <li>
       <div role="link" tabIndex={0} onClick={() => nav(href)} onKeyDown={(e) => { if (e.key === "Enter") nav(href); }}
         className={cn("flex cursor-pointer gap-3 px-3 py-2.5 hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", isMobile && "flex-col gap-1")}>
-        <div className={cn("min-w-0", isMobile ? "w-full" : "w-56 shrink-0")}>
+        <div className={cn("flex min-w-0 items-start gap-2", isMobile ? "w-full" : "w-60 shrink-0")}>
+          <CandidateAvatar full_name={r.ats_candidates?.full_name ?? ""} size="sm" />
+          <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            {r.direction === "inbound" && !r.read_at && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="Unread" />}
-            <span className="truncate text-sm font-medium text-foreground">{r.ats_candidates?.full_name ?? "Candidate"}</span>
+            <span className={cn("truncate text-sm text-foreground", unreadRow ? "font-semibold" : "font-medium")}>{r.ats_candidates?.full_name ?? "Candidate"}</span>
           </div>
           <p className="truncate text-xs text-muted-foreground"><span className="t-mono">{r.ats_candidates?.ref_no}</span> · {job}</p>
+          </div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
@@ -165,9 +170,11 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
             {r.direction === "outbound" && r.is_automatic && <Badge variant="outline" className="shrink-0 font-normal">Sent automatically</Badge>}
             {attCount > 0 && <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"><Paperclip className="h-3 w-3" />{attCount}</span>}
           </div>
-          <p className="truncate text-xs text-muted-foreground">{r.snippet}</p>
+          {r.snippet && <p className="truncate text-xs text-muted-foreground">{r.snippet}</p>}
+          {view === "queued" && <div className="mt-1"><StatusPill tone="neutral">Waiting to send</StatusPill></div>}
           {view === "undelivered" && (
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-destructive">
+              <StatusPill tone="destructive">Not delivered</StatusPill>
               <span>{r.status === "bounced" ? "Bounced: check the address" : mailErrorMessage(r.error)}</span>
               {mailOn && r.status === "failed" && canRetry(r.error) && (
                 <Button size="sm" variant="outline" className="h-7 gap-1" disabled={busy} onClick={retry}>
@@ -178,7 +185,7 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
           )}
         </div>
         <TooltipProvider><Tooltip><TooltipTrigger asChild>
-          <span className="shrink-0 text-xs text-muted-foreground">{fmtRelative(when)}</span>
+          <span className="inline-flex shrink-0 items-center gap-1.5 self-start whitespace-nowrap text-xs text-muted-foreground" title={fmtDateTime(when)}>{fmtRelative(when)}{unreadRow && <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />}</span>
         </TooltipTrigger><TooltipContent>{fmtDateTime(when)}</TooltipContent></Tooltip></TooltipProvider>
       </div>
     </li>

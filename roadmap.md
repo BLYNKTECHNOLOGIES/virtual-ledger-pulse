@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## Table width optimization
+
+- [ ] Make Requests fit its available width without dropping data or actions.
+- [ ] Audit and optimize shared tables and other avoidable overflow across modules.
+- [ ] Verify populated table rendering at wide and constrained widths; preserve intentionally wide matrices.
+
 ## Owner-supplied BlynkEx logos
 
 - [x] Replace recreated logos across ERP, Terminal and HRMS, including auth/public HR screens and outgoing email branding.

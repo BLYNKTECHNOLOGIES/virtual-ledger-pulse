@@ -11,6 +11,10 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_REASON_MISMATCH", "That reason doesn't fit this action."],
   ["ATS_STAGE_NOT_FOUND", "That stage is no longer active."],
   ["ATS_ADMIN_ONLY", "Only HR admins can generate the connection key."],
+  ["ATS_FORBIDDEN", "You don't have access to do this."],
+  ["ATS_TEMPLATE_NOT_FOUND", "That template no longer exists."],
+  ["ATS_SYSTEM_TEMPLATE_LOCKED", "Built-in templates can be edited or turned off, but not deleted."],
+  ["ATS_CANDIDATE_REQUIRED", "Open a candidate first."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {

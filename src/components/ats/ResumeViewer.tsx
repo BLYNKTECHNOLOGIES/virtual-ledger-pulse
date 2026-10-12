@@ -157,8 +157,9 @@ export function ResumeViewer({
         const u = await signAtsFile(file.storage_path, 600);
         if (!alive) return;
         setUrl(u);
-        // Refresh shortly before expiry (only for downloads/open; rendered content stays).
-        timer = window.setTimeout(() => { if (alive) signAtsFile(file.storage_path, 600).then((v) => alive && setUrl((prev) => (prev ? prev : v))).catch(() => undefined); }, 540_000);
+        // Rendered content is already loaded; Download / Open re-sign on demand,
+        // so an expired link is never handed out.
+
       } catch { if (alive) setFailed(true); }
     };
     sign();

@@ -155,6 +155,8 @@ project_id = "vagiqbespusdxsbqpvbo"
     verify_jwt = false
   [functions.ats-interview-notify]
     verify_jwt = false
+  [functions.public-site-stats]
+    verify_jwt = false
 
 
 

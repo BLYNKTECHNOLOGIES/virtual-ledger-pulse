@@ -23880,6 +23880,27 @@ export type Database = {
         }
         Relationships: []
       }
+      public_site_stats_cache: {
+        Row: {
+          computed_at: string
+          id: number
+          payload: Json
+          refresh_started_at: string | null
+        }
+        Insert: {
+          computed_at?: string
+          id?: number
+          payload: Json
+          refresh_started_at?: string | null
+        }
+        Update: {
+          computed_at?: string
+          id?: number
+          payload?: Json
+          refresh_started_at?: string | null
+        }
+        Relationships: []
+      }
       purchase_action_timings: {
         Row: {
           action_type: string

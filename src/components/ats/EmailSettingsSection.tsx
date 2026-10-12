@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Lock, Pencil, Plus, RefreshCw, Trash2, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -72,6 +73,7 @@ function MailCard() {
   const [days, setDays] = useState<number>(30);
   const [confirm, setConfirm] = useState<null | "on" | "off">(null);
   const [saving, setSaving] = useState(false);
+  const [ackConfirm, setAckConfirm] = useState(false);
 
   const s = st.data;
   useEffect(() => {
@@ -165,9 +167,40 @@ function MailCard() {
           </div>
         )}
 
+        <div className="space-y-3 border-t border-border pt-3">
+          <div className="flex items-start gap-3">
+            <Switch id="ats-rej-default" checked={s.reject_default} disabled={saving}
+              onCheckedChange={async (v) => { if (await save({ mail_reject_default: v })) toast.success("Saved"); }} />
+            <Label htmlFor="ats-rej-default" className="leading-5">Tick 'Email the candidate' by default when rejecting</Label>
+          </div>
+          <div className="flex items-start gap-3">
+            <Switch id="ats-ack" checked={s.ack_enabled} disabled={saving || !s.enabled}
+              onCheckedChange={(v) => (v ? setAckConfirm(true) : save({ mail_ack_enabled: false }).then((ok) => ok && toast.success("Automatic acknowledgements turned off")))} />
+            <div className="space-y-1">
+              <Label htmlFor="ats-ack" className="leading-5">Send 'Application received' to careers-page applicants</Label>
+              <p className="text-xs text-muted-foreground">Sent automatically within about 5 minutes of applying, from {chosen?.from_address ?? "the HR mailbox"}, using the 'Application received' template. Applications that reach the ATS more than a day after they were made (for example, older ones synced from the website) don't get one.</p>
+              <p className="text-xs text-muted-foreground">
+                {s.queued} waiting to be sent · <Link to="/hrms/ats/inbox?view=undelivered" className="text-primary hover:underline">{s.failed_7d} not delivered in the last 7 days</Link>
+              </p>
+            </div>
+          </div>
+        </div>
+
         <p className="text-xs text-muted-foreground">Only emails from a candidate's address, or replies to emails sent from the ATS, are copied. PDF, Word and image attachments up to 10 MB are saved to the candidate's files.</p>
       </div>
 
+      <AlertDialog open={ackConfirm} onOpenChange={setAckConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn on automatic acknowledgements?</AlertDialogTitle>
+            <AlertDialogDescription>Every new careers-page applicant with an email address will get the 'Application received' email.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setAckConfirm(false); if (await save({ mail_ack_enabled: true })) toast.success("Automatic acknowledgements turned on"); }}>Turn on</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -191,6 +224,7 @@ function MailCard() {
 function TemplatesCard() {
   const qc = useQueryClient();
   const tpl = useEmailTemplates({ includeInactive: true });
+  const ackOn = !!(useMailStatus().data?.enabled && useMailStatus().data?.ack_enabled);
   const [edit, setEdit] = useState<AtsEmailTemplate | "new" | null>(null);
   const [del, setDel] = useState<AtsEmailTemplate | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: mailKeys.templates });
@@ -217,6 +251,7 @@ function TemplatesCard() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-medium text-foreground">{t.name}</span>
                   <Badge variant="secondary" className="font-normal">{purposeLabel(t.purpose)}</Badge>
+                  {t.code === "acknowledgement" && ackOn && <Badge variant="outline" className="font-normal">Used automatically</Badge>}
                 </div>
                 <p className="truncate text-xs text-muted-foreground">{t.subject}</p>
               </div>

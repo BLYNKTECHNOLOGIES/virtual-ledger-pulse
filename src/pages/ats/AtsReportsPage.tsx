@@ -125,8 +125,8 @@ export default function AtsReportsPage() {
             <Download className="h-4 w-4" /> Download Excel
           </Button>
         </div>
-        {custom && draftBad && <p className="-mt-2 text-xs text-destructive">The end date must be on or after the start date, within 2 years.</p>}
-        <p className="-mt-2 text-xs text-muted-foreground">Applications are counted by the date they applied (IST). Hires, interviews and team activity are counted by the date they happened. Waiting now is the pipeline today.</p>
+        {custom && draftBad && <p className="text-xs text-destructive">The end date must be on or after the start date, within 2 years.</p>}
+        <p className="text-xs text-muted-foreground">Applications are counted by the date they applied (IST). Hires, interviews and team activity are counted by the date they happened. Waiting now is the pipeline today.</p>
       </div>
 
       {error ? <QueryError error={error} onRetry={() => refetch()} /> : <Body data={data} loading={isLoading} params={params} />}

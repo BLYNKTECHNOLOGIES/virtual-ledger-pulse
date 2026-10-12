@@ -1299,6 +1299,168 @@ export type Database = {
           },
         ]
       }
+      ats_import_rows: {
+        Row: {
+          application_id: string | null
+          candidate_id: string | null
+          created_at: string
+          error: string | null
+          id: string
+          import_id: string
+          new_application: boolean
+          new_candidate: boolean
+          outcome: string
+          row_no: number
+        }
+        Insert: {
+          application_id?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          import_id: string
+          new_application?: boolean
+          new_candidate?: boolean
+          outcome: string
+          row_no: number
+        }
+        Update: {
+          application_id?: string | null
+          candidate_id?: string | null
+          created_at?: string
+          error?: string | null
+          id?: string
+          import_id?: string
+          new_application?: boolean
+          new_candidate?: boolean
+          outcome?: string
+          row_no?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_import_rows_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_import_rows_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_import_rows_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_import_rows_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "ats_imports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_imports: {
+        Row: {
+          added_count: number
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          created_count: number
+          error_count: number
+          existing_count: number
+          file_name: string | null
+          finished_at: string | null
+          id: string
+          job_id: string | null
+          job_mode: string
+          kind: string
+          mapping: Json
+          skipped_count: number
+          source_id: string | null
+          status: string
+          total_rows: number
+          undo_kept: number | null
+          undone_at: string | null
+          undone_by_name: string | null
+        }
+        Insert: {
+          added_count?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          created_count?: number
+          error_count?: number
+          existing_count?: number
+          file_name?: string | null
+          finished_at?: string | null
+          id?: string
+          job_id?: string | null
+          job_mode?: string
+          kind: string
+          mapping?: Json
+          skipped_count?: number
+          source_id?: string | null
+          status?: string
+          total_rows?: number
+          undo_kept?: number | null
+          undone_at?: string | null
+          undone_by_name?: string | null
+        }
+        Update: {
+          added_count?: number
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          created_count?: number
+          error_count?: number
+          existing_count?: number
+          file_name?: string | null
+          finished_at?: string | null
+          id?: string
+          job_id?: string | null
+          job_mode?: string
+          kind?: string
+          mapping?: Json
+          skipped_count?: number
+          source_id?: string | null
+          status?: string
+          total_rows?: number
+          undo_kept?: number | null
+          undone_at?: string | null
+          undone_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_imports_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_job_summary"
+            referencedColumns: ["job_id"]
+          },
+          {
+            foreignKeyName: "ats_imports_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "ats_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_imports_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "ats_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ats_integrations: {
         Row: {
           allowed_resume_host: string
@@ -32069,6 +32231,16 @@ export type Database = {
           ref_no: string
         }[]
       }
+      ats_import_add_rows: {
+        Args: { p_import_id: string; p_rows: Json }
+        Returns: Json
+      }
+      ats_import_answers: { Args: { p: Json }; Returns: Json }
+      ats_import_begin: { Args: { p: Json }; Returns: string }
+      ats_import_candidate: { Args: { p: Json }; Returns: Json }
+      ats_import_check: { Args: { p: Json }; Returns: Json }
+      ats_import_finish: { Args: { p_import_id: string }; Returns: Json }
+      ats_import_undo: { Args: { p_import_id: string }; Returns: Json }
       ats_intake_application: { Args: { p: Json }; Returns: Json }
       ats_integration_status: { Args: never; Returns: Json }
       ats_interview_rsvp: {
@@ -32148,6 +32320,7 @@ export type Database = {
       ats_slugify: { Args: { p: string }; Returns: string }
       ats_text_array: { Args: { p: Json }; Returns: string[] }
       ats_try_numeric: { Args: { p: string }; Returns: number }
+      ats_try_timestamptz: { Args: { p: string }; Returns: string }
       audit_client_nickname_merges: {
         Args: never
         Returns: {

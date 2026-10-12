@@ -28,10 +28,10 @@ const LAST_SOURCE = "ats.import.lastSource";
 const PAGE = 100;
 const SALARY_FIELDS: ImportField[] = ["current_ctc", "expected_ctc"];
 const TONE: Record<string, string> = {
-  green: "text-emerald-600 dark:text-emerald-400",
-  blue: "text-sky-600 dark:text-sky-400",
+  green: "text-success",
+  blue: "text-primary",
   muted: "text-muted-foreground",
-  amber: "text-amber-600 dark:text-amber-400",
+  amber: "text-warning",
   red: "text-destructive",
 };
 const fmtN = (n: number) => n.toLocaleString("en-IN");
@@ -46,11 +46,11 @@ function Stepper({ step }: { step: Step }) {
         return (
           <li key={l} className="flex items-center gap-2">
             <span className={cn(
-              "flex h-6 w-6 items-center justify-center rounded-full border text-xs",
-              i === idx && step !== "done" ? "border-primary bg-primary text-primary-foreground" : done ? "border-primary text-primary" : "border-border text-muted-foreground",
+              "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+              i === idx && step !== "done" ? "bg-primary text-primary-foreground" : done ? "bg-primary/15 text-foreground" : "bg-muted text-muted-foreground",
             )}>{done ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
             <span className={cn(i === idx ? "font-medium text-foreground" : "text-muted-foreground")}>{l}</span>
-            {i < labels.length - 1 && <span className="text-muted-foreground">·</span>}
+            {i < labels.length - 1 && <span aria-hidden className="h-px w-5 bg-border" />}
           </li>
         );
       })}

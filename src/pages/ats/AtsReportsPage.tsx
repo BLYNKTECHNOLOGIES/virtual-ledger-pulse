@@ -241,7 +241,7 @@ function Body({ data, loading, params }: { data?: AtsReport; loading: boolean; p
         <SectionCard title="Interviews">
           {!data ? sk : (() => {
             const iv = data.interviews;
-            const act = (n: number) => (n > 0 ? <Link className="text-amber-600 hover:underline dark:text-amber-400" to="/hrms/ats/interviews?view=action">{n}</Link> : n);
+            const act = (n: number) => (n > 0 ? <Link className="text-warning hover:underline" to="/hrms/ats/interviews?view=action">{n}</Link> : n);
             return (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -268,7 +268,7 @@ function Body({ data, loading, params }: { data?: AtsReport; loading: boolean; p
                 return (
                   <tr key={x.stage_id} className="border-b border-border last:border-0">
                     <Td first>{x.name}</Td><Td>{x.open}</Td><Td>{x.on_hold}</Td><Td>{x.median_days ?? "—"}</Td>
-                    <Td>{x.over_idle > 0 ? <Link className="font-medium text-amber-600 hover:underline dark:text-amber-400" to={`/hrms/ats/candidates?${q}`}>{x.over_idle}</Link> : x.over_idle}</Td>
+                    <Td>{x.over_idle > 0 ? <Link className="font-medium text-warning hover:underline" to={`/hrms/ats/candidates?${q}`}>{x.over_idle}</Link> : x.over_idle}</Td>
                   </tr>
                 );
               })}

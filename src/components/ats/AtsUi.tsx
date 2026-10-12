@@ -110,3 +110,14 @@ export function HiringProgress({ hired, openings, className }: { hired: number; 
 export function CountPill({ n, className }: { n: number; className?: string }) {
   return <span className={cn("inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-medium tabular-nums text-foreground", className)}>{n}</span>;
 }
+
+/** Small numbered step line (static preview of a wizard's steps). */
+export function StepLine({ steps }: { steps: string[] }) {
+  return <ol className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1" aria-label="Steps">
+    {steps.map((s, i) => <li key={s} className="flex items-center gap-1.5">
+      {i > 0 && <span aria-hidden className="h-px w-4 bg-border" />}
+      <span aria-hidden className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[11px] font-semibold text-foreground">{i + 1}</span>
+      <span className="text-xs text-muted-foreground">{s}</span>
+    </li>)}
+  </ol>;
+}

@@ -120,6 +120,7 @@ const navGroups: NavGroup[] = [
           { label: "Inbox", path: "/hrms/ats/inbox" },
           { label: "Interviews", path: "/hrms/ats/interviews" },
           { label: "Jobs", path: "/hrms/ats/jobs" },
+          { label: "Reports", path: "/hrms/ats/reports" },
           { label: "Settings", path: "/hrms/ats/settings" },
         ],
       },

@@ -25,6 +25,7 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_UNDO_ADMIN_ONLY", "Only HR admins can undo an import."],
   ["ATS_IMPORT_TOO_OLD", "Imports can only be undone within 7 days."],
   ["ATS_IMPORT_INVALID", "Something in the file couldn't be read. Check it and try again."],
+  ["ATS_REPORT_INVALID", "Check the dates: the end must be on or after the start, and the range can be at most 2 years."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {

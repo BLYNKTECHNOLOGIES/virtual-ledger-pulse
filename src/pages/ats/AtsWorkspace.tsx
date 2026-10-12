@@ -17,6 +17,7 @@ import AtsCandidatePage from "./AtsCandidatePage";
 import AtsInboxPage from "./AtsInboxPage";
 import AtsInterviewsPage from "./AtsInterviewsPage";
 import AtsImportPage from "./AtsImportPage";
+import AtsReportsPage from "./AtsReportsPage";
 
 const TABS = [
   { label: "Overview", to: "/hrms/ats", match: (p: string) => p === "/hrms/ats" || p === "/hrms/ats/" },
@@ -24,6 +25,7 @@ const TABS = [
   { label: "Inbox", to: "/hrms/ats/inbox", match: (p: string) => p.startsWith("/hrms/ats/inbox") },
   { label: "Interviews", to: "/hrms/ats/interviews", match: (p: string) => p.startsWith("/hrms/ats/interviews") },
   { label: "Jobs", to: "/hrms/ats/jobs", match: (p: string) => p.startsWith("/hrms/ats/jobs") },
+  { label: "Reports", to: "/hrms/ats/reports", match: (p: string) => p.startsWith("/hrms/ats/reports") },
   { label: "Settings", to: "/hrms/ats/settings", match: (p: string) => p.startsWith("/hrms/ats/settings") },
 ];
 
@@ -85,6 +87,7 @@ export default function AtsWorkspace() {
           <Route path="jobs/:jobId" element={<AtsJobDetailPage />} />
           <Route path="settings" element={<AtsSettingsPage />} />
           <Route path="import" element={<AtsImportPage />} />
+          <Route path="reports" element={<AtsReportsPage />} />
           <Route path="*" element={<Navigate to="/hrms/ats" replace />} />
         </Routes>
       </div>

@@ -13,7 +13,7 @@ import { useAtsJobs, useAtsSources } from "@/lib/ats/api";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import {
   MAX_RANGE_DAYS, RANGE_PRESETS, bucketLabel, daysBetween, downloadReportXlsx, fmtDays, fmtHours, funnelRows, isYmd,
-  matchPreset, paramsFromSearch, pct, presetRange, type AtsReport, type RangePreset, type ReportParams,
+  matchPreset, paramsFromSearch, pct, presetRange, type AtsReport, type RangePreset, type ReportParams, useAtsReport,
 } from "@/lib/ats/reports";
 
 const STATUS_ORDER: Record<string, number> = { open: 0, paused: 1, draft: 2, closed: 3 };
@@ -45,7 +45,7 @@ const Td = ({ children, first, className = "" }: { children: React.ReactNode; fi
 export default function AtsReportsPage() {
   const [sp, setSp] = useSearchParams();
   const params = paramsFromSearch(sp);
-  const { data, isLoading, error, refetch } = useAtsReportSafe(params);
+  const { data, isLoading, error, refetch } = useAtsReport(params);
   const jobsQ = useAtsJobs();
   const sourcesQ = useAtsSources();
   const [custom, setCustom] = useState(() => matchPreset(params.from, params.to) === "custom");
@@ -132,12 +132,6 @@ export default function AtsReportsPage() {
   );
 }
 
-// Keeps the last report on screen while a new one loads.
-function useAtsReportSafe(p: ReportParams) {
-  const q = useAtsReportImpl(p);
-  return q;
-}
-import { useAtsReport as useAtsReportImpl } from "@/lib/ats/reports";
 
 function Body({ data, loading, params }: { data?: AtsReport; loading: boolean; params: ReportParams }) {
   const s = data?.summary;

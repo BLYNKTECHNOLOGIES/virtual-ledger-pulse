@@ -1,15 +1,14 @@
 // deno-lint-ignore-file no-explicit-any
 // ATS: sends one email to a candidate from the HR mailbox chosen in ATS settings and files it on the candidate.
-// HR staff only. Plain text in, branded HTML out (same shell and signature as every HR mail).
+// HR staff only. Plain text in, branded HTML out (same shell and signature as every HR mail; see _shared/ats-mail-deliver.ts).
 // Each email carries its own Message-ID (<ats.{id}@domain>) so the candidate's reply can be matched to it.
 // Body: { id, candidateId, applicationId?, subject, body, purpose?, templateCode?, replyToId?, fileIds? }
 //    or { retryId } to resend a failed email.
 // index.ts only starts the server; the work is here so it can be tested without a server.
-import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 import { requireAuth } from '../_shared/require-auth.ts'
-import { hrSignatureText, wrapHrEmail } from '../_shared/hrSignature.ts'
-import { tidyMailAddress, tidyMailFilename, tidyMailHtml, tidyMailSubject, tidyMailText } from '../_shared/mailBody.ts'
-import { ATS_BUCKET, bytesToBase64, errorCode, extractIds, isEmail, ourMessageId, textToHtml } from '../_shared/ats-mail.ts'
+import { tidyMailSubject } from '../_shared/mailBody.ts'
+import { extractIds, isEmail, ourMessageId } from '../_shared/ats-mail.ts'
+import { deliver } from '../_shared/ats-mail-deliver.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,13 +22,6 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const PURPOSES = ['general', 'acknowledgement', 'rejection', 'interview', 'offer']
 const MAX_ATTACH_FILES = 5
 const MAX_ATTACH_BYTES = 15 * 1024 * 1024
-const SMTP_TIMEOUT_MS = 30_000
-
-class SendError extends Error {
-  constructor(readonly code: string) {
-    super(code)
-  }
-}
 
 export async function handleSend(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -160,78 +152,4 @@ export async function handleSend(req: Request): Promise<Response> {
   const result = await deliver(admin, mailbox, row)
   console.log('ats-mail-send', JSON.stringify({ ok: result.ok, error: result.code ?? null, attachments: (row.attachments ?? []).length }))
   return json({ id: row.id, status: result.ok ? 'sent' : 'failed', ...(result.ok ? {} : { error: result.code }) })
-}
-
-export async function deliver(admin: any, mailbox: any, row: any, opts: { port?: number } = {}): Promise<{ ok: boolean; code?: string }> {
-  const host = Deno.env.get(mailbox.smtp_host_secret || '') || Deno.env.get('HR_SMTP_HOST')
-  const user = (Deno.env.get(mailbox.smtp_user_secret || '') || Deno.env.get('HR_SMTP_USER') || '').trim()
-  const pass = (Deno.env.get(mailbox.smtp_pass_secret || '') || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
-  let code: string | null = null
-  if (!host || !user || !pass) {
-    code = 'smtp_not_configured'
-  } else {
-    try {
-      const files: { filename: string; content: string; encoding: 'base64'; contentType: string }[] = []
-      for (const a of row.attachments ?? []) {
-        if (!a?.storage_path) continue
-        const { data: blob, error } = await admin.storage.from(ATS_BUCKET).download(a.storage_path)
-        if (error || !blob) throw new SendError('attachment_missing')
-        files.push({
-          filename: tidyMailFilename(a.name || 'attachment'),
-          content: bytesToBase64(new Uint8Array(await blob.arrayBuffer())),
-          encoding: 'base64',
-          contentType: a.mime || 'application/octet-stream',
-        })
-      }
-      const client = new SMTPClient({
-        connection: { hostname: host, port: opts.port ?? 465, tls: true, auth: { username: user, password: pass } },
-      })
-      try {
-        await withTimeout(client.send({
-          from: `${tidyMailAddress(mailbox.from_name || 'HR')} <${row.from_address}>`,
-          to: row.to_addresses[0],
-          subject: tidyMailSubject(row.subject, 200),
-          content: tidyMailText(`${row.body_text}\n\n${hrSignatureText()}`),
-          html: tidyMailHtml(wrapHrEmail(textToHtml(row.body_text))),
-          attachments: files.length ? (files as any) : undefined,
-          headers: {
-            'Message-ID': row.message_id,
-            ...(row.in_reply_to ? { 'In-Reply-To': row.in_reply_to, References: row.references_header || row.in_reply_to } : {}),
-          },
-        }), SMTP_TIMEOUT_MS)
-      } finally {
-        try {
-          await client.close()
-        } catch {
-          /* ignore */
-        }
-      }
-    } catch (e) {
-      code = e instanceof SendError ? e.code : errorCode(e) === 'unexpected_error' ? 'smtp_failed' : errorCode(e)
-      console.error('ats-mail-send failed', code)
-    }
-  }
-  if (code) {
-    await admin.from('ats_messages').update({ status: 'failed', error: code }).eq('id', row.id)
-    return { ok: false, code }
-  }
-  await admin.from('ats_messages').update({ status: 'sent', sent_at: new Date().toISOString(), error: null }).eq('id', row.id)
-  return { ok: true }
-}
-
-/** Rejects after `ms`; the slow promise's own failure is absorbed so it cannot crash the function. */
-async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-  let timer: number | undefined
-  const settled = p.then((v) => ({ ok: true as const, v }), (e) => ({ ok: false as const, e }))
-  const timeout = new Promise<{ timeout: true }>((resolve) => {
-    timer = setTimeout(() => resolve({ timeout: true }), ms)
-  })
-  try {
-    const r = await Promise.race([settled, timeout])
-    if ('timeout' in r) throw new SendError('smtp_timeout')
-    if (!r.ok) throw r.e
-    return r.v
-  } finally {
-    clearTimeout(timer)
-  }
 }

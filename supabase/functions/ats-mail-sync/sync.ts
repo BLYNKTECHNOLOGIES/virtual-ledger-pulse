@@ -1,16 +1,19 @@
 // deno-lint-ignore-file no-explicit-any
-// ATS: picks up candidate emails from the HR mailbox and files them on the candidate.
+// ATS: picks up candidate emails from the HR mailbox and files them on the candidate, and sends queued
+// automatic emails (acknowledgements).
 // Read-only towards the mailbox (EXAMINE + BODY.PEEK): nothing is marked read, moved or deleted, and the
 // HR mailbox screens (hr_mailboxes.imap_last_uid, hr_mail_messages) are never touched; the ATS keeps its own
 // position in ats_mail_state. Only emails that belong to a candidate are downloaded and stored.
 // Called every 5 minutes by pg_cron (x-scheduler-secret) and by "Check now" in the ATS (HR staff only).
+// Body { action: "candidate", candidateId, days } looks back for one candidate's older emails (HR staff only).
 // index.ts only starts the server; the work is here so it can be tested without a server.
 import { requireCaller } from '../_shared/require-caller.ts'
 import {
   AtsImap, ATS_BUCKET, HEADER_FIELDS, ImapError, classifyMessage, errorCode, extractAttachments, findOurIdsInText, htmlToText,
-  imapDate, istStamp, ourIds, parseMailHeader, parseMessage, safeStem, sectionOf, sha256Hex, utf8,
+  imapDate, imapQuote, istStamp, ourIds, parseMailHeader, parseMessage, safeStem, sectionOf, sha256Hex, utf8,
   type ImapFetchItem, type MailAttachment, type MailHeader, type ThreadRef,
 } from '../_shared/ats-mail.ts'
+import { sendQueued } from '../_shared/ats-mail-deliver.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,11 +24,14 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
 const RUN_MS = 50_000 // stop well inside the lease (120 s) and the function time limit
+const QUEUE_MS = 20_000 // time allowed for sending queued automatic emails at the start of a run
 const HEADER_BATCH = 100 // headers fetched per IMAP round trip
 const MAX_SCAN = 500 // emails looked at per run (headers only)
 const MAX_FULL = 15 // candidate emails downloaded per run
+const MAX_LOOKBACK = 50 // emails looked at by "find older emails" for one candidate
 const MAX_MESSAGE_BYTES = 25 * 1024 * 1024
 const UNREADABLE_NOTE = 'The content of this email could not be shown in the ATS. Open it in the HR mailbox.'
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 class SyncError extends Error {
   constructor(readonly code: string) {
@@ -44,7 +50,15 @@ interface Stats {
   ignored_own: number
   gave_up: number
   pending: number
+  queued_sent: number
+  queued_failed: number
+  queued_retrying: number
 }
+
+const newStats = (): Stats => ({
+  scanned: 0, matched: 0, stored: 0, duplicates: 0, attachments_saved: 0, attachments_skipped: 0,
+  bounces: 0, ignored_own: 0, gave_up: 0, pending: 0, queued_sent: 0, queued_failed: 0, queued_retrying: 0,
+})
 
 export async function handleSync(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
@@ -57,6 +71,21 @@ export async function handleSync(req: Request): Promise<Response> {
     const { data: staff } = await admin.rpc('hr_is_hr_staff', { _user_id: caller.userId })
     if (!staff) return json({ error: 'forbidden' }, 403)
   }
+  let body: any = {}
+  try {
+    body = await req.json()
+  } catch {
+    /* optional body */
+  }
+
+  if (body?.action === 'candidate') {
+    if (caller.kind === 'scheduler') return json({ error: 'forbidden' }, 403)
+    const candidateId = String(body.candidateId ?? '')
+    if (!UUID_RE.test(candidateId)) return json({ error: 'invalid', field: 'candidateId' }, 400)
+    const days = Math.min(365, Math.max(1, Math.floor(Number(body.days ?? 90)) || 90))
+    const result = await runCandidateLookback(admin, { candidateId, days, source: caller.kind })
+    return json(result, result.error === 'state_unavailable' ? 500 : 200)
+  }
 
   const result = await runMailSync(admin, { source: caller.kind })
   return json(result, result.error === 'state_unavailable' ? 500 : 200)
@@ -64,8 +93,35 @@ export async function handleSync(req: Request): Promise<Response> {
 
 export interface SyncOptions {
   source: string
-  /** Only for local tests against a self-signed IMAP server. */
+  /** Only for local tests against self-signed IMAP / SMTP servers. */
   imapCaCerts?: string[]
+  smtpPort?: number
+}
+
+interface OpenedMailbox {
+  mailboxId: string
+  self: Set<string>
+}
+
+/** Mailbox chosen in ATS settings, checked and signed in (read-only). */
+async function openMailbox(admin: any, mailboxId: string, imap: AtsImap, caCerts?: string[]): Promise<OpenedMailbox> {
+  const { data: mailboxes, error: mbErr } = await admin.from('hr_mailboxes')
+    .select('id, from_address, imap_host, imap_port, imap_enabled, imap_user_secret, imap_pass_secret, is_active')
+  if (mbErr) throw new SyncError('mailbox_unavailable')
+  const mailbox = (mailboxes ?? []).find((m: any) => m.id === mailboxId && m.is_active)
+  if (!mailbox) throw new SyncError('mailbox_unavailable')
+  if (!mailbox.imap_enabled || !mailbox.imap_host) throw new SyncError('receiving_off')
+  // Same credential lookup as the HR mailbox reader (secret names are stored on hr_mailboxes).
+  const user = (mailbox.imap_user_secret ? Deno.env.get(mailbox.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
+  const pass = (mailbox.imap_pass_secret ? Deno.env.get(mailbox.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))
+    ?.replace(/\s+/g, '')
+  if (!user || !pass) throw new SyncError('mailbox_credentials_missing')
+  const self = new Set<string>([
+    user.toLowerCase(),
+    ...(mailboxes ?? []).map((m: any) => String(m.from_address || '').trim().toLowerCase()).filter(Boolean),
+  ])
+  await imap.connect({ host: mailbox.imap_host, port: mailbox.imap_port || 993, user, pass, caCerts })
+  return { mailboxId, self }
 }
 
 export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record<string, unknown>> {
@@ -88,10 +144,17 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
   await admin.from('ats_messages').update({ status: 'failed', error: 'interrupted' })
     .eq('direction', 'outbound').eq('status', 'sending').lt('updated_at', new Date(Date.now() - 10 * 60_000).toISOString())
 
-  const stats: Stats = {
-    scanned: 0, matched: 0, stored: 0, duplicates: 0, attachments_saved: 0, attachments_skipped: 0,
-    bounces: 0, ignored_own: 0, gave_up: 0, pending: 0,
+  const stats = newStats()
+  // Automatic emails (acknowledgements) that are due go out first; they do not depend on reading the mailbox.
+  try {
+    const q = await sendQueued(admin, { deadline: started + QUEUE_MS, port: opts.smtpPort })
+    stats.queued_sent = q.sent
+    stats.queued_failed = q.failed
+    stats.queued_retrying = q.retrying
+  } catch (e) {
+    console.error('ats-mail-sync queue failed', errorCode(e))
   }
+
   let lastUid = Number(claimed.last_uid ?? 0)
   let uidValidity: number | null = claimed.uid_validity ? Number(claimed.uid_validity) : null
   let startedAt: string | null = claimed.started_at ?? null
@@ -102,24 +165,7 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
   const imap = new AtsImap(deadline)
 
   try {
-    const { data: mailboxes, error: mbErr } = await admin.from('hr_mailboxes')
-      .select('id, from_address, imap_host, imap_port, imap_enabled, imap_user_secret, imap_pass_secret, is_active')
-    if (mbErr) throw new SyncError('mailbox_unavailable')
-    const mailbox = (mailboxes ?? []).find((m: any) => m.id === mailboxId && m.is_active)
-    if (!mailbox) throw new SyncError('mailbox_unavailable')
-    if (!mailbox.imap_enabled || !mailbox.imap_host) throw new SyncError('receiving_off')
-    // Same credential lookup as the HR mailbox reader (secret names are stored on hr_mailboxes).
-    const user = (mailbox.imap_user_secret ? Deno.env.get(mailbox.imap_user_secret) : Deno.env.get('HR_SMTP_USER'))?.trim()
-    const pass = (mailbox.imap_pass_secret ? Deno.env.get(mailbox.imap_pass_secret) : Deno.env.get('HR_SMTP_PASS'))
-      ?.replace(/\s+/g, '')
-    if (!user || !pass) throw new SyncError('mailbox_credentials_missing')
-
-    const self = new Set<string>([
-      user.toLowerCase(),
-      ...(mailboxes ?? []).map((m: any) => String(m.from_address || '').trim().toLowerCase()).filter(Boolean),
-    ])
-
-    await imap.connect({ host: mailbox.imap_host, port: mailbox.imap_port || 993, user, pass, caCerts: opts.imapCaCerts })
+    const { self } = await openMailbox(admin, mailboxId, imap, opts.imapCaCerts)
     const box = await imap.examine('INBOX')
     if (!uidValidity || uidValidity !== box.uidValidity) {
       // First run, or the mailbox was rebuilt: start from the look-back window, never from all old mail.
@@ -142,12 +188,7 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
     for (let i = 0; i < queue.length && !stop; i += HEADER_BATCH) {
       if (Date.now() > deadline - 10_000) break
       const chunk = queue.slice(i, i + HEADER_BATCH)
-      const fetched = await imap.uidFetch(chunk, `UID RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (${HEADER_FIELDS})]`)
-      const headers = new Map<number, MailHeader>()
-      for (const uid of chunk) {
-        const raw = sectionOf(fetched.get(uid), 'HEADER.FIELDS')
-        if (raw) headers.set(uid, parseMailHeader(raw))
-      }
+      const { fetched, headers } = await fetchHeaders(imap, chunk)
       const ctx = await lookupContext(admin, [...headers.values()], self)
 
       for (const uid of chunk) {
@@ -228,6 +269,73 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
 
   console.log('ats-mail-sync', JSON.stringify({ ok: !errCode, error: errCode, ...stats, ms: Date.now() - started }))
   return { ok: !errCode, error: errCode, ...stats }
+}
+
+/**
+ * "Find older emails" for one candidate: looks back `days` for emails from the candidate's address and files
+ * any that are not in the ATS yet. Does not move the regular reading position.
+ */
+export async function runCandidateLookback(
+  admin: any, opts: { candidateId: string; days: number; source: string; imapCaCerts?: string[] },
+): Promise<Record<string, unknown>> {
+  const started = Date.now()
+  const { data: settings } = await admin.from('ats_settings').select('mail_enabled, mail_mailbox_id').eq('id', true).maybeSingle()
+  if (!settings?.mail_enabled || !settings.mail_mailbox_id) return { ok: true, skipped: 'disabled' }
+  const mailboxId: string = settings.mail_mailbox_id
+  const { data: cand } = await admin.from('ats_candidates').select('id, email_norm, merged_into_id, anonymized_at')
+    .eq('id', opts.candidateId).maybeSingle()
+  if (!cand) return { ok: false, error: 'not_found' }
+  if (!cand.email_norm || cand.merged_into_id || cand.anonymized_at) return { ok: false, error: 'no_email' }
+
+  const owner = crypto.randomUUID()
+  const { data: claimed, error: claimErr } = await admin.rpc('ats_mail_claim', {
+    p_mailbox_id: mailboxId, p_owner: owner, p_seconds: 120,
+  })
+  if (claimErr) return { ok: false, error: 'state_unavailable' }
+  if (!claimed) return { ok: true, skipped: 'busy' }
+
+  const stats = newStats()
+  let errCode: string | null = null
+  const imap = new AtsImap(started + RUN_MS)
+  try {
+    const { self } = await openMailbox(admin, mailboxId, imap, opts.imapCaCerts)
+    const box = await imap.examine('INBOX')
+    const since = imapDate(new Date(Date.now() - opts.days * 86_400_000))
+    const uids = (await imap.uidSearch(`SINCE ${since} FROM ${imapQuote(cand.email_norm)}`)).slice(-MAX_LOOKBACK)
+    const { fetched, headers } = await fetchHeaders(imap, uids)
+    // Only this candidate's own address counts here (SEARCH FROM also matches longer addresses).
+    const ctx = { selfAddresses: self, threadByRef: new Map<string, ThreadRef>(), candidateByEmail: new Map([[cand.email_norm, cand.id]]) }
+    for (const uid of uids) {
+      if (Date.now() > started + RUN_MS - 6_000) break
+      const h = headers.get(uid)
+      if (!h) continue
+      stats.scanned++
+      const c = classifyMessage(h, ctx)
+      if (c.kind !== 'match') continue
+      stats.matched++
+      const outcome = await storeOne(admin, imap, uid, box.uidValidity, h, fetched.get(uid)!, c, mailboxId, stats)
+      if (outcome === 'retry') stats.gave_up++
+    }
+  } catch (e) {
+    errCode = e instanceof SyncError ? e.code : errorCode(e)
+    console.error('ats-mail-sync lookback failed', errCode)
+  } finally {
+    await imap.close()
+  }
+  await admin.from('ats_mail_state').update({ lease_until: null, lease_owner: null, updated_at: new Date().toISOString() })
+    .eq('mailbox_id', mailboxId).eq('lease_owner', owner)
+  console.log('ats-mail-sync lookback', JSON.stringify({ ok: !errCode, error: errCode, ...stats, ms: Date.now() - started }))
+  return { ok: !errCode, error: errCode, ...stats }
+}
+
+async function fetchHeaders(imap: AtsImap, uids: number[]) {
+  const fetched = await imap.uidFetch(uids, `UID RFC822.SIZE INTERNALDATE BODY.PEEK[HEADER.FIELDS (${HEADER_FIELDS})]`)
+  const headers = new Map<number, MailHeader>()
+  for (const uid of uids) {
+    const raw = sectionOf(fetched.get(uid), 'HEADER.FIELDS')
+    if (raw) headers.set(uid, parseMailHeader(raw))
+  }
+  return { fetched, headers }
 }
 
 /** Which of these emails continue an ATS thread, and which senders are candidates (batched lookups). */

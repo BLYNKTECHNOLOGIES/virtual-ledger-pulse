@@ -3,7 +3,7 @@
 // HR staff only. Plain text in, branded HTML out (same shell and signature as every HR mail; see _shared/ats-mail-deliver.ts).
 // Each email carries its own Message-ID (<ats.{id}@domain>) so the candidate's reply can be matched to it.
 // Body: { id, candidateId, applicationId?, subject, body, purpose?, templateCode?, replyToId?, fileIds? }
-//    or { retryId } to resend a failed email.
+//    or { retryId } to resend a failed email (an interview email only while the interview has not changed since).
 // index.ts only starts the server; the work is here so it can be tested without a server.
 import { requireAuth } from '../_shared/require-auth.ts'
 import { tidyMailSubject } from '../_shared/mailBody.ts'
@@ -55,6 +55,7 @@ export async function handleSend(req: Request): Promise<Response> {
     const { data: prev } = await admin.from('ats_messages').select('*').eq('id', retryId).eq('direction', 'outbound').maybeSingle()
     if (!prev) return json({ error: 'not_found' }, 404)
     if (prev.status !== 'failed') return json({ id: prev.id, status: prev.status })
+    if (await interviewEmailOutdated(admin, prev)) return json({ error: 'outdated' }, 409)
     const { data: claimed } = await admin.from('ats_messages')
       .update({ status: 'sending', error: null, attempts: Number(prev.attempts ?? 0) + 1 })
       .eq('id', prev.id).eq('status', 'failed').select('*').maybeSingle()
@@ -152,4 +153,12 @@ export async function handleSend(req: Request): Promise<Response> {
   const result = await deliver(admin, mailbox, row)
   console.log('ats-mail-send', JSON.stringify({ ok: result.ok, error: result.code ?? null, attachments: (row.attachments ?? []).length }))
   return json({ id: row.id, status: result.ok ? 'sent' : 'failed', ...(result.ok ? {} : { error: result.code }) })
+}
+
+/** An interview email (with its calendar invite) is only resent while the interview is still as it describes. */
+export async function interviewEmailOutdated(admin: any, prev: any): Promise<boolean> {
+  if (!prev?.calendar_ics) return false
+  if (!prev.interview_id) return true
+  const { data: iv } = await admin.from('ats_interviews').select('revision').eq('id', prev.interview_id).maybeSingle()
+  return !iv || iv.revision !== prev.calendar_revision
 }

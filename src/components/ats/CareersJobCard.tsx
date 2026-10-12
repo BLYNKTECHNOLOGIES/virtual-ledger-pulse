@@ -1,4 +1,4 @@
-import { Copy, ExternalLink } from "lucide-react";
+import { Copy, ExternalLink, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -15,7 +15,8 @@ export function CareersJobCard({ job }: { job: AtsJob }) {
     success: (v) => (v ? "Shown on careers page" : "Removed from careers page"),
   });
   return (
-    <SectionCard title="Careers page">
+    <SectionCard title={<span className="inline-flex items-center gap-2"><Globe className="h-4 w-4 text-muted-foreground" aria-hidden />Careers page</span>}>
+      <p className={job.is_published ? "mb-3 text-sm font-medium text-foreground" : "mb-3 text-sm text-muted-foreground"}>{job.is_published ? "Shown on the careers page" : "Not on the careers page"}</p>
       <label className="flex items-center justify-between gap-3 text-sm text-foreground">
         <span>
           Show on careers page

@@ -60,8 +60,8 @@ function esc(s: string) {
 }
 
 const BRAND = {
-  logo: "https://erp.blynkex.com/__l5e/assets-v1/2ac6088a-a0a4-4047-8220-03319fe0ec29/blynk-wordmark.png",
-  icon: "https://erp.blynkex.com/__l5e/assets-v1/ae377ace-4faa-43a4-930f-e3a7ae48a885/blynk-icon-transparent.png",
+  logo: "https://erp.blynkex.com/__l5e/assets-v1/042810b3-dfdf-4ae1-9f9e-e47ef2e18071/BlynkEx_black_with_logo.png",
+  icon: "https://erp.blynkex.com/__l5e/assets-v1/0ca9650d-d963-4f4a-aae9-a538302556f1/BlynkEx_icon.png",
   blue: "#00AEEF",
   ink: "#0B1524",
   hrName: "Honey Sewani",
@@ -111,8 +111,7 @@ function renderNotice(d: NoticeData): { subject: string; html: string; text: str
       <tr>
         <td style="padding:16px 22px;border-bottom:2px solid ${BRAND.blue};">
           <table cellpadding="0" cellspacing="0" border="0"><tr>
-            <td valign="middle" style="padding-right:10px;"><img src="${BRAND.icon}" alt="Blynk" width="26" style="display:block;width:26px;height:auto;border:0;" /></td>
-            <td valign="middle" style="font-size:14px;font-weight:800;letter-spacing:.06em;color:${BRAND.ink};">BLYNK <span style="font-weight:500;">VIRTUAL TECHNOLOGIES</span></td>
+            <td valign="middle"><img src="${BRAND.logo}" alt="BlynkEx" width="160" style="display:block;width:160px;max-width:100%;height:auto;border:0;" /></td>
           </tr></table>
         </td>
       </tr>

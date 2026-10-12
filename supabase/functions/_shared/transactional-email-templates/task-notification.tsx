@@ -20,7 +20,7 @@ import type { TemplateEntry } from './registry.ts'
 
 const SITE_NAME = 'Blynkex'
 const APP_URL = 'https://erp.blynkex.com'
-const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/b6b06bc5-e6c4-4625-b9d1-57b258a7be69/blynkex-logo.svg'
+const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/6faea1af-3912-4ae5-99ab-0765270cedac/BlynkEx_white_with_logo.png'
 
 /* Blynk brand tokens (email-safe hex of the ERP design system) */
 const INK = '#04121F'

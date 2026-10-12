@@ -166,7 +166,7 @@ export function fireBrowserNotification(title: string, body: string) {
     if (typeof Notification === 'undefined') return;
     if (Notification.permission !== 'granted') return;
     if (!document.hidden) return;
-    const n = new Notification(title, { body, icon: '/favicon.svg', silent: true });
+    const n = new Notification(title, { body, icon: '/favicon.png', silent: true });
     n.onclick = () => {
       try {
         window.focus();

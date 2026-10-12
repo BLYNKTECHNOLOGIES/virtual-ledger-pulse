@@ -26,6 +26,7 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_IMPORT_TOO_OLD", "Imports can only be undone within 7 days."],
   ["ATS_IMPORT_INVALID", "Something in the file couldn't be read. Check it and try again."],
   ["ATS_REPORT_INVALID", "Check the dates: the end must be on or after the start, and the range can be at most 2 years."],
+  ["ATS_STAGE_HAS_CANDIDATES", "Move the candidates out of this stage before turning it off."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
@@ -37,6 +38,7 @@ export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
     if (all.includes("ats_candidates_email_uq")) return "Another candidate already uses this email";
     if (all.includes("ats_candidates_phone_uq")) return "Another candidate already uses this phone number";
     if (all.includes("ats_applications_candidate_job_uq")) return "This candidate already has an application for that job.";
+    if (all.includes("ats_applications_candidate_general_uq")) return "This candidate already has a general application.";
     return "That name is already in use.";
   }
   if (e.code === "23503") return inUseMessage ?? "This record is still in use.";

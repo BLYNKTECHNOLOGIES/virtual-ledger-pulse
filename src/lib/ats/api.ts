@@ -27,6 +27,17 @@ export interface JobSummaryRow {
   new_7d: number; last_applied_at: string | null; stage_counts: Record<string, number>;
 }
 
+export const useIsHrAdmin = () =>
+  useQuery({
+    queryKey: ["ats", "is-hr-admin"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("hr_is_hr_admin" as any);
+      if (error) throw error;
+      return data === true;
+    },
+  });
+
 export const atsKeys = {
   overview: ["ats", "overview"] as const,
   jobs: ["ats", "jobs"] as const,

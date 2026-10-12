@@ -134,7 +134,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
         </form>
       </ResponsiveDialog>
 
-      <ResponsiveDialog open={!!result} onOpenChange={(o) => !o && setResult(null)} title="Bulk action finished"
+      <ResponsiveDialog open={!!result} onOpenChange={(o) => { if (!o) { setResult(null); onClear(); } }} title="Bulk action finished"
         footer={<Button onClick={() => { setResult(null); onClear(); }}>Done</Button>}>
         {result && (
           <div className="space-y-3 text-sm">
@@ -145,7 +145,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
             </p>
             {result.res.email && (
               <>
-                <p className="text-foreground">{result.res.email.sent} emails sent · {result.res.email.noEmail} without an email address · {result.res.email.notSent.length} not sent</p>
+                <p className="text-foreground">{result.res.email.sent} email{result.res.email.sent === 1 ? "" : "s"} sent · {result.res.email.noEmail} without an email address · {result.res.email.notSent.length} not sent</p>
                 {result.res.email.notSent.length > 0 && (
                   <ul className="max-h-40 divide-y divide-border overflow-y-auto rounded-lg border border-border">
                     {result.res.email.notSent.map(({ row, reason }) => (

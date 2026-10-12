@@ -26,7 +26,7 @@ export function skipReason(action: BulkAction, r: AtsAppRow): string | null {
     if (st === "withdrawn") return "withdrawn: reopen first";
     if (action.kind === "move" && r.stage_id === action.stageId) return `already in ${action.stageName}`;
     if (action.kind === "hold" && st === "on_hold") return "already on hold";
-    if (action.kind === "hold" && st === "hired") return "already hired";
+    if (st === "hired") return "already hired";
   }
   if (action.kind === "reject") {
     if (st === "rejected") return "already rejected";

@@ -19,6 +19,7 @@ import { JobStatusBadge, QueryError, RowsSkeleton, SectionCard } from "@/compone
 import { useAts } from "@/components/ats/AtsContext";
 import { CandidateTable } from "@/components/ats/CandidateTable";
 import { CareersJobCard } from "@/components/ats/CareersJobCard";
+import { PipelineBoard } from "@/components/ats/PipelineBoard";
 import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
 import { useAtsSettings } from "@/lib/ats/api";
 import {
@@ -135,12 +136,15 @@ export default function AtsJobDetailPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs key={j.id} defaultValue={j.status === "open" ? "pipeline" : "overview"}>
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap sm:w-auto">
+          <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="pipeline"><PipelineBoard jobId={j.id} /></TabsContent>
 
         <TabsContent value="overview" className="space-y-4">
           <SectionCard title="Pipeline">

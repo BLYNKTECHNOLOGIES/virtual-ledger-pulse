@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Keyboard, MoreVertical } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -82,6 +85,11 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const [statusDlg, setStatusDlg] = useState<null | "rejected" | "withdrawn">(null);
   const [stageDlg, setStageDlg] = useState<null | { id: string; name: string }>(null);
   const [changeJob, setChangeJob] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [keysOpen, setKeysOpen] = useState(false);
+  const noteRef = useRef<HTMLTextAreaElement>(null);
+  const navigate = useNavigate();
+  const shortcutRef = useRef<{ a?: () => void; h?: () => void; r?: () => void }>({});
 
   const app: AtsAppRow | undefined = useMemo(() => {
     const list = apps.data ?? [];
@@ -150,6 +158,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const setStatus = (status: string, msg: string, reasonId?: string, note?: string, after?: () => void) =>
     run(() => supabase.rpc("ats_set_status", { p_application_id: app!.application_id!, p_status: status, p_reason_id: reasonId ?? null, p_note: note || null }), msg, after);
 
+  shortcutRef.current = {
+    a: next && !stageLocked ? () => moveTo(next.id, next.name) : undefined,
+    h: app && !closed && !hired && !busy ? () => (app.status === "on_hold" ? setStatus("active", "Application resumed") : setStatus("on_hold", "Put on hold")) : undefined,
+    r: app && !closed && !hired && !busy ? () => setStatusDlg("rejected") : undefined,
+  };
+
   const header = (
     <div className="space-y-3 border-b border-border p-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -162,6 +176,14 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
           {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
           <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setKeysOpen(true)}><Keyboard className="mr-2 h-4 w-4" /> Keyboard shortcuts (?)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete candidate…</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       {(apps.data?.length ?? 0) > 1 && (
@@ -208,7 +230,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       )}
       <div className="flex flex-wrap gap-2">
         {next && (
-          <Button size="sm" disabled={stageLocked} className="gap-1.5" onClick={() => moveTo(next.id, next.name)}>
+          <Button size="sm" disabled={stageLocked} className="gap-1.5" title="Shortcut: A" onClick={() => moveTo(next.id, next.name)}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
             {activeStages[curIdx]?.code === "new" ? `Shortlist → ${next.name}` : `Move to ${next.name}`}
           </Button>
@@ -228,12 +250,12 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           </DropdownMenuContent>
         </DropdownMenu>
         {!closed && !hired && (app.status === "on_hold" ? (
-          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("active", "Application resumed")}><Play className="h-4 w-4" /> Resume</Button>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" title="Shortcut: H" onClick={() => setStatus("active", "Application resumed")}><Play className="h-4 w-4" /> Resume</Button>
         ) : (
-          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("on_hold", "Put on hold")}><Pause className="h-4 w-4" /> Hold</Button>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" title="Shortcut: H" onClick={() => setStatus("on_hold", "Put on hold")}><Pause className="h-4 w-4" /> Hold</Button>
         ))}
         {!closed && !hired && <>
-          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setStatusDlg("rejected")}><XCircle className="h-4 w-4" /> Reject</Button>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 text-destructive hover:text-destructive" title="Shortcut: R" onClick={() => setStatusDlg("rejected")}><XCircle className="h-4 w-4" /> Reject</Button>
           <Button size="sm" variant="ghost" disabled={busy} className="gap-1.5" onClick={() => setStatusDlg("withdrawn")}><LogOut className="h-4 w-4" /> Withdrawn</Button>
         </>}
       </div>
@@ -279,7 +301,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       {facts}
       {app?.applied_via === "careers_form" && <FormAnswers appId={app.application_id!} />}
       {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
-      <NotesCard candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
+      <NotesCard ref={noteRef} candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
       <FilesCard files={files.data ?? []} onUpload={() => setUploadOpen(true)} candidateId={candidateId} />
     </>
   );
@@ -311,6 +333,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); moveTo(s.id, s.name, note); }} />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} candidateId={candidateId} appId={app?.application_id ?? null}
         onDone={(f) => { setSelFile(f.kind === "resume" || !selFile ? f.id : selFile); }} />
+      <DeleteCandidateDialog open={delOpen} onOpenChange={setDelOpen} candidateId={candidateId} name={c.full_name} refNo={c.ref_no}
+        onDeleted={() => { qc.invalidateQueries({ queryKey: candKeys.all }); qc.invalidateQueries({ queryKey: atsKeys.overview }); qc.invalidateQueries({ queryKey: atsKeys.jobSummary }); navigate("/hrms/ats/candidates"); }} />
+      <ShortcutsDialog open={keysOpen} onOpenChange={setKeysOpen} />
       {app && <ChangeJobDialog open={changeJob} onOpenChange={setChangeJob} app={app} />}
       <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} candidate={c} />
     </div>
@@ -459,7 +484,7 @@ function RatingsCard({ appId, me }: { appId: string; me: string | null }) {
   );
 }
 
-function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: string | null; me: string | null }) {
+const NotesCard = forwardRef<HTMLTextAreaElement, { candidateId: string; appId: string | null; me: string | null }>(function NotesCard({ candidateId, appId, me }, noteRef) {
   const qc = useQueryClient();
   const notes = useCandidateNotes(candidateId);
   const [body, setBody] = useState("");
@@ -483,7 +508,7 @@ function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: str
   };
   return (
     <SectionCard title="Notes">
-      <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a note…" className="text-foreground"
+      <Textarea ref={noteRef} rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a note…" className="text-foreground"
         onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); add(); } }} />
       <div className="mt-2 flex items-center justify-between gap-2">
         <span className="text-xs text-muted-foreground">Ctrl/⌘ + Enter to save</span>
@@ -527,7 +552,7 @@ function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: str
       </AlertDialog>
     </SectionCard>
   );
-}
+});
 
 function ActivityCard({ candidateId }: { candidateId: string }) {
   const ev = useCandidateEvents(candidateId);

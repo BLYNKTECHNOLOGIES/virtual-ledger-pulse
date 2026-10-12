@@ -19,6 +19,8 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { EmptyState } from "@/components/shared/EmptyState";
 import { QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { CareersSettingsSection } from "@/components/ats/CareersSettingsSection";
+import { EmailSettingsSection } from "@/components/ats/EmailSettingsSection";
+import { useSearchParams } from "react-router-dom";
 import {
   type AtsReason, type AtsStage, atsKeys, useAtsMutation, useAtsReasons, useAtsSettings, useAtsSources, useAtsStages,
 } from "@/lib/ats/api";
@@ -369,15 +371,26 @@ function GeneralSection() {
   );
 }
 
+const SETTINGS_TABS = ["stages", "sources", "reasons", "careers", "email", "general"];
+
 export default function AtsSettingsPage() {
+  const [sp, setSp] = useSearchParams();
+  const raw = sp.get("tab") ?? "stages";
+  const tab = SETTINGS_TABS.includes(raw) ? raw : "stages";
+  const onTab = (v: string) => {
+    const next = new URLSearchParams(sp);
+    if (v === "stages") next.delete("tab"); else next.set("tab", v);
+    setSp(next, { replace: true });
+  };
   return (
-    <Tabs defaultValue="stages" className="space-y-4">
+    <Tabs value={tab} onValueChange={onTab} className="space-y-4">
       <div className="max-w-full overflow-x-auto">
         <TabsList className="flex-nowrap">
           <TabsTrigger value="stages">Stages</TabsTrigger>
           <TabsTrigger value="sources">Sources</TabsTrigger>
           <TabsTrigger value="reasons">Rejection reasons</TabsTrigger>
           <TabsTrigger value="careers">Careers page</TabsTrigger>
+          <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
         </TabsList>
       </div>
@@ -385,6 +398,7 @@ export default function AtsSettingsPage() {
       <TabsContent value="sources"><SourcesSection /></TabsContent>
       <TabsContent value="reasons"><ReasonsSection /></TabsContent>
       <TabsContent value="careers"><CareersSettingsSection /></TabsContent>
+      <TabsContent value="email"><EmailSettingsSection /></TabsContent>
       <TabsContent value="general"><GeneralSection /></TabsContent>
     </Tabs>
   );

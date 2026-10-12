@@ -300,6 +300,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                           const theirRate = (comp / idx) * 100;
                                           const ours = ratio > 0 ? (ratio / 100) * idx : null;
                                           const gap = ours != null ? ours - comp : null;
+                                          const fd = { maximumFractionDigits: comp < 1 ? 8 : 2 };
                                           const above = rule.trade_type === 'BUY' ? (gap ?? 0) > 0 : (gap ?? 0) < 0;
                                           return (
                                             <>
@@ -310,14 +311,14 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                               {ours != null && (
                                                 <div className="flex justify-between">
                                                   <span className="text-muted-foreground">{isApplied ? 'Your price' : 'Price needed'}</span>
-                                                  <span className="font-medium">₹{ours.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                                  <span className="font-medium">₹{ours.toLocaleString('en-IN', fd)}</span>
                                                 </div>
                                               )}
                                               {isApplied && gap != null && (
                                                 <div className="flex justify-between">
                                                   <span className="text-muted-foreground">Gap vs competitor</span>
                                                   <span className={`font-medium ${above ? 'text-success' : 'text-destructive'}`}>
-                                                    {gap >= 0 ? '+' : '−'}₹{Math.abs(gap).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({((gap / comp) * 100).toFixed(3)}%)
+                                                    {gap >= 0 ? '+' : '−'}₹{Math.abs(gap).toLocaleString('en-IN', fd)} ({((gap / comp) * 100).toFixed(3)}%)
                                                   </span>
                                                 </div>
                                               )}

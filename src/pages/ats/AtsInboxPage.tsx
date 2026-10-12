@@ -161,7 +161,8 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm text-foreground">{r.subject || "(no subject)"}</span>
-            {r.is_automatic && <Badge variant="outline" className="shrink-0 font-normal">Automatic reply</Badge>}
+            {r.direction === "inbound" && r.is_automatic && <Badge variant="outline" className="shrink-0 font-normal">Automatic reply</Badge>}
+            {r.direction === "outbound" && r.is_automatic && <Badge variant="outline" className="shrink-0 font-normal">Sent automatically</Badge>}
             {attCount > 0 && <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground"><Paperclip className="h-3 w-3" />{attCount}</span>}
           </div>
           <p className="truncate text-xs text-muted-foreground">{r.snippet}</p>

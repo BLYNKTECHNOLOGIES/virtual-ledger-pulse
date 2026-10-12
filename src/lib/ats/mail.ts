@@ -186,7 +186,14 @@ export const PLACEHOLDER_RE = /\{\{\s*[\w.]+\s*\}\}/;
 export const SAMPLE_VALUES: Record<string, string> = {
   first_name: "Rahul", full_name: "Rahul Sharma", job_title: "Customer Support Executive",
   company_name: "Blynk Virtual Technologies", ref_no: "BX-1001",
+  interview_title: "Technical round", interview_date: "Wednesday, 21 October 2026", interview_time: "11:30 AM IST",
+  interview_duration: "30 minutes", interview_mode: "Video call",
+  interview_where: "Video call: https://meet.google.com/abc-defg-hij", interview_note: "Please keep a government ID proof handy.",
 };
+
+/** Templates that need an interview to fill (offered only by the interview dialogs). */
+export const usesInterviewFields = (t: { subject?: string | null; body?: string | null }) =>
+  /\{\{\s*interview_\w+\s*\}\}/.test(`${t.subject ?? ""}\n${t.body ?? ""}`);
 export const fillSample = (s: string) => s.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => SAMPLE_VALUES[k] ?? m);
 
 /** Splits a received body into the new text and quoted history (or null). */

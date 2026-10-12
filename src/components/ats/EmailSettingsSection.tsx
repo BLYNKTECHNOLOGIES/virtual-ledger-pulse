@@ -23,6 +23,8 @@ import {
   PURPOSES, checkCandidateMail, checkResultText, fillSample, mailErrorMessage, mailKeys, purposeLabel,
   useEmailTemplates, useMailStatus, type AtsEmailTemplate,
 } from "@/lib/ats/mail";
+import { INTERVIEW_PLACEHOLDERS } from "@/lib/ats/mail";
+import { useAtsSettings } from "@/lib/ats/api";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
 
 const LOOKBACK = [
@@ -226,6 +228,8 @@ function TemplatesCard() {
   const tpl = useEmailTemplates({ includeInactive: true });
   const ms = useMailStatus();
   const ackOn = !!(ms.data?.enabled && ms.data?.ack_enabled);
+  const atsSettings = useAtsSettings();
+  const reminderOn = !!(ms.data?.enabled && (atsSettings.data?.interview_reminder_hours ?? 0) > 0);
   const [edit, setEdit] = useState<AtsEmailTemplate | "new" | null>(null);
   const [del, setDel] = useState<AtsEmailTemplate | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: mailKeys.templates });
@@ -253,6 +257,8 @@ function TemplatesCard() {
                   <span className="font-medium text-foreground">{t.name}</span>
                   <Badge variant="secondary" className="font-normal">{purposeLabel(t.purpose)}</Badge>
                   {t.code === "acknowledgement" && ackOn && <Badge variant="outline" className="font-normal">Used automatically</Badge>}
+                  {t.code === "interview-reminder" && reminderOn && <Badge variant="outline" className="font-normal">Used automatically</Badge>}
+                  {["interview-scheduled", "interview-rescheduled", "interview-cancelled"].includes(t.code) && <Badge variant="outline" className="font-normal">Used when scheduling</Badge>}
                 </div>
                 <p className="truncate text-xs text-muted-foreground">{t.subject}</p>
               </div>
@@ -337,6 +343,13 @@ function TemplateDialog({ value, nextSort, onClose, onSaved }: { value: AtsEmail
           <div className="flex flex-wrap gap-1">
             {PLACEHOLDERS.map((p) => <Button key={p} type="button" size="sm" variant="outline" className="h-7 font-mono text-xs" onClick={() => insert(p)}>{`{{${p}}}`}</Button>)}
           </div>
+          {purpose === "interview" && <>
+            <p className="pt-1 text-xs font-medium text-muted-foreground">Interview details</p>
+            <div className="flex flex-wrap gap-1">
+              {INTERVIEW_PLACEHOLDERS.map((p) => <Button key={p} type="button" size="sm" variant="outline" className="h-7 font-mono text-xs" onClick={() => insert(p)}>{`{{${p}}}`}</Button>)}
+            </div>
+            <p className="text-xs text-muted-foreground">Interview details are filled in from the interview. Templates that use them are offered when you schedule, change or cancel an interview, not in the normal email composer.</p>
+          </>}
           <Textarea id="tpl-body" ref={bodyRef} rows={12} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} className="text-foreground" />
         </div>
         <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-3">

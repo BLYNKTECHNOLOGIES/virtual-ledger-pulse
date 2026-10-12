@@ -62,6 +62,8 @@ export interface UploadAtsFileArgs {
   candidateId: string;
   applicationId?: string | null;
   kind: AtsFileKind;
+  /** "import" for resumes added by an import; "manual" (the default) otherwise. */
+  source?: "manual" | "import";
 }
 
 /**
@@ -69,7 +71,7 @@ export interface UploadAtsFileArgs {
  * ats-files bucket and records the ats_files row. The database makes the first
  * resume primary. If the row insert fails the uploaded object is removed.
  */
-export async function uploadAtsFile({ file, candidateId, applicationId, kind }: UploadAtsFileArgs) {
+export async function uploadAtsFile({ file, candidateId, applicationId, kind, source }: UploadAtsFileArgs) {
   const invalid = validateAtsFile(file);
   if (invalid) throw new AtsFileError(invalid, invalid.includes("10 MB") ? "size" : "type");
 
@@ -97,7 +99,7 @@ export async function uploadAtsFile({ file, candidateId, applicationId, kind }: 
       mime_type: mime,
       size_bytes: file.size,
       sha256,
-      source: "manual",
+      source: source ?? "manual",
     })
     .select("*")
     .single();

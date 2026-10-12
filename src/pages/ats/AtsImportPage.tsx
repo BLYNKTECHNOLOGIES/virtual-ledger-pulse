@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ChevronDown, FileUp } from "lucide-react";
+import { ArrowLeft, ChevronDown, FileText, FileUp } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -9,6 +9,7 @@ import { useFileDropzone } from "@/hooks/useFileDropzone";
 import { SectionCard } from "@/components/ats/AtsBits";
 import { FileImportWizard } from "@/components/ats/FileImportWizard";
 import { ImportHistory } from "@/components/ats/ImportHistory";
+import { ResumeImportWizard } from "@/components/ats/ResumeImportWizard";
 import { importKeys } from "@/lib/ats/imports";
 
 export default function AtsImportPage() {
@@ -17,13 +18,21 @@ export default function AtsImportPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const qc = useQueryClient();
   const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles: (f) => f[0] && setFile(f[0]), multiple: false });
+  const [resumes, setResumes] = useState<File[] | null>(null);
+  const resumeRef = useRef<HTMLInputElement>(null);
+  const resumeDrop = useFileDropzone({ onFiles: (f) => f.length && setResumes(f), multiple: true });
+  const closeWizard = () => { setFile(null); setResumes(null); qc.invalidateQueries({ queryKey: importKeys.all }); };
+
+  if (resumes) {
+    return <ResumeImportWizard files={resumes} presetJobId={searchParams.get("job")} onClose={closeWizard} />;
+  }
 
   if (file) {
     return (
       <FileImportWizard
         file={file}
         presetJobId={searchParams.get("job")}
-        onClose={() => { setFile(null); qc.invalidateQueries({ queryKey: importKeys.all }); }}
+        onClose={closeWizard}
       />
     );
   }
@@ -40,6 +49,7 @@ export default function AtsImportPage() {
         </p>
       </div>
 
+      <div className="grid gap-4 md:grid-cols-2">
       <SectionCard title="Import a job-portal file">
         <div
           {...dropzoneProps}
@@ -73,6 +83,30 @@ export default function AtsImportPage() {
           </CollapsibleContent>
         </Collapsible>
       </SectionCard>
+
+      <SectionCard title="Upload resumes">
+        <div
+          {...resumeDrop.dropzoneProps}
+          className={cn(
+            "flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border p-8 text-center transition-colors",
+            resumeDrop.isDragActive && "border-primary bg-primary/5",
+          )}
+        >
+          <FileText className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-foreground">Drop the resumes here</p>
+          <Button variant="outline" onClick={() => resumeRef.current?.click()}>Choose resumes</Button>
+          <input
+            ref={resumeRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx"
+            className="hidden"
+            onChange={(e) => { const l = Array.from(e.target.files ?? []); e.target.value = ""; if (l.length) setResumes(l); }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">PDF or Word · up to 50 resumes, 10 MB each</p>
+      </SectionCard>
+      </div>
 
       <ImportHistory />
     </div>

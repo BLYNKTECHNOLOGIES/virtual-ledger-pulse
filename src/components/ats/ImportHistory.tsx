@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -30,16 +30,18 @@ function jobLabel(r: ImportListRow) {
   return r.ats_jobs?.title ?? "Job removed";
 }
 
-function resultsLabel(r: any) {
-  const parts = [
-    [r.created, "new"], [r.added, "added"], [r.existing, "already applied"], [r.skipped, "skipped"], [r.error_count, "not imported"],
-  ].filter(([n]) => Number(n) > 0).map(([n, l]) => `${n} ${l}`);
+function resultsLabel(r: ImportListRow) {
+  const parts = ([
+    [r.created_count, "new"], [r.added_count, "added"], [r.existing_count, "already applied"],
+    [r.skipped_count, "skipped"], [r.error_count, "not imported"],
+  ] as [number, string][]).filter(([n]) => n > 0).map(([n, l]) => `${n} ${l}`);
   return parts.length ? parts.join(" · ") : "Nothing imported";
 }
 
 function StatusBadge({ r }: { r: any }) {
   if (r.status === "undone") {
     return (
+      <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild><Badge variant="outline">Undone</Badge></TooltipTrigger>
         <TooltipContent>
@@ -47,6 +49,7 @@ function StatusBadge({ r }: { r: any }) {
           {Number(r.undo_kept) > 0 ? ` · kept ${r.undo_kept} worked on since` : ""}
         </TooltipContent>
       </Tooltip>
+      </TooltipProvider>
     );
   }
   if (r.status === "running") {

@@ -30,6 +30,8 @@ export const mailKeys = {
   status: ["ats", "mail", "status"] as const,
   thread: (candidateId: string) => ["ats", "mail", "thread", candidateId] as const,
   templates: ["ats", "mail", "templates"] as const,
+  unreadIds: ["ats", "mail", "unread-ids"] as const,
+  inbox: ["ats", "mail", "inbox"] as const,
 };
 
 export const PURPOSES = [
@@ -155,13 +157,17 @@ export function mailErrorMessage(code?: string | null, field?: string | null): s
     case "smtp_auth_failed": return "The HR mailbox rejected the sign-in. Ask an admin to check the HR mailbox settings.";
     case "smtp_timeout": case "timeout": return "The mail server didn't respond. Try again in a minute.";
     case "attachment_missing": return "One of the attached files is missing. Remove it and try again.";
-    case "smtp_failed": case "smtp_not_configured": case "interrupted": case "unexpected_error": case "save_failed": return AGAIN;
+    case "smtp_failed": case "interrupted": case "unexpected_error": case "save_failed": return AGAIN;
+    case "smtp_not_configured": return "The HR mailbox isn't set up for sending. Ask an admin to check the HR mailbox settings.";
+    case "network": return "Couldn't reach the server. Check your connection and try again.";
+    case "invalid_template": return "This email still had {{placeholders}} in it, so it wasn't sent. Fix the template in ATS → Settings → Email.";
+    case "lookup_failed": case "state_unavailable": return "Something went wrong while checking mail. It will try again in 5 minutes.";
     case "bounced": return "The candidate's mail server returned this email. Check the address.";
     case "imap_login_failed": return "The mailbox rejected the sign-in. The HR mailbox app password may have changed.";
     case "receiving_off": return "Receiving is turned off for this mailbox in the HR mailbox settings.";
     case "mailbox_credentials_missing": return "The mailbox sign-in details are missing.";
     case "imap_timeout": case "imap_connect_failed": case "imap_closed": case "imap_read_failed": case "imap_greeting": return UNREACHABLE;
-    default: return "Something went wrong while checking mail. It will try again in 5 minutes.";
+    default: return "Something went wrong. Try again in a minute.";
   }
 }
 
@@ -194,3 +200,27 @@ export function splitQuoted(text: string): [string, string | null] {
   }
   return [text, null];
 }
+
+/** Errors that a retry can't fix (same text would fail again). */
+export const canRetry = (code?: string | null) => code !== "invalid_template";
+
+/** Candidates with at least one unread received email (up to 2,000 rows). */
+export function useUnreadCandidateIds() {
+  const st = useMailStatus();
+  const on = !!st.data?.enabled;
+  return useQuery({
+    queryKey: mailKeys.unreadIds,
+    refetchInterval: on ? 60_000 : false,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("ats_messages").select("candidate_id")
+        .eq("direction", "inbound").is("read_at", null).limit(2000);
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.candidate_id));
+    },
+  });
+}
+
+/** "Find older emails" for one candidate (looks back `days`). */
+export const findOlderEmails = (candidateId: string, days = 180) =>
+  invokeMail<{ ok: boolean; error?: string | null; skipped?: string; stored?: number }>(
+    "ats-mail-sync", { action: "candidate", candidateId, days });

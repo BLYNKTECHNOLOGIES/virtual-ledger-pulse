@@ -42,6 +42,10 @@ import { AppStatusBadge, Stars, fmtMonthly, fmtYears } from "./CandidateBits";
 import { ResumeViewer, pickDefaultFile } from "./ResumeViewer";
 import { EditProfileSheet } from "./EditProfileSheet";
 import { ChangeJobDialog } from "./ChangeJobDialog";
+import { MessagesPanel } from "./MessagesPanel";
+import { useMailStatus, useMailThread } from "@/lib/ats/mail";
+import { useSearchParams } from "react-router-dom";
+import { Send, MailX, AlertTriangle } from "lucide-react";
 
 interface Props {
   candidateId: string;
@@ -56,6 +60,7 @@ const EVENT_ICON: Record<string, typeof Activity> = {
   candidate_created: UserPlus, application_created: UserPlus, stage_changed: ArrowRightLeft, status_changed: RotateCcw,
   note_added: StickyNote, note_updated: StickyNote, note_deleted: StickyNote, rating_added: Star, rating_updated: Star,
   rating_deleted: Star, file_uploaded: FileText, file_deleted: FileText, reviewed: Eye, hired: CheckCircle2,
+  email_sent: Send, email_received: Mail, email_failed: AlertTriangle, email_bounced: MailX,
 };
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -90,6 +95,20 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
   const shortcutRef = useRef<{ a?: () => void; h?: () => void; r?: () => void }>({});
+  const [sp, setSp] = useSearchParams();
+  const [paneTab, setPaneTabState] = useState<string>(sp.get("tab") === "messages" ? "messages" : "resume");
+  const setPaneTab = (v: string) => {
+    setPaneTabState(v);
+    const next = new URLSearchParams(sp);
+    if (v === "messages") next.set("tab", "messages"); else next.delete("tab");
+    setSp(next, { replace: true });
+  };
+  const [composeSignal, setComposeSignal] = useState(0);
+  const mailStatus = useMailStatus();
+  const mailOn = !!mailStatus.data?.enabled;
+  const mailThread = useMailThread(candidateId);
+  const unreadCount = (mailThread.data ?? []).filter((m) => m.direction === "inbound" && !m.read_at).length;
+  const openFileInResume = (id: string) => { setSelFile(id); setPaneTab("resume"); };
 
   const app: AtsAppRow | undefined = useMemo(() => {
     const list = apps.data ?? [];
@@ -189,7 +208,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           <p className="t-mono text-xs text-muted-foreground">{c.ref_no}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {c.email && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`mailto:${c.email}`}><Mail className="h-3.5 w-3.5" /> Email</a></Button>}
+          {mailOn
+            ? <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => { setPaneTab("messages"); setComposeSignal((n) => n + 1); }}><Mail className="h-3.5 w-3.5" /> Email</Button>
+            : c.email && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`mailto:${c.email}`}><Mail className="h-3.5 w-3.5" /> Email</a></Button>}
           {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
           {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
           <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>

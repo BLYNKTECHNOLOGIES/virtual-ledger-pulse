@@ -149,22 +149,13 @@ const TaskNotificationEmail = ({
           {/* Brand header — Blynk ink → cyan */}
           <Section style={brandHeader}>
             <Row>
-              <Column style={{ width: '54px', verticalAlign: 'middle' as const }}>
-                <div style={logoPlate}>
-                  <img
-                    src={LOGO_URL}
-                    alt="Blynkex"
-                    width="34"
-                    height="34"
-                    style={{ display: 'block', width: '34px', height: '34px' }}
-                  />
-                </div>
-              </Column>
-              <Column style={{ verticalAlign: 'middle' as const, paddingLeft: '2px' }}>
-                <div style={brandName}>
-                  <span style={{ color: '#FFFFFF', WebkitTextFillColor: '#FFFFFF' }}>BLYNK</span>
-                  <span style={{ color: CYAN_BRIGHT, WebkitTextFillColor: CYAN_BRIGHT }}>EX</span>
-                </div>
+              <Column style={{ verticalAlign: 'middle' as const }}>
+                <img
+                  src={LOGO_URL}
+                  alt="BlynkEx"
+                  width="160"
+                  style={{ display: 'block', width: '160px', maxWidth: '100%', height: 'auto' }}
+                />
                 <div style={brandTag}>Enterprise Resource Platform</div>
               </Column>
               <Column align="right" style={{ verticalAlign: 'middle' as const }}>

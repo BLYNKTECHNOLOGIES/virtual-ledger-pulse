@@ -2,9 +2,9 @@
 
 ## Owner-supplied BlynkEx logos
 
-- [ ] Replace recreated logos across ERP, Terminal and HRMS, including auth/public HR screens.
-- [ ] Derive compact icon and favicon from the uploaded symbol; preserve proportions and theme contrast.
-- [ ] Verify rendered logos and preview health without changing business flows.
+- [x] Replace recreated logos across ERP, Terminal and HRMS, including auth/public HR screens and outgoing email branding.
+- [x] Derive compact icon and favicon from the uploaded symbol; preserve proportions and theme contrast.
+- [x] Verify public screens, six rendered logo/theme variants, asset delivery and preview health without changing business flows; signed-in shell checks unavailable with external Supabase authentication.
 
 ## F&F approval and payroll-input handoff
 

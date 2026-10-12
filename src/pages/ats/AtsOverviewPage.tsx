@@ -1,3 +1,5 @@
+import { useMailStatus } from "@/lib/ats/mail";
+import { Mail } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -29,6 +31,7 @@ export default function AtsOverviewPage() {
     queryKey: ["ats", "integration-status"],
     queryFn: async () => { const { data, error } = await supabase.rpc("ats_integration_status"); if (error) throw error; return data as any; },
   });
+  const mailSt = useMailStatus();
   const unsorted = Number(integ.data?.unmatched_active ?? 0);
 
   const openJobs = useMemo(() => (jobs.data ?? []).filter((j) => j.status === "open"), [jobs.data]);
@@ -53,6 +56,13 @@ export default function AtsOverviewPage() {
           <Info className="h-4 w-4 text-primary" aria-hidden />
           {unsorted} careers-page application{unsorted === 1 ? " has" : "s have"} no matching job.
           <Link to="/hrms/ats/candidates?job=general" className="font-medium text-primary hover:underline">Sort them</Link>
+        </div>
+      )}
+      {mailSt.data?.enabled && Number(mailSt.data.unread ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground" role="status">
+          <Mail className="h-4 w-4 text-primary" aria-hidden />
+          {mailSt.data.unread} unread candidate replies.
+          <Link to="/hrms/ats/inbox" className="font-medium text-primary hover:underline">Open inbox</Link>
         </div>
       )}
       {ov.isLoading ? (

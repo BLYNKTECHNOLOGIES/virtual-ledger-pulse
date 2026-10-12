@@ -1,3 +1,4 @@
+import { UnreadMailMark } from "./UnreadMailMark";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,7 @@ export function CandidateTable({
               className="min-w-0 flex-1 rounded-lg border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <div className="flex items-center gap-2">
                 <UnreviewedDot show={isUnreviewed(r)} />
-                <span className="min-w-0 flex-1 truncate font-medium text-foreground">{r.full_name}</span>
+                <span className="min-w-0 flex-1 truncate font-medium text-foreground">{r.full_name}</span><UnreadMailMark candidateId={r.candidate_id} />
                 <AppStatusBadge status={r.status} />
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -69,7 +70,7 @@ export function CandidateTable({
                 <TableCell>
                   <div className="flex items-center gap-1.5">
                     <UnreviewedDot show={isUnreviewed(r)} />
-                    <span className="font-medium text-foreground">{r.full_name}</span>
+                    <span className="font-medium text-foreground">{r.full_name}</span><UnreadMailMark candidateId={r.candidate_id} />
                     <ResumeIcon show={r.has_resume} />
                   </div>
                   <div className="t-mono text-xs text-muted-foreground">{r.ref_no}</div>

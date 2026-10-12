@@ -1,3 +1,4 @@
+import { UnreadMailMark } from "./UnreadMailMark";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
@@ -186,6 +187,7 @@ function CardBody({ row: r, idleDays }: { row: AtsAppRow; idleDays: number }) {
       <div className="flex items-center gap-1.5 pr-6">
         <UnreviewedDot show={isUnreviewed(r)} />
         <span className="truncate text-sm font-medium text-foreground">{r.full_name}</span>
+        <UnreadMailMark candidateId={r.candidate_id} />
         <ResumeIcon show={r.has_resume} />
       </div>
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

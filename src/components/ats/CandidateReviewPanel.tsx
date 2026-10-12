@@ -43,7 +43,8 @@ import { ResumeViewer, pickDefaultFile } from "./ResumeViewer";
 import { EditProfileSheet } from "./EditProfileSheet";
 import { ChangeJobDialog } from "./ChangeJobDialog";
 import { MessagesPanel } from "./MessagesPanel";
-import { useMailStatus, useMailThread } from "@/lib/ats/mail";
+import { PLACEHOLDER_RE, mailErrorMessage, renderTemplate, sendCandidateEmail, useEmailTemplates, useMailStatus, useMailThread } from "@/lib/ats/mail";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useSearchParams } from "react-router-dom";
 import { Send, MailX, AlertTriangle } from "lucide-react";
 
@@ -193,6 +194,32 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`);
   const setStatus = (status: string, msg: string, reasonId?: string, note?: string, after?: () => void) =>
     run(() => supabase.rpc("ats_set_status", { p_application_id: app!.application_id!, p_status: status, p_reason_id: reasonId ?? null, p_note: note || null }), msg, after);
+
+  const rejectWithEmail = async (rid: string, note: string, draft: RejectEmailDraft) => {
+    if (busy || !app) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.rpc("ats_set_status", { p_application_id: app.application_id!, p_status: "rejected", p_reason_id: rid, p_note: note || null });
+      if (error) { toast.error(atsErrorMessage(error)); return; }
+      setStatusDlg(null);
+      const latest = (mailThread.data ?? [])[(mailThread.data ?? []).length - 1];
+      try {
+        const r = await sendCandidateEmail({
+          id: crypto.randomUUID(), candidateId, applicationId: app.application_id ?? null, subject: draft.subject, body: draft.body,
+          purpose: "rejection", templateCode: draft.templateCode, replyToId: latest?.id ?? null, fileIds: [],
+        });
+        if (r.status === "failed") toast.warning(`Application rejected · email not sent: ${mailErrorMessage(r.error)}`);
+        else toast.success("Application rejected · email sent");
+      } catch (e: any) {
+        toast.warning(`Application rejected · email not sent: ${mailErrorMessage(e?.code, e?.field)}`);
+      }
+      refreshAll();
+      qc.invalidateQueries({ queryKey: ["ats", "mail"] });
+      onActionDone?.();
+    } finally {
+      setBusy(false);
+    }
+  };
 
   shortcutRef.current = {
     a: next && !stageLocked ? () => moveTo(next.id, next.name) : undefined,
@@ -389,7 +416,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
 
       <ReasonDialog kind={statusDlg} reasons={(reasons.data ?? []).filter((r) => r.is_active && r.applies_to === statusDlg)} busy={busy}
         onClose={() => setStatusDlg(null)}
-        onSubmit={(rid, note) => setStatus(statusDlg!, statusDlg === "rejected" ? "Application rejected" : "Marked as withdrawn", rid, note, () => setStatusDlg(null))} />
+        email={c.email ? { on: mailOn, defaultTicked: !!mailStatus.data?.reject_default, firstName: (c.full_name ?? "").trim().split(/\s+/)[0] || "the candidate", candidateId, appId: app?.application_id ?? null } : null}
+        onSubmit={(rid, note, draft) => draft ? rejectWithEmail(rid, note, draft)
+          : setStatus(statusDlg!, statusDlg === "rejected" ? "Application rejected" : "Marked as withdrawn", rid, note, () => setStatusDlg(null))} />
       <StageNoteDialog stage={stageDlg} busy={busy} onClose={() => setStageDlg(null)}
         onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); moveTo(s.id, s.name, note); }} />
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} candidateId={candidateId} appId={app?.application_id ?? null}
@@ -437,25 +466,51 @@ function StatusBy({ appId }: { appId: string }) {
   return name ? <> · by {name}</> : null;
 }
 
-function ReasonDialog({ kind, reasons, busy, onClose, onSubmit }: {
+export interface RejectEmailDraft { subject: string; body: string; templateCode: string | null }
+
+function ReasonDialog({ kind, reasons, busy, onClose, onSubmit, email }: {
   kind: null | "rejected" | "withdrawn"; reasons: { id: string; label: string }[]; busy: boolean;
-  onClose: () => void; onSubmit: (reasonId: string, note: string) => void;
+  onClose: () => void; onSubmit: (reasonId: string, note: string, email: RejectEmailDraft | null) => void;
+  email?: { on: boolean; defaultTicked: boolean; firstName: string; candidateId: string; appId: string | null } | null;
 }) {
   const [rid, setRid] = useState("");
   const [note, setNote] = useState("");
-  useEffect(() => { if (kind) { setRid(""); setNote(""); } }, [kind]);
-  const submit = () => { if (rid && !busy) onSubmit(rid, note.trim()); };
+  const showEmail = kind === "rejected" && !!email?.on;
+  const templates = useEmailTemplates();
+  const rejTpls = (templates.data ?? []).filter((t) => t.purpose === "rejection");
+  const [tick, setTick] = useState(false);
+  const [tplId, setTplId] = useState("");
+  const [tplCode, setTplCode] = useState<string | null>(null);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  useEffect(() => { if (kind) { setRid(""); setNote(""); setTick(!!email?.defaultTicked); setTplId(""); setSubject(""); setBody(""); } }, [kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!showEmail || tplId || !rejTpls.length) return;
+    setTplId((rejTpls.find((t) => t.code === "rejection") ?? rejTpls[0]).id);
+  }, [showEmail, tplId, rejTpls.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!showEmail || !tplId || !email) return;
+    let alive = true;
+    renderTemplate(tplId, email.appId, email.candidateId)
+      .then((r) => { if (alive) { setSubject(r.subject); setBody(r.body); setTplCode(r.template_code); } })
+      .catch((e) => toast.error(atsErrorMessage(e)));
+    return () => { alive = false; };
+  }, [showEmail, tplId, email?.appId, email?.candidateId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sending = showEmail && tick;
+  const placeholders = sending && PLACEHOLDER_RE.test(`${subject}\n${body}`);
+  const emailOk = !sending || (!!subject.trim() && !!body.trim() && !placeholders);
+  const submit = () => { if (rid && !busy && emailOk) onSubmit(rid, note.trim(), sending ? { subject: subject.trim(), body, templateCode: tplCode } : null); };
   return (
     <ResponsiveDialog open={!!kind} onOpenChange={(o) => !o && onClose()}
       title={kind === "rejected" ? "Reject application" : "Mark as withdrawn"}
       footer={<>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button type="submit" form="ats-reason-form" disabled={!rid || busy} variant={kind === "rejected" ? "destructive" : "default"}>
+        <Button type="submit" form="ats-reason-form" disabled={!rid || busy || !emailOk} variant={kind === "rejected" ? "destructive" : "default"}>
           {kind === "rejected" ? "Reject" : "Mark withdrawn"}
         </Button>
       </>}>
       <form id="ats-reason-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}
-        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && (e.target as HTMLElement).tagName !== "BUTTON") { e.preventDefault(); submit(); } }}>
+        onKeyDown={(e) => { const t = e.target as HTMLElement; if (e.key === "Enter" && !e.shiftKey && t.tagName !== "BUTTON" && t.id !== "ats-rej-body") { e.preventDefault(); submit(); } }}>
         <div className="space-y-1.5">
           <Label>Reason</Label>
           <Select value={rid} onValueChange={setRid}>
@@ -467,6 +522,23 @@ function ReasonDialog({ kind, reasons, busy, onClose, onSubmit }: {
           <Label htmlFor="ats-reason-note">Note (optional)</Label>
           <Textarea id="ats-reason-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-foreground" />
         </div>
+        {showEmail && (
+          <div className="space-y-3 rounded-lg border border-border p-3">
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <Checkbox checked={tick} onCheckedChange={(v) => setTick(!!v)} /> Email {email!.firstName} about this decision
+            </label>
+            {tick && <>
+              <Select value={tplId} onValueChange={setTplId}>
+                <SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a template" /></SelectTrigger>
+                <SelectContent>{rejTpls.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+              </Select>
+              <Input aria-label="Subject" maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} className="text-foreground" />
+              <Textarea id="ats-rej-body" aria-label="Message" rows={8} maxLength={20000} value={body} onChange={(e) => setBody(e.target.value)} className="text-foreground" />
+              <p className="text-xs text-muted-foreground">Your HR signature is added automatically.</p>
+              {placeholders && <p className="text-xs text-destructive">Replace the {"{{placeholders}}"} first</p>}
+            </>}
+          </div>
+        )}
       </form>
     </ResponsiveDialog>
   );

@@ -74,7 +74,7 @@ export function StageRail({ stages, currentId, status, size = "lg" }: { stages: 
   return <ol aria-label="Stages" className="flex gap-1">
     {stages.map((s, i) => <li key={s.id} aria-current={i === at ? "step" : undefined} className="min-w-0 flex-1">
       <span aria-hidden className={cn("block h-1.5 rounded-full", seg(s, i))} />
-      <span className={cn("mt-1.5 block truncate text-[11px] leading-4", i === at ? "font-semibold text-foreground" : "text-muted-foreground")} title={s.name}>{s.name}</span>
+      <span lang="en" className={cn("mt-1.5 line-clamp-2 break-words hyphens-auto text-[11px] leading-tight", i === at ? "font-semibold text-foreground" : "text-muted-foreground")} title={s.name}>{s.name}</span>
     </li>)}
   </ol>;
 }

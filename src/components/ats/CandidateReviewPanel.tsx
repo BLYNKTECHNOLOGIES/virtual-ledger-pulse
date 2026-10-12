@@ -312,8 +312,8 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
             {app && (
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground">
                 <span className="min-w-0 truncate">{app.job_title ?? "General application"}</span>
-                <StageChip name={app.stage_name} kind={app.stage_kind} />
-                <AppStatusBadge status={app.status} />
+                {app.status !== "hired" && <StageChip name={app.stage_name} kind={app.stage_kind} />}
+                {app.status !== "active" && <AppStatusBadge status={app.status} />}
                 <span className="text-xs text-muted-foreground">Applied {fmtDate(app.applied_at)}{app.source_name ? ` via ${app.source_name}` : ""}</span>
               </div>
             )}

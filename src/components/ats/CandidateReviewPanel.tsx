@@ -344,19 +344,42 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     </>
   );
 
+  const msgBadge = unreadCount > 0 ? <Badge className="ml-1.5 h-5 min-w-5 justify-center px-1.5 text-[10px]">{unreadCount}</Badge> : null;
+  const messages = (
+    <MessagesPanel candidate={c} appId={app?.application_id ?? null} files={files.data ?? []} visible={paneTab === "messages"}
+      composeSignal={composeSignal} onOpenFile={openFileInResume} onEditProfile={() => setEditOpen(true)} />
+  );
+
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
       {header}
       {isMobile ? (
-        <Tabs defaultValue="resume" className="p-3">
-          <TabsList className="w-full"><TabsTrigger value="resume" className="flex-1">Resume</TabsTrigger><TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger><TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger></TabsList>
+        <Tabs value={paneTab} onValueChange={setPaneTab} className="p-3">
+          <TabsList className="w-full">
+            <TabsTrigger value="resume" className="flex-1">Resume</TabsTrigger>
+            <TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger>
+            <TabsTrigger value="messages" className="flex-1">Messages{msgBadge}</TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
+          </TabsList>
           <TabsContent value="resume"><div className="h-[70vh] overflow-hidden rounded-lg border border-border">{viewer}</div></TabsContent>
           <TabsContent value="profile" className="space-y-3">{sidePanels}</TabsContent>
+          <TabsContent value="messages"><div className="h-[70vh] overflow-hidden rounded-lg border border-border">{messages}</div></TabsContent>
           <TabsContent value="activity"><ActivityCard candidateId={candidateId} /></TabsContent>
         </Tabs>
       ) : (
         <div className="grid min-h-0 flex-1 grid-cols-[58fr_42fr]">
-          <div className="min-h-0 overflow-hidden border-r border-border">{viewer}</div>
+          <div className="flex min-h-0 flex-col overflow-hidden border-r border-border">
+            <div className="flex shrink-0 gap-1 border-b border-border px-2 py-1.5" role="tablist" aria-label="Left pane">
+              {(["resume", "messages"] as const).map((t) => (
+                <button key={t} type="button" role="tab" aria-selected={paneTab === t} onClick={() => setPaneTab(t)}
+                  className={cn("inline-flex items-center rounded-md px-2.5 py-1 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    paneTab === t ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                  {t === "resume" ? "Resume" : <>Messages{msgBadge}</>}
+                </button>
+              ))}
+            </div>
+            <div className="min-h-0 flex-1 overflow-hidden">{paneTab === "messages" ? messages : viewer}</div>
+          </div>
           <div className="min-h-0 space-y-3 overflow-y-auto p-3">
             {sidePanels}
             <ActivityCard candidateId={candidateId} />

@@ -1,11 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CandidateReviewPanel } from "@/components/ats/CandidateReviewPanel";
 import { loadNavCtx } from "@/lib/ats/candidates";
 
+const NEXT_KEY = "ats.candidates.goNext";
+
 export default function AtsCandidatePage() {
+  const [goNext, setGoNextState] = useState(() => { try { return localStorage.getItem(NEXT_KEY) !== "0"; } catch { return true; } });
+  const setGoNext = (v: boolean) => { setGoNextState(v); try { localStorage.setItem(NEXT_KEY, v ? "1" : "0"); } catch { /* ignore */ } };
   const { candidateId } = useParams();
   const [sp, setSp] = useSearchParams();
   const navigate = useNavigate();
@@ -19,7 +25,7 @@ export default function AtsCandidatePage() {
     const n = ctx!.items[idx + d];
     if (n) navigate(`/hrms/ats/candidates/${n.candidateId}?app=${n.appId}`, { state: { fromList: true }, replace: true });
   };
-  const advance = () => { if (showNav && idx + 1 < ctx!.items.length) go(1); };
+  const advance = () => { if (goNext && showNav && idx + 1 < ctx!.items.length) go(1); };
 
   return (
     <div className="space-y-3">
@@ -28,7 +34,11 @@ export default function AtsCandidatePage() {
           <ArrowLeft className="h-4 w-4" /> Candidates
         </Link>
         {showNav && (
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+            <label className="mr-2 flex items-center gap-2">
+              <Label htmlFor="ats-page-go-next" className="text-xs font-normal">After an action, go to the next candidate</Label>
+              <Switch id="ats-page-go-next" checked={goNext} onCheckedChange={setGoNext} />
+            </label>
             <span className="tabular-nums">{idx + 1} of {ctx!.items.length}</span>
             <Button size="icon" variant="outline" className="h-8 w-8" aria-label="Previous candidate" disabled={idx === 0} onClick={() => go(-1)}><ChevronLeft className="h-4 w-4" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8" aria-label="Next candidate" disabled={idx + 1 >= ctx!.items.length} onClick={() => go(1)}><ChevronRight className="h-4 w-4" /></Button>

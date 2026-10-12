@@ -50,7 +50,7 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
-    useSensor(KeyboardSensor),
+    useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } }),
   );
 
   const stages = useMemo(() => (stagesQ.data ?? []).filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order), [stagesQ.data]);
@@ -110,7 +110,8 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
   if (board.isError) return <QueryError error={board.error} onRetry={() => board.refetch()} />;
 
   const total = board.data?.total ?? 0;
-  const closed = board.data?.closed ?? 0;
+  const rejectedN = board.data?.rejected ?? 0;
+  const withdrawnN = board.data?.withdrawn ?? 0;
   const dragRow = dragId ? rows.find((r) => r.application_id === dragId) : null;
   const visibleStages = isMobile ? stages.filter((s) => s.id === (mobileStage ?? stages[0]?.id)) : stages;
 
@@ -144,10 +145,12 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
         </div>
         <DragOverlay>{dragRow ? <div className="w-64 rotate-1 opacity-90"><CardBody row={dragRow} idleDays={idleDays} /></div> : null}</DragOverlay>
       </DndContext>
-      {closed > 0 && (
+      {(rejectedN > 0 || withdrawnN > 0) && (
         <p className="text-xs text-muted-foreground">
-          <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=${jobId}&status=rejected`}>Closed ({closed})</Link>
-          {" "}· rejected and withdrawn applications are not shown here.
+          {rejectedN > 0 && <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=${jobId}&status=rejected`}>Rejected ({rejectedN})</Link>}
+          {rejectedN > 0 && withdrawnN > 0 && " "}
+          {withdrawnN > 0 && <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=${jobId}&status=withdrawn`}>Withdrawn ({withdrawnN})</Link>}
+          {" · not shown on the board."}
         </p>
       )}
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>

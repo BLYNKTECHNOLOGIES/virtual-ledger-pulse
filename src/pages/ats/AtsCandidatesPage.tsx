@@ -1,5 +1,5 @@
 import { UnreadMailMark } from "@/components/ats/UnreadMailMark";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Plus, Search, Table2, Users, FilterX, KanbanSquare, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -111,11 +111,17 @@ export default function AtsCandidatesPage() {
     setExporting(true);
     const t = toast.loading("Preparing export…");
     try {
-      const base = preset ?? (await fetchMatchingRows(f, idleDays, 5000, (n, total) => toast.loading(`Fetching ${n} of ${total}…`, { id: t }))).rows;
+      let over = false;
+      let base = preset;
+      if (!base) {
+        const r = await fetchMatchingRows(f, idleDays, 5000, (n, total) => toast.loading(`Fetching ${n} of ${total}…`, { id: t }));
+        base = r.rows; over = r.total > 5000;
+      }
       if (!base.length) { toast.info("Nothing to export.", { id: t }); return; }
       toast.loading(`Building file with ${base.length} rows…`, { id: t });
       await downloadCandidatesXlsx(await withCurrentCtc(base));
       toast.success(`Exported ${base.length} candidate${base.length === 1 ? "" : "s"}`, { id: t });
+      if (over) toast.warning("Only the first 5,000 candidates were exported. Narrow the filters to export the rest.");
     } catch (e) { toast.error(atsErrorMessage(e), { id: t }); } finally { setExporting(false); }
   };
 
@@ -130,12 +136,21 @@ export default function AtsCandidatesPage() {
   const openFull = (r: AtsAppRow) => { rememberCtx(); navigate(candidateHref(r), { state: { fromList: true } }); };
 
   const effectiveMode: Mode = isMobile && mode === "review" ? "table" : mode;
-  const selRow = rows.find((r) => r.application_id === sel) ?? (effectiveMode === "review" ? rows[0] : undefined);
+  // C1: never fall back to a different person. When `sel` is not on this page, keep showing the last shown candidate.
+  const lastShown = useRef<AtsAppRow | undefined>(undefined);
+  const [panelApp, setPanelApp] = useState<{ candidateId: string; appId: string } | null>(null);
+  const found = rows.find((r) => r.application_id === sel);
+  let selRow: AtsAppRow | undefined;
+  if (found) selRow = found;
+  else if (sel && lastShown.current) selRow = lastShown.current;
+  else selRow = effectiveMode === "review" && !sel ? rows[0] : undefined;
+  if (selRow) lastShown.current = selRow;
+  const panelAppId = panelApp && panelApp.candidateId === selRow?.candidate_id ? panelApp.appId : selRow?.application_id;
 
   const moveSel = useCallback((dir: 1 | -1) => {
     if (!rows.length) return;
-    const i = Math.max(0, rows.findIndex((r) => r.application_id === selRow?.application_id));
-    const n = rows[Math.min(rows.length - 1, Math.max(0, i + dir))];
+    const at = rows.findIndex((r) => r.application_id === selRow?.application_id);
+    const n = at < 0 ? rows[0] : rows[Math.min(rows.length - 1, Math.max(0, at + dir))];
     if (n) update({ sel: n.application_id }, true);
   }, [rows, selRow?.application_id, update]);
 
@@ -144,6 +159,7 @@ export default function AtsCandidatesPage() {
     const h = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input,textarea,select,[contenteditable=true],[role=dialog],[role=menu],[role=listbox]")) return;
+      if (document.querySelector("[role=dialog],[role=alertdialog]")) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); moveSel(1); }
       else if (e.key === "k" || e.key === "ArrowUp") { e.preventDefault(); moveSel(-1); }
@@ -181,7 +197,7 @@ export default function AtsCandidatesPage() {
       {closedJobs.length > 0 && (
         <Collapsible defaultOpen={closedJobs.some((j) => j.id === f.job)}>
           <CollapsibleTrigger className="group flex w-full items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-            <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=closed]:-rotate-90" /> Closed jobs
+            <ChevronDown className="h-3.5 w-3.5 transition-transform group-data-[state=closed]:-rotate-90" /> Closed and draft jobs
           </CollapsibleTrigger>
           <CollapsibleContent className="space-y-0.5">
             {closedJobs.map((j) => railItem(j.id, j.title, countFor(summary.data?.get(j.id), f.status)))}
@@ -276,7 +292,6 @@ export default function AtsCandidatesPage() {
       )}
       <CandidateTable rows={rows} idleDays={idleDays} onOpen={openFull} selected={new Set(selected.keys())} onToggle={toggle} onToggleAll={togglePage} />
       {pager}
-      {selected.size > 0 && <BulkBar rows={[...selected.values()]} onClear={() => setSelected(new Map())} onExport={() => runExport([...selected.values()])} exporting={exporting} />}
     </>;
   } else {
     body = (
@@ -286,12 +301,12 @@ export default function AtsCandidatesPage() {
             <Label htmlFor="ats-go-next" className="text-xs font-normal">After an action, go to the next candidate</Label>
             <Switch id="ats-go-next" checked={goNext} onCheckedChange={setGoNext} />
           </label>
-          <ul className="min-h-0 flex-1 overflow-y-auto" role="listbox" aria-label="Candidates">
+          <ul className="min-h-0 flex-1 overflow-y-auto" aria-label="Candidates">
             {rows.map((r) => {
               const on = r.application_id === selRow?.application_id;
               return (
-                <li key={r.application_id} role="option" aria-selected={on}>
-                  <button type="button" onClick={() => update({ sel: r.application_id }, true)}
+                <li key={r.application_id}>
+                  <button type="button" aria-current={on ? "true" : undefined} onClick={() => { setPanelApp(null); update({ sel: r.application_id }, true); }}
                     className={cn("w-full border-b border-border px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
                       on ? "bg-primary/10" : "hover:bg-muted/60")}>
                     <div className="flex items-center gap-1.5"><UnreviewedDot show={isUnreviewed(r)} /><span className="truncate text-sm font-medium text-foreground">{r.full_name}</span><UnreadMailMark candidateId={r.candidate_id} /></div>
@@ -306,8 +321,11 @@ export default function AtsCandidatesPage() {
         </div>
         <div className="min-h-0 min-w-0 overflow-hidden">
           {selRow ? (
-            <CandidateReviewPanel key={selRow.candidate_id!} candidateId={selRow.candidate_id!} appId={selRow.application_id}
-              onAppChange={(a) => update({ sel: a }, true)}
+            <CandidateReviewPanel key={selRow.candidate_id!} candidateId={selRow.candidate_id!} appId={panelAppId}
+              onAppChange={(a) => {
+                if (rows.some((r) => r.application_id === a)) { setPanelApp(null); update({ sel: a }, true); }
+                else setPanelApp({ candidateId: selRow!.candidate_id!, appId: a });
+              }}
               onActionDone={() => { if (goNext) moveSel(1); }}
               className="h-full" />
           ) : null}
@@ -332,6 +350,7 @@ export default function AtsCandidatesPage() {
           </Select>
         </div>}
         {body}
+        {effectiveMode === "table" && selected.size > 0 && <BulkBar rows={[...selected.values()]} onClear={() => setSelected(new Map())} onExport={() => runExport([...selected.values()])} exporting={exporting} />}
       </div>
     </div>
   );

@@ -127,8 +127,10 @@ export default function AtsJobDetailPage() {
             {j.status === "paused" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Resume</Button>}
             {(j.status === "open" || j.status === "paused") && <Button size="sm" variant="outline" disabled={busy} onClick={() => setCloseOpen(true)} className="gap-1.5"><XCircle className="h-4 w-4" /> Close</Button>}
             {j.status === "closed" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Reopen</Button>}
+{j.status !== "closed" && <>
             <Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>
             <Button size="sm" variant="outline" onClick={() => navigate(`/hrms/ats/import?job=${j.id}`)} className="gap-1.5"><FileUp className="h-4 w-4" /> Import</Button>
+            </>}
             <Button size="sm" variant="outline" onClick={() => openJobEditor(j)} className="gap-1.5"><Pencil className="h-4 w-4" /> Edit</Button>
             {summary.isSuccess && total === 0 && (
               <Button size="sm" variant="ghost" onClick={() => setDelOpen(true)} className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
@@ -194,7 +196,7 @@ export default function AtsJobDetailPage() {
               <QueryError error={jobCands.error} onRetry={() => jobCands.refetch()} />
             ) : !(jobCands.data?.rows ?? []).length ? (
               <EmptyState icon={Users} title="No candidates yet" className="py-8"
-                action={<Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>} />
+                action={j.status === "closed" ? undefined : <Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>} />
             ) : (
               <>
                 <CandidateTable rows={jobCands.data!.rows} idleDays={idleDays} hideJob onOpen={(r) => {

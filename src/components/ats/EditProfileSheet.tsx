@@ -55,6 +55,7 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
     if (err || busy) { if (err) toast.error(err); return; }
     const patch: Form = {};
     for (const k of TEXT) patch[k] = String(f[k] ?? "").trim() || null;
+    for (const k of ["linkedin_url", "portfolio_url"]) if (patch[k] && !/^https?:\/\//i.test(patch[k])) patch[k] = `https://${patch[k]}`;
     patch.full_name = name;
     for (const k of NUM) patch[k] = f[k] === "" ? null : Number(f[k]);
     for (const k of ARR) patch[k] = f[k];
@@ -75,7 +76,7 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
     <div className="space-y-1.5"><Label htmlFor={`ep-${k}`}>{label}</Label><Input id={`ep-${k}`} type={type} value={f[k] ?? ""} onChange={(e) => set(k, e.target.value)} className="text-foreground" /></div>
   );
   const num = (k: string, label: string, max?: number) => (
-    <div className="space-y-1.5"><Label htmlFor={`ep-${k}`}>{label}</Label><Input id={`ep-${k}`} type="number" inputMode="decimal" min={0} max={max} value={f[k] ?? ""} onChange={(e) => set(k, e.target.value)} className="text-foreground" /></div>
+    <div className="space-y-1.5"><Label htmlFor={`ep-${k}`}>{label}</Label><Input id={`ep-${k}`} type="number" step="any" inputMode="decimal" min={0} max={max} value={f[k] ?? ""} onChange={(e) => set(k, e.target.value)} className="text-foreground" /></div>
   );
 
   return (
@@ -97,17 +98,18 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
           <div className="space-y-1.5"><Label>Languages</Label><ChipInput value={f.languages} onChange={(v) => set("languages", v)} placeholder="Type and press Enter" /></div>
           <div className="space-y-1.5"><Label>Tags</Label><ChipInput value={f.tags} onChange={(v) => set("tags", v)} placeholder="Type and press Enter" /></div>
           <div className="space-y-1.5"><Label htmlFor="ep-education">Education</Label><Textarea id="ep-education" rows={2} value={f.education} onChange={(e) => set("education", e.target.value)} className="text-foreground" /></div>
-          {txt("linkedin_url", "LinkedIn URL", "url")}{txt("portfolio_url", "Portfolio URL", "url")}
+          {txt("linkedin_url", "LinkedIn URL")}{txt("portfolio_url", "Portfolio URL")}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Source</Label>
+              <Label>Candidate source</Label>
               <Select value={f.source_id || "__none"} onValueChange={(v) => set("source_id", v === "__none" ? "" : v)}>
                 <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="__none">—</SelectItem>{(sources.data ?? []).filter((s) => s.is_active || s.id === f.source_id).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            {txt("source_detail", "Source detail")}
+            {txt("source_detail", "Candidate source detail")}
           </div>
+          <p className="-mt-2 text-xs text-muted-foreground">Where this person first came from. Each application keeps its own source.</p>
           <div className="space-y-1.5">
             <Label>Referred by</Label>
             <Select value={f.referred_by_employee_id || "__none"} onValueChange={(v) => set("referred_by_employee_id", v === "__none" ? "" : v)}>
@@ -120,6 +122,7 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
             Keep for future openings <Switch checked={!!f.keep_for_future} onCheckedChange={(v) => set("keep_for_future", v)} />
           </label>
         </form>
+        {err && <p className="text-xs text-destructive" role="alert">{err}</p>}
         <SheetFooter className="gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
           <Button type="submit" form="ats-edit-profile" disabled={busy || !!err}>Save</Button>

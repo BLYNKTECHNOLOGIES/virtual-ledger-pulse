@@ -224,7 +224,8 @@ function MailCard() {
 function TemplatesCard() {
   const qc = useQueryClient();
   const tpl = useEmailTemplates({ includeInactive: true });
-  const ackOn = !!(useMailStatus().data?.enabled && useMailStatus().data?.ack_enabled);
+  const ms = useMailStatus();
+  const ackOn = !!(ms.data?.enabled && ms.data?.ack_enabled);
   const [edit, setEdit] = useState<AtsEmailTemplate | "new" | null>(null);
   const [del, setDel] = useState<AtsEmailTemplate | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: mailKeys.templates });

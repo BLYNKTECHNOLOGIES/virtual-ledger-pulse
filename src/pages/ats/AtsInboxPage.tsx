@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Mail, Paperclip, RefreshCw, RotateCcw, Search } from "lucide-react";
@@ -50,7 +50,9 @@ export default function AtsInboxPage() {
   const st = useMailStatus();
   const check = useCheckNow();
   const unread = Number(st.data?.unread ?? 0);
-  const [view, setView] = useState<View | null>(null);
+  const [sp] = useSearchParams();
+  const initial = sp.get("view");
+  const [view, setView] = useState<View | null>(["unread", "all", "undelivered", "queued"].includes(initial ?? "") ? (initial as View) : null);
   useEffect(() => { if (!view && st.data) setView(unread > 0 ? "unread" : "all"); }, [st.data, unread, view]);
   const v = view ?? "unread";
   const [search, setSearch] = useState("");

@@ -1880,6 +1880,8 @@ html {
 .table-fit th { line-height: 1.4; }
 .ds-table { overflow-wrap: anywhere; }
 @media (max-width: 1023px) {
+  .table-fit th,
+  .table-fit td,
   .ds-table thead th,
   .ds-table tbody td { padding-left: 0.5rem; padding-right: 0.5rem; }
 }

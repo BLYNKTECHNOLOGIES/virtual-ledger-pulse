@@ -232,7 +232,7 @@ export default function InterviewListPage() {
           <ResponsiveList
             items={filtered}
             keyFor={(iv: any) => iv.id}
-            tableMinWidth="min-w-[980px]"
+            tableMinWidth="min-w-0"
             columns={[
               { key: "candidate", label: "Candidate" },
               { key: "recruitment", label: "Recruitment" },
@@ -285,7 +285,7 @@ export default function InterviewListPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      <div className="flex items-center gap-1">
+                       <div className="flex flex-wrap items-center gap-1">
                         {iv.status === "scheduled" && (
                           <>
                             <button

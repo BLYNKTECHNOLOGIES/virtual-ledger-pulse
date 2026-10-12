@@ -305,10 +305,10 @@ export default function LeaveRequestsPage() {
           items={filtered}
           columns={["Employee", "Leave Type", "Start", "End", "Days", "Clashes", "Status", "Reason", "Actions"].map((h) => ({ key: h, label: h }))}
           keyFor={(r: any) => r.id}
-          tableMinWidth="min-w-[860px]"
+          tableMinWidth="min-w-0"
           renderRow={(r: any) => (
             <>
-              <td className="px-4 py-3 font-medium whitespace-nowrap">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
+              <td className="px-4 py-3 font-medium">{r.hr_employees?.first_name} {r.hr_employees?.last_name}</td>
               <td className="px-4 py-3"><LeaveTypeBadge name={r.hr_leave_types?.name} /></td>
               <td className="px-4 py-3 tabular-nums">{r.start_date}</td>
               <td className="px-4 py-3 tabular-nums">{r.end_date}</td>

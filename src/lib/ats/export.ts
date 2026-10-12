@@ -48,3 +48,16 @@ export async function downloadCandidatesXlsx(rows: (AtsAppRow & Record<string, a
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+/** The overview view has no current CTC; read it from ats_candidates in chunks. */
+export async function withCurrentCtc(rows: AtsAppRow[]): Promise<(AtsAppRow & { current_ctc_monthly: number | null })[]> {
+  const { supabase } = await import("@/integrations/supabase/client");
+  const ids = [...new Set(rows.map((r) => r.candidate_id).filter(Boolean))] as string[];
+  const map = new Map<string, number | null>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data, error } = await supabase.from("ats_candidates").select("id,current_ctc_monthly").in("id", ids.slice(i, i + 200));
+    if (error) throw error;
+    for (const d of data ?? []) map.set(d.id, d.current_ctc_monthly);
+  }
+  return rows.map((r) => ({ ...r, current_ctc_monthly: map.get(r.candidate_id!) ?? null }));
+}

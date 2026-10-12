@@ -290,21 +290,40 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                             <span className="font-medium">₹{Number(log.competitor_price).toLocaleString('en-IN')}</span>
                                           </div>
                                         )}
-                                        {/* Market Reference */}
-                                        {log.market_reference_price != null && (
-                                          <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Market Ref</span>
-                                            <span className="font-medium">₹{Number(log.market_reference_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
-                                          </div>
-                                        )}
-                                        {log.deviation_from_market_pct != null && (
-                                          <div className="flex justify-between">
-                                            <span className="text-muted-foreground">Deviation</span>
-                                            <span className={`font-medium ${Number(log.deviation_from_market_pct) > 3 ? 'text-destructive' : 'text-warning'}`}>
-                                              {Number(log.deviation_from_market_pct).toFixed(2)}%
-                                            </span>
-                                          </div>
-                                        )}
+                                        {(() => {
+                                          // Floating ratios render against Binance's own index, not the market
+                                          // reference — show both sides of the comparison on that index.
+                                          const idx = Number(log.binance_index_price || 0);
+                                          const comp = Number(log.competitor_price || 0);
+                                          const ratio = Number(log.applied_ratio ?? (isSkipped ? log.calculated_ratio : null) ?? 0);
+                                          if (!(idx > 0 && comp > 0)) return null;
+                                          const theirRate = (comp / idx) * 100;
+                                          const ours = ratio > 0 ? (ratio / 100) * idx : null;
+                                          const gap = ours != null ? ours - comp : null;
+                                          const above = rule.offset_direction === 'OVERCUT' ? (gap ?? 0) > 0 : (gap ?? 0) < 0;
+                                          return (
+                                            <>
+                                              <div className="flex justify-between">
+                                                <span className="text-muted-foreground">Their rate (Binance index)</span>
+                                                <span className="font-medium">{theirRate.toFixed(2)}%</span>
+                                              </div>
+                                              {ours != null && (
+                                                <div className="flex justify-between">
+                                                  <span className="text-muted-foreground">{isApplied ? 'Your price' : 'Price needed'}</span>
+                                                  <span className="font-medium">₹{ours.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                                </div>
+                                              )}
+                                              {isApplied && gap != null && (
+                                                <div className="flex justify-between">
+                                                  <span className="text-muted-foreground">Gap vs competitor</span>
+                                                  <span className={`font-medium ${above ? 'text-success' : 'text-destructive'}`}>
+                                                    {gap >= 0 ? '+' : '−'}₹{Math.abs(gap).toLocaleString('en-IN', { maximumFractionDigits: 2 })} ({((gap / comp) * 100).toFixed(3)}%)
+                                                  </span>
+                                                </div>
+                                              )}
+                                            </>
+                                          );
+                                        })()}
                                         {/* Applied Price */}
                                         {log.applied_price != null && (
                                           <div className="flex justify-between">
@@ -315,7 +334,22 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                         {log.applied_ratio != null && (
                                           <div className="flex justify-between">
                                             <span className="text-muted-foreground">Applied Ratio</span>
-                                            <span className="font-medium text-success">{Number(log.applied_ratio).toFixed(4)}%</span>
+                                            <span className="font-medium text-success">{Number(log.applied_ratio).toFixed(2)}%</span>
+                                          </div>
+                                        )}
+                                        {/* Market reference is only the safety check, not the pricing base. */}
+                                        {log.market_reference_price != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Market Ref (safety check)</span>
+                                            <span className="text-muted-foreground">₹{Number(log.market_reference_price).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+                                          </div>
+                                        )}
+                                        {log.deviation_from_market_pct != null && (
+                                          <div className="flex justify-between">
+                                            <span className="text-muted-foreground">Competitor vs market</span>
+                                            <span className={`font-medium ${Number(log.deviation_from_market_pct) > Number(rule.max_deviation_from_market_pct || 5) ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                              {Number(log.deviation_from_market_pct).toFixed(2)}% <span className="text-muted-foreground">/ limit {Number(rule.max_deviation_from_market_pct || 5)}%</span>
+                                            </span>
                                           </div>
                                         )}
                                         {/* Guards */}

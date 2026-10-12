@@ -137,6 +137,9 @@ export interface AssetAlertInfo {
   applied_ratio: number | null;
   market_reference_price: number | null;
   deviation_from_market_pct: number | null;
+  /** Binance index the ratio renders against; lets the UI show our price and their rate. */
+  binance_index_price: number | null;
+  calculated_ratio: number | null;
   was_capped: boolean | null;
   was_rate_limited: boolean | null;
   created_at: string | null;
@@ -171,7 +174,7 @@ export function useLatestAssetLogs(ruleIds: string[]) {
       // read "No recent data" on multi-asset rules.
       const { data, error } = await supabase
         .from('ad_pricing_logs')
-        .select('rule_id, asset, status, skipped_reason, error_message, competitor_merchant, competitor_price, applied_price, applied_ratio, market_reference_price, deviation_from_market_pct, was_capped, was_rate_limited, created_at')
+        .select('rule_id, asset, status, skipped_reason, error_message, competitor_merchant, competitor_price, applied_price, applied_ratio, market_reference_price, deviation_from_market_pct, binance_index_price, calculated_ratio, was_capped, was_rate_limited, created_at')
         .in('rule_id', ruleIds)
         .order('created_at', { ascending: false })
         .limit(2000);
@@ -201,6 +204,8 @@ export function useLatestAssetLogs(ruleIds: string[]) {
           applied_ratio: log.applied_ratio,
           market_reference_price: log.market_reference_price,
           deviation_from_market_pct: log.deviation_from_market_pct,
+          binance_index_price: (log as any).binance_index_price ?? null,
+          calculated_ratio: (log as any).calculated_ratio ?? null,
           was_capped: log.was_capped,
           was_rate_limited: log.was_rate_limited,
           created_at: log.created_at,

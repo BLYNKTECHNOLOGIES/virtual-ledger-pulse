@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { CareersSettingsSection } from "@/components/ats/CareersSettingsSection";
 import { EmailSettingsSection } from "@/components/ats/EmailSettingsSection";
+import { InterviewSettingsSection } from "@/components/ats/InterviewSettingsSection";
 import { useSearchParams } from "react-router-dom";
 import {
   type AtsReason, type AtsStage, atsKeys, useAtsMutation, useAtsReasons, useAtsSettings, useAtsSources, useAtsStages,
@@ -371,7 +372,7 @@ function GeneralSection() {
   );
 }
 
-const SETTINGS_TABS = ["stages", "sources", "reasons", "careers", "email", "general"];
+const SETTINGS_TABS = ["stages", "sources", "reasons", "careers", "email", "interviews", "general"];
 
 export default function AtsSettingsPage() {
   const [sp, setSp] = useSearchParams();
@@ -391,6 +392,7 @@ export default function AtsSettingsPage() {
           <TabsTrigger value="reasons">Rejection reasons</TabsTrigger>
           <TabsTrigger value="careers">Careers page</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
+          <TabsTrigger value="interviews">Interviews</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
         </TabsList>
       </div>
@@ -399,6 +401,7 @@ export default function AtsSettingsPage() {
       <TabsContent value="reasons"><ReasonsSection /></TabsContent>
       <TabsContent value="careers"><CareersSettingsSection /></TabsContent>
       <TabsContent value="email"><EmailSettingsSection /></TabsContent>
+      <TabsContent value="interviews"><InterviewSettingsSection /></TabsContent>
       <TabsContent value="general"><GeneralSection /></TabsContent>
     </Tabs>
   );

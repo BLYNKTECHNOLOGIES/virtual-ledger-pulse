@@ -15,6 +15,11 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_TEMPLATE_NOT_FOUND", "That template no longer exists."],
   ["ATS_SYSTEM_TEMPLATE_LOCKED", "Built-in templates can be edited or turned off, but not deleted."],
   ["ATS_CANDIDATE_REQUIRED", "Open a candidate first."],
+  ["ATS_INTERVIEWER_NOT_FOUND", "One of the interviewers is no longer an active employee. Remove them and try again."],
+  ["ATS_INTERVIEW_NOT_FOUND", "This interview no longer exists."],
+  ["ATS_INTERVIEW_CLOSED", "This interview is no longer scheduled. Refresh to see the latest."],
+  ["ATS_INTERVIEW_TIME", "Pick a time within the next year, or within the last 30 days to record a past interview."],
+  ["ATS_INTERVIEW_INVALID", "Check the interview details."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
@@ -33,4 +38,24 @@ export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
   if (e.code === "42501" || /row-level security/i.test(msg)) return "You don't have access to do this.";
   if (/timed out|failed to fetch|network/i.test(msg)) return "Connection problem. Please try again.";
   return "Something went wrong. Please try again.";
+}
+
+const IV_INVALID: Record<string, string> = {
+  location: "Add the interview address, or set the office address in ATS → Settings → Interviews.",
+  meeting_url: "Add a meeting link that starts with https://",
+  duration: "Pick a length between 10 minutes and 8 hours.",
+  panel: "Choose up to 8 interviewers.",
+  starts_at: "Pick a date and time.",
+};
+
+/** Messages for interview actions (schedule, change, cancel, status, feedback). */
+export function interviewErrorMessage(error: unknown): string {
+  const e = (error ?? {}) as { message?: string; hint?: string; details?: string };
+  const all = `${e.message ?? (typeof error === "string" ? error : "")} ${e.details ?? ""} ${e.hint ?? ""}`;
+  if (all.includes("ATS_APPLICATION_CLOSED")) return "Reopen this application before scheduling an interview.";
+  if (all.includes("ATS_INTERVIEW_INVALID")) {
+    const m = IV_INVALID[String(e.details ?? "").trim()];
+    if (m) return m;
+  }
+  return atsErrorMessage(error);
 }

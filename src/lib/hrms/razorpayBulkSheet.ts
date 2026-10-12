@@ -62,7 +62,7 @@ function defaultDeductionName(r: any): string | null {
   const l = String(r.label ?? "").toLowerCase();
   const k = String(r.recovery_kind ?? "").toLowerCase();
   const s = String(r.source ?? "").toLowerCase();
-  if (/\blop\b|loss of pay|loss-of-pay|absent/.test(l) || s === "auto_lop") return "Loss of Pay";
+  if (/\blop\b|loss of pay|loss-of-pay|absent/.test(l) || s === "auto_lop" || s === "auto_post_lwd") return "Loss of Pay";
   if (/notice/.test(l)) return "Notice Period Recovery";
   if (/f&f|fnf|full and final/.test(l) || s === "fnf_settlement") return "F&F Recovery";
   if (/advance/.test(l) || k === "advance") return "Advance Salary Recovery";
@@ -126,7 +126,7 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
   for (const r of deds) {
     // The owner requires LOP as its already-calculated rupee deduction, not as
     // days. RazorpayX's exact allowed deduction label for this is Gross pay deduction.
-    if (String(r.source) === "auto_lop") add(r, "ded", LOP_COMPONENT);
+    if (String(r.source) === "auto_lop" || String(r.source) === "auto_post_lwd") add(r, "ded", LOP_COMPONENT);
     else { const c = defaultDeductionName(r); add(r, "ded", c ? `${c} | Deduction` : null); }
   }
 
@@ -149,7 +149,7 @@ export async function buildBulkSheet(period: string): Promise<BulkSheet> {
       const adv = /advance/i.test(String(l.hr_loans?.loan_type ?? ""));
       apiLines.push({ empId: l.hr_loans.employee_id, amount: n2(l.amount), component: adv ? "Advance Salary | Deduction" : "Loan Repayment | Deduction", what: `Loan instalment ${l.installment_no}` });
     }
-    for (const d of deds) if (d.pushed_at && d.push_channel !== "bulk_sheet" && String(d.source) !== "auto_lop") {
+    for (const d of deds) if (d.pushed_at && d.push_channel !== "bulk_sheet" && String(d.source) !== "auto_lop" && String(d.source) !== "auto_post_lwd") {
       const c = defaultDeductionName(d) ?? "Recovery";
       apiLines.push({ empId: d.hr_employee_id, amount: n2(d.amount), component: `${c} | Deduction`, what: d.label ?? "" });
     }

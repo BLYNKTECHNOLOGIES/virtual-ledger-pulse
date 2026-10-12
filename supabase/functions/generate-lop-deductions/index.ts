@@ -637,13 +637,33 @@ Deno.serve(async (req) => {
         if (delErr) throw delErr;
         removed = toDelete.length;
       }
+      for (const upd of postUpdate) {
+        const { id, ...patch } = upd;
+        const { error } = await supabase.from("hr_payroll_input_deductions").update(patch)
+          .eq("id", id).is("pushed_at", null).eq("source", "auto_post_lwd");
+        if (error) throw error;
+        staged += 1;
+      }
+      if (postInsert.length) {
+        const { error } = await supabase.from("hr_payroll_input_deductions").insert(postInsert);
+        if (error) throw error;
+        staged += postInsert.length;
+      }
+      if (postDelete.length) {
+        const { error } = await supabase.from("hr_payroll_input_deductions").delete()
+          .in("id", postDelete).is("pushed_at", null).eq("source", "auto_post_lwd");
+        if (error) throw error;
+        removed += postDelete.length;
+      }
     }
 
     const summary = {
       employees: roster.length,
       with_lop: rows.filter((r) => r.lop_days > 0).length,
-      to_stage: toUpdate.length + toInsert.length,
-      to_remove: toDelete.length,
+      to_stage: toUpdate.length + toInsert.length + postUpdate.length + postInsert.length,
+      to_remove: toDelete.length + postDelete.length,
+      post_lwd_employees: postUpdate.length + postInsert.length,
+      post_lwd_amount: [...postUpdate, ...postInsert].reduce((s, r) => s + Number(r.amount ?? 0), 0),
       staged,
       removed,
       skipped: rows.filter((r) => r.status === "skipped").length,
@@ -653,7 +673,8 @@ Deno.serve(async (req) => {
       cl_offset_days: Number(rows.reduce((s, r) => s + Number(r.cl_offset_days ?? 0), 0).toFixed(2)),
       cl_booked_days: Number(clBooked.toFixed(2)),
       compoff_offset_days: Number(rows.reduce((s, r) => s + Number(r.compoff_offset_days ?? 0), 0).toFixed(2)),
-      total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),
+      total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0)
+        + [...postUpdate, ...postInsert].reduce((s, r) => s + Number(r.amount ?? 0), 0),
     };
 
     rows.sort((a, b) => Number(b.lop_days) - Number(a.lop_days) || String(a.name).localeCompare(String(b.name)));

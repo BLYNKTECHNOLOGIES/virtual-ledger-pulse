@@ -32293,6 +32293,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ats_report: { Args: { p: Json }; Returns: Json }
       ats_rotate_intake_key: { Args: never; Returns: string }
       ats_save_interview: { Args: { p: Json }; Returns: Json }
       ats_save_interview_feedback: {

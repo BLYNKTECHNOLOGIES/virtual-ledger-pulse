@@ -13,6 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";
+import { postLwdAmount, postLwdDays } from "../_shared/postLwd.ts";
 import { fetchCompoffPool, absorbLop } from "../_shared/compoff.ts";
 
 
@@ -536,8 +537,8 @@ Deno.serve(async (req) => {
       const lwd = emp?.last_working_day ? String(emp.last_working_day).slice(0, 10) : null;
       const existingPost = postByEmp.get(map.hr_employee_id);
       const row = rows.find((r) => r.hr_employee_id === map.hr_employee_id);
-      const inMonth = !!lwd && lwd >= periodStr && lwd < monthEndStr;
-      const postDays = inMonth ? totalDays - Number(lwd!.slice(8, 10)) : 0;
+      const postDays = postLwdDays(lwd, periodStr, monthEndStr);
+      const inMonth = postDays > 0;
       const setInfo = (info: Record<string, unknown>) => { if (row) Object.assign(row, info); };
 
       if (existingPost?.pushed_at) {
@@ -557,7 +558,7 @@ Deno.serve(async (req) => {
         setInfo({ post_lwd_days: postDays, post_lwd_amount: 0, post_lwd_status: "skipped", post_lwd_reason: salary.error || "No salary base could be resolved" });
         continue;
       }
-      const amount = Math.round((salary.monthlyGross / totalDays) * postDays);
+      const amount = postLwdAmount(salary.monthlyGross, totalDays, postDays);
       const lwdLabel = new Date(`${lwd}T00:00:00Z`).toLocaleDateString("en-IN", { timeZone: "UTC", day: "numeric", month: "short" });
       const label = `Loss of Pay - After last working day — ${postDays} day${postDays === 1 ? "" : "s"} (left ${lwdLabel})`;
       setInfo({

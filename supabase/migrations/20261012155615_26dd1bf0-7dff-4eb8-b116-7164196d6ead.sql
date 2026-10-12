@@ -1,0 +1,2 @@
+ALTER TABLE public.ad_pricing_logs ADD COLUMN IF NOT EXISTS binance_index_price numeric;
+COMMENT ON COLUMN public.ad_pricing_logs.binance_index_price IS 'Binance price index the floating ratio was computed against (INR). Our rendered price = applied_ratio/100 * this.';

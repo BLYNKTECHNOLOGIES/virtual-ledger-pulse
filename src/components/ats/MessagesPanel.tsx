@@ -31,7 +31,7 @@ import { fmtDate, fmtDateTime } from "@/lib/ats/format";
 import { AtsFileError, fileKindLabel, fmtBytes, uploadAtsFile } from "@/lib/ats/files";
 import { candKeys, type AtsCandidate, type AtsFile } from "@/lib/ats/candidates";
 import {
-  MailError, PLACEHOLDER_RE, deleteMessage, mailErrorMessage, mailKeys, markMessageUnread, markThreadRead,
+  MailError, PLACEHOLDER_RE, canRetry, findOlderEmails, deleteMessage, mailErrorMessage, mailKeys, markMessageUnread, markThreadRead,
   purposeLabel, renderTemplate, retryCandidateEmail, sendCandidateEmail, splitQuoted, useEmailTemplates,
   useMailStatus, useMailThread, type AtsMessage, type MailAttachmentInfo,
 } from "@/lib/ats/mail";
@@ -82,6 +82,7 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
     markThreadRead(candidate.id).then(() => {
       qc.invalidateQueries({ queryKey: mailKeys.thread(candidate.id) });
       qc.invalidateQueries({ queryKey: mailKeys.status });
+      qc.invalidateQueries({ queryKey: mailKeys.unreadIds });
     }).catch(() => undefined).finally(() => { markingRef.current = false; });
   }, [visible, unread, candidate.id, qc]);
 
@@ -93,6 +94,24 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
   };
 
   const fileIds = useMemo(() => new Set(files.map((f) => f.id)), [files]);
+  const [finding, setFinding] = useState(false);
+  const findOlder = async () => {
+    if (finding) return;
+    setFinding(true);
+    try {
+      const r = await findOlderEmails(candidate.id, 180);
+      if (r.skipped === "busy") toast.message("Already checking. Try again in a minute.");
+      else if (!r.ok || r.error) toast.error(mailErrorMessage(r.error));
+      else if (Number(r.stored ?? 0) > 0) toast.success(`${r.stored} older emails added`);
+      else toast.message("No older emails found");
+    } catch (e: any) {
+      toast.error(mailErrorMessage(e?.code));
+    } finally {
+      setFinding(false);
+      refreshAll();
+      qc.invalidateQueries({ queryKey: candKeys.files(candidate.id) });
+    }
+  };
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
@@ -101,6 +120,7 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
           <p className="text-sm font-semibold text-foreground">Messages</p>
           <p className="truncate text-xs text-muted-foreground">{candidate.email ?? "No email address"}</p>
         </div>
+        <div className="flex items-center gap-1">
         {enabled && (
           <TooltipProvider><Tooltip><TooltipTrigger asChild>
             <Button size="icon" variant="ghost" className="h-8 w-8" aria-label="Check for new emails" disabled={check.disabled} onClick={check.run}>
@@ -108,6 +128,15 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
             </Button>
           </TooltipTrigger><TooltipContent>Check for new emails</TooltipContent></Tooltip></TooltipProvider>
         )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More email actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem disabled={!enabled || !candidate.email || finding} onSelect={findOlder}>
+                Find older emails from {candidate.email ?? "this candidate"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3">
@@ -263,9 +292,9 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged }: { m: AtsMessage; f
         {out && m.status === "failed" && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
             <span>{mailErrorMessage(m.error)}</span>
-            <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={retry}>
+            {canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={retry}>
               {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
-            </Button>
+            </Button>}
           </div>
         )}
         {!out && m.body_html && (

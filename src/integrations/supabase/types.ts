@@ -287,6 +287,7 @@ export type Database = {
           applied_price: number | null
           applied_ratio: number | null
           asset: string | null
+          binance_index_price: number | null
           calculated_price: number | null
           calculated_ratio: number | null
           competitor_badges: string[] | null
@@ -312,6 +313,7 @@ export type Database = {
           applied_price?: number | null
           applied_ratio?: number | null
           asset?: string | null
+          binance_index_price?: number | null
           calculated_price?: number | null
           calculated_ratio?: number | null
           competitor_badges?: string[] | null
@@ -337,6 +339,7 @@ export type Database = {
           applied_price?: number | null
           applied_ratio?: number | null
           asset?: string | null
+          binance_index_price?: number | null
           calculated_price?: number | null
           calculated_ratio?: number | null
           competitor_badges?: string[] | null

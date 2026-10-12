@@ -197,7 +197,7 @@ function UndoImportDialog({ imp, onClose }: { imp: ImportListRow | null; onClose
     try {
       const r = await undoImport(imp.id);
       const failed = await removeStoredFiles(r.storage_paths ?? []);
-      toast.success(`Removed ${r.deleted_candidates} candidates and ${r.deleted_applications} applications.${r.kept > 0 ? ` Kept ${r.kept} that were worked on since.` : ""}`);
+      toast.success(`Removed ${r.deleted_candidates} ${r.deleted_candidates === 1 ? "candidate" : "candidates"} and ${r.deleted_applications} ${r.deleted_applications === 1 ? "application" : "applications"}.${r.kept > 0 ? ` Kept ${r.kept} that were worked on since.` : ""}`);
       if (failed > 0) toast.warning("Some stored files couldn't be removed.");
       for (const k of [candKeys.all, atsKeys.overview, atsKeys.jobSummary, importKeys.all]) qc.invalidateQueries({ queryKey: k });
       onClose();

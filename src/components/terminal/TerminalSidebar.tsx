@@ -1,5 +1,6 @@
 import { useLocation, Link } from 'react-router-dom';
-import blynkIcon from "@/assets/brand/blynk-icon.svg";
+import { BrandLogo } from "@/components/BrandLogo";
+import { useTerminalTheme } from '@/contexts/TerminalThemeContext';
 import {
   Sidebar,
   SidebarContent,
@@ -79,6 +80,7 @@ export function TerminalSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const { theme } = useTerminalTheme();
   const { data: activeOrdersData } = useBinanceActiveOrders();
   const { orders: payerPendingOrders = [] } = usePayerOrders();
   const { data: pendingAppealCheckInCount = 0 } = usePendingAppealCheckInCount();
@@ -126,13 +128,11 @@ export function TerminalSidebar() {
           aria-label="Terminal"
           className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}
         >
-          <div className="h-7 w-7 shrink-0 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-            <img src={blynkIcon} alt="BLYNK" className="h-5 w-5" />
-          </div>
+          <BrandLogo variant="icon" className="h-7 w-7" />
           {!isCollapsed && (
             <div>
-              <h1 className="text-[13px] font-semibold text-sidebar-accent-foreground tracking-tight">Terminal</h1>
-              <p className="text-[9px] text-sidebar-foreground leading-none mt-0.5">Trading Operations</p>
+              <BrandLogo variant="text" theme={theme} className="h-7 w-auto max-w-[150px]" />
+              <p className="text-[9px] text-sidebar-foreground leading-none mt-1">Terminal</p>
             </div>
           )}
         </Link>

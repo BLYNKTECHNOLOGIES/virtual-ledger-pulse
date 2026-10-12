@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## Owner-supplied BlynkEx logos
+
+- [x] Replace recreated logos across ERP, Terminal and HRMS, including auth/public HR screens and outgoing email branding.
+- [x] Derive compact icon and favicon from the uploaded symbol; preserve proportions and theme contrast.
+- [x] Verify public screens, six rendered logo/theme variants, asset delivery and preview health without changing business flows; signed-in shell checks unavailable with external Supabase authentication.
+
 ## F&F approval and payroll-input handoff
 
 - [x] Make Separations completion depend on F&F approval, not the later RazorpayX push.

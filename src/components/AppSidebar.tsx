@@ -1,8 +1,6 @@
 
 import { Calendar, Home, Users, Building2, CreditCard, TrendingUp, UserCheck, Calculator, Scale, Package, BookOpen, ShoppingCart, Settings, UserPlus, PanelLeftClose, PanelLeftOpen, Shield, ShieldCheck, BarChart3, Network, Edit3, Save, X, Megaphone, FileText, Wrench, CheckSquare, Inbox, Sparkles, Headset, Keyboard, Mail, CircleUser } from "lucide-react";
-import blynkLogoWhite from "@/assets/brand/blynk-logo-white.svg";
-import blynkLogoDark from "@/assets/brand/blynk-logo-dark.svg";
-import blynkIcon from "@/assets/brand/blynk-icon.svg";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Link, useLocation } from "react-router-dom";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -406,24 +404,9 @@ export function AppSidebar() {
       <SidebarHeader className={`relative overflow-hidden border-b border-sidebar-border bg-sidebar ${isCollapsed ? 'p-2' : 'px-4 py-3'}`}>
         <div className={`flex items-center justify-center ${isCollapsed ? 'min-h-[44px]' : 'min-h-[64px]'}`}>
           {isCollapsed ? (
-            <img
-              src={blynkIcon}
-              alt="BLYNK Virtual Technologies"
-              className="h-8 w-8 flex-shrink-0"
-            />
+            <BrandLogo variant="icon" className="h-8 w-8" />
           ) : (
-            <>
-              <img
-                src={blynkLogoDark}
-                alt="BLYNK Virtual Technologies"
-                className="h-14 w-auto max-w-[190px] object-contain flex-shrink-0 dark:hidden"
-              />
-              <img
-                src={blynkLogoWhite}
-                alt="BLYNK Virtual Technologies"
-                className="hidden h-14 w-auto max-w-[190px] object-contain flex-shrink-0 dark:block"
-              />
-            </>
+            <BrandLogo className="h-11 w-auto max-w-[190px]" />
           )}
         </div>
       </SidebarHeader>

@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Home, LayoutGrid } from "lucide-react";
-import blynkIcon from "@/assets/brand/blynk-icon.svg";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const NotFound = () => {
   const location = useLocation();
@@ -23,11 +23,7 @@ const NotFound = () => {
       />
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-md">
-        <img
-          src={blynkIcon}
-          alt="BLYNK Virtual Technologies"
-          className="h-10 w-10 mb-6"
-        />
+        <BrandLogo variant="icon" className="h-10 w-10 mb-6" />
 
         <h1 className="text-7xl md:text-8xl font-semibold tracking-tight text-foreground leading-none">
           404<span className="text-primary">.</span>

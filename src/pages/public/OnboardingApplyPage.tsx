@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, CheckCircle2, Upload, FileCheck2, AlertCircle } from "lucide-react";
-import logo from "@/assets/brand/blynk-logo-dark.svg";
+import { BrandLogo } from "@/components/BrandLogo";
 import { toast } from "sonner";
 
 type Doc = { key: string; label: string; required: boolean; multiple?: boolean };
@@ -135,7 +135,7 @@ export default function OnboardingApplyPage() {
     <div className="min-h-screen bg-muted/30">
       <header className="bg-background border-b border-border">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-3">
-          <img src={logo} alt="Blynk Virtual Technologies" className="h-9 w-auto" />
+          <BrandLogo className="h-9 w-auto max-w-[50%]" />
           <span className="text-xs text-muted-foreground text-right">Employee Onboarding Form</span>
         </div>
       </header>

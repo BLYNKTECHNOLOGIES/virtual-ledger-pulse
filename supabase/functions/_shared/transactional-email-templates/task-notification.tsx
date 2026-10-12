@@ -20,7 +20,7 @@ import type { TemplateEntry } from './registry.ts'
 
 const SITE_NAME = 'Blynkex'
 const APP_URL = 'https://erp.blynkex.com'
-const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/b6b06bc5-e6c4-4625-b9d1-57b258a7be69/blynkex-logo.svg'
+const LOGO_URL = 'https://erp.blynkex.com/__l5e/assets-v1/6faea1af-3912-4ae5-99ab-0765270cedac/BlynkEx_white_with_logo.png'
 
 /* Blynk brand tokens (email-safe hex of the ERP design system) */
 const INK = '#04121F'
@@ -149,22 +149,13 @@ const TaskNotificationEmail = ({
           {/* Brand header — Blynk ink → cyan */}
           <Section style={brandHeader}>
             <Row>
-              <Column style={{ width: '54px', verticalAlign: 'middle' as const }}>
-                <div style={logoPlate}>
-                  <img
-                    src={LOGO_URL}
-                    alt="Blynkex"
-                    width="34"
-                    height="34"
-                    style={{ display: 'block', width: '34px', height: '34px' }}
-                  />
-                </div>
-              </Column>
-              <Column style={{ verticalAlign: 'middle' as const, paddingLeft: '2px' }}>
-                <div style={brandName}>
-                  <span style={{ color: '#FFFFFF', WebkitTextFillColor: '#FFFFFF' }}>BLYNK</span>
-                  <span style={{ color: CYAN_BRIGHT, WebkitTextFillColor: CYAN_BRIGHT }}>EX</span>
-                </div>
+              <Column style={{ verticalAlign: 'middle' as const }}>
+                <img
+                  src={LOGO_URL}
+                  alt="BlynkEx"
+                  width="160"
+                  style={{ display: 'block', width: '160px', maxWidth: '100%', height: 'auto' }}
+                />
                 <div style={brandTag}>Enterprise Resource Platform</div>
               </Column>
               <Column align="right" style={{ verticalAlign: 'middle' as const }}>

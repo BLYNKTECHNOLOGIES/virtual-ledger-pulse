@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { BarList, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
 import { useAtsJobSummary, useAtsJobs, useAtsOverview } from "@/lib/ats/api";
+import { useRecentApplications, candidateHref } from "@/lib/ats/candidates";
 import { fmtDate, todayIST } from "@/lib/ats/format";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export default function AtsOverviewPage() {
   const ov = useAtsOverview();
   const jobs = useAtsJobs();
   const summary = useAtsJobSummary();
+  const recent = useRecentApplications();
   const today = todayIST();
 
   const openJobs = useMemo(() => (jobs.data ?? []).filter((j) => j.status === "open"), [jobs.data]);
@@ -45,8 +47,8 @@ export default function AtsOverviewPage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           <StatCard label="Open jobs" value={o.open_jobs} helper={`${o.open_seats} seats`} icon={Briefcase} tone="primary" />
           <StatCard label="New applications" value={o.applications_7d} helper={`${o.applications_30d} in 30 days`} icon={Inbox} />
-          <StatCard label="Awaiting review" value={o.unreviewed} icon={Eye} />
-          <StatCard label="Idle" value={o.idle} helper={`no movement in ${o.idle_days}+ days`} icon={Hourglass} />
+          <button type="button" className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => navigate("/hrms/ats/candidates?unreviewed=1")}><StatCard label="Awaiting review" value={o.unreviewed} icon={Eye} /></button>
+          <button type="button" className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => navigate("/hrms/ats/candidates?idle=1")}><StatCard label="Idle" value={o.idle} helper={`no movement in ${o.idle_days}+ days`} icon={Hourglass} /></button>
           <StatCard label="Hired this month" value={o.hired_this_month} icon={UserCheck} />
           <StatCard label="Rejected this month" value={o.rejected_this_month} icon={UserX} />
         </div>
@@ -58,6 +60,7 @@ export default function AtsOverviewPage() {
             <BarList
               emptyText="No one is in the pipeline yet."
               rows={[...(o?.stage_counts ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((s) => ({ key: s.stage_id, label: s.name, count: s.count }))}
+              onRowClick={(key) => navigate(`/hrms/ats/candidates?stage=${key}`)}
             />
           )}
         </SectionCard>
@@ -70,6 +73,26 @@ export default function AtsOverviewPage() {
           )}
         </SectionCard>
       </div>
+
+      <SectionCard title="Recent applications">
+        {recent.isLoading ? <RowsSkeleton rows={4} /> : recent.isError ? (
+          <QueryError error={recent.error} onRetry={() => recent.refetch()} />
+        ) : !(recent.data ?? []).length ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No applications yet.</p>
+        ) : (
+          <ul className="divide-y divide-border">
+            {recent.data!.map((r) => (
+              <li key={r.application_id}>
+                <button type="button" onClick={() => navigate(candidateHref(r))}
+                  className="flex w-full items-center justify-between gap-3 rounded px-1 py-2 text-left text-sm hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <span className="min-w-0"><span className="block truncate font-medium text-foreground">{r.full_name}</span><span className="block truncate text-xs text-muted-foreground">{r.job_title ?? "General"}</span></span>
+                  <span className="shrink-0 text-xs text-muted-foreground">{fmtDate(r.applied_at)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </SectionCard>
 
       <SectionCard title="Open jobs">
         {jobs.isLoading || summary.isLoading ? <RowsSkeleton rows={4} /> : jobs.isError ? (

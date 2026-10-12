@@ -116,6 +116,7 @@ const navGroups: NavGroup[] = [
         path: "/hrms/ats",
         children: [
           { label: "Overview", path: "/hrms/ats" },
+          { label: "Candidates", path: "/hrms/ats/candidates" },
           { label: "Jobs", path: "/hrms/ats/jobs" },
           { label: "Settings", path: "/hrms/ats/settings" },
         ],

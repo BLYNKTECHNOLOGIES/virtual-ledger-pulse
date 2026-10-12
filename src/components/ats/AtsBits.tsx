@@ -26,7 +26,7 @@ export function JobStatusBadge({ status }: { status: string }) {
   );
 }
 
-export function BarList({ rows, emptyText }: { rows: { key: string; label: string; count: number }[]; emptyText: string }) {
+export function BarList({ rows, emptyText, onRowClick }: { rows: { key: string; label: string; count: number }[]; emptyText: string; onRowClick?: (key: string) => void }) {
   const max = Math.max(1, ...rows.map((r) => r.count));
   if (!rows.length || rows.every((r) => r.count === 0)) {
     return <p className="py-6 text-center text-sm text-muted-foreground">{emptyText}</p>;
@@ -34,12 +34,22 @@ export function BarList({ rows, emptyText }: { rows: { key: string; label: strin
   return (
     <ul className="space-y-2.5">
       {rows.map((r) => (
-        <li key={r.key} className="grid grid-cols-[minmax(0,7.5rem)_1fr_2.5rem] items-center gap-3 text-sm">
-          <span className="truncate text-muted-foreground" title={r.label}>{r.label}</span>
-          <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(r.count / max) * 100}%` }} />
-          </div>
-          <span className="text-right font-medium tabular-nums">{r.count}</span>
+        <li key={r.key}>
+          {(() => {
+            const inner = (
+              <>
+                <span className="truncate text-muted-foreground" title={r.label}>{r.label}</span>
+                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(r.count / max) * 100}%` }} />
+                </div>
+                <span className="text-right font-medium tabular-nums">{r.count}</span>
+              </>
+            );
+            const cls = "grid w-full grid-cols-[minmax(0,7.5rem)_1fr_2.5rem] items-center gap-3 text-sm";
+            return onRowClick ? (
+              <button type="button" onClick={() => onRowClick(r.key)} className={`${cls} rounded text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}>{inner}</button>
+            ) : <div className={cls}>{inner}</div>;
+          })()}
         </li>
       ))}
     </ul>

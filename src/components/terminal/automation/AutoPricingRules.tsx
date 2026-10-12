@@ -300,7 +300,7 @@ export function AutoPricingRules({ canManage = true, canToggle = true, canDelete
                                           const theirRate = (comp / idx) * 100;
                                           const ours = ratio > 0 ? (ratio / 100) * idx : null;
                                           const gap = ours != null ? ours - comp : null;
-                                          const above = rule.offset_direction === 'OVERCUT' ? (gap ?? 0) > 0 : (gap ?? 0) < 0;
+                                          const above = rule.trade_type === 'BUY' ? (gap ?? 0) > 0 : (gap ?? 0) < 0;
                                           return (
                                             <>
                                               <div className="flex justify-between">

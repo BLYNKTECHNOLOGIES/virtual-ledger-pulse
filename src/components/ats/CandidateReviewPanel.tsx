@@ -1,0 +1,638 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Mail, Phone, MessageCircle, Pencil, ChevronDown, Pause, Play, XCircle, LogOut, RotateCcw, Star, Trash2, Upload,
+  Activity, ArrowRight, CheckCircle2, StickyNote, ArrowRightLeft, FileText, UserPlus, Eye, Loader2,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useFileDropzone } from "@/hooks/useFileDropzone";
+import { atsKeys, useAtsReasons, useAtsStages } from "@/lib/ats/api";
+import { atsErrorMessage } from "@/lib/ats/errors";
+import { fmtDate, fmtDateTime, fmtRelative } from "@/lib/ats/format";
+import {
+  ATS_BUCKET, ATS_FILE_KINDS, AtsFileError, fileKindLabel, fmtBytes, uploadAtsFile, type AtsFileKind,
+} from "@/lib/ats/files";
+import {
+  candKeys, useAppRatings, useCandidate, useCandidateApps, useCandidateEvents, useCandidateFiles,
+  useCandidateNotes, useMyUserId, type AtsAppRow, type AtsFile,
+} from "@/lib/ats/candidates";
+import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
+import { AppStatusBadge, Stars, fmtMonthly, fmtYears } from "./CandidateBits";
+import { ResumeViewer, pickDefaultFile } from "./ResumeViewer";
+import { EditProfileSheet } from "./EditProfileSheet";
+
+interface Props {
+  candidateId: string;
+  appId?: string | null;
+  onAppChange?: (appId: string) => void;
+  /** Called after a successful decision action (stage/status). */
+  onActionDone?: () => void;
+  className?: string;
+}
+
+const EVENT_ICON: Record<string, typeof Activity> = {
+  candidate_created: UserPlus, application_created: UserPlus, stage_changed: ArrowRightLeft, status_changed: RotateCcw,
+  note_added: StickyNote, note_updated: StickyNote, note_deleted: StickyNote, rating_added: Star, rating_updated: Star,
+  rating_deleted: Star, file_uploaded: FileText, file_deleted: FileText, reviewed: Eye, hired: CheckCircle2,
+};
+
+function Fact({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 break-words text-sm text-foreground">{children || "—"}</dd>
+    </div>
+  );
+}
+const Chips = ({ items }: { items?: string[] | null }) =>
+  items?.length ? <div className="flex flex-wrap gap-1">{items.map((s) => <Badge key={s} variant="secondary" className="font-normal">{s}</Badge>)}</div> : <>—</>;
+
+export function CandidateReviewPanel({ candidateId, appId, onAppChange, onActionDone, className }: Props) {
+  const qc = useQueryClient();
+  const isMobile = useIsMobile();
+  const cand = useCandidate(candidateId);
+  const apps = useCandidateApps(candidateId);
+  const files = useCandidateFiles(candidateId);
+  const stages = useAtsStages();
+  const reasons = useAtsReasons();
+  const me = useMyUserId();
+  const [selFile, setSelFile] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [statusDlg, setStatusDlg] = useState<null | "rejected" | "withdrawn">(null);
+  const [stageDlg, setStageDlg] = useState<null | { id: string; name: string }>(null);
+
+  const app: AtsAppRow | undefined = useMemo(() => {
+    const list = apps.data ?? [];
+    return list.find((a) => a.application_id === appId) ?? list[0];
+  }, [apps.data, appId]);
+
+  // Default file: primary resume → newest resume.
+  useEffect(() => {
+    if (!files.data) return;
+    setSelFile((cur) => (cur && files.data.some((f) => f.id === cur) ? cur : pickDefaultFile(files.data)?.id ?? null));
+  }, [files.data]);
+  useEffect(() => setSelFile(null), [candidateId]);
+
+  // D5 – mark reviewed once, silently.
+  const reviewedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const id = app?.application_id;
+    if (!id || app.status !== "active" || app.reviewed_at || reviewedRef.current.has(id)) return;
+    reviewedRef.current.add(id);
+    supabase.rpc("ats_mark_reviewed", { p_application_id: id }).then(({ error }) => {
+      if (error) { reviewedRef.current.delete(id); return; }
+      qc.invalidateQueries({ queryKey: candKeys.all });
+      qc.invalidateQueries({ queryKey: atsKeys.overview });
+      qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
+    });
+  }, [app?.application_id, app?.status, app?.reviewed_at, qc]);
+
+  const refreshAll = () => {
+    qc.invalidateQueries({ queryKey: candKeys.all });
+    qc.invalidateQueries({ queryKey: atsKeys.overview });
+    qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
+  };
+
+  const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const { error } = await fn();
+      if (error) throw error;
+      toast.success(success);
+      after?.();
+      refreshAll();
+      onActionDone?.();
+    } catch (e) {
+      toast.error(atsErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (cand.isLoading || apps.isLoading) return <div className={cn("p-4", className)}><RowsSkeleton rows={8} /></div>;
+  if (cand.isError) return <div className={cn("p-4", className)}><QueryError error={cand.error} onRetry={() => cand.refetch()} /></div>;
+  if (!cand.data) return <EmptyState icon={UserPlus} title="This record no longer exists." className={className} />;
+
+  const c = cand.data;
+  const activeStages = (stages.data ?? []).filter((s) => s.is_active).sort((a, b) => a.sort_order - b.sort_order);
+  const curIdx = activeStages.findIndex((s) => s.id === app?.stage_id);
+  const next = curIdx >= 0 ? activeStages[curIdx + 1] : undefined;
+  const closed = app?.status === "rejected" || app?.status === "withdrawn";
+  const hired = app?.status === "hired";
+  const stageLocked = closed || hired || busy || !app;
+  const waPhone = c.phone_norm && /^\d{10}$/.test(c.phone_norm) ? c.phone_norm : null;
+
+  const moveTo = (stageId: string, name: string, note?: string) =>
+    run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`);
+  const setStatus = (status: string, msg: string, reasonId?: string, note?: string, after?: () => void) =>
+    run(() => supabase.rpc("ats_set_status", { p_application_id: app!.application_id!, p_status: status, p_reason_id: reasonId ?? null, p_note: note || null }), msg, after);
+
+  const header = (
+    <div className="space-y-3 border-b border-border p-4">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="break-words text-lg font-semibold text-foreground">{c.full_name}</h2>
+          <p className="t-mono text-xs text-muted-foreground">{c.ref_no}</p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {c.email && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`mailto:${c.email}`}><Mail className="h-3.5 w-3.5" /> Email</a></Button>}
+          {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
+          {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
+          <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
+        </div>
+      </div>
+      {(apps.data?.length ?? 0) > 1 && (
+        <div className="flex flex-wrap gap-1.5">
+          {apps.data!.map((a) => (
+            <button key={a.application_id} type="button" onClick={() => onAppChange?.(a.application_id!)}
+              className={cn("rounded-full border px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                a.application_id === app?.application_id ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground")}>
+              {a.job_title ?? "General"} · {a.status === "active" || a.status === "on_hold" ? a.stage_name : a.status === "hired" ? "Hired" : a.status === "rejected" ? "Rejected" : "Withdrawn"}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const decision = app ? (
+    <SectionCard title={<span className="flex items-center gap-2">Decision <AppStatusBadge status={app.status} /></span>}>
+      <ol className="mb-3 flex flex-wrap items-center gap-1 text-xs" aria-label="Stages">
+        {activeStages.map((s, i) => (
+          <li key={s.id} className="flex items-center gap-1">
+            <span className={cn("rounded-md px-2 py-0.5",
+              s.id === app.stage_id ? "bg-primary text-primary-foreground font-medium" : i < curIdx ? "bg-muted text-foreground" : "text-muted-foreground")}
+              aria-current={s.id === app.stage_id ? "step" : undefined}>{s.name}</span>
+            {i < activeStages.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground/60" aria-hidden />}
+          </li>
+        ))}
+      </ol>
+      {closed && (
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+          <span className="text-foreground">
+            {app.status === "rejected" ? "Rejected" : "Withdrawn"}
+            {app.reject_reason_label && <> · {app.reject_reason_label}</>}
+            <StatusBy appId={app.application_id!} /> on {fmtDate(app.status_changed_at)}
+            {app.status_note && <span className="block text-xs text-muted-foreground">{app.status_note}</span>}
+          </span>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("active", "Application reopened")}><RotateCcw className="h-4 w-4" /> Reopen</Button>
+        </div>
+      )}
+      {hired && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg border border-border bg-success/10 p-3 text-sm text-foreground">
+          <CheckCircle2 className="h-4 w-4 text-success" /> Hired on {fmtDate(app.hired_at)}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {next && (
+          <Button size="sm" disabled={stageLocked} className="gap-1.5" onClick={() => moveTo(next.id, next.name)}>
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+            {activeStages[curIdx]?.code === "new" ? `Shortlist → ${next.name}` : `Move to ${next.name}`}
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" disabled={stageLocked} className="gap-1">Stage <ChevronDown className="h-3.5 w-3.5" /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuLabel>Move to stage</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {activeStages.filter((s) => s.id !== app.stage_id).map((s) => (
+              <DropdownMenuItem key={s.id} onSelect={() => setStageDlg({ id: s.id, name: s.name })}>{s.name}</DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {!closed && !hired && (app.status === "on_hold" ? (
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("active", "Application resumed")}><Play className="h-4 w-4" /> Resume</Button>
+        ) : (
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setStatus("on_hold", "Put on hold")}><Pause className="h-4 w-4" /> Hold</Button>
+        ))}
+        {!closed && !hired && <>
+          <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setStatusDlg("rejected")}><XCircle className="h-4 w-4" /> Reject</Button>
+          <Button size="sm" variant="ghost" disabled={busy} className="gap-1.5" onClick={() => setStatusDlg("withdrawn")}><LogOut className="h-4 w-4" /> Withdrawn</Button>
+        </>}
+      </div>
+    </SectionCard>
+  ) : (
+    <SectionCard title="Decision"><p className="text-sm text-muted-foreground">No application for this candidate.</p></SectionCard>
+  );
+
+  const facts = (
+    <SectionCard title="Profile">
+      <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Fact label="Applied">{app ? `${fmtDate(app.applied_at)} · ${app.source_name ?? "—"}${app.source_detail ? ` (${app.source_detail})` : ""}` : null}</Fact>
+        <Fact label="Experience">{c.total_experience_years != null ? fmtYears(c.total_experience_years) : null}</Fact>
+        <Fact label="Current role">{[c.current_title, c.current_company].filter(Boolean).join(" at ")}</Fact>
+        <Fact label="Current CTC">{c.current_ctc_monthly != null ? fmtMonthly(c.current_ctc_monthly) : null}</Fact>
+        <Fact label="Expected CTC">{c.expected_ctc_monthly != null ? fmtMonthly(c.expected_ctc_monthly) : null}{c.ctc_note ? ` · ${c.ctc_note}` : ""}</Fact>
+        <Fact label="Notice period">{c.notice_period_days != null ? `${c.notice_period_days} days` : null}</Fact>
+        <Fact label="Location">{[c.city, c.state].filter(Boolean).join(", ")}</Fact>
+        <Fact label="Alternate phone">{c.alt_phone}</Fact>
+        <Fact label="Shift preference"><Chips items={c.shift_preferences} /></Fact>
+        <Fact label="Languages"><Chips items={c.languages} /></Fact>
+        <div className="sm:col-span-2"><Fact label="Skills"><Chips items={c.skills} /></Fact></div>
+        <div className="sm:col-span-2"><Fact label="Education">{c.education}</Fact></div>
+        <Fact label="LinkedIn">{c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">Open profile</a> : null}</Fact>
+        <Fact label="Portfolio">{c.portfolio_url ? <a href={c.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">Open link</a> : null}</Fact>
+        <Fact label="Keep for future openings">{c.keep_for_future ? "Yes" : "No"}</Fact>
+        {c.tags?.length ? <Fact label="Tags"><Chips items={c.tags} /></Fact> : null}
+        {c.summary && <div className="sm:col-span-2"><Fact label="Summary"><span className="whitespace-pre-wrap">{c.summary}</span></Fact></div>}
+      </dl>
+    </SectionCard>
+  );
+
+  const viewer = files.isError ? <div className="p-4"><QueryError error={files.error} onRetry={() => files.refetch()} /></div> :
+    files.isLoading ? <div className="p-4"><RowsSkeleton rows={6} /></div> :
+    <ResumeViewer files={files.data ?? []} selectedId={selFile} onSelect={setSelFile} onUpload={() => setUploadOpen(true)} className="h-full" />;
+
+  const sidePanels = (
+    <>
+      {decision}
+      {facts}
+      {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
+      <NotesCard candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
+      <FilesCard files={files.data ?? []} onUpload={() => setUploadOpen(true)} candidateId={candidateId} />
+    </>
+  );
+
+  return (
+    <div className={cn("flex min-h-0 flex-col", className)}>
+      {header}
+      {isMobile ? (
+        <Tabs defaultValue="resume" className="p-3">
+          <TabsList className="w-full"><TabsTrigger value="resume" className="flex-1">Resume</TabsTrigger><TabsTrigger value="profile" className="flex-1">Profile</TabsTrigger><TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger></TabsList>
+          <TabsContent value="resume"><div className="h-[70vh] overflow-hidden rounded-lg border border-border">{viewer}</div></TabsContent>
+          <TabsContent value="profile" className="space-y-3">{sidePanels}</TabsContent>
+          <TabsContent value="activity"><ActivityCard candidateId={candidateId} /></TabsContent>
+        </Tabs>
+      ) : (
+        <div className="grid min-h-0 flex-1 grid-cols-[58fr_42fr]">
+          <div className="min-h-0 overflow-hidden border-r border-border">{viewer}</div>
+          <div className="min-h-0 space-y-3 overflow-y-auto p-3">
+            {sidePanels}
+            <ActivityCard candidateId={candidateId} />
+          </div>
+        </div>
+      )}
+
+      <ReasonDialog kind={statusDlg} reasons={(reasons.data ?? []).filter((r) => r.is_active && r.applies_to === statusDlg)} busy={busy}
+        onClose={() => setStatusDlg(null)}
+        onSubmit={(rid, note) => setStatus(statusDlg!, statusDlg === "rejected" ? "Application rejected" : "Marked as withdrawn", rid, note, () => setStatusDlg(null))} />
+      <StageNoteDialog stage={stageDlg} busy={busy} onClose={() => setStageDlg(null)}
+        onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); moveTo(s.id, s.name, note); }} />
+      <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} candidateId={candidateId} appId={app?.application_id ?? null}
+        onDone={(f) => { setSelFile(f.kind === "resume" || !selFile ? f.id : selFile); }} />
+      <EditProfileSheet open={editOpen} onOpenChange={setEditOpen} candidate={c} />
+    </div>
+  );
+}
+
+function StatusBy({ appId }: { appId: string }) {
+  const [name, setName] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    supabase.from("ats_applications").select("status_changed_by_name").eq("id", appId).maybeSingle()
+      .then(({ data }) => { if (alive) setName(data?.status_changed_by_name ?? null); });
+    return () => { alive = false; };
+  }, [appId]);
+  return name ? <> · by {name}</> : null;
+}
+
+function ReasonDialog({ kind, reasons, busy, onClose, onSubmit }: {
+  kind: null | "rejected" | "withdrawn"; reasons: { id: string; label: string }[]; busy: boolean;
+  onClose: () => void; onSubmit: (reasonId: string, note: string) => void;
+}) {
+  const [rid, setRid] = useState("");
+  const [note, setNote] = useState("");
+  useEffect(() => { if (kind) { setRid(""); setNote(""); } }, [kind]);
+  const submit = () => { if (rid && !busy) onSubmit(rid, note.trim()); };
+  return (
+    <ResponsiveDialog open={!!kind} onOpenChange={(o) => !o && onClose()}
+      title={kind === "rejected" ? "Reject application" : "Mark as withdrawn"}
+      footer={<>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button type="submit" form="ats-reason-form" disabled={!rid || busy} variant={kind === "rejected" ? "destructive" : "default"}>
+          {kind === "rejected" ? "Reject" : "Mark withdrawn"}
+        </Button>
+      </>}>
+      <form id="ats-reason-form" className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit(); }}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && (e.target as HTMLElement).tagName !== "BUTTON") { e.preventDefault(); submit(); } }}>
+        <div className="space-y-1.5">
+          <Label>Reason</Label>
+          <Select value={rid} onValueChange={setRid}>
+            <SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a reason" /></SelectTrigger>
+            <SelectContent>{reasons.map((r) => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="ats-reason-note">Note (optional)</Label>
+          <Textarea id="ats-reason-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-foreground" />
+        </div>
+      </form>
+    </ResponsiveDialog>
+  );
+}
+
+function StageNoteDialog({ stage, busy, onClose, onSubmit }: { stage: null | { id: string; name: string }; busy: boolean; onClose: () => void; onSubmit: (note: string) => void }) {
+  const [note, setNote] = useState("");
+  useEffect(() => { if (stage) setNote(""); }, [stage]);
+  return (
+    <ResponsiveDialog open={!!stage} onOpenChange={(o) => !o && onClose()} title={`Move to ${stage?.name ?? ""}`}
+      footer={<><Button variant="ghost" onClick={onClose}>Cancel</Button><Button type="submit" form="ats-stage-form" disabled={busy}>Move</Button></>}>
+      <form id="ats-stage-form" onSubmit={(e) => { e.preventDefault(); onSubmit(note.trim()); }} className="space-y-1.5">
+        <Label htmlFor="ats-stage-note">Note (optional)</Label>
+        <Textarea id="ats-stage-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-foreground"
+          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); onSubmit(note.trim()); } }} />
+      </form>
+    </ResponsiveDialog>
+  );
+}
+
+function RatingsCard({ appId, me }: { appId: string; me: string | null }) {
+  const qc = useQueryClient();
+  const ratings = useAppRatings(appId);
+  const mine = ratings.data?.find((r) => r.rater_user_id === me);
+  const others = (ratings.data ?? []).filter((r) => r.rater_user_id !== me);
+  const [score, setScore] = useState(0);
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setScore(mine?.score ?? 0); setComment(mine?.comment ?? ""); }, [mine?.id, mine?.score, mine?.comment]);
+  const all = ratings.data ?? [];
+  const avg = all.length ? all.reduce((s, r) => s + r.score, 0) / all.length : 0;
+  const done = async (p: PromiseLike<{ error: any }>, msg: string) => {
+    setBusy(true);
+    const { error } = await p;
+    setBusy(false);
+    if (error) return toast.error(atsErrorMessage(error));
+    toast.success(msg);
+    qc.invalidateQueries({ queryKey: candKeys.all });
+  };
+  const save = () => {
+    if (!score || busy) return;
+    const c = comment.trim() || null;
+    done(mine ? supabase.from("ats_ratings").update({ score, comment: c }).eq("id", mine.id)
+      : supabase.from("ats_ratings").insert({ application_id: appId, score, comment: c } as any), "Rating saved");
+  };
+  const dirty = score !== (mine?.score ?? 0) || (comment.trim() || "") !== (mine?.comment ?? "");
+  return (
+    <SectionCard title="Ratings" action={<Stars value={avg} count={all.length} />}>
+      <div className="space-y-2">
+        <Label>Your rating</Label>
+        <div className="flex items-center gap-1" role="radiogroup" aria-label="Your rating">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <button key={i} type="button" role="radio" aria-checked={score === i} aria-label={`${i} star${i > 1 ? "s" : ""}`} onClick={() => setScore(i)}
+              className="rounded p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <Star className={cn("h-5 w-5", i <= score ? "fill-warning text-warning" : "text-muted-foreground/40")} />
+            </button>
+          ))}
+        </div>
+        <Textarea rows={2} placeholder="Comment (optional)" value={comment} onChange={(e) => setComment(e.target.value)} className="text-foreground" />
+        <div className="flex gap-2">
+          <Button size="sm" disabled={!score || busy || !dirty} onClick={save}>Save rating</Button>
+          {mine && <Button size="sm" variant="ghost" disabled={busy} onClick={() => done(supabase.from("ats_ratings").delete().eq("id", mine.id), "Rating cleared")}>Clear</Button>}
+        </div>
+      </div>
+      {others.length > 0 && (
+        <ul className="mt-3 divide-y divide-border border-t border-border">
+          {others.map((r) => (
+            <li key={r.id} className="py-2 text-sm">
+              <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">{r.rater_name ?? "Someone"}</span><Stars value={r.score} count={1} /></div>
+              {r.comment && <p className="mt-0.5 whitespace-pre-wrap text-muted-foreground">{r.comment}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function NotesCard({ candidateId, appId, me }: { candidateId: string; appId: string | null; me: string | null }) {
+  const qc = useQueryClient();
+  const notes = useCandidateNotes(candidateId);
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const [del, setDel] = useState<string | null>(null);
+  const exec = async (p: PromiseLike<{ error: any }>, msg: string, after?: () => void) => {
+    if (busy) return;
+    setBusy(true);
+    const { error } = await p;
+    setBusy(false);
+    if (error) return toast.error(atsErrorMessage(error));
+    toast.success(msg); after?.();
+    qc.invalidateQueries({ queryKey: candKeys.notes(candidateId) });
+    qc.invalidateQueries({ queryKey: candKeys.events(candidateId) });
+  };
+  const add = () => {
+    const b = body.trim();
+    if (!b) return;
+    exec(supabase.from("ats_notes").insert({ candidate_id: candidateId, application_id: appId, body: b } as any), "Note added", () => setBody(""));
+  };
+  return (
+    <SectionCard title="Notes">
+      <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a note…" className="text-foreground"
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); add(); } }} />
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">Ctrl/⌘ + Enter to save</span>
+        <Button size="sm" disabled={!body.trim() || busy} onClick={add}>Add note</Button>
+      </div>
+      {notes.isLoading ? <div className="mt-3"><RowsSkeleton rows={2} /></div> : (
+        <ul className="mt-3 space-y-2">
+          {(notes.data ?? []).map((n) => (
+            <li key={n.id} className="rounded-lg border border-border p-2.5 text-sm">
+              <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                <span><span className="font-medium text-foreground">{n.author_name ?? "Someone"}</span> · {fmtDateTime(n.created_at)}</span>
+                {n.author_user_id === me && editing?.id !== n.id && (
+                  <span className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit note" onClick={() => setEditing({ id: n.id, body: n.body })}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete note" onClick={() => setDel(n.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </span>
+                )}
+              </div>
+              {editing?.id === n.id ? (
+                <div className="mt-1.5 space-y-2">
+                  <Textarea rows={3} value={editing.body} onChange={(e) => setEditing({ id: n.id, body: e.target.value })} className="text-foreground"
+                    onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && editing.body.trim()) { e.preventDefault(); exec(supabase.from("ats_notes").update({ body: editing.body.trim() }).eq("id", n.id), "Note updated", () => setEditing(null)); } }} />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={!editing.body.trim() || busy} onClick={() => exec(supabase.from("ats_notes").update({ body: editing.body.trim() }).eq("id", n.id), "Note updated", () => setEditing(null))}>Save</Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(null)}>Cancel</Button>
+                  </div>
+                </div>
+              ) : <p className="mt-1 whitespace-pre-wrap break-words text-foreground">{n.body}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+      <AlertDialog open={!!del} onOpenChange={(o) => !o && setDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete this note?</AlertDialogTitle><AlertDialogDescription>This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { const id = del!; setDel(null); exec(supabase.from("ats_notes").delete().eq("id", id), "Note deleted"); }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SectionCard>
+  );
+}
+
+function ActivityCard({ candidateId }: { candidateId: string }) {
+  const ev = useCandidateEvents(candidateId);
+  return (
+    <SectionCard title="Activity">
+      {ev.isLoading ? <RowsSkeleton rows={4} /> : ev.isError ? <QueryError error={ev.error} onRetry={() => ev.refetch()} /> :
+        !(ev.data ?? []).length ? <p className="text-sm text-muted-foreground">No activity yet.</p> : (
+        <ul className="divide-y divide-border">
+          {ev.data!.map((e) => {
+            const Icon = EVENT_ICON[e.event_type] ?? Activity;
+            return (
+              <li key={e.id} className="flex items-start gap-3 py-2">
+                <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="h-3.5 w-3.5" aria-hidden /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm text-foreground">{e.summary}</p>
+                  <p className="text-xs text-muted-foreground" title={fmtDateTime(e.created_at)}>{e.actor_name ?? "System"} · {fmtRelative(e.created_at)}</p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </SectionCard>
+  );
+}
+
+function FilesCard({ files, onUpload, candidateId }: { files: AtsFile[]; onUpload: () => void; candidateId: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [del, setDel] = useState<AtsFile | null>(null);
+  const refresh = () => { qc.invalidateQueries({ queryKey: candKeys.files(candidateId) }); qc.invalidateQueries({ queryKey: candKeys.all }); };
+  const setPrimary = async (f: AtsFile) => {
+    setBusy(true);
+    const { error } = await supabase.from("ats_files").update({ is_primary: true }).eq("id", f.id);
+    setBusy(false);
+    if (error) return toast.error(atsErrorMessage(error));
+    toast.success("Main resume updated"); refresh();
+  };
+  const remove = async (f: AtsFile) => {
+    setBusy(true);
+    const { error } = await supabase.from("ats_files").delete().eq("id", f.id);
+    if (error) { setBusy(false); return toast.error(atsErrorMessage(error)); }
+    const rm = await supabase.storage.from(ATS_BUCKET).remove([f.storage_path]);
+    setBusy(false);
+    if (rm.error) toast.warning("File removed from the candidate, but the stored copy couldn't be cleaned up.");
+    else toast.success("File deleted");
+    refresh();
+  };
+  return (
+    <SectionCard title="Files" action={<Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={onUpload}><Upload className="h-3.5 w-3.5" /> Upload file</Button>}>
+      {!files.length ? <p className="text-sm text-muted-foreground">No files yet.</p> : (
+        <ul className="divide-y divide-border">
+          {files.map((f) => (
+            <li key={f.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-foreground" title={f.file_name}>{f.file_name}</p>
+                <p className="text-xs text-muted-foreground">{fileKindLabel(f.kind)}{f.is_primary ? " · Main resume" : ""} · {fmtBytes(f.size_bytes)} · {f.uploaded_by_name ?? "—"} · {fmtDate(f.created_at)}</p>
+              </div>
+              {f.kind === "resume" && !f.is_primary && <Button size="sm" variant="ghost" className="h-7" disabled={busy} onClick={() => setPrimary(f)}>Set as main resume</Button>}
+              <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete file" disabled={busy} onClick={() => setDel(f)}><Trash2 className="h-3.5 w-3.5" /></Button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <AlertDialog open={!!del} onOpenChange={(o) => !o && setDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Delete this file?</AlertDialogTitle><AlertDialogDescription>“{del?.file_name}” will be removed. This cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { const f = del!; setDel(null); remove(f); }}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </SectionCard>
+  );
+}
+
+export function FileDropZone({ file, onFile, disabled }: { file: File | null; onFile: (f: File | null) => void; disabled?: boolean }) {
+  const input = useRef<HTMLInputElement>(null);
+  const { isDragActive, dropzoneProps } = useFileDropzone({ onFiles: (fs) => onFile(fs[0] ?? null), multiple: false, disabled });
+  return (
+    <div {...dropzoneProps}
+      className={cn("flex flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-4 text-center text-sm",
+        isDragActive ? "border-primary bg-primary/5" : "border-border")}>
+      {file ? (
+        <div className="flex w-full items-center gap-2">
+          <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate text-left text-foreground">{file.name}</span>
+          <span className="text-xs text-muted-foreground">{fmtBytes(file.size)}</span>
+          <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => onFile(null)} disabled={disabled}>Remove</Button>
+        </div>
+      ) : (
+        <>
+          <Upload className="h-5 w-5 text-muted-foreground" />
+          <span className="text-muted-foreground">Drag a file here or</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => input.current?.click()} disabled={disabled}>Choose file</Button>
+          <span className="text-xs text-muted-foreground">PDF, Word or image · up to 10 MB</span>
+        </>
+      )}
+      <input ref={input} type="file" className="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+        onChange={(e) => { onFile(e.target.files?.[0] ?? null); e.target.value = ""; }} />
+    </div>
+  );
+}
+
+function UploadDialog({ open, onClose, candidateId, appId, onDone }: { open: boolean; onClose: () => void; candidateId: string; appId: string | null; onDone: (f: AtsFile) => void }) {
+  const qc = useQueryClient();
+  const [kind, setKind] = useState<AtsFileKind>("resume");
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { if (open) { setFile(null); setKind("resume"); } }, [open]);
+  const submit = async () => {
+    if (!file || busy) return;
+    setBusy(true);
+    try {
+      const row = await uploadAtsFile({ file, candidateId, applicationId: appId, kind });
+      toast.success("File uploaded");
+      qc.invalidateQueries({ queryKey: candKeys.all });
+      onDone(row as AtsFile);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof AtsFileError ? e.message : atsErrorMessage(e));
+    } finally { setBusy(false); }
+  };
+  return (
+    <ResponsiveDialog open={open} onOpenChange={(o) => !o && !busy && onClose()} title="Upload file"
+      footer={<><Button variant="ghost" onClick={onClose} disabled={busy}>Cancel</Button><Button onClick={submit} disabled={!file || busy}>{busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}Upload</Button></>}>
+      <div className="space-y-4">
+        <div className="space-y-1.5">
+          <Label>Kind</Label>
+          <Select value={kind} onValueChange={(v) => setKind(v as AtsFileKind)}>
+            <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+            <SelectContent>{ATS_FILE_KINDS.map((k) => <SelectItem key={k.value} value={k.value}>{k.label}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
+        <FileDropZone file={file} onFile={setFile} disabled={busy} />
+      </div>
+    </ResponsiveDialog>
+  );
+}

@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "./AtsUi";
+import { RotateCcw } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -38,12 +39,13 @@ function resultsLabel(r: ImportListRow) {
   return parts.length ? parts.join(" · ") : "Nothing imported";
 }
 
+const humanOutcome = (c: string) => { const t = String(c ?? "").replace(/_/g, " ").trim().toLowerCase(); return t ? t[0].toUpperCase() + t.slice(1) : "—"; };
 function StatusBadge({ r }: { r: any }) {
   if (r.status === "undone") {
     return (
       <TooltipProvider>
       <Tooltip>
-        <TooltipTrigger asChild><Badge variant="outline">Undone</Badge></TooltipTrigger>
+        <TooltipTrigger asChild><span tabIndex={0} className="rounded-full"><StatusPill tone="neutral">Undone</StatusPill></span></TooltipTrigger>
         <TooltipContent>
           Undone by {r.undone_by_name ?? "—"} on {fmtDateTime(r.undone_at)}
           {Number(r.undo_kept) > 0 ? ` · kept ${r.undo_kept} worked on since` : ""}
@@ -54,9 +56,9 @@ function StatusBadge({ r }: { r: any }) {
   }
   if (r.status === "running") {
     const stale = Date.now() - new Date(r.created_at).getTime() > 30 * 60_000;
-    return <Badge variant="secondary">{stale ? "Not finished" : "Running"}</Badge>;
+    return <StatusPill tone={stale ? "warning" : "primary"}>{stale ? "Not finished" : "Running"}</StatusPill>;
   }
-  return <Badge>Done</Badge>;
+  return <StatusPill tone="success">Done</StatusPill>;
 }
 
 const canUndo = (r: ImportListRow) =>
@@ -73,7 +75,7 @@ export function ImportHistory() {
   const actions = (r: ImportListRow) => (
     <div className="flex flex-wrap gap-2">
       <Button size="sm" variant="outline" onClick={() => setViewing(r)}>View rows</Button>
-      {isAdmin && canUndo(r) && <Button size="sm" variant="outline" className="text-destructive" onClick={() => setUndoing(r)}>Undo import</Button>}
+      {isAdmin && canUndo(r) && <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setUndoing(r)}><RotateCcw className="h-4 w-4" /> Undo import</Button>}
     </div>
   );
 
@@ -161,7 +163,7 @@ function ImportRowsDialog({ imp, onClose }: { imp: ImportListRow | null; onClose
                 {(q.data?.rows ?? []).map((r: any) => (
                   <tr key={r.id ?? r.row_no} className="border-b border-border last:border-0">
                     <td className="px-2 py-2">{r.row_no}</td>
-                    <td className="px-2 py-2">{OUTCOME_LABEL[r.outcome as Outcome] ?? r.outcome}{r.error ? ` · ${reasonLabel(r.error)}` : ""}</td>
+                    <td className="px-2 py-2">{OUTCOME_LABEL[r.outcome as Outcome] ?? humanOutcome(r.outcome)}{r.error ? ` · ${reasonLabel(r.error)}` : ""}</td>
                     <td className="px-2 py-2">
                       {r.ats_candidates ? (
                         <Link className="text-primary hover:underline" to={`/hrms/ats/candidates/${r.candidate_id}`}>

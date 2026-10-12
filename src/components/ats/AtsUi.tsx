@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { ChevronRight, Hourglass } from "lucide-react";
+import { ChevronRight, HelpCircle, Hourglass } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,7 @@ export function MetricStrip({ children, className }: { children: ReactNode; clas
   return <div className={cn("grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-border gap-px sm:grid-cols-3 xl:grid-cols-6", className)}>{children}</div>;
 }
 export function MetricCell({ label, value, helper, icon: Icon, onClick, valueClassName, children }: {
-  label?: string; value?: ReactNode; helper?: ReactNode; icon?: LucideIcon; onClick?: () => void; valueClassName?: string; children?: ReactNode;
+  label?: ReactNode; value?: ReactNode; helper?: ReactNode; icon?: LucideIcon; onClick?: () => void; valueClassName?: string; children?: ReactNode;
 }) {
   const content = children ?? <>
     <div className="flex !flex-nowrap items-start justify-between gap-2">
@@ -120,4 +121,12 @@ export function StepLine({ steps }: { steps: string[] }) {
       <span className="text-xs text-muted-foreground">{s}</span>
     </li>)}
   </ol>;
+}
+
+/** 14px help icon with a tooltip. */
+export function InfoTip({ label, text }: { label: string; text: string }) {
+  return <TooltipProvider delayDuration={150}><Tooltip>
+    <TooltipTrigger asChild><button type="button" aria-label={`About ${label}`} className="inline-flex shrink-0 rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><HelpCircle className="h-3.5 w-3.5" aria-hidden /></button></TooltipTrigger>
+    <TooltipContent className="max-w-xs text-xs">{text}</TooltipContent>
+  </Tooltip></TooltipProvider>;
 }

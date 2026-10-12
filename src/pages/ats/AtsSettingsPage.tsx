@@ -22,6 +22,9 @@ import { CareersSettingsSection } from "@/components/ats/CareersSettingsSection"
 import { EmailSettingsSection } from "@/components/ats/EmailSettingsSection";
 import { InterviewSettingsSection } from "@/components/ats/InterviewSettingsSection";
 import { useSearchParams } from "react-router-dom";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { StatusPill, stageDotClass } from "@/components/ats/AtsUi";
+import { cn } from "@/lib/utils";
 import {
   type AtsReason, type AtsStage, atsKeys, useAtsMutation, useAtsReasons, useAtsSettings, useAtsSources, useAtsStages,
 } from "@/lib/ats/api";
@@ -132,8 +135,11 @@ function StagesSection() {
             return (
               <li key={s.id} className="flex flex-wrap items-center gap-2 py-2">
                 <div className="flex min-w-0 flex-1 items-center gap-2">
-                  {s.is_system && <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Built-in stage" />}
+                  <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${stageDotClass(s.kind)}`} />
                   <InlineName value={s.name} max={40} saving={rename.isPending} onSave={(n) => rename.mutate({ id: s.id, name: n })} />
+                  {s.is_system ? (
+                    <TooltipProvider delayDuration={150}><Tooltip><TooltipTrigger asChild><span tabIndex={0} className="inline-flex rounded"><Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Built-in stage" /></span></TooltipTrigger><TooltipContent>Built-in stage</TooltipContent></Tooltip></TooltipProvider>
+                  ) : <StatusPill tone="neutral">Custom</StatusPill>}
                   {!s.is_active && <span className="text-xs text-muted-foreground">Inactive</span>}
                 </div>
                 {!s.is_system && (
@@ -205,7 +211,7 @@ function SourcesSection() {
           {sources.data!.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
               <div className="min-w-0 flex-1"><InlineName value={s.name} max={60} onSave={(n) => rename.mutate({ id: s.id, name: n })} /></div>
-              <span className="text-xs text-muted-foreground">{sourceKindLabel(s.kind)}</span>
+              <StatusPill tone="neutral">{sourceKindLabel(s.kind)}</StatusPill>
               <span className="inline-flex items-center gap-1">
                 <span className="t-mono text-xs text-muted-foreground">{s.code}</span>
                 <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Copy tracking code ${s.code}`}
@@ -258,7 +264,7 @@ function ReasonList({ title, rows }: { title: string; rows: AtsReason[] }) {
   }, { invalidate: inv });
   return (
     <div>
-      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</h3>
+      <h3 className="mb-1 text-xs font-semibold text-muted-foreground">{title}</h3>
       {rows.length === 0 ? <p className="py-3 text-sm text-muted-foreground">No reasons yet.</p> : (
         <ul className="divide-y divide-border">
           {rows.map((r, i) => (
@@ -345,23 +351,23 @@ function GeneralSection() {
   const e = form.formState.errors;
   return (
     <SectionCard title="General">
-      <form noValidate className="grid max-w-xl grid-cols-1 gap-4" onSubmit={form.handleSubmit((v) => save.mutate(v))}>
-        <div className="space-y-1.5">
+      <form noValidate className="grid max-w-2xl grid-cols-1 gap-4 sm:grid-cols-2" onSubmit={form.handleSubmit((v) => save.mutate(v))}>
+        <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="ats-def-loc">Default job location</Label>
           <Input id="ats-def-loc" className="text-foreground" {...form.register("default_location")} />
-          {e.default_location && <p className="text-xs text-destructive">{e.default_location.message}</p>}
+          {e.default_location ? <p className="text-xs text-destructive">{e.default_location.message}</p> : <p className="text-xs text-muted-foreground">Filled in when you create a job.</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ats-idle">Idle alert after (days)</Label>
           <Input id="ats-idle" type="number" min={1} max={60} className="text-foreground" {...form.register("idle_alert_days")} />
-          {e.idle_alert_days && <p className="text-xs text-destructive">{e.idle_alert_days.message}</p>}
+          {e.idle_alert_days ? <p className="text-xs text-destructive">{e.idle_alert_days.message}</p> : <p className="text-xs text-muted-foreground">Active applications with no movement for this many days show as idle.</p>}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ats-ret">Keep rejected applicants for (months)</Label>
           <Input id="ats-ret" type="number" min={1} max={60} className="text-foreground" {...form.register("retention_months")} />
-          {e.retention_months ? <p className="text-xs text-destructive">{e.retention_months.message}</p> : <p className="text-xs text-muted-foreground">Used by the clean-up in a later update.</p>}
+          {e.retention_months ? <p className="text-xs text-destructive">{e.retention_months.message}</p> : <p className="text-xs text-muted-foreground">How long to keep applicants who weren't hired. Automatic clean-up isn't switched on yet.</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
           <Button type="submit" disabled={save.isPending}>Save</Button>
           {settings.data?.updated_by_name && (
             <span className="text-xs text-muted-foreground">Last updated by {settings.data.updated_by_name} on {fmtDateTime(settings.data.updated_at)}</span>
@@ -372,6 +378,15 @@ function GeneralSection() {
   );
 }
 
+const TAB_META = [
+  { v: "stages", l: "Stages", d: "The steps every application moves through" },
+  { v: "sources", l: "Sources", d: "Where applicants come from" },
+  { v: "reasons", l: "Rejection reasons", d: "Why applications end" },
+  { v: "careers", l: "Careers page", d: "Website link and connection" },
+  { v: "email", l: "Email", d: "Candidate email and templates" },
+  { v: "interviews", l: "Interviews", d: "Defaults, office address and reminders" },
+  { v: "general", l: "General", d: "Location, idle alert and how long to keep data" },
+];
 const SETTINGS_TABS = ["stages", "sources", "reasons", "careers", "email", "interviews", "general"];
 
 export default function AtsSettingsPage() {
@@ -384,25 +399,34 @@ export default function AtsSettingsPage() {
     setSp(next, { replace: true });
   };
   return (
-    <Tabs value={tab} onValueChange={onTab} className="space-y-4">
-      <div className="max-w-full overflow-x-auto">
+    <Tabs value={tab} onValueChange={onTab} className="space-y-4 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
+      <div className="max-w-full overflow-x-auto lg:hidden">
         <TabsList className="flex-nowrap">
-          <TabsTrigger value="stages">Stages</TabsTrigger>
-          <TabsTrigger value="sources">Sources</TabsTrigger>
-          <TabsTrigger value="reasons">Rejection reasons</TabsTrigger>
-          <TabsTrigger value="careers">Careers page</TabsTrigger>
-          <TabsTrigger value="email">Email</TabsTrigger>
-          <TabsTrigger value="interviews">Interviews</TabsTrigger>
-          <TabsTrigger value="general">General</TabsTrigger>
+          {TAB_META.map((t) => <TabsTrigger key={t.v} value={t.v}>{t.l}</TabsTrigger>)}
         </TabsList>
       </div>
-      <TabsContent value="stages"><StagesSection /></TabsContent>
-      <TabsContent value="sources"><SourcesSection /></TabsContent>
-      <TabsContent value="reasons"><ReasonsSection /></TabsContent>
-      <TabsContent value="careers"><CareersSettingsSection /></TabsContent>
-      <TabsContent value="email"><EmailSettingsSection /></TabsContent>
-      <TabsContent value="interviews"><InterviewSettingsSection /></TabsContent>
-      <TabsContent value="general"><GeneralSection /></TabsContent>
+      <nav aria-label="Settings sections" className="hidden lg:sticky lg:top-0 lg:block">
+        <ul className="space-y-1">
+          {TAB_META.map((t) => (
+            <li key={t.v}>
+              <button type="button" onClick={() => onTab(t.v)} aria-current={tab === t.v ? "page" : undefined}
+                className={cn("w-full rounded-lg px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", tab === t.v ? "bg-primary/10" : "hover:bg-muted/60")}>
+                <span className="block text-sm font-medium text-foreground">{t.l}</span>
+                <span className="block text-xs text-muted-foreground">{t.d}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="min-w-0">
+        <TabsContent value="stages" className="mt-0"><StagesSection /></TabsContent>
+        <TabsContent value="sources" className="mt-0"><SourcesSection /></TabsContent>
+        <TabsContent value="reasons" className="mt-0"><ReasonsSection /></TabsContent>
+        <TabsContent value="careers" className="mt-0"><CareersSettingsSection /></TabsContent>
+        <TabsContent value="email" className="mt-0"><EmailSettingsSection /></TabsContent>
+        <TabsContent value="interviews" className="mt-0"><InterviewSettingsSection /></TabsContent>
+        <TabsContent value="general" className="mt-0"><GeneralSection /></TabsContent>
+      </div>
     </Tabs>
   );
 }

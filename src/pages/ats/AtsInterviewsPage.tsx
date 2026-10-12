@@ -1,13 +1,16 @@
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CalendarClock, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { CandidateAvatar, CountPill, StatusPill } from "@/components/ats/AtsUi";
+import { todayIST } from "@/lib/ats/format";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { QueryError, RowsSkeleton } from "@/components/ats/AtsBits";
-import { InterviewStatusBadge, PanelChips, ResponseChip, WhereLine } from "@/components/ats/InterviewBits";
+import { InterviewStatusBadge, ivAccentClass, PanelChips, ResponseChip, WhereLine } from "@/components/ats/InterviewBits";
 import { InterviewActions } from "@/components/ats/InterviewActions";
 import { InterviewFeedbackDialog } from "@/components/ats/InterviewFeedbackDialog";
 import type { InterviewRow } from "@/lib/ats/interviews";
@@ -80,7 +83,7 @@ export default function AtsInterviewsPage() {
       let g = out[out.length - 1];
       if (!g || g.day !== day) {
         const dl = ivDayLabel(r.starts_at);
-        const label = dl === "Today" || dl === "Tomorrow" ? `${dl} · ${ivDateText(new Date(r.starts_at))}` : ivDateText(new Date(r.starts_at));
+        const label = dl === "Tomorrow" ? `${dl} · ${ivDateText(new Date(r.starts_at))}` : ivDateText(new Date(r.starts_at));
         g = { day, label, rows: [] }; out.push(g);
       }
       g.rows.push(r);
@@ -88,6 +91,7 @@ export default function AtsInterviewsPage() {
     return out;
   }, [filtered]);
 
+  const today = todayIST();
   return (
     <div className="space-y-4">
       <Tabs value={view} onValueChange={(v) => set("view", v, "upcoming")}>
@@ -96,7 +100,8 @@ export default function AtsInterviewsPage() {
             {VIEWS.map((x) => (
               <TabsTrigger key={x.v} value={x.v}>
                 {x.l}
-                {x.v === "action" && (counts.data?.action ?? 0) > 0 && <Badge className="ml-1.5 h-5 min-w-5 justify-center px-1.5 text-[10px]">{counts.data!.action}</Badge>}
+                {x.v === "today" && (counts.data?.today ?? 0) > 0 && <CountPill n={counts.data!.today} className="ml-1.5 bg-primary text-primary-foreground" />}
+                {x.v === "action" && (counts.data?.action ?? 0) > 0 && <CountPill n={counts.data!.action} className="ml-1.5 bg-warning/15 text-foreground" />}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -124,18 +129,20 @@ export default function AtsInterviewsPage() {
           <Input value={q} onChange={(e) => set("q", e.target.value, "")} placeholder="Candidate name or ref" className="h-9 pl-8 text-foreground" />
         </div>
       </div>
+      {list.isSuccess && <p className="text-sm tabular-nums text-muted-foreground">{filtered.length} interview{filtered.length === 1 ? "" : "s"}</p>}
 
       {list.isLoading ? <RowsSkeleton rows={6} /> : list.isError ? <QueryError error={list.error} onRetry={() => list.refetch()} /> :
         !filtered.length ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
-            {EMPTY[view]}
-            {view === "upcoming" && <> <Link to="/hrms/ats/candidates" className="font-medium text-primary hover:underline">Candidates</Link></>}
-          </div>
+          <EmptyState icon={CalendarClock} title={EMPTY[view]} className="rounded-xl border border-border bg-card"
+            action={view === "upcoming" ? <Button variant="outline" asChild><Link to="/hrms/ats/candidates">Go to candidates</Link></Button> : undefined} />
         ) : (
           <div className="space-y-4">
             {groups.map((g) => (
               <section key={g.day} className="space-y-2">
-                <h3 className="text-sm font-semibold text-foreground">{g.label}</h3>
+                <h3 className="sticky top-0 z-10 flex items-center gap-2 bg-background/95 py-1.5 backdrop-blur">
+                  <span className={g.day === today ? "text-sm font-semibold text-primary" : "text-sm font-semibold text-foreground"}>{g.label}</span>
+                  {g.day === today && <StatusPill tone="neutral">Today</StatusPill>}
+                </h3>
                 <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
                   {g.rows.map((r) => <Row key={r.id} r={r} view={view} mailOn={mailOn} mobile={isMobile} onOpenFeedback={setFeedbackIv} />)}
                 </ul>
@@ -155,20 +162,24 @@ function Row({ r, view, mailOn, mobile, onOpenFeedback }: { r: InterviewListRow;
   const st = ivState(r);
   const time = (
     <div className={mobile ? "flex items-baseline gap-2" : "w-20 shrink-0"}>
-      <p className="text-sm font-medium tabular-nums text-foreground">{ivClock(new Date(r.starts_at))}</p>
+      <p className="text-sm font-semibold tabular-nums text-foreground">{ivClock(new Date(r.starts_at))}</p>
       <p className="text-xs tabular-nums text-muted-foreground">{mobile ? "– " : ""}{ivClock(new Date(r.ends_at))}</p>
     </div>
   );
   const who = (
-    <div className={mobile ? "min-w-0" : "w-56 min-w-0 shrink-0"}>
-      <Link to={`/hrms/ats/candidates/${r.candidate_id}?app=${r.application_id}`} className="truncate font-medium text-foreground hover:text-primary hover:underline">
-        {r.ats_candidates?.full_name ?? "Candidate"}
-      </Link>
-      <p className="truncate text-xs text-muted-foreground"><span className="t-mono">{r.ats_candidates?.ref_no}</span> · {target.jobTitle && r.ats_applications?.ats_jobs ? target.jobTitle : "General"}</p>
+    <div className={mobile ? "flex min-w-0 items-center gap-2" : "flex w-60 min-w-0 shrink-0 items-start gap-2"}>
+      <CandidateAvatar full_name={r.ats_candidates?.full_name ?? ""} size="sm" />
+      <div className="min-w-0">
+        <Link to={`/hrms/ats/candidates/${r.candidate_id}?app=${r.application_id}`} className="block truncate font-medium text-foreground hover:text-primary hover:underline">
+          {r.ats_candidates?.full_name ?? "Candidate"}
+        </Link>
+        <p className="truncate text-xs text-muted-foreground"><span className="t-mono">{r.ats_candidates?.ref_no}</span> · {target.jobTitle && r.ats_applications?.ats_jobs ? target.jobTitle : "General application"}</p>
+      </div>
     </div>
   );
   return (
-    <li className={mobile ? "space-y-1.5 p-3" : "flex gap-4 p-3"}>
+    <li className={mobile ? "relative space-y-1.5 p-3 pl-4" : "relative flex gap-4 p-3 pl-4"}>
+      <span aria-hidden className={`absolute inset-y-0 left-0 w-[3px] ${ivAccentClass(r)}`} />
       {time}
       {who}
       <div className="min-w-0 flex-1 space-y-1">

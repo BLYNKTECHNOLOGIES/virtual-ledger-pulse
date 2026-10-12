@@ -15,6 +15,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChipInput, MultiSelect } from "./AtsBits";
+import { Req } from "./AtsUi";
 import {
   type AtsJob, atsKeys, createJob, jobKeys, updateJob, useAtsMutation, useAtsSettings, useDepartmentsLookup,
   useEmployeesLookup, usePositionsLookup, useRequirementsLookup, useShiftsLookup,
@@ -111,7 +112,7 @@ function toPayload(v: FormValues) {
   };
 }
 
-function Field({ label, error, children, hint, htmlFor }: { label: string; error?: string; children: React.ReactNode; hint?: string; htmlFor?: string }) {
+function Field({ label, error, children, hint, htmlFor }: { label: React.ReactNode; error?: string; children: React.ReactNode; hint?: string; htmlFor?: string }) {
   return (
     <div className="space-y-1.5">
       <Label htmlFor={htmlFor}>{label}</Label>
@@ -245,10 +246,10 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
       >
         <form id="ats-job-form" noValidate onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-6 pb-2">
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basics</h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <Field label="Title" error={e.title?.message} htmlFor="ats-title">
+            <h3 className="text-xs font-semibold text-muted-foreground">Basics</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <Field label={<>Title<Req /></>} error={e.title?.message} htmlFor="ats-title">
                   <Input id="ats-title" autoFocus className="text-foreground" {...register("title")} />
                 </Field>
               </div>
@@ -283,7 +284,7 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
               <Field label="Location" error={e.location?.message}>
                 <Input className="text-foreground" {...register("location")} />
               </Field>
-              <Field label="Openings" error={e.openings?.message}>
+              <Field label={<>Openings<Req /></>} error={e.openings?.message}>
                 <Input type="number" inputMode="numeric" min={1} max={500} step={1} className="text-foreground" {...register("openings")} />
               </Field>
               <Field label="Target close date">
@@ -303,8 +304,8 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pay and experience</h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <h3 className="text-xs font-semibold text-muted-foreground">Pay and experience</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Salary min (₹)" error={e.salary_min?.message}>
                 <Input type="number" inputMode="decimal" min={0} className="text-foreground" {...register("salary_min")} />
               </Field>
@@ -322,7 +323,7 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
                   </Select>
                 )} />
               </Field>
-              <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 md:mt-6">
+              <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 sm:mt-6">
                 <Label htmlFor="ats-show-salary" className="font-normal">Show salary on careers page</Label>
                 <Controller control={control} name="show_salary" render={({ field }) => (
                   <Switch id="ats-show-salary" checked={field.value} onCheckedChange={field.onChange} />
@@ -338,9 +339,9 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
+            <h3 className="text-xs font-semibold text-muted-foreground">Description</h3>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
                 <Field label="Summary" error={e.summary?.message}>
                   <Textarea rows={2} className="text-foreground" {...register("summary")} />
                 </Field>
@@ -357,7 +358,7 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
           </section>
 
           <section className="space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Hiring requirement (optional)</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">Hiring requirement (optional)</h3>
             <Controller control={control} name="requisition_id" render={({ field }) => (
               <Select value={field.value || NONE} onValueChange={(v) => (v === NONE ? field.onChange("") : applyRequirement(v))}>
                 <SelectTrigger className="text-foreground"><SelectValue placeholder="Not linked" /></SelectTrigger>

@@ -74,7 +74,7 @@ export function StageRail({ stages, currentId, status, size = "lg" }: { stages: 
   return <ol aria-label="Stages" className="flex gap-1">
     {stages.map((s, i) => <li key={s.id} aria-current={i === at ? "step" : undefined} className="min-w-0 flex-1">
       <span aria-hidden className={cn("block h-1.5 rounded-full", seg(s, i))} />
-      <span className={cn("mt-1.5 block truncate text-[11px] leading-4", i === at ? "font-semibold text-foreground" : "text-muted-foreground")} title={s.name}>{s.name}</span>
+      <span lang="en" className={cn("mt-1.5 line-clamp-2 break-words hyphens-auto text-[11px] leading-tight", i === at ? "font-semibold text-foreground" : "text-muted-foreground")} title={s.name}>{s.name}</span>
     </li>)}
   </ol>;
 }
@@ -95,4 +95,18 @@ export function FormSection({ title }: { title: string }) {
 /** Required-field marker. */
 export function Req() {
   return <><span aria-hidden className="text-destructive"> *</span><span className="sr-only"> required</span></>;
+}
+
+/** "{hired} of {openings}" over a small success bar. */
+export function HiringProgress({ hired, openings, className }: { hired: number; openings: number; className?: string }) {
+  const pct = openings > 0 ? Math.min(100, (hired / openings) * 100) : 0;
+  return <div className={cn("min-w-0", className)}>
+    <div className="whitespace-nowrap text-xs tabular-nums text-foreground">{hired} of {openings}</div>
+    <div aria-hidden className="mt-1 h-1.5 w-24 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-success" style={{ width: `${pct}%` }} /></div>
+  </div>;
+}
+
+/** Pill used for counts inside chips and tabs. */
+export function CountPill({ n, className }: { n: number; className?: string }) {
+  return <span className={cn("inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-medium tabular-nums text-foreground", className)}>{n}</span>;
 }

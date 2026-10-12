@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   type InterviewRow, type IvMode, type IvTarget, type SaveInterviewResult,
 } from "@/lib/ats/interviews";
 import { MultiSelect } from "./AtsBits";
+import { FormSection, Req } from "./AtsUi";
 import { InterviewEmailFields, emailLeftovers, pickTemplate, summarizeNotify } from "./InterviewBits";
 
 const URL_RE = /^https:\/\/[^\s<>"]+$/;
@@ -208,6 +209,15 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
     && (!wantCand || (subject.trim().length >= 1 && subject.trim().length <= 200 && body.trim().length >= 1 && body.length <= 20000
       && emailLeftovers(subject, body, vals).length === 0));
 
+  const invalidReason = !title.trim() || title.trim().length > 80 ? "Add a round title."
+    : !date || !time ? "Pick a date and time."
+    : minutes < 10 || minutes > 480 ? "Choose a length."
+    : mode === "in_person" && (location.trim().length < 1 || location.trim().length > 300) ? "Add the address."
+    : mode === "video" && (!URL_RE.test(url.trim()) || url.trim().length > 500) ? "Add the meeting link."
+    : panel.length > 8 ? "Choose up to 8 interviewers."
+    : candNote.length > 1000 || intNote.length > 2000 ? "Shorten the notes."
+    : "Finish the email to the candidate.";
+
   const refresh = () => {
     for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k });
   };
@@ -309,10 +319,11 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
   return (
     <ResponsiveDialog open={open} onOpenChange={(o) => { if (!busy) onOpenChange(o); }} contentClassName="max-w-2xl"
       title={editing ? "Change interview" : `Schedule interview with ${first}`} footer={footer}>
-      <fieldset disabled={busy || !!saved} className="space-y-5 pb-1">
+      <fieldset disabled={busy || !!saved} className="space-y-5 pb-1 [&_h3]:mt-0">
         {/* Round */}
         <div className="space-y-1.5">
-          <Label htmlFor="iv-title">Round</Label>
+          <FormSection title="Round" />
+          <Label htmlFor="iv-title">Round title<Req /></Label>
           <Input id="iv-title" value={title} maxLength={80} onChange={(e) => setTitle(e.target.value)} className="text-foreground" />
           <div className="flex flex-wrap gap-1.5">
             {ROUND_SUGGESTIONS.map((r) => <Button key={r} type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => setTitle(r)}>{r}</Button>)}
@@ -321,7 +332,8 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
 
         {/* When */}
         <div className="space-y-1.5">
-          <Label>When</Label>
+          <FormSection title="When" />
+          <Label>Date, time and length<Req /></Label>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Input type="date" aria-label="Date" value={date} min={addDaysIST(today, -30)} max={addDaysIST(today, 365)} onChange={(e) => setDate(e.target.value)} className="text-foreground" />
             <Input type="time" aria-label="Start time" step={300} value={time} onChange={(e) => setTime(e.target.value)} className="text-foreground" />
@@ -336,7 +348,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
 
         {/* How */}
         <div className="space-y-1.5">
-          <Label>How</Label>
+          <FormSection title="Where" />
           <div className="inline-flex rounded-md border border-border p-0.5" role="radiogroup" aria-label="Mode">
             {IV_MODES.map((m) => (
               <button key={m.value} type="button" role="radio" aria-checked={mode === m.value} onClick={() => setMode(m.value)}
@@ -346,14 +358,14 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
           </div>
           {mode === "in_person" && (
             <div className="space-y-1">
-              <Label htmlFor="iv-addr" className="text-xs">Address</Label>
+              <Label htmlFor="iv-addr" className="text-xs">Address<Req /></Label>
               <Textarea id="iv-addr" rows={2} maxLength={300} value={location} onChange={(e) => setLocation(e.target.value)} className="text-foreground" />
               <p className="text-xs text-muted-foreground">The default office address is set in ATS → Settings → Interviews.</p>
             </div>
           )}
           {mode === "video" && (
             <div className="space-y-1">
-              <Label htmlFor="iv-url" className="text-xs">Meeting link</Label>
+              <Label htmlFor="iv-url" className="text-xs">Meeting link<Req /></Label>
               <Input id="iv-url" maxLength={500} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" className="text-foreground" />
               {url.trim() && !URL_RE.test(url.trim())
                 ? <p className="text-xs text-destructive">Add a meeting link that starts with https://</p>
@@ -367,6 +379,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
 
         {/* Interviewers */}
         <div className="space-y-1.5">
+          <FormSection title="Who" />
           <div className="flex items-center justify-between gap-2">
             <Label>Interviewers <span className="font-normal text-muted-foreground">(optional)</span></Label>
             {me.data && !panel.includes(me.data.id) && (
@@ -381,14 +394,15 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
         </div>
 
         {conflicts.length > 0 && (
-          <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm">
-            <p className="font-medium text-warning">Clashes</p>
+          <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm">
+            <p className="flex items-center gap-1.5 font-medium text-foreground"><AlertTriangle className="h-4 w-4 text-warning" aria-hidden />Clashes</p>
             <ul className="mt-1 list-disc space-y-0.5 pl-5 text-foreground">{conflicts.slice(0, 5).map((c, i) => <li key={i}>{c}</li>)}</ul>
           </div>
         )}
 
         {/* Notes */}
         <div className="space-y-1.5">
+          <FormSection title="Notes" />
           <Label htmlFor="iv-cnote">Note for {first} <span className="font-normal text-muted-foreground">(optional)</span></Label>
           <Textarea id="iv-cnote" rows={2} maxLength={1000} value={candNote} onChange={(e) => setCandNote(e.target.value)}
             placeholder="For example: please bring a printed resume and an ID proof." className="text-foreground" />
@@ -413,6 +427,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
           </div>
         ) : showEmails ? (
           <div className="space-y-3">
+            <FormSection title="Email" />
             <div className="space-y-1">
               <label className={cn("flex items-center gap-2 text-sm", target.email ? "text-foreground" : "text-muted-foreground")}>
                 <Checkbox checked={emailCand && !!target.email} disabled={!target.email}
@@ -443,6 +458,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
           </div>
         ) : null}
       </fieldset>
+      {!valid && !busy && !notifyErr && <p className="mt-3 text-xs text-muted-foreground">{invalidReason}</p>}
       {notifyErr && <p className="mt-3 rounded-md border border-warning/50 bg-warning/10 p-2 text-sm text-foreground">{notifyErr}</p>}
     </ResponsiveDialog>
   );

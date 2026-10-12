@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Briefcase, Search, Plus } from "lucide-react";
+import { Briefcase, Globe, Search, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Badge } from "@/components/ui/badge";
+import { CountPill, HiringProgress, StatusPill } from "@/components/ats/AtsUi";
 import { JobStatusBadge, QueryError, RowsSkeleton } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
 import { useAtsJobSummary, useAtsJobs, useDepartmentsLookup } from "@/lib/ats/api";
-import { fmtDateTime } from "@/lib/ats/format";
+import { fmtDateTime, fmtRelative } from "@/lib/ats/format";
 import { cn } from "@/lib/utils";
 
 const FILTERS = [
@@ -64,18 +64,22 @@ export default function AtsJobsPage() {
     );
   }
 
+  const CareersPill = () => <StatusPill tone="primary" icon={Globe}>On careers page</StatusPill>;
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
-        {FILTERS.map((f) => (
-          <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={filter === f.key}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              filter === f.key ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground",
-            )}>
-            {f.label} <span className="tabular-nums text-xs">{counts[f.key] ?? 0}</span>
-          </button>
-        ))}
+        {FILTERS.map((f) => {
+          const on = filter === f.key;
+          return (
+            <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={on}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                on ? "border-primary/40 bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground",
+              )}>
+              {f.label} <CountPill n={counts[f.key] ?? 0} className={on ? "bg-card" : undefined} />
+            </button>
+          );
+        })}
       </div>
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -90,6 +94,7 @@ export default function AtsJobsPage() {
           </SelectContent>
         </Select>
       </div>
+      <p className="text-sm tabular-nums text-muted-foreground">{rows.length} job{rows.length === 1 ? "" : "s"}</p>
 
       {rows.length === 0 ? (
         <EmptyState icon={Search} title="No matching jobs" description="Try another status, department or search term." className="rounded-xl border border-dashed border-border" />
@@ -102,58 +107,56 @@ export default function AtsJobsPage() {
                 <li key={j.id}>
                   <button type="button" onClick={() => navigate(`/hrms/ats/jobs/${j.id}`)}
                     className="w-full rounded-xl border border-border bg-card p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="truncate font-medium text-foreground">{j.title}</div>
-                        <div className="t-mono text-xs text-muted-foreground">{j.job_code} · {deptName(j.department_id)}</div>
-                      </div>
-                      <span className="inline-flex flex-wrap items-center gap-1"><JobStatusBadge status={j.status} />{j.is_published && <Badge variant="secondary" className="whitespace-nowrap font-normal">On careers page</Badge>}</span>
+                    <div className="min-w-0">
+                      <div className="break-words font-medium text-foreground">{j.title}</div>
+                      <div className="t-mono text-xs text-muted-foreground">{j.job_code}</div>
                     </div>
-                    <div className="mt-2 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                      <span>Applicants <b className="text-foreground tabular-nums">{s?.total_applications ?? 0}</b>{(s?.new_7d ?? 0) > 0 && <span className="text-primary"> +{s!.new_7d}</span>}</span>
-                      <span>Pipeline <b className="text-foreground tabular-nums">{(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)}</b></span>
-                      <span>Hired <b className="text-foreground tabular-nums">{s?.hired_count ?? 0}/{j.openings}</b></span>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5"><JobStatusBadge status={j.status} />{j.is_published && <CareersPill />}</div>
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div><div className="text-xs text-muted-foreground">Applicants</div><div className="text-sm font-semibold tabular-nums text-foreground">{s?.total_applications ?? 0}{(s?.new_7d ?? 0) > 0 && <span className="ml-1 text-xs font-normal text-primary">+{s!.new_7d}</span>}</div></div>
+                      <div><div className="text-xs text-muted-foreground">In pipeline</div><div className="text-sm font-semibold tabular-nums text-foreground">{(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)}</div></div>
+                      <div><div className="text-xs text-muted-foreground">Hired</div><HiringProgress hired={s?.hired_count ?? 0} openings={j.openings} className="[&>div:last-child]:w-full" /></div>
                     </div>
                   </button>
                 </li>
               );
             })}
           </ul>
-          <div className="hidden overflow-x-auto rounded-xl border border-border bg-card md:block">
+          <div className="hidden rounded-xl border border-border bg-card md:block">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Job</TableHead>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">Openings</TableHead>
+                  <TableHead className="hidden lg:table-cell">Department</TableHead>
+                  <TableHead className="hidden text-right lg:table-cell">Openings</TableHead>
                   <TableHead className="text-right">Applicants</TableHead>
                   <TableHead className="text-right">In pipeline</TableHead>
-                  <TableHead className="text-right">Hired / openings</TableHead>
+                  <TableHead>Hiring progress</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Updated</TableHead>
+                  <TableHead className="hidden xl:table-cell">Updated</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((j) => {
                   const s = summary.data?.get(j.id);
                   return (
-                    <TableRow key={j.id} className="cursor-pointer" tabIndex={0}
+                    <TableRow key={j.id} className="cursor-pointer hover:bg-muted/40" tabIndex={0}
                       onClick={() => navigate(`/hrms/ats/jobs/${j.id}`)}
                       onKeyDown={(e) => e.key === "Enter" && navigate(`/hrms/ats/jobs/${j.id}`)}>
                       <TableCell>
-                        <div className="font-medium text-foreground">{j.title}</div>
-                        <div className="t-mono text-xs text-muted-foreground">{j.job_code}</div>
+                        <div className="flex flex-wrap items-center gap-2"><span className="font-medium text-foreground">{j.title}</span>{j.is_published && <CareersPill />}</div>
+                        <div className="t-mono whitespace-nowrap text-xs text-muted-foreground">{j.job_code}</div>
                       </TableCell>
-                      <TableCell>{deptName(j.department_id)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{j.openings}</TableCell>
-                      <TableCell className="text-right tabular-nums">
+                      <TableCell className="hidden lg:table-cell">{deptName(j.department_id)}</TableCell>
+                      <TableCell className="hidden text-right tabular-nums lg:table-cell">{j.openings}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums">
                         {s?.total_applications ?? 0}
                         {(s?.new_7d ?? 0) > 0 && <div className="text-xs text-primary">+{s!.new_7d} this week</div>}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{s?.hired_count ?? 0} / {j.openings}</TableCell>
-                      <TableCell><span className="inline-flex flex-wrap items-center gap-1"><JobStatusBadge status={j.status} />{j.is_published && <Badge variant="secondary" className="whitespace-nowrap font-normal">On careers page</Badge>}</span></TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{fmtDateTime(j.updated_at)}</TableCell>
+                      <TableCell><HiringProgress hired={s?.hired_count ?? 0} openings={j.openings} /></TableCell>
+                      <TableCell className="whitespace-nowrap"><JobStatusBadge status={j.status} /></TableCell>
+                      <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground xl:table-cell" title={fmtDateTime(j.updated_at)}>{fmtRelative(j.updated_at)}</TableCell>
                     </TableRow>
                   );
                 })}

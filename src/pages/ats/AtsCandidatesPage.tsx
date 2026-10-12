@@ -351,7 +351,7 @@ export default function AtsCandidatesPage() {
           </Button>
         </div>
       )}
-      <CandidateTable rows={rows} idleDays={idleDays} onOpen={openFull} selected={new Set(selected.keys())} onToggle={toggle} onToggleAll={togglePage} />
+      <CandidateTable rows={rows} idleDays={idleDays} hideJob={!!f.job && f.job !== "general"} onOpen={openFull} selected={new Set(selected.keys())} onToggle={toggle} onToggleAll={togglePage} />
       {pager}
     </>;
   } else {

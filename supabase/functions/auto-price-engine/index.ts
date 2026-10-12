@@ -707,6 +707,8 @@ async function processAsset(
 
   let newPrice: number | null = null;
   let newRatio: number | null = null;
+  // Binance index our floating ratio renders against (for the UI: our price / their rate).
+  let pricingIndex: number | null = null;
   let wasCapped = false;
   let wasRateLimited = false;
   let uncappedTarget: number | null = null;
@@ -838,6 +840,7 @@ async function processAsset(
           : (marketReferencePrice && marketReferencePrice > 0 ? "coingecko" : "competitor");
       }
       competitorRatio = (competitorPrice / (baseRef as number)) * 100;
+      pricingIndex = baseRef;
     }
 
     // A FIXED-price competitor has no ratio of its own, so we convert their price with
@@ -885,6 +888,7 @@ async function processAsset(
     if (indexSource !== "competitor_floating_ratio" && adNumbers.length > 0 && newRatio !== null) {
       const ownIndex = await inferBinanceIndex(adNumbers[0], supabase, rule.id);
       if (ownIndex && ownIndex > 0) {
+        pricingIndex = ownIndex;
         const requiredRatio = (competitorPrice / ownIndex) * 100 * Math.max(offsetFactor, guardFactor);
         const snapped = rule.offset_direction === "OVERCUT"
           ? Math.ceil(requiredRatio * 100) / 100
@@ -1078,7 +1082,7 @@ async function processAsset(
           market_reference_price: marketReferencePrice,
           deviation_from_market_pct: deviationPct,
           calculated_price: rule.price_type === "FIXED" ? newPrice : null,
-          calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+          calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null, binance_index_price: rule.price_type === "FLOATING" ? pricingIndex : null,
           applied_price: isFixedMode ? adTarget : null,
           applied_ratio: !isFixedMode ? adTarget : null,
 
@@ -1129,7 +1133,7 @@ async function processAsset(
             market_reference_price: marketReferencePrice,
             deviation_from_market_pct: deviationPct,
             calculated_price: rule.price_type === "FIXED" ? newPrice : null,
-            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null, binance_index_price: rule.price_type === "FLOATING" ? pricingIndex : null,
             applied_price: isFixedMode ? adTarget : null,
             applied_ratio: !isFixedMode ? adTarget : null,
 
@@ -1155,7 +1159,7 @@ async function processAsset(
             market_reference_price: marketReferencePrice,
             deviation_from_market_pct: deviationPct,
             calculated_price: rule.price_type === "FIXED" ? newPrice : null,
-            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null,
+            calculated_ratio: rule.price_type === "FLOATING" ? newRatio : null, binance_index_price: rule.price_type === "FLOATING" ? pricingIndex : null,
             status: "error",
             error_message: ladderOutcome ? `${failMessage} — ${ladderOutcome.note}` : failMessage,
           });

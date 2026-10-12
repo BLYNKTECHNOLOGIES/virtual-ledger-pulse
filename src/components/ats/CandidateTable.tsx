@@ -66,10 +66,10 @@ export function CandidateTable({
               {!hideJob && <TableHead className={LG}>Job</TableHead>}
               <TableHead className="whitespace-nowrap">Stage</TableHead>
               <TableHead className="whitespace-nowrap">Status</TableHead>
-              <TableHead className={cn(LG, "whitespace-nowrap")}>Source</TableHead>
+              <TableHead className={LG}>Source</TableHead>
               <TableHead className="whitespace-nowrap">Applied</TableHead>
               <TableHead className={XL}>Rating</TableHead>
-              <TableHead className={cn(LG, "whitespace-nowrap text-right")}>Days in stage</TableHead>
+              <TableHead className={cn(LG, "w-[5.5rem] text-right [overflow-wrap:normal]")}>Days in stage</TableHead>
               <TableHead className={cn(XL, "whitespace-nowrap text-right")}>Experience</TableHead>
               <TableHead className={cn(XL, "whitespace-nowrap text-right")}>Expected CTC</TableHead>
             </TableRow>
@@ -82,7 +82,7 @@ export function CandidateTable({
                 className={cn("cursor-pointer hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring", on && "bg-primary/5 data-[state=selected]:bg-primary/5")}
                 onClick={() => onOpen(r)} onKeyDown={(e) => e.key === "Enter" && onOpen(r)}>
                 {sel && <TableCell onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}><Checkbox checked={on} onCheckedChange={() => onToggle!(r)} aria-label={`Select ${r.full_name}`} /></TableCell>}
-                <TableCell className="min-w-[12rem]">
+                <TableCell className="min-w-[11rem]">
                   <div className="flex items-center gap-2">
                     <span className="flex w-2 shrink-0 justify-center"><UnreviewedDot show={isUnreviewed(r)} /></span>
                     <CandidateAvatar full_name={r.full_name ?? ""} />
@@ -98,7 +98,7 @@ export function CandidateTable({
                 {!hideJob && <TableCell className={cn(LG, "min-w-[8rem] max-w-[14rem] [overflow-wrap:break-word]")}>{r.job_title ?? <span className="text-muted-foreground">General application</span>}</TableCell>}
                 <TableCell className="whitespace-nowrap"><StageChip name={r.stage_name} kind={r.stage_kind} /></TableCell>
                 <TableCell className="whitespace-nowrap"><AppStatusBadge status={r.status} /></TableCell>
-                <TableCell className={cn(LG, "whitespace-nowrap text-muted-foreground")}>{r.source_name ?? "—"}</TableCell>
+                <TableCell className={cn(LG, "min-w-[6rem] text-muted-foreground [overflow-wrap:break-word]")}>{r.source_name ?? "—"}</TableCell>
                 <TableCell className="whitespace-nowrap tabular-nums">{fmtDate(r.applied_at)}</TableCell>
                 <TableCell className={cn(XL, "whitespace-nowrap")}><Stars value={r.rating_avg} count={r.rating_count} /></TableCell>
                 <TableCell className={cn(LG, "whitespace-nowrap text-right")}><IdleDays days={r.days_in_stage} idle={idle(r)} idleDays={idleDays} /></TableCell>

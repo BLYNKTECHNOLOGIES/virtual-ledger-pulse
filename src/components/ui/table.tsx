@@ -22,7 +22,7 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
     <DensityContext.Provider value={density}>
       <div
         className={cn(
-          "relative w-full overflow-auto rounded-lg border border-border",
+          "relative w-full min-w-0 max-w-full overflow-auto rounded-lg border border-border",
           containerClassName
         )}
         style={maxHeight ? { maxHeight } : undefined}
@@ -30,7 +30,7 @@ const Table = React.forwardRef<HTMLTableElement, TableProps>(
       >
         <table
           ref={ref}
-          className={cn("w-full caption-bottom text-sm", className)}
+           className={cn("w-full caption-bottom text-sm [overflow-wrap:anywhere]", className)}
           {...props}
         />
       </div>
@@ -113,7 +113,7 @@ const TableHead = React.forwardRef<
     <th
       ref={ref}
       className={cn(
-        "px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0 [&:has([role=checkbox])]:normal-case",
+        "px-2 lg:px-4 text-left align-middle text-xs font-semibold uppercase tracking-wider text-muted-foreground [&:has([role=checkbox])]:pr-0 [&:has([role=checkbox])]:normal-case",
         density === "compact" ? "h-9" : "h-11",
         numeric && "text-right tabular-nums",
         className
@@ -133,7 +133,7 @@ const TableCell = React.forwardRef<
     <td
       ref={ref}
       className={cn(
-        "px-4 align-middle text-foreground [&:has([role=checkbox])]:pr-0",
+        "px-2 lg:px-4 align-middle text-foreground [&:has([role=checkbox])]:pr-0",
         density === "compact" ? "py-2" : "py-4",
         numeric && "text-right tabular-nums",
         className

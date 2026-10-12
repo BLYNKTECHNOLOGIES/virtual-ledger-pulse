@@ -11,7 +11,7 @@ import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveList } from "@/components/horilla/primitives/ResponsiveList";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { Inbox, Search, CalendarDays, Clock, RefreshCw, Landmark } from "lucide-react";
+import { Inbox, Search, CalendarDays, Clock, RefreshCw, Landmark, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BankChangeApprovalPanel } from "@/components/hrms/BankChangeApprovalPanel";
 import { LeaveApprovalPanel } from "@/components/hrms/LeaveApprovalPanel";
@@ -37,7 +37,7 @@ const STAGE_STYLE: Record<RequestStage, string> = {
 
 function StageBadge({ stage }: { stage: RequestStage }) {
   return (
-    <Badge variant="outline" className={cn("whitespace-nowrap", STAGE_STYLE[stage])}>
+    <Badge variant="outline" className={cn("whitespace-normal text-center leading-snug [overflow-wrap:normal]", STAGE_STYLE[stage])}>
       {STAGE_LABEL[stage]}
     </Badge>
   );
@@ -166,8 +166,8 @@ export default function RequestsPage() {
         </Card>
       </div>
 
-      <div className="hrms-toolbar">
-        <div className="relative flex-1 min-w-[180px]">
+      <div className="hrms-toolbar !flex-wrap">
+        <div className="relative flex-1 !min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search employee, subject, reason..."
@@ -213,8 +213,15 @@ export default function RequestsPage() {
         items={filtered}
         isLoading={isLoading}
         keyFor={(r: UnifiedRequest) => r.key}
-        tableMinWidth="min-w-[900px]"
-        columns={["Type", "Employee", "Subject", "Period", "Status", "Submitted", ""].map((h) => ({ key: h, label: h }))}
+        tableMinWidth="min-w-0 table-fixed"
+        columns={[
+          { key: 'type', label: 'Type', className: 'w-[20%]' },
+          { key: 'employee', label: 'Employee', className: 'w-[18%]' },
+          { key: 'subject', label: 'Subject', className: 'w-[20%]' },
+          { key: 'period', label: 'Period', className: 'w-[16%]' },
+          { key: 'status', label: 'Status', className: 'w-[13%]' },
+          { key: 'submitted', label: 'Submitted', className: 'w-[13%]' },
+        ]}
         emptyState={
           <Card>
             <CardContent className="p-0">
@@ -228,25 +235,28 @@ export default function RequestsPage() {
         }
         renderRow={(r: UnifiedRequest) => (
           <>
-            <td className="px-4 py-3">
-              <span className="inline-flex items-center gap-2 whitespace-nowrap text-sm">
-                <TypeIcon type={r.type} /> {r.typeLabel}
+            <td className="px-3 py-3 align-top">
+              <span className="flex items-start gap-2 text-sm">
+                <TypeIcon type={r.type} /> <span className="min-w-0 [overflow-wrap:anywhere]">{r.typeLabel}</span>
               </span>
             </td>
-            <td className="px-4 py-3 whitespace-nowrap">
+            <td className="px-3 py-3 align-top break-words">
               <span className="font-medium">{r.employeeName}</span>
-              {r.badgeId && <span className="ml-2 text-xs text-muted-foreground font-mono">{r.badgeId}</span>}
+              {r.badgeId && <span className="block mt-1 text-xs text-muted-foreground font-mono">{r.badgeId}</span>}
             </td>
-            <td className="px-4 py-3 max-w-[280px] truncate">{r.subject}</td>
-            <td className="px-4 py-3 tabular-nums whitespace-nowrap text-sm">
-              {r.periodFrom === r.periodTo ? r.periodFrom || "—" : `${r.periodFrom} → ${r.periodTo}`}
+            <td className="px-3 py-3 align-top break-words">
+              <Button variant="link" className="h-auto max-w-full p-0 text-left whitespace-normal justify-start items-start text-foreground" onClick={() => openDetail(r)} aria-label={`Open ${r.typeLabel} request for ${r.employeeName}`}>
+                <span className="min-w-0 break-words">{r.subject}</span>
+                <ArrowUpRight className="ml-1 mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </Button>
             </td>
-            <td className="px-4 py-3"><StageBadge stage={r.stage} /></td>
-            <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+            <td className="px-3 py-3 align-top tabular-nums text-sm">
+              <span className="block">{r.periodFrom || "—"}</span>
+              {r.periodFrom !== r.periodTo && <span className="block text-muted-foreground">→ {r.periodTo || "—"}</span>}
+            </td>
+            <td className="px-3 py-3 align-top"><StageBadge stage={r.stage} /></td>
+            <td className="px-3 py-3 align-top text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}
-            </td>
-            <td className="px-4 py-3">
-              <Button size="sm" variant="ghost" className="h-8" onClick={() => openDetail(r)}>Open</Button>
             </td>
           </>
         )}
@@ -265,6 +275,9 @@ export default function RequestsPage() {
               <div>
                 <p className="font-medium text-sm">{r.employeeName}</p>
                 <p className="text-xs text-muted-foreground">{r.subject}</p>
+                <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                  {r.periodFrom === r.periodTo ? r.periodFrom || '—' : `${r.periodFrom || '—'} → ${r.periodTo || '—'}`}
+                </p>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}

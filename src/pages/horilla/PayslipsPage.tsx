@@ -313,11 +313,11 @@ export default function PayslipsPage() {
           items={filtered}
           columns={["Employee", "Badge ID", "Payroll Run", "Gross", "Deductions", "Net Salary", "Days", "Status", "Actions"].map((h) => ({ key: h, label: h, className: ["Gross","Deductions","Net Salary","Days"].includes(h) ? "text-right" : "" }))}
           keyFor={(p: any) => p.id}
-          tableMinWidth="min-w-[900px]"
+          tableMinWidth="min-w-0"
           emptyState={<Card><CardContent className="p-0"><EmptyState icon={FileText} title="No payslips found" description="Generate payslips from a payroll run first." /></CardContent></Card>}
           renderRow={(p: any) => (
             <>
-              <td className="px-4 py-3 font-medium whitespace-nowrap">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
+              <td className="px-4 py-3 font-medium">{p.hr_employees?.first_name} {p.hr_employees?.last_name}</td>
               <td className="px-4 py-3 text-muted-foreground">{p.hr_employees?.badge_id}</td>
               <td className="px-4 py-3 text-xs"><PayslipRunLabel payslip={p} /></td>
               <td className="px-4 py-3 text-success font-medium text-right tabular-nums">₹{p.gross_salary?.toLocaleString('en-IN')}</td>

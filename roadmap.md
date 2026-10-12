@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## Table width optimization
+
+- [x] Make Requests fit its available width without dropping data or actions.
+- [x] Optimize shared tables across modules and remove artificial widths from leave, payslip, interview, onboarding and statutory lists; preserve intentionally wide grids.
+- [x] Verify populated isolated Requests rendering at 1150/833/760px, stacked records at 650px and detail opening; live authenticated data verification unavailable with external Supabase.
+
 ## Owner-supplied BlynkEx logos
 
 - [x] Replace recreated logos across ERP, Terminal and HRMS, including auth/public HR screens and outgoing email branding.

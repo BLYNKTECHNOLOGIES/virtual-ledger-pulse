@@ -1,13 +1,12 @@
 import * as React from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * ResponsiveList — a single primitive that picks its rendering mode from the
- * device, NOT from a user toggle.
+ * available content width, NOT from a user toggle.
  *
- * - Desktop (>= 768px): renders a proper `<table>` with `columns` as headers
+ * - Wide content (>700px): renders a proper `<table>` with `columns` as headers
  *   and `renderRow(item)` as each `<tr>` body.
- * - Mobile (< 768px): renders a vertical stack of cards via `renderCard(item)`.
+ * - Narrow content (<=700px): renders a stack of cards via `renderCard(item)`.
  *
  * Both variants share the same data, empty state, and loading skeleton so
  * pages don't have to maintain two branches.
@@ -44,11 +43,10 @@ export function ResponsiveList<T>({
   keyFor,
   isLoading,
   emptyState,
-  tableMinWidth = "min-w-[720px]",
+  tableMinWidth = "min-w-0",
   className,
   mobileClassName,
 }: ResponsiveListProps<T>) {
-  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -77,9 +75,9 @@ export function ResponsiveList<T>({
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className={className}>
+  return (
+    <div className={`responsive-list ${className ?? ''}`}>
+      <div className="responsive-list-cards">
         <div className={mobileClassName ?? "flex flex-col gap-2"}>
           {items.map((item, i) => (
             <React.Fragment key={keyFor(item, i)}>
@@ -88,13 +86,8 @@ export function ResponsiveList<T>({
           ))}
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className={className}>
-      <div className="hrms-scroll-table bg-card rounded-xl border border-border overflow-x-auto">
-        <table className={`w-full text-sm ${tableMinWidth}`}>
+      <div className="responsive-list-table hrms-scroll-table bg-card rounded-xl border border-border overflow-x-auto">
+        <table className={`table-fit w-full text-sm ${tableMinWidth}`}>
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
               {columns.map((col) => (

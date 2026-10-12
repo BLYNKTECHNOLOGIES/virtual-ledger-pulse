@@ -215,7 +215,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
           ) : (
             <ResponsiveList
               items={filteredRecords}
-              tableMinWidth="min-w-[920px]"
+              tableMinWidth="min-w-0"
               columns={[
                 { key: "name", label: "Name" },
                 { key: "email", label: "Email" },
@@ -249,7 +249,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <td className="p-3"><div className="flex flex-wrap gap-1">{item("Bank", c?.has_bank)}{item("Salary", c?.has_salary)}{item("DOJ", c?.has_doj)}</div></td>
                     <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</td>
                     <td className="p-3">
-                      <div className="flex items-center gap-2">
+                       <div className="flex flex-wrap items-center gap-2">
                         {r.status === "cancelled" ? (
                           <Button size="sm" variant="outline" disabled title="This onboarding was cancelled">
                             Cancelled

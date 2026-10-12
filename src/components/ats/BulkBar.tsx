@@ -66,8 +66,8 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
 
   return (
     <>
-      <div className="sticky bottom-2 z-20 mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-lg" role="region" aria-label="Selection">
-        <span className="px-1 text-sm font-medium tabular-nums text-foreground">{rows.length} selected</span>
+      <div className="sticky bottom-4 z-20 mx-auto mt-3 flex w-fit max-w-full flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-lg" role="region" aria-label="Selection">
+        <span className="px-1 text-sm font-semibold tabular-nums text-foreground">{rows.length} selected</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button size="sm" variant="outline" disabled={running} className="gap-1">Move to stage… <ChevronDown className="h-3.5 w-3.5" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent>

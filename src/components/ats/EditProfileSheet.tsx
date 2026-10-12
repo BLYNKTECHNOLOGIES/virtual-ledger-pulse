@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { atsKeys, useAtsSources, useEmployeesLookup } from "@/lib/ats/api";
 import { candKeys, type AtsCandidate } from "@/lib/ats/candidates";
+import { FormSection, Req } from "./AtsUi";
 import { ChipInput } from "./AtsBits";
 
 type Form = Record<string, any>;
@@ -84,30 +85,21 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
       <SheetContent className="flex w-full flex-col sm:max-w-lg">
         <SheetHeader><SheetTitle>Edit profile</SheetTitle></SheetHeader>
         <form id="ats-edit-profile" className="-mx-6 flex-1 space-y-4 overflow-y-auto px-6 py-2" onSubmit={(e) => { e.preventDefault(); save(); }}>
-          {txt("full_name", "Full name")}
+          <FormSection title="Contact" />
+          <div className="space-y-1.5"><Label htmlFor="ep-full_name">Full name<Req /></Label><Input id="ep-full_name" value={f.full_name ?? ""} onChange={(e) => set("full_name", e.target.value)} className="text-foreground" /></div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {txt("email", "Email", "email")}{txt("phone", "Phone", "tel")}{txt("alt_phone", "Alternate phone", "tel")}
-            {txt("city", "City")}{txt("state", "State")}
-            {txt("current_company", "Current company")}{txt("current_title", "Current title")}
-            {num("total_experience_years", "Experience (years)", 60)}{num("notice_period_days", "Notice period (days)", 365)}
-            {num("current_ctc_monthly", "Current CTC / month (₹)")}{num("expected_ctc_monthly", "Expected CTC / month (₹)")}
           </div>
-          {txt("ctc_note", "CTC note")}
-          <div className="space-y-1.5"><Label>Shift preference</Label><ChipInput value={f.shift_preferences} onChange={(v) => set("shift_preferences", v)} placeholder="Type and press Enter" /></div>
-          <div className="space-y-1.5"><Label>Skills</Label><ChipInput value={f.skills} onChange={(v) => set("skills", v)} placeholder="Type and press Enter" /></div>
-          <div className="space-y-1.5"><Label>Languages</Label><ChipInput value={f.languages} onChange={(v) => set("languages", v)} placeholder="Type and press Enter" /></div>
-          <div className="space-y-1.5"><Label>Tags</Label><ChipInput value={f.tags} onChange={(v) => set("tags", v)} placeholder="Type and press Enter" /></div>
-          <div className="space-y-1.5"><Label htmlFor="ep-education">Education</Label><Textarea id="ep-education" rows={2} value={f.education} onChange={(e) => set("education", e.target.value)} className="text-foreground" /></div>
-          {txt("linkedin_url", "LinkedIn URL")}{txt("portfolio_url", "Portfolio URL")}
+          <FormSection title="Application" />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Candidate source</Label>
+              <Label>Source</Label>
               <Select value={f.source_id || "__none"} onValueChange={(v) => set("source_id", v === "__none" ? "" : v)}>
                 <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent><SelectItem value="__none">—</SelectItem>{(sources.data ?? []).filter((s) => s.is_active || s.id === f.source_id).map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            {txt("source_detail", "Candidate source detail")}
+            {txt("source_detail", "Source detail")}
           </div>
           <p className="-mt-2 text-xs text-muted-foreground">Where this person first came from. Each application keeps its own source.</p>
           <div className="space-y-1.5">
@@ -117,13 +109,27 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
               <SelectContent><SelectItem value="__none">—</SelectItem>{(emps.data ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.label}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <FormSection title="Experience and pay" />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {num("total_experience_years", "Total experience (years)", 60)}{num("notice_period_days", "Notice period (days)", 365)}
+            {txt("current_company", "Current company")}{txt("current_title", "Current title")}
+            {num("current_ctc_monthly", "Current CTC / month (₹)")}{num("expected_ctc_monthly", "Expected CTC / month (₹)")}
+            {txt("city", "City")}{txt("state", "State")}
+          </div>
+          {txt("ctc_note", "CTC note")}
+          <div className="space-y-1.5"><Label>Shift preference</Label><ChipInput value={f.shift_preferences} onChange={(v) => set("shift_preferences", v)} placeholder="Type and press Enter" /></div>
+          <div className="space-y-1.5"><Label>Skills</Label><ChipInput value={f.skills} onChange={(v) => set("skills", v)} placeholder="Type and press Enter" /></div>
+          <div className="space-y-1.5"><Label>Languages</Label><ChipInput value={f.languages} onChange={(v) => set("languages", v)} placeholder="Type and press Enter" /></div>
+          <div className="space-y-1.5"><Label>Tags</Label><ChipInput value={f.tags} onChange={(v) => set("tags", v)} placeholder="Type and press Enter" /></div>
+          <div className="space-y-1.5"><Label htmlFor="ep-education">Education</Label><Textarea id="ep-education" rows={2} value={f.education} onChange={(e) => set("education", e.target.value)} className="text-foreground" /></div>
+          {txt("linkedin_url", "LinkedIn URL")}{txt("portfolio_url", "Portfolio URL")}
           <div className="space-y-1.5"><Label htmlFor="ep-summary">Summary</Label><Textarea id="ep-summary" rows={3} value={f.summary} onChange={(e) => set("summary", e.target.value)} className="text-foreground" /></div>
           <label className="flex items-center justify-between gap-3 rounded-md border border-border p-3 text-sm">
             Keep for future openings <Switch checked={!!f.keep_for_future} onCheckedChange={(v) => set("keep_for_future", v)} />
           </label>
         </form>
         {err && <p className="text-xs text-destructive" role="alert">{err}</p>}
-        <SheetFooter className="gap-2">
+        <SheetFooter className="gap-2 border-t border-border bg-card pt-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
           <Button type="submit" form="ats-edit-profile" disabled={busy || !!err}>Save</Button>
         </SheetFooter>

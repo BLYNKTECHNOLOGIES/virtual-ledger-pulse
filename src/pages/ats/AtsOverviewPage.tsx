@@ -77,8 +77,8 @@ export default function AtsOverviewPage() {
           <MetricCell label="Applied this week" value={o.applications_7d} helper={`${o.applications_30d} in the last 30 days`} icon={Inbox} />
           <MetricCell label="Awaiting review" value={o.unreviewed} helper="Not opened yet" icon={Eye} onClick={() => navigate("/hrms/ats/candidates?unreviewed=1")} />
           <MetricCell label="Idle" value={o.idle} helper={`No movement in ${o.idle_days}+ days`} icon={Hourglass} onClick={() => navigate("/hrms/ats/candidates?idle=1")} />
-          <MetricCell label="Hired this month" value={o.hired_this_month} helper="—" icon={UserCheck} valueClassName={Number(o.hired_this_month) > 0 ? "text-success" : undefined} />
-          <MetricCell label="Rejected this month" value={o.rejected_this_month} helper="—" icon={UserX} />
+          <MetricCell label="Hired this month" value={o.hired_this_month} icon={UserCheck} valueClassName={Number(o.hired_this_month) > 0 ? "text-success" : undefined} />
+          <MetricCell label="Rejected this month" value={o.rejected_this_month} icon={UserX} />
         </> : null}
       </MetricStrip>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

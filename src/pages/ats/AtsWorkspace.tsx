@@ -51,7 +51,7 @@ export default function AtsWorkspace() {
       <div className="page-mount space-y-5">
         <PageHeader
           title="ATS"
-          description={(TABS.find((t) => t.match(pathname)) ?? TABS[0]).description}
+          description={/^\/hrms\/ats\/candidates\/[^/]+/.test(pathname) ? undefined : (TABS.find((t) => t.match(pathname)) ?? TABS[0]).description}
           actions={showNewJob || showAddCand ? (
             <div className="flex flex-wrap gap-2">
               {showAddCand && <Button variant={showNewJob ? "outline" : "default"} onClick={() => openAddCandidate(null)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>}

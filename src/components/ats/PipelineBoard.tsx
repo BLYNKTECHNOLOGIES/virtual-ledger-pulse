@@ -9,7 +9,6 @@ import {
 } from "@dnd-kit/core";
 import { MoreHorizontal } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -29,6 +28,8 @@ import { fmtDate } from "@/lib/ats/format";
 import { candKeys, candidateHref, saveNavCtx, useBoardRows, type AtsAppRow } from "@/lib/ats/candidates";
 import { QueryError, RowsSkeleton } from "./AtsBits";
 import { ResumeIcon, Stars, UnreviewedDot, isUnreviewed } from "./CandidateBits";
+import { CandidateAvatar, IdleDays, StatusPill, stageDotClass } from "./AtsUi";
+import { CheckCircle2, PauseCircle } from "lucide-react";
 
 type Pending = { row: AtsAppRow; stage: AtsStage } | null;
 
@@ -147,10 +148,10 @@ export function PipelineBoard({ jobId }: { jobId: string }) {
       </DndContext>
       {(rejectedN > 0 || withdrawnN > 0) && (
         <p className="text-xs text-muted-foreground">
+          {"Not on the board: "}
           {rejectedN > 0 && <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=${jobId}&status=rejected`}>Rejected ({rejectedN})</Link>}
           {rejectedN > 0 && withdrawnN > 0 && " "}
           {withdrawnN > 0 && <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=${jobId}&status=withdrawn`}>Withdrawn ({withdrawnN})</Link>}
-          {" · not shown on the board."}
         </p>
       )}
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
@@ -173,12 +174,17 @@ function Column({ stage, count, wide, children }: { stage: AtsStage; count: numb
   const { setNodeRef, isOver } = useDroppable({ id: stage.id });
   return (
     <section ref={setNodeRef} aria-label={`${stage.name}, ${count}`}
-      className={cn("flex flex-col rounded-xl border border-border bg-muted/30 p-2", wide ? "w-full" : "w-64 shrink-0", isOver && "border-primary bg-primary/5")}>
-      <header className="mb-2 flex items-center justify-between px-1">
-        <h3 className="text-sm font-medium text-foreground">{stage.name}</h3>
-        <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-      </header>
-      <div className="flex min-h-[4rem] flex-col gap-2">{children}</div>
+      className={cn("flex flex-col overflow-hidden rounded-xl border border-border bg-muted/30", wide ? "w-full" : "w-64 shrink-0", isOver && "border-primary bg-primary/5")}>
+      <span aria-hidden className={cn("h-[3px] w-full shrink-0", stageDotClass(stage.kind))} />
+      <div className="flex flex-1 flex-col p-2">
+        <header className="mb-2 flex items-center justify-between gap-2 px-1">
+          <h3 className="truncate text-sm font-semibold text-foreground">{stage.name}</h3>
+          <span className="inline-flex h-5 min-w-6 shrink-0 items-center justify-center rounded-full bg-muted px-1.5 text-[11px] font-medium tabular-nums text-muted-foreground">{count}</span>
+        </header>
+        <div className="flex min-h-[4rem] flex-col gap-2">
+          {count === 0 ? <div className="grid h-16 place-items-center rounded-lg border border-dashed border-border text-xs text-muted-foreground">Drop a candidate here</div> : children}
+        </div>
+      </div>
     </section>
   );
 }
@@ -187,20 +193,26 @@ function CardBody({ row: r, idleDays }: { row: AtsAppRow; idleDays: number }) {
   const idle = r.status === "active" && (r.days_in_stage ?? 0) >= idleDays;
   return (
     <div className="rounded-lg border border-border bg-card p-2.5 text-left shadow-sm">
-      <div className="flex items-center gap-1.5 pr-6">
-        <UnreviewedDot show={isUnreviewed(r)} />
-        <span className="truncate text-sm font-medium text-foreground">{r.full_name}</span>
-        <UnreadMailMark candidateId={r.candidate_id} />
-        <ResumeIcon show={r.has_resume} />
+      <div className="flex items-center gap-2 pr-6">
+        <CandidateAvatar full_name={r.full_name ?? ""} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <UnreviewedDot show={isUnreviewed(r)} />
+            <span className="truncate text-sm font-medium text-foreground">{r.full_name}</span>
+            <UnreadMailMark candidateId={r.candidate_id} />
+            <ResumeIcon show={r.has_resume} />
+          </div>
+          <div className="t-mono truncate text-xs text-muted-foreground">{r.ref_no}</div>
+        </div>
       </div>
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <span className="t-mono">{r.ref_no}</span>
-        {r.status === "on_hold" && <Badge variant="outline" className="h-4 px-1 text-[10px] text-warning">On hold</Badge>}
-        {r.status === "hired" && <Badge variant="outline" className="h-4 px-1 text-[10px] text-success">Hired</Badge>}
-      </div>
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
-        <span>{fmtDate(r.applied_at)}</span>
-        <span className={cn(idle && "font-medium text-warning")}>{r.days_in_stage ?? 0} d</span>
+      {(r.status === "on_hold" || r.status === "hired") && (
+        <div className="mt-1.5">
+          {r.status === "on_hold" ? <StatusPill tone="warning" icon={PauseCircle}>On hold</StatusPill> : <StatusPill tone="success" icon={CheckCircle2}>Hired</StatusPill>}
+        </div>
+      )}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+        <span className="whitespace-nowrap tabular-nums">{fmtDate(r.applied_at)}</span>
+        <IdleDays days={r.days_in_stage} idle={idle} idleDays={idleDays} suffix="d" />
         {r.source_name && <span className="truncate">{r.source_name}</span>}
       </div>
       {!!r.rating_count && <div className="mt-1"><Stars value={r.rating_avg} count={r.rating_count} /></div>}

@@ -15,6 +15,7 @@ import { candKeys } from "@/lib/ats/candidates";
 import { fmtDate } from "@/lib/ats/format";
 import { uploadAtsFile, AtsFileError, validateAtsFile } from "@/lib/ats/files";
 import { ChipInput, MultiSelect } from "./AtsBits";
+import { FormSection, Req } from "./AtsUi";
 import { appStatusLabel } from "./CandidateBits";
 import { FileDropZone } from "./CandidateReviewPanel";
 import { validateCandidateNumbers } from "./EditProfileSheet";
@@ -138,9 +139,9 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
     }
   };
 
-  const txt = (k: keyof ReturnType<typeof empty>, label: string, opts: { type?: string; onBlur?: () => void; inputMode?: any; step?: string } = {}) => (
+  const txt = (k: keyof ReturnType<typeof empty>, label: string, opts: { type?: string; onBlur?: () => void; inputMode?: any; step?: string; required?: boolean } = {}) => (
     <div className="space-y-1.5">
-      <Label htmlFor={`ac-${k}`}>{label}</Label>
+      <Label htmlFor={`ac-${k}`}>{label}{opts.required && <Req />}</Label>
       <Input id={`ac-${k}`} type={opts.type ?? "text"} step={opts.step} inputMode={opts.inputMode} value={f[k] as string} onBlur={opts.onBlur}
         onChange={(e) => set(k, e.target.value)} className="text-foreground" disabled={busy} />
     </div>
@@ -153,8 +154,9 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
         <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
         <Button type="submit" form="ats-add-candidate" disabled={busy || !!err}>{busy && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}{existing ? `Add application for ${existing.full_name}` : "Add candidate"}</Button>
       </>}>
-      <form id="ats-add-candidate" className="max-h-[65vh] space-y-4 overflow-y-auto pr-1" onSubmit={(e) => { e.preventDefault(); save(); }}>
-        {txt("full_name", "Full name *")}
+      <form id="ats-add-candidate" className="space-y-4" onSubmit={(e) => { e.preventDefault(); save(); }}>
+        <FormSection title="Contact" />
+        {txt("full_name", "Full name", { required: true })}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {txt("email", "Email", { type: "email", onBlur: checkDups })}
           {txt("phone", "Phone", { type: "tel", onBlur: checkDups })}
@@ -162,7 +164,7 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
         <p className="-mt-2 text-xs text-muted-foreground">Enter at least an email or a phone number.</p>
 
         {dups.length > 0 && (
-          <div className="space-y-2 rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm" role="status">
+          <div className="space-y-2 rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm" role="status">
             <p className="flex items-center gap-1.5 font-medium text-foreground"><AlertTriangle className="h-4 w-4 text-warning" /> Possible existing candidate{dups.length > 1 ? "s" : ""}</p>
             <ul className="space-y-2">
               {dups.map((d) => (
@@ -183,6 +185,7 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
           </div>
         )}
 
+        <FormSection title="Application" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label>Job</Label>
@@ -195,7 +198,7 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Source *</Label>
+            <Label>Source<Req /></Label>
             <Select value={f.source_id} onValueChange={(v) => set("source_id", v)} disabled={busy}>
               <SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a source" /></SelectTrigger>
               <SelectContent>{activeSources.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
@@ -203,19 +206,22 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
           </div>
         </div>
         {txt("source_detail", "Source detail")}
+        <FormSection title="Experience and pay" />
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {txt("current_company", "Current company")}
-          {txt("current_title", "Current title")}
           {txt("total_experience_years", "Total experience (years)", { type: "number", inputMode: "decimal", step: "any" })}
           {txt("notice_period_days", "Notice period (days)", { type: "number", inputMode: "numeric" })}
+          {txt("current_company", "Current company")}
+          {txt("current_title", "Current title")}
           {txt("current_ctc_monthly", "Current CTC / month (₹)", { type: "number", inputMode: "decimal", step: "any" })}
           {txt("expected_ctc_monthly", "Expected CTC / month (₹)", { type: "number", inputMode: "decimal", step: "any" })}
           {txt("city", "City")}
         </div>
         <div className="space-y-1.5"><Label>Skills</Label><ChipInput value={f.skills} onChange={(v) => set("skills", v)} placeholder="Type and press Enter" /></div>
         <div className="space-y-1.5"><Label>Shift preference</Label><MultiSelect options={shiftOptions} value={f.shift_preferences} onChange={(v) => set("shift_preferences", v)} placeholder="Any" /></div>
+        <FormSection title="Resume" />
         <div className="space-y-1.5"><Label>Resume (optional)</Label><FileDropZone file={file} onFile={setFile} disabled={busy} /></div>
       </form>
     </ResponsiveDialog>
   );
 }
+

@@ -166,8 +166,8 @@ export default function RequestsPage() {
         </Card>
       </div>
 
-      <div className="hrms-toolbar">
-        <div className="relative flex-1 min-w-[180px]">
+      <div className="hrms-toolbar !flex-wrap">
+        <div className="relative flex-1 !min-w-[180px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search employee, subject, reason..."
@@ -215,9 +215,9 @@ export default function RequestsPage() {
         keyFor={(r: UnifiedRequest) => r.key}
         tableMinWidth="min-w-0 table-fixed"
         columns={[
-          { key: 'type', label: 'Type', className: 'w-[16%]' },
+          { key: 'type', label: 'Type', className: 'w-[20%]' },
           { key: 'employee', label: 'Employee', className: 'w-[18%]' },
-          { key: 'subject', label: 'Subject', className: 'w-[24%]' },
+          { key: 'subject', label: 'Subject', className: 'w-[20%]' },
           { key: 'period', label: 'Period', className: 'w-[16%]' },
           { key: 'status', label: 'Status', className: 'w-[13%]' },
           { key: 'submitted', label: 'Submitted', className: 'w-[13%]' },
@@ -275,6 +275,9 @@ export default function RequestsPage() {
               <div>
                 <p className="font-medium text-sm">{r.employeeName}</p>
                 <p className="text-xs text-muted-foreground">{r.subject}</p>
+                <p className="mt-1 text-xs text-muted-foreground tabular-nums">
+                  {r.periodFrom === r.periodTo ? r.periodFrom || '—' : `${r.periodFrom || '—'} → ${r.periodTo || '—'}`}
+                </p>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {formatDistanceToNow(new Date(r.createdAt), { addSuffix: true })}

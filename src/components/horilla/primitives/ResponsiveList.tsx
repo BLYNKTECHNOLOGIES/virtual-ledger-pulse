@@ -2,11 +2,11 @@ import * as React from "react";
 
 /**
  * ResponsiveList — a single primitive that picks its rendering mode from the
- * device, NOT from a user toggle.
+ * available content width, NOT from a user toggle.
  *
- * - Desktop (>= 768px): renders a proper `<table>` with `columns` as headers
+ * - Wide content (>700px): renders a proper `<table>` with `columns` as headers
  *   and `renderRow(item)` as each `<tr>` body.
- * - Mobile (< 768px): renders a vertical stack of cards via `renderCard(item)`.
+ * - Narrow content (<=700px): renders a stack of cards via `renderCard(item)`.
  *
  * Both variants share the same data, empty state, and loading skeleton so
  * pages don't have to maintain two branches.

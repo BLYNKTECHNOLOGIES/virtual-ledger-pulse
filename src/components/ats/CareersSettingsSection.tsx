@@ -27,10 +27,12 @@ interface Status {
 const statusKey = ["ats", "integration-status"] as const;
 
 function careersErrorText(t: string): string {
+  if (t === "Rejected a request with a wrong key") return "The website is using an old connection key. Put the current key on the website.";
+  if (t === "not_configured") return "The website isn't sending a connection key yet.";
   if (t === "resume_fetch_failed") return "A resume couldn't be copied from the website. The website will try again.";
   if (t === "internal_create") return "An application couldn't be saved. Check that the website is sending complete applications.";
   if (t.startsWith("internal_")) return "Something went wrong while receiving an application.";
-  return "Couldn't load the connection status. Try again.";
+  return t;
 }
 
 function connection(s: Status): { label: string; tone: "muted" | "ok" | "warn" } {

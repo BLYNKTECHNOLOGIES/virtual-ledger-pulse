@@ -263,7 +263,10 @@ export default function AtsCandidatesPage() {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <div className={cn(!isMobile && "lg:hidden")}>{jobSelect(isMobile ? "w-full" : "w-64")}</div>
-        <div className="ml-auto">{viewSwitch}</div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={exporting} onClick={() => runExport()} title="Exports this job's candidates using the Table view filters"><Download className="h-4 w-4" /> Export</Button>
+          {viewSwitch}
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">The board shows every active and on-hold candidate for this job. Drag a card to move it, or use its ⋯ menu.</p>
     </div>
@@ -299,7 +302,7 @@ export default function AtsCandidatesPage() {
         {chip(!!f.idle, "Idle", `Active applications with no movement for ${idleDays}+ days`, () => update({ idle: f.idle ? null : "1", sel: null }))}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {list.isLoading ? <Skeleton className="h-4 w-24" /> : <span className="text-sm tabular-nums text-muted-foreground">{total} candidate{total === 1 ? "" : "s"}</span>}
+        {list.isSuccess ? <span className="text-sm tabular-nums text-muted-foreground">{total} candidate{total === 1 ? "" : "s"}</span> : list.isError ? null : <Skeleton className="h-4 w-24" />}
         {active.map((a) => (
           <span key={a.key} className="inline-flex h-7 items-center gap-1 rounded-full bg-muted pl-2.5 pr-1 text-xs text-foreground">
             {a.label}

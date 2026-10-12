@@ -146,7 +146,7 @@ export default function AtsJobDetailPage() {
       </div>
 
       <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">
-        {summary.isLoading ? [0, 1, 2, 3].map((i) => <div key={i} className="bg-card px-4 py-3.5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-12" /><Skeleton className="mt-1.5 h-3 w-16" /></div>) : <>
+        {summary.isLoading ? [0, 1, 2, 3].map((i) => <div key={i} className="bg-card px-4 py-3.5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-12" /><Skeleton className="mt-1.5 h-3 w-16" /></div>) : summary.isError ? <div className="col-span-full bg-card p-4"><QueryError error={summary.error} onRetry={() => summary.refetch()} /></div> : <>
           <MetricCell label="Applicants" value={total} helper={(s?.new_7d ?? 0) > 0 ? <span className="text-primary">+{s!.new_7d} this week</span> : null} />
           <MetricCell label="In pipeline" value={(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)} />
           <MetricCell label="Awaiting review" value={s?.unreviewed_count ?? 0} />

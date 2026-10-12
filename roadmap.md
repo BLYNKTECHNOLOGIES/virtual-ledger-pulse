@@ -1,5 +1,9 @@
 # Workforce capacity integrity
 
+## ATS UI refresh U5
+- [x] Apply F1–F9 presentation review fixes; intake cannot distinguish missing from wrong keys, and does not persist not_configured (backend unchanged).
+- [x] Verify requested representative-data screenshots, all four failed-check retry buttons, result states, countdowns and preview build; append exact state-log entry.
+
 ## ATS UI refresh U2
 - [x] Candidates list, board, candidate page, forms (sample-data checks)
 - [ ] Signed-in live check (blocked: no automated sign-in for this project)

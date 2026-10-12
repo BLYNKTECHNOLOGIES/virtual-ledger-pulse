@@ -545,7 +545,10 @@ Deno.serve(async (req) => {
         skipped.push({ employee_id: emp.id, name: empName, reason: "fetch_error", detail: `deductions: ${dedsErr.message}` });
         continue;
       }
-      const dedRows = (deds ?? []) as any[];
+      // auto_post_lwd = days after a leaver's last working day. The employment
+      // window clamp above already removes those days from the shadow gross,
+      // so counting the staged line too would double-deduct.
+      const dedRows = ((deds ?? []) as any[]).filter((r) => String(r.source ?? "") !== "auto_post_lwd");
       const amt = (r: any) => Number(r.amount ?? 0);
       const isKpi = (r: any) => /kpi/i.test(String(r.label ?? ""));
       const isStagedLop = (r: any) =>

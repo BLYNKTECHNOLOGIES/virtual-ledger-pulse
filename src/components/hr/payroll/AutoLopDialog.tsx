@@ -387,6 +387,29 @@ export function AutoLopDialog({
               </div>
             )}
 
+            {(() => {
+              const leavers = (rows as any[]).filter((r) => Number(r.post_lwd_days) > 0);
+              if (!leavers.length) return null;
+              return (
+                <div className="rounded-md border border-warning/40 bg-warning/10 p-3 text-xs space-y-1.5">
+                  <p className="font-medium text-foreground">
+                    Leavers — days after the last working day are deducted, because RazorpayX still pays the full month until they are dismissed
+                  </p>
+                  {leavers.map((r) => (
+                    <div key={r.hr_employee_id} className="flex flex-wrap justify-between gap-2 text-foreground">
+                      <span>{r.name} · {r.post_lwd_days} day{r.post_lwd_days === 1 ? "" : "s"} after {r.employment_to ?? "last day"}</span>
+                      <span className="tabular-nums">
+                        {r.post_lwd_status === "pushed" ? `${inr(r.post_lwd_amount)} · pushed`
+                          : r.post_lwd_status === "not_needed" || r.post_lwd_status === "skipped" ? r.post_lwd_reason
+                          : `${inr(r.post_lwd_amount)} · ${r.post_lwd_status}`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+
             <div className="flex-1 min-h-0 overflow-auto rounded-md border">
               <table className="w-full text-sm border-separate border-spacing-0">
                 <thead className="bg-muted/50 sticky top-0 z-10">

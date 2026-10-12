@@ -13,6 +13,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { resolveMonthlyGross, SALARY_BASE_LABELS } from "../_shared/salaryBase.ts";
+import { postLwdAmount, postLwdDays } from "../_shared/postLwd.ts";
 import { fetchCompoffPool, absorbLop } from "../_shared/compoff.ts";
 
 
@@ -504,6 +505,73 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- DAYS AFTER THE LAST WORKING DAY (owner ruling 12-Oct-2026) ----
+    // RazorpayX prorates a leaver's month only once the person is DISMISSED
+    // there, and HRMS deliberately dismisses only after the final payroll is
+    // processed. So at payroll time RazorpayX still pays the leaver the whole
+    // month. The calendar days after the last working day are therefore staged
+    // as their own Loss-of-Pay line (same day rate as attendance LOP: monthly
+    // gross ÷ calendar days). Verified on Sep-2026: Satyam (LWD 7 Sep) needed
+    // ₹11,500 = 23 × ₹15,000/30 and Archita (LWD 12 Sep) 18 × ₹11,000/30 — both
+    // were typed by hand on the dashboard because this engine did not do it.
+    // Joiners are NOT affected: RazorpayX knows the joining date and prorates.
+    const postByEmp = new Map<string, any>();
+    for (const r of (existing ?? []) as any[]) {
+      if (r.source === "auto_post_lwd") postByEmp.set(r.hr_employee_id, r);
+    }
+    const dismissedIds = new Set<string>();
+    {
+      const { data: dl } = await supabase
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id")
+        .eq("action", "people_dismiss")
+        .eq("status", "success")
+        .in("hr_employee_id", roster.map((r: any) => r.hr_employee_id));
+      for (const d of (dl ?? []) as any[]) dismissedIds.add(d.hr_employee_id);
+    }
+    const postInsert: any[] = [];
+    const postUpdate: any[] = [];
+    const postDelete: string[] = [];
+    for (const map of roster as any[]) {
+      const emp = map.hr_employees;
+      const lwd = emp?.last_working_day ? String(emp.last_working_day).slice(0, 10) : null;
+      const existingPost = postByEmp.get(map.hr_employee_id);
+      const row = rows.find((r) => r.hr_employee_id === map.hr_employee_id);
+      const postDays = postLwdDays(lwd, periodStr, monthEndStr);
+      const inMonth = postDays > 0;
+      const setInfo = (info: Record<string, unknown>) => { if (row) Object.assign(row, info); };
+
+      if (existingPost?.pushed_at) {
+        setInfo({ post_lwd_days: Number(existingPost.lop_days ?? postDays), post_lwd_amount: Number(existingPost.amount), post_lwd_status: "pushed", post_lwd_label: existingPost.label });
+        continue;
+      }
+      if (!inMonth || postDays <= 0) {
+        if (existingPost) postDelete.push(existingPost.id);
+        continue;
+      }
+      if (dismissedIds.has(map.hr_employee_id) && !existingPost) {
+        setInfo({ post_lwd_days: postDays, post_lwd_amount: 0, post_lwd_status: "not_needed", post_lwd_reason: "Already dismissed in RazorpayX — it cuts these days itself" });
+        continue;
+      }
+      const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
+      if (salary.error || !(salary.monthlyGross > 0)) {
+        setInfo({ post_lwd_days: postDays, post_lwd_amount: 0, post_lwd_status: "skipped", post_lwd_reason: salary.error || "No salary base could be resolved" });
+        continue;
+      }
+      const amount = postLwdAmount(salary.monthlyGross, totalDays, postDays);
+      const lwdLabel = new Date(`${lwd}T00:00:00Z`).toLocaleDateString("en-IN", { timeZone: "UTC", day: "numeric", month: "short" });
+      const label = `Loss of Pay - After last working day — ${postDays} day${postDays === 1 ? "" : "s"} (left ${lwdLabel})`;
+      setInfo({
+        post_lwd_days: postDays, post_lwd_amount: amount, post_lwd_label: label, post_lwd_base: salary.monthlyGross,
+        post_lwd_status: existingPost ? (Number(existingPost.amount) === amount ? "unchanged" : "changed") : "new",
+      });
+      if (existingPost) postUpdate.push({ id: existingPost.id, label, amount, lop_days: postDays });
+      else postInsert.push({
+        hr_employee_id: map.hr_employee_id, razorpay_employee_id: map.razorpay_employee_id, period_month: periodStr,
+        label, amount, source: "auto_post_lwd", lop_days: postDays, created_by: callerId,
+      });
+    }
+
     let staged = 0;
     let removed = 0;
 
@@ -570,13 +638,33 @@ Deno.serve(async (req) => {
         if (delErr) throw delErr;
         removed = toDelete.length;
       }
+      for (const upd of postUpdate) {
+        const { id, ...patch } = upd;
+        const { error } = await supabase.from("hr_payroll_input_deductions").update(patch)
+          .eq("id", id).is("pushed_at", null).eq("source", "auto_post_lwd");
+        if (error) throw error;
+        staged += 1;
+      }
+      if (postInsert.length) {
+        const { error } = await supabase.from("hr_payroll_input_deductions").insert(postInsert);
+        if (error) throw error;
+        staged += postInsert.length;
+      }
+      if (postDelete.length) {
+        const { error } = await supabase.from("hr_payroll_input_deductions").delete()
+          .in("id", postDelete).is("pushed_at", null).eq("source", "auto_post_lwd");
+        if (error) throw error;
+        removed += postDelete.length;
+      }
     }
 
     const summary = {
       employees: roster.length,
       with_lop: rows.filter((r) => r.lop_days > 0).length,
-      to_stage: toUpdate.length + toInsert.length,
-      to_remove: toDelete.length,
+      to_stage: toUpdate.length + toInsert.length + postUpdate.length + postInsert.length,
+      to_remove: toDelete.length + postDelete.length,
+      post_lwd_employees: postUpdate.length + postInsert.length,
+      post_lwd_amount: [...postUpdate, ...postInsert].reduce((s, r) => s + Number(r.amount ?? 0), 0),
       staged,
       removed,
       skipped: rows.filter((r) => r.status === "skipped").length,
@@ -586,7 +674,8 @@ Deno.serve(async (req) => {
       cl_offset_days: Number(rows.reduce((s, r) => s + Number(r.cl_offset_days ?? 0), 0).toFixed(2)),
       cl_booked_days: Number(clBooked.toFixed(2)),
       compoff_offset_days: Number(rows.reduce((s, r) => s + Number(r.compoff_offset_days ?? 0), 0).toFixed(2)),
-      total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0),
+      total_amount: rows.filter((r) => ["new", "changed", "unchanged"].includes(r.status)).reduce((s, r) => s + Number(r.amount ?? 0), 0)
+        + [...postUpdate, ...postInsert].reduce((s, r) => s + Number(r.amount ?? 0), 0),
     };
 
     rows.sort((a, b) => Number(b.lop_days) - Number(a.lop_days) || String(a.name).localeCompare(String(b.name)));

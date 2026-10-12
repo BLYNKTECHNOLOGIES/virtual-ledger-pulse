@@ -1,5 +1,10 @@
 # Workforce capacity integrity
 
+## ATS UI refresh U1
+
+- [x] Refresh ATS shell, shared visuals and Overview without changing data or actions.
+- [ ] Verify layouts, destinations, focus states and preview health; live authenticated checks depend on available sign-in.
+
 ## Table width optimization
 
 - [x] Make Requests fit its available width without dropping data or actions.

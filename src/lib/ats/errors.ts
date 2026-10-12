@@ -20,6 +20,11 @@ const CODE_MESSAGES: [string, string][] = [
   ["ATS_INTERVIEW_CLOSED", "This interview is no longer scheduled. Refresh to see the latest."],
   ["ATS_INTERVIEW_TIME", "Pick a time within the next year, or within the last 30 days to record a past interview."],
   ["ATS_INTERVIEW_INVALID", "Check the interview details."],
+  ["ATS_IMPORT_NOT_FOUND", "This import no longer exists."],
+  ["ATS_IMPORT_CLOSED", "This import has already finished or been undone."],
+  ["ATS_UNDO_ADMIN_ONLY", "Only HR admins can undo an import."],
+  ["ATS_IMPORT_TOO_OLD", "Imports can only be undone within 7 days."],
+  ["ATS_IMPORT_INVALID", "Something in the file couldn't be read. Check it and try again."],
 ];
 
 export function atsErrorMessage(error: unknown, inUseMessage?: string): string {

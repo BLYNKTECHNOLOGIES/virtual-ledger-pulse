@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { Plus, UserPlus } from "lucide-react";
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { FileUp, Plus, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,10 +16,11 @@ import AtsCandidatesPage from "./AtsCandidatesPage";
 import AtsCandidatePage from "./AtsCandidatePage";
 import AtsInboxPage from "./AtsInboxPage";
 import AtsInterviewsPage from "./AtsInterviewsPage";
+import AtsImportPage from "./AtsImportPage";
 
 const TABS = [
   { label: "Overview", to: "/hrms/ats", match: (p: string) => p === "/hrms/ats" || p === "/hrms/ats/" },
-  { label: "Candidates", to: "/hrms/ats/candidates", match: (p: string) => p.startsWith("/hrms/ats/candidates") },
+  { label: "Candidates", to: "/hrms/ats/candidates", match: (p: string) => p.startsWith("/hrms/ats/candidates") || p.startsWith("/hrms/ats/import") },
   { label: "Inbox", to: "/hrms/ats/inbox", match: (p: string) => p.startsWith("/hrms/ats/inbox") },
   { label: "Interviews", to: "/hrms/ats/interviews", match: (p: string) => p.startsWith("/hrms/ats/interviews") },
   { label: "Jobs", to: "/hrms/ats/jobs", match: (p: string) => p.startsWith("/hrms/ats/jobs") },
@@ -48,6 +49,7 @@ export default function AtsWorkspace() {
           actions={showNewJob || showAddCand ? (
             <div className="flex flex-wrap gap-2">
               {showAddCand && <Button variant={showNewJob ? "outline" : "default"} onClick={() => openAddCandidate(null)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>}
+              {showAddCand && <Button variant="outline" asChild className="gap-1.5"><Link to="/hrms/ats/import"><FileUp className="h-4 w-4" /> Import</Link></Button>}
               {showNewJob && <Button onClick={() => openJobEditor(null)} className="gap-1.5"><Plus className="h-4 w-4" /> New job</Button>}
             </div>
           ) : undefined}
@@ -82,6 +84,7 @@ export default function AtsWorkspace() {
           <Route path="jobs" element={<AtsJobsPage />} />
           <Route path="jobs/:jobId" element={<AtsJobDetailPage />} />
           <Route path="settings" element={<AtsSettingsPage />} />
+          <Route path="import" element={<AtsImportPage />} />
           <Route path="*" element={<Navigate to="/hrms/ats" replace />} />
         </Routes>
       </div>

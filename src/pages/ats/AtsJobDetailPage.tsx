@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase,
+  ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase, FileUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -128,6 +128,7 @@ export default function AtsJobDetailPage() {
             {(j.status === "open" || j.status === "paused") && <Button size="sm" variant="outline" disabled={busy} onClick={() => setCloseOpen(true)} className="gap-1.5"><XCircle className="h-4 w-4" /> Close</Button>}
             {j.status === "closed" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Reopen</Button>}
             <Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>
+            <Button size="sm" variant="outline" onClick={() => navigate(`/hrms/ats/import?job=${j.id}`)} className="gap-1.5"><FileUp className="h-4 w-4" /> Import</Button>
             <Button size="sm" variant="outline" onClick={() => openJobEditor(j)} className="gap-1.5"><Pencil className="h-4 w-4" /> Edit</Button>
             {summary.isSuccess && total === 0 && (
               <Button size="sm" variant="ghost" onClick={() => setDelOpen(true)} className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>

@@ -48,6 +48,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useSearchParams } from "react-router-dom";
 import { Send, MailX, AlertTriangle, CalendarPlus, CalendarClock, CalendarX, CalendarCheck, UserX, Reply, ClipboardCheck } from "lucide-react";
 import { InterviewsCard } from "./InterviewsCard";
+import { ImportDetailsCard } from "./ImportDetailsCard";
 
 interface Props {
   candidateId: string;
@@ -374,6 +375,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       {app && <InterviewsCard app={app} candidate={c} openSignal={ivSignal} />}
       {facts}
       {app?.applied_via === "careers_form" && <FormAnswers appId={app.application_id!} />}
+      {app?.applied_via === "import" && <ImportDetailsCard appId={app.application_id!} />}
       {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
       <NotesCard ref={noteRef} candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
       <FilesCard files={files.data ?? []} onUpload={() => setUploadOpen(true)} candidateId={candidateId} />

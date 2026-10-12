@@ -10,7 +10,8 @@ import { AppStatusBadge, ResumeIcon, Stars, UnreviewedDot, fmtMonthly, fmtYears,
 import { CandidateAvatar, IdleDays, StageChip } from "./AtsUi";
 
 const LG = "hidden lg:table-cell";
-const XL = "hidden xl:table-cell";
+// Third tier waits for 2xl: with the job rail beside it, the table only has ~1,000px at 1280–1440px viewports.
+const XL = "hidden 2xl:table-cell";
 
 export function CandidateTable({
   rows, idleDays, onOpen, hideJob, selected, onToggle, onToggleAll,
@@ -94,7 +95,7 @@ export function CandidateTable({
                     </div>
                   </div>
                 </TableCell>
-                {!hideJob && <TableCell className={cn(LG, "max-w-[14rem]")}>{r.job_title ?? <span className="text-muted-foreground">General application</span>}</TableCell>}
+                {!hideJob && <TableCell className={cn(LG, "min-w-[8rem] max-w-[14rem] [overflow-wrap:break-word]")}>{r.job_title ?? <span className="text-muted-foreground">General application</span>}</TableCell>}
                 <TableCell className="whitespace-nowrap"><StageChip name={r.stage_name} kind={r.stage_kind} /></TableCell>
                 <TableCell className="whitespace-nowrap"><AppStatusBadge status={r.status} /></TableCell>
                 <TableCell className={cn(LG, "whitespace-nowrap text-muted-foreground")}>{r.source_name ?? "—"}</TableCell>

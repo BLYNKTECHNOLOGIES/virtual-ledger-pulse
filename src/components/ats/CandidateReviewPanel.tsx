@@ -922,7 +922,7 @@ export function FileDropZone({ file, onFile, disabled }: { file: File | null; on
           <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate text-left text-foreground">{file.name}</span>
           <span className="text-xs text-muted-foreground">{fmtBytes(file.size)}</span>
-          <Button type="button" size="sm" variant="ghost" className="h-7" onClick={() => onFile(null)} disabled={disabled}>Remove</Button>
+          <Button type="button" size="sm" variant="ghost" className="h-7 text-destructive hover:text-destructive" onClick={() => onFile(null)} disabled={disabled}>Remove</Button>
         </div>
       ) : (
         <>

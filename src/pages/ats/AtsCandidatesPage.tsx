@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Plus, Search, Table2, Users, FilterX } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Columns2, Plus, Search, Table2, Users, FilterX, KanbanSquare, Download } from "lucide-react";
+import { toast } from "sonner";
+import { BulkBar } from "@/components/ats/BulkBar";
+import { PipelineBoard } from "@/components/ats/PipelineBoard";
+import { downloadCandidatesXlsx, withCurrentCtc } from "@/lib/ats/export";
+import { atsErrorMessage } from "@/lib/ats/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +23,7 @@ import { CandidateReviewPanel } from "@/components/ats/CandidateReviewPanel";
 import { UnreviewedDot, isUnreviewed } from "@/components/ats/CandidateBits";
 import { useAtsJobSummary, useAtsJobs, useAtsSettings, useAtsSources, useAtsStages } from "@/lib/ats/api";
 import {
-  PAGE_SIZE, candidateHref, hasActiveFilters, parseFilters, saveNavCtx, useAnyApplication, useCandidateList, useGeneralCount,
+  fetchMatchingRows, PAGE_SIZE, candidateHref, hasActiveFilters, parseFilters, saveNavCtx, useAnyApplication, useCandidateList, useGeneralCount,
   type AtsAppRow, type CandidateFilters,
 } from "@/lib/ats/candidates";
 import { fmtDate } from "@/lib/ats/format";
@@ -64,12 +69,16 @@ export default function AtsCandidatesPage() {
   const sources = useAtsSources();
   const any = useAnyApplication();
   const list = useCandidateList(f, page, idleDays, settings.isFetched);
-  const [mode, setModeState] = useState<"table" | "review">(() => (readLS(MODE_KEY, "table") === "review" ? "review" : "table"));
+  type Mode = "table" | "review" | "board";
+  const [mode, setModeState] = useState<Mode>(() => { const m = readLS(MODE_KEY, "table"); return m === "review" || m === "board" ? m : "table"; });
+  const [selected, setSelected] = useState<Map<string, AtsAppRow>>(new Map());
+  const [selectingAll, setSelectingAll] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [goNext, setGoNextState] = useState(() => readLS(NEXT_KEY, "1") !== "0");
   const [q, setQ] = useState(f.q ?? "");
   const dq = useDebounce(q, 300);
 
-  const setMode = (m: "table" | "review") => { setModeState(m); writeLS(MODE_KEY, m); };
+  const setMode = (m: Mode) => { setModeState(m); writeLS(MODE_KEY, m); };
   const setGoNext = (v: boolean) => { setGoNextState(v); writeLS(NEXT_KEY, v ? "1" : "0"); };
 
   const update = useCallback((patch: Record<string, string | null>, keepPage = false) => {
@@ -83,6 +92,31 @@ export default function AtsCandidatesPage() {
 
   useEffect(() => { if ((dq.trim() || undefined) !== f.q) update({ q: dq.trim() || null, sel: null }); }, [dq]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setQ(f.q ?? ""); }, [f.q]);
+  // Selection survives paging but clears when any filter changes.
+  const filterKey = JSON.stringify(f);
+  useEffect(() => { setSelected(new Map()); }, [filterKey]);
+
+  const toggle = (r: AtsAppRow) => setSelected((m) => { const n = new Map(m); if (n.has(r.application_id!)) n.delete(r.application_id!); else n.set(r.application_id!, r); return n; });
+  const togglePage = (on: boolean) => setSelected((m) => { const n = new Map(m); for (const r of list.data?.rows ?? []) { if (on) n.set(r.application_id!, r); else n.delete(r.application_id!); } return n; });
+  const selectAllMatching = async () => {
+    setSelectingAll(true);
+    try {
+      const { rows: all } = await fetchMatchingRows(f, idleDays, 1000);
+      setSelected(new Map(all.map((r) => [r.application_id!, r])));
+    } catch (e) { toast.error(atsErrorMessage(e)); } finally { setSelectingAll(false); }
+  };
+  const runExport = async (preset?: AtsAppRow[]) => {
+    if (exporting) return;
+    setExporting(true);
+    const t = toast.loading("Preparing export…");
+    try {
+      const base = preset ?? (await fetchMatchingRows(f, idleDays, 5000, (n, total) => toast.loading(`Fetching ${n} of ${total}…`, { id: t }))).rows;
+      if (!base.length) { toast.info("Nothing to export.", { id: t }); return; }
+      toast.loading(`Building file with ${base.length} rows…`, { id: t });
+      await downloadCandidatesXlsx(await withCurrentCtc(base));
+      toast.success(`Exported ${base.length} candidate${base.length === 1 ? "" : "s"}`, { id: t });
+    } catch (e) { toast.error(atsErrorMessage(e), { id: t }); } finally { setExporting(false); }
+  };
 
   const rows = list.data?.rows ?? [];
   const total = list.data?.count ?? 0;
@@ -94,7 +128,7 @@ export default function AtsCandidatesPage() {
   });
   const openFull = (r: AtsAppRow) => { rememberCtx(); navigate(candidateHref(r), { state: { fromList: true } }); };
 
-  const effectiveMode = isMobile ? "table" : mode;
+  const effectiveMode: Mode = isMobile && mode === "review" ? "table" : mode;
   const selRow = rows.find((r) => r.application_id === sel) ?? (effectiveMode === "review" ? rows[0] : undefined);
 
   const moveSel = useCallback((dir: 1 | -1) => {
@@ -192,10 +226,12 @@ export default function AtsCandidatesPage() {
       <label className="flex h-9 items-center gap-2 rounded-md border border-border px-2.5 text-sm text-foreground">
         <Switch checked={!!f.idle} onCheckedChange={(v) => update({ idle: v ? "1" : null, sel: null })} /> Idle
       </label>
-      {!isMobile && (
+      <Button size="sm" variant="outline" className="h-9 gap-1.5" disabled={exporting} onClick={() => runExport()}><Download className="h-4 w-4" /> Export</Button>
+      {(
         <div className="ml-auto inline-flex rounded-md border border-border p-0.5" role="group" aria-label="View">
           <Button size="sm" variant={mode === "table" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("table")} aria-pressed={mode === "table"}><Table2 className="h-4 w-4" /> Table</Button>
-          <Button size="sm" variant={mode === "review" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("review")} aria-pressed={mode === "review"}><Columns2 className="h-4 w-4" /> Review</Button>
+          {!isMobile && <Button size="sm" variant={mode === "review" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("review")} aria-pressed={mode === "review"}><Columns2 className="h-4 w-4" /> Review</Button>}
+          <Button size="sm" variant={mode === "board" ? "secondary" : "ghost"} className="h-8 gap-1.5" onClick={() => setMode("board")} aria-pressed={mode === "board"}><KanbanSquare className="h-4 w-4" /> Board</Button>
         </div>
       )}
     </div>
@@ -212,7 +248,11 @@ export default function AtsCandidatesPage() {
   );
 
   let body: React.ReactNode;
-  if (list.isLoading || !settings.isFetched) body = <RowsSkeleton rows={8} />;
+  if (effectiveMode === "board") {
+    body = f.job
+      ? <PipelineBoard key={f.job} jobId={f.job} />
+      : <EmptyState icon={KanbanSquare} title="Pick a job to see its board" className="rounded-xl border border-dashed border-border" />;
+  } else if (list.isLoading || !settings.isFetched) body = <RowsSkeleton rows={8} />;
   else if (list.isError) body = <QueryError error={list.error} onRetry={() => list.refetch()} />;
   else if (!rows.length && any.data === false) {
     body = <EmptyState icon={Users} title="No candidates yet" description="Add a candidate to start reviewing applicants."
@@ -223,7 +263,20 @@ export default function AtsCandidatesPage() {
       action={hasActiveFilters(f) ? <Button variant="outline" onClick={() => { setQ(""); setSp(new URLSearchParams(), { replace: true }); }}>Clear filters</Button> : undefined}
       className="rounded-xl border border-dashed border-border" />;
   } else if (effectiveMode === "table") {
-    body = <><CandidateTable rows={rows} idleDays={idleDays} onOpen={openFull} />{pager}</>;
+    const allPageSelected = rows.length > 0 && rows.every((r) => selected.has(r.application_id!));
+    body = <>
+      {allPageSelected && total > rows.length && selected.size < Math.min(total, 1000) && (
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-foreground">
+          {selected.size} selected.
+          <Button size="sm" variant="link" className="h-auto p-0" disabled={selectingAll} onClick={selectAllMatching}>
+            Select all {Math.min(total, 1000)} matching these filters{total > 1000 ? " (first 1,000)" : ""}
+          </Button>
+        </div>
+      )}
+      <CandidateTable rows={rows} idleDays={idleDays} onOpen={openFull} selected={new Set(selected.keys())} onToggle={toggle} onToggleAll={togglePage} />
+      {pager}
+      {selected.size > 0 && <BulkBar rows={[...selected.values()]} onClear={() => setSelected(new Map())} onExport={() => runExport([...selected.values()])} exporting={exporting} />}
+    </>;
   } else {
     body = (
       <div className="grid h-[calc(100vh-15rem)] min-h-[520px] grid-cols-[minmax(14rem,18rem)_1fr] overflow-hidden rounded-xl border border-border bg-card">

@@ -43,5 +43,5 @@ export function ResumeIcon({ show }: { show?: boolean | null }) {
 }
 
 export const fmtYears = (n?: number | null) => (n == null ? "—" : `${Number(n)} ${Number(n) === 1 ? "yr" : "yrs"}`);
-export const fmtMonthly = (n?: number | null) => (n == null ? "—" : `₹${Number(n).toLocaleString("en-IN")}/mo`);
+export const fmtMonthly = (n?: number | null) => (n == null ? "—" : `₹${Math.round(Number(n)).toLocaleString("en-IN")}/mo`);
 export const isUnreviewed = (r: { status?: string | null; reviewed_at?: string | null }) => r.status === "active" && !r.reviewed_at;

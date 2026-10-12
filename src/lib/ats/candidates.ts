@@ -257,9 +257,14 @@ export const useBoardRows = (jobId: string | undefined, showHired: boolean) =>
       qb = jobId === "general" ? qb.is("job_id", null) : qb.eq("job_id", jobId!);
       const { data, error, count } = await qb.order("stage_entered_at", { ascending: true }).order("application_id").range(0, 499);
       if (error) throw error;
-      let cq = supabase.from("ats_applications").select("id", { count: "exact", head: true }).in("status", ["rejected", "withdrawn"]);
-      cq = jobId === "general" ? cq.is("job_id", null) : cq.eq("job_id", jobId!);
-      const closed = await cq;
-      return { rows: (data ?? []) as AtsAppRow[], total: count ?? 0, closed: closed.count ?? 0 };
+      const headCount = async (status: string) => {
+        let cq = supabase.from("ats_applications").select("id", { count: "exact", head: true }).eq("status", status);
+        cq = jobId === "general" ? cq.is("job_id", null) : cq.eq("job_id", jobId!);
+        const r = await cq;
+        if (r.error) throw r.error;
+        return r.count ?? 0;
+      };
+      const [rejected, withdrawn] = await Promise.all([headCount("rejected"), headCount("withdrawn")]);
+      return { rows: (data ?? []) as AtsAppRow[], total: count ?? 0, rejected, withdrawn };
     },
   });

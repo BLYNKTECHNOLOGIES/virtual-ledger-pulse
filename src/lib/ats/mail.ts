@@ -159,6 +159,9 @@ export function mailErrorMessage(code?: string | null, field?: string | null): s
     case "attachment_missing": return "One of the attached files is missing. Remove it and try again.";
     case "smtp_failed": case "interrupted": case "unexpected_error": case "save_failed": return AGAIN;
     case "smtp_not_configured": return "The HR mailbox isn't set up for sending. Ask an admin to check the HR mailbox settings.";
+    case "outdated": return "This interview has changed since this email was written. Send a new invitation from the interview instead.";
+    case "interview_closed": return "This interview is no longer scheduled, so nothing was sent.";
+    case "interview_past": return "This interview's time has passed, so no invitation was sent.";
     case "network": return "Couldn't reach the server. Check your connection and try again.";
     case "invalid_template": return "This email still had {{placeholders}} in it, so it wasn't sent. Fix the template in ATS → Settings → Email.";
     case "lookup_failed": case "state_unavailable": return "Something went wrong while checking mail. It will try again in 5 minutes.";
@@ -202,7 +205,7 @@ export function splitQuoted(text: string): [string, string | null] {
 }
 
 /** Errors that a retry can't fix (same text would fail again). */
-export const canRetry = (code?: string | null) => code !== "invalid_template";
+export const canRetry = (code?: string | null) => code !== "invalid_template" && code !== "outdated";
 
 /** Candidates with at least one unread received email (up to 2,000 rows). */
 export function useUnreadCandidateIds() {
@@ -224,3 +227,24 @@ export function useUnreadCandidateIds() {
 export const findOlderEmails = (candidateId: string, days = 180) =>
   invokeMail<{ ok: boolean; error?: string | null; skipped?: string; stored?: number }>(
     "ats-mail-sync", { action: "candidate", candidateId, days });
+
+/** Interview placeholders (filled by the server from the saved interview). */
+export const INTERVIEW_PLACEHOLDERS = [
+  "interview_title", "interview_date", "interview_time", "interview_duration", "interview_mode", "interview_where", "interview_note",
+] as const;
+
+export interface NotifyBody {
+  interviewId: string;
+  action: "invite" | "update" | "cancel";
+  candidate?: { id: string; subject: string; body: string; templateCode: string | null } | null;
+  notifyPanel?: boolean;
+  attachResume?: boolean;
+}
+export type NotifyCandidateResult =
+  | { id: string; status: "sent" | "failed" | "queued" | "sending"; error?: string }
+  | { status: "skipped"; error: "no_email" | "candidate_closed" }
+  | { status: "failed"; error: string; field?: string; id?: undefined };
+export interface NotifyPanelResult { panel_id: string; status: "sent" | "cancelled" | "failed" | "no_email" | "skipped"; error?: string }
+export interface NotifyResult { candidate: NotifyCandidateResult | null; panel: NotifyPanelResult[] }
+
+export const notifyInterview = (body: NotifyBody) => invokeMail<NotifyResult>("ats-interview-notify", body);

@@ -1,6 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // ATS: picks up candidate emails from the HR mailbox and files them on the candidate, and sends queued
-// automatic emails (acknowledgements).
+// automatic emails (acknowledgements and interview reminders, which it queues first when they are due).
+// A candidate's calendar reply to an interview invite ("Accepted" / "Declined" / "Maybe") is recorded on the interview.
 // Read-only towards the mailbox (EXAMINE + BODY.PEEK): nothing is marked read, moved or deleted, and the
 // HR mailbox screens (hr_mailboxes.imap_last_uid, hr_mail_messages) are never touched; the ATS keeps its own
 // position in ats_mail_state. Only emails that belong to a candidate are downloaded and stored.
@@ -14,6 +15,7 @@ import {
   type ImapFetchItem, type MailAttachment, type MailHeader, type ThreadRef,
 } from '../_shared/ats-mail.ts'
 import { sendQueued } from '../_shared/ats-mail-deliver.ts'
+import { type CalendarReply, findCalendarReply, INTERVIEW_UID_RE } from '../_shared/ats-ics.ts'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -53,11 +55,14 @@ interface Stats {
   queued_sent: number
   queued_failed: number
   queued_retrying: number
+  reminders_queued: number
+  rsvps: number
 }
 
 const newStats = (): Stats => ({
   scanned: 0, matched: 0, stored: 0, duplicates: 0, attachments_saved: 0, attachments_skipped: 0,
   bounces: 0, ignored_own: 0, gave_up: 0, pending: 0, queued_sent: 0, queued_failed: 0, queued_retrying: 0,
+  reminders_queued: 0, rsvps: 0,
 })
 
 export async function handleSync(req: Request): Promise<Response> {
@@ -145,7 +150,11 @@ export async function runMailSync(admin: any, opts: SyncOptions): Promise<Record
     .eq('direction', 'outbound').eq('status', 'sending').lt('updated_at', new Date(Date.now() - 10 * 60_000).toISOString())
 
   const stats = newStats()
-  // Automatic emails (acknowledgements) that are due go out first; they do not depend on reading the mailbox.
+  // Interview reminders that are due are queued, then automatic emails that are due go out first; they do not
+  // depend on reading the mailbox.
+  const { data: reminders, error: remErr } = await admin.rpc('ats_queue_interview_reminders')
+  if (remErr) console.error('ats-mail-sync reminders failed', remErr.code ?? 'error')
+  stats.reminders_queued = Number(reminders ?? 0)
   try {
     const q = await sendQueued(admin, { deadline: started + QUEUE_MS, port: opts.smtpPort })
     stats.queued_sent = q.sent
@@ -425,6 +434,7 @@ async function storeOne(
   const stamp = istStamp()
 
   for (const a of attachments) {
+    if (a.ext === 'ics') continue // calendar data (an invite or a reply to one) is read separately, not kept as a file
     if (a.skipped || !a.bytes) {
       listed.push({ name: a.filename, mime: a.contentType, size: a.size, skipped: a.skipped ?? 'unreadable' })
       stats.attachments_skipped++
@@ -486,5 +496,22 @@ async function storeOne(
   }
   stats.stored++
   stats.attachments_saved += files.length
+  if (raw) await recordCalendarReply(admin, raw, stats)
   return 'stored'
+}
+
+/** "Accepted / Declined / Maybe" from the candidate's calendar app, for an interview invite sent by the ATS. */
+async function recordCalendarReply(admin: any, raw: string, stats: Stats): Promise<void> {
+  let reply: CalendarReply | null = null
+  try {
+    reply = findCalendarReply(raw)
+  } catch {
+    return
+  }
+  const m = reply ? INTERVIEW_UID_RE.exec(reply.uid) : null
+  if (!reply || !m) return
+  const { data: ok } = await admin.rpc('ats_interview_rsvp', {
+    p_interview_id: m[1].toLowerCase(), p_attendee: reply.attendee, p_partstat: reply.partstat,
+  })
+  if (ok) stats.rsvps++
 }

@@ -1,14 +1,17 @@
 // deno-lint-ignore-file no-explicit-any
-// ATS: delivers one candidate email row (ats_messages) through the HR mailbox over SMTP, and sends queued
-// automatic emails (acknowledgements). Used by ats-mail-send (HR clicks Send) and ats-mail-sync (every 5 minutes).
+// ATS: sends email through the HR mailbox over SMTP. deliver() sends one candidate email row (ats_messages) and
+// records the outcome on it; sendQueued() sends queued automatic emails (acknowledgements, interview reminders);
+// sendMail() is the plain send used by both and by the interview emails to interviewers.
 // Owned by the ATS module; the HR signature and mail-safety helpers are imported, not changed.
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
+import { quotedPrintableEncode } from 'https://deno.land/x/denomailer@1.6.0/config/mail/encoding.ts'
 import { hrSignatureText, wrapHrEmail } from './hrSignature.ts'
 import { tidyMailAddress, tidyMailFilename, tidyMailHtml, tidyMailSubject, tidyMailText } from './mailBody.ts'
 import { ATS_BUCKET, bytesToBase64, errorCode, textToHtml } from './ats-mail.ts'
 
 const SMTP_TIMEOUT_MS = 30_000
 const QUEUE_RETRY_MINUTES = [10, 60] // automatic emails: 3 attempts in total, then "failed"
+const te = new TextEncoder()
 
 export class SendError extends Error {
   constructor(readonly code: string) {
@@ -23,21 +26,115 @@ export interface DeliverOptions {
   retryInMinutes?: number
 }
 
-/** Sends the row and records the outcome on it: sent, failed, or queued again (automatic emails). */
-export async function deliver(admin: any, mailbox: any, row: any, opts: DeliverOptions = {}): Promise<{ ok: boolean; code?: string }> {
+export interface MailFile {
+  filename: string
+  content: string
+  encoding: 'base64'
+  contentType: string
+}
+
+export interface OutgoingMail {
+  fromAddress: string
+  to: string
+  subject: string
+  /** Plain text without the signature; the HR signature and the branded HTML shell are added here. */
+  text: string
+  messageId: string
+  inReplyTo?: string | null
+  references?: string | null
+  files?: MailFile[]
+  /** A calendar invite (iCalendar text with CRLF line endings) sent inline and as invite.ics. */
+  calendar?: { ics: string; method: 'REQUEST' | 'CANCEL' } | null
+}
+
+/**
+ * Quoted-printable body that survives SMTP: a line that starts with "." (also after a soft line break) has the
+ * dot encoded as =2E, because mail servers drop a leading dot that the sender did not double.
+ */
+export function qpBody(s: string): string {
+  return quotedPrintableEncode(s).replace(/(^|\n)\./g, '$1=2E')
+}
+
+/** Base64 in 76-character lines. */
+export function base64Lines(s: string): string {
+  return (bytesToBase64(te.encode(s)).match(/.{1,76}/g) ?? []).join('\r\n')
+}
+
+/** SMTP sign-in for the mailbox (secret names are stored on hr_mailboxes), or null when it is not set up. */
+function smtpLogin(mailbox: any): { host: string; user: string; pass: string } | null {
   const host = Deno.env.get(mailbox?.smtp_host_secret || '') || Deno.env.get('HR_SMTP_HOST')
   const user = (Deno.env.get(mailbox?.smtp_user_secret || '') || Deno.env.get('HR_SMTP_USER') || '').trim()
   const pass = (Deno.env.get(mailbox?.smtp_pass_secret || '') || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
+  return host && user && pass ? { host, user, pass } : null
+}
+
+const sendErrorCode = (e: unknown) => e instanceof SendError ? e.code : errorCode(e) === 'unexpected_error' ? 'smtp_failed' : errorCode(e)
+
+/** Sends one email from the HR mailbox. Returns null when it was accepted by the mail server, else an error code. */
+export async function sendMail(mailbox: any, mail: OutgoingMail, opts: { port?: number } = {}): Promise<string | null> {
+  if (!mailbox) return 'mailbox_unavailable'
+  const login = smtpLogin(mailbox)
+  if (!login) return 'smtp_not_configured'
+  const { host, user, pass } = login
+  try {
+    const text = tidyMailText(`${mail.text}\n\n${hrSignatureText()}`)
+    const html = tidyMailHtml(wrapHrEmail(textToHtml(mail.text)))
+    const parts = [
+      { mimeType: 'text/plain; charset="utf-8"', content: qpBody(text), transferEncoding: 'quoted-printable' },
+      { mimeType: 'text/html; charset="utf-8"', content: qpBody(html), transferEncoding: 'quoted-printable' },
+    ]
+    const files: MailFile[] = [...(mail.files ?? [])]
+    if (mail.calendar) {
+      // As calendar apps send invites: the calendar part last in the alternatives, plus the same file attached.
+      parts.push({
+        mimeType: `text/calendar; charset="utf-8"; method=${mail.calendar.method}`,
+        content: base64Lines(mail.calendar.ics),
+        transferEncoding: 'base64',
+      })
+      files.push({ filename: 'invite.ics', content: bytesToBase64(te.encode(mail.calendar.ics)), encoding: 'base64', contentType: 'application/ics' })
+    }
+    const client = new SMTPClient({
+      connection: { hostname: host, port: opts.port ?? 465, tls: true, auth: { username: user, password: pass } },
+    })
+    try {
+      await withTimeout(client.send({
+        from: `${tidyMailAddress(mailbox.from_name || 'HR')} <${mail.fromAddress}>`,
+        to: mail.to,
+        subject: tidyMailSubject(mail.subject, 200),
+        mimeContent: parts,
+        attachments: files.length ? (files as any) : undefined,
+        headers: {
+          'Message-ID': mail.messageId,
+          ...(mail.inReplyTo ? { 'In-Reply-To': mail.inReplyTo, References: mail.references || mail.inReplyTo } : {}),
+        },
+      }), SMTP_TIMEOUT_MS)
+    } finally {
+      try {
+        await client.close()
+      } catch {
+        /* ignore */
+      }
+    }
+    return null
+  } catch (e) {
+    const code = sendErrorCode(e)
+    console.error('ats-mail send failed', code)
+    return code
+  }
+}
+
+/** Sends the row and records the outcome on it: sent, failed, or queued again (automatic emails). */
+export async function deliver(admin: any, mailbox: any, row: any, opts: DeliverOptions = {}): Promise<{ ok: boolean; code?: string }> {
   let code: string | null = null
   if (!mailbox) {
     code = 'mailbox_unavailable'
-  } else if (!host || !user || !pass) {
+  } else if (!smtpLogin(mailbox)) {
     code = 'smtp_not_configured'
   } else if (/\{\{\s*[\w.]+\s*\}\}/.test(`${row.subject ?? ''}\n${row.body_text ?? ''}`)) {
     code = 'invalid_template'
   } else {
+    const files: MailFile[] = []
     try {
-      const files: { filename: string; content: string; encoding: 'base64'; contentType: string }[] = []
       for (const a of row.attachments ?? []) {
         if (!a?.storage_path) continue
         const { data: blob, error } = await admin.storage.from(ATS_BUCKET).download(a.storage_path)
@@ -49,32 +146,23 @@ export async function deliver(admin: any, mailbox: any, row: any, opts: DeliverO
           contentType: a.mime || 'application/octet-stream',
         })
       }
-      const client = new SMTPClient({
-        connection: { hostname: host, port: opts.port ?? 465, tls: true, auth: { username: user, password: pass } },
-      })
-      try {
-        await withTimeout(client.send({
-          from: `${tidyMailAddress(mailbox.from_name || 'HR')} <${row.from_address}>`,
-          to: row.to_addresses[0],
-          subject: tidyMailSubject(row.subject, 200),
-          content: tidyMailText(`${row.body_text}\n\n${hrSignatureText()}`),
-          html: tidyMailHtml(wrapHrEmail(textToHtml(row.body_text))),
-          attachments: files.length ? (files as any) : undefined,
-          headers: {
-            'Message-ID': row.message_id,
-            ...(row.in_reply_to ? { 'In-Reply-To': row.in_reply_to, References: row.references_header || row.in_reply_to } : {}),
-          },
-        }), SMTP_TIMEOUT_MS)
-      } finally {
-        try {
-          await client.close()
-        } catch {
-          /* ignore */
-        }
-      }
     } catch (e) {
-      code = e instanceof SendError ? e.code : errorCode(e) === 'unexpected_error' ? 'smtp_failed' : errorCode(e)
+      code = sendErrorCode(e)
       console.error('ats-mail deliver failed', code)
+    }
+    if (!code) {
+      const ics = typeof row.calendar_ics === 'string' && row.calendar_ics ? row.calendar_ics : null
+      code = await sendMail(mailbox, {
+        fromAddress: row.from_address,
+        to: row.to_addresses[0],
+        subject: row.subject,
+        text: row.body_text,
+        messageId: row.message_id,
+        inReplyTo: row.in_reply_to,
+        references: row.references_header,
+        files,
+        calendar: ics ? { ics, method: /\r?\nMETHOD:CANCEL\r?\n/.test(ics) ? 'CANCEL' : 'REQUEST' } : null,
+      }, { port: opts.port })
     }
   }
   if (code) {

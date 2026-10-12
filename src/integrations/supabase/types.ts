@@ -1341,6 +1341,244 @@ export type Database = {
         }
         Relationships: []
       }
+      ats_interview_panel: {
+        Row: {
+          cancel_sent_at: string | null
+          created_at: string
+          email: string | null
+          employee_id: string | null
+          feedback: string | null
+          feedback_at: string | null
+          feedback_by: string | null
+          feedback_by_name: string | null
+          id: string
+          interview_id: string
+          invite_error: string | null
+          invite_status: string | null
+          invited_at: string | null
+          invited_revision: number | null
+          name: string
+          recommendation: string | null
+          removed_at: string | null
+          score: number | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          cancel_sent_at?: string | null
+          created_at?: string
+          email?: string | null
+          employee_id?: string | null
+          feedback?: string | null
+          feedback_at?: string | null
+          feedback_by?: string | null
+          feedback_by_name?: string | null
+          id?: string
+          interview_id: string
+          invite_error?: string | null
+          invite_status?: string | null
+          invited_at?: string | null
+          invited_revision?: number | null
+          name: string
+          recommendation?: string | null
+          removed_at?: string | null
+          score?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          cancel_sent_at?: string | null
+          created_at?: string
+          email?: string | null
+          employee_id?: string | null
+          feedback?: string | null
+          feedback_at?: string | null
+          feedback_by?: string | null
+          feedback_by_name?: string | null
+          id?: string
+          interview_id?: string
+          invite_error?: string | null
+          invite_status?: string | null
+          invited_at?: string | null
+          invited_revision?: number | null
+          name?: string
+          recommendation?: string | null
+          removed_at?: string | null
+          score?: number | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_milestones_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "ess_profile_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employee_completeness"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_payroll_lop_drift"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_probation_status_v"
+            referencedColumns: ["employee_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "hr_razorpay_payroll_freshness"
+            referencedColumns: ["hr_employee_id"]
+          },
+          {
+            foreignKeyName: "ats_interview_panel_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_interviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ats_interviews: {
+        Row: {
+          application_id: string
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by_name: string | null
+          candidate_id: string
+          candidate_note: string | null
+          candidate_response: string | null
+          candidate_response_at: string | null
+          closed_at: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          ends_at: string
+          id: string
+          internal_note: string | null
+          location: string | null
+          meeting_url: string | null
+          mode: string
+          reminder_queued_at: string | null
+          revision: number
+          scheduled_at: string
+          starts_at: string
+          status: string
+          title: string
+          updated_at: string
+          updated_by: string | null
+          updated_by_name: string | null
+        }
+        Insert: {
+          application_id: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by_name?: string | null
+          candidate_id: string
+          candidate_note?: string | null
+          candidate_response?: string | null
+          candidate_response_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          ends_at: string
+          id?: string
+          internal_note?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          mode: string
+          reminder_queued_at?: string | null
+          revision?: number
+          scheduled_at?: string
+          starts_at: string
+          status?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Update: {
+          application_id?: string
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by_name?: string | null
+          candidate_id?: string
+          candidate_note?: string | null
+          candidate_response?: string | null
+          candidate_response_at?: string | null
+          closed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          ends_at?: string
+          id?: string
+          internal_note?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          mode?: string
+          reminder_queued_at?: string | null
+          revision?: number
+          scheduled_at?: string
+          starts_at?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          updated_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ats_interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_application_overview"
+            referencedColumns: ["application_id"]
+          },
+          {
+            foreignKeyName: "ats_interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "ats_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_interviews_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ats_jobs: {
         Row: {
           aliases: string[]
@@ -1578,6 +1816,8 @@ export type Database = {
           attempts: number
           body_html: string | null
           body_text: string | null
+          calendar_ics: string | null
+          calendar_revision: number | null
           candidate_id: string
           cc_addresses: string[]
           created_at: string
@@ -1590,6 +1830,7 @@ export type Database = {
           id: string
           imap_uid: number | null
           in_reply_to: string | null
+          interview_id: string | null
           is_automatic: boolean
           mailbox_id: string | null
           message_id: string | null
@@ -1614,6 +1855,8 @@ export type Database = {
           attempts?: number
           body_html?: string | null
           body_text?: string | null
+          calendar_ics?: string | null
+          calendar_revision?: number | null
           candidate_id: string
           cc_addresses?: string[]
           created_at?: string
@@ -1626,6 +1869,7 @@ export type Database = {
           id?: string
           imap_uid?: number | null
           in_reply_to?: string | null
+          interview_id?: string | null
           is_automatic?: boolean
           mailbox_id?: string | null
           message_id?: string | null
@@ -1650,6 +1894,8 @@ export type Database = {
           attempts?: number
           body_html?: string | null
           body_text?: string | null
+          calendar_ics?: string | null
+          calendar_revision?: number | null
           candidate_id?: string
           cc_addresses?: string[]
           created_at?: string
@@ -1662,6 +1908,7 @@ export type Database = {
           id?: string
           imap_uid?: number | null
           in_reply_to?: string | null
+          interview_id?: string | null
           is_automatic?: boolean
           mailbox_id?: string | null
           message_id?: string | null
@@ -1700,6 +1947,13 @@ export type Database = {
             columns: ["candidate_id"]
             isOneToOne: false
             referencedRelation: "ats_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ats_messages_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "ats_interviews"
             referencedColumns: ["id"]
           },
         ]
@@ -1846,6 +2100,9 @@ export type Database = {
           default_location: string
           id: boolean
           idle_alert_days: number
+          interview_address: string | null
+          interview_minutes: number
+          interview_reminder_hours: number
           mail_ack_enabled: boolean
           mail_backfill_days: number
           mail_enabled: boolean
@@ -1861,6 +2118,9 @@ export type Database = {
           default_location?: string
           id?: boolean
           idle_alert_days?: number
+          interview_address?: string | null
+          interview_minutes?: number
+          interview_reminder_hours?: number
           mail_ack_enabled?: boolean
           mail_backfill_days?: number
           mail_enabled?: boolean
@@ -1876,6 +2136,9 @@ export type Database = {
           default_location?: string
           id?: boolean
           idle_alert_days?: number
+          interview_address?: string | null
+          interview_minutes?: number
+          interview_reminder_hours?: number
           mail_ack_enabled?: boolean
           mail_backfill_days?: number
           mail_enabled?: boolean
@@ -31761,6 +32024,10 @@ export type Database = {
         Returns: undefined
       }
       ats_actor_name: { Args: { p_uid?: string }; Returns: string }
+      ats_cancel_interview: {
+        Args: { p_interview_id: string; p_reason?: string }
+        Returns: Json
+      }
       ats_create_application: {
         Args: {
           p_answers?: Json
@@ -31776,6 +32043,17 @@ export type Database = {
           p_source_id?: string
         }
         Returns: Json
+      }
+      ats_duration_text: { Args: { p_minutes: number }; Returns: string }
+      ats_employee_contacts: {
+        Args: { p_ids: string[] }
+        Returns: {
+          email: string
+          employee_id: string
+          is_active: boolean
+          name: string
+          user_id: string
+        }[]
       }
       ats_find_duplicates: {
         Args: { p_email?: string; p_exclude?: string; p_phone?: string }
@@ -31793,6 +32071,10 @@ export type Database = {
       }
       ats_intake_application: { Args: { p: Json }; Returns: Json }
       ats_integration_status: { Args: never; Returns: Json }
+      ats_interview_rsvp: {
+        Args: { p_attendee: string; p_interview_id: string; p_partstat: string }
+        Returns: boolean
+      }
       ats_mail_claim: {
         Args: { p_mailbox_id: string; p_owner: string; p_seconds?: number }
         Returns: Json
@@ -31826,6 +32108,11 @@ export type Database = {
         Args: { p_application_id: string }
         Returns: string
       }
+      ats_queue_interview_reminders: { Args: never; Returns: number }
+      ats_render_interview_text: {
+        Args: { p_body: string; p_interview_id: string; p_subject: string }
+        Returns: Json
+      }
       ats_render_template: {
         Args: {
           p_application_id?: string
@@ -31835,6 +32122,20 @@ export type Database = {
         Returns: Json
       }
       ats_rotate_intake_key: { Args: never; Returns: string }
+      ats_save_interview: { Args: { p: Json }; Returns: Json }
+      ats_save_interview_feedback: {
+        Args: {
+          p_feedback: string
+          p_panel_id: string
+          p_recommendation: string
+          p_score: number
+        }
+        Returns: Json
+      }
+      ats_set_interview_status: {
+        Args: { p_interview_id: string; p_status: string }
+        Returns: Json
+      }
       ats_set_status: {
         Args: {
           p_application_id: string

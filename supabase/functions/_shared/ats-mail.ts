@@ -620,7 +620,7 @@ export interface MailAttachment {
   skipped: AttachmentSkip | null
 }
 
-interface MimeLeaf {
+export interface MimeLeaf {
   head: Record<string, string>
   body: string
 }
@@ -746,7 +746,7 @@ function splitMultipart(body: string, boundary: string): string[] {
   return []
 }
 
-function walkMime(s: string, depth: number, out: MimeLeaf[]): void {
+export function walkMime(s: string, depth: number, out: MimeLeaf[]): void {
   const [headStr, body] = splitHeadBody(s)
   const head = parseHead(headStr)
   const ct = head['content-type'] ?? 'text/plain'

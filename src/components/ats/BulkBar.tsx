@@ -131,7 +131,7 @@ export function BulkBar({ rows, onClear, onExport, exporting }: { rows: AtsAppRo
               )}
             </div>
           )}
-          {mailOn && emailEach && !tplId && rid && <p className="text-xs text-muted-foreground">Choose an email template.</p>}
+          {mailOn && emailEach && !tplId && <p className="text-xs text-muted-foreground">Choose an email template.</p>}
         </form>
       </ResponsiveDialog>
 

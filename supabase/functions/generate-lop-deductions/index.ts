@@ -545,6 +545,12 @@ Deno.serve(async (req) => {
         setInfo({ post_lwd_days: Number(existingPost.lop_days ?? postDays), post_lwd_amount: Number(existingPost.amount), post_lwd_status: "pushed", post_lwd_label: existingPost.label });
         continue;
       }
+      if (isContract(map.hr_employee_id)) {
+        // Fixed-pay contract staff (owners/directors): attendance never affects pay.
+        if (existingPost) postDelete.push(existingPost.id);
+        setInfo({ post_lwd_days: postDays, post_lwd_amount: 0, post_lwd_status: "not_needed", post_lwd_reason: "Contract employee — paid per contract, no post-LWD deduction" });
+        continue;
+      }
       if (!inMonth || postDays <= 0) {
         if (existingPost) postDelete.push(existingPost.id);
         continue;

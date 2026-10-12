@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Mail, Phone, MessageCircle, Pencil, ChevronDown, Pause, Play, XCircle, LogOut, RotateCcw, Star, Trash2, Upload,
-  Activity, ArrowRight, CheckCircle2, StickyNote, ArrowRightLeft, FileText, UserPlus, Eye, Loader2,
+  Activity, ArrowRight, CheckCircle2, Hourglass, StickyNote, ArrowRightLeft, FileText, UserPlus, Eye, Loader2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,9 @@ import {
   useCandidateNotes, useMyUserId, type AtsAppRow, type AtsFile,
 } from "@/lib/ats/candidates";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
+import { CandidateAvatar, StageChip, StageRail, stageDotClass } from "./AtsUi";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAtsSettings } from "@/lib/ats/api";
 import { AppStatusBadge, Stars, fmtMonthly, fmtYears } from "./CandidateBits";
 import { ResumeViewer, pickDefaultFile } from "./ResumeViewer";
 import { EditProfileSheet } from "./EditProfileSheet";
@@ -83,15 +86,29 @@ const withScheme = (u: string) => (/^https?:\/\//i.test(u.trim()) ? u.trim() : `
 const readableSummary = (t: string | null | undefined) =>
   String(t ?? "").replace(/\bcover_letter\b/g, "cover letter").replace(/\bid_proof\b/g, "ID proof");
 
+type LoadState = "loading" | "ok" | "error";
+function LoadFallback({ state, onRetry }: { state: LoadState; onRetry: () => void }) {
+  if (state === "loading") return <Skeleton className="inline-block h-4 w-32 align-middle" />;
+  return <span className="text-xs text-muted-foreground">Couldn't load this. <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={onRetry}>Try again</Button></span>;
+}
+
 function ReferredBy({ employeeId }: { employeeId: string }) {
   const [name, setName] = useState<string | null>(null);
+  const [state, setState] = useState<LoadState>("loading");
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
+    setState("loading");
     supabase.from("hr_employees").select("first_name,last_name").eq("id", employeeId).maybeSingle()
-      .then(({ data }) => { if (alive && data) setName([data.first_name, data.last_name].filter(Boolean).join(" ") || null); });
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) { setState("error"); return; }
+        if (data) setName([data.first_name, data.last_name].filter(Boolean).join(" ") || null);
+        setState("ok");
+      }, () => alive && setState("error"));
     return () => { alive = false; };
-  }, [employeeId]);
-  return <Fact label="Referred by">{name}</Fact>;
+  }, [employeeId, tick]);
+  return <Fact label="Referred by">{state === "ok" ? name : <LoadFallback state={state} onRetry={() => setTick((n) => n + 1)} />}</Fact>;
 }
 
 const Chips = ({ items }: { items?: string[] | null }) =>
@@ -107,6 +124,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const reasons = useAtsReasons();
   const me = useMyUserId();
   const isAdmin = useIsHrAdmin().data === true;
+  const atsSettings = useAtsSettings();
   const [hireDlg, setHireDlg] = useState<null | { id: string; name: string; note?: string }>(null);
   const [undoOpen, setUndoOpen] = useState(false);
   const [selFile, setSelFile] = useState<string | null>(null);
@@ -215,6 +233,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const closed = app?.status === "rejected" || app?.status === "withdrawn";
   const hired = app?.status === "hired";
   const stageLocked = closed || hired || busy || !app;
+  const appIdle = app?.status === "active" && (app.days_in_stage ?? 0) >= (atsSettings.data?.idle_alert_days ?? 7);
   const waPhone = c.phone_norm && /^\d{10}$/.test(c.phone_norm) ? c.phone_norm : null;
 
   const isHiredStage = (id: string) => { const s = activeStages.find((x) => x.id === id); return !!s && (s.kind === "hired" || s.code === "hired"); };
@@ -271,12 +290,34 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     i: app && (app.status === "active" || app.status === "on_hold") && !busy ? () => setIvSignal((n) => n + 1) : undefined,
   };
 
+  const loc = [c.city, c.state].filter(Boolean).join(", ");
+  const keyFacts: [string, string][] = [
+    ["Experience", c.total_experience_years != null ? fmtYears(c.total_experience_years) : "—"],
+    ["Current CTC", fmtMonthly(c.current_ctc_monthly)],
+    ["Expected CTC", fmtMonthly(c.expected_ctc_monthly)],
+    ["Notice period", c.notice_period_days != null ? `${c.notice_period_days} days` : "—"],
+    ["Location", loc || "—"],
+  ];
+  const appDot = (a: AtsAppRow) => a.status === "hired" ? "bg-success" : a.status === "rejected" || a.status === "withdrawn" ? "bg-muted-foreground/60" : stageDotClass(a.stage_kind);
   const header = (
     <div className="space-y-3 border-b border-border p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <h2 className="break-words text-lg font-semibold text-foreground">{c.full_name}</h2>
-          <p className="t-mono text-xs text-muted-foreground">{c.ref_no}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <CandidateAvatar full_name={c.full_name ?? ""} size="lg" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              <h2 className="break-words font-display text-xl font-semibold leading-7 text-foreground">{c.full_name}</h2>
+              <span className="t-mono text-xs text-muted-foreground">{c.ref_no}</span>
+            </div>
+            {app && (
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-foreground">
+                <span className="min-w-0 truncate">{app.job_title ?? "General application"}</span>
+                <StageChip name={app.stage_name} kind={app.stage_kind} />
+                <AppStatusBadge status={app.status} />
+                <span className="text-xs text-muted-foreground">Applied {fmtDate(app.applied_at)}{app.source_name ? ` via ${app.source_name}` : ""}</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {mailOn
@@ -284,9 +325,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
             : c.email && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`mailto:${c.email}`}><Mail className="h-3.5 w-3.5" /> Email</a></Button>}
           {c.phone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`tel:${c.phone}`}><Phone className="h-3.5 w-3.5" /> Call</a></Button>}
           {waPhone && <Button asChild size="sm" variant="outline" className="h-8 gap-1"><a href={`https://wa.me/91${waPhone}`} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a></Button>}
-          <Button size="sm" variant="ghost" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
+          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => setEditOpen(true)}><Pencil className="h-3.5 w-3.5" /> Edit profile</Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="outline" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setKeysOpen(true)}><Keyboard className="mr-2 h-4 w-4" /> Keyboard shortcuts (?)</DropdownMenuItem>
               {isAdmin && <>
@@ -297,12 +338,21 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
           </DropdownMenu>
         </div>
       </div>
+      <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 border-t border-border pt-3 sm:grid-cols-5">
+        {keyFacts.map(([l, v]) => (
+          <div key={l} className="min-w-0">
+            <dt className="text-[11px] text-muted-foreground">{l}</dt>
+            <dd className="truncate text-sm font-medium tabular-nums text-foreground" title={v}>{v}</dd>
+          </div>
+        ))}
+      </dl>
       {(apps.data?.length ?? 0) > 1 && (
         <div className="flex flex-wrap gap-1.5">
           {apps.data!.map((a) => (
             <button key={a.application_id} type="button" onClick={() => onAppChange?.(a.application_id!)}
-              className={cn("rounded-full border px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 a.application_id === app?.application_id ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground hover:text-foreground")}>
+              <span aria-hidden className={cn("h-1.5 w-1.5 shrink-0 rounded-full", appDot(a))} />
               {a.job_title ?? "General"} · {a.status === "active" || a.status === "on_hold" ? a.stage_name : a.status === "hired" ? "Hired" : a.status === "rejected" ? "Rejected" : "Withdrawn"}
             </button>
           ))}
@@ -313,16 +363,15 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
 
   const decision = app ? (
     <SectionCard title={<span className="flex items-center gap-2">Decision <AppStatusBadge status={app.status} /></span>}>
-      <ol className="mb-3 flex flex-wrap items-center gap-1 text-xs" aria-label="Stages">
-        {activeStages.map((s, i) => (
-          <li key={s.id} className="flex items-center gap-1">
-            <span className={cn("rounded-md px-2 py-0.5",
-              s.id === app.stage_id ? "bg-primary text-primary-foreground font-medium" : i < curIdx ? "bg-muted text-foreground" : "text-muted-foreground")}
-              aria-current={s.id === app.stage_id ? "step" : undefined}>{s.name}</span>
-            {i < activeStages.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground/60" aria-hidden />}
-          </li>
-        ))}
-      </ol>
+      <div className="mb-3">
+        <StageRail size="lg" stages={activeStages} currentId={app.stage_id} status={app.status} />
+        {!closed && !hired && (
+          <p className={cn("mt-2 flex items-center gap-1 text-xs", appIdle ? "font-medium text-foreground" : "text-muted-foreground")}>
+            {appIdle && <Hourglass className="h-3.5 w-3.5 text-warning" aria-hidden />}
+            In this stage for {app.days_in_stage ?? 0} day{(app.days_in_stage ?? 0) === 1 ? "" : "s"}
+          </p>
+        )}
+      </div>
       {closed && (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 p-3 text-sm">
           <span className="text-foreground">
@@ -368,7 +417,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         ))}
         {!closed && !hired && <>
           <Button size="sm" variant="outline" disabled={busy} className="gap-1.5 text-destructive hover:text-destructive" title="Shortcut: R" onClick={() => setStatusDlg("rejected")}><XCircle className="h-4 w-4" /> Reject</Button>
-          <Button size="sm" variant="ghost" disabled={busy} className="gap-1.5" onClick={() => setStatusDlg("withdrawn")}><LogOut className="h-4 w-4" /> Withdrawn</Button>
+          <Button size="sm" variant="ghost" disabled={busy} className="gap-1.5" onClick={() => setStatusDlg("withdrawn")}><LogOut className="h-4 w-4" /> Mark withdrawn</Button>
         </>}
       </div>
     </SectionCard>
@@ -509,12 +558,20 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
 
 function FormAnswers({ appId }: { appId: string }) {
   const [a, setA] = useState<Record<string, any> | null>(null);
+  const [state, setState] = useState<LoadState>("loading");
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
+    setState("loading");
     supabase.from("ats_applications").select("answers").eq("id", appId).maybeSingle()
-      .then(({ data }) => { if (alive) setA((data?.answers as Record<string, any>) ?? {}); });
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) { setState("error"); return; }
+        setA((data?.answers as Record<string, any>) ?? {}); setState("ok");
+      }, () => alive && setState("error"));
     return () => { alive = false; };
-  }, [appId]);
+  }, [appId, tick]);
+  if (state !== "ok") return <SectionCard title="From the application form"><LoadFallback state={state} onRetry={() => setTick((n) => n + 1)} /></SectionCard>;
   const rows: [string, string][] = [
     ["Experience", "experience_text"], ["Expected CTC per year", "expected_ctc_text"],
     ["Notice period", "notice_period_text"], ["Skills", "skills_text"],
@@ -532,12 +589,20 @@ function FormAnswers({ appId }: { appId: string }) {
 
 function StatusBy({ appId }: { appId: string }) {
   const [name, setName] = useState<string | null>(null);
+  const [state, setState] = useState<LoadState>("loading");
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     let alive = true;
+    setState("loading");
     supabase.from("ats_applications").select("status_changed_by_name").eq("id", appId).maybeSingle()
-      .then(({ data }) => { if (alive) setName(data?.status_changed_by_name ?? null); });
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) { setState("error"); return; }
+        setName(data?.status_changed_by_name ?? null); setState("ok");
+      }, () => alive && setState("error"));
     return () => { alive = false; };
-  }, [appId]);
+  }, [appId, tick]);
+  if (state !== "ok") return <> · <LoadFallback state={state} onRetry={() => setTick((n) => n + 1)} /></>;
   return name ? <> · by {name}</> : null;
 }
 
@@ -663,7 +728,8 @@ function RatingsCard({ appId, me }: { appId: string; me: string | null }) {
   };
   const dirty = score !== (mine?.score ?? 0) || (comment.trim() || "") !== (mine?.comment ?? "");
   return (
-    <SectionCard title="Ratings" action={<Stars value={avg} count={all.length} />}>
+    <SectionCard title="Ratings" action={ratings.isSuccess ? <Stars value={avg} count={all.length} /> : undefined}>
+      {ratings.isLoading ? <RowsSkeleton rows={2} /> : ratings.isError ? <QueryError error={ratings.error} onRetry={() => ratings.refetch()} /> : <>
       <div className="space-y-2">
         <Label>Your rating</Label>
         <div className="flex items-center gap-1" role="radiogroup" aria-label="Your rating">
@@ -690,6 +756,7 @@ function RatingsCard({ appId, me }: { appId: string; me: string | null }) {
           ))}
         </ul>
       )}
+      </>}
     </SectionCard>
   );
 }
@@ -724,7 +791,7 @@ const NotesCard = forwardRef<HTMLTextAreaElement, { candidateId: string; appId: 
         <span className="text-xs text-muted-foreground">Ctrl/⌘ + Enter to save</span>
         <Button size="sm" disabled={!body.trim() || busy} onClick={add}>Add note</Button>
       </div>
-      {notes.isLoading ? <div className="mt-3"><RowsSkeleton rows={2} /></div> : (
+      {notes.isLoading ? <div className="mt-3"><RowsSkeleton rows={2} /></div> : !notes.isError && !(notes.data ?? []).length ? <p className="mt-3 text-sm text-muted-foreground">No notes yet.</p> : (
         <ul className="mt-3 space-y-2">
           {(notes.data ?? []).map((n) => (
             <li key={n.id} className="rounded-lg border border-border p-2.5 text-sm">

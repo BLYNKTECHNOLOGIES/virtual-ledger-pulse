@@ -43,9 +43,9 @@ const schema = z
     experience_min_years: optNum(0, 50, "Experience").refine((v) => v === "" || Number(v) * 2 === Math.round(Number(v) * 2), "Use steps of 0.5"),
     experience_max_years: optNum(0, 50, "Experience").refine((v) => v === "" || Number(v) * 2 === Math.round(Number(v) * 2), "Use steps of 0.5"),
     summary: z.string().max(500),
-    description: z.string().max(20000),
-    requirements: z.string().max(20000),
-    benefits: z.string().max(20000),
+    description: z.string().max(20000, "Keep this under 20,000 characters."),
+    requirements: z.string().max(20000, "Keep this under 20,000 characters."),
+    benefits: z.string().max(20000, "Keep this under 20,000 characters."),
     aliases: z.array(z.string()),
     requisition_id: z.string(),
   })
@@ -243,7 +243,7 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
           </>
         }
       >
-        <form id="ats-job-form" onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-6 pb-2">
+        <form id="ats-job-form" noValidate onSubmit={handleSubmit((v) => save.mutate(v))} className="space-y-6 pb-2">
           <section className="space-y-3">
             <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Basics</h3>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -345,10 +345,10 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
                   <Textarea rows={2} className="text-foreground" {...register("summary")} />
                 </Field>
               </div>
-              <Field label="Description"><Textarea rows={5} className="text-foreground" {...register("description")} /></Field>
-              <Field label="Requirements"><Textarea rows={5} className="text-foreground" {...register("requirements")} /></Field>
-              <Field label="Benefits"><Textarea rows={4} className="text-foreground" {...register("benefits")} /></Field>
-              <Field label="Alternative titles" hint="Other names candidates may use for this job. Used later to sort applications automatically.">
+              <Field label="Description" error={e.description?.message}><Textarea rows={5} className="text-foreground" {...register("description")} /></Field>
+              <Field label="Requirements" error={e.requirements?.message}><Textarea rows={5} className="text-foreground" {...register("requirements")} /></Field>
+              <Field label="Benefits" error={e.benefits?.message}><Textarea rows={4} className="text-foreground" {...register("benefits")} /></Field>
+              <Field label="Alternative titles" hint="Other names candidates may use for this job. Careers-page applications and imported rows with one of these names are filed under this job.">
                 <Controller control={control} name="aliases" render={({ field }) => (
                   <ChipInput value={field.value} onChange={(v) => field.onChange(v)} placeholder="Type and press Enter" />
                 )} />
@@ -372,7 +372,7 @@ export function JobEditor({ open, job, onClose }: { open: boolean; job: AtsJob |
                 </SelectContent>
               </Select>
             )} />
-            <p className="text-xs text-muted-foreground">Choosing one fills only the fields that are still empty.</p>
+            <p className="text-xs text-muted-foreground">Choosing one fills in the fields that are still empty and sets Openings to the number still needed.</p>
           </section>
         </form>
       </ResponsiveDialog>

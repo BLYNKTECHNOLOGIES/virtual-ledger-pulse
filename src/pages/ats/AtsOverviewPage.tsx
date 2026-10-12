@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { BarList, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
-import { useAtsJobSummary, useAtsJobs, useAtsOverview } from "@/lib/ats/api";
+import { useAtsJobSummary, useAtsJobs, useAtsOverview, useAtsSources } from "@/lib/ats/api";
 import { useRecentApplications, candidateHref } from "@/lib/ats/candidates";
 import { fmtDate, todayIST } from "@/lib/ats/format";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,8 @@ export default function AtsOverviewPage() {
   const navigate = useNavigate();
   const { openJobEditor } = useAts();
   const ov = useAtsOverview();
+  const sourcesQ = useAtsSources();
+  const careersSourceId = (sourcesQ.data ?? []).find((s) => s.code === "careers")?.id;
   const jobs = useAtsJobs();
   const summary = useAtsJobSummary();
   const recent = useRecentApplications();
@@ -57,24 +59,26 @@ export default function AtsOverviewPage() {
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground" role="status">
           <Info className="h-4 w-4 text-primary" aria-hidden />
           {unsorted} careers-page application{unsorted === 1 ? " has" : "s have"} no matching job.
-          <Link to="/hrms/ats/candidates?job=general" className="font-medium text-primary hover:underline">Sort them</Link>
+          <Link to={`/hrms/ats/candidates?job=general${careersSourceId ? `&source=${careersSourceId}` : ""}`} className="font-medium text-primary hover:underline">Sort them</Link>
         </div>
       )}
       {mailSt.data?.enabled && Number(mailSt.data.unread ?? 0) > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground" role="status">
           <Mail className="h-4 w-4 text-primary" aria-hidden />
-          {mailSt.data.unread} unread candidate replies.
+          {mailSt.data.unread} unread candidate {Number(mailSt.data.unread) === 1 ? "reply" : "replies"}.
           <Link to="/hrms/ats/inbox" className="font-medium text-primary hover:underline">Open inbox</Link>
         </div>
       )}
       {((ivCounts.data?.today ?? 0) > 0 || (ivCounts.data?.action ?? 0) > 0) && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-foreground" role="status">
           <CalendarClock className="h-4 w-4 text-primary" aria-hidden />
-          {ivCounts.data!.today} interview{ivCounts.data!.today === 1 ? "" : "s"} today.
-          <Link to="/hrms/ats/interviews?view=today" className="font-medium text-primary hover:underline">View</Link>
+          {ivCounts.data!.today > 0 && <>
+            {ivCounts.data!.today} interview{ivCounts.data!.today === 1 ? "" : "s"} today.
+            <Link to="/hrms/ats/interviews?view=today" className="font-medium text-primary hover:underline">View</Link>
+          </>}
           {ivCounts.data!.action > 0 && <>
-            <span className="text-muted-foreground">·</span>
-            {ivCounts.data!.action} need{ivCounts.data!.action === 1 ? "s" : ""} an update or feedback.
+            {ivCounts.data!.today > 0 && <span className="text-muted-foreground">·</span>}
+            {ivCounts.data!.action} interview{ivCounts.data!.action === 1 ? " needs" : "s need"} an update or feedback.
             <Link to="/hrms/ats/interviews?view=action" className="font-medium text-primary hover:underline">Review</Link>
           </>}
         </div>
@@ -85,7 +89,7 @@ export default function AtsOverviewPage() {
         <QueryError error={ov.error} onRetry={() => ov.refetch()} />
       ) : o ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-          <StatCard label="Open jobs" value={o.open_jobs} helper={`${o.open_seats} seats`} icon={Briefcase} tone="primary" />
+          <StatCard label="Open jobs" value={o.open_jobs} helper={`${o.open_seats} seat${Number(o.open_seats) === 1 ? "" : "s"}`} icon={Briefcase} tone="primary" />
           <StatCard label="New applications" value={o.applications_7d} helper={`${o.applications_30d} in 30 days`} icon={Inbox} />
           <button type="button" className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => navigate("/hrms/ats/candidates?unreviewed=1")}><StatCard label="Awaiting review" value={o.unreviewed} icon={Eye} /></button>
           <button type="button" className="text-left rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => navigate("/hrms/ats/candidates?idle=1")}><StatCard label="Idle" value={o.idle} helper={`no movement in ${o.idle_days}+ days`} icon={Hourglass} /></button>

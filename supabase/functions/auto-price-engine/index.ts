@@ -954,7 +954,7 @@ async function processAsset(
       market_reference_price: marketReferencePrice,
       deviation_from_market_pct: deviationPct,
       calculated_price: rule.price_type === "FIXED" ? uncappedTarget : null,
-      calculated_ratio: rule.price_type === "FLOATING" ? uncappedTarget : null,
+      calculated_ratio: rule.price_type === "FLOATING" ? uncappedTarget : null, binance_index_price: rule.price_type === "FLOATING" ? pricingIndex : null,
       was_capped: true,
       error_message: message,
     });

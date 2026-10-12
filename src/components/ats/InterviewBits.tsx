@@ -129,8 +129,7 @@ export function summarizeNotify(r: NotifyResult, opts: { base: string; firstName
     else if (c.status === "failed") { text += ` · email to ${opts.firstName} not sent: ${mailErrorMessage(c.error, c.field)}`; warn = true; }
   }
   const panel = r.panel ?? [];
-  const ok = panel.filter((p) => p.status === (opts.action === "cancel" ? "cancelled" : "sent")).length
-    + (opts.action === "cancel" ? 0 : panel.filter((p) => p.status === "cancelled").length * 0);
+  const ok = panel.filter((p) => p.status === (opts.action === "cancel" ? "cancelled" : "sent")).length;
   if (ok) text += opts.action === "cancel" ? ` · ${plural(ok, "calendar invite")} cancelled` : ` · ${plural(ok, "calendar invite")} sent`;
   const problems: string[] = [];
   for (const p of panel) {

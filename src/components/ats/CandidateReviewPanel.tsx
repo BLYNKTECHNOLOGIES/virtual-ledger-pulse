@@ -27,7 +27,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useFileDropzone } from "@/hooks/useFileDropzone";
-import { atsKeys, useAtsReasons, useAtsStages } from "@/lib/ats/api";
+import { atsKeys, useAtsReasons, useAtsStages, useIsHrAdmin } from "@/lib/ats/api";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDate, fmtDateTime, fmtRelative } from "@/lib/ats/format";
 import {
@@ -62,7 +62,7 @@ interface Props {
 const EVENT_ICON: Record<string, typeof Activity> = {
   candidate_created: UserPlus, application_created: UserPlus, stage_changed: ArrowRightLeft, status_changed: RotateCcw,
   note_added: StickyNote, note_updated: StickyNote, note_deleted: StickyNote, rating_added: Star, rating_updated: Star,
-  rating_deleted: Star, file_uploaded: FileText, file_deleted: FileText, reviewed: Eye, hired: CheckCircle2,
+  rating_deleted: Star, file_uploaded: FileText, file_deleted: FileText, file_added: FileText, file_removed: FileText, reviewed: Eye, hired: CheckCircle2,
   email_sent: Send, email_received: Mail, email_failed: AlertTriangle, email_bounced: MailX,
   interview_scheduled: CalendarPlus, interview_rescheduled: CalendarClock, interview_cancelled: CalendarX,
   interview_completed: CalendarCheck, interview_no_show: UserX, interview_reopened: RotateCcw,
@@ -77,6 +77,23 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
     </div>
   );
 }
+/** Links typed without a scheme open as https://. */
+const withScheme = (u: string) => (/^https?:\/\//i.test(u.trim()) ? u.trim() : `https://${u.trim()}`);
+/** Activity summaries: show file kinds in words. */
+const readableSummary = (t: string | null | undefined) =>
+  String(t ?? "").replace(/\bcover_letter\b/g, "cover letter").replace(/\bid_proof\b/g, "ID proof");
+
+function ReferredBy({ employeeId }: { employeeId: string }) {
+  const [name, setName] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    supabase.from("hr_employees").select("first_name,last_name").eq("id", employeeId).maybeSingle()
+      .then(({ data }) => { if (alive && data) setName([data.first_name, data.last_name].filter(Boolean).join(" ") || null); });
+    return () => { alive = false; };
+  }, [employeeId]);
+  return <Fact label="Referred by">{name}</Fact>;
+}
+
 const Chips = ({ items }: { items?: string[] | null }) =>
   items?.length ? <div className="flex flex-wrap gap-1">{items.map((s) => <Badge key={s} variant="secondary" className="font-normal">{s}</Badge>)}</div> : <>—</>;
 
@@ -89,6 +106,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const stages = useAtsStages();
   const reasons = useAtsReasons();
   const me = useMyUserId();
+  const isAdmin = useIsHrAdmin().data === true;
+  const [hireDlg, setHireDlg] = useState<null | { id: string; name: string; note?: string }>(null);
+  const [undoOpen, setUndoOpen] = useState(false);
   const [selFile, setSelFile] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -149,7 +169,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
   };
 
-  const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void, action?: { label: string; onClick: () => void }) => {
+  const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void, action?: { label: string; onClick: () => void }, noAdvance = false) => {
     if (busy) return;
     setBusy(true);
     try {
@@ -159,7 +179,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       else toast.success(success);
       after?.();
       refreshAll();
-      onActionDone?.();
+      if (!noAdvance) onActionDone?.();
     } catch (e) {
       toast.error(atsErrorMessage(e));
     } finally {
@@ -197,9 +217,24 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const stageLocked = closed || hired || busy || !app;
   const waPhone = c.phone_norm && /^\d{10}$/.test(c.phone_norm) ? c.phone_norm : null;
 
-  const moveTo = (stageId: string, name: string, note?: string) =>
-    run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`,
-      undefined, activeStages.find((s) => s.id === stageId)?.kind === "interview" ? { label: "Schedule interview", onClick: () => setIvSignal((n) => n + 1) } : undefined);
+  const isHiredStage = (id: string) => { const s = activeStages.find((x) => x.id === id); return !!s && (s.kind === "hired" || s.code === "hired"); };
+  const moveTo = (stageId: string, name: string, note?: string) => {
+    const toInterview = activeStages.find((s) => s.id === stageId)?.kind === "interview";
+    // E3: after a move into an Interview stage, stay on this candidate so the toast's "Schedule interview" works.
+    return run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`,
+      undefined, toInterview ? { label: "Schedule interview", onClick: () => setIvSignal((n) => n + 1) } : undefined, toInterview);
+  };
+  /** E1: every move into Hired is confirmed first. */
+  const requestMove = (stageId: string, name: string, note?: string) => {
+    if (isHiredStage(stageId)) setHireDlg({ id: stageId, name, note });
+    else moveTo(stageId, name, note);
+  };
+  const hiredIdx = activeStages.findIndex((s) => s.kind === "hired" || s.code === "hired");
+  const undoTarget = activeStages.find((s) => s.kind === "offer") ?? (hiredIdx > 0 ? activeStages[hiredIdx - 1] : undefined);
+  const undoHire = () => {
+    if (!undoTarget || !app) return;
+    run(() => supabase.rpc("ats_move_stage", { p_application_id: app.application_id!, p_stage_id: undoTarget.id, p_note: null }), "Hire undone", undefined, undefined, true);
+  };
   const setStatus = (status: string, msg: string, reasonId?: string, note?: string, after?: () => void) =>
     run(() => supabase.rpc("ats_set_status", { p_application_id: app!.application_id!, p_status: status, p_reason_id: reasonId ?? null, p_note: note || null }), msg, after);
 
@@ -230,7 +265,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   };
 
   shortcutRef.current = {
-    a: next && !stageLocked ? () => moveTo(next.id, next.name) : undefined,
+    a: next && !stageLocked ? () => requestMove(next.id, next.name) : undefined,
     h: app && !closed && !hired && !busy ? () => (app.status === "on_hold" ? setStatus("active", "Application resumed") : setStatus("on_hold", "Put on hold")) : undefined,
     r: app && !closed && !hired && !busy ? () => setStatusDlg("rejected") : undefined,
     i: app && (app.status === "active" || app.status === "on_hold") && !busy ? () => setIvSignal((n) => n + 1) : undefined,
@@ -254,8 +289,10 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
             <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-8 w-8" aria-label="More actions"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onSelect={() => setKeysOpen(true)}><Keyboard className="mr-2 h-4 w-4" /> Keyboard shortcuts (?)</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete candidate…</DropdownMenuItem>
+              {isAdmin && <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}><Trash2 className="mr-2 h-4 w-4" /> Delete candidate…</DropdownMenuItem>
+              </>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -298,13 +335,14 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         </div>
       )}
       {hired && (
-        <div className="mb-3 flex items-center gap-2 rounded-lg border border-border bg-success/10 p-3 text-sm text-foreground">
-          <CheckCircle2 className="h-4 w-4 text-success" /> Hired on {fmtDate(app.hired_at)}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-success/10 p-3 text-sm text-foreground">
+          <span className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" /> Hired on {fmtDate(app.hired_at)}</span>
+          {undoTarget && <Button size="sm" variant="outline" disabled={busy} className="gap-1.5" onClick={() => setUndoOpen(true)}><RotateCcw className="h-4 w-4" /> Undo hire</Button>}
         </div>
       )}
       <div className="flex flex-wrap gap-2">
         {next && (
-          <Button size="sm" disabled={stageLocked} className="gap-1.5" title="Shortcut: A" onClick={() => moveTo(next.id, next.name)}>
+          <Button size="sm" disabled={stageLocked} className="gap-1.5" title="Shortcut: A" onClick={() => requestMove(next.id, next.name)}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
             {activeStages[curIdx]?.code === "new" ? `Shortlist → ${next.name}` : `Move to ${next.name}`}
           </Button>
@@ -348,7 +386,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         <Fact label="Experience">{c.total_experience_years != null ? fmtYears(c.total_experience_years) : null}</Fact>
         <Fact label="Current role">{[c.current_title, c.current_company].filter(Boolean).join(" at ")}</Fact>
         <Fact label="Current CTC">{c.current_ctc_monthly != null ? fmtMonthly(c.current_ctc_monthly) : null}</Fact>
-        <Fact label="Expected CTC">{c.expected_ctc_monthly != null ? fmtMonthly(c.expected_ctc_monthly) : null}{c.ctc_note ? ` · ${c.ctc_note}` : ""}</Fact>
+        <Fact label="Expected CTC">{[c.expected_ctc_monthly != null ? fmtMonthly(c.expected_ctc_monthly) : null, c.ctc_note || null].filter(Boolean).join(" · ") || null}</Fact>
         <Fact label="Notice period">{c.notice_period_days != null ? `${c.notice_period_days} days` : null}</Fact>
         <Fact label="Location">{[c.city, c.state].filter(Boolean).join(", ")}</Fact>
         <Fact label="Alternate phone">{c.alt_phone}</Fact>
@@ -356,8 +394,9 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         <Fact label="Languages"><Chips items={c.languages} /></Fact>
         <div className="sm:col-span-2"><Fact label="Skills"><Chips items={c.skills} /></Fact></div>
         <div className="sm:col-span-2"><Fact label="Education">{c.education}</Fact></div>
-        <Fact label="LinkedIn">{c.linkedin_url ? <a href={c.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">Open profile</a> : null}</Fact>
-        <Fact label="Portfolio">{c.portfolio_url ? <a href={c.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">Open link</a> : null}</Fact>
+        <Fact label="LinkedIn">{c.linkedin_url ? <a href={withScheme(c.linkedin_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">Open profile</a> : null}</Fact>
+        <Fact label="Portfolio">{c.portfolio_url ? <a href={withScheme(c.portfolio_url)} target="_blank" rel="noopener noreferrer" className="text-primary underline-offset-2 hover:underline">Open link</a> : null}</Fact>
+        {c.referred_by_employee_id && <ReferredBy employeeId={c.referred_by_employee_id} />}
         <Fact label="Keep for future openings">{c.keep_for_future ? "Yes" : "No"}</Fact>
         {c.tags?.length ? <Fact label="Tags"><Chips items={c.tags} /></Fact> : null}
         {c.summary && <div className="sm:col-span-2"><Fact label="Summary"><span className="whitespace-pre-wrap">{c.summary}</span></Fact></div>}
@@ -377,7 +416,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       {app?.applied_via === "careers_form" && <FormAnswers appId={app.application_id!} />}
       {app?.applied_via === "import" && <ImportDetailsCard appId={app.application_id!} />}
       {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
-      <NotesCard ref={noteRef} candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} />
+      <NotesCard ref={noteRef} candidateId={candidateId} appId={app?.application_id ?? null} me={me.data ?? null} isAdmin={isAdmin} />
       <FilesCard files={files.data ?? []} onUpload={() => setUploadOpen(true)} candidateId={candidateId} />
     </>
   );
@@ -427,11 +466,36 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
 
       <ReasonDialog kind={statusDlg} reasons={(reasons.data ?? []).filter((r) => r.is_active && r.applies_to === statusDlg)} busy={busy}
         onClose={() => setStatusDlg(null)}
+        noEmailAddress={mailOn && !c.email}
         email={c.email ? { on: mailOn, defaultTicked: !!mailStatus.data?.reject_default, firstName: (c.full_name ?? "").trim().split(/\s+/)[0] || "the candidate", candidateId, appId: app?.application_id ?? null } : null}
         onSubmit={(rid, note, draft) => draft ? rejectWithEmail(rid, note, draft)
           : setStatus(statusDlg!, statusDlg === "rejected" ? "Application rejected" : "Marked as withdrawn", rid, note, () => setStatusDlg(null))} />
       <StageNoteDialog stage={stageDlg} busy={busy} onClose={() => setStageDlg(null)}
-        onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); moveTo(s.id, s.name, note); }} />
+        onSubmit={(note) => { const s = stageDlg!; setStageDlg(null); requestMove(s.id, s.name, note); }} />
+      <AlertDialog open={!!hireDlg} onOpenChange={(o) => !o && setHireDlg(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mark {c.full_name} as hired?</AlertDialogTitle>
+            <AlertDialogDescription>The application moves to {hireDlg?.name} and is marked hired.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const h = hireDlg!; setHireDlg(null); moveTo(h.id, h.name, h.note); }}>Mark as hired</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={undoOpen} onOpenChange={setUndoOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Undo the hire?</AlertDialogTitle>
+            <AlertDialogDescription>{c.full_name} goes back to the {undoTarget?.name} stage and is no longer counted as hired.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setUndoOpen(false); undoHire(); }}>Undo hire</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} candidateId={candidateId} appId={app?.application_id ?? null}
         onDone={(f) => { setSelFile(f.kind === "resume" || !selFile ? f.id : selFile); }} />
       <DeleteCandidateDialog open={delOpen} onOpenChange={setDelOpen} candidateId={candidateId} name={c.full_name} refNo={c.ref_no}
@@ -479,7 +543,8 @@ function StatusBy({ appId }: { appId: string }) {
 
 export interface RejectEmailDraft { subject: string; body: string; templateCode: string | null }
 
-function ReasonDialog({ kind, reasons, busy, onClose, onSubmit, email }: {
+function ReasonDialog({ kind, reasons, busy, onClose, onSubmit, email, noEmailAddress }: {
+  noEmailAddress?: boolean;
   kind: null | "rejected" | "withdrawn"; reasons: { id: string; label: string }[]; busy: boolean;
   onClose: () => void; onSubmit: (reasonId: string, note: string, email: RejectEmailDraft | null) => void;
   email?: { on: boolean; defaultTicked: boolean; firstName: string; candidateId: string; appId: string | null } | null;
@@ -533,6 +598,7 @@ function ReasonDialog({ kind, reasons, busy, onClose, onSubmit, email }: {
           <Label htmlFor="ats-reason-note">Note (optional)</Label>
           <Textarea id="ats-reason-note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} className="text-foreground" />
         </div>
+        {kind === "rejected" && noEmailAddress && <p className="text-xs text-muted-foreground">No email address, so no email will be sent.</p>}
         {showEmail && (
           <div className="space-y-3 rounded-lg border border-border p-3">
             <label className="flex items-center gap-2 text-sm text-foreground">
@@ -628,7 +694,7 @@ function RatingsCard({ appId, me }: { appId: string; me: string | null }) {
   );
 }
 
-const NotesCard = forwardRef<HTMLTextAreaElement, { candidateId: string; appId: string | null; me: string | null }>(function NotesCard({ candidateId, appId, me }, noteRef) {
+const NotesCard = forwardRef<HTMLTextAreaElement, { candidateId: string; appId: string | null; me: string | null; isAdmin?: boolean }>(function NotesCard({ candidateId, appId, me, isAdmin }, noteRef) {
   const qc = useQueryClient();
   const notes = useCandidateNotes(candidateId);
   const [body, setBody] = useState("");
@@ -664,9 +730,9 @@ const NotesCard = forwardRef<HTMLTextAreaElement, { candidateId: string; appId: 
             <li key={n.id} className="rounded-lg border border-border p-2.5 text-sm">
               <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
                 <span><span className="font-medium text-foreground">{n.author_name ?? "Someone"}</span> · {fmtDateTime(n.created_at)}</span>
-                {n.author_user_id === me && editing?.id !== n.id && (
+                {(n.author_user_id === me || isAdmin) && editing?.id !== n.id && (
                   <span className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit note" onClick={() => setEditing({ id: n.id, body: n.body })}><Pencil className="h-3.5 w-3.5" /></Button>
+                    {n.author_user_id === me && <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit note" onClick={() => setEditing({ id: n.id, body: n.body })}><Pencil className="h-3.5 w-3.5" /></Button>}
                     <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Delete note" onClick={() => setDel(n.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </span>
                 )}
@@ -711,7 +777,10 @@ function ActivityCard({ candidateId }: { candidateId: string }) {
               <li key={e.id} className="flex items-start gap-3 py-2">
                 <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground"><Icon className="h-3.5 w-3.5" aria-hidden /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-sm text-foreground">{e.summary}</p>
+                  <p className="break-words text-sm text-foreground">{readableSummary(e.summary)}</p>
+                  {typeof (e.data as any)?.note === "string" && (e.data as any).note.trim() && (
+                    <p className="whitespace-pre-wrap break-words text-xs text-muted-foreground">“{(e.data as any).note.trim()}”</p>
+                  )}
                   <p className="text-xs text-muted-foreground" title={fmtDateTime(e.created_at)}>{e.actor_name ?? "System"} · {fmtRelative(e.created_at)}</p>
                 </div>
               </li>

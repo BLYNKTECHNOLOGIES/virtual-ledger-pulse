@@ -10,7 +10,7 @@ import { ForcedPasswordResetDialog } from '@/components/auth/ForcedPasswordReset
 import { ForgotPasswordDialog } from '@/components/auth/ForgotPasswordDialog';
 import { RegisterUserDialog } from '@/components/auth/RegisterUserDialog';
 import { AuroraBackdrop } from '@/components/website/AuroraBackdrop';
-import blynkLogoWhite from '@/assets/brand/blynk-logo-white.svg';
+import { BrandLogo } from '@/components/BrandLogo';
 
 
 export function LoginPage() {
@@ -184,10 +184,9 @@ export function LoginPage() {
       <div className="relative z-10 w-full max-w-[400px]">
         <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-8 shadow-2xl shadow-black/40 backdrop-blur-xl">
           {/* Brand logo */}
-          <img
-            src={blynkLogoWhite}
-            alt="Blynk"
-            className={`mb-8 h-7 w-auto ${boot ? 'lsf-item' : ''}`}
+          <BrandLogo
+            theme="dark"
+            className={`mb-8 h-10 w-auto max-w-full ${boot ? 'lsf-item' : ''}`}
             style={bootItem(60)}
           />
 

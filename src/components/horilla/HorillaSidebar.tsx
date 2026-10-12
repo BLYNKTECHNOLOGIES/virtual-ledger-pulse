@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import blynkIcon from "@/assets/brand/blynk-icon.svg";
+import { BrandLogo } from "@/components/BrandLogo";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -414,15 +414,7 @@ export function HorillaSidebar({
 
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-primary/10">
-            <img src={blynkIcon} alt="BLYNK" className="w-6 h-6" />
-          </div>
-          {!collapsed && (
-            <div className="flex flex-col leading-tight animate-fade-in">
-              <span className="text-sidebar-accent-foreground font-display font-semibold text-xs tracking-normal whitespace-nowrap">BLYNK VIRTUAL</span>
-              <span className="text-sidebar-accent-foreground font-display font-semibold text-xs tracking-normal whitespace-nowrap">TECHNOLOGIES</span>
-            </div>
-          )}
+          <BrandLogo variant={collapsed ? 'icon' : 'full'} className={collapsed ? 'h-8 w-8' : 'h-10 w-auto max-w-[190px]'} />
         </div>
       </div>
 

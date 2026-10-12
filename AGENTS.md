@@ -1,5 +1,7 @@
 # Project architecture decisions
 
+- Frontend brand images resolve through BrandLogo and brandLogos, with Terminal passing its independent theme explicitly, because surface contrast must not depend on the ERP theme or on recreated artwork.
+
 - F&F approval stages payroll inputs only; RazorpayX writes and read-back verification belong to the cockpit Inputs Push step, so separation review and payroll execution remain distinct.
 - The daily IST last-working-day sweep disables ERP login and queues biometric removal regardless of F&F; RazorpayX dismissal needs a paid F&F (auto-marked paid when cockpit Step 7 is confirmed for the run that carried it) plus final-salary proof for the later of the LWD/F&F month (payout row, or Step 7 done + imported payslip with pay > 0), because RazorpayX exposes no payout API.
 - Loss-of-pay day counting (hr_lop_days_window) uses each day's corrected outcome — HR's explicit day mark (manual_status) first, else the status recomputed from corrected punch times — never a blanket 'approved correction = full day', because a correction can legitimately result in a half day or absence.

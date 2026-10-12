@@ -2,7 +2,7 @@ import { useMailStatus } from "@/lib/ats/mail";
 import { useInterviewCounts } from "@/lib/ats/interviews";
 import { useCallback, useMemo, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { FileUp, Plus, UserPlus } from "lucide-react";
+import { FileUp, Plus, UserPlus, LayoutDashboard, Users, Inbox, CalendarClock, Briefcase, BarChart3, Settings2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

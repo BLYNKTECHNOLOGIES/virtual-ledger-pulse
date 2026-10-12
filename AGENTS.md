@@ -1,5 +1,7 @@
 # Project architecture decisions
 
+- Ordinary shared tables wrap content and use available width without a blanket minimum; only intrinsically wide grids opt into explicit minimum widths, because forcing max-content creates avoidable horizontal scrolling.
+
 - Frontend brand images resolve through BrandLogo and brandLogos, with Terminal passing its independent theme explicitly, because surface contrast must not depend on the ERP theme or on recreated artwork.
 
 - F&F approval stages payroll inputs only; RazorpayX writes and read-back verification belong to the cockpit Inputs Push step, so separation review and payroll execution remain distinct.

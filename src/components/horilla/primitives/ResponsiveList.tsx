@@ -44,7 +44,7 @@ export function ResponsiveList<T>({
   keyFor,
   isLoading,
   emptyState,
-  tableMinWidth = "min-w-[720px]",
+  tableMinWidth = "min-w-0",
   className,
   mobileClassName,
 }: ResponsiveListProps<T>) {
@@ -94,7 +94,7 @@ export function ResponsiveList<T>({
   return (
     <div className={className}>
       <div className="hrms-scroll-table bg-card rounded-xl border border-border overflow-x-auto">
-        <table className={`w-full text-sm ${tableMinWidth}`}>
+        <table className={`table-fit w-full text-sm ${tableMinWidth}`}>
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>
               {columns.map((col) => (

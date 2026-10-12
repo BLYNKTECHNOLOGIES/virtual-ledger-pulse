@@ -1214,9 +1214,7 @@ html {
      every table container, compress toolbars, chip strips.
      ═══════════════════════════════════════════════════════ */
 
-  .horilla-root table {
-    min-width: max-content;
-  }
+  /* Only explicit wide grids set a minimum width; ordinary tables can wrap. */
 
   .horilla-root,
   .horilla-root * {
@@ -1874,6 +1872,17 @@ html {
   background: hsl(var(--card));
 }
 .ds-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.table-fit th,
+.table-fit td {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.table-fit th { line-height: 1.4; }
+.ds-table { overflow-wrap: anywhere; }
+@media (max-width: 1023px) {
+  .ds-table thead th,
+  .ds-table tbody td { padding-left: 0.5rem; padding-right: 0.5rem; }
+}
 .ds-table thead th {
   position: sticky;
   top: 0;
@@ -1888,7 +1897,7 @@ html {
   text-align: left;
   padding: 0.5rem 0.75rem;
   border-bottom: 1px solid hsl(var(--border));
-  white-space: nowrap;
+  white-space: normal;
 }
 .ds-table tbody td {
   padding: 0.5rem 0.75rem;

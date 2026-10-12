@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase,
+  ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,9 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { EmptyState } from "@/components/shared/EmptyState";
 import { JobStatusBadge, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
+import { CandidateTable } from "@/components/ats/CandidateTable";
+import { candidateHref, saveNavCtx, useCandidateList } from "@/lib/ats/candidates";
+import { useAtsSettings } from "@/lib/ats/api";
 import {
   deleteJob, jobKeys, updateJob, useAtsJob, useAtsJobEvents, useAtsJobSummary, useAtsMutation, useAtsStages,
   useDepartmentsLookup, useEmployeesLookup, useRequirementsLookup, useShiftsLookup,
@@ -40,7 +43,10 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 export default function AtsJobDetailPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { openJobEditor } = useAts();
+  const { openJobEditor, openAddCandidate } = useAts();
+  const atsSettings = useAtsSettings();
+  const idleDays = atsSettings.data?.idle_alert_days ?? 7;
+  const jobCands = useCandidateList({ job: jobId, status: "all", applied: "all", sort: "newest" }, 0, idleDays, !!jobId);
   const job = useAtsJob(jobId);
   const summary = useAtsJobSummary();
   const stages = useAtsStages();
@@ -119,6 +125,7 @@ export default function AtsJobDetailPage() {
             {j.status === "paused" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Resume</Button>}
             {(j.status === "open" || j.status === "paused") && <Button size="sm" variant="outline" disabled={busy} onClick={() => setCloseOpen(true)} className="gap-1.5"><XCircle className="h-4 w-4" /> Close</Button>}
             {j.status === "closed" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Reopen</Button>}
+            <Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>
             <Button size="sm" variant="outline" onClick={() => openJobEditor(j)} className="gap-1.5"><Pencil className="h-4 w-4" /> Edit</Button>
             {summary.isSuccess && total === 0 && (
               <Button size="sm" variant="ghost" onClick={() => setDelOpen(true)} className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
@@ -130,6 +137,7 @@ export default function AtsJobDetailPage() {
       <Tabs defaultValue="overview">
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap sm:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="candidates">Candidates</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -138,14 +146,13 @@ export default function AtsJobDetailPage() {
             {stageStrip.length === 0 ? <p className="text-sm text-muted-foreground">No stages configured.</p> : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {stageStrip.map((st) => (
-                  <div key={st.id} className="rounded-lg border border-border bg-muted/30 p-2 text-center">
+                  <Link key={st.id} to={`/hrms/ats/candidates?job=${j.id}&stage=${st.id}`} className="rounded-lg border border-border bg-muted/30 p-2 text-center hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                     <div className="truncate text-xs text-muted-foreground" title={st.name}>{st.name}</div>
                     <div className="text-lg font-semibold tabular-nums text-foreground">{st.count}</div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-foreground">Candidates for this job will appear here in the next update.</p>
           </SectionCard>
 
           <SectionCard title="Key facts">
@@ -171,6 +178,27 @@ export default function AtsJobDetailPage() {
               </SectionCard>
             ) : null,
           )}
+        </TabsContent>
+
+        <TabsContent value="candidates">
+          <SectionCard title="Candidates" action={<Button size="sm" variant="ghost" asChild><Link to={`/hrms/ats/candidates?job=${j.id}&status=all`}>Open in Candidates</Link></Button>}>
+            {jobCands.isLoading ? <RowsSkeleton rows={5} /> : jobCands.isError ? (
+              <QueryError error={jobCands.error} onRetry={() => jobCands.refetch()} />
+            ) : !(jobCands.data?.rows ?? []).length ? (
+              <EmptyState icon={Users} title="No candidates yet" className="py-8"
+                action={<Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>} />
+            ) : (
+              <>
+                <CandidateTable rows={jobCands.data!.rows} idleDays={idleDays} hideJob onOpen={(r) => {
+                  saveNavCtx({ items: jobCands.data!.rows.map((x) => ({ candidateId: x.candidate_id!, appId: x.application_id! })), from: `/hrms/ats/jobs/${j.id}` });
+                  navigate(candidateHref(r), { state: { fromList: true } });
+                }} />
+                {(jobCands.data!.count ?? 0) > jobCands.data!.rows.length && (
+                  <p className="pt-3 text-xs text-muted-foreground">Showing the newest {jobCands.data!.rows.length} of {jobCands.data!.count}. <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=${j.id}&status=all`}>See all</Link></p>
+                )}
+              </>
+            )}
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="activity">

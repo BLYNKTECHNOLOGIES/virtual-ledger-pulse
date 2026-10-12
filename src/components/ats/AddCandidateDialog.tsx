@@ -15,6 +15,7 @@ import { candKeys } from "@/lib/ats/candidates";
 import { fmtDate } from "@/lib/ats/format";
 import { uploadAtsFile, AtsFileError, validateAtsFile } from "@/lib/ats/files";
 import { ChipInput, MultiSelect } from "./AtsBits";
+import { FormSection, Req } from "./AtsUi";
 import { appStatusLabel } from "./CandidateBits";
 import { FileDropZone } from "./CandidateReviewPanel";
 import { validateCandidateNumbers } from "./EditProfileSheet";
@@ -224,11 +225,3 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
   );
 }
 
-/** Section heading inside the candidate forms. */
-export function FormSection({ title }: { title: string }) {
-  return <h3 className="mb-2 mt-4 text-xs font-semibold text-muted-foreground first:mt-0">{title}</h3>;
-}
-/** Required-field marker. */
-export function Req() {
-  return <><span aria-hidden className="text-destructive"> *</span><span className="sr-only"> required</span></>;
-}

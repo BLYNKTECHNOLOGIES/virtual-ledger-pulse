@@ -87,3 +87,12 @@ export function IdleDays({ days, idle, idleDays, suffix = "" }: { days?: number 
     <Hourglass className="h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />{n}{suffix}
   </span>;
 }
+
+/** Section heading inside the candidate forms. */
+export function FormSection({ title }: { title: string }) {
+  return <h3 className="mb-2 mt-4 text-xs font-semibold text-muted-foreground first:mt-0">{title}</h3>;
+}
+/** Required-field marker. */
+export function Req() {
+  return <><span aria-hidden className="text-destructive"> *</span><span className="sr-only"> required</span></>;
+}

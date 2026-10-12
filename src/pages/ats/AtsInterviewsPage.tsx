@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { QueryError, RowsSkeleton } from "@/components/ats/AtsBits";
 import { InterviewStatusBadge, PanelChips, ResponseChip, WhereLine } from "@/components/ats/InterviewBits";
 import { InterviewActions } from "@/components/ats/InterviewActions";
+import { InterviewFeedbackDialog } from "@/components/ats/InterviewFeedbackDialog";
+import type { InterviewRow } from "@/lib/ats/interviews";
 import { useMyUserId } from "@/lib/ats/candidates";
 import { useMailStatus } from "@/lib/ats/mail";
 import {
@@ -70,6 +72,7 @@ export default function AtsInterviewsPage() {
     return true;
   });
 
+  const [feedbackIv, setFeedbackIv] = useState<InterviewRow | null>(null);
   const groups = useMemo(() => {
     const out: { day: string; label: string; rows: InterviewListRow[] }[] = [];
     for (const r of filtered) {
@@ -138,17 +141,18 @@ export default function AtsInterviewsPage() {
               <section key={g.day} className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground">{g.label}</h3>
                 <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
-                  {g.rows.map((r) => <Row key={r.id} r={r} view={view} mailOn={mailOn} mobile={isMobile} />)}
+                  {g.rows.map((r) => <Row key={r.id} r={r} view={view} mailOn={mailOn} mobile={isMobile} onOpenFeedback={setFeedbackIv} />)}
                 </ul>
               </section>
             ))}
           </div>
         )}
+      {feedbackIv && <InterviewFeedbackDialog open onOpenChange={(o) => { if (!o) setFeedbackIv(null); }} iv={feedbackIv} />}
     </div>
   );
 }
 
-function Row({ r, view, mailOn, mobile }: { r: InterviewListRow; view: IvView; mailOn: boolean; mobile: boolean }) {
+function Row({ r, view, mailOn, mobile, onOpenFeedback }: { r: InterviewListRow; view: IvView; mailOn: boolean; mobile: boolean; onOpenFeedback: (iv: InterviewRow) => void }) {
   const target = listRowTarget(r);
   const canSchedule = r.ats_applications?.status === "active" || r.ats_applications?.status === "on_hold";
   const missing = missingFeedback(r);
@@ -179,7 +183,7 @@ function Row({ r, view, mailOn, mobile }: { r: InterviewListRow; view: IvView; m
         <WhereLine iv={r} phone={target.phone} />
         <div className="flex flex-wrap items-center gap-1"><PanelChips iv={r} mailOn={mailOn} /><ResponseChip iv={r} /></div>
         {view === "action" && st === "completed" && missing.length > 0 && <p className="text-sm text-warning">Feedback missing from {missing.map((m) => m.name).join(", ")}</p>}
-        <InterviewActions iv={r} target={target} mailOn={mailOn} canSchedule={canSchedule} primary={view === "action"} />
+        <InterviewActions iv={r} target={target} mailOn={mailOn} canSchedule={canSchedule} primary={view === "action"} onOpenFeedback={onOpenFeedback} />
       </div>
     </li>
   );

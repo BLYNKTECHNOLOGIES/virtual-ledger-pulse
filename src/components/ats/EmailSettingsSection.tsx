@@ -161,11 +161,11 @@ function MailCard() {
               </Button>
             </div>
             {sync?.last_stats && Object.keys(stats).length > 0 && (
-              <p className="text-muted-foreground">{Number(stats.stored ?? 0)} new candidate emails · {Number(stats.attachments_saved ?? 0)} files saved · {Number(stats.bounces ?? 0)} bounced</p>
+              <p className="text-muted-foreground">{Number(stats.stored ?? 0)} new candidate {Number(stats.stored ?? 0) === 1 ? "email" : "emails"} · {Number(stats.attachments_saved ?? 0)} files saved · {Number(stats.bounces ?? 0)} bounced</p>
             )}
             {Number(stats.pending ?? 0) > 0 && <p className="text-muted-foreground">{stats.pending} still to read</p>}
             {attention && <p className="text-destructive">{mailErrorMessage(sync!.last_error)} · {fmtDateTime(sync!.last_error_at)}</p>}
-            <p className="text-muted-foreground">{s.unread} unread candidate replies</p>
+            <p className="text-muted-foreground">{s.unread} unread candidate {Number(s.unread) === 1 ? "reply" : "replies"}</p>
           </div>
         )}
 

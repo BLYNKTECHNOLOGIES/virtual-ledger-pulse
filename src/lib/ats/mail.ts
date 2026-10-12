@@ -179,7 +179,7 @@ export function checkResultText(r: { ok: boolean; error?: string | null; skipped
   if (r.skipped === "busy") return { ok: true, text: "Already checking. Try again in a minute." };
   if (!r.ok || r.error) return { ok: false, text: mailErrorMessage(r.error) };
   const n = Number(r.stored ?? 0);
-  return { ok: true, text: n ? `${n} new candidate emails` : "No new candidate emails" };
+  return { ok: true, text: n ? `${n} new candidate ${n === 1 ? "email" : "emails"}` : "No new candidate emails" };
 }
 
 export const PLACEHOLDER_RE = /\{\{\s*[\w.]+\s*\}\}/;

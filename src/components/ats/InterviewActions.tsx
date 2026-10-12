@@ -21,8 +21,10 @@ import { InterviewFeedbackDialog } from "./InterviewFeedbackDialog";
 type Dlg = null | { kind: "change" } | { kind: "again" } | { kind: "notify" | "cancel" | "feedback" };
 
 /** Action buttons, ⋮ menu and the per-interview dialogs (shared by the candidate card and the Interviews tab). */
-export function InterviewActions({ iv, target, mailOn, canSchedule, primary }: {
+export function InterviewActions({ iv, target, mailOn, canSchedule, primary, onOpenFeedback }: {
   iv: InterviewRow; target: IvTarget; mailOn: boolean; canSchedule: boolean; primary?: boolean;
+  /** When given, the toast's "Add feedback" opens the dialog through the parent, so it still works after this row unmounts. */
+  onOpenFeedback?: (iv: InterviewRow) => void;
 }) {
   const qc = useQueryClient();
   const [dlg, setDlg] = useState<Dlg>(null);
@@ -39,7 +41,7 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary }: {
     setBusy(true);
     try {
       await setInterviewStatus(iv.id, status);
-      if (status === "completed") toast.success("Marked as completed", { action: { label: "Add feedback", onClick: () => setDlg({ kind: "feedback" }) } });
+      if (status === "completed") toast.success("Marked as completed", { action: { label: "Add feedback", onClick: () => (onOpenFeedback ? onOpenFeedback(iv) : setDlg({ kind: "feedback" })) } });
       else toast.success(status === "no_show" ? "Marked as did not attend" : "Marked as scheduled again");
       refresh();
     } catch (e) {
@@ -87,7 +89,9 @@ export function InterviewActions({ iv, target, mailOn, canSchedule, primary }: {
             {(st === "now" || st === "awaiting") && <DropdownMenuItem onSelect={() => setDlg({ kind: "change" })}>Change</DropdownMenuItem>}
             {(st === "upcoming" || st === "now") && mailOn && <DropdownMenuItem onSelect={() => setDlg({ kind: "notify" })}>Send invitations…</DropdownMenuItem>}
             {(st === "completed" || st === "no_show") && <DropdownMenuItem onSelect={() => setStatus("scheduled")}>Undo: mark as scheduled</DropdownMenuItem>}
-            {(st === "no_show" || st === "cancelled") && <DropdownMenuItem disabled={!canSchedule} onSelect={() => setDlg({ kind: "again" })}>Schedule again</DropdownMenuItem>}
+            {(st === "no_show" || st === "cancelled") && (canSchedule
+              ? <DropdownMenuItem onSelect={() => setDlg({ kind: "again" })}>Schedule again</DropdownMenuItem>
+              : <div title="Reopen this application to schedule an interview."><DropdownMenuItem disabled>Schedule again</DropdownMenuItem></div>)}
             {st !== "no_show" && st !== "cancelled" && <DropdownMenuItem onSelect={copyDetails}>Copy details</DropdownMenuItem>}
             {(st === "upcoming" || st === "now" || st === "awaiting") && <>
               <DropdownMenuSeparator />

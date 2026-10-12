@@ -13,7 +13,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { atsKeys, useAtsSettings, useAtsSources } from "@/lib/ats/api";
+import { atsKeys, useAtsSettings, useAtsSources, useIsHrAdmin } from "@/lib/ats/api";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDateTime } from "@/lib/ats/format";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
@@ -25,6 +25,13 @@ interface Status {
 }
 
 const statusKey = ["ats", "integration-status"] as const;
+
+function careersErrorText(t: string): string {
+  if (t === "resume_fetch_failed") return "A resume couldn't be copied from the website. The website will try again.";
+  if (t === "internal_create") return "An application couldn't be saved. Check that the website is sending complete applications.";
+  if (t.startsWith("internal_")) return "Something went wrong while receiving an application.";
+  return t;
+}
 
 function connection(s: Status): { label: string; tone: "muted" | "ok" | "warn" } {
   if (!s.has_key) return { label: "Not set up", tone: "muted" };
@@ -76,6 +83,7 @@ export function CareersSettingsSection() {
     qc.invalidateQueries({ queryKey: statusKey });
   };
 
+  const isAdmin = useIsHrAdmin();
   const careersSource = (sources.data ?? []).find((s) => s.code === "careers");
   const s = status.data;
   const c = s ? connection(s) : null;
@@ -99,7 +107,7 @@ export function CareersSettingsSection() {
         ) : (
           <div className="space-y-4">
             {c?.label === "Needs attention" && s.last_error && (
-              <p className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-foreground">{s.last_error} · {fmtDateTime(s.last_error_at)}</p>
+              <p className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-foreground">{careersErrorText(s.last_error)} · {fmtDateTime(s.last_error_at)}</p>
             )}
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div><dt className="text-xs text-muted-foreground">Received in total</dt><dd className="text-lg font-semibold tabular-nums text-foreground">{s.received_total}</dd></div>
@@ -112,9 +120,13 @@ export function CareersSettingsSection() {
               </dd></div>
             </dl>
             <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
-              <Button className="gap-1.5" disabled={rotating} onClick={() => (s.has_key ? setConfirm(true) : rotate())}>
-                {rotating ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Generate connection key
-              </Button>
+              {isAdmin ? (
+                <Button className="gap-1.5" disabled={rotating} onClick={() => (s.has_key ? setConfirm(true) : rotate())}>
+                  {rotating ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Generate connection key
+                </Button>
+              ) : (
+                <span className="text-sm text-muted-foreground">Only HR admins can generate the connection key.</span>
+              )}
               {s.has_key && (
                 <span className="text-xs text-muted-foreground">Current key ends in <span className="t-mono">…{s.key_preview}</span>{s.key_created_by_name ? ` · by ${s.key_created_by_name}` : ""} · {fmtDateTime(s.key_created_at)}</span>
               )}
@@ -136,7 +148,7 @@ export function CareersSettingsSection() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ResponsiveDialog open={!!key} onOpenChange={(o) => { if (!o) setKey(null); }} title="Connection key"
+      <ResponsiveDialog open={!!key} onOpenChange={() => { /* closes only with the Close button */ }} title="Connection key"
         description="This key is shown only once."
         footer={<Button onClick={() => setKey(null)}>Close</Button>}>
         <div className="space-y-4">

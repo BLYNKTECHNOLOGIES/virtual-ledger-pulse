@@ -48,6 +48,6 @@ export function ResumeIcon({ show }: { show?: boolean | null }) {
   return <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-label="Has resume" />;
 }
 
-export const fmtYears = (n?: number | null) => (n == null ? "—" : `${Number(n)} yrs`);
+export const fmtYears = (n?: number | null) => (n == null ? "—" : `${Number(n)} ${Number(n) === 1 ? "yr" : "yrs"}`);
 export const fmtMonthly = (n?: number | null) => (n == null ? "—" : `₹${Number(n).toLocaleString("en-IN")}/mo`);
 export const isUnreviewed = (r: { status?: string | null; reviewed_at?: string | null }) => r.status === "active" && !r.reviewed_at;

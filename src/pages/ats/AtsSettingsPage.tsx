@@ -101,14 +101,14 @@ function StagesSection() {
     if (!p) throw new Error("There is no room to place a stage there. Move another stage first.");
     await applyUpdates(p.updates);
     chk(await supabase.from("ats_stages").insert({ name: name.trim(), sort_order: p.value } as any));
-  }, { invalidate: inv, success: "Stage added", onSuccess: () => { setAddOpen(false); setName(""); setAfter(""); } });
+  }, { invalidate: inv, pageErrors: true, success: "Stage added", onSuccess: () => { setAddOpen(false); setName(""); setAfter(""); } });
   const rename = useAtsMutation(async (v: { id: string; name: string }) => chk(await supabase.from("ats_stages").update({ name: v.name }).eq("id", v.id)), { invalidate: inv, success: "Stage renamed" });
-  const toggle = useAtsMutation(async (v: { id: string; on: boolean }) => chk(await supabase.from("ats_stages").update({ is_active: v.on }).eq("id", v.id)), { invalidate: inv });
+  const toggle = useAtsMutation(async (v: { id: string; on: boolean }) => chk(await supabase.from("ats_stages").update({ is_active: v.on }).eq("id", v.id)), { invalidate: inv, refetchOnError: true });
   const move = useAtsMutation(async (v: { id: string; afterId: string }) => {
     const p = placeAfter(sorted, v.afterId, v.id);
     if (!p) throw new Error("This stage can't move there.");
     await applyUpdates([...p.updates, { id: v.id, sort_order: p.value }]);
-  }, { invalidate: inv });
+  }, { invalidate: inv, pageErrors: true });
   const remove = useAtsMutation(async (id: string) => chk(await supabase.from("ats_stages").delete().eq("id", id)), {
     invalidate: inv, success: "Stage deleted", inUse: "This stage still has candidates. Move them first.", onSuccess: () => setDel(null),
   });
@@ -345,7 +345,7 @@ function GeneralSection() {
   const e = form.formState.errors;
   return (
     <SectionCard title="General">
-      <form className="grid max-w-xl grid-cols-1 gap-4" onSubmit={form.handleSubmit((v) => save.mutate(v))}>
+      <form noValidate className="grid max-w-xl grid-cols-1 gap-4" onSubmit={form.handleSubmit((v) => save.mutate(v))}>
         <div className="space-y-1.5">
           <Label htmlFor="ats-def-loc">Default job location</Label>
           <Input id="ats-def-loc" className="text-foreground" {...form.register("default_location")} />

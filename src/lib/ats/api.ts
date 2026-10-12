@@ -184,7 +184,7 @@ export const useRequirementsLookup = () =>
 /* ---------- mutations ---------- */
 export function useAtsMutation<TVars>(
   fn: (v: TVars) => Promise<unknown>,
-  opts: { invalidate: (v: TVars) => QueryKey[]; success?: string | ((v: TVars) => string); inUse?: string; onSuccess?: (data: any, v: TVars) => void },
+  opts: { invalidate: (v: TVars) => QueryKey[]; success?: string | ((v: TVars) => string); inUse?: string; onSuccess?: (data: any, v: TVars) => void; pageErrors?: boolean; refetchOnError?: boolean },
 ) {
   const qc = useQueryClient();
   return useMutation({
@@ -195,7 +195,11 @@ export function useAtsMutation<TVars>(
       if (s) toast.success(s);
       opts.onSuccess?.(data, v);
     },
-    onError: (e) => toast.error(atsErrorMessage(e, opts.inUse)),
+    onError: (e, v) => {
+      if (opts.refetchOnError) for (const k of opts.invalidate(v)) qc.invalidateQueries({ queryKey: k });
+      const own = opts.pageErrors && e instanceof Error && !(e as { code?: unknown }).code;
+      toast.error(own ? e.message : atsErrorMessage(e, opts.inUse));
+    },
   });
 }
 

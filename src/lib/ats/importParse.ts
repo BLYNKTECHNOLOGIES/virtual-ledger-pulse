@@ -300,21 +300,28 @@ export const SALARY_UNITS: { value: SalaryUnit; label: string }[] = [
   { value: "lakh", label: "Lakhs per year (LPA)" },
 ];
 
-/** The unit most values in a salary column seem to be in. */
+/** The unit most values in a salary column seem to be in. Values that name their own unit ("4.5 LPA", "25k",
+ *  "20000 per month") are read correctly whatever is chosen, so only plain numbers decide, when there are any. */
 export function guessSalaryUnit(values: unknown[]): SalaryUnit {
-  let lakh = 0, month = 0, year = 0;
+  const plain = { lakh: 0, month: 0, year: 0 };
+  const worded = { lakh: 0, month: 0, year: 0 };
   for (const v of values) {
     const s = cellText(v).toLowerCase();
     if (!s) continue;
-    if (/lakh|lac|lpa|\bl\b/.test(s)) { lakh++; continue; }
+    const yearly = /year|annum|pa\b|yearly|annual/.test(s);
+    if (/lakh|lac|lpa|\bl\b/.test(s)) { worded.lakh++; continue; }
+    if (/\bk\b|\d\s*k\b|thousand/.test(s)) { if (yearly) worded.year++; else worded.month++; continue; }
+    if (/month|pm\b|p\.m\.|monthly/.test(s)) { worded.month++; continue; }
+    if (yearly) { worded.year++; continue; }
     const n = firstNumber(s);
     if (n == null) continue;
-    if (n < 100) lakh++;
-    else if (n < 150000) month++;
-    else year++;
+    if (n < 100) plain.lakh++;
+    else if (n < 150000) plain.month++;
+    else plain.year++;
   }
-  if (lakh >= month && lakh >= year && lakh > 0) return "lakh";
-  return year > month ? "year" : "month";
+  const c = plain.lakh + plain.month + plain.year > 0 ? plain : worded;
+  if (c.lakh >= c.month && c.lakh >= c.year && c.lakh > 0) return "lakh";
+  return c.year > c.month ? "year" : "month";
 }
 
 function firstNumber(s: string): number | null {

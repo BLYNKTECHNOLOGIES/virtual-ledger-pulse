@@ -65,7 +65,7 @@ export function FileImportWizard({ file, presetJobId, onClose }: { file: File; p
   const sourcesQ = useAtsSources();
   const jobsQ = useAtsJobs();
   const sources = useMemo(() => (sourcesQ.data ?? []).filter((s) => s.is_active), [sourcesQ.data]);
-  const jobs = useMemo(() => (jobsQ.data ?? []).filter((j) => j.status === "open" || j.status === "paused"), [jobsQ.data]);
+  const jobs = useMemo(() => (jobsQ.data ?? []).filter((j) => j.status === "open" || j.status === "paused" || (j.status === "draft" && j.id === presetJobId)), [jobsQ.data, presetJobId]);
 
   const [step, setStep] = useState<Step>("file");
   const badExt = !/\.(xlsx|xls|csv)$/i.test(file.name);
@@ -439,11 +439,11 @@ export function FileImportWizard({ file, presetJobId, onClose }: { file: File; p
         <div className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="space-y-1.5">
             <Label>Which job are these applicants for?</Label>
-            <Select value={jobChoice} onValueChange={setJobChoice}>
+            <Select value={jobChoice} onValueChange={(v) => { setJobChoice(v); setFilter("all"); setPage(0); }}>
               <SelectTrigger className="w-full max-w-md text-foreground"><SelectValue placeholder="Choose a job" /></SelectTrigger>
               <SelectContent>
                 {hasPosition && <SelectItem value="match">Match each row by the “Job applied for” column</SelectItem>}
-                {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}{j.status === "paused" ? " · Paused" : ""}</SelectItem>)}
+                {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}{j.status === "paused" ? " · Paused" : j.status === "draft" ? " · Draft" : ""}</SelectItem>)}
                 <SelectItem value="general">No specific job (general applications)</SelectItem>
               </SelectContent>
             </Select>
@@ -529,8 +529,11 @@ export function FileImportWizard({ file, presetJobId, onClose }: { file: File; p
             <Button
               disabled={checking || !!checkError || !check || !jobChoice || importable === 0}
               onClick={() => { setStep("run"); void run(0); }}
-            >Import {fmtN(Math.max(0, importable))} rows</Button>
+            >Import {fmtN(Math.max(0, importable))} {Math.max(0, importable) === 1 ? "row" : "rows"}</Button>
           </div>
+          {rows.length - Math.max(0, importable) > 0 && (
+            <p className="text-right text-xs text-muted-foreground">{fmtN(rows.length - Math.max(0, importable))} {rows.length - Math.max(0, importable) === 1 ? "row" : "rows"} won't be imported. They'll be in the file you can download at the end.</p>
+          )}
         </div>
       )}
 
@@ -544,7 +547,7 @@ export function FileImportWizard({ file, presetJobId, onClose }: { file: File; p
           ) : (
             <>
               <Progress value={rows.length ? (done / rows.length) * 100 : 0} />
-              <p className="text-sm text-foreground">Imported {fmtN(done)} of {fmtN(rows.length)} rows</p>
+              <p className="text-sm text-foreground">Processed {fmtN(done)} of {fmtN(rows.length)} rows</p>
               <p className="text-xs text-muted-foreground">
                 {live.created} new · {live.added} added to existing · {live.existing} already applied · {live.skipped} skipped · {live.error} not imported
               </p>
@@ -588,7 +591,7 @@ export function FileImportWizard({ file, presetJobId, onClose }: { file: File; p
               </div>
             ))}
           </div>
-          {stopped && <p className="text-sm text-muted-foreground">{fmtN(rows.length - done)} rows weren't sent. They are in the file below.</p>}
+          {stopped && <p className="text-sm text-muted-foreground">{rows.length - done === 1 ? "1 row wasn't sent. It is in the file below." : `${fmtN(rows.length - done)} rows weren't sent. They are in the file below.`}</p>}
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => {
               let url = `/hrms/ats/candidates?source=${sourceId}`;

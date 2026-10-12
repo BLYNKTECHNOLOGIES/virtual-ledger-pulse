@@ -71,7 +71,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
   const sourcesQ = useAtsSources();
   const jobsQ = useAtsJobs();
   const sources = useMemo(() => (sourcesQ.data ?? []).filter((s) => s.is_active), [sourcesQ.data]);
-  const jobs = useMemo(() => (jobsQ.data ?? []).filter((j) => j.status === "open" || j.status === "paused"), [jobsQ.data]);
+  const jobs = useMemo(() => (jobsQ.data ?? []).filter((j) => j.status === "open" || j.status === "paused" || (j.status === "draft" && j.id === presetJobId)), [jobsQ.data, presetJobId]);
 
   const [step, setStep] = useState<Step>("resumes");
   const initial = useMemo(() => sortResumeFiles(files, [], MAX_RESUMES, MAX_FILE_BYTES), [files]);
@@ -256,6 +256,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
   const fields = (d: ResumeDraft, i: number) => {
     const pr = rows[i]?.problems ?? [];
     const dis = d.state === "reading";
+    const badEmail = !!d.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim());
     const noContact = pr.includes("no_contact");
     const inp = (k: "name" | "email" | "phone", ph: string, bad: boolean) => (
       <div className="relative">
@@ -267,8 +268,8 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
     );
     return {
       name: <>{inp("name", "Name", pr.includes("no_name"))}{pr.includes("no_name") && <p className="mt-1 text-xs text-destructive">Add the name</p>}</>,
-      email: inp("email", "Email", noContact),
-      phone: <>{inp("phone", "Phone", noContact)}{noContact && <p className="mt-1 text-xs text-destructive">Add an email or phone</p>}</>,
+      email: <>{inp("email", "Email", noContact || badEmail)}{badEmail && <p className="mt-1 text-xs text-destructive">Check the email</p>}</>,
+      phone: <>{inp("phone", "Phone", noContact)}{noContact && !badEmail && <p className="mt-1 text-xs text-destructive">Add an email or phone</p>}</>,
     };
   };
   const resumeCell = (d: ResumeDraft) => (
@@ -304,7 +305,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
         <div className="space-y-4 rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm text-foreground">
-              {drafts.length} resumes
+              {drafts.length} {drafts.length === 1 ? "resume" : "resumes"}
               {reading && <span className="ml-2 text-muted-foreground">Reading resumes… {readCount} of {drafts.length}</span>}
             </div>
             {drafts.length > 0 && drafts.length < MAX_RESUMES && (
@@ -333,10 +334,10 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
             </div>
             <div className="space-y-1.5">
               <Label>Which job are these applicants for?</Label>
-              <Select value={jobChoice} onValueChange={setJobChoice}>
+              <Select value={jobChoice} onValueChange={(v) => { setJobChoice(v); setFilter("all"); }}>
                 <SelectTrigger className="text-foreground"><SelectValue placeholder="Choose a job" /></SelectTrigger>
                 <SelectContent>
-                  {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}{j.status === "paused" ? " · Paused" : ""}</SelectItem>)}
+                  {jobs.map((j) => <SelectItem key={j.id} value={j.id}>{j.title}{j.status === "paused" ? " · Paused" : j.status === "draft" ? " · Draft" : ""}</SelectItem>)}
                   <SelectItem value="general">No specific job (general applications)</SelectItem>
                 </SelectContent>
               </Select>
@@ -352,7 +353,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
           ) : (
             <>
               {problemCount > 0 && (
-                <p className="text-sm text-amber-600 dark:text-amber-400">{problemCount} resumes are missing a name or contact details and will be skipped unless you add them.</p>
+                <p className="text-sm text-amber-600 dark:text-amber-400">{problemCount === 1 ? "1 resume is" : `${problemCount} resumes are`} missing a name or contact details and will be skipped unless you add them.</p>
               )}
               {isMobile ? (
                 <div className="space-y-3">
@@ -465,7 +466,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
           <div className="flex justify-between gap-2">
             <Button variant="outline" onClick={() => setStep("resumes")}>Back</Button>
             <Button disabled={checking || !!checkError || !check || importable === 0} onClick={() => { setStep("run"); void run(0); }}>
-              Import {Math.max(0, importable)} resumes
+              Import {Math.max(0, importable)} {Math.max(0, importable) === 1 ? "resume" : "resumes"}
             </Button>
           </div>
         </div>
@@ -481,7 +482,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
           ) : (
             <>
               <Progress value={rows.length ? (done / rows.length) * 100 : 0} />
-              <p className="text-sm text-foreground">Imported {done} of {rows.length} resumes</p>
+              <p className="text-sm text-foreground">Processed {done} of {rows.length} resumes</p>
               <p className="text-xs text-muted-foreground">
                 {live.created} new · {live.added} added to existing · {live.existing} already applied · {live.skipped} skipped · {live.error} not imported · {attachedN} resumes attached
               </p>

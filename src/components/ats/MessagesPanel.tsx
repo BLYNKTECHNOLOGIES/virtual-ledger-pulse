@@ -38,6 +38,7 @@ import {
 import { CalendarDays } from "lucide-react";
 import { QueryError, RowsSkeleton } from "./AtsBits";
 import { useCheckNow } from "./EmailSettingsSection";
+import { useIsHrAdmin } from "@/lib/ats/api";
 
 interface Props {
   candidate: AtsCandidate;
@@ -75,12 +76,18 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
   }, [visible, lastId]);
 
   // Read state: once per visible view with unread received messages.
-  const unread = msgs.some((m) => m.direction === "inbound" && !m.read_at);
+  // Emails the user marked unread in this opening of the pane are never re-marked read.
+  const keepUnreadRef = useRef<Set<string>>(new Set());
+  useEffect(() => { if (!visible) keepUnreadRef.current = new Set(); }, [visible, candidate.id]);
+  const unread = msgs.some((m) => m.direction === "inbound" && !m.read_at && !keepUnreadRef.current.has(m.id));
   const markingRef = useRef(false);
   useEffect(() => {
     if (!visible || !unread || markingRef.current) return;
     markingRef.current = true;
-    markThreadRead(candidate.id).then(() => {
+    const keep = [...keepUnreadRef.current];
+    markThreadRead(candidate.id).then(async () => {
+      for (const id of keep) await markMessageUnread(id).catch(() => undefined);
+    }).then(() => {
       qc.invalidateQueries({ queryKey: mailKeys.thread(candidate.id) });
       qc.invalidateQueries({ queryKey: mailKeys.status });
       qc.invalidateQueries({ queryKey: mailKeys.unreadIds });
@@ -103,7 +110,7 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
       const r = await findOlderEmails(candidate.id, 180);
       if (r.skipped === "busy") toast.message("Already checking. Try again in a minute.");
       else if (!r.ok || r.error) toast.error(mailErrorMessage(r.error));
-      else if (Number(r.stored ?? 0) > 0) toast.success(`${r.stored} older emails added`);
+      else if (Number(r.stored ?? 0) > 0) toast.success(`${r.stored} older ${Number(r.stored) === 1 ? "email" : "emails"} added`);
       else toast.message("No older emails found");
     } catch (e: any) {
       toast.error(mailErrorMessage(e?.code));
@@ -155,7 +162,7 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
               return (
                 <Fragment key={m.id}>
                   {showDay && <div className="flex items-center gap-2 py-1 text-xs text-muted-foreground"><span className="h-px flex-1 bg-border" />{fmtDate(msgAt(m))}<span className="h-px flex-1 bg-border" /></div>}
-                  <MessageBubble m={m} fileIds={fileIds} onOpenFile={onOpenFile} onChanged={refreshAll} />
+                  <MessageBubble m={m} fileIds={fileIds} onOpenFile={onOpenFile} onChanged={refreshAll} mailOn={enabled} onMarkedUnread={(id) => keepUnreadRef.current.add(id)} />
                 </Fragment>
               );
             })}
@@ -218,7 +225,8 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
   );
 }
 
-function MessageBubble({ m, fileIds, onOpenFile, onChanged }: { m: AtsMessage; fileIds: Set<string>; onOpenFile: (id: string) => void; onChanged: () => void }) {
+function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread }: { m: AtsMessage; fileIds: Set<string>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void }) {
+  const isAdmin = useIsHrAdmin();
   const out = m.direction === "outbound";
   const [showQuoted, setShowQuoted] = useState(false);
   const [origOpen, setOrigOpen] = useState(false);
@@ -241,7 +249,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged }: { m: AtsMessage; f
     }
   };
   const unreadIt = async () => {
-    try { await markMessageUnread(m.id); onChanged(); } catch (e) { toast.error(atsErrorMessage(e)); }
+    try { onMarkedUnread(m.id); await markMessageUnread(m.id); onChanged(); } catch (e) { toast.error(atsErrorMessage(e)); }
   };
   const remove = async () => {
     setDelOpen(false);
@@ -270,7 +278,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged }: { m: AtsMessage; f
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onSelect={() => { navigator.clipboard.writeText(m.body_text ?? "").then(() => toast.success("Copied")); }}>Copy text</DropdownMenuItem>
                 {!out && <DropdownMenuItem onSelect={unreadIt}>Mark as unread</DropdownMenuItem>}
-                <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}>Remove from ATS</DropdownMenuItem>
+                {isAdmin && <DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setDelOpen(true)}>Remove from ATS</DropdownMenuItem>}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -294,7 +302,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged }: { m: AtsMessage; f
         {out && m.status === "failed" && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
             <span>{mailErrorMessage(m.error)}</span>
-            {canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={retry}>
+            {mailOn && canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={retry}>
               {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
             </Button>}
           </div>

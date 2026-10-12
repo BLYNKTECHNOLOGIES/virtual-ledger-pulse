@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
-  ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase, FileUp,
+  ArrowLeft, UserPlus, Users, Pencil, Trash2, Play, Pause, XCircle, RotateCcw, PlusCircle, RefreshCw, Globe, EyeOff, Activity, Briefcase, FileUp, Building2, MapPin, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,8 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { EmptyState } from "@/components/shared/EmptyState";
 import { JobStatusBadge, QueryError, RowsSkeleton, SectionCard } from "@/components/ats/AtsBits";
 import { useAts } from "@/components/ats/AtsContext";
+import { MetricCell, MetricStrip, StatusPill, stageDotClass } from "@/components/ats/AtsUi";
+import { Skeleton } from "@/components/ui/skeleton";
 import { CandidateTable } from "@/components/ats/CandidateTable";
 import { CareersJobCard } from "@/components/ats/CareersJobCard";
 import { PipelineBoard } from "@/components/ats/PipelineBoard";
@@ -80,7 +82,7 @@ export default function AtsJobDetailPage() {
   const j = job.data;
   const s = jobId ? summary.data?.get(jobId) : undefined;
   const stageStrip = useMemo(
-    () => (stages.data ?? []).filter((st) => st.is_active).map((st) => ({ id: st.id, name: st.name, count: s?.stage_counts?.[st.code] ?? 0 })),
+    () => (stages.data ?? []).filter((st) => st.is_active).map((st) => ({ id: st.id, name: st.name, kind: st.kind, count: s?.stage_counts?.[st.code] ?? 0 })),
     [stages.data, s],
   );
 
@@ -112,38 +114,52 @@ export default function AtsJobDetailPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-xl font-semibold text-foreground break-words">{j.title}</h2>
+              <h2 className="break-words font-display text-2xl font-semibold leading-8 text-foreground">{j.title}</h2>
               <JobStatusBadge status={j.status} />
+              {j.is_published && <StatusPill tone="primary" icon={Globe}>On careers page</StatusPill>}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="t-mono">{j.job_code}</span>
-              {dept && <> · {dept}</>}
-              {j.location && <> · {j.location}</>}
-            </p>
+              {dept && <span className="inline-flex items-center gap-1.5"><Building2 className="h-3.5 w-3.5" aria-hidden />{dept}</span>}
+              {j.location && <span className="inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" aria-hidden />{j.location}</span>}
+              {j.employment_type && <span className="inline-flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" aria-hidden />{employmentLabel(j.employment_type)}</span>}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {j.status === "draft" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Open job</Button>}
-            {j.status === "open" && <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ status: "paused" })} className="gap-1.5"><Pause className="h-4 w-4" /> Pause</Button>}
-            {j.status === "paused" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Resume</Button>}
-            {(j.status === "open" || j.status === "paused") && <Button size="sm" variant="outline" disabled={busy} onClick={() => setCloseOpen(true)} className="gap-1.5"><XCircle className="h-4 w-4" /> Close</Button>}
-            {j.status === "closed" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Reopen</Button>}
-{j.status !== "closed" && <>
-            <Button size="sm" onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>
-            <Button size="sm" variant="outline" onClick={() => navigate(`/hrms/ats/import?job=${j.id}`)} className="gap-1.5"><FileUp className="h-4 w-4" /> Import</Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {j.status !== "closed" && <>
+              <Button size="sm" variant={j.status === "draft" ? "outline" : "default"} onClick={() => openAddCandidate(j.id)} className="gap-1.5"><UserPlus className="h-4 w-4" /> Add candidate</Button>
+              <Button size="sm" variant="outline" onClick={() => navigate(`/hrms/ats/import?job=${j.id}`)} className="gap-1.5"><FileUp className="h-4 w-4" /> Import</Button>
             </>}
             <Button size="sm" variant="outline" onClick={() => openJobEditor(j)} className="gap-1.5"><Pencil className="h-4 w-4" /> Edit</Button>
-            {summary.isSuccess && total === 0 && (
+            <span aria-hidden className="h-6 w-px bg-border" />
+            {j.status === "draft" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Open job</Button>}
+            {j.status === "open" && <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ status: "paused" })} className="gap-1.5"><Pause className="h-4 w-4" /> Pause</Button>}
+            {j.status === "paused" && <Button size="sm" variant="outline" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><Play className="h-4 w-4" /> Resume</Button>}
+            {(j.status === "open" || j.status === "paused") && <Button size="sm" variant="outline" disabled={busy} onClick={() => setCloseOpen(true)} className="gap-1.5"><XCircle className="h-4 w-4" /> Close</Button>}
+            {j.status === "closed" && <Button size="sm" disabled={busy} onClick={() => setStatus.mutate({ status: "open" })} className="gap-1.5"><RotateCcw className="h-4 w-4" /> Reopen</Button>}
+            {summary.isSuccess && total === 0 && <>
+              <span aria-hidden className="h-6 w-px bg-border" />
               <Button size="sm" variant="ghost" onClick={() => setDelOpen(true)} className="gap-1.5 text-destructive hover:text-destructive"><Trash2 className="h-4 w-4" /> Delete</Button>
-            )}
+            </>}
           </div>
         </div>
       </div>
+
+      <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">
+        {summary.isLoading ? [0, 1, 2, 3].map((i) => <div key={i} className="bg-card px-4 py-3.5"><Skeleton className="h-3 w-20" /><Skeleton className="mt-2 h-7 w-12" /><Skeleton className="mt-1.5 h-3 w-16" /></div>) : <>
+          <MetricCell label="Applicants" value={total} helper={(s?.new_7d ?? 0) > 0 ? <span className="text-primary">+{s!.new_7d} this week</span> : null} />
+          <MetricCell label="In pipeline" value={(s?.active_count ?? 0) + (s?.on_hold_count ?? 0)} />
+          <MetricCell label="Awaiting review" value={s?.unreviewed_count ?? 0} />
+          <MetricCell label="Hired" value={<>{s?.hired_count ?? 0} <span className="text-base font-medium text-muted-foreground">of {j.openings}</span></>}
+            helper={<span aria-hidden className="mt-1 block h-1.5 w-24 overflow-hidden rounded-full bg-muted"><span className="block h-full rounded-full bg-success" style={{ width: `${j.openings > 0 ? Math.min(100, ((s?.hired_count ?? 0) / j.openings) * 100) : 0}%` }} /></span>} />
+        </>}
+      </MetricStrip>
 
       <Tabs key={j.id} defaultValue={j.status === "open" ? "pipeline" : "overview"}>
         <TabsList className="w-full justify-start overflow-x-auto flex-nowrap sm:w-auto">
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="candidates">Candidates</TabsTrigger>
+          <TabsTrigger value="candidates">{summary.isSuccess ? `Candidates (${total})` : "Candidates"}</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -154,9 +170,10 @@ export default function AtsJobDetailPage() {
             {stageStrip.length === 0 ? <p className="text-sm text-muted-foreground">No stages configured.</p> : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                 {stageStrip.map((st) => (
-                  <Link key={st.id} to={`/hrms/ats/candidates?job=${j.id}&stage=${st.id}`} className="rounded-lg border border-border bg-muted/30 p-2 text-center hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Link key={st.id} to={`/hrms/ats/candidates?job=${j.id}&stage=${st.id}`} className="relative overflow-hidden rounded-lg border border-border bg-card p-2.5 pt-3 hover:border-primary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                    <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${stageDotClass(st.kind)}`} />
                     <div className="truncate text-xs text-muted-foreground" title={st.name}>{st.name}</div>
-                    <div className="text-lg font-semibold tabular-nums text-foreground">{st.count}</div>
+                    <div className="font-display text-xl font-semibold tabular-nums text-foreground">{st.count}</div>
                   </Link>
                 ))}
               </div>
@@ -175,16 +192,16 @@ export default function AtsJobDetailPage() {
               <Fact label="Hiring manager">{manager ?? "—"}</Fact>
               <Fact label="Target date">{fmtDate(j.target_close_date)}</Fact>
               <Fact label="Hiring requirement">{reqNo ? <span className="t-mono">{reqNo}</span> : "—"}</Fact>
-              <Fact label="Created">{j.created_by_name ?? "—"} · {fmtDateTime(j.created_at)}</Fact>
+              <Fact label="Created">{j.created_by_name ?? "—"}<span className="block text-xs text-muted-foreground">{fmtDateTime(j.created_at)}</span></Fact>
               <Fact label="Opened">{fmtDateTime(j.opened_at)}</Fact>
-              {j.status === "closed" && <Fact label="Closed">{fmtDateTime(j.closed_at)}{j.closed_reason ? ` · ${j.closed_reason}` : ""}</Fact>}
+              {j.status === "closed" && <Fact label="Closed">{j.closed_reason ?? fmtDateTime(j.closed_at)}{j.closed_reason && <span className="block text-xs text-muted-foreground">{fmtDateTime(j.closed_at)}</span>}</Fact>}
             </dl>
           </SectionCard>
 
           {(["summary", "description", "requirements", "benefits"] as const).map((k) =>
             j[k] ? (
               <SectionCard key={k} title={k[0].toUpperCase() + k.slice(1)}>
-                <p className="whitespace-pre-wrap text-sm text-foreground">{j[k]}</p>
+                <p className="max-w-prose whitespace-pre-wrap text-sm leading-6 text-foreground">{j[k]}</p>
               </SectionCard>
             ) : null,
           )}

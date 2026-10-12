@@ -149,8 +149,8 @@ export default function AtsCandidatesPage() {
 
   const moveSel = useCallback((dir: 1 | -1) => {
     if (!rows.length) return;
-    const i = Math.max(0, rows.findIndex((r) => r.application_id === selRow?.application_id));
-    const n = rows[Math.min(rows.length - 1, Math.max(0, i + dir))];
+    const at = rows.findIndex((r) => r.application_id === selRow?.application_id);
+    const n = at < 0 ? rows[0] : rows[Math.min(rows.length - 1, Math.max(0, at + dir))];
     if (n) update({ sel: n.application_id }, true);
   }, [rows, selRow?.application_id, update]);
 

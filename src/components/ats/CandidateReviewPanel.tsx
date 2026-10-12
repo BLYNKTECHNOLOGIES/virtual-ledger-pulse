@@ -46,7 +46,8 @@ import { MessagesPanel } from "./MessagesPanel";
 import { PLACEHOLDER_RE, mailErrorMessage, renderTemplate, sendCandidateEmail, useEmailTemplates, useMailStatus, useMailThread } from "@/lib/ats/mail";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSearchParams } from "react-router-dom";
-import { Send, MailX, AlertTriangle } from "lucide-react";
+import { Send, MailX, AlertTriangle, CalendarPlus, CalendarClock, CalendarX, CalendarCheck, UserX, Reply, ClipboardCheck } from "lucide-react";
+import { InterviewsCard } from "./InterviewsCard";
 
 interface Props {
   candidateId: string;
@@ -62,6 +63,9 @@ const EVENT_ICON: Record<string, typeof Activity> = {
   note_added: StickyNote, note_updated: StickyNote, note_deleted: StickyNote, rating_added: Star, rating_updated: Star,
   rating_deleted: Star, file_uploaded: FileText, file_deleted: FileText, reviewed: Eye, hired: CheckCircle2,
   email_sent: Send, email_received: Mail, email_failed: AlertTriangle, email_bounced: MailX,
+  interview_scheduled: CalendarPlus, interview_rescheduled: CalendarClock, interview_cancelled: CalendarX,
+  interview_completed: CalendarCheck, interview_no_show: UserX, interview_reopened: RotateCcw,
+  interview_response: Reply, interview_feedback: ClipboardCheck,
 };
 
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
@@ -95,7 +99,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const [keysOpen, setKeysOpen] = useState(false);
   const noteRef = useRef<HTMLTextAreaElement>(null);
   const navigate = useNavigate();
-  const shortcutRef = useRef<{ a?: () => void; h?: () => void; r?: () => void }>({});
+  const shortcutRef = useRef<{ a?: () => void; h?: () => void; r?: () => void; i?: () => void }>({});
   const [sp, setSp] = useSearchParams();
   const [paneTab, setPaneTabState] = useState<string>(sp.get("tab") === "messages" ? "messages" : "resume");
   const setPaneTab = (v: string) => {
@@ -105,6 +109,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     setSp(next, { replace: true });
   };
   const [composeSignal, setComposeSignal] = useState(0);
+  const [ivSignal, setIvSignal] = useState(0);
   const mailStatus = useMailStatus();
   const mailOn = !!mailStatus.data?.enabled;
   const mailThread = useMailThread(candidateId);
@@ -143,13 +148,14 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     qc.invalidateQueries({ queryKey: atsKeys.jobSummary });
   };
 
-  const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void) => {
+  const run = async (fn: () => PromiseLike<{ error: any }>, success: string, after?: () => void, action?: { label: string; onClick: () => void }) => {
     if (busy) return;
     setBusy(true);
     try {
       const { error } = await fn();
       if (error) throw error;
-      toast.success(success);
+      if (action) toast.success(success, { action });
+      else toast.success(success);
       after?.();
       refreshAll();
       onActionDone?.();
@@ -170,7 +176,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
       const k = e.key.toLowerCase();
       if (e.key === "?") { e.preventDefault(); setKeysOpen(true); return; }
       if (k === "n") { e.preventDefault(); noteRef.current?.focus(); return; }
-      const fn = k === "a" ? shortcutRef.current.a : k === "h" ? shortcutRef.current.h : k === "r" ? shortcutRef.current.r : undefined;
+      const fn = k === "a" ? shortcutRef.current.a : k === "h" ? shortcutRef.current.h : k === "r" ? shortcutRef.current.r : k === "i" ? shortcutRef.current.i : undefined;
       if (fn) { e.preventDefault(); fn(); }
     };
     window.addEventListener("keydown", h);
@@ -191,7 +197,8 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const waPhone = c.phone_norm && /^\d{10}$/.test(c.phone_norm) ? c.phone_norm : null;
 
   const moveTo = (stageId: string, name: string, note?: string) =>
-    run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`);
+    run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`,
+      undefined, activeStages.find((s) => s.id === stageId)?.kind === "interview" ? { label: "Schedule interview", onClick: () => setIvSignal((n) => n + 1) } : undefined);
   const setStatus = (status: string, msg: string, reasonId?: string, note?: string, after?: () => void) =>
     run(() => supabase.rpc("ats_set_status", { p_application_id: app!.application_id!, p_status: status, p_reason_id: reasonId ?? null, p_note: note || null }), msg, after);
 
@@ -225,6 +232,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     a: next && !stageLocked ? () => moveTo(next.id, next.name) : undefined,
     h: app && !closed && !hired && !busy ? () => (app.status === "on_hold" ? setStatus("active", "Application resumed") : setStatus("on_hold", "Put on hold")) : undefined,
     r: app && !closed && !hired && !busy ? () => setStatusDlg("rejected") : undefined,
+    i: app && (app.status === "active" || app.status === "on_hold") && !busy ? () => setIvSignal((n) => n + 1) : undefined,
   };
 
   const header = (
@@ -363,6 +371,7 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const sidePanels = (
     <>
       {decision}
+      {app && <InterviewsCard app={app} candidate={c} openSignal={ivSignal} />}
       {facts}
       {app?.applied_via === "careers_form" && <FormAnswers appId={app.application_id!} />}
       {app && <RatingsCard appId={app.application_id!} me={me.data ?? null} />}
@@ -829,7 +838,7 @@ function UploadDialog({ open, onClose, candidateId, appId, onDone }: { open: boo
 
 function ShortcutsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const rows: [string, string][] = [
-    ["A", "Move to the next stage"], ["H", "Hold or resume"], ["R", "Reject…"], ["N", "Write a note"],
+    ["A", "Move to the next stage"], ["H", "Hold or resume"], ["R", "Reject…"], ["N", "Write a note"], ["I", "Schedule an interview"],
     ["J / ↓", "Next candidate"], ["K / ↑", "Previous candidate"], ["?", "Show these shortcuts"],
   ];
   return (

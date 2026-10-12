@@ -171,7 +171,7 @@ export function AddCandidateDialog({ open, onOpenChange, jobId }: { open: boolea
                     <span className="min-w-0"><span className="t-mono text-xs text-muted-foreground">{d.ref_no}</span> <span className="font-medium text-foreground">{d.full_name}</span></span>
                     <a href={`/hrms/ats/candidates/${d.candidate_id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline">Open</a>
                   </div>
-                  <p className="text-xs text-muted-foreground">{[d.email, d.phone].filter(Boolean).join(" · ")} · matched on {d.matched_on}</p>
+                  <p className="text-xs text-muted-foreground">{[d.email, d.phone].filter(Boolean).join(" · ")} · matched on {String(d.matched_on ?? "").replace(/_/g, " ")}</p>
                   <p className="text-xs text-muted-foreground">{d.application_count} application{d.application_count === 1 ? "" : "s"}{d.last_applied_at ? `, last ${appStatusLabel(d.last_status).toLowerCase()} on ${fmtDate(d.last_applied_at)}` : ""}</p>
                   <Button type="button" size="sm" variant={existing?.candidate_id === d.candidate_id ? "default" : "outline"} className="mt-1.5 h-7"
                     onClick={() => setExisting(existing?.candidate_id === d.candidate_id ? null : d)}>

@@ -126,6 +126,7 @@ export default function AtsInboxPage() {
 }
 
 function InboxItem({ r, view }: { r: InboxRow; view: View }) {
+  const mailOn = !!useMailStatus().data?.enabled;
   const nav = useNavigate();
   const qc = useQueryClient();
   const isMobile = useIsMobile();
@@ -169,7 +170,7 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
           {view === "undelivered" && (
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-destructive">
               <span>{r.status === "bounced" ? "Bounced: check the address" : mailErrorMessage(r.error)}</span>
-              {r.status === "failed" && canRetry(r.error) && (
+              {mailOn && r.status === "failed" && canRetry(r.error) && (
                 <Button size="sm" variant="outline" className="h-7 gap-1" disabled={busy} onClick={retry}>
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
                 </Button>

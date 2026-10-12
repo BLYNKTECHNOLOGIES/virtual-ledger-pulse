@@ -504,6 +504,73 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ---- DAYS AFTER THE LAST WORKING DAY (owner ruling 12-Oct-2026) ----
+    // RazorpayX prorates a leaver's month only once the person is DISMISSED
+    // there, and HRMS deliberately dismisses only after the final payroll is
+    // processed. So at payroll time RazorpayX still pays the leaver the whole
+    // month. The calendar days after the last working day are therefore staged
+    // as their own Loss-of-Pay line (same day rate as attendance LOP: monthly
+    // gross ÷ calendar days). Verified on Sep-2026: Satyam (LWD 7 Sep) needed
+    // ₹11,500 = 23 × ₹15,000/30 and Archita (LWD 12 Sep) 18 × ₹11,000/30 — both
+    // were typed by hand on the dashboard because this engine did not do it.
+    // Joiners are NOT affected: RazorpayX knows the joining date and prorates.
+    const postByEmp = new Map<string, any>();
+    for (const r of (existing ?? []) as any[]) {
+      if (r.source === "auto_post_lwd") postByEmp.set(r.hr_employee_id, r);
+    }
+    const dismissedIds = new Set<string>();
+    {
+      const { data: dl } = await supabase
+        .from("hr_razorpay_pushback_log")
+        .select("hr_employee_id")
+        .eq("action", "people_dismiss")
+        .eq("status", "success")
+        .in("hr_employee_id", roster.map((r: any) => r.hr_employee_id));
+      for (const d of (dl ?? []) as any[]) dismissedIds.add(d.hr_employee_id);
+    }
+    const postInsert: any[] = [];
+    const postUpdate: any[] = [];
+    const postDelete: string[] = [];
+    for (const map of roster as any[]) {
+      const emp = map.hr_employees;
+      const lwd = emp?.last_working_day ? String(emp.last_working_day).slice(0, 10) : null;
+      const existingPost = postByEmp.get(map.hr_employee_id);
+      const row = rows.find((r) => r.hr_employee_id === map.hr_employee_id);
+      const inMonth = !!lwd && lwd >= periodStr && lwd < monthEndStr;
+      const postDays = inMonth ? totalDays - Number(lwd!.slice(8, 10)) : 0;
+      const setInfo = (info: Record<string, unknown>) => { if (row) Object.assign(row, info); };
+
+      if (existingPost?.pushed_at) {
+        setInfo({ post_lwd_days: Number(existingPost.lop_days ?? postDays), post_lwd_amount: Number(existingPost.amount), post_lwd_status: "pushed", post_lwd_label: existingPost.label });
+        continue;
+      }
+      if (!inMonth || postDays <= 0) {
+        if (existingPost) postDelete.push(existingPost.id);
+        continue;
+      }
+      if (dismissedIds.has(map.hr_employee_id) && !existingPost) {
+        setInfo({ post_lwd_days: postDays, post_lwd_amount: 0, post_lwd_status: "not_needed", post_lwd_reason: "Already dismissed in RazorpayX — it cuts these days itself" });
+        continue;
+      }
+      const salary = await resolveMonthlyGross(supabase, map.hr_employee_id, periodStr, monthEndStr);
+      if (salary.error || !(salary.monthlyGross > 0)) {
+        setInfo({ post_lwd_days: postDays, post_lwd_amount: 0, post_lwd_status: "skipped", post_lwd_reason: salary.error || "No salary base could be resolved" });
+        continue;
+      }
+      const amount = Math.round((salary.monthlyGross / totalDays) * postDays);
+      const lwdLabel = new Date(`${lwd}T00:00:00Z`).toLocaleDateString("en-IN", { timeZone: "UTC", day: "numeric", month: "short" });
+      const label = `Loss of Pay - After last working day — ${postDays} day${postDays === 1 ? "" : "s"} (left ${lwdLabel})`;
+      setInfo({
+        post_lwd_days: postDays, post_lwd_amount: amount, post_lwd_label: label, post_lwd_base: salary.monthlyGross,
+        post_lwd_status: existingPost ? (Number(existingPost.amount) === amount ? "unchanged" : "changed") : "new",
+      });
+      if (existingPost) postUpdate.push({ id: existingPost.id, label, amount, lop_days: postDays });
+      else postInsert.push({
+        hr_employee_id: map.hr_employee_id, razorpay_employee_id: map.razorpay_employee_id, period_month: periodStr,
+        label, amount, source: "auto_post_lwd", lop_days: postDays, created_by: callerId,
+      });
+    }
+
     let staged = 0;
     let removed = 0;
 

@@ -1,6 +1,8 @@
 # Project architecture decisions
 
-- Ordinary shared tables wrap content and use available width without a blanket minimum; only intrinsically wide grids opt into explicit minimum widths, because forcing max-content creates avoidable horizontal scrolling.
+- Ordinary tables wrap to available width; only wide grids set minimum widths, avoiding horizontal scroll.
+
+- ATS visual primitives stay in AtsUi.tsx and compose existing controls, isolating presentation from data contracts.
 
 - Frontend brand images resolve through BrandLogo and brandLogos, with Terminal passing its independent theme explicitly, because surface contrast must not depend on the ERP theme or on recreated artwork.
 

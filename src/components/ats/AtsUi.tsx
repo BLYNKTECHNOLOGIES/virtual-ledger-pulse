@@ -26,7 +26,7 @@ export function MetricCell({ label, value, helper, icon: Icon, onClick, valueCla
   label?: string; value?: ReactNode; helper?: ReactNode; icon?: LucideIcon; onClick?: () => void; valueClassName?: string; children?: ReactNode;
 }) {
   const content = children ?? <>
-    <div className="flex items-start justify-between gap-2">
+    <div className="flex !flex-nowrap items-start justify-between gap-2">
       <span className="flex min-w-0 items-center gap-1 text-xs font-medium text-muted-foreground">{label}{onClick && <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />}</span>
       {Icon && <Icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
     </div>
@@ -34,7 +34,7 @@ export function MetricCell({ label, value, helper, icon: Icon, onClick, valueCla
     <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">{helper}</div>
   </>;
   const cls = "min-w-0 bg-card px-4 py-3.5 text-left";
-  return onClick ? <Button variant="ghost" onClick={onClick} className={cn(cls, "block h-auto whitespace-normal rounded-none hover:bg-muted/40 focus-visible:relative focus-visible:z-10 focus-visible:ring-inset focus-visible:ring-offset-0 [&_svg]:size-auto")}>{content}</Button> : <div className={cls}>{content}</div>;
+  return onClick ? <Button variant="ghost" onClick={onClick} className={cn(cls, "block h-auto whitespace-normal rounded-none hover:bg-muted/40 focus-visible:relative focus-visible:z-10 focus-visible:ring-inset focus-visible:ring-offset-0 [&_svg]:!size-4")}>{content}</Button> : <div className={cls}>{content}</div>;
 }
 
 export function CandidateAvatar({ full_name }: { full_name: string }) {

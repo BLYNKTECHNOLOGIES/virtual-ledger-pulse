@@ -49,7 +49,7 @@ export default function AtsOverviewPage() {
   const attentionLoading = ov.isLoading || integ.isLoading || ivCounts.isLoading || mailSt.isLoading || sourcesQ.isLoading;
   const attentionFailed = ov.isError || integ.isError || ivCounts.isError || mailSt.isError || sourcesQ.isError;
   const stages = [...(o?.stage_counts ?? [])].sort((a, b) => a.sort_order - b.sort_order);
-  const middleBars = ["bg-primary/40", "bg-primary/55", "bg-primary/70", "bg-primary/85", "bg-primary"];
+  const middleBars = ["bg-primary/40", "bg-primary/55 bg-primary/[0.55]", "bg-primary/70", "bg-primary/85 bg-primary/[0.85]", "bg-primary"];
 
   return (
     <div className="space-y-5">
@@ -59,13 +59,13 @@ export default function AtsOverviewPage() {
       </SectionCard>}
       <SectionCard title="Needs attention">
         <div className="divide-y divide-border">
-          {attention.map((row) => <div key={row.button} className="flex items-center gap-3 py-2.5">
+          {attention.map((row) => <div key={row.button} className="flex !flex-nowrap items-center gap-3 py-2.5">
             <span className={cn("inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg", row.warning ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary")}><row.icon className="h-4 w-4" aria-hidden /></span>
             <p className="min-w-0 flex-1 text-sm text-foreground"><span className="font-semibold tabular-nums">{row.count}</span> {row.text(row.count)}</p>
             <Button variant="outline" size="sm" asChild className="shrink-0"><Link to={row.to}>{row.button}</Link></Button>
           </div>)}
           {attentionLoading && <div className="space-y-2 py-2.5">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-10 w-full" />)}</div>}
-          {!attentionLoading && !attentionFailed && !attention.length && <div className="flex items-center gap-3 py-2.5">
+          {!attentionLoading && !attentionFailed && !attention.length && <div className="flex !flex-nowrap items-center gap-3 py-2.5">
             <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success"><CheckCircle2 className="h-4 w-4" aria-hidden /></span>
             <p className="text-sm text-foreground">Nothing needs your attention right now.</p>
           </div>}

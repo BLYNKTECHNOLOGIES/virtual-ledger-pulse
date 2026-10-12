@@ -90,7 +90,7 @@ export default function AtsReportsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
+      <div className="contents">
         <div className="sticky top-0 z-20 -mx-1 flex flex-wrap items-end gap-2 bg-background/95 px-1 py-2 backdrop-blur">
           <Select value={custom ? "custom" : matchPreset(params.from, params.to)} onValueChange={onPreset}>
             <SelectTrigger className="w-[170px]" aria-label="Period"><SelectValue /></SelectTrigger>
@@ -125,8 +125,8 @@ export default function AtsReportsPage() {
             <Download className="h-4 w-4" /> Download Excel
           </Button>
         </div>
-        {custom && draftBad && <p className="text-xs text-destructive">The end date must be on or after the start date, within 2 years.</p>}
-        <p className="text-xs text-muted-foreground">Applications are counted by the date they applied (IST). Hires, interviews and team activity are counted by the date they happened. Waiting now is the pipeline today.</p>
+        {custom && draftBad && <p className="-mt-2 text-xs text-destructive">The end date must be on or after the start date, within 2 years.</p>}
+        <p className="-mt-2 text-xs text-muted-foreground">Applications are counted by the date they applied (IST). Hires, interviews and team activity are counted by the date they happened. Waiting now is the pipeline today.</p>
       </div>
 
       {error ? <QueryError error={error} onRetry={() => refetch()} /> : <Body data={data} loading={isLoading} params={params} />}

@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Copy, KeyRound, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +16,7 @@ import { atsKeys, useAtsSettings, useAtsSources, useIsHrAdmin } from "@/lib/ats/
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDateTime } from "@/lib/ats/format";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
+import { MetricCell, MetricStrip, StatusPill } from "./AtsUi";
 
 interface Status {
   has_key: boolean; key_preview: string | null; key_created_at: string | null; key_created_by_name: string | null;
@@ -30,7 +30,7 @@ function careersErrorText(t: string): string {
   if (t === "resume_fetch_failed") return "A resume couldn't be copied from the website. The website will try again.";
   if (t === "internal_create") return "An application couldn't be saved. Check that the website is sending complete applications.";
   if (t.startsWith("internal_")) return "Something went wrong while receiving an application.";
-  return t;
+  return "Couldn't load the connection status. Try again.";
 }
 
 function connection(s: Status): { label: string; tone: "muted" | "ok" | "warn" } {
@@ -100,7 +100,7 @@ export function CareersSettingsSection() {
       </SectionCard>
 
       <SectionCard title="Website connection" action={c && (
-        <Badge variant="outline" className={c.tone === "ok" ? "border-success/50 text-success" : c.tone === "warn" ? "border-warning/60 text-warning" : "text-muted-foreground"}>{c.label}</Badge>
+        <StatusPill tone={c.tone === "ok" ? "success" : c.tone === "warn" ? "destructive" : "neutral"}>{c.label}</StatusPill>
       )}>
         {status.isLoading ? <RowsSkeleton rows={3} /> : status.isError ? <QueryError error={status.error} onRetry={() => status.refetch()} /> : !s ? (
           <p className="text-sm text-muted-foreground">You don't have access to the connection details.</p>
@@ -109,21 +109,22 @@ export function CareersSettingsSection() {
             {c?.label === "Needs attention" && s.last_error && (
               <p className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-sm text-foreground">{careersErrorText(s.last_error)} · {fmtDateTime(s.last_error_at)}</p>
             )}
-            <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div><dt className="text-xs text-muted-foreground">Received in total</dt><dd className="text-lg font-semibold tabular-nums text-foreground">{s.received_total}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Last 7 days</dt><dd className="text-lg font-semibold tabular-nums text-foreground">{s.received_7d}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Last received</dt><dd className="text-sm text-foreground">{fmtDateTime(s.last_received_at)}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Unsorted, no matching job</dt><dd className="text-lg font-semibold tabular-nums">
-                {s.unmatched_active > 0 && careersSource
-                  ? <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=general&source=${careersSource.id}`}>{s.unmatched_active}</Link>
-                  : <span className="text-foreground">{s.unmatched_active}</span>}
-              </dd></div>
-            </dl>
+            <MetricStrip className="sm:grid-cols-4 xl:grid-cols-4">
+              <MetricCell label="Received in total" value={s.received_total} />
+              <MetricCell label="Last 7 days" value={s.received_7d} />
+              <MetricCell label="Last received" value={<span className="text-sm font-medium">{fmtDateTime(s.last_received_at)}</span>} />
+              <MetricCell label="Unsorted, no matching job" value={s.unmatched_active > 0 && careersSource
+                ? <Link className="text-primary hover:underline" to={`/hrms/ats/candidates?job=general&source=${careersSource.id}`}>{s.unmatched_active}</Link>
+                : s.unmatched_active} />
+            </MetricStrip>
             <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
               {isAdmin ? (
-                <Button className="gap-1.5" disabled={rotating} onClick={() => (s.has_key ? setConfirm(true) : rotate())}>
-                  {rotating ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} Generate connection key
-                </Button>
+                <div className="space-y-1">
+                  <Button variant="outline" className="gap-1.5" disabled={rotating} onClick={() => (s.has_key ? setConfirm(true) : rotate())}>
+                    {rotating ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />} {s.has_key ? "Replace connection key" : "Generate connection key"}
+                  </Button>
+                  {s.has_key && <p className="max-w-md text-xs text-muted-foreground">After replacing it, put the new key on the website. Until then, new applications wait on the website and arrive once the new key is in place.</p>}
+                </div>
               ) : (
                 <span className="text-sm text-muted-foreground">Only HR admins can generate the connection key.</span>
               )}

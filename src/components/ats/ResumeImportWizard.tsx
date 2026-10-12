@@ -82,13 +82,19 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
   const addRef = useRef<HTMLInputElement>(null);
   const emptyRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => () => { readControl.current.cancelled = true; }, []);
+  const passRef = useRef(false);
+  // Reset on mount and cancel on unmount (React StrictMode mounts twice in development).
   useEffect(() => {
-    if (reading || !drafts.some((d) => d.state === "reading")) return;
+    readControl.current.cancelled = false;
+    return () => { readControl.current.cancelled = true; };
+  }, []);
+  useEffect(() => {
+    if (passRef.current || !drafts.some((d) => d.state === "reading")) return;
+    passRef.current = true;
     setReading(true);
-    readDrafts(drafts, readControl.current, (key, patch) =>
-      setDrafts((prev) => prev.map((d) => (d.key === key ? { ...d, ...patch } : d))),
-    ).finally(() => setReading(false));
+    readDrafts(drafts, readControl.current, (key, p) =>
+      setDrafts((prev) => prev.map((d) => (d.key === key && d.state === "reading" ? { ...d, ...p } : d))),
+    ).finally(() => { passRef.current = false; setReading(false); });
   }, [drafts, reading]);
 
   const addFiles = (list: File[]) => {

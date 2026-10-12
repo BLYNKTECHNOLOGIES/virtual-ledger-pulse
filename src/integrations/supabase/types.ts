@@ -1245,6 +1245,48 @@ export type Database = {
           },
         ]
       }
+      ats_integrations: {
+        Row: {
+          allowed_resume_host: string
+          id: string
+          key_created_at: string | null
+          key_created_by: string | null
+          key_created_by_name: string | null
+          key_hash: string | null
+          key_preview: string | null
+          last_error: string | null
+          last_error_at: string | null
+          last_seen_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          allowed_resume_host?: string
+          id: string
+          key_created_at?: string | null
+          key_created_by?: string | null
+          key_created_by_name?: string | null
+          key_hash?: string | null
+          key_preview?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_seen_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          allowed_resume_host?: string
+          id?: string
+          key_created_at?: string | null
+          key_created_by?: string | null
+          key_created_by_name?: string | null
+          key_hash?: string | null
+          key_preview?: string | null
+          last_error?: string | null
+          last_error_at?: string | null
+          last_seen_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ats_jobs: {
         Row: {
           aliases: string[]
@@ -1568,6 +1610,7 @@ export type Database = {
       }
       ats_settings: {
         Row: {
+          careers_base_url: string
           default_location: string
           id: boolean
           idle_alert_days: number
@@ -1577,6 +1620,7 @@ export type Database = {
           updated_by_name: string | null
         }
         Insert: {
+          careers_base_url?: string
           default_location?: string
           id?: boolean
           idle_alert_days?: number
@@ -1586,6 +1630,7 @@ export type Database = {
           updated_by_name?: string | null
         }
         Update: {
+          careers_base_url?: string
           default_location?: string
           id?: boolean
           idle_alert_days?: number
@@ -31499,16 +31544,24 @@ export type Database = {
           ref_no: string
         }[]
       }
+      ats_intake_application: { Args: { p: Json }; Returns: Json }
+      ats_integration_status: { Args: never; Returns: Json }
       ats_mark_reviewed: {
         Args: { p_application_id: string }
         Returns: undefined
+      }
+      ats_match_job: {
+        Args: { p_position?: string; p_slug?: string }
+        Returns: string
       }
       ats_move_stage: {
         Args: { p_application_id: string; p_note?: string; p_stage_id: string }
         Returns: undefined
       }
+      ats_norm_title: { Args: { p: string }; Returns: string }
       ats_normalize_phone: { Args: { p: string }; Returns: string }
       ats_overview_stats: { Args: never; Returns: Json }
+      ats_rotate_intake_key: { Args: never; Returns: string }
       ats_set_status: {
         Args: {
           p_application_id: string

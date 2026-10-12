@@ -1878,6 +1878,12 @@ html {
   white-space: normal;
 }
 .table-fit th { line-height: 1.4; }
+.responsive-list { container-type: inline-size; min-width: 0; }
+.responsive-list-cards { display: none; }
+@container (max-width: 700px) {
+  .responsive-list-cards { display: block; }
+  .responsive-list-table { display: none; }
+}
 .ds-table { overflow-wrap: anywhere; }
 @media (max-width: 1023px) {
   .table-fit th,

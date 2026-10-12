@@ -1,5 +1,4 @@
 import * as React from "react";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 /**
  * ResponsiveList — a single primitive that picks its rendering mode from the
@@ -48,7 +47,6 @@ export function ResponsiveList<T>({
   className,
   mobileClassName,
 }: ResponsiveListProps<T>) {
-  const isMobile = useIsMobile();
 
   if (isLoading) {
     return (
@@ -77,9 +75,9 @@ export function ResponsiveList<T>({
     );
   }
 
-  if (isMobile) {
-    return (
-      <div className={className}>
+  return (
+    <div className={`responsive-list ${className ?? ''}`}>
+      <div className="responsive-list-cards">
         <div className={mobileClassName ?? "flex flex-col gap-2"}>
           {items.map((item, i) => (
             <React.Fragment key={keyFor(item, i)}>
@@ -88,12 +86,7 @@ export function ResponsiveList<T>({
           ))}
         </div>
       </div>
-    );
-  }
-
-  return (
-    <div className={className}>
-      <div className="hrms-scroll-table bg-card rounded-xl border border-border overflow-x-auto">
+      <div className="responsive-list-table hrms-scroll-table bg-card rounded-xl border border-border overflow-x-auto">
         <table className={`table-fit w-full text-sm ${tableMinWidth}`}>
           <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
             <tr>

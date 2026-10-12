@@ -439,7 +439,7 @@ export default function StatutorySettingsPage() {
           items={rows}
           isLoading={isLoading}
           keyFor={(r: any) => r.emp.id}
-          tableMinWidth="min-w-[820px]"
+          tableMinWidth="min-w-0"
           columns={[
             { key: "sel", label: "" },
             { key: "emp", label: "Employee" },

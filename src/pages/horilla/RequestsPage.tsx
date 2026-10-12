@@ -37,7 +37,7 @@ const STAGE_STYLE: Record<RequestStage, string> = {
 
 function StageBadge({ stage }: { stage: RequestStage }) {
   return (
-    <Badge variant="outline" className={cn("whitespace-normal text-center leading-snug", STAGE_STYLE[stage])}>
+    <Badge variant="outline" className={cn("whitespace-normal text-center leading-snug [overflow-wrap:normal]", STAGE_STYLE[stage])}>
       {STAGE_LABEL[stage]}
     </Badge>
   );
@@ -237,7 +237,7 @@ export default function RequestsPage() {
           <>
             <td className="px-3 py-3 align-top">
               <span className="flex items-start gap-2 text-sm">
-                <TypeIcon type={r.type} /> <span className="break-words">{r.typeLabel}</span>
+                <TypeIcon type={r.type} /> <span className="min-w-0 [overflow-wrap:anywhere]">{r.typeLabel}</span>
               </span>
             </td>
             <td className="px-3 py-3 align-top break-words">

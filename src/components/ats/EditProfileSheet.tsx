@@ -129,7 +129,7 @@ export function EditProfileSheet({ open, onOpenChange, candidate }: { open: bool
           </label>
         </form>
         {err && <p className="text-xs text-destructive" role="alert">{err}</p>}
-        <SheetFooter className="gap-2">
+        <SheetFooter className="gap-2 border-t border-border bg-card pt-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
           <Button type="submit" form="ats-edit-profile" disabled={busy || !!err}>Save</Button>
         </SheetFooter>

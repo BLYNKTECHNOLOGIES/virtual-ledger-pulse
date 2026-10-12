@@ -1,25 +1,19 @@
 import { CheckCircle2, CircleDot, PauseCircle, XCircle, LogOut, Star, FileText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill, type StatusTone } from "./AtsUi";
 import { cn } from "@/lib/utils";
 
-const APP_STATUS: Record<string, { label: string; icon: typeof CircleDot; cls: string }> = {
-  active: { label: "Active", icon: CircleDot, cls: "text-primary" },
-  on_hold: { label: "On hold", icon: PauseCircle, cls: "text-warning" },
-  rejected: { label: "Rejected", icon: XCircle, cls: "text-destructive" },
-  withdrawn: { label: "Withdrawn", icon: LogOut, cls: "text-muted-foreground" },
-  hired: { label: "Hired", icon: CheckCircle2, cls: "text-success" },
+const APP_STATUS: Record<string, { label: string; icon: typeof CircleDot; tone: StatusTone }> = {
+  active: { label: "Active", icon: CircleDot, tone: "primary" },
+  on_hold: { label: "On hold", icon: PauseCircle, tone: "warning" },
+  rejected: { label: "Rejected", icon: XCircle, tone: "destructive" },
+  withdrawn: { label: "Withdrawn", icon: LogOut, tone: "neutral" },
+  hired: { label: "Hired", icon: CheckCircle2, tone: "success" },
 };
 export const appStatusLabel = (s?: string | null) => APP_STATUS[s ?? ""]?.label ?? "—";
 
 export function AppStatusBadge({ status }: { status?: string | null }) {
-  const s = APP_STATUS[status ?? ""] ?? APP_STATUS.active;
-  const Icon = s.icon;
-  return (
-    <Badge variant="outline" className="gap-1 whitespace-nowrap font-medium">
-      <Icon className={cn("h-3 w-3 shrink-0", s.cls)} aria-hidden />
-      {s.label}
-    </Badge>
-  );
+  const s = APP_STATUS[status ?? ""] ?? { label: "Unknown", icon: CircleDot, tone: "neutral" as const };
+  return <StatusPill tone={s.tone} icon={s.icon}>{s.label}</StatusPill>;
 }
 
 export function Stars({ value, count, size = "sm" }: { value?: number | null; count?: number | null; size?: "sm" | "md" }) {

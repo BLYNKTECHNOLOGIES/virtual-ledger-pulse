@@ -1,5 +1,11 @@
 # Workforce capacity integrity
 
+## ATS UI refresh U1
+
+- [x] Refresh ATS shell, shared visuals and Overview without changing data or actions.
+- [x] Verify representative-data layouts at 1440×900 and 390×844 in both themes, destinations, dialogs, focus rings, no-jobs and error states, sidebar matching and preview typecheck/build health.
+- [ ] Verify signed-in ATS with live counts and sidebar rendering (blocked: external Supabase authentication unavailable to automated checks).
+
 ## Table width optimization
 
 - [x] Make Requests fit its available width without dropping data or actions.

@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent, type ReactNode } from "react";
-import { CheckCircle2, Circle, PauseCircle, XCircle, X, Check, ChevronsUpDown } from "lucide-react";
+import { CheckCircle2, Circle, PauseCircle, XCircle, X, Check, ChevronsUpDown, ChevronRight } from "lucide-react";
+import { StatusPill, type StatusTone } from "./AtsUi";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -8,25 +9,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/shared/ErrorState";
 
-const JOB_STATUS: Record<string, { label: string; icon: typeof Circle; cls: string }> = {
-  open: { label: "Open", icon: CheckCircle2, cls: "text-success" },
-  draft: { label: "Draft", icon: Circle, cls: "text-muted-foreground" },
-  paused: { label: "Paused", icon: PauseCircle, cls: "text-warning" },
-  closed: { label: "Closed", icon: XCircle, cls: "text-muted-foreground" },
+const JOB_STATUS: Record<string, { label: string; icon: typeof Circle; tone: StatusTone }> = {
+  open: { label: "Open", icon: CheckCircle2, tone: "success" },
+  draft: { label: "Draft", icon: Circle, tone: "neutral" },
+  paused: { label: "Paused", icon: PauseCircle, tone: "warning" },
+  closed: { label: "Closed", icon: XCircle, tone: "neutral" },
 };
 
 export function JobStatusBadge({ status }: { status: string }) {
-  const s = JOB_STATUS[status] ?? JOB_STATUS.draft;
-  const Icon = s.icon;
-  return (
-    <Badge variant="outline" className="gap-1 font-medium whitespace-nowrap">
-      <Icon className={cn("h-3 w-3 shrink-0", s.cls)} aria-hidden />
-      {s.label}
-    </Badge>
-  );
+  const s = JOB_STATUS[status] ?? { label: "Unknown", icon: Circle, tone: "neutral" as const };
+  return <StatusPill tone={s.tone} icon={s.icon}>{s.label}</StatusPill>;
 }
 
-export function BarList({ rows, emptyText, onRowClick }: { rows: { key: string; label: string; count: number }[]; emptyText: string; onRowClick?: (key: string) => void }) {
+export function BarList({ rows, emptyText, onRowClick }: { rows: { key: string; label: string; count: number; barClassName?: string }[]; emptyText: string; onRowClick?: (key: string) => void }) {
   const max = Math.max(1, ...rows.map((r) => r.count));
   if (!rows.length || rows.every((r) => r.count === 0)) {
     return <p className="py-6 text-center text-sm text-muted-foreground">{emptyText}</p>;
@@ -39,15 +34,15 @@ export function BarList({ rows, emptyText, onRowClick }: { rows: { key: string; 
             const inner = (
               <>
                 <span className="truncate text-muted-foreground" title={r.label}>{r.label}</span>
-                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(r.count / max) * 100}%` }} />
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className={cn("h-full rounded-full transition-all motion-reduce:transition-none", r.barClassName ?? "bg-primary")} style={{ width: `${(r.count / max) * 100}%` }} />
                 </div>
-                <span className="text-right font-medium tabular-nums">{r.count}</span>
+                <span className="text-right font-semibold tabular-nums text-foreground">{r.count}</span>
               </>
             );
-            const cls = "grid w-full grid-cols-[minmax(0,7.5rem)_1fr_2.5rem] items-center gap-3 text-sm";
+            const cls = "grid w-full grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_2.5rem] items-center gap-3 text-sm";
             return onRowClick ? (
-              <button type="button" onClick={() => onRowClick(r.key)} className={`${cls} rounded text-left hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`}>{inner}</button>
+              <Button variant="ghost" onClick={() => onRowClick(r.key)} className={`${cls} -mx-2 h-auto w-[calc(100%+1rem)] grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)_2.5rem_0.875rem] rounded-lg px-2 py-1.5 text-left font-normal hover:bg-muted/50`}>{inner}<ChevronRight className="h-3.5 w-3.5 text-muted-foreground" aria-hidden /></Button>
             ) : <div className={cls}>{inner}</div>;
           })()}
         </li>
@@ -56,11 +51,12 @@ export function BarList({ rows, emptyText, onRowClick }: { rows: { key: string; 
   );
 }
 
-export function SectionCard({ title, children, action, className }: { title: ReactNode; children: ReactNode; action?: ReactNode; className?: string }) {
+export function SectionCard({ title, description, children, action, className }: { title: ReactNode; description?: ReactNode; children: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-xl border border-border bg-card p-4", className)}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+    <section className={cn("rounded-xl border border-border bg-card p-4 sm:p-5", className)}>
+      <div className="mb-4 flex items-start justify-between gap-2">
+        <div className="min-w-0"><h2 className="font-display text-[15px] font-semibold leading-6 text-foreground">{title}</h2>
+        {description && <div className="mt-0.5 text-xs text-muted-foreground">{description}</div>}</div>
         {action}
       </div>
       {children}

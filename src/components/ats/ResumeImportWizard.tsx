@@ -29,10 +29,10 @@ type Step = "resumes" | "check" | "run" | "done";
 type Rejected = { name: string; reason: string };
 const LAST_SOURCE = "ats.import.lastResumeSource";
 const TONE: Record<string, string> = {
-  green: "text-emerald-600 dark:text-emerald-400",
-  blue: "text-sky-600 dark:text-sky-400",
+  green: "text-success",
+  blue: "text-primary",
   muted: "text-muted-foreground",
-  amber: "text-amber-600 dark:text-amber-400",
+  amber: "text-warning",
   red: "text-destructive",
 };
 
@@ -46,11 +46,11 @@ function Stepper({ step }: { step: Step }) {
         return (
           <li key={l} className="flex items-center gap-2">
             <span className={cn(
-              "flex h-6 w-6 items-center justify-center rounded-full border text-xs",
-              i === idx && step !== "done" ? "border-primary bg-primary text-primary-foreground" : done ? "border-primary text-primary" : "border-border text-muted-foreground",
+              "flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold",
+              i === idx && step !== "done" ? "bg-primary text-primary-foreground" : done ? "bg-primary/15 text-foreground" : "bg-muted text-muted-foreground",
             )}>{done ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
             <span className={cn(i === idx ? "font-medium text-foreground" : "text-muted-foreground")}>{l}</span>
-            {i < labels.length - 1 && <span className="text-muted-foreground">·</span>}
+            {i < labels.length - 1 && <span aria-hidden className="h-px w-5 bg-border" />}
           </li>
         );
       })}
@@ -353,7 +353,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
           ) : (
             <>
               {problemCount > 0 && (
-                <p className="text-sm text-amber-600 dark:text-amber-400">{problemCount === 1 ? "1 resume is" : `${problemCount} resumes are`} missing a name or contact details and will be skipped unless you add them.</p>
+                <p className="text-sm text-warning">{problemCount === 1 ? "1 resume is" : `${problemCount} resumes are`} missing a name or contact details and will be skipped unless you add them.</p>
               )}
               {isMobile ? (
                 <div className="space-y-3">
@@ -499,7 +499,7 @@ export function ResumeImportWizard({ files, presetJobId, onClose }: { files: Fil
               ) : phase === "attachFailed" ? (
                 <>
                   <Alert><AlertDescription>
-                    <div className="font-medium text-amber-600 dark:text-amber-400">{failedIdx.length} resumes couldn't be attached.</div>
+                    <div className="font-medium text-warning">{failedIdx.length} resumes couldn't be attached.</div>
                     {failedIdx.map((i) => <div key={i} className="text-muted-foreground">{drafts[i].file.name}</div>)}
                   </AlertDescription></Alert>
                   <div className="flex flex-wrap gap-2">

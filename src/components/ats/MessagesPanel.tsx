@@ -26,6 +26,7 @@ import {
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { cn } from "@/lib/utils";
+import { StatusPill } from "./AtsUi";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDate, fmtDateTime } from "@/lib/ats/format";
 import { AtsFileError, fileKindLabel, fmtBytes, uploadAtsFile } from "@/lib/ats/files";
@@ -259,7 +260,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
 
   return (
     <div className={cn("flex", out ? "justify-end" : "justify-start")}>
-      <div className={cn("w-full max-w-[88%] rounded-xl border p-3", out ? "border-primary/30 bg-primary/5" : "border-border bg-muted/40")}>
+      <div className={cn("w-full max-w-[88%] rounded-xl p-3 ring-1 ring-inset", out ? cn("bg-primary/10", m.status === "failed" ? "ring-destructive/30" : "ring-primary/20") : "bg-muted ring-transparent")}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 text-xs text-muted-foreground">
             {out
@@ -301,6 +302,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
         <Attachments list={atts} fileIds={fileIds} onOpenFile={onOpenFile} />
         {out && m.status === "failed" && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-destructive">
+            <StatusPill tone="destructive">Not delivered</StatusPill>
             <span>{mailErrorMessage(m.error)}</span>
             {mailOn && canRetry(m.error) && <Button size="sm" variant="outline" className="h-7 gap-1" disabled={retrying} onClick={retry}>
               {retrying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
@@ -316,7 +318,7 @@ function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnre
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Remove this email?</AlertDialogTitle>
             <AlertDialogDescription>Remove this email from the candidate's profile? It stays in the HR mailbox.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={remove}>Remove</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={remove}>Remove</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>

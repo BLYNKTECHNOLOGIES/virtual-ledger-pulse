@@ -278,7 +278,7 @@ function TemplatesCard() {
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Delete "{del?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>This template will be removed. Emails already sent are not affected.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={remove}>Delete</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={remove}>Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </SectionCard>

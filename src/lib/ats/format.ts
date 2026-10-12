@@ -13,7 +13,7 @@ export function fmtDateTime(v?: string | null): string {
   if (isNaN(d.getTime())) return "—";
   return `${d.toLocaleString("en-IN", {
     timeZone: TZ, day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: true,
-  })} IST`;
+  }).replace(/\b(am|pm)\b/gi, (x) => x.toUpperCase())} IST`;
 }
 
 export function fmtRelative(v?: string | null): string {
@@ -21,11 +21,11 @@ export function fmtRelative(v?: string | null): string {
   const diff = Date.now() - new Date(v).getTime();
   const m = Math.round(diff / 60000);
   if (m < 1) return "just now";
-  if (m < 60) return `${m} min ago`;
+  if (m < 60) return `${m} minute${m === 1 ? "" : "s"} ago`;
   const h = Math.round(m / 60);
-  if (h < 24) return `${h} h ago`;
+  if (h < 24) return `${h} hour${h === 1 ? "" : "s"} ago`;
   const d = Math.round(h / 24);
-  if (d < 30) return `${d} d ago`;
+  if (d < 30) return `${d} day${d === 1 ? "" : "s"} ago`;
   return fmtDate(v);
 }
 

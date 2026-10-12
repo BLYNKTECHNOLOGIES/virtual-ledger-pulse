@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { StepLine } from "@/components/ats/AtsUi";
 import { Link, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ChevronDown, FileText, FileUp } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -43,14 +44,14 @@ export default function AtsImportPage() {
         <Button variant="ghost" size="sm" asChild className="-ml-2 gap-1.5">
           <Link to="/hrms/ats/candidates"><ArrowLeft className="h-4 w-4" /> Candidates</Link>
         </Button>
-        <h2 className="text-lg font-semibold text-foreground">Import candidates</h2>
+        <h2 className="font-display text-xl font-semibold text-foreground">Import candidates</h2>
         <p className="text-sm text-muted-foreground">
           Bring in applicants from a job portal (Indeed, Naukri, Apna, WorkIndia, LinkedIn and others) with the Excel or CSV file you download there. Nobody is emailed.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-      <SectionCard title="Import a job-portal file">
+      <SectionCard title="Import a job-portal file" description={<StepLine steps={["Choose file", "Match columns", "Check", "Import"]} />}>
         <div
           {...dropzoneProps}
           className={cn(
@@ -84,7 +85,7 @@ export default function AtsImportPage() {
         </Collapsible>
       </SectionCard>
 
-      <SectionCard title="Upload resumes">
+      <SectionCard title="Upload resumes" description={<StepLine steps={["Choose resumes", "Check details", "Import"]} />}>
         <div
           {...resumeDrop.dropzoneProps}
           className={cn(

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { WEEKLY_OFF_PATTERNS_KEY, fetchAllWeeklyOffPatterns, weeklyOffPatternCode } from "@/lib/hrms/weeklyOffPatterns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,11 +46,8 @@ export default function WeeklyOffPage() {
 
 
   const { data: patterns = [] } = useQuery({
-    queryKey: ["hr_weekly_off_patterns"],
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("hr_weekly_off_patterns").select("*").order("name");
-      return data || [];
-    },
+    queryKey: WEEKLY_OFF_PATTERNS_KEY,
+    queryFn: fetchAllWeeklyOffPatterns,
   });
 
   const { data: assignments = [] } = useQuery({
@@ -97,7 +95,7 @@ export default function WeeklyOffPage() {
       if (!form.name) throw new Error("Pattern name is required");
       const { error } = await (supabase as any).from("hr_weekly_off_patterns").insert({
         name: form.name,
-        code: form.name.trim().toUpperCase().replace(/[^A-Z0-9]+/g, "_").slice(0, 40),
+        code: weeklyOffPatternCode(form.name),
         weekly_offs: form.weekly_offs,
         is_alternating: form.is_alternating,
         alternate_week_offs: form.is_alternating ? form.alternate_week_offs : null,

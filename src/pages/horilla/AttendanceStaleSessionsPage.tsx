@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,7 @@ export default function AttendanceStaleSessionsPage() {
       setOutTime("");
       setNote("");
       qc.invalidateQueries({ queryKey: ["hr_stale_sessions"] });
-      qc.invalidateQueries({ queryKey: ["hr_attendance_unified"] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Resolution failed"),
   });
@@ -109,7 +110,7 @@ export default function AttendanceStaleSessionsPage() {
     onSuccess: () => {
       toast.success("Marked present — closed at shift end");
       qc.invalidateQueries({ queryKey: ["hr_stale_sessions"] });
-      qc.invalidateQueries({ queryKey: ["hr_attendance_unified"] });
+      invalidateAttendanceCaches(qc);
     },
     onError: (e: any) => toast.error(e?.message || "Failed to close at shift end"),
   });
@@ -122,9 +123,7 @@ export default function AttendanceStaleSessionsPage() {
     if (resolution === "set_out_time") {
       // Default suggestion: in_time + 9h, formatted for datetime-local (IST).
       const suggested = new Date(new Date(row.in_time).getTime() + 9 * 60 * 60 * 1000);
-      const istOffset = 5.5 * 60 * 60 * 1000;
-      const local = new Date(suggested.getTime() + istOffset - suggested.getTimezoneOffset() * 60 * 1000);
-      setOutTime(local.toISOString().slice(0, 16));
+      setOutTime(formatInTimeZone(suggested, "Asia/Kolkata", "yyyy-MM-dd'T'HH:mm"));
     } else {
       setOutTime("");
     }
@@ -136,7 +135,9 @@ export default function AttendanceStaleSessionsPage() {
     if (dlg.resolution === "set_out_time") {
       if (!outTime) return toast.error("Pick an out-time");
       // datetime-local is treated as IST; convert to UTC ISO.
-      const asUtc = new Date(new Date(outTime).getTime() - 5.5 * 60 * 60 * 1000).toISOString();
+      const parsed = new Date(`${outTime}:00+05:30`);
+      if (isNaN(parsed.getTime())) return toast.error("Pick a valid out-time");
+      const asUtc = parsed.toISOString();
       args.out_time = asUtc;
     }
     resolve.mutate(args);

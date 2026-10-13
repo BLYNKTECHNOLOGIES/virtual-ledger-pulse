@@ -75,9 +75,12 @@ export function HiringRequirementDialog({
   const [form, setForm] = useState<HiringRequirementInput & { id?: string }>(BLANK);
   const limited = !!form.id && !!initial?.status && !["draft", "pending_approval"].includes(initial.status);
 
+  // Reset only when the dialog opens or a different requirement is shown — re-renders and refetches keep what HR typed.
+  const initialKey = initial?.id ?? (initial ? JSON.stringify(initial) : "");
   useEffect(() => {
     if (open) { setForm({ ...BLANK, ...initial } as HiringRequirementInput & { id?: string }); setEditReason(""); }
-  }, [open, initial]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialKey]);
 
   const set = (patch: Partial<HiringRequirementInput>) =>
     setForm((f) => ({ ...f, ...patch }));
@@ -113,18 +116,19 @@ export function HiringRequirementDialog({
       department_id: l.department_id ?? form.department_id,
       position_id: form.position_id && roleLineIds.has(l.plan_id) ? form.position_id : l.position_id ?? form.position_id,
       shift_id: l.shift_id ?? null,
-      shift_label: shift?.name ?? null,
+      shift_label: l.shiftLabel === "Any shift" ? (shift?.name ?? null) : l.shiftLabel,
       employment_type: l.employment_type ?? form.employment_type,
     });
   };
 
   const submit = (status: string) => {
     const shift = lookups?.shifts.find((s) => s.id === form.shift_id);
+    const lineLabel = matrix.rows.find((r) => r.plan_id === form.staffing_plan_id)?.shiftLabel;
     save.mutate(
       {
         ...form,
         status,
-        shift_label: shift?.name ?? form.shift_label ?? null,
+        shift_label: (lineLabel && lineLabel !== "Any shift" ? lineLabel : null) ?? shift?.name ?? (form.shift_label || null),
         editReason,
       } as any,
       { onSuccess: () => onOpenChange(false) },

@@ -1,5 +1,9 @@
 # Workforce capacity integrity
 
+## ATS job details formatting
+- [x] Add bullet and numbered-list controls with Enter continuation to all four job copy fields, preserving the existing plain-text careers feed.
+- [ ] Verify list editing and existing display compatibility; signed-in save/read-back requires access to the external Supabase session.
+
 ## HRMS permanent ERP access revocation
 - [x] Route manual and scheduled HRMS revocations through permanent ERP/Auth cleanup with retries and historical-record preservation.
 - [x] Reconcile seven former employee logins, verify Auth removal, employee retention, ledger attribution, denied anonymous calls and retry behavior.

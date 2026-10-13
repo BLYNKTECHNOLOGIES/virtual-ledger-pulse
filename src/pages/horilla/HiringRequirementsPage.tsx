@@ -12,7 +12,8 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { HiringRequirementDetailDialog } from "@/components/horilla/workforce/HiringRequirementDetailDialog";
-import { useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { useHeadcountPlans, useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
+import { requirementLineIssues } from "@/hooks/hrms/useWorkforceAlerts";
 import { useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
 import { JobStatusBadge } from "@/components/ats/AtsBits";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -73,6 +74,11 @@ export default function HiringRequirementsPage() {
 
   const { data: requirements = [], isLoading } = useHiringRequirements();
   const navigate = useNavigate();
+  const { data: activePlans = [] } = useHeadcountPlans();
+  const lineIssue = useMemo(() => {
+    const x = requirementLineIssues(requirements as any[], activePlans as any[]);
+    return { unlinked: new Set(x.unlinked.map((r: any) => r.id)), inactive: new Set(x.onInactiveLine.map((r: any) => r.id)) };
+  }, [requirements, activePlans]);
   const pipeline = useRequirementPipeline();
   const reqJobs = useRequirementJobs();
   const matrix = useStaffingMatrix();
@@ -144,7 +150,6 @@ export default function HiringRequirementsPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map((r: any) => {
-            void 0;
             const filled = r.positions_filled ?? 0;
             const needed = r.number_required ?? 0;
             const pct = needed > 0 ? Math.min(100, (filled / needed) * 100) : 0;

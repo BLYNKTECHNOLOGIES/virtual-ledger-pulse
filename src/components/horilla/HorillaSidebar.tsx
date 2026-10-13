@@ -424,7 +424,7 @@ export function HorillaSidebar({
 
       <div className="h-14 flex items-center px-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <BrandLogo variant={collapsed ? 'icon' : 'full'} className={collapsed ? 'h-8 w-8' : 'h-10 w-auto max-w-[190px]'} />
+          <BrandLogo variant={collapsed ? 'icon' : 'text'} className={collapsed ? 'h-8 w-8' : 'h-10 w-auto max-w-[190px]'} />
         </div>
         {isMobile && (
           <button

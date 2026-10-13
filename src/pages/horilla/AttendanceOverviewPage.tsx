@@ -14,7 +14,28 @@ import BiometricReportUploader from "@/components/hrms/BiometricReportUploader";
 import { BiometricQuarantineBanner } from "@/components/hrms/BiometricQuarantineBanner";
 import { BiometricDeviceOfflineBanner } from "@/components/hrms/BiometricDeviceOfflineBanner";
 import { StaleSessionAlert } from "@/components/hrms/StaleSessionAlert";
-import { useAttendanceDayRange } from "@/hooks/hrms/useAttendanceDay";
+import { useAttendanceDayRange, useAttendanceDay, resolveDayStatus } from "@/hooks/hrms/useAttendanceDay";
+import { invalidateAttendanceCaches } from "@/lib/hrms/attendanceCache";
+import { Link } from "react-router-dom";
+
+const emptyForm = () => ({
+  employee_id: "",
+  attendance_date: format(new Date(), "yyyy-MM-dd"),
+  attendance_status: "present",
+  notes: "",
+});
+
+const fmtIst = (iso: string) =>
+  new Date(iso).toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+
+function friendlyMarkError(e: any): string {
+  const msg = String(e?.message ?? "");
+  if (/lock/i.test(msg)) return msg;
+  if (/permission|not authori|denied|42501/i.test(msg) || e?.code === "42501") return "You don't have permission to set attendance for this employee.";
+  if (/invalid input|22P02|22007/i.test(msg)) return "That date or status isn't valid. Please check and try again.";
+  if (/fetch|network|timed out/i.test(msg)) return "Couldn't reach the server. Check your connection and try again.";
+  return msg ? `Couldn't save attendance: ${msg}` : "Couldn't save attendance. Please try again.";
+}
 
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -31,15 +52,7 @@ export default function AttendanceOverviewPage() {
   const [dateFilter, setDateFilter] = useState(format(new Date(), "yyyy-MM-dd"));
   const [showUploader, setShowUploader] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
-  const [form, setForm] = useState({
-    employee_id: "",
-    attendance_date: format(new Date(), "yyyy-MM-dd"),
-    check_in: "",
-    check_out: "",
-    attendance_status: "present",
-    work_type: "office",
-    notes: "",
-  });
+  const [form, setForm] = useState(emptyForm);
 
   const { data: employees = [] } = useQuery({
     queryKey: ["hr_employees_active"],
@@ -176,26 +189,25 @@ export default function AttendanceOverviewPage() {
   });
 
 
+  const currentDay = useAttendanceDay(showAdd ? form.employee_id : "", showAdd ? form.attendance_date : "");
+
   const addMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await (supabase as any).from("hr_attendance").insert({
-        employee_id: form.employee_id,
-        attendance_date: form.attendance_date,
-        check_in: form.check_in || null,
-        check_out: form.check_out || null,
-        attendance_status: form.attendance_status,
-        work_type: form.work_type,
-        notes: form.notes || null,
+      const { error } = await (supabase as any).rpc("hr_set_manual_day_status", {
+        p_employee_id: form.employee_id,
+        p_date: form.attendance_date,
+        p_status: form.attendance_status,
+        p_reason: form.notes.trim() || null,
       });
       if (error) throw error;
     },
     onSuccess: () => {
-    queryClient.invalidateQueries({ queryKey: ["hr_attendance_unified_v1"] });
-    queryClient.invalidateQueries({ queryKey: ["hr_attendance_day_v1"] });
+      invalidateAttendanceCaches(queryClient);
       setShowAdd(false);
-      toast.success("Attendance recorded");
+      setForm(emptyForm());
+      toast.success("Attendance status saved");
     },
-    onError: (e: any) => toast.error(e.message),
+    onError: (e: any) => toast.error(friendlyMarkError(e)),
   });
 
   const filtered = attendance.filter((a: any) => {
@@ -325,8 +337,10 @@ export default function AttendanceOverviewPage() {
         title={<span className="text-sm font-semibold flex items-center gap-2"><Plus className="h-4 w-4" /> Mark Attendance</span>}
         footer={
           <>
-            <Button variant="outline" className="h-9" onClick={() => setShowAdd(false)}>Cancel</Button>
-            <Button className="h-9 bg-[#E8604C] hover:bg-[#d4553f]" onClick={() => addMutation.mutate()} disabled={!form.employee_id}>Save</Button>
+            <Button variant="outline" className="h-9" onClick={() => setShowAdd(false)} disabled={addMutation.isPending}>Cancel</Button>
+            <Button className="h-9" onClick={() => addMutation.mutate()} disabled={!form.employee_id || !form.attendance_date || addMutation.isPending}>
+              {addMutation.isPending ? "Saving…" : "Save"}
+            </Button>
           </>
         }
       >
@@ -343,30 +357,31 @@ export default function AttendanceOverviewPage() {
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="present">Present</SelectItem>
+                    <SelectItem value="half_day">Half day</SelectItem>
                     <SelectItem value="absent">Absent</SelectItem>
-                    <SelectItem value="late">Late</SelectItem>
-                    <SelectItem value="half_day">Half Day</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div><Label>Check In</Label><Input type="time" className="h-9" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} /></div>
-              <div><Label>Check Out</Label><Input type="time" className="h-9" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} /></div>
-            </div>
+            {form.employee_id && form.attendance_date && (
+              <p className="text-xs text-muted-foreground">
+                Current status for this day:{" "}
+                <span className="font-medium text-foreground">
+                  {currentDay.isLoading ? "Loading…" : DAY_STATUS_LABEL[resolveDayStatus(currentDay.data)] ?? "No record"}
+                </span>
+                {currentDay.data?.first_in && (
+                  <> · in {fmtIst(currentDay.data.first_in)}{currentDay.data.last_out ? ` · out ${fmtIst(currentDay.data.last_out)}` : ""}</>
+                )}
+              </p>
+            )}
             <div>
-              <Label>Work Type</Label>
-              <Select value={form.work_type} onValueChange={(v) => setForm({ ...form, work_type: v })}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="office">Office</SelectItem>
-                  <SelectItem value="remote">Remote</SelectItem>
-                  <SelectItem value="hybrid">Hybrid</SelectItem>
-                  <SelectItem value="field">Field</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Reason</Label>
+              <Input className="h-9" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Why are you setting this status? (shown in day detail)" />
             </div>
-            <div><Label>Notes</Label><Input className="h-9" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Optional notes..." /></div>
+            <p className="text-xs text-muted-foreground rounded-md border border-border bg-muted/40 p-2.5">
+              This sets the day's status only. Check-in and check-out times come from biometric punches — to fix a missed or wrong punch, use{" "}
+              <Link to="/hrms/attendance/regularization" className="text-primary underline">Regularization</Link>.
+            </p>
           </div>
       </ResponsiveDialog>
       <BiometricReportUploader open={showUploader} onOpenChange={setShowUploader} />

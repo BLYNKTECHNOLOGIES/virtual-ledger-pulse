@@ -865,7 +865,7 @@ export default function EmployeeListPage() {
       {/* ─── Content ─── */}
       {isLoading ? (
         <TableSkeleton rows={8} columns={6} />
-      ) : employeesError ? (
+      ) : employeesError && !employees ? (
         <EmptyState icon={Building2} title="Couldn't load employees" description="Refresh the page to try again. Nothing was changed." />
       ) : sorted.length === 0 ? (
         <EmptyState

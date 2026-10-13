@@ -74,7 +74,7 @@ export function LeaveClashCard({ defaultThreshold = 3, horizonDays = 60 }: { def
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {isLoading || isError ? (
+        {isLoading || (isError && leaves.length === 0) ? (
           <div className="p-4 text-xs text-muted-foreground">
             {isLoading ? "Checking upcoming leave…" : "Couldn't load upcoming leave — refresh to retry."}
           </div>

@@ -18,7 +18,11 @@ import { TableSkeleton } from '@/components/ui/skeleton';
 import { EmployeeCombobox } from "@/components/hrms/EmployeePicker";
 
 /** "1 Sep 2026" from a yyyy-MM-dd date. */
-const fmtD = (d?: string | null) => (d ? format(new Date(`${d}T00:00:00`), "d MMM yyyy") : "…");
+const fmtD = (d?: string | null) => {
+  if (!d) return "…";
+  const dt = new Date(`${d}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? d : format(dt, "d MMM yyyy");
+};
 /** Timestamp in IST, e.g. "13 Oct 2026, 9:05 am". */
 const fmtIst = (ts?: string | null) =>
   ts ? new Date(ts).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : "—";

@@ -853,7 +853,7 @@ export default function EmployeeProfilePage() {
   const getLeaveTypeCode = (typeId: string) => leaveTypes?.find(t => t.id === typeId)?.code || "??";
   const getLeaveTypeColor = (typeId: string) => leaveTypes?.find(t => t.id === typeId)?.color || "#666";
 
-  if (empError) {
+  if (empError && !emp) {
     return (
       <EmptyState
         icon={User}

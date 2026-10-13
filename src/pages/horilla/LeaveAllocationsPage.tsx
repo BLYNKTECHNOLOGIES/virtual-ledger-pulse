@@ -340,7 +340,7 @@ export default function LeaveAllocationsPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4"><CardSkeleton /><CardSkeleton /><CardSkeleton /></div>
-      ) : isError ? (
+      ) : isError && allAllocations.length === 0 ? (
         <Card><CardContent className="p-0"><ErrorState title="Couldn't load leave balances" description="Nothing was changed. Retry before allocating." error={error} onRetry={() => refetch()} /></CardContent></Card>
       ) : groupedArr.length === 0 ? (
         <Card>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -217,13 +218,15 @@ export default function DataHealthPage() {
   const { data: statutoryRollup } = useQuery({
     queryKey: ["data_health_statutory_rollup"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
+      // Month window (last 12 payroll months, incl. current), not a row count.
+      const now = new Date();
+      const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1)).toISOString().slice(0, 10);
+      return await fetchAllPaginated<any>(() => (supabase as any)
         .from("hr_razorpay_payslip_records")
         .select("id, hr_employee_id, period_month, tds_amount, pf_amount, esi_amount, professional_tax")
+        .gte("period_month", from)
         .order("period_month", { ascending: false })
-        .limit(500);
-      if (error) throw error;
-      return (data ?? []) as any[];
+        .order("id", { ascending: true }));
     },
     enabled: !!complianceSettings,
     staleTime: 60_000,
@@ -995,7 +998,7 @@ export default function DataHealthPage() {
 
           {statutoryDrift.count > 0 && (
             <RailSection
-              title={`Statutory filing drift — ${statutoryDrift.count} mismatch${statutoryDrift.count === 1 ? "" : "es"} · ${statutoryDrift.employees} employee${statutoryDrift.employees === 1 ? "" : "s"}`}
+              title={`Statutory filing drift (last 12 months) — ${statutoryDrift.count} mismatch${statutoryDrift.count === 1 ? "" : "es"} · ${statutoryDrift.employees} employee${statutoryDrift.employees === 1 ? "" : "s"}`}
               tone="warning"
               defaultOpen
             >

@@ -15,7 +15,6 @@ import { Link } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import {
-  useHeadcountPlans,
   useSaveSeatCapacity,
   useStaffingMatrix,
   useWorkforceLookups,
@@ -63,7 +62,6 @@ export function SeatCapacityDialog({
   );
 
   const { rows: matrixRows } = useStaffingMatrix();
-  const { data: plans = [] } = useHeadcountPlans();
   const shifts = (lookups?.shifts || []) as any[];
   const selectedShift = shifts.find((s) => s.id === form.shift_id);
   const training = !!form.is_training_only;
@@ -78,8 +76,6 @@ export function SeatCapacityDialog({
   const orderedLines = sortByOperatingOrder(
     linkedLines.map((r) => ({ ...r, name: r.shiftLabel, start_time: shifts.find((s) => s.id === r.shift_id)?.start_time ?? null })),
   );
-  const original: any = form.id ? (plans as any[]) && null : null;
-  void original;
   const newDesk = training ? 0 : form.max_operational_capacity ?? form.physical_seats;
   const followingToChange = linkedLines.filter((r) => r.follow_desks && r.required_hc !== newDesk).length;
 

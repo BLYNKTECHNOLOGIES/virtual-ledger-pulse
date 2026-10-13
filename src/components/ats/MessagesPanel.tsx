@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import DOMPurify from "dompurify";
 import {
   AlertTriangle, Check, Clock, Loader2, Mail, MoreVertical, Paperclip, RefreshCw, RotateCcw, Send, Upload,
@@ -102,7 +103,7 @@ export function MessagesPanel({ candidate, appId, files, visible, composeSignal,
     qc.invalidateQueries({ queryKey: candKeys.all });
   };
 
-  const fileIds = useMemo(() => new Set(files.map((f) => f.id)), [files]);
+  const fileIds = useMemo(() => new Map(files.map((f) => [f.id, f] as const)), [files]);
   const [finding, setFinding] = useState(false);
   const findOlder = async () => {
     if (finding) return;
@@ -199,8 +200,18 @@ const SKIP_TEXT: Record<string, string> = {
   unreadable: "Not saved",
 };
 
-function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]; fileIds: Set<string>; onOpenFile: (id: string) => void }) {
+function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
   if (!list.length) return null;
+  const useAsResume = async (f: AtsFile) => {
+    setBusy(true);
+    const { error } = await supabase.from("ats_files").update({ kind: "resume", is_primary: true }).eq("id", f.id);
+    setBusy(false);
+    if (error) return toast.error(atsErrorMessage(error));
+    qc.invalidateQueries({ queryKey: candKeys.files(f.candidate_id) });
+    toast.success("Saved as the main resume");
+  };
   const anyUnsaved = list.some((a) => a.skipped);
   return (
     <div className="mt-2 space-y-1">
@@ -216,9 +227,14 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
               {note && <span className="text-muted-foreground">· {note}</span>}
             </span>
           );
-          return openable
+          const file = a.file_id ? fileIds.get(a.file_id) : undefined;
+          const canResume = !!file && file.kind === "other" && /\.(pdf|docx?)$/i.test(file.file_name ?? "");
+          const el = openable
             ? <button key={i} type="button" onClick={() => onOpenFile(a.file_id!)} className="max-w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-md">{chip}</button>
             : <span key={i} className="max-w-full">{chip}</span>;
+          return canResume
+            ? <span key={i} className="inline-flex max-w-full items-center gap-1">{el}<button type="button" disabled={busy} onClick={() => useAsResume(file!)} className="rounded text-xs text-primary hover:underline disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Use as resume</button></span>
+            : el;
         })}
       </div>
       {anyUnsaved && <p className="text-xs text-muted-foreground">Open the email in the HR mailbox to get it.</p>}
@@ -226,7 +242,7 @@ function Attachments({ list, fileIds, onOpenFile }: { list: MailAttachmentInfo[]
   );
 }
 
-function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread }: { m: AtsMessage; fileIds: Set<string>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void }) {
+function MessageBubble({ m, fileIds, onOpenFile, onChanged, mailOn, onMarkedUnread }: { m: AtsMessage; fileIds: Map<string, AtsFile>; onOpenFile: (id: string) => void; onChanged: () => void; mailOn: boolean; onMarkedUnread: (id: string) => void }) {
   const isAdmin = useIsHrAdmin().data === true;
   const out = m.direction === "outbound";
   const [showQuoted, setShowQuoted] = useState(false);

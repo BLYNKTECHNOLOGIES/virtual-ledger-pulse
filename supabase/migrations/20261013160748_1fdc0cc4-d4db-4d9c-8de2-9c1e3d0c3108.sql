@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS authenticated_manage_statutory_profiles ON public.hr_employee_statutory_profiles;

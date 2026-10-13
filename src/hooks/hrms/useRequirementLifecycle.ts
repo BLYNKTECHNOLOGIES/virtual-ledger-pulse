@@ -14,7 +14,7 @@ export function useRequirementPipeline() {
   return useQuery({
     queryKey: ["workforce_hiring_requirements", "pipeline"],
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("hr_requirement_pipeline", { p_requirement: null });
+      const { data, error } = await supabase.rpc("hr_requirement_pipeline", { p_requirement: null });
       if (error) throw error;
       const m = new Map<string, RequirementPipeline>();
       for (const r of (data ?? []) as RequirementPipeline[]) m.set(r.requirement_id, r);
@@ -74,7 +74,7 @@ export function useRaiseReplacement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ employeeId, note }: { employeeId: string; note?: string | null }) => {
-      const { data, error } = await (supabase.rpc as any)("hr_raise_replacement_requirement", {
+      const { data, error } = await supabase.rpc("hr_raise_replacement_requirement", {
         p_employee: employeeId, p_reason: note?.trim() || null,
       });
       if (error) throw error;

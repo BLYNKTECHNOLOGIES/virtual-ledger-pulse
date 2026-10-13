@@ -371,12 +371,12 @@ export function useSaveHiringRequirement() {
           const allowed: readonly string[] = full ? ALL_REQUIREMENT_FIELDS : LIMITED_REQUIREMENT_FIELDS;
           if (allowed.includes(k)) patch[k] = v;
         }
-        const { error } = await (supabase.rpc as any)("hr_update_requirement", {
+        const { error } = await supabase.rpc("hr_update_requirement", {
           p_id: id, p_patch: patch, p_reason: editReason?.trim() || null,
         });
         if (error) throw error;
         if (before?.status === "draft" && status === "pending_approval") {
-          const { error: tErr } = await (supabase.rpc as any)("hr_requirement_transition", {
+          const { error: tErr } = await supabase.rpc("hr_requirement_transition", {
             p_id: id, p_action: "submit", p_reason: null,
           });
           if (tErr) throw tErr;
@@ -421,7 +421,7 @@ export function useRequirementTransition() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, action, reason }: { id: string; action: RequirementAction; reason?: string | null }) => {
-      const { data, error } = await (supabase.rpc as any)("hr_requirement_transition", {
+      const { data, error } = await supabase.rpc("hr_requirement_transition", {
         p_id: id, p_action: action, p_reason: reason?.trim() || null,
       });
       if (error) throw error;
@@ -471,7 +471,7 @@ export function useLinePeople(planId?: string | null) {
     queryKey: ["workforce_line_people", planId],
     enabled: !!planId,
     queryFn: async (): Promise<LinePerson[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_line_people", { p_plan_id: planId });
+      const { data, error } = await supabase.rpc("hr_workforce_line_people", { p_plan_id: planId });
       if (error) throw error;
       return (data || []) as LinePerson[];
     },
@@ -498,7 +498,7 @@ export function useWorkforceTrainees() {
   return useQuery({
     queryKey: ["workforce_trainees"],
     queryFn: async (): Promise<TraineeRow[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_trainees");
+      const { data, error } = await supabase.rpc("hr_workforce_trainees");
       if (error) throw error;
       return (data || []) as TraineeRow[];
     },
@@ -510,7 +510,7 @@ export function useSetPostTrainingShift() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ employeeId, shiftId }: { employeeId: string; shiftId: string | null }) => {
-      const { error } = await (supabase.rpc as any)("hr_set_post_training_shift", {
+      const { error } = await supabase.rpc("hr_set_post_training_shift", {
         p_employee: employeeId, p_shift: shiftId,
       });
       if (error) throw error;
@@ -588,7 +588,7 @@ export function useForecastEvents(enabled = true) {
     queryKey: ["workforce_staffing_matrix", "forecast_events"],
     enabled,
     queryFn: async (): Promise<ForecastEvent[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_forecast_events");
+      const { data, error } = await supabase.rpc("hr_workforce_forecast_events");
       if (error) throw error;
       return (data || []) as ForecastEvent[];
     },
@@ -601,7 +601,7 @@ export function useAttritionHistory(departmentId: string | null, months = 12) {
   return useQuery({
     queryKey: ["workforce_staffing_matrix", "attrition_history", departmentId, months],
     queryFn: async (): Promise<AttritionMonth[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_attrition_history", {
+      const { data, error } = await supabase.rpc("hr_workforce_attrition_history", {
         p_department: departmentId, p_months: months,
       });
       if (error) throw error;

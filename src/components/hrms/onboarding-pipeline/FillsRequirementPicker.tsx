@@ -23,7 +23,7 @@ export function FillsRequirementPicker({ departmentId, positionId, shiftId, valu
         .select("id, requirement_no, shift_label, number_required, positions_filled, status, position_id, staffing_plan_id")
         .eq("department_id", departmentId!).in("status", RECRUITING).order("requested_at");
       if (error) throw error;
-      const { data: pipe } = await (supabase.rpc as any)("hr_requirement_pipeline", { p_requirement: null });
+      const { data: pipe } = await supabase.rpc("hr_requirement_pipeline", { p_requirement: null });
       const left = new Map<string, number>(((pipe ?? []) as any[]).map((p) => [p.requirement_id, p.still_needed]));
       const { data: lines } = await supabase.from("hr_headcount_plans").select("id, position_id, eligible_position_ids");
       const roles = new Map<string, string[]>(((lines ?? []) as any[]).map((l) => [l.id, l.eligible_position_ids?.length ? l.eligible_position_ids : [l.position_id]]));
@@ -37,7 +37,7 @@ export function FillsRequirementPicker({ departmentId, positionId, shiftId, valu
     queryKey: ["workforce_hiring_requirements", "suggest", departmentId, positionId, shiftId],
     enabled: !!departmentId && !!positionId && !value && !disabled,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("hr_wf_suggest_requirement", {
+      const { data, error } = await supabase.rpc("hr_wf_suggest_requirement", {
         p_department: departmentId, p_position: positionId, p_shift: shiftId || null, p_preferred: null,
       });
       if (error) throw error;

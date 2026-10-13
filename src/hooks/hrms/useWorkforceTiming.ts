@@ -14,7 +14,7 @@ export function useOverdueJoiners(enabled = true) {
     queryKey: ["workforce_staffing_matrix", "overdue_joiners"],
     enabled,
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_overdue_joiners");
+      const { data, error } = await supabase.rpc("hr_workforce_overdue_joiners");
       if (error) throw error;
       return (data || []) as OverdueJoiner[];
     },
@@ -59,7 +59,7 @@ export function useRemoveDeskGroup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, reason }: { id: string; reason: string }) => {
-      const { error } = await (supabase.rpc as any)("hr_wf_remove_desk_group", { p_seat: id, p_reason: reason.trim() });
+      const { error } = await supabase.rpc("hr_wf_remove_desk_group", { p_seat: id, p_reason: reason.trim() });
       if (error) throw error;
     },
     onSuccess: () => { invalidatePlanning(qc); toast.success("Desk group removed"); },

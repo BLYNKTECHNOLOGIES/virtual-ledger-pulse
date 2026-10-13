@@ -10,7 +10,7 @@ export function useResumeAutoHiring() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (planId: string) => {
-      const { data, error } = await (supabase.rpc as any)("hr_wf_resume_auto_hiring", { p_plan: planId });
+      const { data, error } = await supabase.rpc("hr_wf_resume_auto_hiring", { p_plan: planId });
       if (error) throw error;
       return (data?.requirement_no ?? null) as string | null;
     },
@@ -27,7 +27,7 @@ export function useMoveRequirement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, planId, reason }: { id: string; planId: string; reason: string }) => {
-      const { error } = await (supabase.rpc as any)("hr_update_requirement", {
+      const { error } = await supabase.rpc("hr_update_requirement", {
         p_id: id, p_patch: { staffing_plan_id: planId }, p_reason: reason.trim(),
       });
       if (error) throw error;
@@ -42,7 +42,7 @@ export function useLeavingSoon() {
   return useQuery({
     queryKey: ["workforce_staffing_matrix", "leaving_soon"],
     queryFn: async () => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_leaving_soon");
+      const { data, error } = await supabase.rpc("hr_workforce_leaving_soon");
       if (error) throw error;
       return (data || []) as { employee_id: string; department_id: string | null; position_id: string | null; plan_id: string | null; last_working_day: string | null }[];
     },

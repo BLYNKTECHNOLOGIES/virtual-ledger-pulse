@@ -36,7 +36,7 @@ export function useWorkforceBudget(enabled: boolean) {
     enabled,
     retry: false,
     queryFn: async (): Promise<WorkforceBudget> => {
-      const { data, error } = await (supabase.rpc as any)("hr_workforce_budget");
+      const { data, error } = await supabase.rpc("hr_workforce_budget");
       if (error) throw error;
       return data as WorkforceBudget;
     },
@@ -56,7 +56,7 @@ export function useMyDepartmentStaffing() {
   return useQuery({
     queryKey: ["workforce_staffing_matrix", "my_department"],
     queryFn: async (): Promise<MyDepartmentLine[]> => {
-      const { data, error } = await (supabase.rpc as any)("hr_my_department_staffing");
+      const { data, error } = await supabase.rpc("hr_my_department_staffing");
       if (error) throw error;
       return (data || []) as MyDepartmentLine[];
     },
@@ -68,7 +68,7 @@ export function useDepartmentRequestHiring() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (v: { planId: string; number: number; target: string | null; reason: string }) => {
-      const { data, error } = await (supabase.rpc as any)("hr_department_request_hiring", {
+      const { data, error } = await supabase.rpc("hr_department_request_hiring", {
         p_plan_id: v.planId, p_number: v.number, p_target: v.target || null, p_reason: v.reason,
       });
       if (error) throw error;

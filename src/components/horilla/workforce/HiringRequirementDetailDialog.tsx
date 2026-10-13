@@ -96,7 +96,7 @@ export function HiringRequirementDetailDialog({
       const over = ln?.over_requested_hc ?? 0;
       const st = pipeline.data?.get(cur.id)?.still_needed ?? 0;
       const target = Math.max(1, (cur.number_required ?? 0) - over, (cur.number_required ?? 0) - st);
-      const { error } = await (supabase.rpc as any)("hr_update_requirement", {
+      const { error } = await supabase.rpc("hr_update_requirement", {
         p_id: cur.id, p_patch: { number_required: target, staffing_plan_id: cur.staffing_plan_id },
         p_reason: `Reduced to the line's need (was over-requested by ${over})`,
       });

@@ -188,7 +188,7 @@ export const useRequirementsLookup = () =>
           .select("id,requirement_no,department_id,position_id,shift_id,shift_label,location,employment_type,number_required,positions_filled,required_skills,experience_required,salary_min,salary_max,status")
           .in("status", REQUIREMENT_PICKER_STATUSES as unknown as string[])
           .order("requirement_no"),
-        (supabase.rpc as any)("hr_requirement_pipeline", { p_requirement: null }),
+        supabase.rpc("hr_requirement_pipeline", { p_requirement: null }),
       ]);
       const list = unwrap(rows) as any[];
       if (pipe.error) throw pipe.error;

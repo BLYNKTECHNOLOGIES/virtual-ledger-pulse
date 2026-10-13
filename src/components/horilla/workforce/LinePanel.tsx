@@ -1,3 +1,4 @@
+import { useOverdueJoiners } from "@/hooks/hrms/useWorkforceTiming";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertCircle, ExternalLink, GraduationCap, PauseCircle, Trash2, UserPlus } from "lucide-react";
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   GAP_CHIP_CLASS, PRIORITIES, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL,
-  formatIstDate, gapLabel, gapTone, pauseText, planningShifts, type StaffingDerived,
+  formatIstDate, gapLabel, gapTone, pauseText, planningShifts, trainingEnded, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { OPEN_REQ_STATUSES, linesForRole, useMoveRequirement, useResumeAutoHiring } from "@/hooks/hrms/useWorkforceRepair";
 import { useRequirementTransition } from "@/hooks/hrms/useWorkforcePlanning";
@@ -52,6 +53,8 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const { data: lookups } = useWorkforceLookups();
   const { data: requirements = [] } = useHiringRequirements();
   const people = useLinePeople(line?.plan_id);
+  const overdueJoiners = useOverdueJoiners();
+  const planIdForOverdue = line?.plan_id ?? null;
   const save = useSaveHeadcountPlan();
   const remove = useDeleteHeadcountPlan();
   const setPostShift = useSetPostTrainingShift();
@@ -101,6 +104,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   );
   const onRoll = (people.data || []).filter((p) => p.kind === "on_roll");
   const trainees = (people.data || []).filter((p) => p.kind === "trainee");
+  const lateHere = (overdueJoiners.data || []).filter((j) => j.plan_id === planIdForOverdue);
   const shifts = planningShifts((lookups?.shifts || []) as any[]);
 
   const scopeChanged = !!plan && (form.shift !== lineShift(plan) || form.seat !== (plan.seat_capacity_id ?? "none")
@@ -301,6 +305,9 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
 
               <section className="space-y-2">
                 <h3 className="text-sm font-semibold text-foreground">People on this line</h3>
+                {lateHere.length > 0 && (
+                  <p className="text-xs text-warning">{lateHere.length} joining, overdue: {lateHere.map((j) => `${j.full_name || "Unnamed"} (due ${formatIstDate(j.date_of_joining)})`).join(", ")} — still counted as joining.</p>
+                )}
                 {people.isLoading ? (
                   <Skeleton className="h-16 w-full" />
                 ) : people.isError ? (
@@ -338,7 +345,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                           {t.full_name || "Unnamed"}
                           {t.badge_id && <span className="ml-1.5 font-mono text-xs text-muted-foreground">{t.badge_id}</span>}
                         </p>
-                        <p className="text-xs text-muted-foreground">Ready {formatIstDate(t.ready_date)}</p>
+                        <p className="text-xs text-muted-foreground">{trainingEnded(t.ready_date) ? <span className="text-warning">Training ended {formatIstDate(t.ready_date)} — move them to their working shift</span> : <>Ready {formatIstDate(t.ready_date)}</>}</p>
                         <div className="mt-2 flex items-center gap-2">
                           <Label className="shrink-0 text-xs">After training</Label>
                           <Select

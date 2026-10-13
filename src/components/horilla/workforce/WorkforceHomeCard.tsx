@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useForecastEvents, useHiringRequirements, useStaffingMatrix } from "@/hooks/hrms/useWorkforcePlanning";
 import { useLeavingSoon } from "@/hooks/hrms/useWorkforceRepair";
+import { WorkforceTimingAlerts } from "./WorkforceTimingAlerts";
 import { istToday, sumLines } from "@/lib/hrms/workforce";
 
 /** Compact HRMS-home summary; every figure is the same one shown on Workforce Planning pages. */
@@ -54,6 +55,7 @@ export function WorkforceHomeCard() {
           </button>
         ))}
       </div>
+      <div className="mt-3"><WorkforceTimingAlerts compact /></div>
     </div>
   );
 }

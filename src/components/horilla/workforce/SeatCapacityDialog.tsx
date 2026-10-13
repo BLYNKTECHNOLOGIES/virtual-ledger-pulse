@@ -140,11 +140,14 @@ export function SeatCapacityDialog({
                 <Link to="/hrms/workforce-planning/staffing-plan" className="text-primary hover:underline">Open staffing plan</Link>
               </p>
             )}
-            {followingToChange > 0 && (
-              <p className="mt-1 text-warning">
-                Saving changes {followingToChange} following line{followingToChange > 1 ? "s" : ""} to {newDesk}.
-              </p>
-            )}
+            {followingToChange > 0 && (() => {
+              const olds = [...new Set(linkedLines.filter((r) => r.follow_desks && r.required_hc !== newDesk).map((r) => r.required_hc))];
+              return (
+                <p className="mt-1 text-warning">
+                  Saving changes {followingToChange} line{followingToChange > 1 ? "s" : ""} from {olds.join(" / ")} to {newDesk} required; their pending automatic hiring requests resize to match.
+                </p>
+              );
+            })()}
           </div>
         )}
         <div className="space-y-1">

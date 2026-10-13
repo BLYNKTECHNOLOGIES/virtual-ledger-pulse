@@ -44,9 +44,24 @@ export default function DepartmentsPage() {
       return data || [];
     },
   });
+  // Heads who have since left: the picker lists active employees only, so name them separately.
+  const { data: departedHeads = [] } = useQuery({
+    queryKey: ["dept_departed_heads"],
+    queryFn: async () => {
+      const { data: depts } = await supabase.from("departments").select("head_employee_id").not("head_employee_id", "is", null);
+      const ids = [...new Set((depts || []).map((d: any) => d.head_employee_id as string))];
+      if (!ids.length) return [];
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name, badge_id").in("id", ids).eq("is_active", false);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const departed = (id?: string | null) => (departedHeads as any[]).find((x) => x.id === id);
   const headName = (id?: string | null) => {
     const e: any = activeEmployees.find((x: any) => x.id === id);
-    return e ? fullName(e) : null;
+    if (e) return fullName(e);
+    const gone = departed(id);
+    return gone ? `${fullName(gone)} (left) — choose a new head` : null;
   };
 
   const { data: empCounts } = useQuery({
@@ -250,6 +265,9 @@ export default function DepartmentsPage() {
                 <SelectTrigger className="h-9 mt-1 text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No head</SelectItem>
+                  {departed(form.head_employee_id) && (
+                    <SelectItem value={form.head_employee_id}>{headName(form.head_employee_id)}</SelectItem>
+                  )}
                   {activeEmployees.map((e: any) => (
                     <SelectItem key={e.id} value={e.id}>{fullName(e)}{e.badge_id ? ` (${e.badge_id})` : ""}</SelectItem>
                   ))}

@@ -1,0 +1,1 @@
+ALTER FUNCTION public.hr_wf_remove_desk_group(uuid, text) SECURITY INVOKER;

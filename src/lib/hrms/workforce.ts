@@ -475,3 +475,22 @@ export function formatIstDateTime(value?: string | null): string {
     timeZone: "Asia/Kolkata",
   })} IST`;
 }
+
+/** The IST calendar day after `today` (YYYY-MM-DD). */
+export function istNextDay(today: string = istToday()): string {
+  const d = new Date(`${today}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Training is over once its completion date is before today (IST). */
+export function trainingEnded(readyDate?: string | null, today: string = istToday()): boolean {
+  return !!readyDate && readyDate < today;
+}
+
+/** Joiners overdue per line ("1 joining, overdue"); keyed by plan id. */
+export function overdueByLine(rows: { plan_id: string | null }[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of rows) if (r.plan_id) m.set(r.plan_id, (m.get(r.plan_id) ?? 0) + 1);
+  return m;
+}

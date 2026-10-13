@@ -35905,6 +35905,7 @@ export type Database = {
         }[]
       }
       hr_wf_caller_is_internal: { Args: never; Returns: boolean }
+      hr_wf_daily_reconcile: { Args: never; Returns: Json }
       hr_wf_is_manager: { Args: { _uid: string }; Returns: boolean }
       hr_wf_leaving_soon_core: {
         Args: never
@@ -35976,8 +35977,13 @@ export type Database = {
       }
       hr_wf_planning_shift: { Args: { p_shift: string }; Returns: string }
       hr_wf_queue_reconcile: { Args: never; Returns: undefined }
+      hr_wf_refresh_open_requirements: { Args: never; Returns: undefined }
       hr_wf_refresh_requirement: {
         Args: { p_requirement: string }
+        Returns: undefined
+      }
+      hr_wf_remove_desk_group: {
+        Args: { p_reason: string; p_seat: string }
         Returns: undefined
       }
       hr_wf_requirement_people: {
@@ -36075,6 +36081,14 @@ export type Database = {
           out_ready_date: string
         }[]
       }
+      hr_wf_trainee_allocation_from: {
+        Args: { p_base: Json }
+        Returns: {
+          out_employee_id: string
+          out_plan_id: string
+          out_ready_date: string
+        }[]
+      }
       hr_wf_unplanned_scopes_core: {
         Args: never
         Returns: {
@@ -36144,6 +36158,19 @@ export type Database = {
           post_training_shift_name: string
           ready_date: string
           shift_name: string
+        }[]
+      }
+      hr_workforce_overdue_joiners: {
+        Args: never
+        Returns: {
+          date_of_joining: string
+          days_overdue: number
+          department_name: string
+          full_name: string
+          onboarding_id: string
+          onboarding_status: string
+          plan_id: string
+          position_title: string
         }[]
       }
       hr_workforce_staffing_matrix: {

@@ -38,6 +38,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
   });
   const { data: lookups } = useWorkforceLookups();
   const workShifts = (lookups?.shifts ?? []).filter((s: any) => !s.is_training_shift);
+  const onTrainingShift = !!(lookups?.shifts ?? []).find((s: any) => s.id === data?.shift_id)?.is_training_shift;
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -60,6 +61,10 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
   const validate = () => {
     if (!form.ctc || Number(form.ctc) <= 0) { toast.error("CTC is required and must be positive"); return false; }
     if (!form.date_of_joining) { toast.error("Date of Joining is required"); return false; }
+    if (onTrainingShift && !form.post_training_shift_id) {
+      toast.error("Choose the shift after training — this person starts on a training shift");
+      return false;
+    }
     const hasDate = !!form.training_completion_date;
     const hasCtc = !!form.post_training_ctc && Number(form.post_training_ctc) > 0;
     if (hasDate !== hasCtc) {
@@ -190,7 +195,7 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
               />
             </div>
             <div>
-              <Label>Shift after training</Label>
+              <Label>Shift after training{onTrainingShift && <span className="text-destructive"> *</span>}</Label>
               <Select
                 value={form.post_training_shift_id || "none"}
                 disabled={readOnly}
@@ -202,7 +207,9 @@ export function Stage2SalaryConfig({ data, onSave, onComplete, onBack, readOnly 
                   {workShifts.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-[11px] text-muted-foreground">Used by the staffing plan for where this trainee will sit.</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{onTrainingShift
+                  ? "Required: this person starts on a training shift. The staffing plan counts them once, on this shift's line, so it doesn't keep asking to hire for the desk they'll fill."
+                  : "Used by the staffing plan for where this trainee will sit."}</p>
             </div>
           </div>
           {preview && (

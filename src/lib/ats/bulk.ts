@@ -36,9 +36,19 @@ export function skipReason(action: BulkAction, r: AtsAppRow): string | null {
   return null;
 }
 
-function callFor(action: BulkAction, appId: string) {
+/**
+ * Shift for a bulk hire: the job's only shift, or the candidate's single preferred shift among the job's.
+ * `undefined` = can't decide in bulk (several job shifts, no single matching preference).
+ */
+export function bulkHireShift(jobShiftIds: string[], preferred?: string[] | null): string | null | undefined {
+  if (jobShiftIds.length <= 1) return jobShiftIds[0] ?? null;
+  const match = (preferred ?? []).filter((p) => jobShiftIds.includes(p));
+  return match.length === 1 ? match[0] : undefined;
+}
+
+function callFor(action: BulkAction, appId: string, hiredShift?: string | null) {
   switch (action.kind) {
-    case "move": return supabase.rpc("ats_move_stage", { p_application_id: appId, p_stage_id: action.stageId, p_note: null });
+    case "move": return (supabase.rpc as any)("ats_move_stage", { p_application_id: appId, p_stage_id: action.stageId, p_note: null, p_hired_shift: hiredShift ?? null });
     case "hold": return supabase.rpc("ats_set_status", { p_application_id: appId, p_status: "on_hold", p_reason_id: null, p_note: null });
     case "reject": return supabase.rpc("ats_set_status", { p_application_id: appId, p_status: "rejected", p_reason_id: action.reasonId, p_note: action.note || null });
   }
@@ -62,8 +72,24 @@ export async function runBulk(
   const emailQueue: AtsAppRow[] = [];
   const res: BulkResult = { done: 0, skipped: [], failed: [], cancelled: false };
   const queue: AtsAppRow[] = [];
+  // Hiring in bulk: each person needs one shift on multi-shift jobs.
+  const hireShift = new Map<string, string | null>();
+  let jobShifts: Map<string, string[]> | null = null;
+  if (action.kind === "move") {
+    const { data: st } = await supabase.from("ats_stages").select("kind, code").eq("id", action.stageId).maybeSingle();
+    if (st && (st.kind === "hired" || st.code === "hired")) {
+      const jobIds = [...new Set(rows.map((r) => (r as any).job_id).filter(Boolean))] as string[];
+      const { data: jobs } = jobIds.length ? await supabase.from("ats_jobs").select("id, shift_ids").in("id", jobIds) : { data: [] as any[] };
+      jobShifts = new Map((jobs ?? []).map((j: any) => [j.id, (j.shift_ids ?? []) as string[]]));
+    }
+  }
   for (const r of rows) {
-    const s = skipReason(action, r);
+    let s = skipReason(action, r);
+    if (!s && jobShifts) {
+      const shift = bulkHireShift(jobShifts.get((r as any).job_id) ?? [], (r as any).preferred_shifts);
+      if (shift === undefined) s = "the job has several shifts: hire from the candidate page to choose one";
+      else hireShift.set(r.application_id!, shift);
+    }
     if (s) res.skipped.push({ row: r, reason: s }); else queue.push(r);
   }
   const total = rows.length;
@@ -75,7 +101,7 @@ export async function runBulk(
       if (opts.signal.cancelled) { res.cancelled = true; return; }
       const r = queue[next++];
       try {
-        const { error } = await callFor(action, r.application_id!);
+        const { error } = await callFor(action, r.application_id!, hireShift.get(r.application_id!));
         if (error) throw error;
         res.done++;
         if (action.kind === "reject" && opts.emailTemplateId) emailQueue.push(r);

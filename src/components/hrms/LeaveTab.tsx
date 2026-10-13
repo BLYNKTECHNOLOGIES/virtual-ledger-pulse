@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useMutation, useQuery, QueryClient } from "@tanstack/react-query";
+import { useQuery, QueryClient } from "@tanstack/react-query";
+import { useLeaveDecision, ApproveLeaveDialog, RejectLeaveDialog } from "@/components/hrms/leave/LeaveDecision";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Check, X, ArrowUpDown, Pencil, AlertTriangle } from "lucide-react";
@@ -71,25 +72,23 @@ export function LeaveTab({
   // Note: DB CHECK constraint requires lowercase statuses; balance math is
   // handled by the DB trigger fn_leave_balance_on_status_change — do NOT
   // double-mutate used_days from the client.
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ requestId, status }: { requestId: string; status: string }) => {
-      const updateData: any = { status };
-      if (status === "approved") {
-        updateData.approved_at = new Date().toISOString();
-      }
-      const { error } = await supabase
-        .from("hr_leave_requests")
-        .update(updateData)
-        .eq("id", requestId);
-      if (error) throw error;
+  // Same decision rules, dialogs, email and cache refresh as the Leave Requests
+  // page (the approval owner). Balances are handled by DB triggers.
+  const [approveTarget, setApproveTarget] = useState<any>(null);
+  const [rejectTarget, setRejectTarget] = useState<any>(null);
+  const updateStatusMutation = useLeaveDecision({ onDone: () => { setApproveTarget(null); setRejectTarget(null); } });
+  const activeLeaveTypes = leaveTypes.filter((t: any) => t.is_active !== false);
+
+  const managerIds = Array.from(new Set(leaveRequests.map((r: any) => r.manager_id).filter(Boolean))) as string[];
+  const { data: managerMap = {} } = useQuery({
+    queryKey: ["hr_leave_request_managers", managerIds],
+    enabled: managerIds.length > 0,
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("hr_employees").select("id, first_name, last_name").in("id", managerIds);
+      const map: Record<string, string> = {};
+      (data || []).forEach((m: any) => { map[m.id] = `${m.first_name || ""} ${m.last_name || ""}`.trim(); });
+      return map;
     },
-    onSuccess: (_, { status }) => {
-      toast.success(`Leave request ${status}`);
-      queryClient.invalidateQueries({ queryKey: ["hr_leave_requests", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["hr_leave_allocations", employeeId] });
-      queryClient.invalidateQueries({ queryKey: ["hr_leave_allocations_all"] });
-    },
-    onError: (e: any) => toast.error(e?.message || "Failed to update leave request"),
   });
 
   const handleSort = (field: string) => {
@@ -297,7 +296,7 @@ export function LeaveTab({
               <tbody>
                 {sortedRequests.map((req: any) => {
                   const lt = getLeaveType(req.leave_type_id);
-                  const isPending = req.status === "requested";
+                  const isPending = req.status === "requested" || req.status === "manager_approved";
                   const isCancellable = req.status === "requested" || req.status === "approved";
 
                   return (
@@ -341,7 +340,7 @@ export function LeaveTab({
                             title="Cancel this leave?"
                             description="It moves to Cancelled."
                             confirmLabel="Cancel leave"
-                            onConfirm={() => updateStatusMutation.mutate({ requestId: req.id, status: "cancelled" })}
+                            onConfirm={() => updateStatusMutation.mutate({ request: req, status: "cancelled" })}
                           >
                             <button
                               disabled={updateStatusMutation.isPending}
@@ -357,30 +356,30 @@ export function LeaveTab({
                       <td className="py-3 px-4">
                         {isPending ? (
                           <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => updateStatusMutation.mutate({ requestId: req.id, status: "approved" })}
-                              disabled={updateStatusMutation.isPending}
-                              className="bg-success hover:bg-success/90 text-white px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
-                              title="Approve"
-                              aria-label="Approve leave"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <ConfirmButton
-                              title="Reject this leave request?"
-                              description="It moves to Rejected."
-                              confirmLabel="Reject leave"
-                              onConfirm={() => updateStatusMutation.mutate({ requestId: req.id, status: "rejected" })}
-                            >
+                            {req.status === "requested" ? (
+                              <span className="text-[11px] text-muted-foreground mr-1">
+                                {managerMap[req.manager_id] ? `Awaiting ${managerMap[req.manager_id]}` : "Awaiting reporting manager"}
+                              </span>
+                            ) : (
                               <button
+                                onClick={() => setApproveTarget(req)}
                                 disabled={updateStatusMutation.isPending}
-                                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground px-3 py-1.5 rounded-r-lg transition-colors disabled:opacity-50"
-                                title="Reject"
-                                aria-label="Reject leave"
+                                className="bg-success hover:bg-success/90 text-success-foreground px-3 py-1.5 rounded-l-lg transition-colors disabled:opacity-50"
+                                title="Approve"
+                                aria-label="Approve leave"
                               >
-                                <X className="h-4 w-4" />
+                                <Check className="h-4 w-4" />
                               </button>
-                            </ConfirmButton>
+                            )}
+                            <button
+                              onClick={() => setRejectTarget(req)}
+                              disabled={updateStatusMutation.isPending}
+                              className={`bg-destructive hover:bg-destructive/90 text-destructive-foreground px-3 py-1.5 transition-colors disabled:opacity-50 ${req.status === "requested" ? "rounded-lg" : "rounded-r-lg"}`}
+                              title="Reject"
+                              aria-label="Reject leave"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
                           </div>
                         ) : req.status === "cancelled" ? (
                           <span className="text-xs text-muted-foreground text-center block">Cancelled</span>
@@ -396,6 +395,9 @@ export function LeaveTab({
           </div>
         </div>
       )}
+
+      <ApproveLeaveDialog request={approveTarget} onClose={() => setApproveTarget(null)} leaveTypes={activeLeaveTypes} decision={updateStatusMutation} />
+      <RejectLeaveDialog request={rejectTarget} onClose={() => setRejectTarget(null)} decision={updateStatusMutation} />
 
       <EditLeaveBalancesDialog
         open={editOpen}

@@ -378,8 +378,8 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
           )}
         </div>
       )}
+      {pickOpen && target && <OfferTimesDialog open onOpenChange={(o) => !o && setPickOpen(false)} target={target} moveInterview={upcoming ?? null} />}
       {target && (
-        {pickOpen && target && <OfferTimesDialog open onOpenChange={(o) => !o && setPickOpen(false)} target={target} moveInterview={upcoming ?? null} />}
         <ScheduleInterviewDialog open={!!sched} onOpenChange={(o) => !o && setSched(null)} target={target}
           interview={sched?.interview ?? null} initialStart={sched?.time?.start ?? null} initialDateOnly={!!sched?.time?.dateOnly}
           onSaved={() => {

@@ -121,6 +121,8 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
   if (staffingGap < 0) alerts.push("Overstaffed");
   if (row.physical_seats > 0 && row.current_hc > row.physical_seats)
     alerts.push("People without a desk");
+  const desks = raw.operational_capacity == null ? null : n(raw.operational_capacity);
+  if (row.follow_desks && desks != null && desks > 0 && row.current_hc === desks) alerts.push("Seat capacity reached");
   if (row.over_requested_hc > 0) alerts.push(`Over-requested by ${row.over_requested_hc}`);
   if (row.target_date && netHiringRequirement > 0 && daysUntil(row.target_date) <= 15)
     alerts.push("Hiring deadline approaching");

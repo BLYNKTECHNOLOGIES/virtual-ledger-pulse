@@ -26,7 +26,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { StatusPill, stageDotClass } from "@/components/ats/AtsUi";
 import { cn } from "@/lib/utils";
 import {
-  type AtsReason, type AtsStage, atsKeys, useAtsMutation, useAtsReasons, useAtsSettings, useAtsSources, useAtsStages,
+  type AtsReason, type AtsStage, atsKeys, useAtsMutation, useCanManageAtsSettings, useAtsReasons, useAtsSettings, useAtsSources, useAtsStages,
 } from "@/lib/ats/api";
 import { SOURCE_KINDS, fmtDateTime, sourceKindLabel } from "@/lib/ats/format";
 
@@ -398,7 +398,11 @@ export default function AtsSettingsPage() {
     if (v === "stages") next.delete("tab"); else next.set("tab", v);
     setSp(next, { replace: true });
   };
+  const canManage = useCanManageAtsSettings().data === true;
+  const lock = (node: JSX.Element) => <fieldset disabled={!canManage} className="m-0 min-w-0 border-0 p-0">{node}</fieldset>;
   return (
+    <div className="space-y-4">
+    {!canManage && <p className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">Only HR admins can change ATS settings. You can view them here.</p>}
     <Tabs value={tab} onValueChange={onTab} className="space-y-4 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start lg:gap-6 lg:space-y-0">
       <div className="max-w-full overflow-x-auto lg:hidden">
         <TabsList className="flex-nowrap">
@@ -419,14 +423,15 @@ export default function AtsSettingsPage() {
         </ul>
       </nav>
       <div className="min-w-0">
-        <TabsContent value="stages" className="mt-0"><StagesSection /></TabsContent>
-        <TabsContent value="sources" className="mt-0"><SourcesSection /></TabsContent>
-        <TabsContent value="reasons" className="mt-0"><ReasonsSection /></TabsContent>
+        <TabsContent value="stages" className="mt-0">{lock(<StagesSection />)}</TabsContent>
+        <TabsContent value="sources" className="mt-0">{lock(<SourcesSection />)}</TabsContent>
+        <TabsContent value="reasons" className="mt-0">{lock(<ReasonsSection />)}</TabsContent>
         <TabsContent value="careers" className="mt-0"><CareersSettingsSection /></TabsContent>
         <TabsContent value="email" className="mt-0"><EmailSettingsSection /></TabsContent>
-        <TabsContent value="interviews" className="mt-0"><InterviewSettingsSection /></TabsContent>
-        <TabsContent value="general" className="mt-0"><GeneralSection /></TabsContent>
+        <TabsContent value="interviews" className="mt-0">{lock(<InterviewSettingsSection />)}</TabsContent>
+        <TabsContent value="general" className="mt-0">{lock(<GeneralSection />)}</TabsContent>
       </div>
     </Tabs>
+    </div>
   );
 }

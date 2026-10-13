@@ -12,7 +12,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
-import { atsKeys, useAtsSettings, useAtsSources, useIsHrAdmin } from "@/lib/ats/api";
+import { atsKeys, useAtsSettings, useAtsSources, useCanManageAtsSettings, useIsHrAdmin } from "@/lib/ats/api";
 import { atsErrorMessage } from "@/lib/ats/errors";
 import { fmtDateTime } from "@/lib/ats/format";
 import { QueryError, RowsSkeleton, SectionCard } from "./AtsBits";
@@ -85,7 +85,8 @@ export function CareersSettingsSection() {
     qc.invalidateQueries({ queryKey: statusKey });
   };
 
-  const isAdmin = useIsHrAdmin();
+  const isAdmin = useIsHrAdmin().data === true;
+  const ro = useCanManageAtsSettings().data !== true;
   const careersSource = (sources.data ?? []).find((s) => s.code === "careers");
   const s = status.data;
   const c = s ? connection(s) : null;
@@ -97,7 +98,7 @@ export function CareersSettingsSection() {
           <Label htmlFor="ats-careers-url">Public careers page address</Label>
           <Input id="ats-careers-url" value={url} onChange={(e) => setUrl(e.target.value)} className="text-foreground" placeholder="https://blynkex.com/careers" />
           {url && urlErr && <p className="text-xs text-destructive">{urlErr}</p>}
-          <div><Button type="submit" disabled={!!urlErr || saving || url.trim() === (settings.data as any)?.careers_base_url}>Save</Button></div>
+          <div><Button type="submit" disabled={ro || !!urlErr || saving || url.trim() === (settings.data as any)?.careers_base_url}>Save</Button></div>
         </form>
       </SectionCard>
 

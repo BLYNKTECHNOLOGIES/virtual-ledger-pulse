@@ -38,6 +38,17 @@ export const useIsHrAdmin = () =>
     },
   });
 
+export const useCanManageAtsSettings = () =>
+  useQuery({
+    queryKey: ["ats", "can-manage-settings"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("ats_can_manage_settings" as any);
+      if (error) throw error;
+      return data === true;
+    },
+  });
+
 export const atsKeys = {
   overview: ["ats", "overview"] as const,
   jobs: ["ats", "jobs"] as const,

@@ -8,6 +8,7 @@ import { quotedPrintableEncode } from 'https://deno.land/x/denomailer@1.6.0/conf
 import { hrSignatureText, wrapHrEmail } from './hrSignature.ts'
 import { tidyMailAddress, tidyMailFilename, tidyMailHtml, tidyMailSubject, tidyMailText } from './mailBody.ts'
 import { ATS_BUCKET, bytesToBase64, errorCode, textToHtml } from './ats-mail.ts'
+import { secretByName } from './mailbox-secrets.ts'
 
 const SMTP_TIMEOUT_MS = 30_000
 const QUEUE_RETRY_MINUTES = [10, 60] // automatic emails: 3 attempts in total, then "failed"
@@ -62,9 +63,9 @@ export function base64Lines(s: string): string {
 
 /** SMTP sign-in for the mailbox (secret names are stored on hr_mailboxes), or null when it is not set up. */
 function smtpLogin(mailbox: any): { host: string; user: string; pass: string } | null {
-  const host = Deno.env.get(mailbox?.smtp_host_secret || '') || Deno.env.get('HR_SMTP_HOST')
-  const user = (Deno.env.get(mailbox?.smtp_user_secret || '') || Deno.env.get('HR_SMTP_USER') || '').trim()
-  const pass = (Deno.env.get(mailbox?.smtp_pass_secret || '') || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
+  const host = secretByName(mailbox?.smtp_host_secret) || Deno.env.get('HR_SMTP_HOST')
+  const user = (secretByName(mailbox?.smtp_user_secret) || Deno.env.get('HR_SMTP_USER') || '').trim()
+  const pass = (secretByName(mailbox?.smtp_pass_secret) || Deno.env.get('HR_SMTP_PASS') || '').replace(/\s+/g, '')
   return host && user && pass ? { host, user, pass } : null
 }
 

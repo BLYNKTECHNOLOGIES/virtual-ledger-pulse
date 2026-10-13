@@ -32210,6 +32210,7 @@ export type Database = {
         Returns: undefined
       }
       ats_actor_name: { Args: { p_uid?: string }; Returns: string }
+      ats_can_manage_settings: { Args: never; Returns: boolean }
       ats_cancel_interview: {
         Args: { p_interview_id: string; p_reason?: string }
         Returns: Json

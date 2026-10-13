@@ -490,6 +490,13 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         {app && app.position_text && (!app.job_id || (app.job_title ?? "").trim().toLowerCase() !== app.position_text.trim().toLowerCase()) && (
           <div className="sm:col-span-2"><Fact label="Applied for (as typed)">{app.position_text}</Fact></div>
         )}
+        {app && ((app as any).preferred_shifts as string[] | null)?.length ? (
+          <div className="sm:col-span-2"><Fact label="Preferred shifts">
+            <span className="flex flex-wrap gap-1.5">{((app as any).preferred_shifts as string[]).map((s) => (
+              <span key={s} className="inline-flex items-center rounded-full border border-border bg-muted/50 px-2 py-0.5 text-xs text-foreground">{s}</span>
+            ))}</span>
+          </Fact></div>
+        ) : null}
         <Fact label="Experience">{c.total_experience_years != null ? fmtYears(c.total_experience_years) : null}</Fact>
         <Fact label="Current role">{[c.current_title, c.current_company].filter(Boolean).join(" at ")}</Fact>
         <Fact label="Current CTC">{c.current_ctc_monthly != null ? fmtMonthly(c.current_ctc_monthly) : null}</Fact>

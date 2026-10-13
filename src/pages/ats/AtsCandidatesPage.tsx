@@ -25,7 +25,7 @@ import { CandidateReviewPanel } from "@/components/ats/CandidateReviewPanel";
 import { UnreviewedDot, isUnreviewed } from "@/components/ats/CandidateBits";
 import { useAtsJobSummary, useAtsJobs, useAtsSettings, useAtsSources, useAtsStages } from "@/lib/ats/api";
 import {
-  fetchMatchingRows, PAGE_SIZE, candidateHref, hasActiveFilters, parseFilters, saveNavCtx, useAnyApplication, useCandidateList, useGeneralCount,
+  fetchMatchingRows, PAGE_SIZE, candidateHref, hasActiveFilters, parseFilters, saveNavCtx, useAnyApplication, useCandidateList, useGeneralCount, useJobPreferredShifts,
   type AtsAppRow, type CandidateFilters,
 } from "@/lib/ats/candidates";
 import { fmtDate } from "@/lib/ats/format";
@@ -71,6 +71,8 @@ export default function AtsCandidatesPage() {
   const sources = useAtsSources();
   const any = useAnyApplication();
   const list = useCandidateList(f, page, idleDays, settings.isFetched);
+  const jobShifts = useJobPreferredShifts(f.job);
+  const shiftOpts = [...new Set([...(jobShifts.data ?? []), ...(f.shift ? [f.shift] : [])])];
   type Mode = "table" | "review" | "board";
   const [mode, setModeState] = useState<Mode>(() => { const m = readLS(MODE_KEY, "table"); return m === "review" || m === "board" ? m : "table"; });
   const [selected, setSelected] = useState<Map<string, AtsAppRow>>(new Map());
@@ -252,12 +254,13 @@ export default function AtsCandidatesPage() {
   if (f.status !== "active") active.push({ key: "status", label: `Status: ${STATUS_OPTS.find((o) => o.v === f.status)?.l ?? f.status}` });
   if (f.stage) active.push({ key: "stage", label: `Stage: ${stages.data?.find((s) => s.id === f.stage)?.name ?? "…"}` });
   if (f.source) active.push({ key: "source", label: `Source: ${sources.data?.find((s) => s.id === f.source)?.name ?? "…"}` });
+  if (f.shift) active.push({ key: "shift", label: `Preferred shift: ${f.shift}` });
   if (f.applied !== "all") active.push({ key: "applied", label: APPLIED_OPTS.find((o) => o.v === f.applied)?.l ?? f.applied });
   if (f.unreviewed) active.push({ key: "unreviewed", label: "Unreviewed" });
   if (f.idle) active.push({ key: "idle", label: "Idle" });
   if (f.q) active.push({ key: "q", label: `Search "${f.q}"` });
   const removeFilter = (key: string) => { if (key === "q") setQ(""); update({ [key]: null, sel: null }); };
-  const clearAll = () => { setQ(""); update({ status: null, stage: null, source: null, applied: null, unreviewed: null, idle: null, q: null, sel: null }); };
+  const clearAll = () => { setQ(""); update({ status: null, stage: null, source: null, shift: null, applied: null, unreviewed: null, idle: null, q: null, sel: null }); };
 
   const filters = isBoard ? (
     <div className="space-y-2">
@@ -284,6 +287,8 @@ export default function AtsCandidatesPage() {
           [{ v: "__any", l: "Any stage" }, ...(stages.data ?? []).filter((s) => s.is_active).map((s) => ({ v: s.id, l: s.name }))], "Stage")}
         {sel_(f.source ?? "__any", (v) => update({ source: v === "__any" ? null : v, sel: null }),
           [{ v: "__any", l: "Any source" }, ...(sources.data ?? []).map((s) => ({ v: s.id, l: s.name }))], "Source")}
+        {f.job && f.job !== "general" && shiftOpts.length > 0 && sel_(f.shift ?? "__any", (v) => update({ shift: v === "__any" ? null : v, sel: null }),
+          [{ v: "__any", l: "Any shift" }, ...shiftOpts.map((s) => ({ v: s, l: s }))], "Preferred shift", "w-[10.5rem]")}
         {sel_(f.applied, (v) => update({ applied: v === "all" ? null : v, sel: null }), APPLIED_OPTS, "Applied")}
         <Select value={f.sort} onValueChange={(v) => update({ sort: v === "newest" ? null : v })}>
           <SelectTrigger className="h-9 w-[12rem] text-foreground" aria-label="Sort">

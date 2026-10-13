@@ -124,10 +124,30 @@ export function HiringRequirementDialog({
       }
     >
       <div className="space-y-4">
+        {limited && (
+          <p className="rounded-lg border border-border bg-muted/30 p-2.5 text-xs text-muted-foreground">
+            This requirement is approved. You can change the number, target date, salary range, skills and note — with a reason.
+            Other fields are locked.
+          </p>
+        )}
+        <div className="space-y-1">
+          <Label>For staffing line</Label>
+          <Select value={form.staffing_plan_id ?? "none"} disabled={limited} onValueChange={pickLine}>
+            <SelectTrigger className="text-foreground"><SelectValue placeholder="Not linked to a line" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Not linked to a line</SelectItem>
+              {matrix.rows.map((l) => (
+                <SelectItem key={l.plan_id} value={l.plan_id}>
+                  {l.department_name ?? "Department"} · {l.position_title ?? "Role"} · {l.shiftLabel} — {l.required_hc} required, {l.current_hc} on roll
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <fieldset disabled={limited} className="contents">
         <div>
           <p className="mb-2 text-sm font-semibold text-foreground">Basic details</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
               <Label>Department</Label>
               <Select
                 value={form.department_id}
@@ -304,7 +324,7 @@ export function HiringRequirementDialog({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Salary from</Label>
+                <Label>Monthly salary from (₹)</Label>
                 <Input
                   type="number"
                   className="text-foreground"
@@ -317,7 +337,7 @@ export function HiringRequirementDialog({
                 />
               </div>
               <div className="space-y-1">
-                <Label>Salary to</Label>
+                <Label>Monthly salary to (₹)</Label>
                 <Input
                   type="number"
                   className="text-foreground"
@@ -347,16 +367,15 @@ export function HiringRequirementDialog({
 
         <div>
           <p className="mb-2 text-sm font-semibold text-foreground">Approval</p>
+          <p className="mb-2 text-xs text-muted-foreground">Any HRMS manager can approve. "Raised by" is recorded automatically.</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Approving manager</Label>
-              <Input
-                className="text-foreground"
-                value={form.approver_name ?? ""}
-                onChange={(e) => set({ approver_name: e.target.value || null })}
-                placeholder="Who should approve this"
-              />
-            </div>
+            {limited && (
+              <div className="space-y-1 sm:col-span-2">
+                <Label>Reason for this change (required)</Label>
+                <Input className="text-foreground" value={editReason} onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="Why the approved requirement is changing" />
+              </div>
+            )}
             <div className="space-y-1">
               <Label>Priority</Label>
               <Select value={form.priority} onValueChange={(v) => set({ priority: v })}>

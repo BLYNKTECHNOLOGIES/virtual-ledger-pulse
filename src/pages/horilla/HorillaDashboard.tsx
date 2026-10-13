@@ -38,19 +38,23 @@ export default function HorillaDashboard() {
     queryFn: async () => await fetchAllPaginated<any>(() => supabase.from("hr_employees").select("id, is_active, created_at")),
   });
 
-  const { data: candidates } = useQuery({
-    queryKey: ["hr_dashboard_candidates"],
+  const { data: atsCounts } = useQuery({
+    queryKey: ["hr_dashboard_ats_counts"],
     queryFn: async () => {
-      const { data } = await supabase.from("hr_candidates").select("id, hired, canceled, start_onboard");
-      return data || [];
-    },
-  });
-
-  const { data: recruitments } = useQuery({
-    queryKey: ["hr_dashboard_recruitments"],
-    queryFn: async () => {
-      const { data } = await supabase.from("hr_recruitments").select("id, closed, vacancy");
-      return data || [];
+      const [jobs, inPipeline, hired, onboarding] = await Promise.all([
+        supabase.from("ats_jobs").select("id, openings").eq("status", "open"),
+        supabase.from("ats_applications").select("id", { count: "exact", head: true }).in("status", ["active", "on_hold"]),
+        supabase.from("ats_applications").select("id", { count: "exact", head: true }).eq("status", "hired"),
+        supabase.from("hr_employee_onboarding").select("id", { count: "exact", head: true }).not("status", "in", "(completed,cancelled)"),
+      ]);
+      const openJobs = jobs.data ?? [];
+      return {
+        openJobs: openJobs.length,
+        openings: openJobs.reduce((sum, j: any) => sum + (j.openings || 0), 0),
+        candidates: inPipeline.count ?? 0,
+        hired: hired.count ?? 0,
+        onboarding: onboarding.count ?? 0,
+      };
     },
   });
 
@@ -130,13 +134,6 @@ export default function HorillaDashboard() {
   const activeEmployees = (employees || []).filter(e => e.is_active).length;
   const newThisMonth = (employees || []).filter(e => e.created_at?.startsWith(thisMonth)).length;
 
-  const totalCandidates = (candidates || []).length;
-  const hiredCandidates = (candidates || []).filter(c => c.hired).length;
-  const onboardingCount = (candidates || []).filter(c => c.start_onboard).length;
-
-  const activeRecruitments = (recruitments || []).filter(r => !r.closed).length;
-  const totalVacancies = (recruitments || []).reduce((sum, r) => sum + (r.vacancy || 0), 0);
-
   const presentToday = (todayAttendance || []).filter(a => a.attendance_status === "present" || a.attendance_status === "late").length;
   const absentToday = (todayAttendance || []).filter(a => a.attendance_status === "absent").length;
   const lateToday = (todayAttendance || []).filter(a => a.attendance_status === "late").length;
@@ -174,11 +171,11 @@ export default function HorillaDashboard() {
   const stats = [
     { label: "Total Employees", value: totalEmployees, sub: `+${newThisMonth} this month`, icon: Users, iconBg: "bg-primary/10", iconColor: "text-primary" },
     { label: "Active Employees", value: activeEmployees, sub: `${totalEmployees - activeEmployees} inactive`, icon: CheckCircle, iconBg: "bg-success/10", iconColor: "text-success" },
-    { label: "Open Positions", value: activeRecruitments, sub: `${totalVacancies} vacancies`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
-    { label: "Candidates", value: totalCandidates, sub: `${hiredCandidates} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
+    { label: "Open Positions", value: atsCounts?.openJobs ?? 0, sub: `${atsCounts?.openings ?? 0} openings`, icon: Briefcase, iconBg: "bg-warning/10", iconColor: "text-warning" },
+    { label: "Candidates", value: atsCounts?.candidates ?? 0, sub: `${atsCounts?.hired ?? 0} hired`, icon: UserPlus, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Present Today", value: presentToday, sub: `${absentToday} absent, ${lateToday} late`, icon: Clock, iconBg: "bg-info/10", iconColor: "text-info" },
     { label: "Pending Leaves", value: pendingLeaves.length, sub: `${approvedLeaves} approved`, icon: CalendarDays, iconBg: "bg-warning/10", iconColor: "text-warning" },
-    { label: "Onboarding", value: onboardingCount, sub: "candidates in pipeline", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
+    { label: "Onboarding", value: atsCounts?.onboarding ?? 0, sub: "in progress", icon: Rocket, iconBg: "bg-primary/10", iconColor: "text-primary" },
     { label: "Payroll Runs", value: (payrollRuns || []).length, sub: lastPayroll ? `Last: ${lastPayroll.title}` : "No runs yet", icon: Wallet, iconBg: "bg-primary/10", iconColor: "text-primary" },
   ];
 

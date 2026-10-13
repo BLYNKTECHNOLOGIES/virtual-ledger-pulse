@@ -112,7 +112,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   }, [form.position_id, open]);
 
   const seat = deptSeats.find((s) => s.id === form.seat_capacity_id);
-  const deskCount = seat ? seat.max_operational_capacity || seat.physical_seats || 0 : 0;
+  const deskCount = seat ? (seat.is_active === false ? 0 : (seat.max_operational_capacity ?? seat.physical_seats ?? 0)) : 0;
   const following = form.follow_desks && !!seat;
   const required = following ? deskCount : form.required_hc;
   const approved = following ? deskCount : form.approved_hc;

@@ -18,7 +18,7 @@ import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRe
 import { WorkforceAlertsStrip } from "@/components/horilla/workforce/WorkforceAlertsStrip";
 import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import {
-  useHiringRequirements, useRequirementTransition, useStaffingMatrix, useWorkforceFlows, useWorkforceLookups,
+  useHiringRequirements, useRequirementTransition, useStaffingMatrix, useCompanyActiveCount, useWorkforceLookups,
 } from "@/hooks/hrms/useWorkforcePlanning";
 import {
   EMPTY_FILTERS, PRIORITY_CLASS, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL, daysUntil, findRebalances,
@@ -43,7 +43,7 @@ export default function WorkforceOverviewPage() {
   const { data: lookups } = useWorkforceLookups();
   const reqs = useHiringRequirements();
   const requirements = (reqs.data || []) as any[];
-  const { data: flows } = useWorkforceFlows();
+  const { data: companyActive } = useCompanyActiveCount();
   const transition = useRequirementTransition();
 
   const title = (id: string) => (lookups?.positions || []).find((p) => p.id === id)?.title;
@@ -156,7 +156,7 @@ export default function WorkforceOverviewPage() {
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <WorkforceKpiCard label="On roll" value={t.current} icon={Users}
-              hint={flows ? `Planned roles · ${flows.activeCount} company-wide incl. leadership outside planning` : "Planned roles"} />
+              hint={companyActive != null ? `Planned roles · ${companyActive} company-wide incl. leadership outside planning` : "Planned roles"} />
             <WorkforceKpiCard label="Required" value={t.required} icon={Briefcase} hint={`Approved ${t.approved} · vacant ${t.vacant}`} />
             <WorkforceKpiCard label="Short now" value={t.shortNow} icon={UserPlus} tone={t.shortNow > 0 ? "danger" : "success"}
               hint={`Net need ${t.netNeed} after pipeline and trainees`} />

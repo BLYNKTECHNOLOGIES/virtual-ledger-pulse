@@ -11,6 +11,10 @@ import { PayrollRunDetailDialog } from "@/components/hrms/payroll/PayrollRunDeta
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/hooks/useAuth";
+import { isSuperAdminRoleName } from "@/lib/auth/roles";
+import { isCockpitOpenableMonth } from "@/lib/hrms/cockpitMonths";
 
 /** Display labels for RazorpayX run statuses (the stored values are unchanged). */
 const RUN_STATUS_LABEL: Record<string, string> = {
@@ -22,6 +26,7 @@ const RUN_STATUS_LABEL: Record<string, string> = {
   locked: "Locked",
   recalled: "Recalled",
   payslips_only: "Payslips imported · no run record",
+  payslips_imported: "Payslips imported",
 };
 
 interface MonthRow {
@@ -55,6 +60,7 @@ const statusColor = (status: string) => {
     case "pilot_applied": case "dry_run_ok": case "computed": return "bg-info/10 text-info";
     case "recalled": return "bg-destructive/10 text-destructive";
     case "payslips_only": return "bg-warning/10 text-warning";
+    case "payslips_imported": return "bg-muted text-muted-foreground";
     default: return "bg-muted text-foreground";
   }
 };
@@ -64,11 +70,19 @@ export default function PayrollDashboardPage() {
 
   // RazorpayX is the payroll authority — one row per month that has a RazorpayX
   // run row OR imported payslip records; totals come from the payslip records.
-  const { data: runs = [], isLoading } = useQuery<MonthRow[]>({
-    queryKey: ["hr_payroll_runs_mirror"],
+  // Run rows are readable only with RazorpayX Sync or as Super Admin (same rule
+  // as RLS razorpay_payroll_runs_all); without it, never claim "no run record".
+  const { user } = useAuth();
+  const { hasPermission, isLoading: permsLoading } = usePermissions();
+  const canReadRuns = Boolean(user?.roles?.some(isSuperAdminRoleName)) || hasPermission("hrms_razorpay_sync");
+  const { data: runs = [], isLoading: runsLoading } = useQuery<MonthRow[]>({
+    queryKey: ["hr_payroll_runs_mirror", canReadRuns],
+    enabled: !permsLoading,
     queryFn: async () => {
       const [{ data: rzRuns, error: runErr }, recs] = await Promise.all([
-        (supabase as any).from("hr_razorpay_payroll_runs").select("*").order("period_month", { ascending: false }),
+        canReadRuns
+          ? (supabase as any).from("hr_razorpay_payroll_runs").select("*").order("period_month", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
         fetchAllPaginated<any>(() =>
           (supabase as any)
             .from("hr_razorpay_payslip_records")
@@ -111,7 +125,7 @@ export default function PayrollDashboardPage() {
           total_gross: Number(r?.totals_gross) || a.gross,
           total_deductions: Number(r?.totals_deductions) || a.ded,
           total_net: Number(r?.totals_net) || a.net,
-          status: r ? r.status : "payslips_only",
+          status: r ? r.status : canReadRuns ? "payslips_only" : "payslips_imported",
           is_locked: !!r?.locked_at,
         };
       });
@@ -140,13 +154,16 @@ export default function PayrollDashboardPage() {
       <Button size="sm" variant="outline" aria-label="Breakdown" title="Breakdown" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 w-8 p-0"} onClick={() => setDetailRun(r)}>
         <FileText className={mobile ? "h-3 w-3 mr-1" : "h-4 w-4"} />{mobile && " Breakdown"}
       </Button>
+      {isCockpitOpenableMonth(r.pay_period_start) && (
       <Button asChild size="sm" variant="ghost" aria-label="Open in Cockpit" title="Open in Cockpit" className={mobile ? "min-h-11 flex-1 text-xs" : "h-8 w-8 p-0"}>
         <Link to={`/hrms/payroll/cockpit?month=${r.pay_period_start.slice(0, 7)}`}>
           <Gauge className={mobile ? "h-3 w-3 mr-1" : "h-4 w-4"} />{mobile && " Open in Cockpit"}
         </Link>
       </Button>
+      )}
     </div>
   );
+  const isLoading = permsLoading || runsLoading;
 
   return (
     <div className="p-4 md:p-6 space-y-4 page-mount">

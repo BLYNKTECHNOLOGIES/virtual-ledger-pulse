@@ -42,6 +42,9 @@ export function atsErrorMessage(error: unknown, inUseMessage?: string): string {
   const msg = String(e.message ?? (typeof error === "string" ? error : "") ?? "");
   const all = `${msg} ${e.details ?? ""} ${e.hint ?? ""}`;
   for (const [code, text] of CODE_MESSAGES) if (all.includes(code)) return text;
+  if (all.includes("idx_hr_employee_onboarding_one_open_per_email") || /onboarding/i.test(all) && /duplicate key/i.test(all))
+    return "This person already has an open onboarding. The hire was not recorded — refresh and try again; the existing onboarding will be linked.";
+  if (/hiring requirement/i.test(msg) && e.code === "P0001") return msg;
   if (e.code === "23505") {
     if (all.includes("ats_candidates_email_uq")) return "Another candidate already uses this email";
     if (all.includes("ats_candidates_phone_uq")) return "Another candidate already uses this phone number";

@@ -20,6 +20,7 @@ import {
   useEmployeesLookup, usePositionsLookup, useRequirementsLookup, useShiftsLookup,
 } from "@/lib/ats/api";
 import { EMPLOYMENT_TYPES, humanize } from "@/lib/ats/format";
+import { JobLineShiftNotice } from "./JobLineShiftNotice";
 
 const NONE = "__none";
 const optNum = (min: number, max: number, label: string) =>
@@ -386,7 +387,8 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
                 </SelectContent>
               </Select>
             )} />
-            <p className="text-xs text-muted-foreground">Choosing one fills in the fields that are still empty and sets Openings to the number still needed.</p>
+            <p className="text-xs text-muted-foreground">Choosing one fills in the fields that are still empty and sets Openings to the number still needed. Openings then follow the requirement automatically.</p>
+            <JobLineShiftNotice requirementId={watch("requisition_id") || null} jobShiftIds={watch("shift_ids") ?? []} />
           </section>
         </form>
       </ResponsiveDialog>

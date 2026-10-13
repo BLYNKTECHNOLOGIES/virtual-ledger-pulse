@@ -6,7 +6,24 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useRequirementTransition, type RequirementAction } from "@/hooks/hrms/useWorkforcePlanning";
 
-export interface ReasonTarget { id: string; requirement_no: string; action: Extract<RequirementAction, "reject" | "cancel"> }
+export interface ReasonTarget {
+  id: string; requirement_no: string; action: Extract<RequirementAction, "reject" | "cancel">;
+  /** What happens to the line afterwards, shown before confirming. */
+  consequence?: string | null;
+}
+
+/** What declining/cancelling does to the line's automatic hiring (mirrors hr_requirement_transition + reconcile). */
+export function declineConsequence(r: { source?: string | null; status?: string | null; number_required?: number | null; positions_filled?: number | null },
+  lineShortAfter: number | null): string | null {
+  if (r.source !== "capacity_occupancy") return null;
+  if (r.status === "pending_approval") {
+    const n = Math.max(0, (r.number_required ?? 0) - (r.positions_filled ?? 0));
+    return `Automatic requests on this line pause for these ${n}. You can use "Raise again" on the line later.`;
+  }
+  if (lineShortAfter && lineShortAfter > 0)
+    return `The line is still short by ${lineShortAfter} — a new automatic request for ${lineShortAfter} will be raised for approval.`;
+  return null;
+}
 
 /** Reject or cancel a requirement with the reason the database requires. */
 export function RequirementReasonDialog({ target, onClose }: { target: ReasonTarget | null; onClose: () => void }) {
@@ -19,7 +36,10 @@ export function RequirementReasonDialog({ target, onClose }: { target: ReasonTar
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{verb} {target?.requirement_no}?</AlertDialogTitle>
-          <AlertDialogDescription>Give a reason. It is saved on the requirement and in the plan history.</AlertDialogDescription>
+          <AlertDialogDescription>
+            Give a reason. It is saved on the requirement and in the plan history.
+            {target?.consequence ? <span className="mt-2 block text-foreground">{target.consequence}</span> : null}
+          </AlertDialogDescription>
         </AlertDialogHeader>
         <Textarea rows={3} className="text-foreground" value={reason} onChange={(e) => setReason(e.target.value)} />
         <AlertDialogFooter>

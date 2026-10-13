@@ -62,6 +62,7 @@ import { CalendarRange } from "lucide-react";
 import { PickTimeDialog } from "./ConversationBits";
 import { convKeys, setConversation, snoozeChoices, useConversationState } from "@/lib/ats/conversations";
 import { BellRing, Clock } from "lucide-react";
+import { HireShiftPicker, defaultHireShift, useJobShifts } from "./HireShiftPicker";
 
 interface Props {
   candidateId: string;
@@ -259,6 +260,11 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
     return () => window.removeEventListener("keydown", h);
   }, [shortcuts]);
 
+  // Hooks must run on every render, before the loading/error early returns.
+  const jobShifts = useJobShifts((app as any)?.job_id ?? null);
+  const [hireShift, setHireShift] = useState<string | null>(null);
+  const onboarding = useApplicationOnboarding(app?.application_id ?? null);
+
   if (cand.isLoading || apps.isLoading) return <div className={cn("p-4", className)}><RowsSkeleton rows={8} /></div>;
   if (cand.isError) return <div className={cn("p-4", className)}><QueryError error={cand.error} onRetry={() => cand.refetch()} /></div>;
   if (!cand.data) return <EmptyState icon={UserPlus} title="This record no longer exists." className={className} />;
@@ -269,22 +275,23 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
   const next = curIdx >= 0 ? activeStages[curIdx + 1] : undefined;
   const closed = app?.status === "rejected" || app?.status === "withdrawn";
   const hired = app?.status === "hired";
-  const onboarding = useApplicationOnboarding(app?.application_id ?? null);
   const stageLocked = closed || hired || busy || !app;
   const appIdle = app?.status === "active" && (app.days_in_stage ?? 0) >= (atsSettings.data?.idle_alert_days ?? 7);
   const waPhone = c.phone_norm && /^\d{10}$/.test(c.phone_norm) ? c.phone_norm : null;
 
   const isHiredStage = (id: string) => { const s = activeStages.find((x) => x.id === id); return !!s && (s.kind === "hired" || s.code === "hired"); };
-  const moveTo = (stageId: string, name: string, note?: string) => {
+  const moveTo = (stageId: string, name: string, note?: string, hiredShift?: string | null) => {
     const toInterview = activeStages.find((s) => s.id === stageId)?.kind === "interview";
     // E3: after a move into an Interview stage, stay on this candidate so the toast's "Schedule interview" works.
-    return run(() => supabase.rpc("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null }), `Moved to ${name}`,
+    return run(() => (supabase.rpc as any)("ats_move_stage", { p_application_id: app!.application_id!, p_stage_id: stageId, p_note: note || null, p_hired_shift: hiredShift ?? null }), `Moved to ${name}`,
       undefined, toInterview ? { label: "Schedule interview", onClick: () => setIvSignal((n) => n + 1) } : undefined, toInterview);
   };
-  /** E1: every move into Hired is confirmed first. */
+  /** E1: every move into Hired is confirmed first (and asks the shift when the job lists several). */
   const requestMove = (stageId: string, name: string, note?: string) => {
-    if (isHiredStage(stageId)) setHireDlg({ id: stageId, name, note });
-    else moveTo(stageId, name, note);
+    if (isHiredStage(stageId)) {
+      setHireShift(defaultHireShift(jobShifts.data ?? [], (app as any)?.preferred_shifts));
+      setHireDlg({ id: stageId, name, note });
+    } else moveTo(stageId, name, note);
   };
   const hiredIdx = activeStages.findIndex((s) => s.kind === "hired" || s.code === "hired");
   const undoTarget = activeStages.find((s) => s.kind === "offer") ?? (hiredIdx > 0 ? activeStages[hiredIdx - 1] : undefined);
@@ -599,11 +606,13 @@ export function CandidateReviewPanel({ candidateId, appId, onAppChange, onAction
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Mark {c.full_name} as hired?</AlertDialogTitle>
-            <AlertDialogDescription>The application moves to {hireDlg?.name} and is marked hired. An onboarding draft will be created for HR to complete. No email is sent.</AlertDialogDescription>
+            <AlertDialogDescription>The application moves to {hireDlg?.name} and is marked hired. An onboarding draft will be created for HR to complete (or an onboarding already open for this email is linked). No email is sent.</AlertDialogDescription>
           </AlertDialogHeader>
+          <HireShiftPicker shifts={jobShifts.data ?? []} value={hireShift} onChange={setHireShift} />
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { const h = hireDlg!; setHireDlg(null); moveTo(h.id, h.name, h.note); }}>Mark as hired</AlertDialogAction>
+            <AlertDialogAction disabled={(jobShifts.data?.length ?? 0) > 1 && !hireShift}
+              onClick={() => { const h = hireDlg!; setHireDlg(null); moveTo(h.id, h.name, h.note, hireShift); }}>Mark as hired</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

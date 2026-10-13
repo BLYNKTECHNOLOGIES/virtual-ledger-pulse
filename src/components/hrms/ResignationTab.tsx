@@ -25,6 +25,7 @@ import { finalizeSeparation } from "@/lib/finalizeSeparation";
 import { Link as RouterLink } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { useRaiseReplacement, useReplacementRequirements } from "@/hooks/hrms/useRequirementLifecycle";
+import { usePermissions } from "@/hooks/usePermissions";
 import { REQ_STATUS_LABEL } from "@/lib/hrms/workforce";
 
 /** Title and button label for each confirm step (display only). */
@@ -203,6 +204,9 @@ export function ResignationTab() {
 
   const raiseReplacement = useRaiseReplacement();
   const replacements = useReplacementRequirements();
+  // Replacement requirements are HRMS-manager actions (the database refuses everyone else).
+  const { hasPermission } = usePermissions();
+  const wfManager = hasPermission("hrms_manage");
   const [replaceOnApprove, setReplaceOnApprove] = useState(true);
   const [replaceNote, setReplaceNote] = useState("");
 
@@ -689,17 +693,23 @@ export function ResignationTab() {
                           <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
                         </div>
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
-                        {(() => {
+                        {wfManager && (() => {
                           const rq = replacements.data?.get(emp.id);
-                          return rq ? (
-                            <p className="text-sm text-muted-foreground">Replacement:{" "}
-                              <RouterLink className="text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${rq.id}`}>{rq.requirement_no}</RouterLink>
-                              {" · "}{REQ_STATUS_LABEL[rq.status] ?? rq.status}</p>
-                          ) : (
-                            <Button size="sm" variant="outline" disabled={raiseReplacement.isPending}
-                              onClick={() => raiseReplacement.mutate({ employeeId: emp.id })}>
-                              <Plus className="h-4 w-4 mr-1" /> Raise replacement
-                            </Button>
+                          const closed = !!rq && ["rejected", "cancelled"].includes(rq.status);
+                          return (
+                            <div className="flex flex-wrap items-center gap-2">
+                              {rq && (
+                                <p className="text-sm text-muted-foreground">{closed ? "Last replacement:" : "Replacement:"}{" "}
+                                  <RouterLink className="text-primary hover:underline" to={`/hrms/workforce-planning/hiring-requirements?req=${rq.id}`}>{rq.requirement_no}</RouterLink>
+                                  {" · "}{REQ_STATUS_LABEL[rq.status] ?? rq.status}</p>
+                              )}
+                              {(!rq || closed) && (
+                                <Button size="sm" variant="outline" disabled={raiseReplacement.isPending}
+                                  onClick={() => raiseReplacement.mutate({ employeeId: emp.id })}>
+                                  <Plus className="h-4 w-4 mr-1" /> Raise replacement
+                                </Button>
+                              )}
+                            </div>
                           );
                         })()}
                       </div>
@@ -1042,17 +1052,26 @@ export function ResignationTab() {
             <AlertDialogTitle>{RESIGNATION_CONFIRM[confirmAction?.type ?? ""]?.[0] ?? "Confirm"}</AlertDialogTitle>
             <AlertDialogDescription>{confirmAction?.label}</AlertDialogDescription>
           </AlertDialogHeader>
-          {confirmAction?.type === 'approve' && (
+          {confirmAction?.type === 'approve' && wfManager && (
             <div className="space-y-2 rounded-lg border border-border p-3">
               <label className="flex items-center justify-between gap-3 text-sm text-foreground">
                 Replacement needed?
                 <Switch checked={replaceOnApprove} onCheckedChange={setReplaceOnApprove} />
               </label>
-              {replaceOnApprove && (
-                <Input className="text-foreground" placeholder="Optional note for the replacement requirement"
-                  value={replaceNote} onChange={(e) => setReplaceNote(e.target.value)} />
+              {replaceOnApprove ? (
+                <>
+                  <Input className="text-foreground" placeholder="Optional note for the replacement requirement"
+                    value={replaceNote} onChange={(e) => setReplaceNote(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">A hiring requirement awaiting approval is raised for this person's role and shift. It covers their desk once they leave; it does not count against desks that are empty today. No email is sent.</p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No replacement request now. After they leave, their line's automatic request covers the empty desk (100% occupancy).
+                  To stop hiring for it, lower the line's required number or its desks in{" "}
+                  <RouterLink className="text-primary hover:underline" to="/hrms/workforce-planning/staffing-plan">Staffing Plan</RouterLink> /{" "}
+                  <RouterLink className="text-primary hover:underline" to="/hrms/workforce-planning/capacity-seats">Capacity &amp; Seats</RouterLink>.
+                </p>
               )}
-              <p className="text-xs text-muted-foreground">A hiring requirement awaiting approval is raised for this person's role and shift. No email is sent.</p>
             </div>
           )}
           <AlertDialogFooter>
@@ -1061,7 +1080,7 @@ export function ResignationTab() {
               if (!confirmAction) return;
               const { type, id } = confirmAction;
               if (type === 'approve') {
-                const want = replaceOnApprove, note = replaceNote;
+                const want = wfManager && replaceOnApprove, note = replaceNote;
                 approveResignation.mutate(id, { onSuccess: () => { if (want) raiseReplacement.mutate({ employeeId: id, note }); } });
               }
               else if (type === 'reject') rejectResignation.mutate(id);

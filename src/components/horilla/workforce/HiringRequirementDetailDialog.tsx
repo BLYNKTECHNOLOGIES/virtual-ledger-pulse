@@ -14,13 +14,14 @@ import {
   HIRING_REASONS, PRIORITY_CLASS, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL,
   employmentTypeLabel, formatIstDate, formatIstDateTime,
 } from "@/lib/hrms/workforce";
-import { useHeadcountPlans, useRequirementTransition, useStaffingMatrix, type RequirementAction } from "@/hooks/hrms/useWorkforcePlanning";
+import { invalidatePlanning, useHeadcountPlans, useRequirementTransition, useStaffingMatrix, type RequirementAction } from "@/hooks/hrms/useWorkforcePlanning";
 import { linesForRole, useMoveRequirement } from "@/hooks/hrms/useWorkforceRepair";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRequirementAudit, useRequirementJobs, useRequirementPipeline } from "@/hooks/hrms/useRequirementLifecycle";
-import { RequirementReasonDialog, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
+import { RequirementReasonDialog, declineConsequence, type ReasonTarget } from "@/components/horilla/workforce/RequirementReasonDialog";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -88,6 +89,23 @@ export function HiringRequirementDetailDialog({
   });
 
   const budget = useWorkforceBudget(open && !!canManage);
+  const reduce = useMutation({
+    mutationFn: async () => {
+      const cur: any = live.data ?? requirement;
+      const ln = matrix.rows.find((l) => l.plan_id === cur?.staffing_plan_id);
+      const over = ln?.over_requested_hc ?? 0;
+      const st = pipeline.data?.get(cur.id)?.still_needed ?? 0;
+      const target = Math.max(1, (cur.number_required ?? 0) - over, (cur.number_required ?? 0) - st);
+      const { error } = await (supabase.rpc as any)("hr_update_requirement", {
+        p_id: cur.id, p_patch: { number_required: target, staffing_plan_id: cur.staffing_plan_id },
+        p_reason: `Reduced to the line's need (was over-requested by ${over})`,
+      });
+      if (error) throw error;
+      return target;
+    },
+    onSuccess: (t) => { invalidatePlanning(qc); live.refetch(); audit.refetch(); toast.success(`Requirement reduced to ${t}`); },
+    onError: (e: any) => toast.error(e?.message || "Could not reduce the requirement"),
+  });
   if (!requirement) return null;
   const r: any = live.data ?? requirement;
   const p = pipeline.data?.get(r.id);
@@ -118,6 +136,12 @@ export function HiringRequirementDetailDialog({
   const lineChoices = linesForRole(activePlans as any[], r.department_id, r.position_id).filter((pl: any) => pl.id !== r.staffing_plan_id);
   const lineName = (id: string) => matrix.rows.find((l) => l.plan_id === id)?.shiftLabel ?? "line";
   const canMove = canManage && OPEN.includes(r.status) && lineChoices.length > 0;
+  // Line still short after this requirement goes away (its outstanding returns to the line's uncovered need).
+  const shortAfter = line ? Math.min(line.netHiringRequirement, line.uncoveredHiringRequirement + stillNeeded) : null;
+  // Over-requested approved/recruiting requirement → one click back to what the line needs (never below what is already found).
+  const reduceTo = line && line.over_requested_hc > 0
+    ? Math.max(1, needed - line.over_requested_hc, needed - stillNeeded)
+    : null;
 
   return (
     <ResponsiveDialog
@@ -145,7 +169,7 @@ export function HiringRequirementDetailDialog({
           {canApprove && r.status === "pending_approval" && (
             <>
               <Button variant="outline" className="text-destructive"
-                onClick={() => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "reject" })}>
+                onClick={() => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "reject", consequence: declineConsequence(r, shortAfter) })}>
                 <ThumbsDown className="h-4 w-4" /> Reject
               </Button>
               <Button disabled={transition.isPending} onClick={() => setConfirmAction("approve")}>
@@ -153,9 +177,14 @@ export function HiringRequirementDetailDialog({
               </Button>
             </>
           )}
+          {canManage && recruiting && reduceTo !== null && (
+            <Button variant="outline" disabled={move.isPending || reduce.isPending} onClick={() => reduce.mutate()}>
+              Reduce to line need ({needed} → {reduceTo})
+            </Button>
+          )}
           {canManage && OPEN.includes(r.status) && (
             <Button variant="outline" className="text-destructive"
-              onClick={() => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "cancel" })}>
+              onClick={() => setReasonTarget({ id: r.id, requirement_no: r.requirement_no, action: "cancel", consequence: declineConsequence(r, shortAfter) })}>
               Cancel requirement
             </Button>
           )}

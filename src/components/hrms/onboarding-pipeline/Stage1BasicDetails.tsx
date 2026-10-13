@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { FillsRequirementPicker } from "./FillsRequirementPicker";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +39,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
     position_id: "",
     job_role: "",
     shift_id: "",
+    hiring_requirement_id: "",
     employee_type: "",
     probation_end_date: "",
   });
@@ -71,6 +73,7 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
         position_id: data.position_id || "",
         job_role: data.job_role || "",
         shift_id: data.shift_id || "",
+        hiring_requirement_id: data.hiring_requirement_id || "",
         employee_type: normalizedType,
         probation_end_date: data.probation_end_date || "",
       });
@@ -141,14 +144,17 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
       // finalization / RazorpayX push keep resolving a title.
       if (field === "position_id") {
         next.job_role = positions?.find((p: any) => p.id === value)?.title || "";
+        if (value !== prev.position_id) next.hiring_requirement_id = "";
       }
       if (field === "department_id") {
         next.position_id = "";
         next.job_role = "";
+        next.hiring_requirement_id = "";
       }
       return next;
     });
   };
+  const setRequirement = useCallback((v: string) => update("hiring_requirement_id", v), [positions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // One input, structured storage: parse the typed line into
   // address / city / state / zip / country on every keystroke.
@@ -297,6 +303,8 @@ export function Stage1BasicDetails({ data, onSave, onComplete, readOnly }: Stage
               </SelectContent>
             </Select>
           </div>
+          <FillsRequirementPicker departmentId={form.department_id} positionId={form.position_id} shiftId={form.shift_id}
+            value={form.hiring_requirement_id} onChange={setRequirement} disabled={readOnly || data?.status === "completed"} />
           <div>
             <Label>Probation End Date <span className="text-muted-foreground font-normal">(optional)</span></Label>
             <Input

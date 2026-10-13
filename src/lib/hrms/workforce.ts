@@ -42,12 +42,15 @@ export interface StaffingMatrixRow {
   auto_paused_by_name?: string | null;
   auto_paused_reason?: string | null;
   auto_paused_need?: number | null;
+  /** Open replacements for people on this line still serving notice (capped by them) — they cover future exits only. */
+  replacement_cover_hc?: number | null;
 }
 
 /** "Automatic hiring paused — declined by <name> on <date>: <reason>" (null when not paused). */
-export function pauseText(r: Pick<StaffingMatrixRow, "auto_paused_at" | "auto_paused_by_name" | "auto_paused_reason">): string | null {
+export function pauseText(r: Pick<StaffingMatrixRow, "auto_paused_at" | "auto_paused_by_name" | "auto_paused_reason"> & { auto_paused_need?: number | null }): string | null {
   if (!r.auto_paused_at) return null;
-  return `Automatic hiring paused — declined by ${r.auto_paused_by_name || "a manager"} on ${formatIstDate(r.auto_paused_at)}${r.auto_paused_reason ? `: ${r.auto_paused_reason}` : ""}`;
+  const need = Number(r.auto_paused_need) || 0;
+  return `Automatic hiring paused${need ? ` for ${need}` : ""} — declined or lowered by ${r.auto_paused_by_name || "a manager"} on ${formatIstDate(r.auto_paused_at)}${r.auto_paused_reason ? `: ${r.auto_paused_reason}` : ""}. Growth beyond this is still requested.`;
 }
 
 /** A desk group belongs to a shift only when its line there requires more than 0. */
@@ -106,7 +109,9 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
     0,
     row.required_hc - row.current_hc - row.selected_hc - row.pending_joining_hc - row.in_training_hc,
   );
-  const uncoveredHiringRequirement = Math.max(0, netHiringRequirement - row.open_requirement_hc);
+  // Replacements for people still on notice cover only those future exits, not today's empty desks.
+  const coveringToday = Math.max(0, row.open_requirement_hc - n(raw.replacement_cover_hc));
+  const uncoveredHiringRequirement = Math.max(0, netHiringRequirement - coveringToday);
   const availablePhysicalSeats = row.physical_seats ? row.physical_seats - row.current_hc : 0;
   const seatUtilisationPct = row.physical_seats ? (row.current_hc / row.physical_seats) * 100 : null;
 
@@ -268,6 +273,19 @@ export function planningShiftId(shifts: PlanningShiftLike[], shiftId?: string | 
   if (!shiftId) return null;
   const s = shifts.find((x) => x.id === shiftId);
   return s?.planning_shift_id || shiftId;
+}
+
+/**
+ * Job shifts a requirement's line does not cover (compared as planning shifts, so Morning Exemption = Morning).
+ * lineShiftIds empty = the line covers any shift.
+ */
+export function shiftsOutsideLine(shifts: PlanningShiftLike[], jobShiftIds: string[], lineShiftIds: string[]): PlanningShiftLike[] {
+  if (!lineShiftIds.length) return [];
+  const covered = new Set(lineShiftIds.map((id) => planningShiftId(shifts, id)));
+  return jobShiftIds
+    .filter((id) => !covered.has(planningShiftId(shifts, id)))
+    .map((id) => shifts.find((s) => s.id === id))
+    .filter((s): s is PlanningShiftLike => !!s);
 }
 
 export type GapTone = "short" | "met" | "over";

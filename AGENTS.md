@@ -2,7 +2,7 @@
 
 - Ordinary tables wrap to available width; only wide grids set minimum widths (no horizontal scroll).
 
-- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/); read it before editing there.
+- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/, src/components/horilla/workforce/); read it before editing there.
 
 - Frontend brand images resolve through BrandLogo and brandLogos; ERP/HRMS toggles use ThemeContext and Terminal passes its independent theme explicitly, because logo contrast must update with the actual surface rather than unsynchronized DOM theme mutations.
 
@@ -24,5 +24,3 @@
 - Reports & Analytics treats `hr_payslips_v` as payroll truth, employer payroll cost as gross plus employer contributions, approved leave as day totals rather than request counts, and canonical evidence-backed attendance only as workforce availability; owner exclusions must apply to every metric, drill-down and export.
 - The salary-register importer sums two header names for one figure only if they resolve to different columns, because an alias ("Loan Repayment" for "Loan Emi") can resolve both to one column and double the deduction.
 - Comp-off leave is funded only by same-calendar-month credits (hr_leave_available, CO branch), because older unsettled credits are encashed by payroll and must not also pay for leave.
-- Workforce staffing is computed only in the DB (hr_workforce_staffing_matrix: one line per role per planning shift, explicit seat_capacity_id, ATS progress); screens sum src/lib/hrms/workforce.ts per-line formulas and change requirement status only via hr_requirement_transition, because guessed scopes and netted totals miscounted.
-- Workforce staffing reconciliation runs once per transaction at commit (row triggers mark hr_wf_reconcile_queue; a deferred constraint trigger runs hr_reconcile_capacity_hiring), because column-list and trigger-depth guards missed changes made by other triggers.

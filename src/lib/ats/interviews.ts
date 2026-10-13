@@ -102,7 +102,7 @@ export function interviewValues(v: IvFillInput): Record<string, string> {
   return {
     first_name: v.fullName.trim().split(/\s+/)[0] ?? "",
     full_name: v.fullName.trim(),
-    job_title: v.jobTitle?.trim() || "the open role",
+    job_title: v.jobTitle?.trim() || "a role",
     company_name: COMPANY_NAME,
     ref_no: v.refNo ?? "",
     interview_title: v.title.trim() || "Interview",
@@ -121,6 +121,15 @@ export function fillInterviewText(subject: string, body: string, vals: Record<st
   const fill = (s: string) => s.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vals ? vals[k] : m));
   const b = fill(body).replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
   return { subject: fill(subject).replace(/\s+/g, " ").trim(), body: b };
+}
+/**
+ * Server placeholder values (ats_template_values for the application) with the interview_* keys from the form,
+ * because the interview may not be saved yet. Falls back to the local values while the server values load.
+ */
+export function withServerValues(local: Record<string, string>, server?: Record<string, string> | null) {
+  if (!server) return local;
+  const ivOnly = Object.fromEntries(Object.entries(local).filter(([k]) => k.startsWith("interview_")));
+  return { ...local, ...server, ...ivOnly };
 }
 export const leftoverPlaceholders = (s: string) => Array.from(new Set(s.match(/\{\{\s*[\w.]+\s*\}\}/g) ?? []));
 
@@ -148,8 +157,8 @@ export function pendingInvites(iv: InterviewRow) {
   };
 }
 
-const NOT_FOR_SCHEDULING = ["interview-invitation", "interview-reminder", "interview-cancelled"];
-const NOT_FOR_CANCELLING = ["interview-invitation", "interview-reminder", "interview-scheduled", "interview-rescheduled"];
+const NOT_FOR_SCHEDULING = ["interview-invitation", "interview-reminder", "interview-cancelled", "interview-confirmed"];
+const NOT_FOR_CANCELLING = ["interview-invitation", "interview-reminder", "interview-scheduled", "interview-rescheduled", "interview-confirmed"];
 /** Templates offered when scheduling or changing an interview (built-in ones first). */
 export const scheduleTemplates = (all: AtsEmailTemplate[]) =>
   all.filter((t) => t.purpose === "interview" && !NOT_FOR_SCHEDULING.includes(t.code));

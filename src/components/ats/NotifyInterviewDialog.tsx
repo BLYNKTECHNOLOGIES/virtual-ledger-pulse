@@ -14,6 +14,8 @@ import {
   interviewValues, ivKeys, minutesBetween, pendingInvites, scheduleTemplates, useInterviewEmails, useIvTargetInfo,
   type InterviewRow, type IvMode, type IvTarget,
 } from "@/lib/ats/interviews";
+import { useTemplateValues } from "@/lib/ats/mail";
+import { withServerValues } from "@/lib/ats/interviews";
 import { InterviewEmailFields, emailLeftovers, pickTemplate, summarizeNotify } from "./InterviewBits";
 
 export function NotifyInterviewDialog({ open, onOpenChange, iv, target }: { open: boolean; onOpenChange: (o: boolean) => void; iv: InterviewRow; target: IvTarget }) {
@@ -53,11 +55,12 @@ export function NotifyInterviewDialog({ open, onOpenChange, iv, target }: { open
     setErr(null);
   }, [open, emails.isLoading, list, latest, panelEmpty, sentEmails.length, target.email, info.data]);
 
-  const vals = interviewValues({
+  const serverVals = useTemplateValues(target.applicationId, open);
+  const vals = withServerValues(interviewValues({
     fullName: target.fullName, refNo: target.refNo, jobTitle: target.jobTitle, phone: target.phone,
     title: iv.title, mode: iv.mode as IvMode, startsAt: iv.starts_at, minutes: minutesBetween(iv.starts_at, iv.ends_at),
     location: iv.location, meetingUrl: iv.meeting_url, candidateNote: iv.candidate_note,
-  });
+  }), serverVals.data);
   const wantCand = cand && !!target.email;
   const wantPanel = panel && !panelEmpty;
   const valid = (wantCand || wantPanel) && (!wantCand || (subject.trim().length >= 1 && subject.trim().length <= 200
@@ -97,7 +100,7 @@ export function NotifyInterviewDialog({ open, onOpenChange, iv, target }: { open
           {latest && <p className="pl-6 text-xs text-muted-foreground">{first} already has the latest details (sent {fmtDate(latest.created_at)}).</p>}
         </div>
         {wantCand && (
-          <InterviewEmailFields templates={list} templateId={templateId}
+          <InterviewEmailFields required={sentEmails.length ? { code: "interview-rescheduled", name: "Interview rescheduled" } : { code: "interview-scheduled", name: "Interview scheduled" }} templates={list} templateId={templateId}
             onTemplateChange={(t) => { setTemplateId(t.id); setSubject(t.subject); setBody(t.body); }}
             subject={subject} onSubjectChange={setSubject} body={body} onBodyChange={setBody} vals={vals} />
         )}

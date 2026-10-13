@@ -24,6 +24,8 @@ import {
 } from "@/lib/ats/interviews";
 import { MultiSelect } from "./AtsBits";
 import { FormSection, Req } from "./AtsUi";
+import { useTemplateValues } from "@/lib/ats/mail";
+import { withServerValues } from "@/lib/ats/interviews";
 import { InterviewEmailFields, emailLeftovers, pickTemplate, summarizeNotify } from "./InterviewBits";
 import { useResumeFileName } from "./useResumeFileName";
 
@@ -192,11 +194,12 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
   const showStage = !editing && !!ivStage && !!info.data && (info.data.status === "active" || info.data.status === "on_hold")
     && (info.data.stage_order ?? 0) < ivStage.sort_order;
 
-  const vals = interviewValues({
+  const serverVals = useTemplateValues(target.applicationId, open);
+  const vals = withServerValues(interviewValues({
     fullName: target.fullName, refNo: target.refNo, jobTitle: target.jobTitle, phone: target.phone,
     title, mode, startsAt: startsAt || new Date().toISOString(), minutes,
     location: mode === "in_person" ? location.trim() : null, meetingUrl: mode === "video" ? url.trim() : null, candidateNote: candNote,
-  });
+  }), serverVals.data);
 
   const showEmails = mailOn && endFuture;
   const showPanelBox = panel.length > 0 || removedMembers.length > 0;
@@ -439,7 +442,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
               {!target.email && <p className="pl-6 text-xs text-muted-foreground">No email address. Add one with Edit profile.</p>}
             </div>
             {wantCand && (
-              <InterviewEmailFields templates={schedTemplates} templateId={templateId}
+              <InterviewEmailFields required={editing ? { code: "interview-rescheduled", name: "Interview rescheduled" } : { code: "interview-scheduled", name: "Interview scheduled" }} templates={schedTemplates} templateId={templateId}
                 onTemplateChange={(t: AtsEmailTemplate) => { setTemplateId(t.id); setSubject(t.subject); setBody(t.body); }}
                 subject={subject} onSubjectChange={setSubject} body={body} onBodyChange={setBody} vals={vals} />
             )}

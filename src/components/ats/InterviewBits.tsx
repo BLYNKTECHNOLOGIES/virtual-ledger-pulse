@@ -159,6 +159,8 @@ export interface InterviewEmailFieldsProps {
   onBodyChange: (v: string) => void;
   vals: Record<string, string>;
   disabled?: boolean;
+  /** The built-in template this dialog normally uses; a notice shows when it isn't available. */
+  required?: { code: string; name: string } | null;
 }
 
 /** Leftover placeholders after filling (the parent blocks submit when non-empty). */
@@ -173,6 +175,11 @@ export function InterviewEmailFields(p: InterviewEmailFieldsProps) {
   const left = leftoverPlaceholders(`${filled.subject}\n${filled.body}`);
   return (
     <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+      {p.required && !p.templates.some((t) => t.code === p.required!.code) && (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs text-foreground">
+          The '{p.required.name}' template isn't available. Choose a template or write the message.
+        </p>
+      )}
       {p.templates.length > 0 && (
         <div className="space-y-1.5">
           <Label>Template</Label>
@@ -214,5 +221,5 @@ export function InterviewEmailFields(p: InterviewEmailFieldsProps) {
 
 /** Email-section helpers shared by the dialogs. */
 export function pickTemplate(list: AtsEmailTemplate[], code: string) {
-  return list.find((t) => t.code === code) ?? list[0] ?? null;
+  return list.find((t) => t.code === code) ?? null;
 }

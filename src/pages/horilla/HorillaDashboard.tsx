@@ -239,7 +239,7 @@ export default function HorillaDashboard() {
             </Button>
           </div>
           {todayAbsentees.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Everyone has punched in today</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">Everyone has an attendance entry today</p>
           ) : (
             <div className="space-y-1.5 max-h-48 overflow-y-auto">
               {todayAbsentees.slice(0, 8).map((emp: any) => (

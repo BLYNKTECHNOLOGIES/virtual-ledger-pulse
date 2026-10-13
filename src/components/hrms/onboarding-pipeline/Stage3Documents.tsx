@@ -37,19 +37,29 @@ const DOC_FIELDS: Array<{ key: string; label: string; required: boolean; noValue
 
 ];
 
+type ExtraFile = { file_url?: string; file_name?: string; url?: string; name?: string; [k: string]: any };
+type DocEntry = { received: boolean; value: string; file_url?: string; file_name?: string; extra_files?: ExtraFile[]; [k: string]: any };
+
+const extraUrl = (f: ExtraFile) => f?.file_url || f?.url || "";
+const extraName = (f: ExtraFile) => f?.file_name || f?.name || "File";
+
 export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBack, readOnly }: Stage3Props) {
-  const [docs, setDocs] = useState<Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }>>({});
+  const [docs, setDocs] = useState<Record<string, DocEntry>>({});
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
 
   useEffect(() => {
     const existing = (data?.documents && typeof data.documents === "object") ? data.documents : {};
-    const init: Record<string, { received: boolean; value: string; file_url?: string; file_name?: string }> = {};
+    // Keep every stored property (extra_files, source, other keys) — saves
+    // write the whole documents object back, so nothing may be dropped here.
+    const init: Record<string, DocEntry> = { ...existing };
     DOC_FIELDS.forEach(f => {
+      const e = (existing[f.key] && typeof existing[f.key] === "object") ? existing[f.key] : {};
       init[f.key] = {
-        received: existing[f.key]?.received || false,
-        value: existing[f.key]?.value || "",
-        file_url: existing[f.key]?.file_url || "",
-        file_name: existing[f.key]?.file_name || "",
+        ...e,
+        received: e.received || false,
+        value: e.value || "",
+        file_url: e.file_url || "",
+        file_name: e.file_name || "",
       };
     });
     // Legacy/candidate-form data stored the employer name under its own key;
@@ -59,6 +69,14 @@ export function Stage3Documents({ data, onboardingData, onSave, onComplete, onBa
     }
     setDocs(init);
   }, [data]);
+
+  const removeExtra = (key: string, idx: number) => {
+    const list = [...(docs[key]?.extra_files || [])];
+    list.splice(idx, 1);
+    const next = { ...docs, [key]: { ...docs[key], extra_files: list } };
+    setDocs(next);
+    persistDocs(next);
+  };
 
 
   const persistDocs = async (

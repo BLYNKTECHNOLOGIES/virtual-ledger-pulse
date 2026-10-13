@@ -44,6 +44,8 @@ export interface ForecastMonth {
   /** Expected hires in this month that had no target date (placed at the end of the horizon). */
   undatedHires: number;
   exits: number;
+  /** People leaving who sit on no planned line (e.g. roles without a line) — shown separately, not in closing. */
+  outsideExits: number;
   attrition: number;
   closing: number;
   required: number;
@@ -126,10 +128,16 @@ export function buildForecast(opts: {
   const segs = monthSegments(opts.today, opts.end);
   const lineIds = new Set(opts.lines.map((l) => l.plan_id));
   const delta = segs.map(() => new Map<string, number>());
-  const flows = segs.map(() => ({ trainees: 0, joiners: 0, hires: 0, undatedHires: 0, exits: 0 }));
+  const flows = segs.map(() => ({ trainees: 0, joiners: 0, hires: 0, undatedHires: 0, exits: 0, outsideExits: 0 }));
 
   for (const e of opts.events) {
-    if (!e.plan_id || !lineIds.has(e.plan_id)) continue;
+    if (!e.plan_id || !lineIds.has(e.plan_id)) {
+      if (e.kind === "exit") {
+        const i = segmentIndex(segs, e.event_date);
+        if (i >= 0) flows[i].outsideExits += Number(e.qty) || 0;
+      }
+      continue;
+    }
     if (!isCountedHire(e, opts.includePending)) continue;
     const i = segmentIndex(segs, e.event_date);
     if (i < 0) continue;
@@ -149,12 +157,15 @@ export function buildForecast(opts: {
   const required = opts.lines.reduce((a, l) => a + (Number(l.required_hc) || 0), 0);
   let opening = opts.lines.reduce((a, l) => a + (Number(l.current_hc) || 0), 0);
   let cumAttrition = 0;
+  let cumRaw = 0;
   const rate = Math.max(0, Number(opts.attritionPct) || 0) / 100;
 
   const months: ForecastMonth[] = segs.map((s, i) => {
     delta[i].forEach((v, k) => projected.set(k, (projected.get(k) || 0) + v));
     const f = flows[i];
-    const attrition = Math.round(rate * opening * s.fraction);
+    // Round the running total, not each month, so small scopes still show their estimate over time.
+    cumRaw += rate * opening * s.fraction;
+    const attrition = Math.round(cumRaw) - cumAttrition;
     cumAttrition += attrition;
     const closing = opening + f.trainees + f.joiners + f.hires - f.exits - attrition;
     let lineGap = 0;
@@ -174,7 +185,7 @@ export function buildForecast(opts: {
     totals: {
       opening: months[0]?.opening ?? opening,
       trainees: sum("trainees"), joiners: sum("joiners"), hires: sum("hires"), undatedHires: sum("undatedHires"),
-      exits: sum("exits"), attrition: sum("attrition"), closing: last?.closing ?? opening,
+      exits: sum("exits"), outsideExits: sum("outsideExits"), attrition: sum("attrition"), closing: last?.closing ?? opening,
       required, lineGap: last?.lineGap ?? 0, estimatedExtraNeed: cumAttrition,
     },
   };

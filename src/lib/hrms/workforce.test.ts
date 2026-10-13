@@ -1,6 +1,6 @@
 // @ts-nocheck — run with `bun test src/lib/hrms/workforce.test.ts`
 import { describe, expect, test } from "bun:test";
-import { deriveStaffingRow, findRebalances, sortByOperatingOrder, sumLines } from "./workforce";
+import { deriveStaffingRow, findRebalances, pauseText, seatCountsInShift, sortByOperatingOrder, sumLines } from "./workforce";
 
 const base = {
   plan_id: "p", department_id: "d", department_name: "Operations", position_id: "oa",
@@ -51,5 +51,17 @@ describe("workforce rules", () => {
       { name: "Morning", start_time: "08:00:00" },
     ]);
     expect(sorted.map((s) => s.name)).toEqual(["Morning", "Evening", "Night"]);
+  });
+
+  test("a desk group counts in a shift only when its line there requires more than 0", () => {
+    expect(seatCountsInShift({ required_hc: 0 })).toBe(false);
+    expect(seatCountsInShift({ required_hc: 8 })).toBe(true);
+  });
+
+  test("paused line names who declined and why; unpaused line has no text", () => {
+    expect(pauseText({ auto_paused_at: null, auto_paused_by_name: null, auto_paused_reason: null })).toBeNull();
+    const t = pauseText({ auto_paused_at: "2026-10-13T10:00:00Z", auto_paused_by_name: "Abhishek", auto_paused_reason: "Night not opening" });
+    expect(t).toContain("declined by Abhishek");
+    expect(t).toContain(": Night not opening");
   });
 });

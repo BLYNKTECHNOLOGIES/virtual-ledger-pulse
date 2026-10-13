@@ -52,6 +52,9 @@ import { ADDRESS_RE, nextSteps, type Step } from "@/lib/ats/nextStep";
 import { IntentChip } from "./ConversationBits";
 import { NextStepBar } from "./NextStepBar";
 import { ScheduleInterviewDialog } from "./ScheduleInterviewDialog";
+import { OfferTimesDialog } from "./OfferTimesDialog";
+import { useSelfScheduleOn } from "@/lib/ats/selfSchedule";
+import { CalendarRange } from "lucide-react";
 
 interface Props {
   candidate: AtsCandidate;
@@ -76,11 +79,13 @@ const istTime = (v: string) => new Date(v).toLocaleTimeString("en-US", { timeZon
 const ACTIVITY_TYPES = new Set([
   "stage_changed", "status_changed", "application_moved_job", "interview_scheduled", "interview_rescheduled", "interview_cancelled",
   "interview_completed", "interview_no_show", "interview_response", "call_logged", "whatsapp_opened",
+  "slots_offered", "slots_offer_cancelled",
 ]);
 const ACTIVITY_ICON: Record<string, typeof Mail> = {
   stage_changed: ArrowRightLeft, status_changed: RotateCcw, application_moved_job: ArrowRightLeft, interview_scheduled: CalendarPlus,
   interview_rescheduled: CalendarClock, interview_cancelled: CalendarX, interview_completed: CalendarCheck, interview_no_show: UserX,
   interview_response: Reply, call_logged: Phone, whatsapp_opened: MessageCircle,
+  slots_offered: CalendarRange, slots_offer_cancelled: CalendarRange,
 };
 const ACTIVITY_KEY = "ats-msg-activity";
 const readActivityPref = () => { try { return localStorage.getItem(ACTIVITY_KEY) !== "off"; } catch { return true; } };
@@ -208,6 +213,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
     }
     return null;
   }, [barMsg, fileIds]);
+  const selfOn = useSelfScheduleOn();
   const steps = useMemo(() => {
     if (!barMsg) return [];
     const intent = (barMsg.intent as ReplyIntent) || "other";
@@ -216,9 +222,12 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       times: proposedTimes(barMsg.intent_data), appOpen: app?.status === "active" || app?.status === "on_hold",
       canUseResume: !!resumeCandidate, mentionsAddress: ADDRESS_RE.test(`${barMsg.subject ?? ""}\n${barMsg.body_text ?? ""}`),
     });
-    const needsTarget = new Set(["mark_confirmed", "change_time", "schedule", "schedule_at", "other_time"]);
+    const appOpen = app?.status === "active" || app?.status === "on_hold";
+    if (selfOn && appOpen && (intent === "reschedule" || intent === "availability")) all.push({ key: "pick_time", label: "Let them pick a time" });
+    const needsTarget = new Set(["mark_confirmed", "change_time", "schedule", "schedule_at", "other_time", "pick_time"]);
     return all.filter((s) => (target ? true : !needsTarget.has(s.key)) && (s.key !== "withdraw" || !!onRequestStatus));
-  }, [barMsg, upcoming, app?.status, resumeCandidate, target, onRequestStatus]);
+  }, [barMsg, upcoming, app?.status, resumeCandidate, target, onRequestStatus, selfOn]);
+  const [pickOpen, setPickOpen] = useState(false);
 
   const handle = async (id: string, action: string | null) => {
     try { await markHandled(id, action); refreshAll(); } catch (e) { toast.error(atsErrorMessage(e)); }
@@ -232,6 +241,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
       case "reply_see_you": return openComposer({ code: "interview-confirmed", interviewId: upcoming?.id ?? null });
       case "ask_times": return openComposer({ code: "interview-invitation" });
       case "office_address": return openComposer({ code: "office-directions" });
+      case "pick_time": return setPickOpen(true);
       case "mark_confirmed":
         if (!upcoming) return;
         setStepBusy(true);
@@ -369,6 +379,7 @@ export function MessagesPanel({ candidate, appId, app, files, visible, composeSi
         </div>
       )}
       {target && (
+        {pickOpen && target && <OfferTimesDialog open onOpenChange={(o) => !o && setPickOpen(false)} target={target} moveInterview={upcoming ?? null} />}
         <ScheduleInterviewDialog open={!!sched} onOpenChange={(o) => !o && setSched(null)} target={target}
           interview={sched?.interview ?? null} initialStart={sched?.time?.start ?? null} initialDateOnly={!!sched?.time?.dateOnly}
           onSaved={() => {

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useWorkforceLookups, useWorkforceTrainees, type TraineeRow } from "@/hooks/hrms/useWorkforcePlanning";
-import { useMoveAfterTraining, useOverdueJoiners } from "@/hooks/hrms/useWorkforceTiming";
+import { useMoveAfterTraining, useOverdueJoiners, useUpcomingShiftMoves } from "@/hooks/hrms/useWorkforceTiming";
 import { formatIstDate, istNextDay, istToday, trainingEnded } from "@/lib/hrms/workforce";
 
 /** "Training finished — move X" and "overdue joiners" alerts for HR (Overview, Staffing Plan, HRMS home). */
@@ -24,6 +24,8 @@ export function WorkforceTimingAlerts({ compact = false }: { compact?: boolean }
   const move = useMoveAfterTraining();
   const [target, setTarget] = useState<TraineeRow | null>(null);
   const [shiftId, setShiftId] = useState("");
+  const endedIds = (trainees.data || []).filter((t) => trainingEnded(t.training_end_date, istToday())).map((t) => t.employee_id);
+  const upcoming = useUpcomingShiftMoves(allowed ? endedIds : []);
 
   if (!allowed) return null;
   const today = istToday();
@@ -42,7 +44,11 @@ export function WorkforceTimingAlerts({ compact = false }: { compact?: boolean }
             <GraduationCap className="h-4 w-4 shrink-0 text-warning" />
             Training finished on {formatIstDate(t.training_end_date)} — move {t.full_name || "this trainee"} to {t.post_training_shift_name || "their working shift"}.
           </span>
-          {canManage && (
+          {upcoming.data?.get(t.employee_id) ? (
+            <span className="text-xs text-muted-foreground">
+              Moving to {upcoming.data.get(t.employee_id)!.shift_name || "their working shift"} on {formatIstDate(upcoming.data.get(t.employee_id)!.from)}
+            </span>
+          ) : canManage && (
             <Button size="sm" variant="outline" disabled={move.isPending}
               onClick={() => { setTarget(t); setShiftId(t.post_training_shift_id || ""); }}>
               Move from {formatIstDate(tomorrow)}

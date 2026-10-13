@@ -10,3 +10,5 @@
 - Overview figures follow the filters through each requirement's or person's line (date filters use open requirements' target joining dates); blocks that sit on no line say "all shifts", because lines carry no target date and unfiltered blocks contradicted the page.
 
 - Workforce RLS policies call private.hr_wf_is_current_manager() (signed-in user only); hr_wf_is_manager(uuid) stays internal (no authenticated grant), because a uuid-taking check lets any user ask about anyone.
+- Advisory-lock order is numbering (hr_next_hiring_requirement_no) then reconcile, and the line-overlap check runs only when department/roles/shifts change or a line becomes active, because the reconcile's own line updates taking the overlap lock in the other order deadlocked saves.
+- A pending department "adds headcount" request covers nothing on its line; approval raises the line by N (pause re-signed) and cancelling an approved one lowers it by the unfilled part, because otherwise the reconcile cancels and re-raises the line's automatic request.

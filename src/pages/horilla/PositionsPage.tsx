@@ -174,7 +174,14 @@ export default function PositionsPage() {
   const confirmLines = confirmSwitch ? linesOf(confirmSwitch.p.id) : [];
   const leaving = !!confirmSwitch && !confirmSwitch.value;
   // Only lines left with no other role are switched off; shared lines keep their requests.
-  const confirmPlanIds = confirmLines.filter((r: any) => !(r.eligible_position_ids?.length > 1)).map((r) => r.plan_id);
+  // Same rule as the database (hr_wf_position_lines_follow): from the hr_headcount_plans rows, a line is switched off
+  // (and its pending requests cancelled) only when this role is its only role.
+  const confirmPlanIds = confirmSwitch
+    ? (planRows as any[]).filter((pl) => pl.is_active !== false).filter((pl) => {
+        const roles: string[] = pl.eligible_position_ids?.length ? pl.eligible_position_ids : [pl.position_id];
+        return roles.includes(confirmSwitch.p.id) && roles.filter((x) => x !== confirmSwitch.p.id).length === 0;
+      }).map((pl) => pl.id as string)
+    : [];
   const openOnLines = useQuery({
     queryKey: ["workforce_hiring_requirements", "open-on-lines", confirmPlanIds.join(",")],
     enabled: leaving && confirmPlanIds.length > 0,

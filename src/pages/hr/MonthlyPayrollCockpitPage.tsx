@@ -60,6 +60,7 @@ import { useMandatoryRecalcs } from "@/hooks/hrms/useMandatoryRecalcs";
 import { usePendingBankChanges } from "@/hooks/hrms/usePendingBankChanges";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { COCKPIT_FIRST_TRACKED_MONTH, COCKPIT_PICKER_BACK, COCKPIT_PICKER_FORWARD, generateRecentMonths, isCockpitOpenableMonth } from "@/lib/hrms/cockpitMonths";
 
 const STEP_ICONS: Record<string, any> = {
   lock_attendance: Lock,
@@ -122,19 +123,8 @@ const DIAGNOSTIC_TOOLS: { tool: CockpitToolKey; label: string; icon: any }[] = [
   { tool: "data_health", label: "Data Health", icon: Scale },
 ];
 
-function generateRecentMonths(countBack: number, countForward: number): string[] {
-  const months: string[] = [];
-  const now = new Date();
-  // Newest first: +countForward … current … -countBack
-  for (let i = countForward; i >= -countBack; i--) {
-    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + i, 1));
-    months.push(firstOfMonth(d));
-  }
-  return months;
-}
-
 function monthOptions(): { value: string; label: string }[] {
-  return generateRecentMonths(12, 3).map((m) => {
+  return generateRecentMonths(COCKPIT_PICKER_BACK, COCKPIT_PICKER_FORWARD).map((m) => {
     const d = new Date(m + "T00:00:00Z");
     return {
       value: m,
@@ -142,10 +132,6 @@ function monthOptions(): { value: string; label: string }[] {
     };
   });
 }
-
-/** Cockpit history floor — payroll cycles before this month are not tracked in
- *  the cockpit, so they must never be auto-selected. */
-const COCKPIT_FIRST_TRACKED_MONTH = "2026-07-01";
 
 /** Find the OLDEST cycle month (from the tracked floor onwards) whose payroll
  *  close is not yet acknowledged — that is the cycle still pending work. Future
@@ -342,7 +328,7 @@ export default function MonthlyPayrollCockpitPage() {
   // latest-incomplete-month default below applies unchanged.
   const [initialMonthParam] = useState<string | null>(() => {
     const m = new URLSearchParams(window.location.search).get("month");
-    return m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? `${m}-01` : null;
+    return m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) && isCockpitOpenableMonth(`${m}-01`) ? `${m}-01` : null;
   });
   const [month, setMonth] = useState<string>(() => {
     if (initialMonthParam) return initialMonthParam;

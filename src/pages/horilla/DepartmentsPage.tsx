@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/hooks/usePermissions";
+import { fullName } from "@/lib/hrms/employeeFields";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Edit, Trash2, Building2, Search, Users } from "lucide-react";
 import { getDepartmentVisual } from "@/lib/departmentIcon";
@@ -18,7 +21,7 @@ export default function DepartmentsPage() {
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", code: "", description: "", icon: "" });
+  const [form, setForm] = useState({ name: "", code: "", description: "", icon: "", head_employee_id: "" });
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
@@ -30,6 +33,21 @@ export default function DepartmentsPage() {
       return data || [];
     },
   });
+
+  const { hasPermission } = usePermissions();
+  const canManageHeads = hasPermission("hrms_manage");
+  const { data: activeEmployees = [] } = useQuery({
+    queryKey: ["dept_head_choices"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("hr_employees").select("id, first_name, last_name, badge_id").eq("is_active", true).order("first_name");
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const headName = (id?: string | null) => {
+    const e: any = activeEmployees.find((x: any) => x.id === id);
+    return e ? fullName(e) : null;
+  };
 
   const { data: empCounts } = useQuery({
     queryKey: ["dept_emp_counts"],
@@ -48,12 +66,14 @@ export default function DepartmentsPage() {
       if (editId) {
         const { error } = await supabase.from("departments").update({
           name: form.name, code: form.code, description: form.description, icon: form.icon,
-        }).eq("id", editId);
+          ...(canManageHeads ? { head_employee_id: form.head_employee_id || null } : {}),
+        } as any).eq("id", editId);
         if (error) throw error;
       } else {
         const { error } = await supabase.from("departments").insert({
           name: form.name, code: form.code, description: form.description, icon: form.icon,
-        });
+          ...(canManageHeads && form.head_employee_id ? { head_employee_id: form.head_employee_id } : {}),
+        } as any);
         if (error) throw error;
       }
     },
@@ -62,7 +82,7 @@ export default function DepartmentsPage() {
       queryClient.invalidateQueries({ queryKey: ["hr_departments"] });
       closeDialog();
     },
-    onError: () => toast.error("Failed to save department"),
+    onError: (e: any) => toast.error(e?.message?.includes("head") ? e.message : "Failed to save department"),
   });
 
   const deleteMutation = useMutation({
@@ -91,11 +111,11 @@ export default function DepartmentsPage() {
   const closeDialog = () => {
     setAddOpen(false);
     setEditId(null);
-    setForm({ name: "", code: "", description: "", icon: "" });
+    setForm({ name: "", code: "", description: "", icon: "", head_employee_id: "" });
   };
 
   const openEdit = (d: any) => {
-    setForm({ name: d.name, code: d.code, description: d.description || "", icon: d.icon || "" });
+    setForm({ name: d.name, code: d.code, description: d.description || "", icon: d.icon || "", head_employee_id: d.head_employee_id || "" });
     setEditId(d.id);
     setAddOpen(true);
   };
@@ -112,7 +132,7 @@ export default function DepartmentsPage() {
         description={`${filteredDepts.length} department${filteredDepts.length !== 1 ? "s" : ""}`}
         actions={
           <Button
-            onClick={() => { setForm({ name: "", code: "", description: "", icon: "" }); setEditId(null); setAddOpen(true); }}
+            onClick={() => { setForm({ name: "", code: "", description: "", icon: "", head_employee_id: "" }); setEditId(null); setAddOpen(true); }}
             className="h-9 w-full sm:w-auto"
           >
             <Plus className="h-4 w-4" />
@@ -145,7 +165,7 @@ export default function DepartmentsPage() {
           action={
             !searchTerm ? (
               <Button
-                onClick={() => { setForm({ name: "", code: "", description: "", icon: "" }); setEditId(null); setAddOpen(true); }}
+                onClick={() => { setForm({ name: "", code: "", description: "", icon: "", head_employee_id: "" }); setEditId(null); setAddOpen(true); }}
                 className="h-9"
               >
                 <Plus className="h-4 w-4" /> Add Department
@@ -189,6 +209,7 @@ export default function DepartmentsPage() {
                   </button>
                 </div>
               </div>
+              {d.head_employee_id && <p className="text-xs text-muted-foreground mt-2">Head: {headName(d.head_employee_id) || "—"}</p>}
               {d.description && <p className="text-sm text-muted-foreground mt-3 break-words">{d.description}</p>}
               <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                 <Users className="h-3.5 w-3.5" />
@@ -222,6 +243,21 @@ export default function DepartmentsPage() {
             <Label>Code *</Label>
             <Input value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} className="h-9 mt-1" placeholder="e.g. ENG" />
           </div>
+          {canManageHeads && (
+            <div>
+              <Label>Head of department</Label>
+              <Select value={form.head_employee_id || "none"} onValueChange={(v) => setForm({ ...form, head_employee_id: v === "none" ? "" : v })}>
+                <SelectTrigger className="h-9 mt-1 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No head</SelectItem>
+                  {activeEmployees.map((e: any) => (
+                    <SelectItem key={e.id} value={e.id}>{fullName(e)}{e.badge_id ? ` (${e.badge_id})` : ""}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">The head sees this department's staffing in their profile and can request more people.</p>
+            </div>
+          )}
           <div>
             <Label>Description</Label>
             <textarea

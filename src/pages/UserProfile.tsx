@@ -596,6 +596,7 @@ export default function UserProfile() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('profile');
+  const { data: myDeptLines = [] } = useMyDepartmentStaffing();
 
   useEffect(() => {
     const tab = searchParams.get('tab');

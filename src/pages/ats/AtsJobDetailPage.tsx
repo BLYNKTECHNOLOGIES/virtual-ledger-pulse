@@ -183,7 +183,7 @@ export default function AtsJobDetailPage() {
           </SectionCard>
 
           <CareersJobCard job={j} />
-          {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} />}
+          {j.requisition_id && <WorkforceJobCard requirementId={j.requisition_id} jobStatus={j.status} pausing={busy} onPause={() => setStatus.mutate({ status: "paused" })} />}
           {j.requisition_id && <JobLineShiftNotice requirementId={j.requisition_id} jobShiftIds={(j.shift_ids ?? []) as string[]} />}
 
           <SectionCard title="Key facts">

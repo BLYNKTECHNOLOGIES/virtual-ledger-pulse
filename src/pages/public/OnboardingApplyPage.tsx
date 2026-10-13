@@ -77,11 +77,19 @@ export default function OnboardingApplyPage() {
     const { data, error } = await supabase.functions.invoke("onboarding-invite", {
       body: { action: "upload-url", token, field: docKey, filename: file.name },
     });
-    if (error || (data as any)?.error) { toast.error("Upload failed. Please try again."); return; }
+    if (error || (data as any)?.error) {
+      let msg = (data as any)?.error as string | undefined;
+      if (!msg && (error as any)?.context?.json) { try { msg = (await (error as any).context.json())?.error; } catch { /* ignore */ } }
+      toast.error(msg || "Upload failed. Please try again.");
+      return;
+    }
     const { path, token: uploadToken } = data as any;
+    // Some phones/desktops report an empty type for HEIC/HEIF — derive it from the extension.
+    const ext = (file.name.split(".").pop() || "").toLowerCase();
+    const contentType = file.type || ({ heic: "image/heic", heif: "image/heif", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", pdf: "application/pdf" } as Record<string, string>)[ext];
     const { error: upErr } = await supabase.storage
       .from("employee-documents")
-      .uploadToSignedUrl(path, uploadToken, file);
+      .uploadToSignedUrl(path, uploadToken, file, contentType ? { contentType } : undefined);
     if (upErr) { toast.error("Upload failed. Please try again."); return; }
     setForm((f) => {
       const docs = { ...(f.documents || {}) };
@@ -343,7 +351,7 @@ function DocRow({ doc, files, onUpload }: { doc: Doc; files: FileRef[]; onUpload
           type="file"
           className="hidden"
           multiple={doc.multiple}
-          accept="image/*,application/pdf"
+          accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"
           onChange={(e) => handle(e.target.files)}
         />
       </div>

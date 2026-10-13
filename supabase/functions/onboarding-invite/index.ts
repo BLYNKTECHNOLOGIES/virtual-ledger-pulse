@@ -154,6 +154,47 @@ const DOC_KEY_MAP: Record<string, string> = {
   experience: 'experience_letter',
 };
 
+// Public-form upload rules: only the form's document keys, only document/photo
+// extensions (the signed URL lets the uploader pick the content type, so the
+// extension in the path is what we enforce), and a per-field file cap.
+const UPLOAD_FIELDS = new Set(Object.keys(DOC_KEY_MAP));
+const UPLOAD_EXT = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'pdf'];
+const MAX_FILES_PER_FIELD = 5;
+const BUCKET = 'employee-documents';
+
+function fileExt(name: string): string {
+  const m = /\.([a-z0-9]+)$/i.exec(name);
+  return m ? m[1].toLowerCase() : '';
+}
+
+async function listFieldFolder(onboardingId: string, field: string): Promise<Set<string>> {
+  const { data } = await admin.storage.from(BUCKET).list(`onboarding/${onboardingId}/self/${field}`, { limit: 1000 });
+  return new Set((data || []).filter((o: any) => o.id).map((o: any) => o.name as string));
+}
+
+/** Keep only document paths inside this onboarding's own folder for that field that really exist. */
+async function sanitizeDocuments(onboardingId: string, docs: unknown): Promise<Record<string, Array<{ path: string; name: string }>>> {
+  const out: Record<string, Array<{ path: string; name: string }>> = {};
+  if (!docs || typeof docs !== 'object') return out;
+  for (const [field, list] of Object.entries(docs as Record<string, unknown>)) {
+    if (!UPLOAD_FIELDS.has(field) || !Array.isArray(list)) continue;
+    const prefix = `onboarding/${onboardingId}/self/${field}/`;
+    const existing = await listFieldFolder(onboardingId, field);
+    const kept: Array<{ path: string; name: string }> = [];
+    for (const f of list) {
+      const path = typeof (f as any)?.path === 'string' ? (f as any).path : '';
+      if (!path.startsWith(prefix)) continue;
+      const rest = path.slice(prefix.length);
+      if (!rest || rest.includes('/') || !existing.has(rest)) continue;
+      if (!UPLOAD_EXT.includes(fileExt(rest))) continue;
+      const name = String((f as any)?.name || rest).slice(0, 200);
+      if (!kept.some((k) => k.path === path)) kept.push({ path, name });
+    }
+    if (kept.length) out[field] = kept.slice(0, MAX_FILES_PER_FIELD);
+  }
+  return out;
+}
+
 // `employee-documents` is a PRIVATE bucket: a /object/public/ URL returns
 // NoSuchBucket. Store the bucket-scoped reference instead; the app signs it on
 // read (see src/lib/storedDoc.ts).
@@ -414,9 +455,16 @@ Deno.serve(async (req) => {
     }
 
     if (action === 'upload-url') {
-      const field = String(body?.field || '').replace(/[^a-z0-9_-]/gi, '');
+      const field = String(body?.field || '');
+      if (!UPLOAD_FIELDS.has(field)) return json({ error: 'Unknown document type' }, 400);
       const filename = String(body?.filename || 'file').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
-      if (!field) return json({ error: 'Missing field' }, 400);
+      if (!UPLOAD_EXT.includes(fileExt(filename))) {
+        return json({ error: 'Only PDF or photo files (JPG, PNG, WEBP, HEIC) can be uploaded.' }, 400);
+      }
+      const existing = await listFieldFolder(invite.onboarding_id, field);
+      if (existing.size >= MAX_FILES_PER_FIELD) {
+        return json({ error: `You can upload up to ${MAX_FILES_PER_FIELD} files for this document.` }, 400);
+      }
       const path = `onboarding/${invite.onboarding_id}/self/${field}/${Date.now()}-${filename}`;
       const { data, error: sErr } = await admin.storage
         .from('employee-documents')
@@ -438,6 +486,7 @@ Deno.serve(async (req) => {
 
       const normalized = {
         ...payload,
+        documents: await sanitizeDocuments(invite.onboarding_id, payload.documents),
         pan_number: String(payload.pan_number).toUpperCase(),
         bank_ifsc: String(payload.bank_ifsc).toUpperCase(),
         submitted_from_ip: req.headers.get('x-forwarded-for') || null,

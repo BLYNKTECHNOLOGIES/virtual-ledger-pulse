@@ -382,7 +382,7 @@ export function BankChangeRequestCard({ employeeId, userId, defaultHolderName, d
                 ref={fileInput}
                 type="file"
                 multiple
-                accept="image/*,application/pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"
                 className="hidden"
                 onChange={(e) => { addFiles(Array.from(e.target.files || [])); e.target.value = ""; }}
               />

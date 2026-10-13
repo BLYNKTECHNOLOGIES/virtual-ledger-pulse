@@ -61,8 +61,7 @@ export function seatCountsInShift(line: Pick<StaffingMatrixRow, "required_hc">):
 export type StaffingStatus =
   | "understaffed"
   | "fully_staffed"
-  | "overstaffed"
-  | "hiring";
+  | "overstaffed";
 
 export interface StaffingDerived extends StaffingMatrixRow {
   /** Approved − on roll (can be negative). */
@@ -73,9 +72,6 @@ export interface StaffingDerived extends StaffingMatrixRow {
   netHiringRequirement: number;
   /** max(0, net need − open requirement people). */
   uncoveredHiringRequirement: number;
-  /** Physical seats still free. */
-  availablePhysicalSeats: number;
-  seatUtilisationPct: number | null;
   status: StaffingStatus;
   /** Gap as a share of required headcount (used for the critical alert). */
   gapPct: number;
@@ -112,8 +108,6 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
   // Replacements for people still on notice cover only those future exits, not today's empty desks.
   const coveringToday = Math.max(0, row.open_requirement_hc - n(raw.replacement_cover_hc));
   const uncoveredHiringRequirement = Math.max(0, netHiringRequirement - coveringToday);
-  const availablePhysicalSeats = row.physical_seats ? row.physical_seats - row.current_hc : 0;
-  const seatUtilisationPct = row.physical_seats ? (row.current_hc / row.physical_seats) * 100 : null;
 
   // A requisition does not make a vacant seat staffed: status follows the gap only.
   const status: StaffingStatus =
@@ -138,8 +132,6 @@ export function deriveStaffingRow(raw: StaffingMatrixRow): StaffingDerived {
     staffingGap,
     netHiringRequirement,
     uncoveredHiringRequirement,
-    availablePhysicalSeats,
-    seatUtilisationPct,
     status,
     gapPct,
     shiftLabel,
@@ -301,26 +293,12 @@ export function gapLabel(gap: number): string {
   return gap > 0 ? `short ${gap}` : gap < 0 ? `over ${-gap}` : "met";
 }
 
-export const STATUS_LABEL: Record<StaffingStatus, string> = {
-  understaffed: "Understaffed",
-  fully_staffed: "Adequately staffed",
-  overstaffed: "Overstaffed",
-  hiring: "Hiring",
-};
-
-/** Status filter options (hiring is not a staffing state). */
+/** Status filter options. */
 export const STATUS_FILTER_OPTIONS: { value: StaffingStatus; label: string }[] = [
   { value: "understaffed", label: "Short" },
   { value: "fully_staffed", label: "Met" },
   { value: "overstaffed", label: "Over" },
 ];
-
-export const STATUS_CLASS: Record<StaffingStatus, string> = {
-  understaffed: "bg-destructive/15 text-destructive border-destructive/30",
-  fully_staffed: "bg-emerald-500/15 text-emerald-600 border-emerald-500/30",
-  overstaffed: "bg-amber-500/15 text-amber-600 border-amber-500/30",
-  hiring: "bg-primary/15 text-primary border-primary/30",
-};
 
 export const PRIORITIES = ["critical", "high", "medium", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];

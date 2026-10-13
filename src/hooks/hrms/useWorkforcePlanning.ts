@@ -322,7 +322,6 @@ export interface HiringRequirementInput {
   salary_min: number | null;
   salary_max: number | null;
   replacement_employee_id: string | null;
-  approver_name: string | null;
   priority: string;
   status: string;
   notes: string | null;
@@ -359,7 +358,7 @@ export function useSaveHiringRequirement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: HiringRequirementInput & { editReason?: string | null }) => {
-      const { id, editReason, approver_name: _ignored, ...payload } = input;
+      const { id, editReason, ...payload } = input;
       if (id) {
         // Edits go through hr_update_requirement (audited, status-aware); status only via the transition RPC.
         const { status, ...rest } = payload;
@@ -437,21 +436,6 @@ export function useRequirementTransition() {
     },
     onError: (e: any) => toast.error(e?.message || "Could not update the requirement"),
   });
-}
-
-/** Back-compat wrapper used by the requirement detail dialog. */
-export function useSetRequirementStatus() {
-  const t = useRequirementTransition();
-  const map: Record<string, RequirementAction> = {
-    approved: "approve", rejected: "reject", cancelled: "cancel", pending_approval: "submit", draft: "reopen",
-  };
-  return {
-    ...t,
-    mutate: (
-      { id, status, rejectionReason }: { id: string; status: string; rejectionReason?: string },
-      opts?: Parameters<typeof t.mutate>[1],
-    ) => t.mutate({ id, action: map[status] ?? (status as RequirementAction), reason: rejectionReason }, opts),
-  };
 }
 
 export interface LinePerson {
@@ -607,22 +591,6 @@ export function useAttritionHistory(departmentId: string | null, months = 12) {
       });
       if (error) throw error;
       return (data || []) as AttritionMonth[];
-    },
-    staleTime: STALE,
-  });
-}
-
-export function useWorkforceAudit(limit = 100) {
-  return useQuery({
-    queryKey: ["workforce_audit", limit],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("hr_workforce_plan_audit")
-        .select("*")
-        .order("changed_at", { ascending: false })
-        .limit(limit);
-      if (error) throw error;
-      return data || [];
     },
     staleTime: STALE,
   });

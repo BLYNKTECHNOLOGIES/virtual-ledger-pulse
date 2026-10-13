@@ -108,10 +108,14 @@ export default function WorkforceForecastPage() {
 
   useEffect(() => setCustomInput(""), [deptKey]);
 
-  const events = (eventsQ.data || []) as ForecastEvent[];
+  const events = useMemo(() => (eventsQ.data || []) as ForecastEvent[], [eventsQ.data]);
+  // Leavers on no line follow the department / role filters (they have no shift line, so not when a shift is chosen).
+  const scopedEvents = useMemo(() => events.filter((e) => e.plan_id ||
+    ((departmentId === "all" || e.department_id === departmentId) && (positionId === "all" || e.position_id === positionId) && shift === "all")),
+  [events, departmentId, positionId, shift]);
   const forecast = useMemo(
-    () => buildForecast({ today, end, lines, events, includePending, attritionPct }),
-    [today, end, lines, events, includePending, attritionPct],
+    () => buildForecast({ today, end, lines, events: scopedEvents, includePending, attritionPct }),
+    [today, end, lines, scopedEvents, includePending, attritionPct],
   );
 
   // People lists: in the horizon and in the selected department / role (shift via their line).
@@ -196,7 +200,7 @@ export default function WorkforceForecastPage() {
             <WorkforceKpiCard label="Coming in" value={t.trainees + t.joiners + t.hires} icon={TrendingUp} tone="success"
               hint={`${t.trainees} trainees · ${t.joiners} joiners · ${t.hires} expected hires`} />
             <WorkforceKpiCard label="Going out" value={t.exits + t.attrition} icon={TrendingDown}
-              tone={t.exits + t.attrition > 0 ? "warning" : "default"} hint={`${t.exits} on notice · ${t.attrition} estimated`} />
+              tone={t.exits + t.attrition > 0 ? "warning" : "default"} hint={`${t.exits} on notice · ${t.attrition} estimated${t.outsideExits ? ` · +${t.outsideExits} leaving outside planned lines` : ""}`} />
             <WorkforceKpiCard label={`Projected by ${formatIstDate(end)}`} value={t.closing} hint={`Required ${t.required}`} />
             <WorkforceKpiCard label="Short on lines" value={t.lineGap} icon={CalendarClock} tone={t.lineGap > 0 ? "danger" : "success"}
               hint="Sum of each line's shortfall at the horizon" />
@@ -210,7 +214,27 @@ export default function WorkforceForecastPage() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Month by month</CardTitle></CardHeader>
             <CardContent>
-              <table className="w-full text-sm">
+              {/* Phones: one card per month (no sideways scrolling) */}
+              <div className="space-y-2 md:hidden">
+                {forecast.months.map((m) => (
+                  <div key={m.key} className="rounded-md border border-border p-2.5 text-sm">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <p className="font-medium text-foreground">{monthName(m.key)}{m.partial && <span className="ml-1 text-xs text-muted-foreground">{formatIstDate(m.start).slice(0, 6)}–{formatIstDate(m.end).slice(0, 6)}</span>}</p>
+                      <p className={`font-mono text-xs ${m.lineGap > 0 ? "text-destructive" : "text-success"}`}>short {m.lineGap}</p>
+                    </div>
+                    <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-xs tabular-nums">
+                      <dt className="font-sans text-muted-foreground">Opening</dt><dd className="text-right">{m.opening}</dd>
+                      <dt className="font-sans text-muted-foreground">+ Trainees / joiners</dt><dd className="text-right">{m.trainees} / {m.joiners}</dd>
+                      <dt className="font-sans text-muted-foreground">+ Hires</dt><dd className="text-right">{m.hires}{m.undatedHires > 0 ? ` (${m.undatedHires} undated)` : ""}</dd>
+                      <dt className="font-sans text-muted-foreground">− Leaving</dt><dd className="text-right">{m.exits}{m.outsideExits > 0 ? ` (+${m.outsideExits} outside lines)` : ""}</dd>
+                      <dt className="font-sans text-muted-foreground">− Attrition (est.)</dt><dd className="text-right">{m.attrition}</dd>
+                      <dt className="font-sans text-muted-foreground">Closing / required</dt><dd className="text-right font-semibold text-foreground">{m.closing} / {m.required}</dd>
+                      <dt className="font-sans text-muted-foreground">Extra need (est.)</dt><dd className="text-right">{m.estimatedExtraNeed}</dd>
+                    </dl>
+                  </div>
+                ))}
+              </div>
+              <table className="hidden w-full text-sm md:table">
                 <thead>
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="py-2 pr-2 font-medium">Month</th>
@@ -245,6 +269,16 @@ export default function WorkforceForecastPage() {
                       <td className="pl-1 text-right text-muted-foreground">{m.estimatedExtraNeed || "—"}</td>
                     </tr>
                   ))}
+                  {t.outsideExits > 0 && (
+                    <tr className="border-b border-border/60 text-muted-foreground">
+                      <td className="py-2 pr-2 font-sans">Leaving outside planned lines
+                        <span className="block text-xs">{forecast.months.filter((m) => m.outsideExits > 0).map((m) => `${monthName(m.key)} ${m.outsideExits}`).join(" · ")} — not in opening or closing</span>
+                      </td>
+                      <td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td>
+                      <td className="px-1 text-right">{t.outsideExits}</td>
+                      <td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="px-1 text-right">—</td><td className="pl-1 text-right">—</td>
+                    </tr>
+                  )}
                   <tr className="font-semibold text-foreground">
                     <td className="py-2 pr-2 font-sans">Total</td>
                     <td className="px-1 text-right">{t.opening}</td>
@@ -337,7 +371,7 @@ export default function WorkforceForecastPage() {
                 {hires.length > 0 && (
                   <p className="pt-1 text-xs text-muted-foreground">
                     Plus {hires.reduce((a, h) => a + h.qty, 0)} expected hires from{" "}
-                    {hires.map((h, i) => <span key={h.ref_id}>{i > 0 && ", "}<Link className="text-primary underline" to={`/hrms/workforce-planning/hiring-requirements?req=${h.ref_id}`}>{h.requirement_no}</Link></span>)}.
+                    {hires.map((h, i) => <span key={h.ref_id}>{i > 0 && ", "}<Link className="text-primary underline" to={`/hrms/workforce-planning/hiring-requirements?req=${h.ref_id}`}>{h.requirement_no}</Link>{!h.event_date && " (no date — placed at the end)"}</span>)}.
                   </p>
                 )}
               </CardContent>

@@ -132,7 +132,8 @@ export function buildForecast(opts: {
 
   for (const e of opts.events) {
     if (!e.plan_id || !lineIds.has(e.plan_id)) {
-      if (e.kind === "exit") {
+      // Leavers who sit on no planned line at all get their own row; events on lines outside the scope are skipped.
+      if (e.kind === "exit" && !e.plan_id) {
         const i = segmentIndex(segs, e.event_date);
         if (i >= 0) flows[i].outsideExits += Number(e.qty) || 0;
       }

@@ -7,7 +7,6 @@ import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDial
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -15,7 +14,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { ChipInput, MultiSelect } from "./AtsBits";
-import { Req } from "./AtsUi";
+import { JobDetailsInput, Req } from "./AtsUi";
 import {
   type AtsJob, atsKeys, createJob, jobKeys, updateJob, useAtsMutation, useAtsSettings, useDepartmentsLookup,
   useEmployeesLookup, usePositionsLookup, useRequirementsLookup, useShiftsLookup,
@@ -353,13 +352,16 @@ export function JobEditor({ open, job, onClose, initialRequirementId }: { open: 
             <h3 className="text-xs font-semibold text-muted-foreground">Description</h3>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
-                <Field label="Summary" error={e.summary?.message}>
-                  <Textarea rows={2} className="text-foreground" {...register("summary")} />
+                <Field label="Summary" error={e.summary?.message} htmlFor="ats-summary">
+                  <Controller control={control} name="summary" render={({ field }) => <JobDetailsInput {...field} id="ats-summary" label="Summary" rows={2} invalid={!!e.summary} />} />
                 </Field>
               </div>
-              <Field label="Description" error={e.description?.message}><Textarea rows={5} className="text-foreground" {...register("description")} /></Field>
-              <Field label="Requirements" error={e.requirements?.message}><Textarea rows={5} className="text-foreground" {...register("requirements")} /></Field>
-              <Field label="Benefits" error={e.benefits?.message}><Textarea rows={4} className="text-foreground" {...register("benefits")} /></Field>
+              {(["description", "requirements", "benefits"] as const).map((key) => {
+                const label = key[0].toUpperCase() + key.slice(1);
+                return <Field key={key} label={label} error={e[key]?.message} htmlFor={`ats-${key}`}>
+                  <Controller control={control} name={key} render={({ field }) => <JobDetailsInput {...field} id={`ats-${key}`} label={label} rows={key === "benefits" ? 4 : 5} invalid={!!e[key]} />} />
+                </Field>;
+              })}
               <Field label="Alternative titles" hint="Other names candidates may use for this job. Careers-page applications and imported rows with one of these names are filed under this job.">
                 <Controller control={control} name="aliases" render={({ field }) => (
                   <ChipInput value={field.value} onChange={(v) => field.onChange(v)} placeholder="Type and press Enter" />

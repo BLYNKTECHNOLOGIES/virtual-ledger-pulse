@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { atsKeys } from "@/lib/ats/api";
 import { candKeys } from "@/lib/ats/candidates";
+import { useResumeFileName } from "./useResumeFileName";
 import { fmtDate } from "@/lib/ats/format";
 import { MailError, mailErrorMessage, notifyInterview, useEmailTemplates } from "@/lib/ats/mail";
 import {
@@ -20,6 +21,7 @@ export function NotifyInterviewDialog({ open, onOpenChange, iv, target }: { open
   const emails = useInterviewEmails(open ? iv.id : null);
   const templates = useEmailTemplates();
   const info = useIvTargetInfo(target.applicationId);
+  const resumeName = useResumeFileName(target.candidateId, open).data ?? null;
   const list = useMemo(() => scheduleTemplates(templates.data ?? []), [templates.data]);
   const first = target.fullName.trim().split(/\s+/)[0] || "the candidate";
   const pending = pendingInvites(iv);
@@ -112,7 +114,7 @@ export function NotifyInterviewDialog({ open, onOpenChange, iv, target }: { open
           {wantPanel && pending.invite.length > 0 && (
             <label className={cn("flex items-center gap-2 pl-6 text-sm", info.data?.has_resume ? "text-foreground" : "text-muted-foreground")}>
               <Checkbox checked={resume && !!info.data?.has_resume} disabled={!info.data?.has_resume} onCheckedChange={(v) => setResume(v === true)} />
-              {info.data?.has_resume ? "Attach resume" : "No resume on file"}
+              {info.data?.has_resume ? <span className="min-w-0 truncate" title={resumeName ?? undefined}>{"Attach resume"}{resumeName ? ` (${resumeName})` : ""}</span> : "No resume on file"}
             </label>
           )}
         </div>

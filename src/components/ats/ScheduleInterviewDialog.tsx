@@ -450,7 +450,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
                 {sendPanel && (
                   <label className={cn("flex items-center gap-2 pl-6 text-sm", info.data?.has_resume ? "text-foreground" : "text-muted-foreground")}>
                     <Checkbox checked={attachResume && !!info.data?.has_resume} disabled={!info.data?.has_resume} onCheckedChange={(v) => setAttachResume(v === true)} />
-                    {info.data?.has_resume ? `Attach ${first}'s resume` : "No resume on file"}
+                    {info.data?.has_resume ? <span className="min-w-0 truncate" title={resumeName ?? undefined}>{`Attach ${first}'s resume`}{resumeName ? ` (${resumeName})` : ""}</span> : "No resume on file"}
                   </label>
                 )}
               </div>

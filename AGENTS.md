@@ -2,7 +2,7 @@
 
 - Ordinary tables wrap to available width; only wide grids set minimum widths, avoiding horizontal scroll.
 
-- ATS visual primitives stay in AtsUi.tsx and compose existing controls, isolating presentation from data contracts.
+- Subdirectories may have their own AGENTS.md (e.g. src/components/ats/); read it before changing files there.
 
 - Frontend brand images resolve through BrandLogo and brandLogos, with Terminal passing its independent theme explicitly, because surface contrast must not depend on the ERP theme or on recreated artwork.
 
@@ -24,4 +24,3 @@
 - Reports & Analytics treats `hr_payslips_v` as payroll truth, employer payroll cost as gross plus employer contributions, approved leave as day totals rather than request counts, and canonical evidence-backed attendance only as workforce availability; owner exclusions must apply to every metric, drill-down and export.
 - The salary-register importer sums two header names for one figure only after checking they resolve to different columns, because a label that is also an alias of another (e.g. "Loan Repayment" for "Loan Emi") resolves both lookups to the same column when a register carries only one of the names, and summing unconditionally would double the deduction.
 - Comp-off leave is funded only by credits earned in the same calendar month as the leave (hr_leave_available, CO branch; no cross-month CO requests), because older unsettled credits are encashed by that month's payroll, run in the following month's first week, and must not also pay for leave.
-- ATS conversation data access lives in src/lib/ats/conversations.ts and the single realtime channel in src/hooks/ats/useAtsMailRealtime.ts (mounted once in AtsWorkspace), so screens share one query-key family and one subscription.

@@ -242,6 +242,7 @@ export interface SeatCapacityInput {
   physical_seats: number;
   max_operational_capacity: number | null;
   notes: string | null;
+  is_training_only?: boolean;
 }
 
 export function useSeatCapacity() {

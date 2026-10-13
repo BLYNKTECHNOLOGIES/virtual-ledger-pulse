@@ -1,0 +1,3 @@
+REVOKE EXECUTE ON FUNCTION public.hr_queue_erp_revocation(uuid) FROM authenticated;
+CREATE POLICY server_revocation_queue ON public.hr_erp_access_revocations FOR ALL TO service_role USING (true) WITH CHECK (true);
+DO $$ DECLARE n text; d text; BEGIN FOR n IN SELECT unnest(ARRAY['hr_queue_erp_revocation','hr_cleanup_revoked_erp','process_scheduled_account_deletions']) LOOP SELECT pg_get_functiondef(p.oid) INTO d FROM pg_proc p JOIN pg_namespace ns ON ns.oid=p.pronamespace WHERE ns.nspname='public' AND p.proname=n; d:=replace(d, ' AND current_user <> ''postgres''',''); EXECUTE d; END LOOP; END; $$;

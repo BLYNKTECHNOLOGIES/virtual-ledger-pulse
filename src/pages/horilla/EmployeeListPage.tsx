@@ -18,7 +18,7 @@ import {
   Briefcase, MapPin, BadgeCheck, Loader2
 } from "lucide-react";
 
-import { AddEmployeeDialog } from "@/components/horilla/employee/AddEmployeeDialog";
+import { WORK_TYPES, normalizeWorkType, workTypeLabel, monthlyCtcOnRecord, fullName, employeeDeleteReason } from "@/lib/hrms/employeeFields";
 import { EMPLOYEE_TYPES, normalizeEmployeeType, employeeTypeLabel } from "@/lib/hrms/employeeTypes";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -94,7 +94,7 @@ const FILTER_FIELDS = [
   { key: "department", label: "Department", type: "dynamic" },
   { key: "position", label: "Job Position", type: "dynamic" },
   { key: "shift", label: "Shift", type: "dynamic" },
-  { key: "work_type", label: "Work Type", type: "select", options: [{ value: "Work From Office", label: "Work From Office" }, { value: "Work From Home", label: "Work From Home" }, { value: "Hybrid", label: "Hybrid" }] },
+  { key: "work_type", label: "Work Type", type: "select", options: WORK_TYPES.map(w => ({ value: w.value, label: w.label })) },
   { key: "employee_type", label: "Employee Type", type: "select", options: EMPLOYEE_TYPES.map(t => ({ value: t.value, label: t.label })) },
   { key: "gender", label: "Gender", type: "select", options: [{ value: "male", label: "Male" }, { value: "female", label: "Female" }, { value: "other", label: "Other" }] },
 ];
@@ -110,7 +110,6 @@ export default function EmployeeListPage() {
   // card grid; desktops always get the dense table. Reactive to viewport resize
   // via useIsMobile().
   const viewMode: "list" | "grid" = isMobile ? "grid" : "list";
-  const [addOpen, setAddOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -214,14 +213,14 @@ export default function EmployeeListPage() {
   // ─── Delete ───
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("hr_employees").delete().eq("id", id);
-      if (error) throw error;
+      const { data, error } = await supabase.from("hr_employees").delete().eq("id", id).select("id");
+      if (error || !data?.length) throw new Error(employeeDeleteReason(error));
     },
     onSuccess: () => {
       toast.success("Employee deleted");
       queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
     },
-    onError: () => toast.error("Failed to delete employee"),
+    onError: (e: any) => { toast.error(`Couldn't delete: ${e?.message}`); queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] }); },
   });
 
   // Edit now opens the FULL employee profile in edit mode (personal, statutory,
@@ -231,7 +230,7 @@ export default function EmployeeListPage() {
   };
 
   const handleDelete = (emp: HrEmployee) => {
-    setDeleteTarget({ id: emp.id, name: `${emp.first_name} ${emp.last_name}` });
+    setDeleteTarget({ id: emp.id, name: fullName(emp) });
   };
 
   // ─── Filter logic ───
@@ -276,7 +275,7 @@ export default function EmployeeListPage() {
       if (term) {
         const matchesSearch =
           e.first_name.toLowerCase().includes(term) ||
-          e.last_name.toLowerCase().includes(term) ||
+          (e.last_name || "").toLowerCase().includes(term) ||
           e.badge_id.toLowerCase().includes(term) ||
           (e.email || "").toLowerCase().includes(term) ||
           (e.phone || "").includes(term);
@@ -304,7 +303,7 @@ export default function EmployeeListPage() {
             if (wi?.shift_id !== filter.value) return false;
             break;
           case "work_type":
-            if ((wi?.work_type || "") !== filter.value) return false;
+            if ((normalizeWorkType(wi?.work_type) || "") !== filter.value) return false;
             break;
           case "employee_type":
             if (normalizeEmployeeType(wi?.employee_type) !== filter.value) return false;
@@ -330,8 +329,8 @@ export default function EmployeeListPage() {
 
       switch (sort.column) {
         case "employee":
-          aVal = `${a.first_name} ${a.last_name}`.toLowerCase();
-          bVal = `${b.first_name} ${b.last_name}`.toLowerCase();
+          aVal = fullName(a).toLowerCase();
+          bVal = fullName(b).toLowerCase();
           break;
         case "email":
           aVal = (a.email || "").toLowerCase();
@@ -403,9 +402,8 @@ export default function EmployeeListPage() {
   // RazorpayX caches annual CTC on hr_employees.total_salary (values below the
   // month-scale threshold are already monthly).
   const monthlyCtc = (emp: any): number | "" => {
-    const v = Number((emp as any)?.total_salary ?? 0);
-    if (!(v > 0)) return "";
-    return Math.round(v > 100000 ? v / 12 : v);
+    const m = monthlyCtcOnRecord((emp as any)?.total_salary);
+    return m == null ? "" : Math.round(m);
   };
 
   const buildExportRows = () => {
@@ -421,7 +419,7 @@ export default function EmployeeListPage() {
         "Department": getDeptName(wi?.department_id || null),
         "Job Position": getPositionTitle(wi?.job_position_id || null),
         "Shift": getShiftName(wi?.shift_id || null),
-        "Work Type": wi?.work_type || "",
+        "Work Type": wi?.work_type ? workTypeLabel(wi.work_type) : "",
         "Employee Type": employeeTypeLabel(wi?.employee_type),
         "Date of Joining": (wi as any)?.joining_date || (wi as any)?.date_joining || "",
         "Monthly CTC": monthlyCtc(emp),
@@ -465,18 +463,21 @@ export default function EmployeeListPage() {
 
   const executeBulkDelete = async () => {
     setBulkDeleteConfirmOpen(false);
-    try {
-      for (const id of selectedIds) {
-        const { error } = await supabase.from("hr_employees").delete().eq("id", id);
-        if (error) throw error;
-      }
-      toast.success(`${selectedIds.size} employee(s) deleted`);
-      queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
-      setSelectedIds(new Set());
-      setActionsOpen(false);
-    } catch {
-      toast.error("Failed to delete");
+    const ids = Array.from(selectedIds);
+    const byId = new Map((employees || []).map((e: any) => [e.id, e]));
+    let ok = 0; const failed: { id: string; label: string }[] = [];
+    for (const id of ids) {
+      const { data, error } = await supabase.from("hr_employees").delete().eq("id", id).select("id");
+      if (error || !data?.length) {
+        const e: any = byId.get(id);
+        failed.push({ id, label: `${e ? `${fullName(e)} (${e.badge_id})` : id}: ${employeeDeleteReason(error)}` });
+      } else ok++;
     }
+    await queryClient.invalidateQueries({ queryKey: ["hr_employees_list"] });
+    setSelectedIds(new Set(failed.map(f => f.id)));
+    setActionsOpen(false);
+    const summary = `Deleted ${ok}` + (failed.length ? ` · ${failed.length} couldn't be deleted: ${failed.map(f => f.label).join("; ")}` : "");
+    if (failed.length) toast.error(summary, { duration: 15000 }); else toast.success(summary);
   };
 
   // ─── Bulk status change ───
@@ -511,8 +512,7 @@ export default function EmployeeListPage() {
     job_position_id: { title: "Assign job position", label: "Job position", options: () => (positions || []).map((p: any) => ({ value: p.id, label: p.title })) },
     shift_id: { title: "Assign shift", label: "Shift", options: () => (shifts || []).map((s: any) => ({ value: s.id, label: s.name })) },
     work_type: { title: "Set work type", label: "Work type", options: () => [
-      { value: "office", label: "Office" }, { value: "on-site", label: "On-site" },
-      { value: "remote", label: "Remote" }, { value: "hybrid", label: "Hybrid" },
+      ...WORK_TYPES.map(w => ({ value: w.value, label: w.label })),
     ] },
     employee_type: { title: "Set employment type", label: "Employment type", options: () => EMPLOYEE_TYPES.map((t: any) => (
       typeof t === "string" ? { value: t, label: employeeTypeLabel(t) } : { value: t.value, label: t.label }
@@ -871,14 +871,14 @@ export default function EmployeeListPage() {
         <EmptyState
           icon={searchTerm || activeFilters.length ? Search : Building2}
           title={searchTerm || activeFilters.length ? "No employees match" : "No employees found"}
-          description={searchTerm || activeFilters.length ? "Check the spelling, or clear the search or filters." : "Try adjusting filters or add your first employee"}
+          description={searchTerm || activeFilters.length ? "Check the spelling, or clear the search or filters." : "New employees are added through the onboarding pipeline."}
           action={searchTerm || activeFilters.length ? (
             <button onClick={() => (searchTerm ? setSearchTerm("") : clearAllFilters())} className="text-sm border border-border rounded-lg px-3 py-1.5 hover:bg-muted">
               {searchTerm ? "Clear search" : "Clear filters"}
             </button>
           ) : (
-            <button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5 bg-[#00bcd4] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#00a5bb] transition-colors">
-              <Plus className="h-4 w-4" /> Add your first employee
+            <button onClick={() => navigate("/hrms/onboarding-pipeline")} className="flex items-center gap-1.5 bg-[#00bcd4] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#00a5bb] transition-colors">
+              <Plus className="h-4 w-4" /> Add your first employee via onboarding
             </button>
           )}
         />
@@ -945,7 +945,7 @@ export default function EmployeeListPage() {
                             onClick={(e) => e.stopPropagation()}
                             className="font-medium text-foreground hover:text-[#00bcd4] transition-colors"
                           >
-                            {emp.first_name} {emp.last_name} ({emp.badge_id})
+                            {fullName(emp)} ({emp.badge_id})
                           </Link>
                         </div>
                       </td>
@@ -971,7 +971,7 @@ export default function EmployeeListPage() {
                     )}
                     {isColVisible("work_type") && (
                       <td className="py-3 px-3">
-                        {wi?.work_type ? <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{wi.work_type}</span> : <span className="text-muted-foreground text-xs">None</span>}
+                        {wi?.work_type ? <span className="bg-info/10 text-info border border-info/20 rounded-full px-2 py-0.5 text-[10px] font-medium">{workTypeLabel(wi.work_type)}</span> : <span className="text-muted-foreground text-xs">None</span>}
                       </td>
                     )}
                     {isColVisible("type") && (
@@ -1008,7 +1008,7 @@ export default function EmployeeListPage() {
                             onClick={(e) => { e.stopPropagation(); handleEdit(emp); }}
                             className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="Edit"
-                            aria-label={`Edit ${emp.first_name} ${emp.last_name}`}
+                            aria-label={`Edit ${fullName(emp)}`}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
@@ -1016,7 +1016,7 @@ export default function EmployeeListPage() {
                             onClick={(e) => { e.stopPropagation(); handleDelete(emp); }}
                             className="p-1.5 rounded hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors"
                             title="Delete permanently"
-                            aria-label={`Delete ${emp.first_name} ${emp.last_name} permanently`}
+                            aria-label={`Delete ${fullName(emp)} permanently`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1069,7 +1069,7 @@ export default function EmployeeListPage() {
 
                 <div className="pt-8 pb-4 px-4 text-center" onClick={() => navigate(`/hrms/employee/${emp.id}`)}>
                   <p className="font-semibold text-foreground text-sm group-hover:text-[#00bcd4] transition-colors">
-                    {emp.first_name} {emp.last_name}
+                    {fullName(emp)}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{emp.badge_id}</p>
                   {(wi?.job_position_id || wi?.job_role) && <p className="text-xs text-muted-foreground mt-1">{wi?.job_position_id ? getPositionTitle(wi.job_position_id) : wi?.job_role}</p>}
@@ -1121,7 +1121,6 @@ export default function EmployeeListPage() {
 
 
       {/* ─── Dialogs ─── */}
-      <AddEmployeeDialog open={addOpen} onOpenChange={setAddOpen} departments={departments || []} positions={positions || []} />
 
       {/* Generic bulk work-info assignment dialog (department / position / shift / work type / employment type) */}
       {bulkField && (
@@ -1170,7 +1169,7 @@ export default function EmployeeListPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Permanently delete {selectedIds.size} selected employee{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This erases them and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone. Anyone with penalties, comp-off credits, assets, helpdesk tickets or people reporting to them can't be deleted, and the run stops there — deactivate or separate them instead.
+              This erases them and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone. Anyone with penalties, comp-off credits, assets, helpdesk tickets or people reporting to them can't be deleted — they're skipped and listed at the end, and stay selected. Deactivate or separate them instead.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1194,7 +1193,7 @@ export default function EmployeeListPage() {
       "Department": getDeptName(wi?.department_id || null),
       "Job Position": getPositionTitle(wi?.job_position_id || null),
       "Shift": getShiftName(wi?.shift_id || null),
-      "Work Type": wi?.work_type || "",
+      "Work Type": wi?.work_type ? workTypeLabel(wi.work_type) : "",
       "Employee Type": employeeTypeLabel(wi?.employee_type),
       "Date of Joining": (wi as any)?.joining_date || "",
       "Monthly CTC": monthlyCtc(emp),
@@ -1204,7 +1203,7 @@ export default function EmployeeListPage() {
     const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Employee");
-    XLSX.writeFile(wb, `${emp.badge_id}_${emp.first_name}_${emp.last_name}.xlsx`);
-    toast.success(`Exported ${emp.first_name} ${emp.last_name}`);
+    XLSX.writeFile(wb, `${emp.badge_id}_${[emp.first_name, emp.last_name].filter(Boolean).join("_")}.xlsx`);
+    toast.success(`Exported ${fullName(emp)}`);
   }
 }

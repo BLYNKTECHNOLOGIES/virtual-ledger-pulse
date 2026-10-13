@@ -7,7 +7,7 @@ import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts'
 import { quotedPrintableEncode } from 'https://deno.land/x/denomailer@1.6.0/config/mail/encoding.ts'
 import { hrSignatureText, wrapHrEmail } from './hrSignature.ts'
 import { tidyMailAddress, tidyMailFilename, tidyMailHtml, tidyMailSubject, tidyMailText } from './mailBody.ts'
-import { ATS_BUCKET, bytesToBase64, errorCode, textToHtml } from './ats-mail.ts'
+import { ATS_BUCKET, bytesToBase64, errorCode, isEmail, textToHtml } from './ats-mail.ts'
 import { secretByName } from './mailbox-secrets.ts'
 
 const SMTP_TIMEOUT_MS = 30_000
@@ -200,6 +200,20 @@ export async function sendQueued(
         .select('id, from_address, from_name, smtp_host_secret, smtp_user_secret, smtp_pass_secret, is_active')
         .eq('id', row.mailbox_id).maybeSingle()
       mailboxes.set(row.mailbox_id, mb?.is_active ? mb : null)
+    }
+    // Re-read the candidate: closed or without an email -> failed; a changed address -> send to the new one.
+    const { data: cand } = await admin.from('ats_candidates')
+      .select('email, merged_into_id, anonymized_at').eq('id', row.candidate_id).maybeSingle()
+    const to = String(cand?.email ?? '').trim().toLowerCase()
+    const stop = !cand || cand.merged_into_id || cand.anonymized_at ? 'candidate_closed' : !isEmail(to) ? 'no_email' : null
+    if (stop) {
+      await admin.from('ats_messages').update({ status: 'failed', error: stop }).eq('id', row.id)
+      out.failed++
+      continue
+    }
+    if (to !== String(row.to_addresses?.[0] ?? '').trim().toLowerCase()) {
+      await admin.from('ats_messages').update({ to_addresses: [to] }).eq('id', row.id)
+      row.to_addresses = [to]
     }
     const retryInMinutes = QUEUE_RETRY_MINUTES[attempt - 1]
     const r = await deliver(admin, mailboxes.get(row.mailbox_id) ?? null, row, { port: opts.port, retryInMinutes })

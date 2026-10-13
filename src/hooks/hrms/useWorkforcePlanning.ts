@@ -65,9 +65,9 @@ export function useStaffingMatrix() {
  * Used for seat occupancy: a desk is shared across shifts, so the number of
  * people sitting at once is the busiest single shift, not everyone added up.
  */
-export function useSeatOccupancy() {
+export function useSeatOccupancy(planningOnly = true) {
   return useQuery({
-    queryKey: ["workforce_seat_occupancy"],
+    queryKey: ["workforce_seat_occupancy", planningOnly],
     queryFn: async () => {
       const [workInfoResult, schedulesResult, shiftsResult, positionsResult] = await Promise.all([
         supabase
@@ -104,6 +104,7 @@ export function useSeatOccupancy() {
       return (workInfoResult.data || [])
         .filter((row: any) => (row.employee?.resignation_status ?? "") !== "completed")
         .filter((row: any) => {
+          if (!planningOnly) return true;
           const pos = row.job_position_id ? positionById.get(row.job_position_id) : null;
           return !pos || (pos.is_active && pos.in_workforce_planning !== false);
         })

@@ -58,6 +58,7 @@ export async function handleNotify(req: Request, opts: NotifyOptions = {}): Prom
 
 interface Ctx {
   iv: any
+  company: string
   app: any
   cand: any
   jobTitle: string

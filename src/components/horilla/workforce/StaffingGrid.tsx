@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { Armchair, GraduationCap, Plus, UserMinus } from "lucide-react";
+import { Armchair, GraduationCap, PauseCircle, Plus, UserMinus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import {
-  GAP_CHIP_CLASS, formatIstDate, gapLabel, gapTone, planningShiftId, planningShifts,
+  GAP_CHIP_CLASS, formatIstDate, gapLabel, gapTone, pauseText, planningShiftId, planningShifts,
   type PlanningShiftLike, type StaffingDerived,
 } from "@/lib/hrms/workforce";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
@@ -41,7 +41,8 @@ export function buildStaffingGrid(
     const roleIds: string[] = plan?.eligible_position_ids?.length ? plan.eligible_position_ids : r.position_id ? [r.position_id] : [];
     const col = planningShiftId(shifts, plan?.shift_id ?? r.shift_id) ?? (plan?.eligible_shift_ids?.[0] ? planningShiftId(shifts, plan.eligible_shift_ids[0])! : "any");
     used.add(col);
-    const key = r.seat_capacity_id ? `seat:${r.seat_capacity_id}` : `role:${r.department_id}:${[...roleIds].sort().join(",")}`;
+    // Role set is always part of the key: two roles sharing one desk group must not overwrite each other.
+    const key = `${r.seat_capacity_id ? `seat:${r.seat_capacity_id}` : `dept:${r.department_id}`}:${[...roleIds].sort().join(",")}`;
     let row = out.get(key);
     if (!row) {
       row = {
@@ -91,6 +92,7 @@ function CellTip({ r }: { r: StaffingDerived }) {
       <p>Open requests {r.open_requirement_hc}{r.open_requirement_count ? ` in ${r.open_requirement_count}` : ""}</p>
       {r.over_requested_hc > 0 && <p>Over-requested {r.over_requested_hc}</p>}
       <p>Net need {r.netHiringRequirement} · Not yet requested {r.uncoveredHiringRequirement}</p>
+      {pauseText(r) && <p className="text-warning">{pauseText(r)}</p>}
     </div>
   );
 }
@@ -152,9 +154,12 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell }: Pr
           {columns.map((c) => {
             const r = row.cells.get(c.id);
             if (!r) {
+              const coveredByAny = c.id !== "any" && row.cells.has("any");
               return (
                 <td key={c.id} className="px-2 py-2 text-center align-middle">
-                  {canManage ? (
+                  {coveredByAny ? (
+                    <span className="text-[10px] text-muted-foreground">Any-shift line</span>
+                  ) : canManage ? (
                     <button type="button" onClick={() => onPlanCell(row, c.id)}
                       className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
                       <Plus className="h-3 w-3" /> Plan
@@ -177,6 +182,7 @@ function DeptRows({ dept, rows, columns, canManage, onOpenLine, onPlanCell }: Pr
                       <span className="mt-0.5 flex flex-wrap items-center justify-center gap-1">
                         <Badge variant="outline" className={cn("px-1.5 py-0 text-[10px]", GAP_CHIP_CLASS[tone])}>{gapLabel(r.staffingGap)}</Badge>
                         {r.follow_desks && <span className="text-[10px] text-muted-foreground">= desks</span>}
+                        {r.auto_paused_at && <PauseCircle className="h-3 w-3 text-warning" aria-label="Automatic hiring paused" />}
                       </span>
                     </button>
                   </TooltipTrigger>

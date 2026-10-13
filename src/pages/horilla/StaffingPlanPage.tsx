@@ -87,7 +87,7 @@ export default function StaffingPlanPage() {
       const s: any = (seats as any[]).find((x) => x.id === deskId);
       if (s) {
         const ids = seatRoleIds(s);
-        setAddSeed({ department_id: s.department_id, position_id: ids[0], eligible_position_ids: ids, seat_capacity_id: s.id });
+        setAddSeed({ department_id: s.department_id, position_id: ids[0], eligible_position_ids: ids, seat_capacity_id: s.id, multiShift: true });
       }
       params.delete("plan_desk");
       setParams(params, { replace: true });
@@ -163,7 +163,7 @@ export default function StaffingPlanPage() {
         onOpenLine={openLine}
         onPlanDesks={(s) => {
           const ids = seatRoleIds(s);
-          setAddSeed({ department_id: s.department_id, position_id: ids[0], eligible_position_ids: ids, seat_capacity_id: s.id });
+          setAddSeed({ department_id: s.department_id, position_id: ids[0], eligible_position_ids: ids, seat_capacity_id: s.id, multiShift: true });
         }}
       />
 

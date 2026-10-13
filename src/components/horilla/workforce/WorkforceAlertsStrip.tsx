@@ -1,8 +1,9 @@
-import { AlertTriangle, Armchair, GraduationCap, UserX, Users } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, Armchair, GraduationCap, Link2Off, PauseCircle, UserX, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWorkforceAlerts } from "@/hooks/hrms/useWorkforceAlerts";
 import { seatRoleIds } from "@/hooks/hrms/useWorkforceAlerts";
-import type { StaffingDerived } from "@/lib/hrms/workforce";
+import { pauseText, type StaffingDerived } from "@/lib/hrms/workforce";
 
 interface Props {
   rows: StaffingDerived[];
@@ -76,6 +77,42 @@ export function WorkforceAlertsStrip({ rows, positionTitle, canManage, onPlanDes
               <li key={r.plan_id} className="flex items-center justify-between gap-2">
                 <span className="min-w-0 truncate">{r.position_title} · {r.shiftLabel}: {r.over_requested_hc} more than the line needs</span>
                 {onOpenLine && <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => onOpenLine(r.plan_id)}>Open</Button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {a.paused.length > 0 && (
+        <div className="rounded-lg border border-warning/40 bg-warning/5 p-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <PauseCircle className="h-4 w-4 shrink-0 text-warning" /> Automatic hiring paused
+          </p>
+          <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+            {a.paused.map((r) => (
+              <li key={r.plan_id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0">{r.position_title} · {r.shiftLabel}: {pauseText(r)?.replace("Automatic hiring paused — ", "")}</span>
+                {onOpenLine && <Button size="sm" variant="ghost" className="h-7 shrink-0" onClick={() => onOpenLine(r.plan_id)}>Open</Button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {(a.unlinked.length > 0 || a.onInactiveLine.length > 0) && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <Link2Off className="h-4 w-4 shrink-0 text-destructive" /> Requirements that need a staffing line
+          </p>
+          <ul className="mt-1.5 space-y-1 text-xs text-muted-foreground">
+            {a.onInactiveLine.map((r: any) => (
+              <li key={r.id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate">{r.requirement_no} · {r.positions?.title}: its line was removed — it counts nowhere until moved</span>
+                <Button asChild size="sm" variant="ghost" className="h-7 shrink-0"><Link to={`/hrms/workforce-planning/hiring-requirements?req=${r.id}`}>Move</Link></Button>
+              </li>
+            ))}
+            {a.unlinked.map((r: any) => (
+              <li key={r.id} className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate">{r.requirement_no} · {r.positions?.title}: not linked to a staffing line</span>
+                <Button asChild size="sm" variant="ghost" className="h-7 shrink-0"><Link to={`/hrms/workforce-planning/hiring-requirements?req=${r.id}`}>Link to line</Link></Button>
               </li>
             ))}
           </ul>

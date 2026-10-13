@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResponsiveDialog } from "@/components/horilla/primitives/ResponsiveDialog";
 import { PRIORITIES, PRIORITY_LABEL, planningShifts } from "@/lib/hrms/workforce";
-import { useSaveHeadcountPlan, useSeatCapacity, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
+import { useSaveHeadcountPlan, useSeatCapacity, useSeatOccupancy, useWorkforceLookups } from "@/hooks/hrms/useWorkforcePlanning";
 
 export interface AddLineSeed {
   department_id?: string;
@@ -17,6 +17,8 @@ export interface AddLineSeed {
   eligible_position_ids?: string[];
   shift_id?: string | null;
   seat_capacity_id?: string | null;
+  /** "Plan these desks": pick several shifts, one line per shift following desks. */
+  multiShift?: boolean;
 }
 
 interface Props {
@@ -37,6 +39,9 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   const { data: lookups } = useWorkforceLookups();
   const { data: seats = [] } = useSeatCapacity();
   const save = useSaveHeadcountPlan();
+  const occupancy = useSeatOccupancy();
+  const [multi, setMulti] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
     department_id: "",
@@ -70,7 +75,19 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       priority: "medium",
       reason: "",
     });
+    setMulti([]);
   }, [open, seed]);
+
+  // Default for "Plan these desks": the planning shifts the role's people work in now.
+  useEffect(() => {
+    if (!open || !seed?.multiShift || multi.length) return;
+    const ids = seed.eligible_position_ids?.length ? seed.eligible_position_ids : seed.position_id ? [seed.position_id] : [];
+    const worked = new Set((occupancy.data || [])
+      .filter((r: any) => !r.is_training && r.department_id === seed.department_id && ids.includes(r.job_position_id) && r.shift_id)
+      .map((r: any) => r.shift_id as string));
+    if (worked.size) setMulti(Array.from(worked));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, seed, occupancy.data]);
 
   const positions = (lookups?.positions || []).filter(
     (p: any) =>
@@ -100,9 +117,39 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
   const required = following ? deskCount : form.required_hc;
   const approved = following ? deskCount : form.approved_hc;
 
-  const canSave = !!form.department_id && !!form.position_id && form.reason.trim().length > 0 && !save.isPending;
+  const canSave = !!form.department_id && !!form.position_id && form.reason.trim().length > 0 && !save.isPending && !saving
+    && (!seed?.multiShift || multi.length > 0);
+
+  const payloadFor = (shift: any) => ({
+        department_id: form.department_id,
+        position_id: form.position_id,
+        eligible_position_ids: roles.length > 1 ? roles : [],
+        shift_id: shift ? shift.id : null,
+        eligible_shift_ids: [] as string[],
+        shift_label: shift?.name ?? null,
+        location: null,
+        employment_type: "full_time",
+        approved_hc: approved,
+        required_hc: required,
+        target_date: form.target_date || null,
+        priority: form.priority,
+        notes: form.reason.trim(),
+        seat_capacity_id: seat ? seat.id : null,
+        follow_desks: following,
+      });
+
+  const submitMany = async () => {
+    setError(null); setSaving(true);
+    try {
+      for (const id of multi) await save.mutateAsync(payloadFor(shifts.find((s: any) => s.id === id)));
+      onOpenChange(false);
+    } catch (e: any) {
+      setError(e?.message || "Could not save the lines");
+    } finally { setSaving(false); }
+  };
 
   const submit = () => {
+    if (seed?.multiShift) { void submitMany(); return; }
     setError(null);
     const shift = shifts.find((s: any) => s.id === form.shift_id);
     save.mutate(
@@ -140,7 +187,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={submit} disabled={!canSave}>{save.isPending ? "Saving..." : "Add line"}</Button>
+          <Button onClick={submit} disabled={!canSave}>{save.isPending || saving ? "Saving..." : seed?.multiShift ? `Add ${multi.length} line${multi.length === 1 ? "" : "s"}` : "Add line"}</Button>
         </div>
       }
     >
@@ -187,6 +234,21 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
           </div>
         )}
 
+        {seed?.multiShift ? (
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Shifts to staff (one line per shift, each following the desks)</Label>
+            <div className="flex flex-wrap gap-3 rounded-md border border-border p-2.5">
+              {shifts.map((s: any) => (
+                <label key={s.id} className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
+                  <Checkbox checked={multi.includes(s.id)}
+                    onCheckedChange={(v) => setMulti((m) => (v ? [...m, s.id] : m.filter((x) => x !== s.id)))} />
+                  {s.name}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Ticked by default: the shifts this role works in now.</p>
+          </div>
+        ) : (
         <div className="space-y-1">
           <Label>Shift</Label>
           <Select value={form.shift_id} onValueChange={(v) => set({ shift_id: v })}>
@@ -197,6 +259,7 @@ export function AddLineDialog({ open, onOpenChange, seed }: Props) {
             </SelectContent>
           </Select>
         </div>
+        )}
         <div className="space-y-1">
           <Label>Desk group</Label>
           <Select value={form.seat_capacity_id} onValueChange={(v) => set({ seat_capacity_id: v, follow_desks: v !== "none" })}>

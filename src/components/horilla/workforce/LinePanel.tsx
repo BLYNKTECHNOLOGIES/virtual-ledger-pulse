@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { AlertCircle, ExternalLink, GraduationCap, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, ExternalLink, GraduationCap, PauseCircle, Trash2, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +17,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import {
   GAP_CHIP_CLASS, PRIORITIES, PRIORITY_LABEL, REQ_STATUS_CLASS, REQ_STATUS_LABEL,
-  formatIstDate, gapLabel, gapTone, planningShifts, type StaffingDerived,
+  formatIstDate, gapLabel, gapTone, pauseText, planningShifts, type StaffingDerived,
 } from "@/lib/hrms/workforce";
+import { OPEN_REQ_STATUSES, linesForRole, useMoveRequirement, useResumeAutoHiring } from "@/hooks/hrms/useWorkforceRepair";
+import { useRequirementTransition } from "@/hooks/hrms/useWorkforcePlanning";
 import {
   useDeleteHeadcountPlan, useHeadcountPlans, useHiringRequirements, useLinePeople,
   useSaveHeadcountPlan, useSeatCapacity, useSetPostTrainingShift, useWorkforceLookups,
@@ -56,17 +58,29 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
 
   const plan: any = useMemo(() => (plans as any[]).find((p) => p.id === line?.plan_id), [plans, line?.plan_id]);
   const seat: any = useMemo(() => (seats as any[]).find((s) => s.id === line?.seat_capacity_id), [seats, line?.seat_capacity_id]);
-  const deskCount = seat ? seat.max_operational_capacity || seat.physical_seats || 0 : 0;
+  // The desk count the database uses: operational capacity, 0 when the desk group is inactive.
+  const deskCount = Number(line?.operational_capacity ?? 0) || 0;
+  const seatInactive = !!line?.seat_capacity_id && line?.seat_active === false;
+  const resume = useResumeAutoHiring();
+  const move = useMoveRequirement();
+  const transition = useRequirementTransition();
+  const [moveTo, setMoveTo] = useState<Record<string, string>>({});
 
-  const [form, setForm] = useState({ required: 0, approved: 0, follow: false, target: "", priority: "medium", reason: "" });
+  const [form, setForm] = useState({ required: 0, approved: 0, follow: false, target: "", priority: "medium", reason: "",
+    shift: "any", seat: "none", roles: [] as string[] });
   const [pendingUnfollow, setPendingUnfollow] = useState<null | { key: "required" | "approved"; value: number }>(null);
   const [removeOpen, setRemoveOpen] = useState(false);
   const [removeReason, setRemoveReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
+  const lineRoles = (p: any): string[] => (p?.eligible_position_ids?.length ? p.eligible_position_ids : p?.position_id ? [p.position_id] : []);
+  const lineShift = (p: any): string => p?.shift_id ?? p?.eligible_shift_ids?.[0] ?? "any";
+  // Reset only when another line is opened — never on a background refetch.
+  const planKey = line?.plan_id && plan ? line.plan_id : null;
   useEffect(() => {
-    if (!line) return;
+    if (!line || !plan) return;
     setError(null);
+    setMoveTo({});
     setForm({
       required: line.required_hc,
       approved: line.approved_hc,
@@ -74,8 +88,12 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
       target: line.target_date ?? "",
       priority: line.priority || "medium",
       reason: "",
+      shift: lineShift(plan),
+      seat: plan.seat_capacity_id ?? "none",
+      roles: lineRoles(plan),
     });
-  }, [line]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planKey]);
 
   const lineReqs = useMemo(
     () => (requirements as any[]).filter((r) => r.staffing_plan_id === line?.plan_id),
@@ -85,9 +103,14 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const trainees = (people.data || []).filter((p) => p.kind === "trainee");
   const shifts = planningShifts((lookups?.shifts || []) as any[]);
 
+  const scopeChanged = !!plan && (form.shift !== lineShift(plan) || form.seat !== (plan.seat_capacity_id ?? "none")
+    || [...form.roles].sort().join() !== [...lineRoles(plan)].sort().join());
+  const deptSeats = (seats as any[]).filter((s) => s.department_id === plan?.department_id && !s.is_training_only);
+  const deptRoles = ((lookups?.positions || []) as any[]).filter((p) => p.department_id === plan?.department_id && p.in_workforce_planning !== false);
+  const openLineReqs = (requirements as any[]).filter((r) => r.staffing_plan_id === line?.plan_id && OPEN_REQ_STATUSES.includes(r.status));
   const dirty =
     !!line &&
-    (form.required !== line.required_hc ||
+    (scopeChanged || form.required !== line.required_hc ||
       form.approved !== line.approved_hc ||
       form.follow !== line.follow_desks ||
       (form.target || null) !== (line.target_date || null) ||
@@ -101,16 +124,20 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
   const submit = () => {
     if (!line || !plan) return;
     setError(null);
-    const following = form.follow && !!seat;
+    const seatId = form.seat === "none" ? null : form.seat;
+    const following = form.follow && !!seatId;
+    if (!form.roles.length) { setError("Pick at least one role for this line."); return; }
+    const shiftSame = form.shift === lineShift(plan);
+    const primary = form.roles.includes(plan.position_id) ? plan.position_id : form.roles[0];
     save.mutate(
       {
         id: plan.id,
         department_id: plan.department_id,
-        position_id: plan.position_id,
-        eligible_position_ids: plan.eligible_position_ids || [],
-        shift_id: plan.shift_id,
-        eligible_shift_ids: plan.eligible_shift_ids || [],
-        shift_label: plan.shift_label,
+        position_id: primary,
+        eligible_position_ids: form.roles.length > 1 ? [primary, ...form.roles.filter((r) => r !== primary)] : [],
+        shift_id: shiftSame ? plan.shift_id : form.shift === "any" ? null : form.shift,
+        eligible_shift_ids: shiftSame ? plan.eligible_shift_ids || [] : [],
+        shift_label: shiftSame ? plan.shift_label : (shifts as any[]).find((x) => x.id === form.shift)?.name ?? null,
         location: plan.location,
         employment_type: plan.employment_type,
         approved_hc: following ? deskCount : form.approved,
@@ -118,7 +145,7 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
         target_date: form.target || null,
         priority: form.priority,
         notes: form.reason.trim(),
-        seat_capacity_id: plan.seat_capacity_id,
+        seat_capacity_id: seatId,
         follow_desks: following,
       },
       { onError: (e: any) => setError(e?.message || "Could not save"), onSuccess: () => setForm((f) => ({ ...f, reason: "" })) },
@@ -137,11 +164,22 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               </SheetTitle>
               <SheetDescription>
                 {line.department_name} · {line.shiftLabel}
-                {seat && <> · {seat.physical_seats} desks{line.follow_desks ? " (followed)" : ""}</>}
+                {line.seat_capacity_id && <> · {deskCount} desks{line.follow_desks ? " (followed)" : ""}</>}
               </SheetDescription>
             </SheetHeader>
 
             <div className="mt-4 space-y-5">
+              {pauseText(line) && (
+                <div className="flex flex-wrap items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-2.5 text-sm text-warning">
+                  <PauseCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <p className="min-w-0 flex-1">{pauseText(line)}</p>
+                  {canManage && (
+                    <Button size="sm" variant="outline" disabled={resume.isPending} onClick={() => resume.mutate(line.plan_id)}>
+                      {resume.isPending ? "Raising..." : "Raise again"}
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2">
                 <Stat label="On roll" value={`${line.current_hc} / ${line.required_hc}`} />
                 <Stat label="Approved" value={line.approved_hc} />
@@ -171,20 +209,64 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
                     <div>
                       <p className="text-sm font-medium text-foreground">Follow desks</p>
                       <p className="text-xs text-muted-foreground">
-                        {seat ? `Numbers stay equal to the desk group (${deskCount}).` : "This line has no desk group."}
+                        {form.seat === "none" ? "This line has no desk group."
+                          : seatInactive ? "The desk group is inactive, so this line follows 0 desks until it is reactivated or you pick another group."
+                          : `Numbers stay equal to the desk group (${deskCount}).`}
                       </p>
                     </div>
-                    <Switch checked={form.follow && !!seat} disabled={!seat} onCheckedChange={(v) => setForm((f) => ({ ...f, follow: v }))} />
+                    <Switch checked={form.follow && form.seat !== "none"} disabled={form.seat === "none"} onCheckedChange={(v) => setForm((f) => ({ ...f, follow: v }))} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label>Planning shift</Label>
+                      <Select value={form.shift} onValueChange={(v) => setForm((f) => ({ ...f, shift: v }))}>
+                        <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">Any shift</SelectItem>
+                          {shifts.map((x: any) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                          {form.shift !== "any" && !shifts.some((x: any) => x.id === form.shift) && <SelectItem value={form.shift}>{line.shiftLabel}</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Desk group</Label>
+                      <Select value={form.seat} onValueChange={(v) => setForm((f) => ({ ...f, seat: v, follow: v === "none" ? false : f.follow }))}>
+                        <SelectTrigger className="text-foreground"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">No desk group</SelectItem>
+                          {deptSeats.map((x: any) => (
+                            <SelectItem key={x.id} value={x.id}>{x.positions?.title || "Desks"} · {x.max_operational_capacity ?? x.physical_seats} desks</SelectItem>
+                          ))}
+                          {form.seat !== "none" && !deptSeats.some((x: any) => x.id === form.seat) && <SelectItem value={form.seat}>Inactive desk group</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Roles sharing this line</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {deptRoles.map((p: any) => {
+                        const on = form.roles.includes(p.id);
+                        return (
+                          <button key={p.id} type="button"
+                            onClick={() => setForm((f) => ({ ...f, roles: on ? f.roles.filter((r) => r !== p.id) : [...f.roles, p.id] }))}
+                            className={`rounded-full border px-2.5 py-0.5 text-xs ${on ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}>
+                            {p.title}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {scopeChanged && <p className="text-xs text-muted-foreground">A role can have one line per shift; the save is refused if this overlaps another line.</p>}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label>Required</Label>
-                      <Input type="number" min={0} className="text-foreground" value={form.follow && seat ? deskCount : form.required}
+                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? deskCount : form.required}
                         onChange={(e) => editNumber("required", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                     <div className="space-y-1">
                       <Label>Approved</Label>
-                      <Input type="number" min={0} className="text-foreground" value={form.follow && seat ? deskCount : form.approved}
+                      <Input type="number" min={0} className="text-foreground" value={form.follow && form.seat !== "none" ? deskCount : form.approved}
                         onChange={(e) => editNumber("approved", Math.max(0, Number(e.target.value) || 0))} />
                     </div>
                     <div className="space-y-1">
@@ -333,13 +415,38 @@ export function LinePanel({ line, roleLabel, canManage, onOpenChange, onHire }: 
               <AlertDialogTitle>Remove this staffing line?</AlertDialogTitle>
               <AlertDialogDescription>
                 {roleLabel} · {line?.shiftLabel} leaves the plan. Employee records are not affected. Give a reason for the history.
+                {openLineReqs.length > 0 && " This line still has open requirements — move each to another line or cancel it first."}
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <Textarea rows={2} className="text-foreground" value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} />
+            <Textarea rows={2} className="text-foreground" placeholder="Reason" value={removeReason} onChange={(e) => setRemoveReason(e.target.value)} />
+            {openLineReqs.length > 0 && (
+              <ul className="space-y-2">
+                {openLineReqs.map((r: any) => {
+                  const targets = linesForRole(plans as any[], r.department_id, r.position_id).filter((p) => p.id !== line?.plan_id);
+                  return (
+                    <li key={r.id} className="flex flex-wrap items-center gap-2 rounded-md border border-border p-2 text-sm">
+                      <span className="font-mono text-xs text-muted-foreground">{r.requirement_no}</span>
+                      <Badge variant="outline" className={REQ_STATUS_CLASS[r.status]}>{REQ_STATUS_LABEL[r.status] ?? r.status}</Badge>
+                      <Select value={moveTo[r.id] ?? ""} onValueChange={(v) => setMoveTo((m) => ({ ...m, [r.id]: v }))}>
+                        <SelectTrigger className="h-8 w-40 text-foreground"><SelectValue placeholder="Move to line" /></SelectTrigger>
+                        <SelectContent>
+                          {targets.length === 0 && <SelectItem value="__none" disabled>No other line for this role</SelectItem>}
+                          {targets.map((p: any) => <SelectItem key={p.id} value={p.id}>{(shifts as any[]).find((x) => x.id === p.shift_id)?.name ?? p.shift_label ?? "Any shift"}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" disabled={!moveTo[r.id] || !removeReason.trim() || move.isPending}
+                        onClick={() => move.mutate({ id: r.id, planId: moveTo[r.id], reason: removeReason })}>Move</Button>
+                      <Button size="sm" variant="outline" className="text-destructive" disabled={!removeReason.trim() || transition.isPending}
+                        onClick={() => transition.mutate({ id: r.id, action: "cancel", reason: removeReason })}>Cancel it</Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
-                disabled={!removeReason.trim() || remove.isPending}
+                disabled={!removeReason.trim() || remove.isPending || openLineReqs.length > 0}
                 onClick={() => {
                   if (!line) return;
                   remove.mutate({ id: line.plan_id, reason: removeReason.trim() }, { onSuccess: () => onOpenChange(false) });

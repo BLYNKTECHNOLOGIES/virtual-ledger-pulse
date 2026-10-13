@@ -14143,6 +14143,12 @@ export type Database = {
       hr_headcount_plans: {
         Row: {
           approved_hc: number
+          auto_paused_at: string | null
+          auto_paused_by: string | null
+          auto_paused_by_name: string | null
+          auto_paused_need: number | null
+          auto_paused_reason: string | null
+          auto_paused_signature: string | null
           created_at: string
           created_by: string | null
           department_id: string | null
@@ -14166,6 +14172,12 @@ export type Database = {
         }
         Insert: {
           approved_hc?: number
+          auto_paused_at?: string | null
+          auto_paused_by?: string | null
+          auto_paused_by_name?: string | null
+          auto_paused_need?: number | null
+          auto_paused_reason?: string | null
+          auto_paused_signature?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -14189,6 +14201,12 @@ export type Database = {
         }
         Update: {
           approved_hc?: number
+          auto_paused_at?: string | null
+          auto_paused_by?: string | null
+          auto_paused_by_name?: string | null
+          auto_paused_need?: number | null
+          auto_paused_reason?: string | null
+          auto_paused_signature?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -21457,6 +21475,21 @@ export type Database = {
           is_alternating?: boolean | null
           name?: string
           weekly_offs?: number[]
+        }
+        Relationships: []
+      }
+      hr_wf_reconcile_queue: {
+        Row: {
+          queued_at: string
+          txid: number
+        }
+        Insert: {
+          queued_at?: string
+          txid: number
+        }
+        Update: {
+          queued_at?: string
+          txid?: number
         }
         Relationships: []
       }
@@ -35802,10 +35835,20 @@ export type Database = {
           selected_hc: number
         }[]
       }
+      hr_wf_line_signature: { Args: { p_plan: string }; Returns: string }
       hr_wf_norm_employment_type: { Args: { p: string }; Returns: string }
       hr_wf_note_line: {
         Args: { p_text: string; p_uid: string; p_verb: string }
         Returns: string
+      }
+      hr_wf_onboarding_people: {
+        Args: never
+        Returns: {
+          onboarding_id: string
+          plan_id: string
+          requirement_id: string
+          state: string
+        }[]
       }
       hr_wf_people: {
         Args: never
@@ -35820,6 +35863,7 @@ export type Database = {
         }[]
       }
       hr_wf_planning_shift: { Args: { p_shift: string }; Returns: string }
+      hr_wf_queue_reconcile: { Args: never; Returns: undefined }
       hr_wf_refresh_requirement: {
         Args: { p_requirement: string }
         Returns: undefined
@@ -35834,6 +35878,7 @@ export type Database = {
           selected_hc: number
         }[]
       }
+      hr_wf_resume_auto_hiring: { Args: { p_plan: string }; Returns: Json }
       hr_wf_roles: {
         Args: { p_eligible: string[]; p_position: string }
         Returns: string[]
@@ -35854,7 +35899,18 @@ export type Database = {
           out_ready_date: string
         }[]
       }
+      hr_wf_user_name: { Args: { p_uid: string }; Returns: string }
       hr_withdraw_holiday_credits: { Args: { p_date: string }; Returns: Json }
+      hr_workforce_leaving_soon: {
+        Args: never
+        Returns: {
+          department_id: string
+          employee_id: string
+          last_working_day: string
+          plan_id: string
+          position_id: string
+        }[]
+      }
       hr_workforce_line_people: {
         Args: { p_plan_id: string }
         Returns: {
@@ -35874,6 +35930,10 @@ export type Database = {
         Args: never
         Returns: {
           approved_hc: number
+          auto_paused_at: string
+          auto_paused_by_name: string
+          auto_paused_need: number
+          auto_paused_reason: string
           current_hc: number
           department_id: string
           department_name: string
@@ -35884,6 +35944,7 @@ export type Database = {
           notice_period_hc: number
           open_requirement_count: number
           open_requirement_hc: number
+          operational_capacity: number
           over_requested_hc: number
           pending_joining_hc: number
           physical_seats: number
@@ -35893,6 +35954,7 @@ export type Database = {
           position_title: string
           priority: string
           required_hc: number
+          seat_active: boolean
           seat_capacity_id: string
           selected_hc: number
           shift_group_name: string

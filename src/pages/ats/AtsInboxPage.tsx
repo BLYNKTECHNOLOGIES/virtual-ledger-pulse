@@ -144,19 +144,24 @@ export default function AtsInboxPage() {
     try {
       await setConversation(candidateId, action === "unsnooze" ? "reopen" : action, until);
       toast.success(action === "done" ? "Conversation marked done" : action === "reopen" ? "Conversation reopened" : action === "unsnooze" ? "Conversation unsnoozed" : "Conversation snoozed");
+      if (view !== "all") {
+        // Drop the row from the cached list first, so the first-row auto-select can't pick it again.
+        qc.setQueryData(convKeys.list(view as ConvView, search), (d: any) =>
+          d?.pages ? { ...d, pages: d.pages.map((pg: ConversationRow[]) => pg.filter((r) => r.candidate_id !== candidateId)) } : d);
+      }
       advanceFrom(candidateId, snapshot);
       qc.invalidateQueries({ queryKey: convKeys.all });
     } catch (e) { toast.error(atsErrorMessage(e)); }
   };
 
   // Keyboard: j/k (↓/↑) move · e done/reopen · s snooze · / search.
-  const kb = useRef({ rows, selIdx, view, isConv, isLg });
-  kb.current = { rows, selIdx, view, isConv, isLg };
+  const kb = useRef({ rows, selIdx, view, isConv, isLg, act });
+  kb.current = { rows, selIdx, view, isConv, isLg, act };
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (isTyping(e.target) || document.querySelector("[role=dialog],[role=alertdialog]")) return;
-      const { rows: rs, selIdx: i, view: v, isConv: ic, isLg: lg } = kb.current;
+      const { rows: rs, selIdx: i, view: v, isConv: ic, isLg: lg, act: doAct } = kb.current;
       if (!ic) return;
       const k = e.key;
       if (k === "/") { e.preventDefault(); searchRef.current?.focus(); return; }
@@ -171,7 +176,7 @@ export default function AtsInboxPage() {
       }
       const cur = i >= 0 ? rs[i] : null;
       if (!cur) return;
-      if (k === "e") { e.preventDefault(); void act(cur.candidate_id!, v === "done" ? "reopen" : "done"); }
+      if (k === "e") { e.preventDefault(); void doAct(cur.candidate_id!, v === "done" ? "reopen" : "done"); }
       else if (k === "s") { e.preventDefault(); setSnoozeFor(cur.candidate_id!); }
     };
     window.addEventListener("keydown", h);
@@ -276,7 +281,7 @@ export default function AtsInboxPage() {
               <div className="flex min-h-0 flex-col border-r border-border">{convList}</div>
               <div className="min-h-0 min-w-0 overflow-hidden">
                 {sel ? (
-                  <CandidateReviewPanel key={sel} candidateId={sel} appId={sp.get("app") ?? selRow?.application_id ?? null} initialPaneTab="messages" className="h-full"
+                  <CandidateReviewPanel key={sel} candidateId={sel} appId={sp.get("app") ?? selRow?.application_id ?? null} initialPaneTab="messages" shortcuts={false} className="h-full"
                     onAppChange={(id) => setParams({ app: id }, true)} onConversationChanged={() => advanceFrom(sel, rows)} />
                 ) : !conv.isLoading && !rows.length ? null : <div className="p-4"><RowsSkeleton rows={6} /></div>}
               </div>
@@ -376,9 +381,10 @@ const EMPTY: Record<string, string> = { unread: "No unread replies.", all: "No r
 type View = "unread" | "all" | "undelivered" | "queued";
 const PAGE = 50;
 const SELECT =
-  "id,candidate_id,application_id,direction,status,error,subject,snippet,from_name,from_address,to_addresses,received_at,sent_at,created_at,read_at,is_automatic,attachments,ats_candidates(full_name,ref_no),ats_applications(position_text,ats_jobs(title))";
+  "id,candidate_id,application_id,direction,status,error,subject,snippet,from_name,from_address,to_addresses,received_at,sent_at,created_at,read_at,is_automatic,attachments,template_code,ats_candidates(full_name,ref_no),ats_applications(position_text,ats_jobs(title))";
 
 interface InboxRow {
+  template_code?: string | null;
   id: string; candidate_id: string; application_id: string | null; direction: string; status: string; error: string | null;
   subject: string | null; snippet: string | null; from_name: string | null; from_address: string | null; to_addresses: string[];
   received_at: string | null; sent_at: string | null; created_at: string; read_at: string | null; is_automatic: boolean;
@@ -450,7 +456,8 @@ function InboxItem({ r, view }: { r: InboxRow; view: View }) {
             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-destructive">
               <StatusPill tone="destructive">Not delivered</StatusPill>
               <span>{r.status === "bounced" ? "Bounced: check the address" : mailErrorMessage(r.error)}</span>
-              {mailOn && r.status === "failed" && canRetry(r.error) && (
+              {r.status === "failed" && r.template_code === "interview-pick-a-slot" && <span>Make a new link from the Interviews card instead.</span>}
+              {mailOn && r.status === "failed" && canRetry(r.error) && r.template_code !== "interview-pick-a-slot" && (
                 <Button size="sm" variant="outline" className="h-7 gap-1" disabled={busy} onClick={(e) => { e.stopPropagation(); r.error === "interrupted" ? setAskRetry(true) : retry(); }}>
                   {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Retry
                 </Button>

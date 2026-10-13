@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { mailKeys } from "@/lib/ats/mail";
 import { candKeys } from "@/lib/ats/candidates";
+import { ivKeys } from "@/lib/ats/interviews";
 import { intentMeta, useConversationCounts } from "@/lib/ats/conversations";
 
 /** Is the given candidate already on screen (Inbox with c=id, or the candidate page)? */
@@ -25,6 +26,7 @@ export function useAtsMailRealtime(enabled: boolean) {
     if (!enabled) return;
     const pending = new Set<string>();
     let replies: { candidate_id: string; name: string; intent: string | null }[] = [];
+    let ivTouched = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const flush = () => {
       timer = null;
@@ -35,6 +37,11 @@ export function useAtsMailRealtime(enabled: boolean) {
         qc.invalidateQueries({ queryKey: candKeys.events(id) });
       }
       pending.clear();
+      if (ivTouched) {
+        ivTouched = false;
+        qc.invalidateQueries({ queryKey: ivKeys.all });
+        qc.invalidateQueries({ queryKey: ["ats", "slot-offers"] });
+      }
       const got = replies;
       replies = [];
       if (got.length === 1) {
@@ -47,8 +54,9 @@ export function useAtsMailRealtime(enabled: boolean) {
         toast(`${got.length} new replies`, { action: { label: "Open Inbox", onClick: () => navRef.current("/hrms/ats/inbox?view=needs_reply") } });
       }
     };
-    const bump = (cid?: string | null) => {
+    const bump = (cid?: string | null, iv = false) => {
       if (cid) pending.add(cid);
+      if (iv) ivTouched = true;
       if (timer) clearTimeout(timer);
       timer = setTimeout(flush, 500);
     };
@@ -61,7 +69,11 @@ export function useAtsMailRealtime(enabled: boolean) {
         if (p.eventType === "INSERT" && row.direction === "inbound" && !row.is_automatic && row.intent !== "auto_reply" && row.candidate_id && fresh && !showingCandidate(row.candidate_id)) {
           replies.push({ candidate_id: row.candidate_id, name: row.from_name || row.from_address || "a candidate", intent: row.intent ?? null });
         }
-        bump(row.candidate_id);
+        bump(row.candidate_id, true);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "ats_slot_offers" }, (p: any) => {
+        const row = (p.new && Object.keys(p.new).length ? p.new : p.old) ?? {};
+        bump(row.candidate_id, true);
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "ats_conversation_state" }, (p: any) => {
         const row = (p.new && Object.keys(p.new).length ? p.new : p.old) ?? {};

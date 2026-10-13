@@ -65,7 +65,7 @@ export function CancelInterviewDialog({ open, onOpenChange, iv, target }: { open
   const valid = reason.length <= 500 && (!wantCand || (subject.trim().length >= 1 && subject.trim().length <= 200
     && body.trim().length >= 1 && body.length <= 20000 && emailLeftovers(subject, body, vals).length === 0));
 
-  const refresh = () => { for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k }); };
+  const refresh = () => { for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], ["ats", "slot-offers"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k }); };
 
   const notify = async () => {
     try {

@@ -237,7 +237,7 @@ export function ScheduleInterviewDialog({ open, onOpenChange, target, interview,
     : "Finish the email to the candidate.";
 
   const refresh = () => {
-    for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k });
+    for (const k of [ivKeys.all, candKeys.all, ["ats", "mail"], ["ats", "slot-offers"], atsKeys.overview, atsKeys.jobSummary]) qc.invalidateQueries({ queryKey: k });
   };
 
   const baseText = (r: SaveInterviewResult) => {

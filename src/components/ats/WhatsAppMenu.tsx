@@ -42,16 +42,20 @@ export function WhatsAppDialog({ open, onOpenChange, candidateId, applicationId,
   const empty = !text.trim();
 
   const copy = () => navigator.clipboard.writeText(text).then(() => toast.success("Copied"), () => toast.error("Couldn't copy"));
+  const [logging, setLogging] = useState(false);
   const openWa = async () => {
+    if (logging) return;
+    setLogging(true);
     window.open(`https://wa.me/91${waPhone}?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
     try {
-      await logContact({ candidateId, applicationId, channel: "whatsapp", outcome: "opened", templateCode, note: text.slice(0, 200) });
+      await logContact({ candidateId, applicationId, channel: "whatsapp", outcome: "opened", templateCode, note: text.replace(/\/interview\/pick\/[A-Za-z0-9_-]+/g, "/interview/pick/…").slice(0, 200) });
       toast.success("WhatsApp opened · logged on the timeline");
     } catch (e) {
       toast.error(atsErrorMessage(e));
     }
     qc.invalidateQueries({ queryKey: candKeys.events(candidateId) });
     qc.invalidateQueries({ queryKey: convKeys.all });
+    setLogging(false);
     onOpenChange(false);
   };
 
@@ -66,7 +70,7 @@ export function WhatsAppDialog({ open, onOpenChange, candidateId, applicationId,
         {leftover && <p className="text-sm text-warning">Replace the {"{{placeholders}}"} first</p>}
         <div className="flex flex-wrap justify-end gap-2">
           <Button variant="outline" disabled={leftover || empty} onClick={copy}>Copy text</Button>
-          <Button disabled={leftover || empty} onClick={openWa}><MessageCircle className="mr-1.5 h-4 w-4" /> Open WhatsApp</Button>
+          <Button disabled={leftover || empty || logging} onClick={openWa}><MessageCircle className="mr-1.5 h-4 w-4" /> Open WhatsApp</Button>
         </div>
       </div>
     </ResponsiveDialog>

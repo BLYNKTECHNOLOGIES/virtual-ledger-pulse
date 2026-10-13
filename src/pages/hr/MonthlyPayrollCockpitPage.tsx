@@ -338,11 +338,18 @@ function DetailLine({ step }: { step: CockpitStep }) {
 }
 
 export default function MonthlyPayrollCockpitPage() {
+  // Optional deep link: ?month=YYYY-MM opens that month once; otherwise the
+  // latest-incomplete-month default below applies unchanged.
+  const [initialMonthParam] = useState<string | null>(() => {
+    const m = new URLSearchParams(window.location.search).get("month");
+    return m && /^\d{4}-(0[1-9]|1[0-2])$/.test(m) ? `${m}-01` : null;
+  });
   const [month, setMonth] = useState<string>(() => {
+    if (initialMonthParam) return initialMonthParam;
     const d = new Date();
     return firstOfMonth(new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)));
   });
-  const defaultMonthResolved = useRef(false);
+  const defaultMonthResolved = useRef(!!initialMonthParam);
   const { data: latestIncompleteMonth } = useLatestIncompleteCockpitMonth();
 
   useEffect(() => {

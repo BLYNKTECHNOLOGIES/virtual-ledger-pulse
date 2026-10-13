@@ -410,9 +410,14 @@ export const EMPTY_FILTERS: WorkforceFilterState = {
   toDate: "",
 };
 
+/**
+ * A line matches the filters. Target dates: the line's own date or any of its open requirements'
+ * target joining dates (reqDates, keyed by plan id) must fall in the range.
+ */
 export function matchesFilters(
   row: StaffingDerived,
   f: WorkforceFilterState,
+  reqDates?: Map<string, (string | null)[]>,
 ): boolean {
   if (f.departmentId !== "all" && row.department_id !== f.departmentId) return false;
   if (f.positionId !== "all" && row.position_id !== f.positionId) return false;
@@ -424,9 +429,57 @@ export function matchesFilters(
     return false;
   if (f.status !== "all" && row.status !== f.status) return false;
   if (f.priority !== "all" && row.priority !== f.priority) return false;
-  if (f.fromDate && (!row.target_date || row.target_date < f.fromDate)) return false;
-  if (f.toDate && (!row.target_date || row.target_date > f.toDate)) return false;
+  if (f.fromDate || f.toDate) {
+    const dates = [row.target_date, ...(reqDates?.get(row.plan_id) ?? [])].filter((d): d is string => !!d);
+    if (!dates.some((d) => inDateRange(d, f))) return false;
+  }
   return true;
+}
+
+export function inDateRange(date: string | null | undefined, f: Pick<WorkforceFilterState, "fromDate" | "toDate">): boolean {
+  if (!f.fromDate && !f.toDate) return true;
+  if (!date) return false;
+  const d = date.slice(0, 10);
+  return (!f.fromDate || d >= f.fromDate) && (!f.toDate || d <= f.toDate);
+}
+
+/** A requirement matches through its line when it has one, else through its own department / role / shift label. */
+export function requirementMatchesFilters(
+  req: { staffing_plan_id?: string | null; department_id?: string | null; position_id?: string | null; shift_label?: string | null;
+    employment_type?: string | null; priority?: string | null; target_joining_date?: string | null },
+  lineById: Map<string, StaffingDerived>,
+  f: WorkforceFilterState,
+): boolean {
+  const line = req.staffing_plan_id ? lineById.get(req.staffing_plan_id) : undefined;
+  if (f.departmentId !== "all" && (line?.department_id ?? req.department_id) !== f.departmentId) return false;
+  if (f.positionId !== "all" && req.position_id !== f.positionId) return false;
+  if (f.shift !== "all" && (line?.shiftLabel ?? req.shift_label ?? "Any shift") !== f.shift) return false;
+  if (f.employmentType !== "all" && normEmploymentType(req.employment_type ?? line?.employment_type) !== normEmploymentType(f.employmentType)) return false;
+  if (f.status !== "all" && line && line.status !== f.status) return false;
+  if (f.priority !== "all" && req.priority !== f.priority) return false;
+  return inDateRange(req.target_joining_date, f);
+}
+
+export type QuickRange = "this_month" | "next_month" | "this_quarter" | "next_90";
+export const QUICK_RANGES: { value: QuickRange; label: string }[] = [
+  { value: "this_month", label: "This month" },
+  { value: "next_month", label: "Next month" },
+  { value: "this_quarter", label: "This quarter" },
+  { value: "next_90", label: "Next 90 days" },
+];
+
+/** From / to (YYYY-MM-DD, IST calendar) for a quick range. */
+export function quickRange(r: QuickRange, today: string = istToday()): { fromDate: string; toDate: string } {
+  const y = Number(today.slice(0, 4));
+  const m = Number(today.slice(5, 7)) - 1;
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const first = (yy: number, mm: number) => new Date(Date.UTC(yy, mm, 1));
+  const last = (yy: number, mm: number) => new Date(Date.UTC(yy, mm + 1, 0));
+  if (r === "this_month") return { fromDate: iso(first(y, m)), toDate: iso(last(y, m)) };
+  if (r === "next_month") return { fromDate: iso(first(y, m + 1)), toDate: iso(last(y, m + 1)) };
+  if (r === "this_quarter") { const q = Math.floor(m / 3) * 3; return { fromDate: iso(first(y, q)), toDate: iso(last(y, q + 2)) }; }
+  const end = new Date(`${today}T00:00:00Z`); end.setUTCDate(end.getUTCDate() + 90);
+  return { fromDate: today, toDate: iso(end) };
 }
 
 /** IST date helpers — all planning dates are read and written in IST. */

@@ -14,7 +14,9 @@ import {
   EMPTY_FILTERS,
   PRIORITIES,
   PRIORITY_LABEL,
+  QUICK_RANGES,
   STATUS_FILTER_OPTIONS,
+  quickRange,
   type WorkforceFilterState,
 } from "@/lib/hrms/workforce";
 
@@ -29,6 +31,8 @@ interface WorkforceFiltersProps {
   showStatus?: boolean;
   showPriority?: boolean;
   showDates?: boolean;
+  /** Hide the employment-type filter where it has nothing to filter. */
+  showEmploymentType?: boolean;
 }
 
 export function WorkforceFilters({
@@ -40,6 +44,7 @@ export function WorkforceFilters({
   showStatus = true,
   showPriority = true,
   showDates = true,
+  showEmploymentType = true,
 }: WorkforceFiltersProps) {
   const set = (patch: Partial<WorkforceFilterState>) =>
     onChange({ ...value, ...patch });
@@ -98,7 +103,7 @@ export function WorkforceFilters({
           </Select>
         </div>
 
-        <div className="space-y-1">
+        {showEmploymentType && <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Employment type</Label>
           <Select
             value={value.employmentType}
@@ -116,7 +121,7 @@ export function WorkforceFilters({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </div>}
 
         {showStatus && (
           <div className="space-y-1">
@@ -180,7 +185,15 @@ export function WorkforceFilters({
         )}
       </div>
 
-      <div className="mt-3 flex justify-end">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        {showDates ? (
+          <div className="flex flex-wrap gap-1.5">
+            {QUICK_RANGES.map((r) => (
+              <Button key={r.value} variant="outline" size="sm" className="h-7 text-xs"
+                onClick={() => set(quickRange(r.value))}>{r.label}</Button>
+            ))}
+          </div>
+        ) : <span />}
         <Button
           variant="outline"
           className="h-8"

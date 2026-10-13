@@ -71,8 +71,10 @@ export default function AttendanceOverviewPage() {
     { enabled: employees.length > 0 },
   );
 
-  const { data: attendance = [], isLoading, error: queryError } = useQuery({
-    queryKey: ["hr_attendance_unified_v1", dateFilter, employees.length, dayRows.length],
+  // Legacy fallback rows in their own query; the visible list is merged below in
+  // a useMemo so it always reflects the latest day rows (e.g. right after a save).
+  const { data: legacyDedup, isLoading, error: queryError } = useQuery({
+    queryKey: ["hr_attendance_unified_v1", "legacy", dateFilter],
     enabled: employees.length > 0,
     queryFn: async () => {
       const nextDate = format(
@@ -98,6 +100,16 @@ export default function AttendanceOverviewPage() {
       if (legacyByDateRes.error) throw legacyByDateRes.error;
       if (legacyByCheckInRes.error) throw legacyByCheckInRes.error;
 
+      const legacyMerged = [
+        ...((legacyByDateRes.data as any[]) || []),
+        ...((legacyByCheckInRes.data as any[]) || []),
+      ];
+      return Array.from(new Map(legacyMerged.map((r: any) => [r.id, r])).values());
+    },
+  });
+
+  const attendance = useMemo<any[]>(() => {
+      if (!legacyDedup) return [];
       const empById = new Map<string, any>(employees.map((e: any) => [e.id, e]));
       const byEmployee = new Map<string, any>();
 
@@ -121,13 +133,7 @@ export default function AttendanceOverviewPage() {
         });
       }
 
-      const legacyMerged = [
-        ...((legacyByDateRes.data as any[]) || []),
-        ...((legacyByCheckInRes.data as any[]) || []),
-      ];
-      const legacyDedup = Array.from(new Map(legacyMerged.map((r: any) => [r.id, r])).values());
-
-      for (const r of legacyDedup) {
+      for (const r of legacyDedup as any[]) {
         if (!r.employee_id) continue;
         const emp = empById.get(r.employee_id);
         if (!emp) continue;
@@ -185,8 +191,7 @@ export default function AttendanceOverviewPage() {
       });
 
       return rows;
-    },
-  });
+  }, [legacyDedup, dayRows, employees]);
 
 
   const currentDay = useAttendanceDay(showAdd ? form.employee_id : "", showAdd ? form.attendance_date : "");

@@ -822,7 +822,7 @@ function Composer({ candidate, appId, files, thread, preset, focusNonce, upcomin
         <span className="min-w-0 flex-1 truncate text-foreground">{candidate.email}</span>
         <Select value="" onValueChange={(id) => pickTemplate(id)}>
           <SelectTrigger className="h-8 w-[200px] text-foreground"><SelectValue placeholder="Use a template…" /></SelectTrigger>
-          <SelectContent>{(templates.data ?? []).filter((t) => !usesInterviewFields(t)).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+          <SelectContent>{(templates.data ?? []).filter((t) => !usesInterviewFields(t) && t.code !== "interview-pick-a-slot").map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
         </Select>
       </div>
       {quickReplies.length > 0 && (

@@ -70,8 +70,8 @@ export function HiringRequirementDialog({
   const save = useSaveHiringRequirement();
   const matrix = useStaffingMatrix();
   const [editReason, setEditReason] = useState("");
-  const limited = !!form.id && !!initial?.status && !["draft", "pending_approval"].includes(initial.status);
   const [form, setForm] = useState<HiringRequirementInput & { id?: string }>(BLANK);
+  const limited = !!form.id && !!initial?.status && !["draft", "pending_approval"].includes(initial.status);
 
   useEffect(() => {
     if (open) { setForm({ ...BLANK, ...initial } as HiringRequirementInput & { id?: string }); setEditReason(""); }

@@ -34,7 +34,8 @@
 
 ## Owner-supplied BlynkEx logos
 
-- [ ] Use supplied text-only artwork throughout visible app branding and replace mobile BLYNK VT; verify light/dark asset rendering.
+- [x] Use supplied text-only artwork throughout visible app branding and replace mobile BLYNK VT; verified actual BrandLogo theme switching and independent Terminal variations with hosted assets (HTTP 200), screenshots and clean preview build.
+- [ ] Verify signed-in ERP/HRMS/Terminal headers (blocked: external Supabase authentication unavailable to automated checks).
 - [x] Replace recreated logos across ERP, Terminal and HRMS, including auth/public HR screens and outgoing email branding.
 - [x] Derive compact icon and favicon from the uploaded symbol; preserve proportions and theme contrast.
 - [x] Verify public screens, six rendered logo/theme variants, asset delivery and preview health without changing business flows; signed-in shell checks unavailable with external Supabase authentication.

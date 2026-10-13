@@ -40,30 +40,23 @@ export async function resolveDocUrl(url: string): Promise<string> {
   return data.signedUrl;
 }
 
-/** Open a stored document in a new tab, signing private references first. */
+/**
+ * Open a stored document in a new tab, signing private references first.
+ *
+ * Security: private files are opened via a short-lived signed URL so they are
+ * served from the storage domain — never as an app-origin blob: URL, where an
+ * uploaded SVG/HTML could run script with the signed-in HR session. The tab is
+ * opened synchronously (popup-blocker safe) and its opener link is cut.
+ */
 export async function openStoredDocument(url: string) {
   const preview = window.open("", "_blank");
+  if (preview) {
+    try { preview.opener = null; } catch { /* ignore */ }
+  }
   try {
-    const ref = resolvePrivateRef(url);
-    if (!ref) {
-      if (preview && !preview.closed) preview.location.replace(url);
-      else window.open(url, "_blank", "noopener,noreferrer");
-      return;
-    }
-
-    const { bucket, path } = ref;
-    const { data, error } = await supabase.storage.from(bucket).download(path);
-    if (error || !data) throw error || new Error("Could not open this document");
-    const objectUrl = URL.createObjectURL(data);
-    if (preview && !preview.closed) {
-      preview.location.replace(objectUrl);
-    } else {
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = path.split("/").pop() || "document";
-      link.click();
-    }
-    window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
+    const target = await resolveDocUrl(url);
+    if (preview && !preview.closed) preview.location.replace(target);
+    else window.open(target, "_blank", "noopener,noreferrer");
   } catch (error) {
     if (preview && !preview.closed) preview.close();
     throw error;

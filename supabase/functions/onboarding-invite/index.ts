@@ -159,7 +159,8 @@ const DOC_KEY_MAP: Record<string, string> = {
 // extension in the path is what we enforce), and a per-field file cap.
 const UPLOAD_FIELDS = new Set(Object.keys(DOC_KEY_MAP));
 const UPLOAD_EXT = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif', 'pdf'];
-const MAX_FILES_PER_FIELD = 5;
+const MAX_FILES_PER_FIELD = 10;
+const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf']);
 const BUCKET = 'employee-documents';
 
 function fileExt(name: string): string {
@@ -167,9 +168,17 @@ function fileExt(name: string): string {
   return m ? m[1].toLowerCase() : '';
 }
 
-async function listFieldFolder(onboardingId: string, field: string): Promise<Set<string>> {
+async function listFieldObjects(onboardingId: string, field: string): Promise<Map<string, string>> {
   const { data } = await admin.storage.from(BUCKET).list(`onboarding/${onboardingId}/self/${field}`, { limit: 1000 });
-  return new Set((data || []).filter((o: any) => o.id).map((o: any) => o.name as string));
+  return new Map((data || []).filter((o: any) => o.id).map((o: any) => [o.name as string, String(o.metadata?.mimetype || '').toLowerCase()]));
+}
+async function listFieldFolder(onboardingId: string, field: string): Promise<Set<string>> {
+  return new Set((await listFieldObjects(onboardingId, field)).keys());
+}
+/** Stored content type must be an allowed one; HEIC/HEIF may report none. */
+function mimeAllowed(mime: string, ext: string): boolean {
+  if (ALLOWED_MIME.has(mime)) return true;
+  return (mime === '' || mime === 'application/octet-stream') && (ext === 'heic' || ext === 'heif');
 }
 
 /** Keep only document paths inside this onboarding's own folder for that field that really exist. */
@@ -179,14 +188,16 @@ async function sanitizeDocuments(onboardingId: string, docs: unknown): Promise<R
   for (const [field, list] of Object.entries(docs as Record<string, unknown>)) {
     if (!UPLOAD_FIELDS.has(field) || !Array.isArray(list)) continue;
     const prefix = `onboarding/${onboardingId}/self/${field}/`;
-    const existing = await listFieldFolder(onboardingId, field);
+    const existing = await listFieldObjects(onboardingId, field);
     const kept: Array<{ path: string; name: string }> = [];
     for (const f of list) {
       const path = typeof (f as any)?.path === 'string' ? (f as any).path : '';
       if (!path.startsWith(prefix)) continue;
       const rest = path.slice(prefix.length);
       if (!rest || rest.includes('/') || !existing.has(rest)) continue;
-      if (!UPLOAD_EXT.includes(fileExt(rest))) continue;
+      const ext = fileExt(rest);
+      if (!UPLOAD_EXT.includes(ext)) continue;
+      if (!mimeAllowed(existing.get(rest) || '', ext)) continue;
       const name = String((f as any)?.name || rest).slice(0, 200);
       if (!kept.some((k) => k.path === path)) kept.push({ path, name });
     }
@@ -415,6 +426,8 @@ Deno.serve(async (req) => {
     if (!invite) return json({ error }, status || 400);
 
     if (action === 'get') {
+      // A submitted form never returns the candidate's data again.
+      if (invite.status === 'submitted') return json({ status: 'submitted', submitted: true });
       if (invite.status === 'pending') {
         await admin
           .from('hr_onboarding_invites')
@@ -435,7 +448,7 @@ Deno.serve(async (req) => {
       };
       return json({
         status: invite.status === 'pending' ? 'opened' : invite.status,
-        submitted: invite.status === 'submitted',
+        submitted: false,
         payload: { ...prefill, ...(invite.payload || {}) },
       });
     }

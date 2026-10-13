@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { fetchAllPaginated } from "@/lib/fetchAllRows";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -182,7 +183,7 @@ export default function QuizDashboardPage() {
         supabase.from("cbt_drives").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_candidates").select("*").order("created_at", { ascending: false }).limit(100),
         supabase.from("cbt_attempts").select("*, cbt_candidates(full_name), cbt_job_roles(name), cbt_drives(name)").order("created_at", { ascending: false }).limit(100),
-        supabase.from("cbt_questions").select("*").order("created_at", { ascending: false }).limit(100),
+        fetchAllPaginated<any>(() => supabase.from("cbt_questions").select("*").order("created_at", { ascending: false }).order("id", { ascending: false })).then((rows) => ({ data: rows, error: null }), (error) => ({ data: null, error })),
         supabase.from("cbt_job_roles").select("*, positions(id, title, is_active, departments:department_id(code, name))").order("name").limit(100),
         supabase.from("cbt_role_sections").select("*").order("order_index"),
         supabase.from("cbt_departments").select("*").order("name"),

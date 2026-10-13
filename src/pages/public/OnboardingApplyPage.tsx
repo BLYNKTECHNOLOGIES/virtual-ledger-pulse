@@ -193,7 +193,7 @@ export default function OnboardingApplyPage() {
             <Section title="Personal details">
               <Grid>
                 <Field label="First name" required><Input value={form.first_name} onChange={(e) => set("first_name", e.target.value)} /></Field>
-                <Field label="Last name" required><Input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} /></Field>
+                <Field label="Last name (optional)"><Input value={form.last_name} onChange={(e) => set("last_name", e.target.value)} /></Field>
                 <Field label="Date of birth" required><Input type="date" value={form.date_of_birth} onChange={(e) => set("date_of_birth", e.target.value)} /></Field>
                 <Field label="Gender" required>
                   <SelectBox value={form.gender} onChange={(v) => set("gender", v)} options={[["male", "Male"], ["female", "Female"], ["other", "Other"]]} />

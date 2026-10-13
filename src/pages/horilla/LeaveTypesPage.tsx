@@ -372,7 +372,7 @@ export default function LeaveTypesPage() {
             <div className="space-y-3 border-t border-border pt-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Carry Forward</p>
               <p className="text-sm text-foreground rounded-md border border-border bg-muted/40 px-3 py-2">
-                {carryForwardPolicyLabel(editSettled)}
+                {carryForwardPolicyLabel(!!form.is_compensatory_leave)}
               </p>
               <p className="text-[11px] text-muted-foreground">Set by company policy — there is no expiry, cap or year-end reset.</p>
             </div>

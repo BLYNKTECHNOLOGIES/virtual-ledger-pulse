@@ -149,8 +149,10 @@ export default function StatutorySettingsPage() {
       return new Set<string>((data || []).map((r: any) => String(r.period_month).slice(0, 10)));
     },
   });
-  const closedNote = (m: string) => closedMonths.has(m.slice(0, 10)) ? (
-    <p className="text-xs text-destructive">Payroll for this month is already closed — pick a later month.</p>
+  // Blocked when any closed month falls on/after the effective month (carry-forward would rewrite it).
+  const isBlocked = (m: string) => !!m && [...closedMonths].some((c) => c >= m.slice(0, 7) + "-01");
+  const closedNote = (m: string) => isBlocked(m) ? (
+    <p className="text-xs text-destructive">A later or same payroll month is already closed — pick a month after the latest closed month.</p>
   ) : null;
 
   const saveMutation = useMutation({
@@ -162,7 +164,7 @@ export default function StatutorySettingsPage() {
       if (form.vpf_mode === "fixed" && val <= 0) throw new Error("VPF amount must be greater than zero");
 
       // Closed-month guard (also enforced server-side in hr_apply_statutory_change)
-      if (closedMonths.has(form.effective_from.slice(0, 10))) throw new Error("That payroll month is already closed — pick a later effective month");
+      if (isBlocked(form.effective_from)) throw new Error("A payroll month on or after this date is already closed — pick a month after the latest closed month");
 
       const { data: res, error } = await (supabase as any).rpc("hr_apply_statutory_change", {
         p_employee: editing.id,
@@ -200,7 +202,7 @@ export default function StatutorySettingsPage() {
     mutationFn: async () => {
       if (!selected.length) throw new Error("Select at least one employee");
       if (!bulk.reason.trim()) throw new Error("A reason is required");
-      if (closedMonths.has(bulk.effective_from.slice(0, 10))) throw new Error("That payroll month is already closed — pick a later effective month");
+      if (isBlocked(bulk.effective_from)) throw new Error("A payroll month on or after this date is already closed — pick a month after the latest closed month");
       let forward = 0;
       for (const id of selected) {
         const p = activeByEmp.get(id);
@@ -670,7 +672,7 @@ export default function StatutorySettingsPage() {
           <Button
             className="w-full"
             onClick={() => saveMutation.mutate()}
-            disabled={saveMutation.isPending || !form.reason.trim() || closedMonths.has(form.effective_from.slice(0, 10))}
+            disabled={saveMutation.isPending || !form.reason.trim() || isBlocked(form.effective_from)}
           >
             {saveMutation.isPending ? "Saving…" : "Save statutory settings"}
           </Button>
@@ -717,7 +719,7 @@ export default function StatutorySettingsPage() {
           <Button
             className="w-full"
             onClick={() => bulkMutation.mutate()}
-            disabled={bulkMutation.isPending || !bulk.reason.trim() || closedMonths.has(bulk.effective_from.slice(0, 10))}
+            disabled={bulkMutation.isPending || !bulk.reason.trim() || isBlocked(bulk.effective_from)}
           >
             {bulkMutation.isPending ? "Applying…" : "Apply to selected"}
           </Button>

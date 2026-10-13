@@ -61,7 +61,7 @@ export default function OrganizationPage() {
   const handleDelete = async () => {
     if (!deleteId) return;
     const { error } = await supabase.from("departments").update({ is_active: false }).eq("id", deleteId);
-    if (error) toast.error("Failed to delete"); else { toast.success("Department removed"); refresh(); }
+    if (error) toast.error("Couldn't deactivate the department"); else { toast.success("Department deactivated"); refresh(); }
     setDeleteId(null);
   };
 
@@ -119,7 +119,7 @@ export default function OrganizationPage() {
                         <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
                       </Button>
                       <Button variant="outline" size="sm" className="flex-1 h-10 text-destructive" onClick={() => setDeleteId(d.id)}>
-                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete
+                        <Trash2 className="h-3.5 w-3.5 mr-1" /> Deactivate
                       </Button>
                     </div>
                   </div>
@@ -152,10 +152,10 @@ export default function OrganizationPage() {
                         <td className="px-4 py-3 text-center tabular-nums">{deptPosCounts[d.id] || 0}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1 justify-end">
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditDept(d); setDialogOpen(true); }} aria-label={`Edit ${d.name}`} title="Edit">
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeleteId(d.id)} aria-label={`Deactivate ${d.name}`} title="Deactivate">
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
                           </div>
@@ -198,13 +198,13 @@ export default function OrganizationPage() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="text-sm font-semibold flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-destructive" /> Delete Department?
+              <Trash2 className="h-4 w-4 text-destructive" /> Deactivate department?
             </AlertDialogTitle>
-            <AlertDialogDescription>This will deactivate the department. It can be reactivated later.</AlertDialogDescription>
+            <AlertDialogDescription>It disappears from department pickers. You can reactivate it from Employees › Departments.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="h-9">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90">Deactivate</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

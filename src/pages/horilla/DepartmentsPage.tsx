@@ -192,7 +192,7 @@ export default function DepartmentsPage() {
               {d.description && <p className="text-sm text-muted-foreground mt-3 break-words">{d.description}</p>}
               <div className="flex items-center gap-2 mt-3 text-xs text-muted-foreground">
                 <Users className="h-3.5 w-3.5" />
-                {empCounts?.[d.id] || 0} employees
+                {empCounts?.[d.id] || 0} employee{(empCounts?.[d.id] || 0) === 1 ? "" : "s"}
               </div>
             </div>
           );})}
@@ -238,11 +238,13 @@ export default function DepartmentsPage() {
             <AlertDialogTitle className="text-sm font-semibold flex items-center gap-2">
               <Trash2 className="h-4 w-4 text-destructive" /> Delete Department
             </AlertDialogTitle>
-            <AlertDialogDescription>Delete "{deleteTarget?.name}"? This cannot be undone.</AlertDialogDescription>
+            <AlertDialogDescription>
+              Delete "{deleteTarget?.name}"?{(empCounts?.[deleteTarget?.id ?? ""] || 0) > 0 ? ` ${empCounts?.[deleteTarget?.id ?? ""]} employee(s) are assigned to it.` : ""} This cannot be undone.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="h-9">Cancel</AlertDialogCancel>
-            <AlertDialogAction className="h-9" onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+            <AlertDialogAction className="h-9 bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

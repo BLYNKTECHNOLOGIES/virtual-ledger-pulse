@@ -23,6 +23,15 @@ import { issueLetterForEmployee, emailIssuedLetter, findIssuedLetter } from "@/l
 import { ensureIssuedPdf } from "@/lib/ensureIssuedPdf";
 import { finalizeSeparation } from "@/lib/finalizeSeparation";
 
+/** Title and button label for each confirm step (display only). */
+const RESIGNATION_CONFIRM: Record<string, [string, string]> = {
+  approve: ["Approve resignation?", "Approve"],
+  reject: ["Reject resignation?", "Reject"],
+  withdraw: ["Withdraw resignation?", "Withdraw"],
+  finalise: ["Complete separation?", "Complete separation"],
+  delete_erp: ["Delete ERP login?", "Delete login"],
+};
+
 type ResignationEmployee = {
   id: string;
   badge_id: string;
@@ -627,8 +636,8 @@ export function ResignationTab() {
                         </div>
                         <div className="text-sm text-muted-foreground">{emp.hr_employee_work_info?.[0]?.job_role || "—"}</div>
                         <div className="text-sm space-x-4">
-                          <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString() : "—"}</strong></span>
-                          <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}</strong></span>
+                          <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
+                          <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
                         </div>
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
                       </div>
@@ -667,8 +676,8 @@ export function ResignationTab() {
                           {emp.hr_employee_work_info?.[0]?.job_role || "—"}
                         </div>
                         <div className="text-sm space-x-4">
-                          <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString() : "—"}</strong></span>
-                          <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}</strong></span>
+                          <span>Resigned: <strong>{emp.resignation_date ? new Date(emp.resignation_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
+                          <span>Last Day: <strong>{emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}</strong></span>
                         </div>
                         {emp.separation_reason && <p className="text-sm italic text-muted-foreground">Reason: {emp.separation_reason}</p>}
                       </div>
@@ -720,7 +729,7 @@ export function ResignationTab() {
                           {getStatusBadge(emp.resignation_status)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Last day: {emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString() : "—"}
+                          Last day: {emp.last_working_day ? new Date(emp.last_working_day).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                         </div>
                       </div>
                       {(() => {
@@ -1008,7 +1017,7 @@ export function ResignationTab() {
       <AlertDialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Action</AlertDialogTitle>
+            <AlertDialogTitle>{RESIGNATION_CONFIRM[confirmAction?.type ?? ""]?.[0] ?? "Confirm"}</AlertDialogTitle>
             <AlertDialogDescription>{confirmAction?.label}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1022,7 +1031,9 @@ export function ResignationTab() {
               else if (type === 'finalise') finaliseSeparationNow.mutate(id);
               else if (type === 'delete_erp') deactivateErp.mutate();
               setConfirmAction(null);
-            }}>Confirm</AlertDialogAction>
+            }} className={["reject", "withdraw", "delete_erp"].includes(confirmAction?.type ?? "") ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}>
+              {RESIGNATION_CONFIRM[confirmAction?.type ?? ""]?.[1] ?? "Confirm"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

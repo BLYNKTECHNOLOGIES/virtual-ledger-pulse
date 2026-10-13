@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { deriveEmployeeStatus, useEmployeeStatusContext, EMPLOYEE_STATUS_OPTIONS } from "@/lib/hrms/employeeStatus";
 import { useProbationStatus } from "@/hooks/useProbationStatus";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -89,7 +89,7 @@ const ALL_TABLE_COLS = [
 
 // ─── Filter field options ───
 const FILTER_FIELDS = [
-  { key: "is_active", label: "Is active", type: "select", options: [{ value: "true", label: "True" }, { value: "false", label: "False" }] },
+  { key: "is_active", label: "Employment", type: "select", options: [{ value: "true", label: "Active" }, { value: "false", label: "Inactive" }] },
   { key: "status", label: "Status", type: "select", options: EMPLOYEE_STATUS_OPTIONS },
   { key: "department", label: "Department", type: "dynamic" },
   { key: "position", label: "Job Position", type: "dynamic" },
@@ -117,7 +117,7 @@ export default function EmployeeListPage() {
 
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([
-    { field: "is_active", label: "Is active", value: "true", displayValue: "True" },
+    { field: "is_active", label: "Employment", value: "true", displayValue: "Active" },
   ]);
   const [pendingFilterField, setPendingFilterField] = useState("");
   const [pendingFilterValue, setPendingFilterValue] = useState("");
@@ -130,7 +130,7 @@ export default function EmployeeListPage() {
 
 
   // ─── Queries ───
-  const { data: employees, isLoading } = useQuery({
+  const { data: employees, isLoading, isError: employeesError } = useQuery({
     queryKey: ["hr_employees_list"],
     queryFn: async () => {
       // Fetch all employees. Razorpay-imported records are only hidden while
@@ -584,7 +584,8 @@ export default function EmployeeListPage() {
             <Search className="h-4 w-4 text-muted-foreground mr-2 shrink-0" />
             <input
               type="text"
-              placeholder="Search"
+              placeholder="Name, badge, email or phone"
+              aria-label="Search employees"
               value={searchTerm}
               onChange={(e) => { setSearchTerm(e.target.value); resetPage(); }}
               className="bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none w-full"
@@ -776,8 +777,8 @@ export default function EmployeeListPage() {
           const current = activeVal === "true" ? "active" : activeVal === "false" ? "separated" : "all";
           const setView = (view: "active" | "separated" | "all") => {
             const rest = activeFilters.filter(f => f.field !== "is_active");
-            if (view === "active") setActiveFilters([...rest, { field: "is_active", label: "Is active", value: "true", displayValue: "True" }]);
-            else if (view === "separated") setActiveFilters([...rest, { field: "is_active", label: "Is active", value: "false", displayValue: "False" }]);
+            if (view === "active") setActiveFilters([...rest, { field: "is_active", label: "Employment", value: "true", displayValue: "Active" }]);
+            else if (view === "separated") setActiveFilters([...rest, { field: "is_active", label: "Employment", value: "false", displayValue: "Inactive" }]);
             else setActiveFilters(rest);
           };
           const btn = (view: "active" | "separated" | "all", label: string) => (
@@ -796,7 +797,7 @@ export default function EmployeeListPage() {
           return (
             <div className="flex items-center gap-1">
               {btn("active", "Active")}
-              {btn("separated", "Separated")}
+              {btn("separated", "Inactive")}
               {btn("all", "All")}
             </div>
           );
@@ -833,9 +834,10 @@ export default function EmployeeListPage() {
             <button
               onClick={() => setColPickerOpen(!colPickerOpen)}
               className="p-1.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors"
-              title="Column Visibility"
+              title="Choose columns"
+              aria-label="Choose columns"
             >
-              <MoreVertical className="h-4 w-4" />
+              <Columns3 className="h-4 w-4" />
             </button>
             {colPickerOpen && (
               <>
@@ -863,16 +865,22 @@ export default function EmployeeListPage() {
       {/* ─── Content ─── */}
       {isLoading ? (
         <TableSkeleton rows={8} columns={6} />
+      ) : employeesError ? (
+        <EmptyState icon={Building2} title="Couldn't load employees" description="Refresh the page to try again. Nothing was changed." />
       ) : sorted.length === 0 ? (
         <EmptyState
-          icon={Building2}
-          title="No employees found"
-          description="Try adjusting filters or add your first employee"
-          action={
+          icon={searchTerm || activeFilters.length ? Search : Building2}
+          title={searchTerm || activeFilters.length ? "No employees match" : "No employees found"}
+          description={searchTerm || activeFilters.length ? "Check the spelling, or clear the search or filters." : "Try adjusting filters or add your first employee"}
+          action={searchTerm || activeFilters.length ? (
+            <button onClick={() => (searchTerm ? setSearchTerm("") : clearAllFilters())} className="text-sm border border-border rounded-lg px-3 py-1.5 hover:bg-muted">
+              {searchTerm ? "Clear search" : "Clear filters"}
+            </button>
+          ) : (
             <button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5 bg-[#00bcd4] text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-[#00a5bb] transition-colors">
               <Plus className="h-4 w-4" /> Add your first employee
             </button>
-          }
+          )}
         />
       ) : viewMode === "list" ? (
         /* ─── TABLE VIEW ─── */
@@ -932,9 +940,13 @@ export default function EmployeeListPage() {
                               {initials(emp.first_name, emp.last_name)}
                             </div>
                           )}
-                          <span className="font-medium text-foreground hover:text-[#00bcd4] transition-colors">
+                          <Link
+                            to={`/hrms/employee/${emp.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="font-medium text-foreground hover:text-[#00bcd4] transition-colors"
+                          >
                             {emp.first_name} {emp.last_name} ({emp.badge_id})
-                          </span>
+                          </Link>
                         </div>
                       </td>
                     )}
@@ -996,13 +1008,15 @@ export default function EmployeeListPage() {
                             onClick={(e) => { e.stopPropagation(); handleEdit(emp); }}
                             className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                             title="Edit"
+                            aria-label={`Edit ${emp.first_name} ${emp.last_name}`}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleDelete(emp); }}
                             className="p-1.5 rounded hover:bg-destructive/10 text-destructive hover:text-destructive transition-colors"
-                            title="Delete"
+                            title="Delete permanently"
+                            aria-label={`Delete ${emp.first_name} ${emp.last_name} permanently`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -1140,24 +1154,28 @@ export default function EmployeeListPage() {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-            <AlertDialogDescription>Delete {deleteTarget?.name}? This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Permanently delete {deleteTarget?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This erases the employee and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone. If they have left, use Start Separation instead; to hide them but keep their history, deactivate them.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => { if (deleteTarget) { deleteMutation.mutate(deleteTarget.id); setDeleteTarget(null); } }}>Delete permanently</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
       <AlertDialog open={bulkDeleteConfirmOpen} onOpenChange={setBulkDeleteConfirmOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Bulk Delete Employees</AlertDialogTitle>
-            <AlertDialogDescription>Delete {selectedIds.size} selected employee(s)? This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>Permanently delete {selectedIds.size} selected employee{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This erases them and everything linked to them: attendance and punches, leave, payslips, salary history, deposits, loans, documents and F&amp;F. It can't be undone.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={executeBulkDelete}>Delete</AlertDialogAction>
+            <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={executeBulkDelete}>Delete permanently</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

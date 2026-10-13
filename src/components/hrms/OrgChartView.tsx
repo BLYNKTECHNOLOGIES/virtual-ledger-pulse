@@ -736,7 +736,7 @@ export function OrgChartView() {
           {/* Chart area */}
           <div
             className="relative border border-border rounded-lg bg-background overflow-hidden flex-1"
-            style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "550px" }}
+            style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "min(550px, 60vh)" }}
           >
             {/* Zoom/pan/fullscreen controls */}
             <div className="absolute top-3 right-3 z-20 flex flex-col gap-1">
@@ -747,7 +747,7 @@ export function OrgChartView() {
                 <Button variant="secondary" size="icon" aria-label="Zoom out" className="h-8 w-8 rounded-md shadow-sm" onClick={() => handleZoom("out")}>
                   <ZoomOut className="h-4 w-4" />
                 </Button>
-                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={toggleFullscreen} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} aria-label="Collapse / Expand">
+                <Button variant="secondary" size="icon" className="h-8 w-8 rounded-md shadow-sm" onClick={toggleFullscreen} title={isFullscreen ? "Exit full screen" : "Full screen"} aria-label={isFullscreen ? "Exit full screen" : "Full screen"}>
                   {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                 </Button>
               </div>
@@ -776,7 +776,7 @@ export function OrgChartView() {
             <div
               ref={chartRef}
               className="w-full h-full overflow-hidden"
-              style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "550px", cursor: "grab", touchAction: "none" }}
+              style={{ minHeight: isFullscreen ? "calc(100vh - 70px)" : "min(550px, 60vh)", cursor: "grab", touchAction: "none" }}
               onWheel={handleWheel}
               onMouseDown={handleMouseDown}
               onMouseMove={handleMouseMove}

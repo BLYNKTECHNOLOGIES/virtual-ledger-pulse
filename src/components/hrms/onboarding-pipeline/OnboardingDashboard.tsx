@@ -246,7 +246,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     <td className="p-3 text-muted-foreground">{r.email || "—"}</td>
                     <td className="p-3">{r.status === "completed" ? "Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}</td>
                     <td className="p-3"><Badge className={`text-xs ${STATUS_COLORS[r.status] || ""}`}>{r.status.replace("_", " ")}</Badge></td>
-                    <td className="p-3"><div className="flex flex-wrap gap-1">{item("Bank", c?.has_bank)}{item("Salary", c?.has_salary)}{item("DOJ", c?.has_doj)}</div></td>
+                    <td className="p-3"><div className="flex flex-wrap gap-1">{item("Bank", c?.has_bank)}{item("Salary", c?.has_salary)}{item("Joining date", c?.has_doj)}</div></td>
                     <td className="p-3 text-muted-foreground">{format(new Date(r.created_at), "dd MMM yyyy")}</td>
                     <td className="p-3">
                        <div className="flex flex-wrap items-center gap-2">
@@ -260,7 +260,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                           </Button>
                         )}
                         {r.status !== "completed" && (
-                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setToDelete(r)} title="Delete dropped onboarding">
+                          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setToDelete(r)} title="Delete dropped onboarding" aria-label="Delete dropped onboarding">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         )}
@@ -290,7 +290,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                     </div>
                     <div className="hrms-mobile-kv"><span>Stage</span><strong>{r.status === "completed" ? "Done" : STAGE_LABELS[r.current_stage] || `Stage ${r.current_stage}`}</strong></div>
                     <div className="hrms-mobile-kv"><span>Started</span><strong>{format(new Date(r.created_at), "dd MMM yyyy")}</strong></div>
-                    <div className="flex flex-wrap gap-1">{chip("Bank", c?.has_bank)}{chip("Salary", c?.has_salary)}{chip("DOJ", c?.has_doj)}</div>
+                    <div className="flex flex-wrap gap-1">{chip("Bank", c?.has_bank)}{chip("Salary", c?.has_salary)}{chip("Joining date", c?.has_doj)}</div>
                     <div className="flex gap-2 pt-1">
                       {r.status === "cancelled" ? (
                         <Button size="sm" className="flex-1" variant="outline" disabled onClick={(e) => e.stopPropagation()}>
@@ -302,7 +302,7 @@ export function OnboardingDashboard({ onNewOnboarding, onSelectOnboarding }: Onb
                         </Button>
                       )}
                       {r.status !== "completed" && (
-                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setToDelete(r); }} title="Delete dropped onboarding">
+                        <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setToDelete(r); }} title="Delete dropped onboarding" aria-label="Delete dropped onboarding">
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}

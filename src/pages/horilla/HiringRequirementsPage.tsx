@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/shared/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ErrorState } from "@/components/shared/ErrorState";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import { usePermissions } from "@/hooks/usePermissions";
 import { HiringRequirementDialog } from "@/components/horilla/workforce/HiringRequirementDialog";
@@ -72,7 +73,7 @@ export default function HiringRequirementsPage() {
     setSearchParams(searchParams, { replace: true });
   }, [searchParams, allForLink, setSearchParams]);
 
-  const { data: requirements = [], isLoading } = useHiringRequirements();
+  const { data: requirements = [], isLoading, isError, error, refetch } = useHiringRequirements();
   const navigate = useNavigate();
   const { data: activePlans = [] } = useHeadcountPlans();
   const lineIssue = useMemo(() => {
@@ -141,6 +142,8 @@ export default function HiringRequirementsPage() {
 
       {isLoading ? (
         <TableSkeleton />
+      ) : isError ? (
+        <ErrorState title="Couldn't load hiring requirements" error={error} onRetry={() => refetch()} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ClipboardList}

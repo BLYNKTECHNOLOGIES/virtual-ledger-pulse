@@ -1,5 +1,7 @@
 import { useMailStatus } from "@/lib/ats/mail";
 import { useInterviewCounts } from "@/lib/ats/interviews";
+import { useConversationCounts } from "@/lib/ats/conversations";
+import { useAtsMailRealtime, useNeedsReplyTitle } from "@/hooks/ats/useAtsMailRealtime";
 import { useCallback, useMemo, useState } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { FileUp, Plus, UserPlus, LayoutDashboard, Users, Inbox, CalendarClock, Briefcase, BarChart3, Settings2 } from "lucide-react";
@@ -35,6 +37,11 @@ export default function AtsWorkspace() {
   const { pathname } = useLocation();
   const mailSt = useMailStatus();
   const ivCounts = useInterviewCounts();
+  const mailOn = !mailSt.isLoading && !mailSt.isError && !!mailSt.data?.enabled;
+  const convCounts = useConversationCounts(mailOn);
+  const needsReply = mailOn ? convCounts.data?.needs_reply ?? 0 : 0;
+  useAtsMailRealtime(mailOn);
+  useNeedsReplyTitle(needsReply);
   const [editor, setEditor] = useState<{ open: boolean; job: AtsJob | null; requirementId?: string | null }>({ open: false, job: null });
   const [adder, setAdder] = useState<{ open: boolean; jobId: string | null }>({ open: false, jobId: null });
   const openJobEditor = useCallback((job?: AtsJob | null, opts?: { requirementId?: string | null }) => setEditor({ open: true, job: job ?? null, requirementId: opts?.requirementId ?? null }), []);
@@ -77,7 +84,7 @@ export default function AtsWorkspace() {
                 >
                   <t.icon className="h-4 w-4 shrink-0" aria-hidden />
                   {t.label}
-                  {t.label === "Inbox" && !mailSt.isLoading && !mailSt.isError && mailSt.data?.enabled && Number(mailSt.data.unread) > 0 && <span aria-label={`${mailSt.data.unread} unread`} className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground tabular-nums">{mailSt.data.unread}</span>}
+                  {t.label === "Inbox" && mailOn && needsReply > 0 && <span aria-label={`${needsReply} replies waiting`} title="Replies waiting for you" className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground tabular-nums">{needsReply}</span>}
                   {t.label === "Interviews" && !ivCounts.isLoading && !ivCounts.isError && (ivCounts.data?.today ?? 0) > 0 && <span aria-label={`${ivCounts.data?.today} today`} title={`${ivCounts.data?.today} today · ${ivCounts.data?.action} need an update`} className="ml-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold leading-none text-primary-foreground tabular-nums">{ivCounts.data?.today}</span>}
                 </NavLink>
               );
